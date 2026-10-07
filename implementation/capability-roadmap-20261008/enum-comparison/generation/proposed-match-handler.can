@@ -1,0 +1,22 @@
+ ## Added bounded comparison handler; PROPOSED enum-only match syntax; uncompiled evidence.
+ scenario status_text(job:Job) read=true -> text by=members
+  do
+   let state=job.status
+   match state
+    case idle
+     return "Ready to queue"
+    case queued
+     return "Queued for generation"
+    case generating
+     return "Generating"
+    case ready
+     return "Generation complete"
+    case failed
+     return "Generation failed"
+  examples job=job
+   as,job.status -> result
+   members,idle -> "Ready to queue"
+   members,queued -> "Queued for generation"
+   members,generating -> "Generating"
+   members,ready -> "Generation complete"
+   members,failed -> "Generation failed"

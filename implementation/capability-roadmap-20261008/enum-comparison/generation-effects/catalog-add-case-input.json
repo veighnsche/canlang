@@ -1,0 +1,13 @@
+{
+  "status": "proposed catalog mutation input; unexecuted",
+  "source": "compiler/src/analysis/catalog.rs",
+  "owner": "ImageRun.state",
+  "current": "enum(queued,running,succeeded,failed,unknown,cancelled)",
+  "proposed": "enum(queued,running,succeeded,failed,unknown,cancelled,paused)",
+  "consumer_sources": [
+    "current-if-full.can",
+    "improved-if-analysis-full.can",
+    "proposed-match-full.can"
+  ],
+  "expected": "current membership deliberately keeps paused nonterminal; proposed match lacks paused; no observed diagnostics"
+}

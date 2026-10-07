@@ -1,0 +1,10 @@
+{
+  "status": "unresolved",
+  "compilerExit": 0,
+  "callable": "Unsupported.wait",
+  "authoredType": "duration",
+  "generatedOperations": [],
+  "loaderAccepted": true,
+  "loadedRegistrySize": 0,
+  "requiredHandoff": "Intentional MCP-only omission is documented in compiler/src/codegen/js.rs collect_operations. Schema and consumer owners must distinguish publication subset from executable State metadata and provide precise unsupported-input rejection or a supported duration seam for F1. Callable emission alone is not an executable State operation."
+}

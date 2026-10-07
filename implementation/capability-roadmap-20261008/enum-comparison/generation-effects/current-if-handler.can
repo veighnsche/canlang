@@ -1,0 +1,29 @@
+  scenario image_progressed on=Images.submit.progressed
+   do
+    for run in Run as row where row.request?.id==event.delivery_id limit=1
+     let value=run.request?.progress
+     if value!=null
+      require count(value.outputs)<=run.revision.outputs and (value.state!=succeeded or count(value.outputs)>0)
+      require run.used==null or run.used==value.charged_jobs
+      if run.used==null and value.charged_jobs!=null
+       set run.budget {held=run.budget.held-1,spent=run.budget.spent+value.charged_jobs}
+       set run {used=value.charged_jobs}
+      if run.unfinished and value.state in [succeeded,failed,cancelled]
+       set run.budget {running=run.budget.running-1}
+       set run {unfinished=false}
+      for output in value.outputs limit=4
+       if not any(run.Output as row,row.position==output.position)
+        create Output {parent=run,position=output.position,image=output.image} as saved
+   examples seed=[pending_run,image] event={delivery_id=observed_request.id}
+    observed_request.result -> pending_run.state,pending_run.used,held_budget.held,held_budget.spent,held_budget.running,count(pending_run.Output)
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null} -> succeeded,1,0,1,0,1
+    ImageRun {source="creative-pending",revision=1,sequence=1,state=queued,outputs=[],charged_jobs=null,detail=null} -> queued,null,1,0,1,0
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=unknown,outputs=[],charged_jobs=null,detail=null} -> unknown,null,1,0,1,0
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=cancelled,outputs=[],charged_jobs=null,detail=null} -> cancelled,null,1,0,0,0
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=failed,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null} -> failed,1,0,1,0,1
+   examples seed=[pending_run,prior_output] event={delivery_id=observed_request.id}
+    observed_request.result,pending_run.used,pending_run.unfinished,held_budget.held,held_budget.spent,held_budget.running -> held_budget.held,held_budget.spent,held_budget.running,count(pending_run.Output)
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null},1,false,0,1,0 -> 0,1,0,1
+   examples seed=[pending_run] event={delivery_id=observed_request.id}
+    observed_request.result,pending_run.unfinished,held_budget.running -> pending_run.used,held_budget.held,held_budget.spent,held_budget.running
+    ImageRun {source="creative-pending",revision=1,sequence=3,state=cancelled,outputs=[],charged_jobs=1,detail=null},false,0 -> 1,0,1,0

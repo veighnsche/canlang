@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+import {loadArtifactDescriptors} from '/private/tmp/canlang-roadmap-f1-db57c379/packages/state/dist/src/invocation/registry.js';
+const artifact=JSON.parse(await readFile(new URL('./artifacts/unsupported-compile.json',import.meta.url)));
+assert.equal(artifact.callables[0].id,'Unsupported.wait');
+assert.deepEqual(artifact.operations,[]);
+const loaded=loadArtifactDescriptors(artifact,{by:'public'});
+assert.equal(loaded.registry.size,0);
+const result={status:'unresolved',compilerExit:0,callable:'Unsupported.wait',authoredType:'duration',generatedOperations:artifact.operations,loaderAccepted:true,loadedRegistrySize:loaded.registry.size,requiredHandoff:'Intentional MCP-only omission is documented in compiler/src/codegen/js.rs collect_operations. Schema and consumer owners must distinguish publication subset from executable State metadata and provide precise unsupported-input rejection or a supported duration seam for F1. Callable emission alone is not an executable State operation.'};
+await writeFile(new URL('./unsupported-results.json',import.meta.url),JSON.stringify(result,null,2)+'\n');
+console.log('Unresolved: duration scenario emits callable but no descriptor; State accepts empty set.');

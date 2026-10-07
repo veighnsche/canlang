@@ -1,0 +1,24 @@
+{
+  "status": "corrected-preparation-awaiting-independent-recheck",
+  "decision": "no contract adoption",
+  "verification": [
+    "byte-preserved full original app witnesses",
+    "current-if and improved-if-analysis byte identity",
+    "raw JSON valid"
+  ],
+  "not_run": [
+    "compiler",
+    "tests",
+    "builds",
+    "remote calls",
+    "JEV"
+  ],
+  "open": [
+    "SEQ-001 pin reconciliation",
+    "acceptance of added finite read witnesses versus existing boolean/UI authoring boundaries",
+    "model/compiler token measurement",
+    "compiled causal/rollback route",
+    "independent review"
+  ],
+  "corrections": "ER-01 through ER-05 source/setup/proxy corrections; no accepted diagnostic or token value gate"
+}

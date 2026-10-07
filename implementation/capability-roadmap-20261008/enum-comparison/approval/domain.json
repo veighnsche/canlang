@@ -1,0 +1,18 @@
+{
+  "owner": "Submission.state",
+  "cases": [
+    "pending",
+    "approved",
+    "rejected",
+    "withdrawn"
+  ],
+  "expected": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "withdrawn": "Withdrawn"
+  },
+  "baseline_else_covers": "withdrawn",
+  "added_case": "deferred",
+  "omitted_case": "rejected"
+}

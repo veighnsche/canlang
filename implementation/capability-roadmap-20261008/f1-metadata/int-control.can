@@ -1,0 +1,7 @@
+## Complete duration input witness; preserve any exact producer/consumer rejection.
+app Unsupported
+Given
+When
+ scenario wait(value:int) by=public
+  do require true
+Then

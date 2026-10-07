@@ -1,0 +1,274 @@
+{
+  "status": "corrections prepared, root/reviewer recheck pending",
+  "addressed": [
+    "ER-01 seeded reviewer positive rows and submitter withdrawn row",
+    "ER-02 seeded recruiter current employee grant",
+    "ER-03 per-case route/setup, body vs admission first-error split",
+    "ER-04 concrete source probes/mutations; unresolved effectful instrumentation explicitly future",
+    "ER-05 principal refresh and packet-wide source proxies; token gate remains open"
+  ],
+  "integrity": [
+    "original copies SHA-256 unchanged",
+    "current/improved main sources byte-identical",
+    "all approval/hiring variant tables have seeded grants",
+    "no reviewer-withdrawn positive"
+  ],
+  "changed_files": [
+    {
+      "path": "README.md",
+      "sha256": "48c3cabb7a0bb330e3c40e4425bfca3606546ba4f251a3afba75af0701ef0e61",
+      "change": "modified"
+    },
+    {
+      "path": "approval/current-if-add-case-full.can",
+      "sha256": "bae3f2a5727e4c410ebc973b9da6347e2f598d7c7c98b106c39cb176172a130e",
+      "change": "modified"
+    },
+    {
+      "path": "approval/current-if-full.can",
+      "sha256": "df63aa1784177bc9cc19724c0d74fcf93101a611b2fd43cec8c635513e3a7ea6",
+      "change": "modified"
+    },
+    {
+      "path": "approval/current-if-handler.can",
+      "sha256": "eece55ebf1862e5d790af2c94a026b558f0da93770bf1dbaca3c864d8d86c07f",
+      "change": "modified"
+    },
+    {
+      "path": "approval/current-if-omit-case-full.can",
+      "sha256": "0ae40cea7bb69994ffbbadc8b4dd4d80704b43ca8004c638302980cd5971d21a",
+      "change": "added"
+    },
+    {
+      "path": "approval/current-if-remove-owner-case-full.can",
+      "sha256": "3299ebcae0a2facfa9b23691907d8d1b65a9e9f3989ce0153575854fb820c785",
+      "change": "added"
+    },
+    {
+      "path": "approval/improved-if-analysis-add-case-full.can",
+      "sha256": "bae3f2a5727e4c410ebc973b9da6347e2f598d7c7c98b106c39cb176172a130e",
+      "change": "modified"
+    },
+    {
+      "path": "approval/improved-if-analysis-full.can",
+      "sha256": "df63aa1784177bc9cc19724c0d74fcf93101a611b2fd43cec8c635513e3a7ea6",
+      "change": "modified"
+    },
+    {
+      "path": "approval/improved-if-analysis-handler.can",
+      "sha256": "eece55ebf1862e5d790af2c94a026b558f0da93770bf1dbaca3c864d8d86c07f",
+      "change": "modified"
+    },
+    {
+      "path": "approval/improved-if-analysis-omit-case-full.can",
+      "sha256": "0ae40cea7bb69994ffbbadc8b4dd4d80704b43ca8004c638302980cd5971d21a",
+      "change": "added"
+    },
+    {
+      "path": "approval/improved-if-analysis-remove-owner-case-full.can",
+      "sha256": "3299ebcae0a2facfa9b23691907d8d1b65a9e9f3989ce0153575854fb820c785",
+      "change": "added"
+    },
+    {
+      "path": "approval/proposed-match-add-case-full.can",
+      "sha256": "02a6321394f430f3877734b57c1c92b6b26b38e0a3efb09a0d501cf45f7be482",
+      "change": "modified"
+    },
+    {
+      "path": "approval/proposed-match-full.can",
+      "sha256": "e8055a896812dbdb4a5ef2bbcaf4cdceff35717fb425ea919511f8218b3206c3",
+      "change": "modified"
+    },
+    {
+      "path": "approval/proposed-match-handler.can",
+      "sha256": "a59ed681c3cf74e7062085fa285c79f0ee890e50a372ed78bfa5f5d28dfb9506",
+      "change": "modified"
+    },
+    {
+      "path": "approval/proposed-match-omit-case-full.can",
+      "sha256": "3ecec3b7e0a2e933467188fddd354d2f9598afde8b66584c42b79b3b8e0dce8b",
+      "change": "modified"
+    },
+    {
+      "path": "approval/proposed-match-remove-owner-case-full.can",
+      "sha256": "d1065bb66bad7aa5ba4860cc998d1d34703aa47163974be8e49932d89fb9ecee",
+      "change": "added"
+    },
+    {
+      "path": "expected-cases.json",
+      "sha256": "235d00de2f506aa83f178b9296ada5e9856b89c78cea3b993b27a62eb75780e0",
+      "change": "modified"
+    },
+    {
+      "path": "generation/current-if-omit-case-full.can",
+      "sha256": "df261764ddc786e0db7c77c246ef96cf378b69580d1617c08ff812dda03eeae7",
+      "change": "added"
+    },
+    {
+      "path": "generation/current-if-remove-owner-case-full.can",
+      "sha256": "3f39207d59de3c18f4a7c00b5c1b05ce71bd82cafbe4d7c295e68cc8a6f52379",
+      "change": "added"
+    },
+    {
+      "path": "generation/improved-if-analysis-omit-case-full.can",
+      "sha256": "df261764ddc786e0db7c77c246ef96cf378b69580d1617c08ff812dda03eeae7",
+      "change": "added"
+    },
+    {
+      "path": "generation/improved-if-analysis-remove-owner-case-full.can",
+      "sha256": "3f39207d59de3c18f4a7c00b5c1b05ce71bd82cafbe4d7c295e68cc8a6f52379",
+      "change": "added"
+    },
+    {
+      "path": "generation/proposed-match-remove-owner-case-full.can",
+      "sha256": "eb1ab1c5d710f38abd53a80c0e771e478e5e95afee0f658dd9036963a1959d75",
+      "change": "added"
+    },
+    {
+      "path": "generation-effects/catalog-add-case-input.json",
+      "sha256": "03041c9ea01da08b108bd759568b808e4fd7e46051d9ce81fae9062b66364ac5",
+      "change": "added"
+    },
+    {
+      "path": "measurements.json",
+      "sha256": "b76b30ac99ac08e6584b43fcdbcc285f4dd9dbdf064c92f2d09fd33a21251253",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/current-if-add-case-full.can",
+      "sha256": "071333d3e3439e9cd606d697376d8cfe63869eb483763bfa23c6ae6756df5fed",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/current-if-full.can",
+      "sha256": "7e32015268f2a5d7046635df1bf7a3bdc6b322ea08d6ea56a47e451d00a57752",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/current-if-handler.can",
+      "sha256": "cb29d955ea1bfa5a3504ac518a5a4d8a6599bccbf3bbf062565921b31804b32b",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/current-if-omit-case-full.can",
+      "sha256": "1e708c9cf5f019e9794b6bc21e0e11dba0554848234540b4602df9fe11fe8d18",
+      "change": "added"
+    },
+    {
+      "path": "ordinary/current-if-remove-owner-case-full.can",
+      "sha256": "6e5671fc931d2f92988e532525069211bb76ecd563c42d015e1b55ebdfd38bb9",
+      "change": "added"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-add-case-full.can",
+      "sha256": "071333d3e3439e9cd606d697376d8cfe63869eb483763bfa23c6ae6756df5fed",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-full.can",
+      "sha256": "7e32015268f2a5d7046635df1bf7a3bdc6b322ea08d6ea56a47e451d00a57752",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-handler.can",
+      "sha256": "cb29d955ea1bfa5a3504ac518a5a4d8a6599bccbf3bbf062565921b31804b32b",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-omit-case-full.can",
+      "sha256": "1e708c9cf5f019e9794b6bc21e0e11dba0554848234540b4602df9fe11fe8d18",
+      "change": "added"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-remove-owner-case-full.can",
+      "sha256": "6e5671fc931d2f92988e532525069211bb76ecd563c42d015e1b55ebdfd38bb9",
+      "change": "added"
+    },
+    {
+      "path": "ordinary/proposed-match-add-case-full.can",
+      "sha256": "227aa665e13ef45f186ce80b79b2b1f47629646c31256a4d7a5b3ca4bb51c1ab",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/proposed-match-full.can",
+      "sha256": "218b61cda48e4fcb4f3e779363fce3a32abc4742e6cc54182d4e424149781dab",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/proposed-match-handler.can",
+      "sha256": "364f820dbf99e1d95550159d83f0b3a1cb6de0254ae90aabca74790bab68094e",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/proposed-match-omit-case-full.can",
+      "sha256": "ca531f551094c0deb7425656e9ca7baeaff4d087d44a17bd37886f9a6581e188",
+      "change": "modified"
+    },
+    {
+      "path": "ordinary/proposed-match-remove-owner-case-full.can",
+      "sha256": "e7be35c2dac729b546f1b48e5e5b5a4e05ae6747c99d037bd50568600fd4fc6a",
+      "change": "added"
+    },
+    {
+      "path": "packet-source-costs.json",
+      "sha256": "42979e8200a2ac3802fa4085760c4b381f2b5f2e1d115e89976a47a4547261d6",
+      "change": "added"
+    },
+    {
+      "path": "packet-source-hashes.json",
+      "sha256": "b612b01ab46ef7dd59e1329d130cc00cce44bea42454849971537d476fcf3def",
+      "change": "added"
+    },
+    {
+      "path": "proposed-contract-inputs/branch-scope.can",
+      "sha256": "296e9122ea83ffdf0f60183c0fa37ebbeecf0aa4caebe18a45b97ef6de8f2bb3",
+      "change": "added"
+    },
+    {
+      "path": "proposed-contract-inputs/duplicate-case.can",
+      "sha256": "bf3abdcc6c862c4a94cfd633a8d19d6c1cc74faa042654bfe866b2c616a4ff0c",
+      "change": "added"
+    },
+    {
+      "path": "proposed-contract-inputs/foreign-case.can",
+      "sha256": "941e904f0bc6b80c7d3528375c27f300c2344c28f6191366d5eecbb1ce2d1d2c",
+      "change": "added"
+    },
+    {
+      "path": "proposed-contract-inputs/lexical-collision.can",
+      "sha256": "da29e02ce411f68372256cf24515d4d72f50f6b3d4f28a7a46bbff818cb56093",
+      "change": "added"
+    },
+    {
+      "path": "proposed-contract-inputs/nullable-guarded.can",
+      "sha256": "2a631bb224a15ae833d4b61eede16d9c58b493395e45bbc76917a7ec982436b5",
+      "change": "added"
+    },
+    {
+      "path": "proposed-contract-inputs/nullable-subject.can",
+      "sha256": "b1fefb56e4b5218fd4525725ddf54fe6a8681bfd361fa49e276710232f6e3a68",
+      "change": "added"
+    },
+    {
+      "path": "proposed-contract-inputs/unsupported-wildcard.can",
+      "sha256": "05430824560039260aec30cb0f094f7dc50b3295691ce70e6944e943bd98004c",
+      "change": "added"
+    },
+    {
+      "path": "proposed-contract-inputs/wrong-return-type.can",
+      "sha256": "da27b7eecd533462c0c2c4585c470f9427f4ad8fc518a3b34cb617eed809f095",
+      "change": "added"
+    },
+    {
+      "path": "status.json",
+      "sha256": "477c938d7e06888f4294eb121690678ac965c8b43b2dbaca815264d2e3206223",
+      "change": "modified"
+    }
+  ],
+  "not_performed": [
+    "compiler/build/tests",
+    "Git actions",
+    "remote/JEV calls",
+    "accepted contract adoption"
+  ]
+}

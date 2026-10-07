@@ -1,0 +1,58 @@
+{
+  "status": "prepared; awaits SEQ-001 reconciliation and independent review",
+  "head_observed": "c718517a5aae8481a8b548a7eb299b8c5377dee6",
+  "sources": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+      "bytes": 1886
+    },
+    {
+      "path": "examples/Generation.can",
+      "sha256": "2a72305a6aeeb7e9a7b99d0edee68149f61c0c106fe376b950a908a7740edc51",
+      "bytes": 1410
+    },
+    {
+      "path": "draft/CanCreative.can",
+      "sha256": "a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52",
+      "bytes": 23221
+    },
+    {
+      "path": "draft/CanApprove.can",
+      "sha256": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981",
+      "bytes": 32502
+    },
+    {
+      "path": "examples/TeamTasks.can",
+      "sha256": "78020054ba06d0282047d4c400487ea1da070e7ebdb624637f0ff1802683f3d0",
+      "bytes": 3301
+    },
+    {
+      "path": "docs/specification/GRAMMAR.md",
+      "sha256": "b3dcf61119cc2c4e2e9ac7ff969211f948ddf572e3a707f47976fe9411c1db9a",
+      "bytes": 67347
+    },
+    {
+      "path": "design/language-proposals-20261007/implementation-plan.md",
+      "sha256": "c1714a807d3a2d8eb0090d2bd64b9e59f68bba3fbba53e741069e3221b35ac84",
+      "bytes": 38572
+    },
+    {
+      "path": "draft/CanHire.can",
+      "sha256": "37c5a6255fc04dfc8ebd33355a9e1fb4252c3c2356753456852ef1e890d9f877",
+      "bytes": 34746
+    },
+    {
+      "path": "compiler/src/analysis/catalog.rs",
+      "sha256": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+      "bytes": 102431,
+      "use": "read-only syntax/domain inspection, not compiler acceptance"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "sha256": "87aa962dd5de5aec9ee73f82e25cf1d2cbc0553ec2c6ffc0f64cdd6e5f65b806",
+      "bytes": 258807,
+      "use": "read-only syntax/domain inspection, not compiler acceptance"
+    }
+  ]
+}

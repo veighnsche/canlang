@@ -1,0 +1,26 @@
+  ## Added bounded comparison handler; PROPOSED enum-only match syntax; uncompiled evidence.
+  scenario stage_text(candidate:Candidate) read=true -> text by=recruiter
+   require can_work(actor,candidate.parent.location)
+   do
+    let state=candidate.stage
+    match state
+     case applied
+      return "Applied"
+     case interview
+      return "Interview"
+     case offer
+      return "Offer"
+     case hired
+      return "Hired"
+     case rejected
+      return "Rejected"
+     case withdrawn
+      return "Withdrawn"
+   examples seed=[test_worker] candidate=applicant
+    as,candidate.stage -> result
+    recruiter,applied -> "Applied"
+    recruiter,interview -> "Interview"
+    recruiter,offer -> "Offer"
+    recruiter,hired -> "Hired"
+    recruiter,rejected -> "Rejected"
+    recruiter,withdrawn -> "Withdrawn"

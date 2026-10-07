@@ -1,0 +1,36 @@
+{
+  "planning_only": true,
+  "client_date": "2026-10-08",
+  "captured_utc": "2026-10-07T22:02:10.688919+00:00",
+  "tasks_with_model_effort_rationale": 63,
+  "profile_counts": {
+    "luna_medium": 2,
+    "sol_low": 2,
+    "sol_high": 36,
+    "sol_medium": 14,
+    "astra_medium": 3,
+    "astra_high": 6
+  },
+  "all63_unique": true,
+  "supported_skill_approved_profiles": true,
+  "all_markdown_JSON_selections_match": true,
+  "original_task_fields_preserved": true,
+  "original_dependency_and_conditional_DAG_checks": "task-sequence-verification.json passes;31packets/21proposals retained",
+  "independent_allocation_review": "Initial independent mapping adopted; final artifact review found no material issue.",
+  "decision_append_prior_bytes_preserved": true,
+  "decision_writer_released": true,
+  "coordinator_or_existing_chat_models_changed": false,
+  "product_implementation_dispatched": false,
+  "Git_staging_or_commits": false,
+  "product_tests": "Not run; planning metadata/docs only.",
+  "authored_links_verified": 46,
+  "artifact_sha256": {
+    "model-allocation.md": "fead5294a2cf5c811101474bd48ae624d8d1193ff190cfc4761da8d411e746f5",
+    "model-allocation-review.json": "5516e567b45bf5545e644ed757ee4de3013ac3c32f6f28a6afeb11d26c920ef2",
+    "model-allocation-decision-append.json": "5ec36bd406354b9810b0b718b4245dc3eef5490c27075f3106eb05c1abcf05c7",
+    "task-sequence.md": "6544de51099ce8f22b9f78559f5ab4d1a6e78f47b24cb5c0c32a4ea86bdedf86",
+    "task-sequence.json": "c0852b1f31e503003b08d0ecee5561288345e7baf99fa561e13280979472f391",
+    "task-sequence-verification.json": "8feea55abeb99d3602cfff9ea33137359af32f6e36ba45e1cdf424052c706c75"
+  },
+  "errors": []
+}

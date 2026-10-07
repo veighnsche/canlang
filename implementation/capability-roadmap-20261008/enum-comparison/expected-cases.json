@@ -1,0 +1,988 @@
+{
+  "status": "raw author expectations, not independently approved or executed",
+  "cases": [
+    {
+      "id": "generation-value-idle",
+      "route": "generation",
+      "subject": "idle",
+      "expected_return": "Ready to queue",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read status_text; actual released facade not yet qualified",
+        "caller": "self with active same-team members grant (inline alias members)",
+        "membership": "active same-team member",
+        "seed": [
+          "job"
+        ],
+        "location": "not used",
+        "work_grants": "not used",
+        "reference": "existing job fixture readable through policy Job read=members",
+        "admission": "readable reference assumed for value rows; no protected-read error code asserted"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "generation-value-queued",
+      "route": "generation",
+      "subject": "queued",
+      "expected_return": "Queued for generation",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read status_text; actual released facade not yet qualified",
+        "caller": "self with active same-team members grant (inline alias members)",
+        "membership": "active same-team member",
+        "seed": [
+          "job"
+        ],
+        "location": "not used",
+        "work_grants": "not used",
+        "reference": "existing job fixture readable through policy Job read=members",
+        "admission": "readable reference assumed for value rows; no protected-read error code asserted"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "generation-value-generating",
+      "route": "generation",
+      "subject": "generating",
+      "expected_return": "Generating",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read status_text; actual released facade not yet qualified",
+        "caller": "self with active same-team members grant (inline alias members)",
+        "membership": "active same-team member",
+        "seed": [
+          "job"
+        ],
+        "location": "not used",
+        "work_grants": "not used",
+        "reference": "existing job fixture readable through policy Job read=members",
+        "admission": "readable reference assumed for value rows; no protected-read error code asserted"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "generation-value-ready",
+      "route": "generation",
+      "subject": "ready",
+      "expected_return": "Generation complete",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read status_text; actual released facade not yet qualified",
+        "caller": "self with active same-team members grant (inline alias members)",
+        "membership": "active same-team member",
+        "seed": [
+          "job"
+        ],
+        "location": "not used",
+        "work_grants": "not used",
+        "reference": "existing job fixture readable through policy Job read=members",
+        "admission": "readable reference assumed for value rows; no protected-read error code asserted"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "generation-value-failed",
+      "route": "generation",
+      "subject": "failed",
+      "expected_return": "Generation failed",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read status_text; actual released facade not yet qualified",
+        "caller": "self with active same-team members grant (inline alias members)",
+        "membership": "active same-team member",
+        "seed": [
+          "job"
+        ],
+        "location": "not used",
+        "work_grants": "not used",
+        "reference": "existing job fixture readable through policy Job read=members",
+        "admission": "readable reference assumed for value rows; no protected-read error code asserted"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "generation-new-case",
+      "route": "generation",
+      "mutation": "append paused to Job.status",
+      "current_if": {
+        "expected_return": "Generation failed",
+        "reason": "deliberate final else"
+      },
+      "improved_if_analysis": {
+        "expected": "accept; informational uncovered explicit case paused",
+        "error_required": false
+      },
+      "proposed_match": {
+        "expected": "reject missing case paused",
+        "runtime_execution": false
+      },
+      "setup": {
+        "chosen_route": "proposed added user read status_text; actual released facade not yet qualified",
+        "caller": "self with active same-team members grant (inline alias members)",
+        "membership": "active same-team member",
+        "seed": [
+          "job"
+        ],
+        "location": "not used",
+        "work_grants": "not used",
+        "reference": "existing job fixture readable through policy Job read=members",
+        "admission": "readable reference assumed for value rows; no protected-read error code asserted"
+      },
+      "verification": "source-derived author expectation, unexecuted"
+    },
+    {
+      "id": "generation-omitted-case",
+      "route": "generation",
+      "mutation": "remove branch for generating while owner retains it",
+      "current_if": {
+        "expected_return": "Generation failed"
+      },
+      "improved_if_analysis": {
+        "expected": "accept intentional else; report uncovered explicit case generating"
+      },
+      "proposed_match": {
+        "expected": "reject missing case generating"
+      },
+      "setup": {
+        "chosen_route": "proposed added user read status_text; actual released facade not yet qualified",
+        "caller": "self with active same-team members grant (inline alias members)",
+        "membership": "active same-team member",
+        "seed": [
+          "job"
+        ],
+        "location": "not used",
+        "work_grants": "not used",
+        "reference": "existing job fixture readable through policy Job read=members",
+        "admission": "readable reference assumed for value rows; no protected-read error code asserted"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "raw_sources": [
+        "generation/current-if-omit-case-full.can",
+        "generation/improved-if-analysis-omit-case-full.can",
+        "generation/proposed-match-omit-case-full.can"
+      ]
+    },
+    {
+      "id": "generation-removed-owner-case",
+      "route": "generation",
+      "mutation": "remove generating from enum owner but retain branch",
+      "expected": "foreign/stale case diagnostic for match; normal expected-enum identity error for if unless a real lexical binding claims spelling; do not reinterpret a bound name",
+      "setup": {
+        "chosen_route": "proposed added user read status_text; actual released facade not yet qualified",
+        "caller": "self with active same-team members grant (inline alias members)",
+        "membership": "active same-team member",
+        "seed": [
+          "job"
+        ],
+        "location": "not used",
+        "work_grants": "not used",
+        "reference": "existing job fixture readable through policy Job read=members",
+        "admission": "readable reference assumed for value rows; no protected-read error code asserted"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "raw_sources": [
+        "generation/current-if-remove-owner-case-full.can",
+        "generation/improved-if-analysis-remove-owner-case-full.can",
+        "generation/proposed-match-remove-owner-case-full.can"
+      ],
+      "classification": "full domain mutation, uncompiled; retained original operations/examples may also fail after case removal, no isolated first-error claim"
+    },
+    {
+      "id": "approval-value-pending",
+      "route": "approval",
+      "subject": "pending",
+      "expected_return": "Pending",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "reviewer_user with reviewer role",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "reviewer_worker.active=true, user=reviewer_user, home/locations include test_site",
+        "reference": "pending_version readable by assigned reviewer only when state!=withdrawn and current can_work grant holds",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "approval-value-approved",
+      "route": "approval",
+      "subject": "approved",
+      "expected_return": "Approved",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "reviewer_user with reviewer role",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "reviewer_worker.active=true, user=reviewer_user, home/locations include test_site",
+        "reference": "pending_version readable by assigned reviewer only when state!=withdrawn and current can_work grant holds",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "approval-value-rejected",
+      "route": "approval",
+      "subject": "rejected",
+      "expected_return": "Rejected",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "reviewer_user with reviewer role",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "reviewer_worker.active=true, user=reviewer_user, home/locations include test_site",
+        "reference": "pending_version readable by assigned reviewer only when state!=withdrawn and current can_work grant holds",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "approval-value-withdrawn",
+      "route": "approval",
+      "subject": "withdrawn",
+      "expected_return": "Withdrawn",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "self, document submitter",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "not required for submitter read clause; reviewer_worker still seeded equally across variants",
+        "reference": "pending_version state=withdrawn; visible under submitter policy",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "approval-new-case",
+      "route": "approval",
+      "mutation": "append deferred to Submission.state",
+      "current_if": {
+        "expected_return": "Withdrawn",
+        "reason": "deliberate final else"
+      },
+      "improved_if_analysis": {
+        "expected": "accept; informational uncovered explicit case deferred",
+        "error_required": false
+      },
+      "proposed_match": {
+        "expected": "reject missing case deferred",
+        "runtime_execution": false
+      },
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "self, document submitter",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "not required by submitter read clause",
+        "reference": "existing pending_version visible under submitter policy for admitted retained/mutated state",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted"
+    },
+    {
+      "id": "approval-omitted-case",
+      "route": "approval",
+      "mutation": "remove branch for rejected while owner retains it",
+      "current_if": {
+        "expected_return": "Withdrawn"
+      },
+      "improved_if_analysis": {
+        "expected": "accept intentional else; report uncovered explicit case rejected"
+      },
+      "proposed_match": {
+        "expected": "reject missing case rejected"
+      },
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "self, document submitter",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "not required by submitter read clause",
+        "reference": "existing pending_version visible under submitter policy for admitted retained/mutated state",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "raw_sources": [
+        "approval/current-if-omit-case-full.can",
+        "approval/improved-if-analysis-omit-case-full.can",
+        "approval/proposed-match-omit-case-full.can"
+      ]
+    },
+    {
+      "id": "approval-removed-owner-case",
+      "route": "approval",
+      "mutation": "remove rejected from enum owner but retain branch",
+      "expected": "foreign/stale case diagnostic for match; normal expected-enum identity error for if unless a real lexical binding claims spelling; do not reinterpret a bound name",
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "self, document submitter",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "not required by submitter read clause",
+        "reference": "existing pending_version visible under submitter policy for admitted retained/mutated state",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "raw_sources": [
+        "approval/current-if-remove-owner-case-full.can",
+        "approval/improved-if-analysis-remove-owner-case-full.can",
+        "approval/proposed-match-remove-owner-case-full.can"
+      ],
+      "classification": "full domain mutation, uncompiled; retained original operations/examples may also fail after case removal, no isolated first-error claim"
+    },
+    {
+      "id": "ordinary-value-applied",
+      "route": "ordinary",
+      "subject": "applied",
+      "expected_return": "Applied",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "self with recruiter role (inline alias recruiter)",
+        "membership": "active same-team member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "applicant readable by recruiter with current can_work grant",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "ordinary-value-interview",
+      "route": "ordinary",
+      "subject": "interview",
+      "expected_return": "Interview",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "self with recruiter role (inline alias recruiter)",
+        "membership": "active same-team member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "applicant readable by recruiter with current can_work grant",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "ordinary-value-offer",
+      "route": "ordinary",
+      "subject": "offer",
+      "expected_return": "Offer",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "self with recruiter role (inline alias recruiter)",
+        "membership": "active same-team member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "applicant readable by recruiter with current can_work grant",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "ordinary-value-hired",
+      "route": "ordinary",
+      "subject": "hired",
+      "expected_return": "Hired",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "self with recruiter role (inline alias recruiter)",
+        "membership": "active same-team member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "applicant readable by recruiter with current can_work grant",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "ordinary-value-rejected",
+      "route": "ordinary",
+      "subject": "rejected",
+      "expected_return": "Rejected",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "self with recruiter role (inline alias recruiter)",
+        "membership": "active same-team member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "applicant readable by recruiter with current can_work grant",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "ordinary-value-withdrawn",
+      "route": "ordinary",
+      "subject": "withdrawn",
+      "expected_return": "Withdrawn",
+      "writes": [],
+      "sends": [],
+      "evaluation_count": 1,
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "self with recruiter role (inline alias recruiter)",
+        "membership": "active same-team member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "applicant readable by recruiter with current can_work grant",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "evaluation_scope": "once-bound subject inside do only; guard/policy may separately read same field"
+    },
+    {
+      "id": "ordinary-new-case",
+      "route": "ordinary",
+      "mutation": "append screening to Candidate.stage",
+      "current_if": {
+        "expected_return": "Withdrawn",
+        "reason": "deliberate final else"
+      },
+      "improved_if_analysis": {
+        "expected": "accept; informational uncovered explicit case screening",
+        "error_required": false
+      },
+      "proposed_match": {
+        "expected": "reject missing case screening",
+        "runtime_execution": false
+      },
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "self with recruiter role (inline alias recruiter)",
+        "membership": "active same-team member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "applicant readable by recruiter with current can_work grant",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted"
+    },
+    {
+      "id": "ordinary-omitted-case",
+      "route": "ordinary",
+      "mutation": "remove branch for offer while owner retains it",
+      "current_if": {
+        "expected_return": "Withdrawn"
+      },
+      "improved_if_analysis": {
+        "expected": "accept intentional else; report uncovered explicit case offer"
+      },
+      "proposed_match": {
+        "expected": "reject missing case offer"
+      },
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "self with recruiter role (inline alias recruiter)",
+        "membership": "active same-team member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "applicant readable by recruiter with current can_work grant",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "raw_sources": [
+        "ordinary/current-if-omit-case-full.can",
+        "ordinary/improved-if-analysis-omit-case-full.can",
+        "ordinary/proposed-match-omit-case-full.can"
+      ]
+    },
+    {
+      "id": "ordinary-removed-owner-case",
+      "route": "ordinary",
+      "mutation": "remove offer from enum owner but retain branch",
+      "expected": "foreign/stale case diagnostic for match; normal expected-enum identity error for if unless a real lexical binding claims spelling; do not reinterpret a bound name",
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "self with recruiter role (inline alias recruiter)",
+        "membership": "active same-team member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "applicant readable by recruiter with current can_work grant",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "raw_sources": [
+        "ordinary/current-if-remove-owner-case-full.can",
+        "ordinary/improved-if-analysis-remove-owner-case-full.can",
+        "ordinary/proposed-match-remove-owner-case-full.can"
+      ],
+      "classification": "full domain mutation, uncompiled; retained original operations/examples may also fail after case removal, no isolated first-error claim"
+    },
+    {
+      "id": "approval-authority-outsider",
+      "route": "approval",
+      "actor": "outsider",
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "outsider",
+        "membership": "public/nonmember or outsider as specified; no active same-team admission",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "reviewer_worker.active=true, user=reviewer_user, home/locations include test_site",
+        "reference": "protected reference/readable field admission is unresolved for this denied caller; must be tested on released canonical added-user-read route",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "expected_security_outcome": "no caption and no writes/sends",
+      "actual_canonical_read_first_error": "unverified; derive from released route; do not substitute a global not_found/rule_failed code",
+      "authored_by_gate_expectation_if_reached": "false by gate denies; forbidden belongs only to normal role admission contract, not observed facade result"
+    },
+    {
+      "id": "approval-authority-not-associated",
+      "route": "approval",
+      "actor": "member who is neither submitter nor scoped coordinator nor assigned scoped reviewer",
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "member who is neither submitter nor scoped coordinator nor assigned scoped reviewer",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "reviewer_worker.active=true, user=reviewer_user, home/locations include test_site",
+        "reference": "protected reference/readable field admission is unresolved for this denied caller; must be tested on released canonical added-user-read route",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "expected_security_outcome": "no caption and no writes/sends",
+      "actual_canonical_read_first_error": "unverified; derive from released route; do not substitute a global not_found/rule_failed code",
+      "authored_body_guard_expectation_if_reached": "false leading require yields rule_failed; reference admission may stop execution earlier"
+    },
+    {
+      "id": "approval-reviewer-withdrawn",
+      "route": "approval",
+      "actor": "assigned reviewer; not also submitter/coordinator",
+      "subject": "withdrawn",
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "assigned reviewer; not also submitter/coordinator",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "reviewer_worker.active=true at test_site; submission.state=withdrawn; reviewer_user has no coordinator/submitter clause",
+        "reference": "protected reference/readable field admission is unresolved for this denied caller; must be tested on released canonical added-user-read route",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "expected_security_outcome": "no caption and no writes/sends",
+      "actual_canonical_read_first_error": "unverified; derive from released route; do not substitute a global not_found/rule_failed code",
+      "authored_body_guard_expectation_if_reached": "false leading require yields rule_failed; reference admission may stop execution earlier"
+    },
+    {
+      "id": "approval-reviewer-revoked",
+      "route": "approval",
+      "actor": "assigned reviewer whose can_work grant is false at location",
+      "setup": {
+        "chosen_route": "proposed added user read review_state_text; actual released facade not yet qualified",
+        "caller": "assigned reviewer whose can_work grant is false at location",
+        "membership": "active same-team member",
+        "seed": [
+          "pending_version",
+          "reviewer_worker"
+        ],
+        "location": "document.location=test_site",
+        "work_grants": "reviewer_worker.active=false; reviewer role remains; no scoped coordinator/submitter clause",
+        "reference": "protected reference/readable field admission is unresolved for this denied caller; must be tested on released canonical added-user-read route",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "expected_security_outcome": "no caption and no writes/sends",
+      "actual_canonical_read_first_error": "unverified; derive from released route; do not substitute a global not_found/rule_failed code",
+      "authored_body_guard_expectation_if_reached": "false leading require yields rule_failed; reference admission may stop execution earlier"
+    },
+    {
+      "id": "generation-authority-public",
+      "route": "generation",
+      "actor": "public",
+      "setup": {
+        "chosen_route": "proposed added user read status_text; actual released facade not yet qualified",
+        "caller": "public",
+        "membership": "public/nonmember or outsider as specified; no active same-team admission",
+        "seed": [
+          "job"
+        ],
+        "location": "not used",
+        "work_grants": "not used",
+        "reference": "protected reference/readable field admission is unresolved for this denied caller; must be tested on released canonical added-user-read route",
+        "admission": "readable reference assumed for value rows; no protected-read error code asserted"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "expected_security_outcome": "no caption and no writes/sends",
+      "actual_canonical_read_first_error": "unverified; derive from released route; do not substitute a global not_found/rule_failed code",
+      "authored_by_gate_expectation_if_reached": "false by gate denies; forbidden belongs only to normal role admission contract, not observed facade result"
+    },
+    {
+      "id": "ordinary-authority-public",
+      "route": "ordinary",
+      "actor": "public",
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "public",
+        "membership": "public/nonmember or outsider as specified; no active same-team admission",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=true, user=self, home/locations include test_site",
+        "reference": "protected reference/readable field admission is unresolved for this denied caller; must be tested on released canonical added-user-read route",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "expected_security_outcome": "no caption and no writes/sends",
+      "actual_canonical_read_first_error": "unverified; derive from released route; do not substitute a global not_found/rule_failed code",
+      "authored_by_gate_expectation_if_reached": "false by gate denies; forbidden belongs only to normal role admission contract, not observed facade result"
+    },
+    {
+      "id": "ordinary-authority-outside-location",
+      "route": "ordinary",
+      "actor": "recruiter whose can_work grant is false",
+      "setup": {
+        "chosen_route": "proposed added user read stage_text; actual released facade not yet qualified",
+        "caller": "recruiter whose can_work grant is false",
+        "membership": "active member",
+        "seed": [
+          "applicant",
+          "test_worker"
+        ],
+        "location": "candidate.parent.location=test_site",
+        "work_grants": "test_worker.active=false; recruiter role remains; no alternative current Employee grant at test_site",
+        "reference": "protected reference/readable field admission is unresolved for this denied caller; must be tested on released canonical added-user-read route",
+        "admission": "positive body expectations assume actual canonical read admission reaches leading guard"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "expected_security_outcome": "no caption and no writes/sends",
+      "actual_canonical_read_first_error": "unverified; derive from released route; do not substitute a global not_found/rule_failed code",
+      "authored_body_guard_expectation_if_reached": "false leading require yields rule_failed; reference admission may stop execution earlier"
+    },
+    {
+      "id": "nullable-subject",
+      "proposed_input": "match optional_state where optional_state:Submission.state?",
+      "expected": "reject until author explicitly guards null and checker proves nonnull; enum cases do not cover null; no implicit null fallback",
+      "raw_source": "proposed-contract-inputs/nullable-subject.can",
+      "classification": "concrete proposed contract input, uncompiled; desired behavior not accepted diagnostic"
+    },
+    {
+      "id": "nullable-guarded",
+      "proposed_input": "let state=optional_state; if state!=null: match state; else: return \"No state\"",
+      "expected": "one initial evaluation, explicit null return; all nonnull owner cases still required",
+      "raw_source": "proposed-contract-inputs/nullable-guarded.can",
+      "classification": "concrete proposed contract input, uncompiled; desired behavior not accepted diagnostic"
+    },
+    {
+      "id": "once-effectful-subject",
+      "proposed_input": "match subject() with instrumented call counter",
+      "expected": "one evaluation before any case comparison; failing subject executes no branch; awaited subject same identity/order; subject legality remains normal effect/purity admission",
+      "classification": "future contract vector; no runnable effectful-subject instrumentation or legal subject helper supplied"
+    },
+    {
+      "id": "branch-scope",
+      "proposed_input": "each branch let same_name=value; use same_name after match",
+      "expected": "after-match use rejected; local branch bindings neither leak nor collide with disjoint arms",
+      "raw_source": "proposed-contract-inputs/branch-scope.can",
+      "classification": "concrete proposed contract input, uncompiled; desired behavior not accepted diagnostic"
+    },
+    {
+      "id": "return-type",
+      "proposed_input": "scenario -> text; one arm return 1",
+      "expected": "ordinary declared return type diagnostic for int arm; all valid arms must establish required return or fall through according to normal scenario rule",
+      "raw_source": "proposed-contract-inputs/wrong-return-type.can",
+      "classification": "concrete proposed contract input, uncompiled; desired behavior not accepted diagnostic"
+    },
+    {
+      "id": "duplicate",
+      "proposed_input": "same owner case written twice",
+      "expected": "reject duplicate; do not run first arm or silently discard second",
+      "raw_source": "proposed-contract-inputs/duplicate-case.can",
+      "classification": "concrete proposed contract input, uncompiled; desired behavior not accepted diagnostic"
+    },
+    {
+      "id": "foreign-owner",
+      "proposed_input": "case from distinct enum with same serialized spelling",
+      "expected": "reject foreign owner identity; spellings alone do not authorize branch",
+      "raw_source": "proposed-contract-inputs/foreign-case.can",
+      "classification": "concrete proposed contract input, uncompiled; desired behavior not accepted diagnostic"
+    },
+    {
+      "id": "lexical-collision",
+      "proposed_input": "local named approved collides with Submission.state approved",
+      "expected": "definition must settle case-token resolution; do not change existing expression lexical precedence; explicit case positions must retain owner proof",
+      "raw_source": "proposed-contract-inputs/lexical-collision.can",
+      "classification": "concrete proposed contract input, uncompiled; desired behavior not accepted diagnostic"
+    },
+    {
+      "id": "unsupported-pattern",
+      "proposed_input": "wildcard, OR-case list, guard, destructuring or tagged-union pattern",
+      "expected": "reject in bounded candidate; proposal includes only one exact enum case per arm",
+      "raw_source": "proposed-contract-inputs/unsupported-wildcard.can",
+      "classification": "concrete proposed contract input, uncompiled; desired behavior not accepted diagnostic"
+    },
+    {
+      "id": "generation-null-progress",
+      "route": "generation-effects",
+      "input": "selected run.request.progress=null",
+      "expected": "no inner requires, usage settlement, terminal release or Output creation",
+      "setup": {
+        "chosen_route": "existing authored trusted Images.submit.progressed handler; actual provider/owner route remains unqualified",
+        "caller": "trusted event, no synthetic user principal",
+        "membership": "not a user by-gate; preserve application/context owner",
+        "seed": [
+          "pending_run"
+        ],
+        "location": "preserve original selected run/budget ownership",
+        "work_grants": "not substituted for verified event authority",
+        "reference": "run selected only by current run.request.id==event.delivery_id, limit=1",
+        "admission": "authenticated event/delivery identity assumed; no body execution for unrelated identity"
+      },
+      "verification": "source-derived author expectation, unexecuted"
+    },
+    {
+      "id": "generation-nonterminal",
+      "route": "generation-effects",
+      "input": [
+        "queued",
+        "running",
+        "unknown"
+      ],
+      "expected": "usage settlement/output loop still follow original data; running reservation unchanged; unknown never implies cancellation or zero cost",
+      "setup": {
+        "chosen_route": "existing authored trusted Images.submit.progressed handler; actual provider/owner route remains unqualified",
+        "caller": "trusted event, no synthetic user principal",
+        "membership": "not a user by-gate; preserve application/context owner",
+        "seed": [
+          "pending_run"
+        ],
+        "location": "preserve original selected run/budget ownership",
+        "work_grants": "not substituted for verified event authority",
+        "reference": "run selected only by current run.request.id==event.delivery_id, limit=1",
+        "admission": "authenticated event/delivery identity assumed; no body execution for unrelated identity"
+      },
+      "verification": "source-derived author expectation, unexecuted"
+    },
+    {
+      "id": "generation-terminal",
+      "route": "generation-effects",
+      "input": [
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "expected": "running decrements exactly once when unfinished=true; settle charged usage before terminal handling; then create only new output positions",
+      "setup": {
+        "chosen_route": "existing authored trusted Images.submit.progressed handler; actual provider/owner route remains unqualified",
+        "caller": "trusted event, no synthetic user principal",
+        "membership": "not a user by-gate; preserve application/context owner",
+        "seed": [
+          "pending_run"
+        ],
+        "location": "preserve original selected run/budget ownership",
+        "work_grants": "not substituted for verified event authority",
+        "reference": "run selected only by current run.request.id==event.delivery_id, limit=1",
+        "admission": "authenticated event/delivery identity assumed; no body execution for unrelated identity"
+      },
+      "verification": "source-derived author expectation, unexecuted"
+    },
+    {
+      "id": "generation-duplicate-terminal",
+      "route": "generation-effects",
+      "input": "unfinished=false; terminal state",
+      "expected": "no second running decrement; late first charged_jobs may still settle used/held/spent",
+      "setup": {
+        "chosen_route": "existing authored trusted Images.submit.progressed handler; actual provider/owner route remains unqualified",
+        "caller": "trusted event, no synthetic user principal",
+        "membership": "not a user by-gate; preserve application/context owner",
+        "seed": [
+          "pending_run"
+        ],
+        "location": "preserve original selected run/budget ownership",
+        "work_grants": "not substituted for verified event authority",
+        "reference": "run selected only by current run.request.id==event.delivery_id, limit=1",
+        "admission": "authenticated event/delivery identity assumed; no body execution for unrelated identity"
+      },
+      "verification": "source-derived author expectation, unexecuted"
+    },
+    {
+      "id": "generation-unrelated-delivery",
+      "route": "generation-effects",
+      "input": "event.delivery_id differs from every run.request.id",
+      "expected": "empty bounded query, no writes",
+      "setup": {
+        "chosen_route": "existing authored trusted Images.submit.progressed handler; actual provider/owner route remains unqualified",
+        "caller": "trusted event, no synthetic user principal",
+        "membership": "not a user by-gate; preserve application/context owner",
+        "seed": [
+          "pending_run"
+        ],
+        "location": "preserve original selected run/budget ownership",
+        "work_grants": "not substituted for verified event authority",
+        "reference": "run selected only by current run.request.id==event.delivery_id, limit=1",
+        "admission": "authenticated event/delivery identity assumed; no body execution for unrelated identity"
+      },
+      "verification": "source-derived author expectation, unexecuted"
+    },
+    {
+      "id": "generation-late-failure",
+      "route": "generation-effects",
+      "input": "valid usage then terminal effect then invalid Output/final invariant failure",
+      "expected": "atomic rollback of prior local writes and intents if reached through accepted owner transaction; prior committed independent provider facts survive; compiled actual-route proof required",
+      "setup": {
+        "chosen_route": "existing authored trusted Images.submit.progressed handler; actual provider/owner route remains unqualified",
+        "caller": "trusted event, no synthetic user principal",
+        "membership": "not a user by-gate; preserve application/context owner",
+        "seed": [
+          "pending_run"
+        ],
+        "location": "preserve original selected run/budget ownership",
+        "work_grants": "not substituted for verified event authority",
+        "reference": "run selected only by current run.request.id==event.delivery_id, limit=1",
+        "admission": "authenticated event/delivery identity assumed; no body execution for unrelated identity"
+      },
+      "verification": "source-derived author expectation, unexecuted"
+    },
+    {
+      "id": "generation-add-state",
+      "route": "generation-effects",
+      "mutation": "add paused to catalog ImageRun.state",
+      "current_if": "no terminal release, outputs/usage processing preserved by intentional membership fallback",
+      "improved_if_analysis": "accept; informational nonterminal fallback includes paused",
+      "proposed_match": "reject missing paused before emission",
+      "setup": {
+        "chosen_route": "existing authored trusted Images.submit.progressed handler; actual provider/owner route remains unqualified",
+        "caller": "trusted event, no synthetic user principal",
+        "membership": "not a user by-gate; preserve application/context owner",
+        "seed": [
+          "pending_run"
+        ],
+        "location": "preserve original selected run/budget ownership",
+        "work_grants": "not substituted for verified event authority",
+        "reference": "run selected only by current run.request.id==event.delivery_id, limit=1",
+        "admission": "authenticated event/delivery identity assumed; no body execution for unrelated identity"
+      },
+      "verification": "source-derived author expectation, unexecuted",
+      "raw_input": "generation-effects/catalog-add-case-input.json"
+    }
+  ],
+  "admission_boundary": "All added user read routes are unqualified: false authored guard and canonical reference/field admission are separate expectations; no observed exact read failure codes."
+}

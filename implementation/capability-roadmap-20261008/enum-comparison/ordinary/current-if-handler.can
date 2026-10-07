@@ -1,0 +1,29 @@
+  ## Added bounded comparison handler; current grammar, uncompiled evidence.
+  scenario stage_text(candidate:Candidate) read=true -> text by=recruiter
+   require can_work(actor,candidate.parent.location)
+   do
+    let state=candidate.stage
+    if state==applied
+     return "Applied"
+    else
+     if state==interview
+      return "Interview"
+     else
+      if state==offer
+       return "Offer"
+      else
+       if state==hired
+        return "Hired"
+       else
+        if state==rejected
+         return "Rejected"
+        else
+         return "Withdrawn"
+   examples seed=[test_worker] candidate=applicant
+    as,candidate.stage -> result
+    recruiter,applied -> "Applied"
+    recruiter,interview -> "Interview"
+    recruiter,offer -> "Offer"
+    recruiter,hired -> "Hired"
+    recruiter,rejected -> "Rejected"
+    recruiter,withdrawn -> "Withdrawn"

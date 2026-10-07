@@ -1,0 +1,216 @@
+{
+  "source_pin": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+  "status": "planning only",
+  "proposals": [
+    {
+      "number": 1,
+      "proposal": "Durable workflow composition",
+      "verdict": "Yes, as working compositions first; defer `workflow` and `await` grammar",
+      "layer_and_timing": "Existing scenarios, models, events and concrete helpers after effect and progress joins",
+      "reason": "Durable sequencing is useful; continuation syntax adds identity, authorization and upgrade semantics before callback costs are measured",
+      "effort_qualitative": "Large",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 2,
+      "proposal": "Cancellation and deadlines",
+      "verdict": "Yes, existing provider stop and timers first; conditional shared coordinator",
+      "layer_and_timing": "Typed standard operations and ordinary package policy after proposal 15",
+      "reason": "An attempted cancellation cannot promise remote work or charges stopped",
+      "effort_qualitative": "Medium",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 3,
+      "proposal": "Compensating recovery",
+      "verdict": "Yes, explicit domain recovery; defer compensation syntax",
+      "layer_and_timing": "Canonical recovery operations; extract helpers only after repeated protocols",
+      "reason": "Refund/withdrawal is another fallible external action, not rollback",
+      "effort_qualitative": "Medium to large",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 4,
+      "proposal": "Reusable approval protocols",
+      "verdict": "Yes, pilot now in design; implement after canonical transaction joins",
+      "layer_and_timing": "Concrete ordinary packages or source templates, then a stable shared API",
+      "reason": "Frozen revisions, distinct reviewers and quorum are repeated business rules; no need for an approval primitive yet",
+      "effort_qualitative": "Medium",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 5,
+      "proposal": "Resource accounting",
+      "verdict": "Yes, conditional on qualified atomic admission and usage evidence",
+      "layer_and_timing": "Common typed accounting values plus app-owned canonical admit/settle operations; package only with a proven owner mapping",
+      "reason": "Prevent overspending and duplicate settlement; imported packages cannot invent cross-owner atomicity",
+      "effort_qualitative": "Medium to large",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 6,
+      "proposal": "Durable bulk authoring",
+      "verdict": "Yes, after current cohort and CSV qualification, if remaining authoring friction is real",
+      "layer_and_timing": "Thin canonical input/UI surface over the existing cohort engine",
+      "reason": "Avoid duplicating membership, replay and partial-outcome machinery",
+      "effort_qualitative": "Medium",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 7,
+      "proposal": "Business-calendar recurrence",
+      "verdict": "Conditional; defer recurrence grammar",
+      "layer_and_timing": "Versioned calendar helpers and explicit keyed schedules first",
+      "reason": "Useful for monthly/business-day work, but timezone changes and missed occurrences require real policy",
+      "effort_qualitative": "Medium; grammar large",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 8,
+      "proposal": "Exhaustive outcome handling",
+      "verdict": "Yes, a bounded language candidate next",
+      "layer_and_timing": "Start with enum-only `match`; evaluate tagged unions separately",
+      "reason": "The checker can reject a forgotten state when a lifecycle gains a case",
+      "effort_qualitative": "Small to medium",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 9,
+      "proposal": "Input-dependent forms",
+      "verdict": "Yes, a bounded language binding next, after ordinary form qualification",
+      "layer_and_timing": "Typed binding from partial canonical inputs to an existing authorized read operation",
+      "reason": "Removes nested selection forms while keeping candidate eligibility and final validation on the server",
+      "effort_qualitative": "Medium",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 10,
+      "proposal": "Durable multi-step drafts",
+      "verdict": "Conditional on a real multi-session form",
+      "layer_and_timing": "Wizard presentation over explicit private draft models and canonical save/submit operations",
+      "reason": "Resume is useful; an operation signature alone does not define persistence, sharing or expiry",
+      "effort_qualitative": "Medium to large",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 11,
+      "proposal": "Named reusable views",
+      "verdict": "Conditional on a repeated custom subtree",
+      "layer_and_timing": "Typed presentation declaration after measuring reuse beyond defaults",
+      "reason": "CanApprove supplies a near-witness, but different bound actions must remain typed",
+      "effort_qualitative": "Small to medium",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 12,
+      "proposal": "Parameterized domain packages",
+      "verdict": "Defer; no implementation commitment now",
+      "layer_and_timing": "Ordinary concrete packages and templates first",
+      "reason": "Persistent instance identity, constraints, role substitution and migrations are a large cost without proven consumers",
+      "effort_qualitative": "Large",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 13,
+      "proposal": "Richer and reusable machines",
+      "verdict": "Finish current flat machines; conditional shared flat types; defer hierarchy, parallel states and history",
+      "layer_and_timing": "Current field machines first; a separate later statechart decision",
+      "reason": "Flat state already addresses the immediate need; structural reuse and richer transition behavior are different problems",
+      "effort_qualitative": "Small to medium for flat reuse; large for statecharts",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 14,
+      "proposal": "Live subscriptions",
+      "verdict": "Conditional on measured polling load or freshness",
+      "layer_and_timing": "Platform invalidation transport followed by authorized rereads; source setting only if needed",
+      "reason": "Can already reacts to state through polling; push mainly improves runtime latency/load",
+      "effort_qualitative": "Large",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 15,
+      "proposal": "Typed generation and progress",
+      "verdict": "Yes; finish the accepted design first",
+      "layer_and_timing": "Existing compiler, work/provider, state and UI owners",
+      "reason": "This directly delivers the image-generation application, including late results and stop/reconcile",
+      "effort_qualitative": "Large remaining join",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 16,
+      "proposal": "Reviewed invocation values",
+      "verdict": "Yes; finish the accepted design",
+      "layer_and_timing": "Existing protected invocation and canonical operation path",
+      "reason": "Reviews must approve exact normalized arguments, not a string-selected action",
+      "effort_qualitative": "Medium remaining join",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 17,
+      "proposal": "Judgments",
+      "verdict": "Yes; finish the accepted design",
+      "layer_and_timing": "Existing source-derived judgment/provider contract",
+      "reason": "Typed probabilities and rubrics avoid repeated output schemas; advice must not grant authority",
+      "effort_qualitative": "Medium remaining join",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 18,
+      "proposal": "Authorized knowledge corpora",
+      "verdict": "Yes; finish the accepted design",
+      "layer_and_timing": "Existing corpus contract, indexing, opaque answer and projection owners",
+      "reason": "Retrieval/disclosure needs current authority over every supplied source",
+      "effort_qualitative": "Large remaining join",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 19,
+      "proposal": "Canonical file transfer",
+      "verdict": "Yes; finish the accepted design",
+      "layer_and_timing": "Existing browser/MCP/file lifecycle bridge",
+      "reason": "Ordinary `file` inputs should work without an app-specific upload SDK",
+      "effort_qualitative": "Medium remaining join",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 20,
+      "proposal": "Hooks, locks and invariants",
+      "verdict": "Yes; qualify complete generated execution",
+      "layer_and_timing": "Existing compiler/state execution and mutation paths",
+      "reason": "A declared rule must hold through CRUD, scenarios, hooks, transitions and rollback",
+      "effort_qualitative": "Large qualification scope",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    },
+    {
+      "number": 21,
+      "proposal": "Causal examples and full journeys",
+      "verdict": "Yes; extend actual qualification, using existing source examples",
+      "layer_and_timing": "Existing testkit, browser, durable/provider and installed-release checks",
+      "reason": "A parsed or unit-tested feature is insufficient evidence for the complete app workflow",
+      "effort_qualitative": "Large programme; bounded app slices",
+      "plan_document": "implementation-plan.md",
+      "status": "proposed; not dispatched"
+    }
+  ]
+}

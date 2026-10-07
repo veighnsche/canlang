@@ -1,0 +1,291 @@
+{
+  "task": "SEQ-004",
+  "kind": "raw original declarations and matrix locators; no acceptance claim",
+  "declarations": [
+    {
+      "anchor": "draft/CanCreative.can:60",
+      "declaration": "crud Template by=creative_manager fields=name,graph,prompt_node,prompt_key,negative_node,negative_key,width_node,width_key,height_node,height_key,outputs,duration,active create_fields=name,graph,prompt_node,prompt_key,negative_node,negative_key,width_node,width_key,height_node,height_key,outputs,duration when=row.owner==actor delete=none",
+      "matrix_workflow_id": "CC-01"
+    },
+    {
+      "anchor": "draft/CanCreative.can:61",
+      "declaration": "crud Budget by=creative_manager fields=cap,parallel,active create_fields=account,cap,parallel delete=none",
+      "matrix_workflow_id": "CC-05"
+    },
+    {
+      "anchor": "draft/CanCreative.can:62",
+      "declaration": "scenario template_edited on=Template.update",
+      "matrix_workflow_id": "CC-01"
+    },
+    {
+      "anchor": "draft/CanCreative.can:65",
+      "declaration": "scenario inspect(template:Template) by=creative_manager label=\"Inspect workflow inputs\"@{nl=\"Workflowinvoer inspecteren\"}",
+      "matrix_workflow_id": "CC-02"
+    },
+    {
+      "anchor": "draft/CanCreative.can:71",
+      "declaration": "scenario validate(template:Template) by=creative_manager -> Revision label=\"Validate new revision\"@{nl=\"Nieuwe versie valideren\"}",
+      "matrix_workflow_id": "CC-03"
+    },
+    {
+      "anchor": "draft/CanCreative.can:80",
+      "declaration": "scenario publish(revision:Revision) by=creative_manager label=\"Publish workflow and graph to members\"@{nl=\"Workflow en graaf met leden delen\"}",
+      "matrix_workflow_id": "CC-04"
+    },
+    {
+      "anchor": "draft/CanCreative.can:93",
+      "declaration": "export scenario generate(template:Template,prompt:ImageRequest.prompt,negative:ImageRequest.negative=\"\",width:ImageRequest.width=512,height:ImageRequest.height=512,conversation:Conversation?=null) by=members -> Run label=\"Generate images\"@{nl=\"Beelden genereren\"}",
+      "matrix_workflow_id": "CC-06"
+    },
+    {
+      "anchor": "draft/CanCreative.can:119",
+      "declaration": "scenario from_turn(turn:Turn,template:Template,negative:ImageRequest.negative=\"\",width:ImageRequest.width=512,height:ImageRequest.height=512) by=members -> Run label=\"Create image from this message\"@{nl=\"Maak een beeld van dit bericht\"}",
+      "matrix_workflow_id": "CC-07"
+    },
+    {
+      "anchor": "draft/CanCreative.can:125",
+      "declaration": "scenario stop(run:Run) by=members label=\"Stop image job\"@{nl=\"Beeldtaak stoppen\"}",
+      "matrix_workflow_id": "CC-08"
+    },
+    {
+      "anchor": "draft/CanCreative.can:131",
+      "declaration": "scenario reconcile(run:Run) by=members label=\"Check image outcome\"@{nl=\"Beelduitkomst controleren\"}",
+      "matrix_workflow_id": "CC-09"
+    },
+    {
+      "anchor": "draft/CanCreative.can:137",
+      "declaration": "scenario release_skipped(run:Run) by=members label=\"Release unsent job\"@{nl=\"Niet-verzonden taak vrijgeven\"}",
+      "matrix_workflow_id": "CC-10"
+    },
+    {
+      "anchor": "draft/CanCreative.can:142",
+      "declaration": "scenario conversation_revoked on=Conversation.updated",
+      "matrix_workflow_id": "CC-11"
+    },
+    {
+      "anchor": "draft/CanCreative.can:150",
+      "declaration": "scenario member_removed on=teams.member_removed",
+      "matrix_workflow_id": "CC-11"
+    },
+    {
+      "anchor": "draft/CanCreative.can:157",
+      "declaration": "scenario image_progressed on=Images.submit.progressed",
+      "matrix_workflow_id": "CC-12"
+    },
+    {
+      "anchor": "draft/CanCreative.can:187",
+      "declaration": "page /creative title=\"Image studio\"@{nl=\"Beeldstudio\"} poll=1s",
+      "matrix_workflow_id": "CC-14"
+    },
+    {
+      "anchor": "draft/CanCreative.can:213",
+      "declaration": "page /creative/from-chat title=\"Chat to image\"@{nl=\"Van gesprek naar beeld\"} poll=1s",
+      "matrix_workflow_id": "CC-14"
+    },
+    {
+      "anchor": "draft/CanCreative.can:236",
+      "declaration": "page /creative/recovery title=\"Unresolved image jobs\"@{nl=\"Onopgeloste beeldtaken\"} poll=1s",
+      "matrix_workflow_id": "CC-14"
+    },
+    {
+      "anchor": "draft/CanCreative.can:243",
+      "declaration": "page /creative/workflows title=\"Workflow templates\"@{nl=\"Workflowsjablonen\"} poll=1s",
+      "matrix_workflow_id": "CC-14"
+    },
+    {
+      "anchor": "draft/CanChat.can:56",
+      "declaration": "crud Profile by=ai_manager fields=active create_fields=name,provider_key,policy_revision,system_prompt,input_tokens,output_tokens,duration delete=none",
+      "matrix_workflow_id": "CH-01"
+    },
+    {
+      "anchor": "draft/CanChat.can:57",
+      "declaration": "crud Allowance by=ai_manager fields=cap,parallel,active create_fields=account,cap,parallel delete=none",
+      "matrix_workflow_id": "CH-01"
+    },
+    {
+      "anchor": "draft/CanChat.can:59",
+      "declaration": "scenario open(title:text,profile:Profile) by=members -> Branch label=\"New conversation\"@{nl=\"Nieuw gesprek\"}",
+      "matrix_workflow_id": "CH-02"
+    },
+    {
+      "anchor": "draft/CanChat.can:66",
+      "declaration": "export scenario ask(branch:Branch,prompt:TextMessage.content,attachments:file[]=[]) by=members -> Run label=\"Send message\"@{nl=\"Bericht sturen\"}",
+      "matrix_workflow_id": "CH-03"
+    },
+    {
+      "anchor": "draft/CanChat.can:104",
+      "declaration": "scenario regenerate(turn:Turn,title:text) by=members -> Run label=\"Try another branch\"@{nl=\"Andere vertakking proberen\"}",
+      "matrix_workflow_id": "CH-04"
+    },
+    {
+      "anchor": "draft/CanChat.can:117",
+      "declaration": "scenario stop(run:Run) by=members label=\"Stop reply\"@{nl=\"Antwoord stoppen\"}",
+      "matrix_workflow_id": "CH-05"
+    },
+    {
+      "anchor": "draft/CanChat.can:123",
+      "declaration": "scenario reconcile(run:Run) by=members label=\"Check outcome\"@{nl=\"Uitkomst controleren\"}",
+      "matrix_workflow_id": "CH-06"
+    },
+    {
+      "anchor": "draft/CanChat.can:129",
+      "declaration": "scenario release_skipped(run:Run) by=members label=\"Release unsent request\"@{nl=\"Niet-verzonden verzoek vrijgeven\"}",
+      "matrix_workflow_id": "CH-07"
+    },
+    {
+      "anchor": "draft/CanChat.can:135",
+      "declaration": "scenario revoke(conversation:Conversation) by=members label=\"Revoke conversation\"@{nl=\"Gesprek intrekken\"}",
+      "matrix_workflow_id": "CH-08"
+    },
+    {
+      "anchor": "draft/CanChat.can:143",
+      "declaration": "scenario member_removed on=teams.member_removed",
+      "matrix_workflow_id": "CH-08"
+    },
+    {
+      "anchor": "draft/CanChat.can:153",
+      "declaration": "scenario reply_progressed on=LLM.generate.progressed",
+      "matrix_workflow_id": "CH-09"
+    },
+    {
+      "anchor": "draft/CanChat.can:186",
+      "declaration": "page /chat title=\"Conversations\"@{nl=\"Gesprekken\"} poll=1s",
+      "matrix_workflow_id": "CH-11"
+    },
+    {
+      "anchor": "draft/CanChat.can:241",
+      "declaration": "page /chat/recovery title=\"Unresolved usage\"@{nl=\"Onopgelost gebruik\"} poll=1s",
+      "matrix_workflow_id": "CH-11"
+    },
+    {
+      "anchor": "draft/CanChat.can:250",
+      "declaration": "page /chat/admin title=\"AI access and limits\"@{nl=\"AI-toegang en limieten\"}",
+      "matrix_workflow_id": "CH-11"
+    },
+    {
+      "anchor": "draft/CanApprove.can:56",
+      "declaration": "scenario reviewer_choices(document:Document) read=true -> Employee[] by=members label=\"Choose reviewer\"@{nl=\"Beoordelaar kiezen\"}",
+      "matrix_workflow_id": "CA-02"
+    },
+    {
+      "anchor": "draft/CanApprove.can:86",
+      "declaration": "crud Document by=members fields=title,category,subject create_fields=location,title,category,subject,email when=row.submitter==actor and (row.location==null or can_work(actor,row.location)) delete=none",
+      "matrix_workflow_id": "CA-01"
+    },
+    {
+      "anchor": "draft/CanApprove.can:92",
+      "declaration": "scenario submit(document:Document,file:file,note:text label=label_Submission_note,assignee:user label=label_reviewer,reviewer_email:email label=label_Submission_reviewer_email,due:datetime) by=members",
+      "matrix_workflow_id": "CA-03"
+    },
+    {
+      "anchor": "draft/CanApprove.can:198",
+      "declaration": "scenario assign(submission:Submission,assignee:user label=label_reviewer,email:email) by=coordinator",
+      "matrix_workflow_id": "CA-04"
+    },
+    {
+      "anchor": "draft/CanApprove.can:219",
+      "declaration": "scenario decide(submission:Submission,approve:bool label=\"Approve\"@{nl=\"Goedkeuren\"},reason:text) by=reviewer label=\"Record decision\"@{nl=\"Besluit vastleggen\"}",
+      "matrix_workflow_id": "CA-05"
+    },
+    {
+      "anchor": "draft/CanApprove.can:242",
+      "declaration": "scenario withdraw(submission:Submission) by=members label=\"Withdraw\"@{nl=\"Intrekken\"}",
+      "matrix_workflow_id": "CA-06"
+    },
+    {
+      "anchor": "draft/CanApprove.can:252",
+      "declaration": "scenario remind on=Due",
+      "matrix_workflow_id": "CA-07"
+    },
+    {
+      "anchor": "draft/CanApprove.can:264",
+      "declaration": "scenario notify on=Notice.created",
+      "matrix_workflow_id": "CA-08"
+    },
+    {
+      "anchor": "draft/CanApprove.can:273",
+      "declaration": "page /documents title=\"My submissions\"@{nl=\"Mijn inzendingen\"}",
+      "matrix_workflow_id": "CA-13"
+    },
+    {
+      "anchor": "draft/CanApprove.can:310",
+      "declaration": "page /documents/review title=\"Review queue\"@{nl=\"Beoordelingswachtrij\"}",
+      "matrix_workflow_id": "CA-13"
+    },
+    {
+      "anchor": "draft/shared/Employees.can:16",
+      "declaration": "crud Employee by=hr fields=name,home,locations,operator_wide,start,end,manager,role,skills,private_notes,document create_fields=user,name,home,locations,start,manager,role,skills delete=none",
+      "matrix_workflow_id": "EM-01"
+    },
+    {
+      "anchor": "draft/shared/Employees.can:18",
+      "declaration": "export scenario deactivate(employee:Employee,ended:date label=\"Employment end date\"@{nl=\"Einddatum dienstverband\"}) by=hr label=\"End active employment\"@{nl=\"Actief dienstverband beëindigen\"}",
+      "matrix_workflow_id": "EM-02"
+    },
+    {
+      "anchor": "draft/shared/Employees.can:22",
+      "declaration": "scenario changed on=Employee.update",
+      "matrix_workflow_id": "EM-03"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:29",
+      "declaration": "crud Location by=catalog_owner fields=name,address,hours,arrival,active create_fields=name,address,timezone,currency,hours,arrival when=can_work(actor,row) delete=none",
+      "matrix_workflow_id": "LO-01"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:30",
+      "declaration": "crud WeeklyHours by=catalog_owner fields=weekday,opens,closes,close_after,fold when=can_work(actor,row.parent) delete=none",
+      "matrix_workflow_id": "LO-01"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:31",
+      "declaration": "crud ClosedDate by=catalog_owner fields=day,reason when=can_work(actor,row.parent) delete=none",
+      "matrix_workflow_id": "LO-01"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:32",
+      "declaration": "crud DateHours by=catalog_owner fields=day,opens,closes,close_after,closed,fold when=can_work(actor,row.parent) delete=none",
+      "matrix_workflow_id": "LO-01"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:33",
+      "declaration": "scenario snapshot_Location_create on=Location.create",
+      "matrix_workflow_id": "LO-02"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:37",
+      "declaration": "scenario snapshot_Location_update on=Location.update",
+      "matrix_workflow_id": "LO-02"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:41",
+      "declaration": "scenario snapshot_WeeklyHours_create on=WeeklyHours.create",
+      "matrix_workflow_id": "LO-02"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:45",
+      "declaration": "scenario snapshot_WeeklyHours_update on=WeeklyHours.update",
+      "matrix_workflow_id": "LO-02"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:49",
+      "declaration": "scenario snapshot_ClosedDate_create on=ClosedDate.create",
+      "matrix_workflow_id": "LO-02"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:53",
+      "declaration": "scenario snapshot_ClosedDate_update on=ClosedDate.update",
+      "matrix_workflow_id": "LO-02"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:57",
+      "declaration": "scenario snapshot_DateHours_create on=DateHours.create",
+      "matrix_workflow_id": "LO-02"
+    },
+    {
+      "anchor": "draft/shared/Locations.can:61",
+      "declaration": "scenario snapshot_DateHours_update on=DateHours.update",
+      "matrix_workflow_id": "LO-02"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "source_pin": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+  "captured_at": "2026-10-07T20:46:51.098297+00:00",
+  "scope": "Planning and source inspection only; current foreign working edits excluded from committed baseline. Existing ledgers retain historical acceptance pins; no blanket current requalification.",
+  "files": {
+    "AGENTS.md": {
+      "committed_sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+      "working_sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e"
+    },
+    "docs/specification/REQUIREMENTS.md": {
+      "committed_sha256": "11cd00091e881364e4387c8fcbf3b36990f9f235bd949baf4f9365593237bc61",
+      "working_sha256": "11cd00091e881364e4387c8fcbf3b36990f9f235bd949baf4f9365593237bc61"
+    },
+    "docs/specification/GRAMMAR.md": {
+      "committed_sha256": "b3dcf61119cc2c4e2e9ac7ff969211f948ddf572e3a707f47976fe9411c1db9a",
+      "working_sha256": "b3dcf61119cc2c4e2e9ac7ff969211f948ddf572e3a707f47976fe9411c1db9a"
+    },
+    "docs/specification/DESIGN.md": {
+      "committed_sha256": "1d36f88fe206299b383e0b7eb76182d559486c99670a2ecc87b5420e28cf7f82",
+      "working_sha256": "1d36f88fe206299b383e0b7eb76182d559486c99670a2ecc87b5420e28cf7f82"
+    },
+    "design/UI-COMPONENTS.md": {
+      "committed_sha256": "493e4dc9f705953f24778a902303faf79f33ac2e2c8be99b1b9fd70bcf93bce3",
+      "working_sha256": "493e4dc9f705953f24778a902303faf79f33ac2e2c8be99b1b9fd70bcf93bce3"
+    },
+    "design/complex-apps/chat-media.md": {
+      "committed_sha256": "601761815e2c805553c2691ecb7043aeab75af643225cbe15679d08d84154243",
+      "working_sha256": "601761815e2c805553c2691ecb7043aeab75af643225cbe15679d08d84154243"
+    },
+    "design/complex-apps/sync.md": {
+      "committed_sha256": "42986dd0d0e886c582d429f2db1c1ef7b190b6e810f68cd2db47ca49a0400b6e",
+      "working_sha256": "42986dd0d0e886c582d429f2db1c1ef7b190b6e810f68cd2db47ca49a0400b6e"
+    },
+    "design/complex-apps/workbench.md": {
+      "committed_sha256": "78fd2396f6d48081b92ce4e851183259561537f8a57fe46b60387f083b9ee08e",
+      "working_sha256": "78fd2396f6d48081b92ce4e851183259561537f8a57fe46b60387f083b9ee08e"
+    },
+    "implementation/remaining-work/tasks.json": {
+      "committed_sha256": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e",
+      "working_sha256": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e"
+    },
+    "docs/ideal-filetree-plan/state-machines-20261007.json": {
+      "committed_sha256": "40d18e58d8c65fe053dc75bd36cdc83c1c76d5f714049a0ecc5e9c0102f7a10c",
+      "working_sha256": "40d18e58d8c65fe053dc75bd36cdc83c1c76d5f714049a0ecc5e9c0102f7a10c"
+    },
+    "packages/cloudflare/src/runtime/stdlib.ts": {
+      "committed_sha256": "0ce14c6bf281740bf8c147209a9119a5cf54d4dcf8ff3473cbc71f4153e290d2",
+      "working_sha256": "0ce14c6bf281740bf8c147209a9119a5cf54d4dcf8ff3473cbc71f4153e290d2"
+    }
+  },
+  "working_status": " M compiler/src/syntax/layout.rs\n M docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/review-authority.json\n M docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/review-authority.md\n M docs/specification/DECISIONS.md\n M implementation/package-maintenance-repair/runs/codex-go-20261007/state.json\n M packages/cloudflare/src/runtime/invoke.ts\n M packages/interfaces/src/http/csv.ts\n M packages/state/src/invocation/registry.ts\n M packages/work-kernel/Cargo.lock\n M packages/work-kernel/Cargo.toml\n M packages/work-kernel/decisions/lib.rs\n M packages/work-kernel/decisions/linkage.rs\n M packages/work-kernel/decisions/receipt.rs\n M packages/work-kernel/decisions/rows.rs\n?? compiler/tests/delimiter_recovery.rs\n?? implementation/compiler-completion/delimiter-recovery/\n?? implementation/compiler-completion/email-admission/\n?? implementation/compiler-completion/producer-refresh/\n?? implementation/compiler-completion/selected-calls/\n?? implementation/package-maintenance-repair/runs/codex-go-20261007/critical-review-request/source-excerpts.txt\n?? implementation/package-maintenance-repair/runs/codex-go-20261007/csv-own-data-independent-review.json\n?? implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/assessment.md\n?? implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/context.json\n?? implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/request-1.json\n?? implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/request-2.json\n?? implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/request-3.json\n?? packages/cloudflare/test/canonical-read-selectors.test.ts\n?? packages/cloudflare/test/fanout-fresh-facts.test.ts\n?? packages/interfaces/test/csv-own-data.test.ts\n?? packages/state/test/invocation/secret-metadata.test.ts\n?? packages/work-kernel/decisions/uri_component.rs\n"
+}

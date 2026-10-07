@@ -1,0 +1,70 @@
+{
+  "task": "SEQ-004",
+  "kind": "independent source locators; no acceptance assertion",
+  "requested_draft_revision": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+  "observed_draft_head": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+      "lines": 11
+    },
+    {
+      "path": "draft/CanCreative.can",
+      "sha256": "a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52",
+      "lines": 287
+    },
+    {
+      "path": "draft/CanCreative.md",
+      "sha256": "15db83753f3391bdb58934b2c3df24faca89c6bef22968625535351916b828f0",
+      "lines": 50
+    },
+    {
+      "path": "draft/CanChat.can",
+      "sha256": "a507e133cd29022b873f50ae6b856a34bd8caf3abac28c691bde56ad103de2f1",
+      "lines": 278
+    },
+    {
+      "path": "draft/CanChat.md",
+      "sha256": "493ec721f45f117d49a15a85d74872ba0ab98aab6c75dea7da5be04b768882ba",
+      "lines": 58
+    },
+    {
+      "path": "draft/CanApprove.can",
+      "sha256": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981",
+      "lines": 340
+    },
+    {
+      "path": "draft/CanApprove.md",
+      "sha256": "58179a040d37e683c28bbec52c7a82d4371e64dcbdd28b75fb3e4104214be9fe",
+      "lines": 102
+    },
+    {
+      "path": "draft/shared/Employees.can",
+      "sha256": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+      "lines": 26
+    },
+    {
+      "path": "draft/shared/Locations.can",
+      "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+      "lines": 65
+    },
+    {
+      "path": "draft/WORKSPACE_OPERATOR.md",
+      "sha256": "f8c075f21ad21f96b913eee4ee8cb25c512a06312e8bf3e9c331e30f11af80eb",
+      "lines": 126
+    },
+    {
+      "path": "draft/PORTFOLIO.md",
+      "sha256": "b0086dd3698c3d82f096999aec2682f6d55452ebbdc91725fe9a0ab935454fc4",
+      "lines": 89
+    },
+    {
+      "path": "draft/ADMIN_SURFACES.md",
+      "sha256": "e0f7c6f81432174a1115e9859d0c986a8b61b25908588c45536432a18d4a181d",
+      "lines": 80
+    }
+  ],
+  "registration_role": "witness-registration.json supplies locators only; source acceptance belongs to root after reconciliation",
+  "api_status": "Draft .can and handwritten desired .mjs are contracts; this matrix supplies expected cases, not compiler, browser, MCP, durable backend, provider or deployment execution evidence."
+}

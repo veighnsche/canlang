@@ -1,0 +1,283 @@
+{
+  "request": {
+    "state": "Can targets concise AI-authored CRUD SaaS applications with one canonical owning declaration per schema/operation. Arbitrary browser JS and general programming are outside v1. Compare equal complete outcomes, including authorization, fresh reads, bounded resource use, recovery, upgrades, and token savings. Judge design value assuming named prerequisite joins are eventually qualified, without granting current implementation acceptance. New syntax has parser/checker/emitter/schema/migration/editor/HTTP/MCP/test costs. Library composition may reduce syntax cost but cannot silently bypass owner transactions or authority. A conditional plan or deferral is acceptable; no alternatives get free correctness.\nVerified committed sources REQUIREMENTS, GRAMMAR, DESIGN and UI-COMPONENTS at 4e89b117d3f66caa79a8df8ed875d55f9e40b948 define atomic owner do blocks, canonical calls, durable asynchronous sends, explicit events and keyed schedules, finite cohorts, and field-derived controls. There is no workflow/await/catch, authored package generics, named views or general calendar recurrence. Flat stored enum machines and explicit operation-owned transitions plus preserving-input page polling are implemented at scoped tests; complete generated hook/lock/invariant and installed browser/provider joins remain open. The committed Cloudflare stdlib source refuses send/emit/schedule/cancel/delivery; that local seam is not proof of all package absence. Historical remaining-work tasks retain wider acceptance requirements; concurrent uncommitted repairs are excluded.\nDESIGN 697-739 and chat-media define associated deliveries, typed original-operation provider snapshots and targeted cancel/reconcile without a new run construct. Transport success is separate from domain success; late events must match association and source revision. Unknown acceptance cannot be treated as failure or automatically resent/refunded/released. Trusted resumed events have actor=null unless a separately verified caller actually invokes them. Cross-owner atomic mutation is forbidden. Generated forms still need actual canonical adapter/browser qualification. Polling is already available; push must preserve authorized rereads. Assess approval/accounting/bulk candidates over these contracts, not as replacements for them. Our preceding sketches are illustrations with unresolved grammar and policies, not adopted specifications.",
+    "questions": {
+      "p01_workflow": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: workflow.",
+        "criteria": {
+          "bounded_language": "After receipt/context/recovery joins, add a small durable workflow construct with explicit checkpoints and fresh-transaction resumes; reduces callback wiring, requires continuation identity, version pinning and authority policy.",
+          "ordinary_composition": "Use models, flat machines, events and standard helper packages after the same joins; explicit stages preserve ownership but retain some callback composition.",
+          "defer": "Complete the existing image-generation and one contrasting workflow, then compare maintenance and authored tokens before choosing an abstraction."
+        }
+      },
+      "p02_cancellation": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: cancellation.",
+        "criteria": {
+          "package": "Qualify original-target cancel/reconcile and keyed timers, then provide an ordinary coordinator package keyed to the current attempt; cancellation remains a request with explicit uncertainty.",
+          "language": "After those same joins, add cancellation/deadline scopes with inherited child membership, explicit late-result policy and durable scope identity.",
+          "defer": "Keep per-app standard cancel and timer operations until multiple qualified flows need reusable group coordination."
+        }
+      },
+      "p03_compensation": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: compensation.",
+        "criteria": {
+          "package": "Qualify explicit recovery scenarios first; package repeatable compensation bookkeeping only after definite effect evidence, with separate retry/unknown outcomes.",
+          "language": "Add a compensation construct after checkpointed execution exists, specifying registration order, crash gaps, reverse ordering, access and independent recovery failure.",
+          "defer": "Keep business-specific recovery operations and postpone a generic compensation abstraction until two real recovery protocols repeat."
+        }
+      },
+      "p04_approval": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: approval.",
+        "criteria": {
+          "package": "Implement ordinary typed approval packages/templates for frozen subject revision, reviewer eligibility, quorum and duplicate decisions; domain publication stays separate.",
+          "language": "Introduce an approval declaration deriving review models/operations with the same configurable quorum, revision and reviewer rules.",
+          "defer": "Keep app-specific approval models until at least two distinct applications validate a stable shared package API."
+        }
+      },
+      "p05_accounting": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: accounting.",
+        "criteria": {
+          "package": "Create an ordinary accounting package after transaction/provider usage qualification: bounded admission, exactly-once settle, uncertain holds, provenance and owner boundary.",
+          "language": "Add source accounting effects with equivalent authorization, admission/settlement identity, overflow and unknown-result constraints.",
+          "defer": "Retain explicit app-owned quota logic until qualified usage and concurrency tests establish repeated accounting invariants."
+        }
+      },
+      "p06_bulk": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: bulk.",
+        "criteria": {
+          "derived_surface": "After finite-cohort and CSV qualification, add only a source-derived bulk invocation/form surface over the existing cohort engine; retain per-item identity, authority and outcomes.",
+          "existing": "Qualify current bounded loops/cohorts and CSV collection invocation first; use those interfaces without a new bulk declaration.",
+          "new_engine": "Implement a separate bulk job primitive/engine with equivalent finite membership, replay, fairness, authority and partial outcome semantics."
+        }
+      },
+      "p07_calendar": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: calendar.",
+        "criteria": {
+          "package": "Provide timezone/calendar helpers plus explicit next-occurrence scheduling through existing keyed timers; calendar policy is data and versioned package behavior.",
+          "language": "Introduce recurrence declarations deriving occurrences from versioned calendars/timezones with explicit DST, missed, overlap and permission semantics.",
+          "defer": "Keep fixed duration schedules and app-specific next-date calculations until multiple apps require identical business-calendar policies."
+        }
+      },
+      "p08_match": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: match.",
+        "criteria": {
+          "language": "Add exhaustive matching first for finite enums and tagged unions: exactly one branch, refinement, explicit evaluation order and incomplete-match diagnostics.",
+          "if_analysis": "Retain if/else spelling and add enum/union coverage diagnostics when the checker proves a complete finite partition.",
+          "defer": "Keep current conditionals until qualification examples demonstrate meaningful error prevention or source savings from exhaustive analysis."
+        }
+      },
+      "p09_dependent_forms": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: dependent forms.",
+        "criteria": {
+          "language": "Add a minimal typed partial-input binding and authorized dependent choice query in canonical forms; clear invalid descendants, server rechecks constraints, no separate schema.",
+          "platform": "Auto-derive dependent controls only from already expressible canonical constraints/schema metadata; no new source dependency binding.",
+          "defer": "Finish baseline form/lookup qualification and retain separate submissions until repeated dependent forms justify a new binding."
+        }
+      },
+      "p10_wizard": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: wizard.",
+        "criteria": {
+          "language": "After forms/files qualify, add a bounded wizard and private versioned draft derived from one canonical operation; final submit revalidates and consumes atomically.",
+          "package": "Represent application drafts explicitly with ordinary models/scenarios and reusable form helpers before adding wizard/draft grammar.",
+          "defer": "Preserve transient existing form drafts; defer durable wizard authoring until one genuine long-form workflow requires resumability."
+        }
+      },
+      "p11_views": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: views.",
+        "criteria": {
+          "language": "Add pure typed named views after ordinary rendering qualifies, with caller-authorized inputs, stable form identity and no new policy privilege or recursion.",
+          "existing": "Use existing generated model presentation, canonical reusable actions and packages; quantify remaining repeated custom fragments first.",
+          "defer": "Postpone view abstraction until two real repeated customized fragments survive use of existing shared defaults."
+        }
+      },
+      "p12_generics": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: generics.",
+        "criteria": {
+          "language": "Introduce constrained model/role package parameters only after ordinary domain packages prove necessary reuse; specify instance identity, contracts and migrations.",
+          "templates": "Use ordinary packages or source templates/specialized variants, preserving visible models/roles and stable canonical identity.",
+          "defer": "Leave authored generics outside v1 until multiple working domain packages show unmanageable safe specialization duplication."
+        }
+      },
+      "p13_machines": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: machines.",
+        "criteria": {
+          "flat_reuse": "After flat machine qualification and repeated graphs, add shared flat lifecycle types only; retain scenario-owned edges, default-owned creation and migrations.",
+          "statecharts": "After flat qualification, add named hierarchy/parallel/history and entry/exit behavior with specified target resolution, transition ordering, authority and upgrades.",
+          "defer": "Finish existing flat machines and state-aware UI; defer reuse and statechart semantics until recurring graphs or nested-state cases demand them."
+        }
+      },
+      "p14_push": {
+        "type": "choice",
+        "instructions": "Which route best meets the same app outcomes and Can priorities? Prerequisites remain required; select a conditional route or deferral where justified. Decision subject: push.",
+        "criteria": {
+          "platform": "After browser/read-fence qualification and measured polling need, add server push as invalidation transport with authorized rereads, revocation, reconnect and polling fallback; no required new syntax.",
+          "language": "Add explicit live page syntax plus equivalent secure subscription transport, defining dependency admission, revocation and reconnect.",
+          "defer": "Retain current polling until latency/load measurements establish a substantial benefit from push."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "p01_workflow": {
+        "type": "choice",
+        "choice": "ordinary_composition",
+        "confidence": 0.31,
+        "probabilities": {
+          "bounded_language": 0.12,
+          "defer": 0.34,
+          "ordinary_composition": 0.54
+        }
+      },
+      "p02_cancellation": {
+        "type": "choice",
+        "choice": "package",
+        "confidence": 0.48,
+        "probabilities": {
+          "defer": 0.19,
+          "language": 0.16,
+          "package": 0.65
+        }
+      },
+      "p03_compensation": {
+        "type": "choice",
+        "choice": "package",
+        "confidence": 0.23,
+        "probabilities": {
+          "defer": 0.45,
+          "language": 0.06,
+          "package": 0.49
+        }
+      },
+      "p04_approval": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.22,
+        "probabilities": {
+          "defer": 0.48,
+          "language": 0.2,
+          "package": 0.32
+        }
+      },
+      "p05_accounting": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.35,
+        "probabilities": {
+          "defer": 0.57,
+          "language": 0.1,
+          "package": 0.33
+        }
+      },
+      "p06_bulk": {
+        "type": "choice",
+        "choice": "derived_surface",
+        "confidence": 0.66,
+        "probabilities": {
+          "derived_surface": 0.77,
+          "existing": 0.23,
+          "new_engine": 0.0
+        }
+      },
+      "p07_calendar": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.51,
+        "probabilities": {
+          "defer": 0.67,
+          "language": 0.02,
+          "package": 0.31
+        }
+      },
+      "p08_match": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.14,
+        "probabilities": {
+          "defer": 0.43,
+          "language": 0.29,
+          "if_analysis": 0.28
+        }
+      },
+      "p09_dependent_forms": {
+        "type": "choice",
+        "choice": "language",
+        "confidence": 0.22,
+        "probabilities": {
+          "defer": 0.35,
+          "platform": 0.17,
+          "language": 0.48
+        }
+      },
+      "p10_wizard": {
+        "type": "choice",
+        "choice": "language",
+        "confidence": 0.23,
+        "probabilities": {
+          "defer": 0.37,
+          "language": 0.49,
+          "package": 0.14
+        }
+      },
+      "p11_views": {
+        "type": "choice",
+        "choice": "existing",
+        "confidence": 0.16,
+        "probabilities": {
+          "defer": 0.38,
+          "existing": 0.44,
+          "language": 0.18
+        }
+      },
+      "p12_generics": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.64,
+        "probabilities": {
+          "defer": 0.76,
+          "language": 0.09,
+          "templates": 0.15
+        }
+      },
+      "p13_machines": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.4,
+        "probabilities": {
+          "defer": 0.6,
+          "flat_reuse": 0.38,
+          "statecharts": 0.02
+        }
+      },
+      "p14_push": {
+        "type": "choice",
+        "choice": "platform",
+        "confidence": 0.82,
+        "probabilities": {
+          "defer": 0.11,
+          "platform": 0.88,
+          "language": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2969,
+      "output_tokens": 588
+    }
+  }
+}

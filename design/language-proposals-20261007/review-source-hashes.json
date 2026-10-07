@@ -1,0 +1,10 @@
+{
+  "source_pin": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+  "files": {
+    "compiler/src/analysis/types.rs": "3e25415436f61cecca33b263b7232f646332f40fa3e87fabf080930038d0ff07",
+    "design/complex-apps/sync.md": "42986dd0d0e886c582d429f2db1c1ef7b190b6e810f68cd2db47ca49a0400b6e",
+    "compiler/src/codegen/js.rs": "ed06577e463748474119a0e8d5714953257163842012047bc38d3a2af27247ed",
+    "packages/contracts/src/presentation.ts": "8c0a790f53f463e0097443f941994a0a0b3fa450e7393fd7fa4e344e5258a507",
+    "packages/ui/src/forms.ts": "6b53fc1fb2bbc794476b1d922fdd9225d16e45c69da5e1d93c5609e94e662674"
+  }
+}

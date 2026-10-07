@@ -1,0 +1,111 @@
+[
+  {
+    "name": "int-control",
+    "exit": 0,
+    "command": [
+      "/private/tmp/canlang-f1-metadata-target/debug/can",
+      "compile",
+      "--format=json",
+      "--catalog=/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+      "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-metadata/int-control.can"
+    ],
+    "callables": [
+      {
+        "id": "Unsupported.wait",
+        "kind": "operation",
+        "module": "$can$m$556e737570706f72746564.mjs",
+        "export": "$can$o$556e737570706f727465642e77616974",
+        "member": [
+          "Unsupported.wait"
+        ],
+        "inputStyle": "parameters"
+      }
+    ],
+    "operations": [
+      {
+        "name": "Unsupported.wait",
+        "kind": "scenario",
+        "description": "",
+        "inputs": {
+          "fields": [
+            {
+              "name": "value",
+              "field": {
+                "kind": "integer"
+              },
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "diagnostics": null
+  },
+  {
+    "name": "duration-members",
+    "exit": 0,
+    "command": [
+      "/private/tmp/canlang-f1-metadata-target/debug/can",
+      "compile",
+      "--format=json",
+      "--catalog=/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+      "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-metadata/duration-members.can"
+    ],
+    "callables": [
+      {
+        "id": "Unsupported.wait",
+        "kind": "operation",
+        "module": "$can$m$556e737570706f72746564.mjs",
+        "export": "$can$o$556e737570706f727465642e77616974",
+        "member": [
+          "Unsupported.wait"
+        ],
+        "inputStyle": "parameters"
+      }
+    ],
+    "operations": [],
+    "diagnostics": null
+  },
+  {
+    "name": "int-members",
+    "exit": 0,
+    "command": [
+      "/private/tmp/canlang-f1-metadata-target/debug/can",
+      "compile",
+      "--format=json",
+      "--catalog=/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+      "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-metadata/int-members.can"
+    ],
+    "callables": [
+      {
+        "id": "Unsupported.wait",
+        "kind": "operation",
+        "module": "$can$m$556e737570706f72746564.mjs",
+        "export": "$can$o$556e737570706f727465642e77616974",
+        "member": [
+          "Unsupported.wait"
+        ],
+        "inputStyle": "parameters"
+      }
+    ],
+    "operations": [
+      {
+        "name": "Unsupported.wait",
+        "kind": "scenario",
+        "description": "",
+        "inputs": {
+          "fields": [
+            {
+              "name": "value",
+              "field": {
+                "kind": "integer"
+              },
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "diagnostics": null
+  }
+]

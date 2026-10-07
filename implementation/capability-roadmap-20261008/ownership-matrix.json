@@ -1,0 +1,103 @@
+{
+  "purpose": "SEQ-002 ownership and handoff matrix for root review",
+  "source_snapshot": "db57c3794d386fcd27f17f54b199272d58106a81",
+  "authority_note": "Package ownership entries below reflect the package coordinator's explicit 2026-10-08 report to root. Compiler status is based on owner-lease-status.json plus the compiler owner's current report that handoff is pending. This matrix records evidence and does not itself transfer ownership or accept work.",
+  "rows": [
+    {
+      "owner_or_group": "Package coordinator",
+      "paths": [
+        ".git and shared Git operations",
+        "docs/specification/DECISIONS.md",
+        "docs/ideal-filetree-plan.md"
+      ],
+      "state": "retained by coordinator",
+      "handoff": "not released; coordinator reports this ownership explicitly",
+      "overlap_rule": "No Git, DECISIONS, or living file-tree writes by this task."
+    },
+    {
+      "owner_or_group": "Package coordinator / UI implementer",
+      "paths": [
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/src/browser/polling.ts",
+        "new lifecycle-cleanup test (exact path pending owner report)"
+      ],
+      "state": "active lease",
+      "handoff": "busy; source changes must remain with current owner until explicit release",
+      "evidence": "Coordinator report in root's 2026-10-08 assignment; bootstrap.ts and polling.ts also appear dirty in current git status.",
+      "acceptance": "No acceptance inferred from static UI adapter receipt; that receipt covers compiler Card title/unbound Tabs only."
+    },
+    {
+      "owner_or_group": "Package coordinator / files package",
+      "paths": [
+        "packages/files/src/upload/index.ts",
+        "packages/files/src/finalize/index.ts",
+        "packages/files/test/finalize-byte-count.test.ts"
+      ],
+      "state": "writer/readers released; commit in progress",
+      "handoff": "released for follow-on work per coordinator; check coordinator before shared Git operation",
+      "evidence": "Coordinator report in root's 2026-10-08 assignment. d450130f review is scoped to localFS/persisted-copy finalization size behavior.",
+      "acceptance": "Do not broaden d450130f to provider finalization or whole file lifecycle."
+    },
+    {
+      "owner_or_group": "Compiler completion owner",
+      "paths": [
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/tests/bdd_checked_facts.rs",
+        "compiler/tests/codegen.rs (leased function)"
+      ],
+      "state": "handoff pending",
+      "handoff": "not released; owner reports pending and recorded lease status is treated as stale where it conflicts with current report",
+      "evidence": "implementation/compiler-completion/owner-lease-status.json is historical status; compiler owner's current message to root says pending.",
+      "acceptance": "BDD fact writer remains unaccepted pending frozen independent review."
+    },
+    {
+      "owner_or_group": "Compiler completion owner / UI adapter leaf",
+      "paths": [
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "compiler/tests/ui_adapter.rs"
+      ],
+      "state": "bounded static Card/unbound Tabs leaf independently reviewed at HEAD c718517a; broader compiler handoff unresolved",
+      "handoff": "no broad release inferred; compiler owner to confirm exact handoff",
+      "evidence": "implementation/compiler-completion/ui-ownership/independent-review/review.json",
+      "acceptance": "Receipt scope is static literal title and legal unbound static Tabs; query/bound/order/profile workflows remain open."
+    },
+    {
+      "owner_or_group": "State/Cloudflare/stdlib scoped guard export owners",
+      "paths": [
+        "packages/state/src/effects/guards.ts",
+        "packages/cloudflare/src/runtime/stdlib.ts",
+        "packages/stdlib/src/index.ts",
+        "packages/stdlib/test/assembly.test.ts"
+      ],
+      "state": "scoped export paths released at b7e18b9b; broader package invocation owner remains foreign",
+      "handoff": "scoped release recorded; broad invocation ownership unresolved",
+      "evidence": "implementation/compiler-completion/owner-lease-status.json and implementation/compiler-completion/runtime-export-join/independent-review/assessment.md",
+      "acceptance": "Bounded synchronous guard export/mutation-revocation evidence only; canonical reads, subject-scoped guard, durable/deployed evidence and broader role cases remain open."
+    },
+    {
+      "owner_or_group": "Package maintenance repair coordinator",
+      "paths": [
+        "packages/identity OAuth",
+        "packages/cloudflare bundle/runtime",
+        "packages/values owned input",
+        "packages/files finalization",
+        "packages/services selected provider adapters",
+        "packages/state fanout transaction"
+      ],
+      "state": "scoped accepted fixes exist; broad workflow gates open",
+      "handoff": "coordinator retains shared bookkeeping and Git; no source lease inferred beyond named reports",
+      "evidence": "Receipts pinned individually in source-inventory.json; coordinator report limits acceptance scopes.",
+      "acceptance": "c7c98b71 is fanout-memory retry freshness only; 8a61be67 same-fanout checkpoint outcomes only; d450130f localFS/persisted-copy file size only; d4b041fb owned JSON with no installed join; 89d885a9 secrecy/read-selector scope; 33f12d62 OAuth grant/code consumption; 1eeedb6d S256 issuance profile; a73df865 provider byte/cancel identity. Broad canonical, durable, provider and original-app gates stay open."
+    }
+  ],
+  "cross_cutting_open_gates": [
+    "whole canonical and durable lifecycle qualification",
+    "provider/original app end-to-end journey qualification",
+    "deployment and installed runtime qualification where not explicitly receipted",
+    "compiler enum/query/order/profile and BDD fact ownership joins",
+    "exact compiler source handoff and final independent BDD review"
+  ],
+  "decision": "No contested owner is selected here. Root reviews this matrix and performs acceptance/handoff decisions."
+}

@@ -1,0 +1,358 @@
+{
+  "source_pin": "09a27206202443d6c07ce9cbfb6d92c214cda053",
+  "source": "../../implementation/remaining-work/tasks.json",
+  "source_sha256": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e",
+  "scope": "Canonical dependency/acceptance crosswalk, not fresh requalification",
+  "references": {
+    "challenge:T04": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [],
+      "original_acceptance": [
+        "T04a versioned descriptor/invoke/example contract agreed by L1/L2/L3/L6/L7; independent expected values/observations; T04b recursive/provider/hook joins and compatibility required for parent completion."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T08": {
+      "status_at_ledger_scope": "needs_verification",
+      "depends_on": [],
+      "original_acceptance": [
+        "Canonical parent/safe metadata/money selectors agree across policy/UI; unknown leaf, invalid descent, disclosure and metadata-write controls retained; selector checking provides no flow or permission fact."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T12": {
+      "status_at_ledger_scope": "complete",
+      "depends_on": [],
+      "original_acceptance": [
+        "Every imported standard/bound declaration has its actual producer, version, accepted scope and availability or a precise decision blocker; preserve completed producers."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T13": {
+      "status_at_ledger_scope": "complete",
+      "depends_on": [
+        "challenge:T12"
+      ],
+      "original_acceptance": [
+        "Canonical requests/results/errors/effects/events/observable relations reach consumers; T13a common delivery then T13b rich relations; invalid members and binding/provenance reject per actual schema."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T15": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T04",
+        "challenge:T09",
+        "challenge:T10"
+      ],
+      "original_acceptance": [
+        "Source-derived recursive model/operation/callable ownership descriptors and separate examples are actually consumed; complete original pilot types; no handbuilt alternate descriptors or omitted source behavior."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T16": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T15"
+      ],
+      "original_acceptance": [
+        "Generated invocation uses canonical verified-context admission, query/mutation ports; unauthorized/forged context fails; source-generated registry/operations are used, not parallel engine."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T17": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T16"
+      ],
+      "original_acceptance": [
+        "Actual generated operations persist through canonical transaction/history/replay/projection with D1/DO evidence where claimed; rollback/no-change/duplicate/stale cases proved; retain completed engine."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T19": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T15",
+        "challenge:T16",
+        "challenge:T18"
+      ],
+      "original_acceptance": [
+        "Forms/HTTP/MCP derive versioned writable inputs from checked operations; bound args/defaults/exact values/files/provenance match; allowlist and equal-authority submission controls pass."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T20": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T19"
+      ],
+      "original_acceptance": [
+        "Real generated form dispatch shows full/partial rendering, context/metadata/preferences/CSRF/error behavior; preserve existing full UI catalog and shell."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T24": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T16",
+        "challenge:T17"
+      ],
+      "original_acceptance": [
+        "Atomic domain/history/replay/outbox staging connects actual generated effects to dispatch; origins/guards/skips/rollback/retry/recovery proved; never infer cross-store atomicity."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T25": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T14",
+        "challenge:T24"
+      ],
+      "original_acceptance": [
+        "Selected receipt locator/association/leaf authorization and revision fence execute; stale attempts cannot overwrite newer associations; status-only disclosure remains restricted."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T26": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T25"
+      ],
+      "original_acceptance": [
+        "Correlated observation proves duplicates/cancellation/late usage/restart/terminal immutability/notification per relation using existing machinery; no new incompatible progress engine."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T27": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T26"
+      ],
+      "original_acceptance": [
+        "Generated image result materializes real finalized receiving-app file; ownership/provenance/permissions/invalid result/replay all proved; controlled provider output identified as such."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T31": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T16",
+        "challenge:T17",
+        "challenge:T30"
+      ],
+      "original_acceptance": [
+        "Accepted secondary writes execute staged parent hooks with rollback, version conflict and reentry/evaluation-order rules; memory evidence cannot prove durable transaction behavior."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T32": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T16",
+        "challenge:T17"
+      ],
+      "original_acceptance": [
+        "Authoritative bounded reads have accepted permission/revision/revocation fence, including stale reads and revocation between read and effect; no cached snapshot silently authorizes spend."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T33": {
+      "status_at_ledger_scope": "complete",
+      "depends_on": [],
+      "original_acceptance": [
+        "Explicit adopt or scope with reasons for cohort/checkpoint/identity/concurrent change/failure/supersession and costs; three independent equivalent JEV formulations saved/investigated; required unsupported app remains blocked."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T34": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T24",
+        "challenge:T33"
+      ],
+      "original_acceptance": [
+        "Adopted finite fanout proves 499/500/501/1000 cohort completeness, crash/duplicates/concurrent changes/rejected children/retry/supersession. Scoped disposition is explicitly deferred, never ticked as implemented."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "challenge:T37": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T02",
+        "challenge:T05",
+        "challenge:T06",
+        "challenge:T08",
+        "challenge:T18",
+        "challenge:T19",
+        "challenge:T20",
+        "challenge:T21",
+        "challenge:T22",
+        "challenge:T23"
+      ],
+      "original_acceptance": [
+        "One unchanged small authoritative app proves generated operations, two actors, denied read, persistence, stale update, replay, browser/MCP parity and genuine executed examples; no reduced source projection."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.AW-JUDGMENT": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T12",
+        "challenge:T13",
+        "challenge:T24"
+      ],
+      "original_acceptance": [
+        "Retain contracts judgment shapes and services/judgments/systemone.ts harness adapter; declaration compile/lowering and real producer remain required cross-owner gate. Full app-specific cause/retry/current-authority/termination and actual installed producer negatives remain required."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.AW-PAYMENTS": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "finished-product:FP.SOURCE-MAPPINGS",
+        "challenge:T24",
+        "finished-product:FP.COMPILED-DECIMAL"
+      ],
+      "original_acceptance": [
+        "packages/contracts/src/services.ts:209,221,230,241,246 existing retained wire contract; catalog.ts current lists no payment adapter. Concrete provider/account transport choice pending; required semantics adopted. Full app-specific cause/retry/current-authority/termination and actual installed producer negatives remain required."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.BROWSER": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T15",
+        "challenge:T19",
+        "challenge:T20"
+      ],
+      "original_acceptance": [
+        "All 68 catalog bindings, real installed CSS/HTMX/client/static path, focus/keyboard/unsaved forms and URL/history; authorized one-inflight poll, visibility/context/logout termination and obsolete responses/actions."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.CONTEXT": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T04",
+        "challenge:T15"
+      ],
+      "original_acceptance": [
+        "Lower actor/team/now/operation from the same verified current invocation, without ambient free variables. Preserve operation readonly id/source and all accepted per-scope bounds; hook context must be released by its owner, not inferred from nonhook c. Required sites compile and execute with meaningful actor-null/current-scope negatives. B4 report is proposal/source evidence."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.CORPUS": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T13",
+        "challenge:T14",
+        "challenge:T15",
+        "challenge:T24",
+        "challenge:T25",
+        "challenge:T26",
+        "challenge:T32",
+        "finished-product:FP.FILES-DURABLE"
+      ],
+      "original_acceptance": [
+        "Accepted grammar preserved. Real origin/principal/scope and all actually used immutable context verified at retrieval and every disclosure; opaque nonconstructible Answer, truthful coverage/as-of, current revocation/withdrawal, index repair and genuine fixtures. T12 B8 exclusion is availability, not deferral."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.CSV": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T19",
+        "challenge:T20",
+        "challenge:T32"
+      ],
+      "original_acceptance": [
+        "Preserve invalid/duplicate rows, renewed consent on changed candidates, authorized pure review before each frozen-identity confirmation, canonical independent replay-safe outcomes/partial failure."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.FILES-DURABLE": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T04",
+        "challenge:T16",
+        "challenge:T24"
+      ],
+      "original_acceptance": [
+        "Real receiving-app bytes/digest/provenance/finalization/attachment/read, upload/principal limits, restart/duplicate/conflicting-output proof; async interface release, no R2+state atomicity promise."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.INVOCATION": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T04",
+        "challenge:T15",
+        "challenge:T16",
+        "challenge:T32"
+      ],
+      "original_acceptance": [
+        "Complete normalized args/version/ref provenance and request allowlist; currently readable protected preview, approval + effects in same owner transaction and post-call invariant rollback; actual Workbench Task.update/complete and negative roles/version cases. No string dispatcher or alternate execute API."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.QUALIFY": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T37",
+        "challenge:T38",
+        "challenge:T39",
+        "challenge:T40",
+        "finished-product:FP.IDENTITY",
+        "finished-product:FP.BROWSER",
+        "finished-product:FP.PREFERENCES",
+        "finished-product:FP.CSV",
+        "finished-product:FP.EXPORT",
+        "finished-product:FP.POLICY-REVIEW",
+        "finished-product:FP.LIFETIME",
+        "finished-product:FP.CORPUS",
+        "finished-product:FP.UPGRADE-JOIN",
+        "finished-product:FP.COMPILED-DECIMAL",
+        "finished-product:FP.CONTEXT",
+        "finished-product:FP.DISPATCH-AVAILABILITY",
+        "finished-product:FP.MAINTENANCE",
+        "finished-product:FP.PING",
+        "finished-product:FP.INSTRUMENTATION",
+        "finished-product:FP.ALERTS",
+        "finished-product:FP.SOURCE-MAPPINGS",
+        "finished-product:FP.SERVICE-CATALOG",
+        "finished-product:FP.MAILBOX",
+        "finished-product:FP.REPORTS",
+        "finished-product:FP.TRACKER",
+        "finished-product:FP.INVOCATION",
+        "finished-product:FP.APP-ADJUDICATION",
+        "finished-product:FP.AW-MAILBOX",
+        "finished-product:FP.AW-PAYMENTS",
+        "finished-product:FP.AW-DOCUMENTS",
+        "finished-product:FP.AW-SOURCE-CONNECTOR",
+        "finished-product:FP.AW-ONBOARD-HANDOFF",
+        "finished-product:FP.AW-JUDGMENT",
+        "finished-product:FP.AW-REPLAY-IMPORT"
+      ],
+      "original_acceptance": [
+        "All 49 app intent dispositions with full declared required workflows/negatives, real canonical compiled examples, meaningful multi-actor/browser/MCP/persistence/retry/recovery; per-app gates and honest provider/storage evidence."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    },
+    "finished-product:FP.UPGRADE-JOIN": {
+      "status_at_ledger_scope": "partial",
+      "depends_on": [
+        "challenge:T15",
+        "challenge:T17",
+        "challenge:T24"
+      ],
+      "original_acceptance": [
+        "Exact installed predecessor/desired schema, bounded complete-state/work inventory, staged validation, fenced activation/recovery, negative unknown/unsupported transitions; retain truthful online limitations."
+      ],
+      "scope": "Ledger evidence must be reconciled; scoped releases retain original broad acceptance."
+    }
+  },
+  "additional_references": {
+    "SM.QUALIFY": "docs/ideal-filetree-plan/state-machines-20261007.json"
+  }
+}
