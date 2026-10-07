@@ -1,0 +1,112 @@
+{
+  "dependency": "sha2",
+  "version": "0.10.9",
+  "default_features": false,
+  "direct_features": [],
+  "optional_features_disabled": [
+    "asm",
+    "oid",
+    "compress",
+    "std",
+    "force-soft"
+  ],
+  "baseline_registry_count": 37,
+  "hash_only_registry_count": 47,
+  "added_locked_packages": [
+    {
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "checksum": "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2018",
+      "rust_version": null,
+      "build": null
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.5",
+      "checksum": "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2018",
+      "rust_version": "1.32",
+      "build": false
+    },
+    {
+      "name": "cpufeatures",
+      "version": "0.2.17",
+      "checksum": "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2018",
+      "rust_version": null,
+      "build": false
+    },
+    {
+      "name": "crypto-common",
+      "version": "0.1.7",
+      "checksum": "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2018",
+      "rust_version": null,
+      "build": false
+    },
+    {
+      "name": "digest",
+      "version": "0.10.7",
+      "checksum": "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2018",
+      "rust_version": null,
+      "build": null
+    },
+    {
+      "name": "generic-array",
+      "version": "0.14.7",
+      "checksum": "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a",
+      "license": "MIT",
+      "edition": null,
+      "rust_version": null,
+      "build": null
+    },
+    {
+      "name": "libc",
+      "version": "0.2.190",
+      "checksum": "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2021",
+      "rust_version": "1.65",
+      "build": "build.rs"
+    },
+    {
+      "name": "sha2",
+      "version": "0.10.9",
+      "checksum": "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2018",
+      "rust_version": null,
+      "build": false
+    },
+    {
+      "name": "typenum",
+      "version": "1.20.1",
+      "checksum": "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2018",
+      "rust_version": "1.41.0",
+      "build": false
+    },
+    {
+      "name": "version_check",
+      "version": "0.9.5",
+      "checksum": "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a",
+      "license": "MIT/Apache-2.0",
+      "edition": null,
+      "rust_version": null,
+      "build": false
+    }
+  ],
+  "maximum_added_declared_rust_version": "1.65",
+  "missing_rust_version_declarations": true,
+  "executed_rust": "1.99.0",
+  "license_assessment": "MIT/Apache-compatible choices in all added packages",
+  "current_release_not_selected": "sha2 0.11.0, unqualified here; no claim selected branch is latest, faster or smaller"
+}

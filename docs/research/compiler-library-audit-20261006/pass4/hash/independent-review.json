@@ -1,0 +1,9 @@
+{
+  "reviewer": "pass4_hash",
+  "model": "gpt-6.1-sol",
+  "reasoning": "low",
+  "scope": "read-only review of actual adapter, manifest/features, permanent vectors and corrected qualifier",
+  "result": "no blocking issue",
+  "qualification_script": "pins0104b04 baseline, extracts current production adapter, reuses saved scratch lock with --locked",
+  "uncertainty": "0.11.0, alternate backends/tools and exhaustive hardware coverage not qualified; representative release measurements needed before acceptance"
+}
