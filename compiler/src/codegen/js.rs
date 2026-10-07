@@ -1077,7 +1077,7 @@ fn sanitize_ident(name: &str) -> String {
 
 /// Quote string values through the shared byte-compatible JSON adapter.
 /// Expressions, identifiers and HTML embedding have separate owners.
-fn js_string(value: &str) -> String {
+pub(super) fn js_string(value: &str) -> String {
     crate::json::to_compact_string(value).expect("JS string JSON serialization invariant")
 }
 
