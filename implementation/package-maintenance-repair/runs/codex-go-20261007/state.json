@@ -164,7 +164,10 @@
     "review": "keyed-promise-independent-review.json"
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
-  "next_active_packets": [],
+  "next_active_packets": [
+    "TECH-V03:registration-publication-independent-review",
+    "DEL-D03:text-output-containment-independent-review"
+  ],
   "packet_state": {
     "TECH-V01-values": {
       "planning_status": "ready",
@@ -286,7 +289,7 @@
       "review_read_released": true,
       "parent_limit": "No observed production caller/prepared plan/default success/security/installed qualification; factory provenance source tracing active",
       "factory_prerequisite": {
-        "state": "31 frozen source reads released; actual owning consumer/source-revision input requested, no authority hook chosen",
+        "state": "Exact16 frozen/observed committed producer pins verified; real compiled vectors map differing representations; no existing production source-owner/revision association found or invented",
         "agent": "/root/prepared_owner_contract",
         "model": "gpt-6.1-sol",
         "effort": "high",
@@ -294,9 +297,31 @@
         "factual_result": "/private/tmp/canlang-repair-go-20261007/prepared-factory-current/result.json",
         "factual_result_sha256": "3b5583e8b2ab23eb844f9189febd900bf600f42e7314dc080c8944ed8d60c8d0",
         "review": "prepared-owner-prerequisite.json",
-        "unsent_consultations": true
+        "unsent_consultations": true,
+        "producer_map": "prepared-owner-producer-map.json"
       },
-      "commit": "d4b041fb"
+      "commit": "d4b041fb",
+      "registration_atomic_correction": {
+        "state": "Producer released candidate and51/51 gates; different-author finite independent review active",
+        "agent": "/root/prepared_registration_atomic",
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "files": [
+          "packages/values/src/prepared/plan.ts",
+          "packages/values/test/prepared-registration-atomic.test.ts"
+        ],
+        "start_source_sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+        "outputs": "/private/tmp/canlang-repair-go-20261007/prepared-registration-atomic",
+        "contract": "Stage copied defaults privately; failed registration publishes no new defaults/plan. Preserve consumed sequence, exact error/copy order and all successful identity/release semantics.",
+        "limit": "Explicit preexisting integrator-private hook substitution only; no production source-owner/provenance/carrier adoption",
+        "writer_released": true,
+        "reviewer": "/root/browser_lifecycle_review",
+        "review_outputs": "/private/tmp/canlang-repair-go-20261007/prepared-registration-independent",
+        "source_pins": {
+          "packages/values/src/prepared/plan.ts": "3e8a556376e7fa80bec2889589ea64a20a720b262f7dea744a58e717c9d24fc3",
+          "packages/values/test/prepared-registration-atomic.test.ts": "358628da08541606e0a42504ddc9d9493a26b4f9c94cacecfbe987581b77b234"
+        }
+      }
     },
     "TECH-V04": {
       "planning_status": "blocked",
@@ -331,7 +356,7 @@
       "review": "values-carrier-prerequisite.json",
       "read_released": true,
       "hygiene_correction": {
-        "state": "Independently accepted native conformance unique-key transport correction; scoped commit prepared",
+        "state": "Independently accepted native conformance unique-key correction committed27f211c9",
         "files": [
           "packages/values/semantics/src/transport/exact.rs",
           "packages/values/semantics/tests/transport_record_hygiene.rs"
@@ -345,9 +370,10 @@
           "packages/values/semantics/tests/transport_record_hygiene.rs": "f3fa40cc74c3b9b6e6b234c4ddeaeee27d3f589e71bc2ecf7ac49c270d9c246d"
         },
         "review": "record-hygiene-independent-review.json",
-        "commit_pending": true,
+        "commit_pending": false,
         "writer_released": true,
-        "review_read_released": true
+        "review_read_released": true,
+        "commit": "27f211c9"
       }
     },
     "TECH-V05": {
@@ -935,7 +961,7 @@
     },
     "DEL-B02": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Independently accepted immutable finite asset byte-ownership correction; commit prepared, parent mounted/browser/export/print gates open",
       "files": [
         "packages/ui/src/client.ts",
         "packages/ui/src/browser/export.ts",
@@ -947,7 +973,24 @@
         "packages/interfaces/src/http/export.ts",
         "packages/interfaces/src/http/print.ts",
         "packages/interfaces/src/http/pages.ts"
-      ]
+      ],
+      "agent": "/root/service_stream_review",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "outputs": "/private/tmp/canlang-repair-go-20261007/asset-ownership-production",
+      "active_files": [],
+      "read_only": false,
+      "writer_released": true,
+      "reviewer": "/root/prepared_registration_atomic",
+      "review_outputs": "/private/tmp/canlang-repair-go-20261007/asset-ownership-independent",
+      "source_pins": {
+        "packages/interfaces/src/http/assets.ts": "67a6d569fd20ea2bb930ef854a1c3f2ae0812b2f4c8a3da0e1626bfdad37453d",
+        "packages/interfaces/test/asset-byte-ownership.test.ts": "a0a9e3b5334e8074ceda7d0e9203ae08ade144cf3b6318a6ee9b0eafeeaa436d"
+      },
+      "parent_limit": "No identified production mount/ETag; original browser/files/export/print/installed/security qualification open",
+      "review": "asset-ownership-independent-review.json",
+      "review_read_released": true,
+      "commit_pending": true
     },
     "DEL-D03": {
       "planning_status": "blocked",
@@ -980,7 +1023,23 @@
       "commit_pending": false,
       "parent_limit": "Broader filesystem containment/process/resource/installed gates remain open",
       "correctness_growth": 18,
-      "commit": "2b750a6e"
+      "commit": "2b750a6e",
+      "contained_writer_prerequisite": {
+        "state": "Real frozen bundle writer39/39 private FS controls complete and released; text-writer guard reuse candidate qualification active",
+        "agent": "/root/browser_lifecycle_review",
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "outputs": "/private/tmp/canlang-repair-go-20261007/contained-writer-current",
+        "active_files": [],
+        "read_only": false,
+        "limit": "No native/deploy commands, HOLD activation, new resource bounds or race protection claim",
+        "writer_released": false,
+        "files": [
+          "packages/cloudflare/src/deploy/bundle.ts",
+          "packages/cloudflare/test/text-output-containment.test.ts"
+        ],
+        "start_sha256": "4a02f6dc8696576690e1f380fee168034d30b409d4fcd7e059d3c14784d7a7df"
+      }
     },
     "DEL-D04": {
       "planning_status": "blocked",
@@ -1382,5 +1441,82 @@
     "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
+  },
+  "maintenance_accounting_prerequisite": {
+    "state": "Root-reviewed per-slice accounting at immutable27f; no global unique total or whole packet acceptance asserted",
+    "outputs": "/private/tmp/canlang-repair-go-20261007/current-maintenance-index",
+    "summary_sha256": "4d180029b205d56ebd7a29af7c797e6b71f953978b5bf78d88c8fbb7d8419850",
+    "replacement_measure_rows": 14,
+    "correctness_and_overlap_separate": true,
+    "prior_index_D01_misclassification_corrected": true,
+    "model": "Luna medium mechanical index, root technical/citation review"
+  },
+  "completion_snapshot": {
+    "metric": "Root-reviewed complete selected repair-packet acceptance, not original challenge/port/product parent closure or accepted partial commit count",
+    "finished": [
+      "TECH-V01-values",
+      "TECH-V01-work",
+      "TECH-W01-quote",
+      "TECH-W01-uri",
+      "TECH-S01",
+      "TECH-S01-own-key",
+      "TECH-SV01",
+      "TECH-SV04",
+      "DEL-D01",
+      "DEL-D02",
+      "DEL-C02-order",
+      "PARSER-DP01",
+      "TECH-V02-violations",
+      "TECH-V02-gregorian",
+      "DEL-U01-appearance",
+      "DEL-U01-draft",
+      "DEL-A01-error",
+      "DEL-A01-binding",
+      "DEL-A01-admission",
+      "DEL-A01-canonical"
+    ],
+    "partially_completed": [
+      "TECH-V03",
+      "TECH-V04",
+      "TECH-S02",
+      "TECH-W02",
+      "TECH-I01",
+      "TECH-I02",
+      "TECH-F01",
+      "TECH-SV02",
+      "DEL-B01",
+      "DEL-B02",
+      "DEL-D03",
+      "DEL-D04",
+      "DEL-E02",
+      "VERIFY-TV01"
+    ],
+    "open_or_blocked": [
+      "DEL-C01",
+      "DEL-C02",
+      "DEL-R01",
+      "FINAL-R03",
+      "REPLAY-IP07",
+      "TECH-F02",
+      "TECH-S03",
+      "TECH-S04-admission",
+      "TECH-S04-cohort",
+      "TECH-S04-query",
+      "TECH-SV03",
+      "TECH-V05",
+      "TECH-W03"
+    ],
+    "human_held": [
+      "DEL-D05"
+    ],
+    "counts": {
+      "finished": 20,
+      "partial": 14,
+      "open_or_blocked": 13,
+      "held": 1,
+      "total": 48
+    },
+    "source_basis": "Current queue IDs + explicit independent dispositions/task scope; accepted narrow corrections do not close broad qualification packets",
+    "status_given_to_human": "20/48 finished,14partial,13open,1held"
   }
 }

@@ -227,3 +227,5 @@ Services retains HTTP streaming cancellation ownership. Independently accepted e
 UI defining browser owners retain synchronous acquisition/stop/listener cleanup. Finite independently accepted resource exhaustion and first-error correction adds no public layer; separate visibility/typing/producer/real-browser/installed outcomes and complete checkpoint remain open. No merge.
 
 Values conformance transport owns its enforced record-key hygiene; actual native/Wasm prerequisite facts remain distinct from production profile/error/retirement and genuine owner/default joins. Existing prepared provenance refusal is retained until real producer association, not replaced by format-version stamping. No new owner/layer, merge or complete checkpoint advance.
+
+Interfaces keeps immutable asset-byte ownership inside its defining constructor, with dedicated asset-byte-ownership.test.ts. Independent bounded direct-handler acceptance preserves the dynamic provider protocol; actual mount/browser/export/print/installed and whole selected packet remain open. No new adapter/owner, merge or complete checkpoint advance.

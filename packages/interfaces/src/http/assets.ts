@@ -52,7 +52,8 @@ export interface AssetTable {
  * dot-segments (traversal-shaped keys never enter the table),
  * non-admitted MIME, or negative/non-integer max age. Served bodies
  * are per-request copies, so later caller mutation of the input
- * bytes cannot change served content.
+ * bytes cannot change served content. The lookup is frozen and each
+ * returned row exposes a defensive byte copy of the registered content.
  */
 export function createAssetTable(rows: readonly AssetRow[]): AssetTable {
   const seen = new Set<string>();
@@ -82,17 +83,18 @@ export function createAssetTable(rows: readonly AssetRow[]): AssetTable {
     }
     return Object.freeze({
       key: row.key,
-      bytes: row.bytes.slice(),
+      bytes: new Uint8Array(row.bytes),
       mime: row.mime,
       cache: Object.freeze({ ...row.cache }),
     });
   });
   const byKey = new Map(frozen.map((row) => [row.key, row] as const));
-  return {
+  return Object.freeze({
     get(key: string): AssetRow | null {
-      return byKey.get(key) ?? null;
+      const row = byKey.get(key);
+      return row === undefined ? null : Object.freeze({ ...row, bytes: new Uint8Array(row.bytes) });
     },
-  };
+  });
 }
 
 /** Authored unknown response: `not_found`, never a 405/400 oracle. */
