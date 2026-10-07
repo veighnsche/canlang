@@ -1,0 +1,23 @@
+{
+  "verification": "pass: expected owner outcomes, source/built parity, rendering outcomes and frozen baseline anomaly set",
+  "typeCases": 8,
+  "syntaxCases": 50,
+  "renderCases": 6,
+  "typeMismatches": [
+    "number-decimal",
+    "ordinal-decimal"
+  ],
+  "syntaxMismatches": [
+    "select-hyphen",
+    "duplicate-normalized",
+    "unknown-category",
+    "rich-tag",
+    "self-rich-tag",
+    "friendly-apostrophe-undeclared",
+    "pound-top",
+    "exact-leading-dot",
+    "exact-trailing-dot",
+    "white-undeclared",
+    "depth-arg-32"
+  ]
+}

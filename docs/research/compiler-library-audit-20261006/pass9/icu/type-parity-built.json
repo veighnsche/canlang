@@ -1,0 +1,406 @@
+{
+  "host": {
+    "node": "v24.21.0",
+    "icu": "78.3",
+    "cldr": "48.0"
+  },
+  "ownerEntry": "file:///private/tmp/canlang-pass9-icu/pinned/packages/values/dist/src/index.js",
+  "cases": [
+    {
+      "usage": "number",
+      "type": "int",
+      "pattern": "{n,number}",
+      "expectedOk": true,
+      "compiler": {
+        "exit": 0,
+        "raw": {
+          "tool": "can",
+          "tool_version": "0.1.0",
+          "language_version": "1.0",
+          "schema_version": 1,
+          "sources": [
+            {
+              "id": 0,
+              "path": "/private/tmp/canlang-pass9-icu/number-int.can",
+              "sha256": "7bc526d4ac35dd05d7abf4daf963ff6e4524580f6eb1431ce6766a14eb37c0cc"
+            }
+          ],
+          "complete": true,
+          "diagnostics": [],
+          "omitted": 0
+        }
+      },
+      "ownerValidation": {
+        "ok": true
+      },
+      "ownerDescriptor": {
+        "ok": true,
+        "value": {
+          "kind": "message",
+          "source": "{n,number}",
+          "variants": {},
+          "params": {
+            "n": {
+              "type": "int",
+              "value": "21n"
+            }
+          }
+        }
+      },
+      "ownerRender": {
+        "ok": true,
+        "value": "21"
+      }
+    },
+    {
+      "usage": "number",
+      "type": "decimal",
+      "pattern": "{n,number}",
+      "expectedOk": true,
+      "compiler": {
+        "exit": 10,
+        "raw": {
+          "tool": "can",
+          "tool_version": "0.1.0",
+          "language_version": "1.0",
+          "schema_version": 1,
+          "sources": [
+            {
+              "id": 0,
+              "path": "/private/tmp/canlang-pass9-icu/number-decimal.can",
+              "sha256": "6ea0b5f55816aa40d61d9a2baa4b2d87c6fc7da6bf8eb2e96be88a23a9490a48"
+            }
+          ],
+          "complete": true,
+          "diagnostics": [
+            {
+              "code": "E5007",
+              "severity": "error",
+              "message": "invalid message pattern: number argument 'n' has an incompatible type",
+              "primary": {
+                "file": 0,
+                "start": 40,
+                "end": 52
+              },
+              "related": [],
+              "tags": []
+            }
+          ],
+          "omitted": 0
+        }
+      },
+      "ownerValidation": {
+        "ok": true
+      },
+      "ownerDescriptor": {
+        "ok": true,
+        "value": {
+          "kind": "message",
+          "source": "{n,number}",
+          "variants": {},
+          "params": {
+            "n": {
+              "type": "decimal",
+              "value": {
+                "kind": "decimal",
+                "coef": "2150n",
+                "scale": 2
+              }
+            }
+          }
+        }
+      },
+      "ownerRender": {
+        "ok": true,
+        "value": "21.50"
+      }
+    },
+    {
+      "usage": "integer",
+      "type": "int",
+      "pattern": "{n,number,integer}",
+      "expectedOk": true,
+      "compiler": {
+        "exit": 0,
+        "raw": {
+          "tool": "can",
+          "tool_version": "0.1.0",
+          "language_version": "1.0",
+          "schema_version": 1,
+          "sources": [
+            {
+              "id": 0,
+              "path": "/private/tmp/canlang-pass9-icu/integer-int.can",
+              "sha256": "35077926bc34c223ab582e7e0e5b89e43f56bb266e30739b4fce8bf4e3d57d7f"
+            }
+          ],
+          "complete": true,
+          "diagnostics": [],
+          "omitted": 0
+        }
+      },
+      "ownerValidation": {
+        "ok": true
+      },
+      "ownerDescriptor": {
+        "ok": true,
+        "value": {
+          "kind": "message",
+          "source": "{n,number,integer}",
+          "variants": {},
+          "params": {
+            "n": {
+              "type": "int",
+              "value": "21n"
+            }
+          }
+        }
+      },
+      "ownerRender": {
+        "ok": true,
+        "value": "21"
+      }
+    },
+    {
+      "usage": "integer",
+      "type": "decimal",
+      "pattern": "{n,number,integer}",
+      "expectedOk": false,
+      "compiler": {
+        "exit": 10,
+        "raw": {
+          "tool": "can",
+          "tool_version": "0.1.0",
+          "language_version": "1.0",
+          "schema_version": 1,
+          "sources": [
+            {
+              "id": 0,
+              "path": "/private/tmp/canlang-pass9-icu/integer-decimal.can",
+              "sha256": "6ec1af71178c2f7225805a0b6a1512aac6f281b3e216c13a15ab8c7587d2be5e"
+            }
+          ],
+          "complete": true,
+          "diagnostics": [
+            {
+              "code": "E5007",
+              "severity": "error",
+              "message": "invalid message pattern: number argument 'n' has an incompatible type",
+              "primary": {
+                "file": 0,
+                "start": 40,
+                "end": 60
+              },
+              "related": [],
+              "tags": []
+            }
+          ],
+          "omitted": 0
+        }
+      },
+      "ownerValidation": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param n has type decimal, incompatible with number,integer"
+      },
+      "ownerDescriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param n has type decimal, incompatible with number,integer"
+      },
+      "ownerRender": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param n has type decimal, incompatible with number,integer"
+      }
+    },
+    {
+      "usage": "cardinal",
+      "type": "int",
+      "pattern": "{n,plural,one {one} other {#}}",
+      "expectedOk": true,
+      "compiler": {
+        "exit": 0,
+        "raw": {
+          "tool": "can",
+          "tool_version": "0.1.0",
+          "language_version": "1.0",
+          "schema_version": 1,
+          "sources": [
+            {
+              "id": 0,
+              "path": "/private/tmp/canlang-pass9-icu/cardinal-int.can",
+              "sha256": "0757b182a579760143ea066f6e8281e2c9b5cba0b017db50303fbddc7bbb4af0"
+            }
+          ],
+          "complete": true,
+          "diagnostics": [],
+          "omitted": 0
+        }
+      },
+      "ownerValidation": {
+        "ok": true
+      },
+      "ownerDescriptor": {
+        "ok": true,
+        "value": {
+          "kind": "message",
+          "source": "{n,plural,one {one} other {#}}",
+          "variants": {},
+          "params": {
+            "n": {
+              "type": "int",
+              "value": "21n"
+            }
+          }
+        }
+      },
+      "ownerRender": {
+        "ok": true,
+        "value": "21"
+      }
+    },
+    {
+      "usage": "cardinal",
+      "type": "decimal",
+      "pattern": "{n,plural,one {one} other {#}}",
+      "expectedOk": true,
+      "compiler": {
+        "exit": 0,
+        "raw": {
+          "tool": "can",
+          "tool_version": "0.1.0",
+          "language_version": "1.0",
+          "schema_version": 1,
+          "sources": [
+            {
+              "id": 0,
+              "path": "/private/tmp/canlang-pass9-icu/cardinal-decimal.can",
+              "sha256": "203f804863fffe78e3dca5a50f0f65b1f20445cccc635b06e900136f17453237"
+            }
+          ],
+          "complete": true,
+          "diagnostics": [],
+          "omitted": 0
+        }
+      },
+      "ownerValidation": {
+        "ok": true
+      },
+      "ownerDescriptor": {
+        "ok": true,
+        "value": {
+          "kind": "message",
+          "source": "{n,plural,one {one} other {#}}",
+          "variants": {},
+          "params": {
+            "n": {
+              "type": "decimal",
+              "value": {
+                "kind": "decimal",
+                "coef": "2150n",
+                "scale": 2
+              }
+            }
+          }
+        }
+      },
+      "ownerRender": {
+        "ok": true,
+        "value": "21.50"
+      }
+    },
+    {
+      "usage": "ordinal",
+      "type": "int",
+      "pattern": "{n,selectordinal,one {#st} other {#th}}",
+      "expectedOk": true,
+      "compiler": {
+        "exit": 0,
+        "raw": {
+          "tool": "can",
+          "tool_version": "0.1.0",
+          "language_version": "1.0",
+          "schema_version": 1,
+          "sources": [
+            {
+              "id": 0,
+              "path": "/private/tmp/canlang-pass9-icu/ordinal-int.can",
+              "sha256": "f588eb17de18d6c84753dbae2fa08580712b91d2eeb69f3ce957e90ded08b575"
+            }
+          ],
+          "complete": true,
+          "diagnostics": [],
+          "omitted": 0
+        }
+      },
+      "ownerValidation": {
+        "ok": true
+      },
+      "ownerDescriptor": {
+        "ok": true,
+        "value": {
+          "kind": "message",
+          "source": "{n,selectordinal,one {#st} other {#th}}",
+          "variants": {},
+          "params": {
+            "n": {
+              "type": "int",
+              "value": "21n"
+            }
+          }
+        }
+      },
+      "ownerRender": {
+        "ok": true,
+        "value": "21st"
+      }
+    },
+    {
+      "usage": "ordinal",
+      "type": "decimal",
+      "pattern": "{n,selectordinal,one {#st} other {#th}}",
+      "expectedOk": false,
+      "compiler": {
+        "exit": 0,
+        "raw": {
+          "tool": "can",
+          "tool_version": "0.1.0",
+          "language_version": "1.0",
+          "schema_version": 1,
+          "sources": [
+            {
+              "id": 0,
+              "path": "/private/tmp/canlang-pass9-icu/ordinal-decimal.can",
+              "sha256": "2975fad0bc2fc64dd819e306d0d45f9afe7510b29109d998dda7eb9a6fc37aea"
+            }
+          ],
+          "complete": true,
+          "diagnostics": [],
+          "omitted": 0
+        }
+      },
+      "ownerValidation": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param n has type decimal, incompatible with selectordinal"
+      },
+      "ownerDescriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param n has type decimal, incompatible with selectordinal"
+      },
+      "ownerRender": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param n has type decimal, incompatible with selectordinal"
+      }
+    }
+  ]
+}

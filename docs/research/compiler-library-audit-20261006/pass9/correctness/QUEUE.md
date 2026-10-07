@@ -4,7 +4,7 @@ Executed evidence promotes repairs without waiting for all mechanism comparisons
 
 | Packet | Executed defect | Exact writer / witnesses | Status |
 | --- | --- | --- | --- |
-| C09I-1 | Decimal ordinary number fails compiler E5007 while DESIGN9.1/current public value owner accepts; decimal ordinal passes compiler while owner rejects | compiler/src/analysis/examples.rs IcuParser::parse_argument; compiler/tests/check.rs focused type matrix; pass9/icu/type-parity.json/replay | Implemented and independently reviewed; scoped commit pending |
+| C09I-1 | Decimal ordinary number fails compiler E5007 while DESIGN9.1/current public value owner accepts; decimal ordinal passes compiler while owner rejects | compiler/src/analysis/examples.rs IcuParser::parse_argument; compiler/tests/check.rs focused type matrix; pass9/icu/type-parity.json/replay | Implemented and independently reviewed; committed with numeric repair |
 | C09C-1 | All shipped shell scripts omit supported lint --fix | compiler/can-completions.{bash,zsh,fish}; new compiler/tests/completion_contract.rs and isolated shell fixture if needed; actual embedded scripts and Bash/Zsh outcomes | Released in completion-CONTRACT.md |
 | C09C-2 | Bash/Zsh suggest compiler flags after -- even though parse_args treats them as operands | Same scripts/test seam; fixed separator/filename expectations and actual shell probes | Released Bash/Zsh boundary in completion-CONTRACT.md |
 | C09C-3 | Actual Zsh completions b<TAB> does not expand to bash; format positive control works | compiler/can-completions.zsh operand position/word handling; actual PTY/compinit witness | Released in completion-CONTRACT.md |

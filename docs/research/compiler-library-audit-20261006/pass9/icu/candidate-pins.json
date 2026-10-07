@@ -1,0 +1,115 @@
+{
+  "crate": {
+    "name": "formatjs_icu_messageformat_parser",
+    "vers": "0.3.1",
+    "deps": [
+      {
+        "name": "criterion",
+        "req": "^0.8",
+        "features": [],
+        "optional": false,
+        "default_features": true,
+        "target": null,
+        "kind": "dev"
+      },
+      {
+        "name": "formatjs_icu_skeleton_parser",
+        "req": "^0.1.2",
+        "features": [],
+        "optional": false,
+        "default_features": true,
+        "target": null,
+        "kind": "normal"
+      },
+      {
+        "name": "icu",
+        "req": "^2.1",
+        "features": [],
+        "optional": false,
+        "default_features": true,
+        "target": null,
+        "kind": "normal"
+      },
+      {
+        "name": "indexmap",
+        "req": "^2.12",
+        "features": [
+          "serde"
+        ],
+        "optional": false,
+        "default_features": true,
+        "target": null,
+        "kind": "normal"
+      },
+      {
+        "name": "once_cell",
+        "req": "^1.21",
+        "features": [],
+        "optional": false,
+        "default_features": true,
+        "target": null,
+        "kind": "normal"
+      },
+      {
+        "name": "regex",
+        "req": "^1.11",
+        "features": [],
+        "optional": false,
+        "default_features": true,
+        "target": null,
+        "kind": "normal"
+      },
+      {
+        "name": "serde",
+        "req": "^1.0",
+        "features": [
+          "derive"
+        ],
+        "optional": false,
+        "default_features": true,
+        "target": null,
+        "kind": "normal"
+      },
+      {
+        "name": "serde_json",
+        "req": "^1.0",
+        "features": [],
+        "optional": false,
+        "default_features": true,
+        "target": null,
+        "kind": "normal"
+      }
+    ],
+    "cksum": "d0909dd9d16e47e4c6edb7e0e118c2afecef3ccffab077e20597d84b373bec33",
+    "features": {},
+    "yanked": false,
+    "rust_version": "1.90",
+    "pubtime": "2026-09-12T15:49:46Z"
+  },
+  "archive_url": "https://static.crates.io/crates/formatjs_icu_messageformat_parser/formatjs_icu_messageformat_parser-0.3.1.crate",
+  "archive_sha256": "d0909dd9d16e47e4c6edb7e0e118c2afecef3ccffab077e20597d84b373bec33",
+  "retrieval": "curl via approved network; crates.io API 403, sparse index/static archive succeeded",
+  "download_bytes": 65297,
+  "source_files": {
+    "Cargo.toml": "ab8bf8f02ff8b65402e47305c9a29d815b9590e3c02fd65caf5559814fb6b3d6",
+    "regex_generated.rs": "a3f6ac8499b98b0f9dad75ed0fd066a7070d8aeb76d913f4b6906aa408f219ae",
+    "types.rs": "e9995c614b5f2f1364eeb51870cf407a2470ff3c995eca4a7e4da78d753654cf",
+    "date_time_pattern_generator.rs": "ca04f624c61d63199012bbb2371de03fd98ca4ace68732104153c0c925f7a78d",
+    "CHANGELOG.md": "3c26d6a62655eac94e8051eb5abc93bacd1d994abab2f04a7af4480df4e2b952",
+    "error.rs": "41c639f16f1e0924d1116e799726f88ad3a928b554ce7e8abeb7cb9886014aa2",
+    "manipulator.rs": "6b851e9a35019de80c4bed130f9120d0b3c6b50049632fc42506e7010ae018bd",
+    "lib.rs": "25f4ff7800b4ec5430242fe4c460a5f931d13a19c84dd5296749a140ad168d4f",
+    "Cargo.lock": "a5b9c0938be95094f4cdfb2055359d0ea25cb5c7a6d0fedfe727317ddca9e6a7",
+    "BENCHMARK.md": "c53fe331b9293d2d09ed5544bd7825fe7aa6bb624d70b3ff9f8dc1e0388c9614",
+    "README.md": "df83fee1f6b1fea488be4a7f53f152c912616a819c0100af9799caace148a2ea",
+    "printer.rs": "9d806c0006b535645a6de4fc81e2b27a5426d6f84044d3eeed05053aa0473b93",
+    "OPTIMIZATION_SUMMARY.md": "64e9f9b64a4af9611dff5667862d2071053b98bcbc9c35edbbf087ac8ecff236",
+    "BUILD.bazel": "49a8d5ea5dd90624d666a5ce9b792e767254a9c8adda6fddc7141dc5cc2576cc",
+    "time_data_generated.rs": "85f9d509df12deb684619d58fdd30b825f6f3b10890a8b7e94c278a47378ad39",
+    ".cargo_vcs_info.json": "3c23c26a419c9143750d25ac1d9b92c505d157431463ea2df0a45a0af077ab7a",
+    "Cargo.toml.orig": "f25be696bf15cdff7e9c17ac1a3ebcaac6617f734230d6b844203aa623c55142",
+    "parser.rs": "77e006fd08347acdb79be15a58084994e21a661f513fc9ee4fb9e9392bd22b2a"
+  },
+  "executed_library": false,
+  "reason": "Mandatory parse-core/depth/exact-selector feasibility gates fail in published source; root explicitly stopped full crate build"
+}

@@ -1,0 +1,112 @@
+{
+  "ownerEntry": "file:///private/tmp/canlang-pass9-icu/pinned/packages/values/src/index.ts",
+  "cases": [
+    {
+      "id": "int-exact-above-safe",
+      "pattern": "{n,plural,=9007199254740993 {exact} other {category}}",
+      "args": {
+        "n": {
+          "type": "int",
+          "value": "9007199254740993n"
+        }
+      },
+      "expected": "exact",
+      "result": {
+        "ok": true,
+        "value": "exact"
+      }
+    },
+    {
+      "id": "decimal-exact",
+      "pattern": "{n,plural,=1.50 {exact} other {category}}",
+      "args": {
+        "n": {
+          "type": "decimal",
+          "value": {
+            "kind": "decimal",
+            "coef": "1500n",
+            "scale": 3
+          }
+        }
+      },
+      "expected": "exact",
+      "result": {
+        "ok": true,
+        "value": "exact"
+      }
+    },
+    {
+      "id": "decimal-number-precision",
+      "pattern": "{n,number}",
+      "args": {
+        "n": {
+          "type": "decimal",
+          "value": {
+            "kind": "decimal",
+            "coef": "9007199254740993123456789012345678n",
+            "scale": 18
+          }
+        }
+      },
+      "expected": "9,007,199,254,740,993.123456789012345678",
+      "result": {
+        "ok": true,
+        "value": "9,007,199,254,740,993.123456789012345678"
+      }
+    },
+    {
+      "id": "unsafe-category",
+      "pattern": "{n,plural,other {#}}",
+      "args": {
+        "n": {
+          "type": "int",
+          "value": "9007199254740993n"
+        }
+      },
+      "expected": null,
+      "result": {
+        "ok": false,
+        "code": "out-of-range",
+        "message": "plural selection needs a safe-range int; this magnitude cannot select exactly"
+      }
+    },
+    {
+      "id": "nearest-through-select",
+      "pattern": "{n,plural,other {{s,select,active {#} other {#}}}}",
+      "args": {
+        "n": {
+          "type": "int",
+          "value": "21n"
+        },
+        "s": {
+          "type": "text",
+          "value": "active"
+        }
+      },
+      "expected": "21",
+      "result": {
+        "ok": true,
+        "value": "21"
+      }
+    },
+    {
+      "id": "nearest-inner-plural",
+      "pattern": "{n,plural,other {{m,plural,other {#}} #}}",
+      "args": {
+        "n": {
+          "type": "int",
+          "value": "21n"
+        },
+        "m": {
+          "type": "int",
+          "value": "2n"
+        }
+      },
+      "expected": "2 21",
+      "result": {
+        "ok": true,
+        "value": "2 21"
+      }
+    }
+  ]
+}
