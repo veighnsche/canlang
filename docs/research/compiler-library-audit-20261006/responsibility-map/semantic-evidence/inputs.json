@@ -1,0 +1,64 @@
+{
+  "scope": "Step8 compiler semantic audit: bounded source trace/native witnesses/public owner comparisons; no implementation or policy selection",
+  "head": "1db4516c645799ff3c2d7287ebd6d470ecd5896c",
+  "compiler_source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "initial_git_status": "",
+  "allocation": {
+    "resolution": "gpt-6.1-sol medium",
+    "authority": "gpt-6.1-sol medium",
+    "values": "gpt-6.1-sol medium",
+    "reason": "economical default semantic source slices; no escalation"
+  },
+  "reused_input_manifests": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/inputs.json",
+      "sha256": "6cb3b5258a10e203174f34142ad310e943eb95ae211aed5064d825476a268b82"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/runtime-inputs.json",
+      "sha256": "512c17169938128a19e66883f83fcf8e3b928c7dca231317110f4ac998614a4f"
+    }
+  ],
+  "rechecked_pin_references": 657,
+  "mismatches": [],
+  "pins": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+      "bytes": 1886
+    },
+    {
+      "path": "docs/specification/DESIGN.md",
+      "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+      "bytes": 267727
+    },
+    {
+      "path": "docs/specification/GRAMMAR.md",
+      "sha256": "ace09efbe7df6326fb3fa35090b76befeb8d554dab3e3a3123b7ddf285590c36",
+      "bytes": 66676
+    },
+    {
+      "path": "packages/values/dist/catalog.json",
+      "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "bytes": 22290
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/model-allocation-20261007.md",
+      "sha256": "f7f96701e9588cba6e22bad1d01cfd06517202d2fd99959763d77173243341d8",
+      "bytes": 11651
+    },
+    {
+      "path": "packages/values/package.json",
+      "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "bytes": 2763
+    },
+    {
+      "path": "packages/ui/package.json",
+      "sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "bytes": 1747
+    }
+  ],
+  "cases_sha256": "77348e24ced88fe905c17ac5c9726a144d3c2f44caeda2aaa688e37c786c7572",
+  "case_count": 47,
+  "runtime_scope": "Existing installed workspace dist, not package build/release parity. All prior runtime files rehashed before execution."
+}

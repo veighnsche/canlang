@@ -1,0 +1,280 @@
+{
+  "schema_version": 1,
+  "scope": "Step8 read-only value/ICU/nominal source audit; root owns executed probes and shared ledger",
+  "requested_source": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "initial_head": "1db4516c",
+  "observation": "working source and existing dist separately pinned; no Git commands, production/test/package/manifest mutations or policy selection",
+  "pins": {
+    "compiler/src/analysis/types.rs": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa",
+    "compiler/src/analysis/examples.rs": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+    "compiler/src/analysis/catalog.rs": "af4aa22270db711cd251c3e0df433004b33f1b4f7f6367775ffa0668c488306c",
+    "compiler/src/codegen/js.rs": "1f1ef2bec0a008566ed800d746fc65feb90b9cc4683e9803940f83dac4b1eab8",
+    "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+    "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+    "packages/values/src/types.ts": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+    "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+    "packages/values/src/locale.ts": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e",
+    "packages/values/src/timezone.ts": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+    "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+    "packages/values/src/int.ts": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
+    "packages/values/src/money.ts": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824",
+    "packages/values/src/temporal.ts": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+    "packages/values/src/internal/wire-core.ts": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+    "packages/values/src/currency-data.ts": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
+    "packages/values/dist/src/index.js": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+    "packages/values/dist/src/icu.js": "8d113d67eee260a11a44783379fe268d71af3c6f5b2ce1725924e80f5c833636",
+    "packages/values/dist/src/temporal.js": "5674cb40272776edcdab2314bf2bfa75647632a2e8028089bdc67b7cd78e9849",
+    "packages/values/dist/src/internal/wire-core.js": null,
+    "docs/specification/DESIGN.md": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+    "packages/ui/src/messages.ts": "d731b8a2b2cd57d03be0a8f3b12c55e48cdcac498eb167b5f2a0707e360eeac5",
+    "packages/ui/dist/src/messages.js": "f4f5b553a1462a4993c7471cda392d944e7b306c87542f83c62f9ad3bba9e5d8",
+    "packages/contracts/src/presentation.ts": "477ff6afb4793e31c428693145880fba7480b2d074f052d8d6808e5abc79f6fd",
+    "compiler/src/codegen/ir.rs": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005"
+  },
+  "public_entry": {
+    "package": "@canlang/values",
+    "export": ".",
+    "target": "./dist/src/index.js",
+    "qualification": "actual existing package dist available; inspected exports, worker did not execute or rebuild"
+  },
+  "responsibilities": [
+    {
+      "id": "VAL-int",
+      "source": "types.rs:9860-9897;11880-11910;15145-15184",
+      "owner": "int.ts:int64(value:bigint):bigint; wire.ts:decodeValue(typeId,wire)",
+      "independent_authority": "DESIGN107 signed64 overflow error",
+      "witness": [
+        "9223372036854775807",
+        "9223372036854775808",
+        "-9223372036854775808",
+        "-9223372036854775809"
+      ],
+      "finding": "Source duplication of int64 admission; unary minimum has dedicated path. No new mismatch claimed. Wire spelling is separate from source literal grammar.",
+      "repair_gate": "Differential literal/range controls; preserve expectation/evaluation and tight E3001 anchor; no private-core linkage."
+    },
+    {
+      "id": "VAL-decimal",
+      "source": "types.rs:9880-9918;15191-15244",
+      "owner": "decimal.ts:parseDecimal(text:string):Decimal;decimalFromInteger(coef:bigint):Decimal; Decimal(coef:bigint,scale:number)",
+      "independent_authority": "DESIGN107 exact38significant/18fractional; literal-only expected-type inhabitation",
+      "witness": [
+        "38 vs39 significant digits",
+        "0.000000000000000000 vs0.0000000000000000000",
+        "1.2300 preserves scale4",
+        "integral decimal expectation above int64"
+      ],
+      "finding": "Duplicated significant/scale policy. Public parse accepts integral form; compiler decimal expectation inhabits only authored literals. Known generated Decimal E6008 refuses production literal, wire fixture not runtime proof.",
+      "repair_gate": "No broad coercion; preserve authored scale and exact coefficient; generated consumption must execute actual lowering before complete claim."
+    },
+    {
+      "id": "VAL-duration",
+      "source": "types.rs:9920-9932;15246-15276",
+      "owner": "decodeValue(\"duration\",wire) and temporal duration helpers; int64 carrier",
+      "independent_authority": "DESIGN duration ms and fixed24h days",
+      "witness": [
+        "1d ->86400000",
+        "9223372036854775807ms",
+        "9223372036854775808ms",
+        "106751991168d boundary"
+      ],
+      "finding": "Compiler authored suffix conversion duplicates scalar bounds and lowering; public owner consumes canonical integer ms rather than authored suffix strings. No public duration-text parser.",
+      "repair_gate": "Compare after explicit authored-unit projection; preserve overflow, signs and units; do not report unlike API grammars as divergence."
+    },
+    {
+      "id": "VAL-bytes",
+      "source": "types.rs:9934-9946;15279-15307",
+      "owner": "No bytes constructor or bytes scalar in public parseTypeId ScalarName; int64 only carrier bound",
+      "independent_authority": "DESIGN byte quantities binary units",
+      "witness": [
+        "1KiB ->1024",
+        "1MiB ->1048576",
+        "8589934591GiB vs8589934592GiB"
+      ],
+      "finding": "Bounded missing owner API: compiler Scalar::Bytes exists while owner type grammar excludes bytes. No complete package differential possible.",
+      "repair_gate": "Explicit missing capability/gap; sharing int64 bounds alone does not qualify bytes grammar/semantics."
+    },
+    {
+      "id": "VAL-money-currency",
+      "source": "types.rs:15448-15485; codegen/js.rs:465-476",
+      "owner": "money(value:bigint|Decimal,currency:string):MoneyValue;isKnownCurrency(unknown):boolean;currencyScale(string):number;makeMoney(minor:bigint,currency:string)",
+      "independent_authority": "DESIGN exact minor units/half-even; pinned SIX currency facts",
+      "witness": [
+        "USD2,JPY0,KWD3,CLF4",
+        "XAU and XXX excluded",
+        "usd and ZZZ rejected",
+        "money(1.005,USD)->100minor;1.015->102minor"
+      ],
+      "finding": "Currency whitelist duplicated 165 members/13 exclusions. Constructor uses amounts, makeMoney uses minor units: distinct API boundaries. Compiler should not pre-evaluate general money expression or conflate boundaries.",
+      "repair_gate": "Compare pinned data sets as data, preserve error boundary and currency scale; no invented table policy; half-even public-owner execution controls."
+    },
+    {
+      "id": "VAL-url",
+      "source": "types.rs:15381-15390",
+      "owner": "decodeValue(\"url\",wire)/encodeValue(\"url\",value), private isHttpUrl in wire-core.ts:475-489",
+      "independent_authority": "DESIGN109 HTTP(S); ordinary values distinct trusted app_url origin",
+      "witness": [
+        "http://u:p@example.com/a?q=x#f",
+        " HTTPS://EXAMPLE.COM/a ",
+        "http://0x7f000001",
+        "mailto:a@b",
+        "https://exa mple.com"
+      ],
+      "finding": "Accepted Pass3 URL crate integration; WHATWG parse+scheme admission with authored string retained. Primitive new URL alone does not qualify public codec/errors/generated intake.",
+      "repair_gate": "Root actual public package/compiler controls; keep app_url origin policy independent."
+    },
+    {
+      "id": "VAL-email",
+      "source": "types.rs:15330-15380",
+      "owner": "decodeValue(\"email\",wire)/encodeValue(\"email\",value); wire-core.ts:459-472 private isEmailFloor",
+      "independent_authority": "DESIGN109 validated email, verification belongs auth; exact floor additionally conformance/v1/values.json:163",
+      "witness": [
+        "a@b",
+        "a@localhost",
+        "a@-x.com",
+        "a@例子.公司",
+        "a\\u00a0@b.com"
+      ],
+      "finding": "Source-confirmed policy disagreement: compiler requires ASCII dotted domain and alpha TLD>=2; package conservative floor does not. Compiler ASCII whitespace check versus owner Unicode whitespace additionally risks acceptance of NBSP local. Not executed by this worker. Historical Step4 named floor parity unqualified.",
+      "repair_gate": "New differential must establish actual outcomes; exact language-floor choice underdetermined by DESIGN and requires high/JEV before selection. Package not sole oracle."
+    },
+    {
+      "id": "VAL-locale",
+      "source": "types.rs:4409-4432;5672-5728;15394-15412;codegen/js.rs:2494-2534",
+      "owner": "canonicalLocale(tag:string):string; makeMessageDescriptor(source,variants,params?);decodeValue/encodeValue(locale)",
+      "independent_authority": "DESIGN110 canonical locale; DESIGN9.1 shared signature/canonical identity; Pass3 official ECMA402 qualification",
+      "witness": [
+        "en-u-ca-gregory",
+        "en-x-private",
+        "abcde",
+        "en-US-US",
+        "iw/he canonical duplicate",
+        "en-SU/en-RU duplicate",
+        "en-u-ca-islamicc/calendaralias"
+      ],
+      "finding": "Known reproduced Pass3: compiler heuristic rejects extensions/long primaries, admits malformed tags and only lowercases identity. Failed ICU core2.3.0 has grammar+alias mismatches. Known generated sanitizer turns en-US into en_US. Existing findings, not new.",
+      "repair_gate": "C03L qualified grammar+data identity+all callers+quoted generated keys; no alias table or primitive Intl claim; high/JEV if selecting new policy."
+    },
+    {
+      "id": "VAL-timezone",
+      "source": "types.rs:15414-15445;15689 wall time",
+      "owner": "isTimezone(value:unknown):value is string; assertTimezone(zone:string):string; local_date;local_instant",
+      "independent_authority": "DESIGN221 pins zone data/calendar; DESIGN223 fold/gap; source permits structural checker only",
+      "witness": [
+        "America/New_York",
+        "Mars/Olympus",
+        "UTC",
+        "GMT0",
+        "Etc/GMT+5",
+        "America/../New_York"
+      ],
+      "finding": "Compiler structural admission distinct runtime database membership: Mars/Olympus source predicted accept, owner reject. Existing Step4 pinned-data obligation open. Current host Intl is not complete version-pinned language/runtime qualification.",
+      "repair_gate": "Label staging difference and actual runtime failure, not automatically compiler policy defect. Data/profile qualification required; no new membership heuristic."
+    },
+    {
+      "id": "VAL-temporal",
+      "source": "types.rs:15487-15645;check_checked_constructor13742",
+      "owner": "date(value:string):DateValue; datetime(value:string):DatetimeValue; makeDate;makeDatetime; wire codec distinct pinned UTC millis grammar",
+      "independent_authority": "DESIGN218 rejects nonzero subms; DESIGN checked temporal constructors; owner-selected year range",
+      "witness": [
+        "2000-02-29 vs1900-02-29",
+        "0001/9999 boundaries",
+        "lowercase t/z",
+        "±23:59 vs24:00",
+        "seconds60",
+        "fraction123000 vs123001",
+        "min/max after offset"
+      ],
+      "finding": "Known Pass9 constructor parity43/43; duplicated Gregorian days/leap/calendar/range helpers retained. Runtime wire requires .sssZ and is deliberately narrower than datetime constructor. time0.3.55 raw parser fails gates; adapter finite parity does not replace full diagnostics.",
+      "repair_gate": "Retain published accepted constructor contract and L-F03 direct private core gate. No new defect claimed."
+    },
+    {
+      "id": "ICU-types",
+      "source": "examples.rs:2992-3019;3135-3190",
+      "owner": "validateMessagePattern(pattern:string,declared?:Readonly<Record<string,MessageParamType>>):void; makeMessageDescriptor;renderMessage",
+      "independent_authority": "DESIGN893-895 number/cardinal int|decimal; integer/ordinal int; select text/bool/enum",
+      "witness": [
+        "number int/decimal both accept",
+        "integer decimal reject",
+        "cardinal decimal accept",
+        "ordinal decimal reject",
+        "date {d,time}",
+        "url select parameter"
+      ],
+      "finding": "Number-decimal/ordinal-decimal already repaired current compiler source; controls only. New source-only risk: IcuType merges date/datetime, admits date time where values AND UI time reject date. Values MessageParamType excludes validated stringlikes, but actual generated consumer is UI MessageFactory with arbitrary canonical type tags and STRING_LIKE support, so this is NOT a proved generated url rejection.",
+      "repair_gate": "Reproduce date-time against compiler/values/UI; distinguish actual generated consumer API from values descriptor API. No parameter widening selected."
+    },
+    {
+      "id": "ICU-profile-slots",
+      "source": "types.rs:7842-8010;examples.rs:3034-3321",
+      "owner": "parseMessageFormat(pattern:string):ParsedMessage;validateMessagePattern;makeMessageDescriptor",
+      "independent_authority": "DESIGN893 bounded profile/quoting/binding; prior accepted packets for exact value duplicates, selector spelling, depth",
+      "witness": [
+        "Don't {ghost}",
+        "{ ghost }",
+        "<b/>",
+        "plural bogus category",
+        "=1/=1.0 duplicate",
+        "=9007199254740993",
+        "=1.5",
+        "active-case selector",
+        "depth32/33",
+        "# outside plural"
+      ],
+      "finding": "Duplicated grammar walkers: slot coverage differs from profile/type parser and TS AST. Prior Pass9 executed mismatches for quoting/coverage/tags/categories/exact lexical/select/depth; ordinary type fixes landed only. FormatJS0.3.1 failed exact/depth/API gates. Top pound unresolved policy.",
+      "repair_gate": "Finite existing packets; preserve E3016/E5007 ordering/source spans/nullvariants. JEV pound gate and rejected prior transmissions remain; no parser adoption."
+    },
+    {
+      "id": "ICU-disclosure",
+      "source": "types.rs:4349 check_message_value;13802 call_message;examples.rs:494-554",
+      "owner": "Descriptor validates structural+typed binds; runtime renderer has no compiler permission context",
+      "independent_authority": "DESIGN885 sinks retain disclosure; parameter bindings are expressions",
+      "witness": [
+        "secret/protected param reaching caption/sink",
+        "source vs variant uses different parameter",
+        "null variant omitted vs empty checked"
+      ],
+      "finding": "Message binding/coverage and sink disclosure belong compiler; package AST neither proves permissions nor evaluation order. Named-message signature coarse mapping strips nullable layer; nullable runtime descriptor handling is separate risk needing actual witness.",
+      "repair_gate": "Keep ownership distinct, no API/library substitution for disclosure; effects worker owns permission witness."
+    },
+    {
+      "id": "CATALOG-nominal",
+      "source": "catalog.rs:1404-1480;1673-1710;1715-2027;types.rs:472-547",
+      "owner": "packages/contracts/src/services.ts and owning provider catalogs; values catalog CATALOG signatures",
+      "independent_authority": "DESIGN owning declarations derive interfaces; frozen T13 acceptance contract",
+      "witness": [
+        "22 accepted nominals:6 T13a+16 T13b",
+        "std.PaymentState qualification",
+        "WorkflowField nested not accepted nominal",
+        "provider capability distinct from value shape"
+      ],
+      "finding": "Copied nominal field/type transcriptions and finite whitelist are semantic policy duplication; bare/qualified imports and nested schemas have distinct admission. Already mapped Step5/6; this slice does not prove all provider runtime semantics. Public parseTypeId nominal acceptance is syntax only, not resolver permission/availability.",
+      "repair_gate": "Generate or consume qualified owner metadata only after accepted contract/current export comparison and consumer tests. Resolution/types worker owns import metadata deep differential; retain bounded support errors."
+    },
+    {
+      "id": "VAL-generated-ui-seam",
+      "source": "codegen/ir.rs:2970-3010;codegen/js.rs:2494-2534;packages/ui/src/messages.ts:234-290,877-931",
+      "owner": "Generated import @canlang/ui message(source,variants?,params?):presentation MessageDescriptor; UI formatMessage(pattern:string|descriptor,options?:FormatOptions):string; distinct from @canlang/values makeMessageDescriptor/renderMessage",
+      "independent_authority": "DESIGN895 exact typed formatting/nonlossy adapters; DESIGN1085 generated MessageFactory target; contracts/presentation.ts69 canonical nonnullable scalar display values",
+      "witness": [
+        "UI format decimal object versus decimal string",
+        "UI date DateValue versus YYYY-MM-DD string",
+        "date year0001 versus year2026 strings",
+        "UI datetime DatetimeValue versus RFC3339 string",
+        "UI integer style decimal1.5",
+        "UI ordinal decimal1.5",
+        "url plain/select string control"
+      ],
+      "finding": "New source-only cross-owner representation/policy risk. UI accepts arbitrary bigint ints and decimal strings without values38/18 bounds; integer style rounds decimal and ordinal admits decimal, unlike DESIGN895/compiler/values. UI toOperand accepts temporal strings only and rejects owner-tagged DateValue/DatetimeValue; decimal object likewise unsupported. UI isValidDate uses Date.UTC, causing0001-0099 rejection. Actual existing UI dist must be probed; no execution claim by worker.",
+      "repair_gate": "Root differential and actual generated program consumption before reproduced finding. Owner/carrier interface resolution is consequential, report high/JEV before selecting repair; do not silently replace descriptor APIs or choose shared runtime policy."
+    }
+  ],
+  "prior_evidence": [
+    "../compatibility.md",
+    "../representations.md",
+    "../../pass3/locale/qualification.md",
+    "../../pass9/icu/correctness-packets.md",
+    "../../pass9/icu/candidate-assessment.md",
+    "../../pass9/temporal/ASSESSMENT.md"
+  ],
+  "execution": "No runtime probes by this worker; root differential must classify observed outcomes separately from source predictions."
+}

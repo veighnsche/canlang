@@ -1,0 +1,34 @@
+# Step 8 — resolution, catalog, binding and type joins
+
+The compact [slice map](resolution.json) pins inspected source, contracts and prior witnesses. Compiler source remains `1fd07722090fe70228a6b661e3c6e136275ca84b`; initial audit HEAD is `1db4516c`. This lane writes evidence only. Root owns executed probe receipts and the common ledger, README and decisions. References to existing tests are inspected witness definitions, not claims of fresh execution.
+
+`check_program` parses, resolves declarations/imports/ownership/uses, types, emits deferred unresolved diagnostics, then checks effects/examples. Its `CheckedProgram` keeps modules, symbols and type tables, but drops lexical scopes and per-use bindings. The actual analysis join consumes `ResolveTables.node_binding`, `node_typeref`, `expr_scope` and contextual identities; returning a type without a diagnostic sometimes means explicit opacity or light checking, not full admission.
+
+The map contains twelve finite duties: module/declaration namespaces, imports, composition, lexical/contextual scopes, type paths/fixpoint, signature defaults, user/operation argument binding, builtin overloads/inference, expected types/structural literals, nullability/narrowing, catalog loading/availability and deferred diagnostics/dedup. Each records exact function ranges, callers, consumers, independent authority, positive/negative witness references and bounded gaps. It does not claim every cross-product of those duties is executed.
+
+## Contract and observed ownership
+
+- `DESIGN` lines 280–285 independently define nearest lexical binding, same-scope duplicates, contextual hiding, local initializer order and left-to-right pre-authorization defaults. `GRAMMAR` lines 228–241 own named/positional ordering and duplicate rejection. Parser acceptance and defensive binder behavior remain different boundaries.
+- Imports preserve the owner's symbol and stable identity. A known provider's member must be declared/exported; imported aliases are not re-exported through another owner. `deployment.NAME` admits unknown external interfaces opaquely. `std` resolves against compiler-transcribed owner schema tables. Export visibility grants no record permission.
+- Contextual `row`, `event`, `preferences` and `result` are bindings, not global reserved strings. `ActorKind` supplies nullable/nonnullable/null baseline; local event members and hook payloads are refined by downstream type consumers. A user parameter named `event` remains an ordinary parameter where no event context exists.
+- Signature default scopes contain earlier parameters plus fixed nullable actor/now/operation facts; body authorization does not rewrite those defaults. Calls bind supplied values against declared expected types and allow omission only where a default exists. Runtime default evaluation is Step 9.
+- Expected types inhabit integral decimal literals, validated string literals, empty arrays and structural records. They do not turn an existing lexical binding into an enum case or generally coerce int variables/results into decimal. Concrete assignment uses owner identity and nullable widening; `Unknown`, `Opaque` and `Error` are deliberately lenient.
+- Narrowing uses resolved declaration plus member path, not spelling alone. `and` and `or` thread true/false facts to the arm that can execute; plain nullable member access fails, safe access wraps once, fallback demands compatible base. Invalidation/authority checks are traced in the other lane; static typing does not prove emitted short circuit.
+
+## Catalog and reconstruction qualification
+
+The inspected real values catalog has 59 entries and eight multi-overload builtin groups: `sum`, `min`, `max`, `abs`, `round`, `format`, `overlaps` and `money`. Ordinary same-arity alternatives keep the same parameter names/order. `format` changes names but has a dedicated IR lowering branch. Thus Step 5's analysis-specificity versus IR-first-arity lead is still structural; this source/catalog scan establishes no current ordinary real-catalog named binding defect.
+
+Analysis chooses compatible overloads with the largest count of `nonempty`/`ordered` markers; equal scores retain catalog order. This is not a general nominal subtype specificity algorithm. Trial generic variables bind the first actual and require later loose equality; winning enum claims are flushed. `inhabit_validated` can write literal `node_types` during a trial, unlike deferred enum claims: an inspection lead requiring an observable witness before defect classification.
+
+Catalog validation rejects malformed envelope, duplicate entry IDs and unsupported signature grammar, failing the whole catalog. It parses no parameter defaults. Planned builtin calls report `E6001` before overload errors even in light positions. Helpers report `E2006` for source references, including bare references. Catalog `External` availability is callable; deployment `Binding::External` is an opaque interface. These are distinct meanings. Unrecognized nominal signature types match leniently, so complete external implementation/activation is not proven by static call acceptance.
+
+## Controlled probe handoff
+
+Root received exact positive/negative fixture shapes for default earlier/self/later references, named/reversed builtin bindings, argument unknown/missing/extra/duplicates, known private/missing versus unknown bound/unbound imports, actor nullable authorization, fallback and real-catalog specificity. Every semantic probe must assert no `E1xxx` so recovery cannot satisfy a negative case vacuously. Synthetic catalog tie/order changes qualify mechanisms only; they do not establish an installed catalog bug.
+
+A concrete source lead needs root qualification: `type_array` strips each element's nullability for equality, but retains the first concrete element's type. For `derive take(xs:text[]):int = count(xs)` called by `derive g(x:text?):int = take(["fixed",x])`, the later nullable element may be lost; reversing the array may reject. `DESIGN` line 139 explicitly excludes nullable elements from v1; `GRAMMAR` line 197 constrains their resolved suffixes, independently of implementation. Source trace alone is not a demonstrated admitted-source defect. Root's controlled result should determine classification and exact receipt link.
+
+## Existing findings and limits
+
+Step 7 malformed owner/sibling suppression, source metadata loss, Corpus/Judgment support and UI profile/order findings remain open; this lane neither reruns nor overwrites them. Prior Step 4 compatibility constraints and Step 5 cohort/binding facts remain binding. Pass 9 correctness queue is context, not fresh runtime evidence. No compiler/library/package/API changes, cache or binder architecture, semantic policy revision, JEV-triggering design choice, merge or living-plan checkpoint advancement occurred.
