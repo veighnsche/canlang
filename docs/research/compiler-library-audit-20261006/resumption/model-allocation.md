@@ -4,6 +4,8 @@
 
 There are **67 reference records: 17 completed at their bounded scope and 50 remaining, continuing-checklist or qualification-join records**. These are not 50 independent implementations. OR-01 and OR-02 retain accepted finite evidence while their future checklist/wider joins still have assignments. The eight Step-9 packets retain broader open obligations, including Q07's returned-payload/request/platform gap after its fixture/facade repair.
 
+Current completion status is recorded in the [active compiler completion journal](../../../../implementation/compiler-completion/README.md) and latest canonical ledger joins; the assignments below retain their planning checkpoint.
+
 ## Dispatch rules
 
 The table records model, reasoning effort and independent review for each remaining reference. Use the stated phase and escalation conditions at dispatch.
