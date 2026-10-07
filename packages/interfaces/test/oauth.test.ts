@@ -534,3 +534,61 @@ test('exchange after team removal mints, but MCP admission rejects', async () =>
     resolveIdentity(t.deps.identity.store, { mcp_grant_token: access }),
   );
 });
+
+for (const length of [44, 128]) {
+  test(`mounted S256 authorize refuses ${length}-character challenges on GET and POST`, async () => {
+    const t = await createTestDeps();
+    const handler = createHttpHandler(t.deps, {
+      operations: async () => new Response('unexpected', { status: 500 }),
+      auth: async () => new Response('unexpected', { status: 500 }),
+      uploads: async () => new Response('unexpected', { status: 500 }),
+      ingress: async () => new Response('unexpected', { status: 500 }),
+      oauth: (request) => handleOAuthRequest(t.deps, request),
+    });
+    const registration = await handler(postJson('/oauth/register', { redirect_uris: [REDIRECT] }));
+    assert.equal(registration.status, 201);
+    const { client_id } = await registration.json() as { client_id: string };
+    const params = { client_id, redirect_uri: REDIRECT, code_challenge: 'A'.repeat(length), code_challenge_method: 'S256' };
+    const csrf = await deriveCsrfToken(t.identity.sessionToken);
+    for (const request of [
+      get(`/oauth/authorize?${new URLSearchParams(params)}`, t.identity.cookie),
+      postJson('/oauth/authorize', params, { cookie: t.identity.cookie, csrf }),
+    ]) {
+      const response = await handler(request);
+      assert.equal(response.status, 400);
+      assert.equal(response.headers.get('location'), null);
+      assert.equal((await response.json() as { code: string }).code, 'validation');
+    }
+  });
+}
+
+test('mounted register, authorize and token retain valid S256 and collapsed verifier failures', async () => {
+  const t = await createTestDeps();
+  const handler = createHttpHandler(t.deps, {
+      operations: async () => new Response('unexpected', { status: 500 }),
+      auth: async () => new Response('unexpected', { status: 500 }),
+      uploads: async () => new Response('unexpected', { status: 500 }),
+      ingress: async () => new Response('unexpected', { status: 500 }),
+      oauth: (request) => handleOAuthRequest(t.deps, request),
+    });
+  const registration = await handler(postJson('/oauth/register', { redirect_uris: [REDIRECT] }));
+  assert.equal(registration.status, 201);
+  const { client_id } = await registration.json() as { client_id: string };
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  for (const verifier of [VERIFIER, undefined, '', '!', 'x'.repeat(43)]) {
+    const authorization = await handler(postJson('/oauth/authorize', {
+      client_id, redirect_uri: REDIRECT, code_challenge: CHALLENGE, code_challenge_method: 'S256',
+    }, { cookie: t.identity.cookie, csrf }));
+    assert.equal(authorization.status, 302);
+    const code = new URL(authorization.headers.get('location') ?? '').searchParams.get('code');
+    assert.ok(code);
+    const token = await handler(postJson('/oauth/token', {
+      grant_type: 'authorization_code', client_id, redirect_uri: REDIRECT, code,
+      ...(verifier === undefined ? {} : { code_verifier: verifier }),
+    }));
+    assert.equal(token.status, verifier === VERIFIER ? 200 : 400);
+    const body = await token.json() as Record<string, unknown>;
+    if (verifier === VERIFIER) assert.ok(body['access_token']);
+    else assert.equal(body['error'], 'invalid_grant');
+  }
+});
