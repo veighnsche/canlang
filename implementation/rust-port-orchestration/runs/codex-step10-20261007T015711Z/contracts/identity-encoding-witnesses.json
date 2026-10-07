@@ -1,0 +1,301 @@
+{
+  "node": "v24.21.0",
+  "decodeVectors": [
+    {
+      "text": "",
+      "expected": null,
+      "candidate": null
+    },
+    {
+      "text": "a",
+      "expected": null,
+      "candidate": null
+    },
+    {
+      "text": "Zg",
+      "expected": [
+        102
+      ],
+      "candidate": [
+        102
+      ]
+    },
+    {
+      "text": "Zh",
+      "expected": [
+        102
+      ],
+      "candidate": [
+        102
+      ]
+    },
+    {
+      "text": "Zv",
+      "expected": [
+        102
+      ],
+      "candidate": [
+        102
+      ]
+    },
+    {
+      "text": "Zm8",
+      "expected": [
+        102,
+        111
+      ],
+      "candidate": [
+        102,
+        111
+      ]
+    },
+    {
+      "text": "Zm9",
+      "expected": [
+        102,
+        111
+      ],
+      "candidate": [
+        102,
+        111
+      ]
+    },
+    {
+      "text": "Zm_",
+      "expected": [
+        102,
+        111
+      ],
+      "candidate": [
+        102,
+        111
+      ]
+    },
+    {
+      "text": "Zg==",
+      "expected": null,
+      "candidate": null
+    },
+    {
+      "text": "Zg=",
+      "expected": null,
+      "candidate": null
+    },
+    {
+      "text": "Z+",
+      "expected": null,
+      "candidate": null
+    },
+    {
+      "text": " Zg",
+      "expected": null,
+      "candidate": null
+    },
+    {
+      "text": "Zg\n",
+      "expected": null,
+      "candidate": null
+    },
+    {
+      "text": "é",
+      "expected": null,
+      "candidate": null
+    },
+    {
+      "text": "-_8",
+      "expected": [
+        251,
+        255
+      ],
+      "candidate": [
+        251,
+        255
+      ]
+    },
+    {
+      "text": "__8",
+      "expected": [
+        255,
+        255
+      ],
+      "candidate": [
+        255,
+        255
+      ]
+    },
+    {
+      "text": "___",
+      "expected": [
+        255,
+        255
+      ],
+      "candidate": [
+        255,
+        255
+      ]
+    },
+    {
+      "text": "AAAA",
+      "expected": [
+        0,
+        0,
+        0
+      ],
+      "candidate": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "text": "0g",
+      "expected": [
+        210
+      ],
+      "candidate": [
+        210
+      ]
+    },
+    {
+      "text": "\ud800",
+      "expected": null,
+      "candidate": null
+    }
+  ],
+  "hexVectors": [
+    {
+      "text": "",
+      "oldEqualZero": false,
+      "expected": null
+    },
+    {
+      "text": "0",
+      "oldEqualZero": false,
+      "expected": null
+    },
+    {
+      "text": "00",
+      "oldEqualZero": true,
+      "expected": [
+        0
+      ]
+    },
+    {
+      "text": "FF",
+      "oldEqualZero": false,
+      "expected": [
+        255
+      ]
+    },
+    {
+      "text": "aB",
+      "oldEqualZero": false,
+      "expected": [
+        171
+      ]
+    },
+    {
+      "text": "0g",
+      "oldEqualZero": true,
+      "expected": null
+    },
+    {
+      "text": "g0",
+      "oldEqualZero": false,
+      "expected": null
+    },
+    {
+      "text": "+1",
+      "oldEqualZero": false,
+      "expected": null
+    },
+    {
+      "text": "-1",
+      "oldEqualZero": false,
+      "expected": null
+    },
+    {
+      "text": " 1",
+      "oldEqualZero": false,
+      "expected": null
+    },
+    {
+      "text": "1 ",
+      "oldEqualZero": false,
+      "expected": null
+    },
+    {
+      "text": "0x",
+      "oldEqualZero": false,
+      "expected": null
+    },
+    {
+      "text": "00\n0",
+      "oldEqualZero": false,
+      "expected": null
+    },
+    {
+      "text": "٠٠",
+      "oldEqualZero": false,
+      "expected": null
+    }
+  ],
+  "seedRecipe": "length=1..257, bytes[i]=(length*13+i*79)&255; replace last sextet by all64 alphabet characters",
+  "tailCasesChecked": 16448,
+  "issued": {
+    "bytes": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31
+    ],
+    "token": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "sha256": "ea866a757e4c38babfa8127cbe9a409d3e1f93a00ff1488ff735fcf917afffd0"
+  },
+  "passwordWitness": {
+    "password": "synthetic-contract-password",
+    "canonical": "pbkdf2-sha256$600000$AAECAwQFBgcICQoLDA0ODw$z10WsuKIJTF3LLwnB8LElW5c-astSCajEOQ0vI73OWQ",
+    "alias": "pbkdf2-sha256$600000$AAECAwQFBgcICQoLDA0OD_$z10WsuKIJTF3LLwnB8LElW5c-astSCajEOQ0vI73OWT",
+    "canonicalVerifies": true,
+    "aliasVerifies": true,
+    "wrongVerifies": false
+  },
+  "tokenTextWitness": [
+    {
+      "text": "Zg",
+      "sha256": "351eb80f0736735b2c0b31044ed404c03def09a2c9691713a327e96b0ae73d4c"
+    },
+    {
+      "text": "Zh",
+      "sha256": "9aff73e1b53a5b8178a770de6a1e7d20f7c178e492881c9a92ab78b211f65dc8"
+    }
+  ]
+}

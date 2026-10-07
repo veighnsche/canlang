@@ -1,0 +1,29 @@
+{
+  "node": "v24.21.0",
+  "worker": "Miniflare4.20260730.0/date2026-07-15/no flags",
+  "results": {
+    "hexEqual": true,
+    "hexDifferent": false,
+    "hexOdd": false,
+    "textEqual": true,
+    "textDifferent": false,
+    "textByteLength": false,
+    "textEmpty": true,
+    "surrogateReplacement": true,
+    "canonicalPassword": true,
+    "aliasPassword": true,
+    "wrongPassword": false,
+    "csrfValid": true,
+    "csrfWrong": false,
+    "issued": {
+      "token": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "token_sha256": "ea866a757e4c38babfa8127cbe9a409d3e1f93a00ff1488ff735fcf917afffd0"
+    },
+    "bearerAliasHashes": [
+      "351eb80f0736735b2c0b31044ed404c03def09a2c9691713a327e96b0ae73d4c",
+      "9aff73e1b53a5b8178a770de6a1e7d20f7c178e492881c9a92ab78b211f65dc8"
+    ]
+  },
+  "parity": true,
+  "scope": "Private current-source copy with only three XOR loops replaced; old byte codecs retained. Not installed product."
+}

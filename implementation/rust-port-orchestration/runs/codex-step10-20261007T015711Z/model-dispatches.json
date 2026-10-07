@@ -30,6 +30,48 @@
       "model": "gpt-6-astra",
       "effort": "high",
       "reason": "Persisted security compatibility and actual host-comparison policy; human explicitly chose Astra high. ACK exact lease received."
+    },
+    {
+      "agent": "/root/step10_identity_adapters",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "packet": "I02/I04",
+      "reason": "Frozen finite codec/cookie contracts; actual ACK/results/release"
+    },
+    {
+      "agent": "/root/step10_csv_grammar",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "packet": "C02",
+      "reason": "Frozen single pure browser grammar compatibility adapter"
+    },
+    {
+      "agent": "/root/step10_identity_comparison",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "packet": "I03",
+      "reason": "Native producer-host/ABI and password-fault join"
+    },
+    {
+      "agent": "/root/step10_identity_contract",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "packet": "I03 critical review",
+      "reason": "Human-requested persisted-security/timing independent review"
+    },
+    {
+      "agent": "/root/step10_work_ref_unblocker",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "packet": "ports:W03.2 finite carrier",
+      "reason": "Bounded existing frozen lifecycle/profile runner; crossproducer acceptance remains separate"
+    },
+    {
+      "agent": "/root/step10_consumer_review",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "packet": "C03/H01/H02 independent actual consumers",
+      "reason": "Human-selected full crossconsumer/error/order risk tier; actual receipt and independent Node22 corrections proved."
     }
   ],
   "dispatcher_limits": [
@@ -44,7 +86,15 @@
     {
       "attempt": "step10_services Sol high",
       "result": "agent thread limit reached; no dispatch"
+    },
+    {
+      "attempt": "step10_export_evaluation Luna medium",
+      "result": "agent thread limit reached; no dispatch"
+    },
+    {
+      "attempt": "reuse step10_csv_grammar Sol medium C04 evaluation",
+      "result": "agent thread limit reached; no dispatch"
     }
   ],
-  "root_fallback": "Root performs C/H ready work directly while actual Astra contract proceeds. No external CLI-model export or pretend economical subagent receipt."
+  "root_fallback": "Root performs C/H ready work directly while actual Astra contract proceeds. No external CLI-model export or pretend economical subagent receipt. Root retains bounded C04 evaluation after two supported dispatcher failures; no phantom cheap worker or outside CLI delegation."
 }

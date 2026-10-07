@@ -1,0 +1,47 @@
+{
+  "scope": "I01 contract-only release for root acceptance",
+  "productWrites": false,
+  "preparationNativeRelease": "HUMAN HOLD",
+  "cookie": "independently released; root accepted for implementation",
+  "encoding": "independently released; root accepted for implementation",
+  "host": "released policy/recipe for root acceptance; product Node22/installed qualification pending",
+  "dependencies": {
+    "cookie": "2.0.1",
+    "@scure/base": "2.4.0"
+  },
+  "jev": {
+    "model": "jev-1.13.0",
+    "calls": 3,
+    "encoding": "preserve_public_tails unanimous confidence .95-.96",
+    "host": "conditional_native unanimous confidence .29-.34; uncertainty retained"
+  },
+  "evidence": {
+    "cookieParseVectors": 20,
+    "encodingTailCases": 16448,
+    "syntheticPasswordCanonicalAndAliasVerified": true,
+    "privateNativeComparisonNode24Workerd": true,
+    "privateTokenPasswordCsrfNode24Workerd": true,
+    "actualNode22": false,
+    "actualInstalledProduct": false
+  },
+  "fileSha256": {
+    "identity-cookie-contract.md": "b327e039be72441c2217fa5707ee929f177144e526a844069e2806ffec528766",
+    "identity-cookie-probe.mjs": "49c3a67ed80e7ade732b152997f338672ff5a4172917a0af7318cd3d00da12e6",
+    "identity-cookie-witnesses.json": "b6678e56d98580a3ac73399223633804cdd05ad4d7a7b1c523fd9f95f4b333dc",
+    "identity-dependencies.json": "0f23801f53ca206996116ad08e6c5c3008afc0abf1b978bff4724a4c9ffd423e",
+    "identity-encoding-contract.md": "24f19fb4334a066b94faeb0e288fe68ff88e7d2c7dcce1a7da72c5afbc2ecbf5",
+    "identity-encoding-probe.mjs": "65d0b7ca85b77acaf885bc6e5699a95febf373d32e399dd23c64af0554f393a9",
+    "identity-encoding-witnesses.json": "6c30b8a380e2d4ab8c8b944e7bebf8d594ac0561e7f93080c0956a1897bbddf1",
+    "identity-host-callers-probe.mjs": "e5b8cee3e1c54c72ab878ff71535905a2b58d691030383a006fdbc45697dc2d4",
+    "identity-host-callers-witnesses.json": "e3bb957238c472b17ff520970b561602d0f8f68d5ea4ba6b7ed4c4025d483616",
+    "identity-host-contract.md": "6a8c7a126f50ede7bc77ddcb748d35b373bece41f36adb91e332012725552057",
+    "identity-host-probe.mjs": "29b7b69bb82a4f57b058978f0a7f848d6e9da5cfabfaa3c3f892acafdbb887db",
+    "identity-host-witnesses.json": "8df89eda61cadd9a2dd309fa9e063000d3280c61b1f4bb665d43900dff9f8afa",
+    "identity-jev-request-1.json": "60dcd29545f06d142801f9f78f02b31835b0f43d44b4caab9bb905e78c6e79e1",
+    "identity-jev-request-2.json": "9d9fdaaf2b7581875f9005442483ff5837e4a8526d0173f0ed9619824975c6b3",
+    "identity-jev-request-3.json": "d9981cf42c61d66f22d93f9677ec97362fab2c472054179d54187747fc3d8f0c",
+    "identity-jev-response-1.json": "6d3afb23558bbb644e3a99d93aebc43a8797281d149b0da6225ea9464ede589a",
+    "identity-jev-response-2.json": "49c27e64dd94cc8203d7d9f8660b25c5dd1dd1d2465d59f5d7ca71b4a7ac5bd6",
+    "identity-jev-response-3.json": "83feede3a0407e987339df8307f32e8bd53565eb189af31f358cbe23e0de428d"
+  }
+}

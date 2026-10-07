@@ -1,0 +1,198 @@
+{
+  "node": "v24.21.0",
+  "parse": [
+    {
+      "header": null,
+      "old": null,
+      "expected": null
+    },
+    {
+      "header": "",
+      "old": null,
+      "expected": null
+    },
+    {
+      "header": "can_session=x",
+      "old": "x",
+      "expected": "x"
+    },
+    {
+      "header": "can_session=; can_session=ok",
+      "old": null,
+      "expected": null
+    },
+    {
+      "header": "can_session=%ZZ; can_session=ok",
+      "old": null,
+      "expected": null
+    },
+    {
+      "header": [
+        "can_session=%ZZ",
+        "can_session=ok"
+      ],
+      "old": null,
+      "expected": null
+    },
+    {
+      "header": "other=%ZZ; can_session=ok",
+      "old": "ok",
+      "expected": "ok"
+    },
+    {
+      "header": "can_session=%252F",
+      "old": "%2F",
+      "expected": "%2F"
+    },
+    {
+      "header": "can_session=%3B%3D",
+      "old": ";=",
+      "expected": ";="
+    },
+    {
+      "header": "can_session=\"foo\"",
+      "old": "\"foo\"",
+      "expected": "\"foo\""
+    },
+    {
+      "header": " can_session = foo ",
+      "old": "foo",
+      "expected": "foo"
+    },
+    {
+      "header": " can_session =﻿foo ",
+      "old": "foo",
+      "expected": "foo"
+    },
+    {
+      "header": " can_session=; can_session=ok",
+      "old": null,
+      "expected": null
+    },
+    {
+      "header": "can_session=%ZZ;  can_session=ok",
+      "old": null,
+      "expected": null
+    },
+    {
+      "header": "can_session; can_session=ok",
+      "old": "ok",
+      "expected": "ok"
+    },
+    {
+      "header": "bad;can_session=x",
+      "old": "x",
+      "expected": "x"
+    },
+    {
+      "header": "__proto__=a;can_session=x",
+      "old": "x",
+      "expected": "x"
+    },
+    {
+      "header": "can_session=\"a;b\";can_session=ok",
+      "old": "\"a",
+      "expected": "\"a"
+    },
+    {
+      "header": "can_session=foo=bar",
+      "old": "foo=bar",
+      "expected": "foo=bar"
+    },
+    {
+      "header": "can_session=%ED%A0%80",
+      "old": null,
+      "expected": null
+    }
+  ],
+  "domains": [
+    {
+      "domain": null,
+      "serialized": "can_session=x; Max-Age=1; Path=/; HttpOnly; Secure; SameSite=Lax"
+    },
+    {
+      "domain": "example.com",
+      "serialized": "can_session=x; Max-Age=1; Domain=example.com; Path=/; HttpOnly; Secure; SameSite=Lax"
+    },
+    {
+      "domain": ".example.com",
+      "serialized": "can_session=x; Max-Age=1; Domain=.example.com; Path=/; HttpOnly; Secure; SameSite=Lax"
+    },
+    {
+      "domain": "EXAMPLE.com",
+      "serialized": "can_session=x; Max-Age=1; Domain=EXAMPLE.com; Path=/; HttpOnly; Secure; SameSite=Lax"
+    },
+    {
+      "domain": "localhost",
+      "serialized": "can_session=x; Max-Age=1; Domain=localhost; Path=/; HttpOnly; Secure; SameSite=Lax"
+    },
+    {
+      "domain": "",
+      "serialized": "can_session=x; Max-Age=1; Path=/; HttpOnly; Secure; SameSite=Lax"
+    },
+    {
+      "domain": "a;b",
+      "error": "TypeError"
+    },
+    {
+      "domain": "a\rb",
+      "error": "TypeError"
+    },
+    {
+      "domain": "a\nb",
+      "error": "TypeError"
+    },
+    {
+      "domain": "a\u0000b",
+      "error": "TypeError"
+    },
+    {
+      "domain": "a b",
+      "error": "TypeError"
+    },
+    {
+      "domain": "a,b",
+      "error": "TypeError"
+    },
+    {
+      "domain": "a=b",
+      "error": "TypeError"
+    },
+    {
+      "domain": "a:b",
+      "error": "TypeError"
+    },
+    {
+      "domain": "a_b",
+      "error": "TypeError"
+    },
+    {
+      "domain": "-a",
+      "error": "TypeError"
+    },
+    {
+      "domain": "a.",
+      "error": "TypeError"
+    },
+    {
+      "domain": "é.example",
+      "error": "TypeError"
+    },
+    {
+      "domain": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com",
+      "error": "TypeError"
+    }
+  ],
+  "sourceSha256": {
+    "packages/identity/src/sessions/cookies.ts": "eb46edf9b9e305ba0c3e039a09bbb9d67737435f437865d9b1c2f256e3fba7ea",
+    "packages/identity/src/sessions/tokens.ts": "451ffb75345d3e0f3fc55b240f15d9f0bff6d1cfb5c0e0e746e16437529492c5",
+    "packages/identity/src/accounts/passwords.ts": "2d97be90adf82ebf1f1b923086eb3fab72c5153c50ca2b9c9daa45ea8aeb814e",
+    "packages/identity/src/ports.ts": "6145aef4de7dc0fabeed0a285a3dd8191c8c6f6c37d6554ca0659173a210a1bd",
+    "packages/identity/src/authentication/context.ts": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+    "packages/identity/src/authentication/oauth.ts": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+    "packages/identity/src/storage/d1.ts": "7d25f77228fdd17c2fe49684c8cbefd1f3c50acf621533dc349dedaa66a3f18f",
+    "packages/interfaces/src/http/auth.ts": "5e373e1a88fe8ee36a27d851154e2228491fba588aed207f219ffcf73c380706",
+    "packages/identity/test/sessions.test.ts": "d429c59567da28706aa82dd081e2f106d15fc78ac99aa4b7375f0d70688ed9e3",
+    "packages/identity/package.json": "dfd0cc78fbfbf250c7a63c3558ecbbe66fe9aeb371cb537b0153cf04b9b4f3b3"
+  }
+}

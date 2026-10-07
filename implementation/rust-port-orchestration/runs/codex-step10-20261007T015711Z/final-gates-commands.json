@@ -1,0 +1,233 @@
+[
+  {
+    "name": "interfaces-final-emit",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+      "-p",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/interfaces/tsconfig.json",
+      "--composite",
+      "false",
+      "--incremental",
+      "false"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/interfaces-final-emit.log"
+  },
+  {
+    "name": "interfaces-final-tests",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "--test",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/interfaces/dist/test/csv-grammar-join.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/interfaces/dist/test/csv-join.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/interfaces/dist/test/csv-review.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/interfaces/dist/test/csv-route.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/interfaces/dist/test/export-join.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/interfaces/dist/test/export-print.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/interfaces/dist/test/export-route.test.js"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/interfaces-final-tests.log"
+  },
+  {
+    "name": "services-final-emit",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+      "-p",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/tsconfig.json",
+      "--composite",
+      "false",
+      "--incremental",
+      "false"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/services-final-emit.log"
+  },
+  {
+    "name": "services-final-tests",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "--test",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/contract-shapes.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/http-client.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/http-lifecycle.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/judgments-systemone.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/mail-adapter.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/mail-redaction.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/media-comfyui.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/models-ollama.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/pagination.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/scenarios.test.js"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 1,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/services-final-tests.log",
+    "original_failure_excerpt_from_tool_output": "Initial sandbox-only loopback HTTP fixtures failed listen 127.0.0.1 EPERM. Authorized local test escalation rerun passed153.",
+    "log_path_reused_by_later_attempt": true
+  },
+  {
+    "name": "services-final-emit",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+      "-p",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/tsconfig.json",
+      "--composite",
+      "false",
+      "--incremental",
+      "false"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/services-final-emit.log"
+  },
+  {
+    "name": "services-final-tests",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "--test",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/contract-shapes.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/http-client.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/http-lifecycle.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/judgments-systemone.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/mail-adapter.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/mail-redaction.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/media-comfyui.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/models-ollama.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/pagination.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/scenarios.test.js"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/services-final-tests.log"
+  },
+  {
+    "name": "identity-final-emit",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+      "-p",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/tsconfig.json",
+      "--composite",
+      "false",
+      "--incremental",
+      "false"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/identity-final-emit.log"
+  },
+  {
+    "name": "identity-final-tests",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "--test",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/accounts.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/b4-credential-liveness.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/comparison.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/context.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/contracts.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/d1.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/grants.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/oauth.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/presession.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/sessions.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/teams.test.js"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 1,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/identity-final-tests.log",
+    "original_failure_excerpt_from_tool_output": "Initial private harness did not copy test/fixtures/revoked-session.json beside emitted tests (ENOENT); package build:emit already declares this copy. Private fixture copy then80pass.",
+    "log_path_reused_by_later_attempt": true
+  },
+  {
+    "name": "identity-final-emit",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+      "-p",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/tsconfig.json",
+      "--composite",
+      "false",
+      "--incremental",
+      "false"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/identity-final-emit.log"
+  },
+  {
+    "name": "identity-final-tests",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "--test",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/accounts.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/b4-credential-liveness.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/comparison.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/context.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/contracts.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/d1.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/grants.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/oauth.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/presession.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/sessions.test.js",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/teams.test.js"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/identity-final-tests.log"
+  },
+  {
+    "name": "installed-node24-final",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed/node-consumers.mjs"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/installed-node24-final.log"
+  },
+  {
+    "name": "installed-build-final",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed/build.mjs"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/installed-build-final.log"
+  },
+  {
+    "name": "consumer-browser-final",
+    "argv": [
+      "bun",
+      "build",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed/consumer-entry.mjs",
+      "--target=browser",
+      "--format=esm",
+      "--outfile=/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/consumer-bundle.mjs"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/consumer-browser-final.log"
+  },
+  {
+    "name": "services-browser-final",
+    "argv": [
+      "bun",
+      "build",
+      "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed/services-entry.mjs",
+      "--target=browser",
+      "--format=esm",
+      "--outfile=/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/services/host-final-bundle.mjs"
+    ],
+    "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed",
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/services-browser-final.log"
+  }
+]
