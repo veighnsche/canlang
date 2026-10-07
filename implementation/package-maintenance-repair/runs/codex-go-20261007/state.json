@@ -167,18 +167,18 @@
   "next_active_packets": [
     {
       "id": "TECH-S01",
-      "state": "mechanical candidate released; real private backend command active; original own-key defect remains",
-      "agent": "/root/review_ui_appearance"
-    },
-    {
-      "id": "DEL-U01-draft",
-      "state": "exact ACK; profile-matched private leaf implementation active",
-      "agent": "/root/review_test_discovery"
+      "agent": "/root/review_state_private",
+      "state": "independent high review; exact writers released"
     },
     {
       "id": "TECH-S02/TECH-S03 prerequisites",
-      "state": "source-current security join adjudication active",
-      "agent": "/root/review_numeric_reduction"
+      "agent": "/root/review_numeric_reduction",
+      "state": "actual security join adjudication"
+    },
+    {
+      "id": "DEL-A01-canonical",
+      "agent": "/root/impl_work_numeric",
+      "state": "finite implementation active"
     }
   ],
   "packet_state": {
@@ -271,7 +271,7 @@
     },
     "TECH-S01": {
       "planning_status": "ready",
-      "state": "mechanical candidate released; real private backend command active; original own-key defect remains",
+      "state": "mechanical candidate and explicit backend results released; Sol high independent review active; own-key remains open",
       "files": [
         "packages/state/src/storage/d1.ts",
         "packages/state/src/storage/durable-object.ts",
@@ -286,7 +286,8 @@
       "agent": "/root/review_ui_appearance",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "reason": "Known mechanical profile comparison across released State owners; substantive security packet remains separate"
+      "reason": "Known mechanical profile comparison across released State owners; substantive security packet remains separate",
+      "reviewer": "/root/review_state_private"
     },
     "TECH-S01-own-key": {
       "planning_status": "blocked",
@@ -618,7 +619,7 @@
     },
     "VERIFY-TV01": {
       "planning_status": "ready",
-      "state": "Identity/Work default runner/resource repair accepted; committing; Values and original joins open",
+      "state": "Identity/Work narrow repair committed e29ff90; Values and original native/installed gates open",
       "files": [
         "packages/identity/package.json",
         "packages/values/package.json",
@@ -632,7 +633,8 @@
         "identity_default_discovery": "accepted 13 unique emitted source/test files; private actual default 92/92 and root source-test 12/12",
         "work_default_resources": "accepted original oracle/fixture staged byte-equally; private actual default 464/464 and root numeric 74/74; missing fixture refuses",
         "values_string_contract": "open: emitted lookup and current donor provenance adjudication needed",
-        "full_native_observer": "open original gate, not executed"
+        "full_native_observer": "open original gate, not executed",
+        "identity_work_commit": "e29ff90"
       }
     },
     "TECH-V02-violations": {
@@ -711,7 +713,7 @@
     },
     "DEL-U01-draft": {
       "planning_status": "ready",
-      "state": "candidate released; independent Sol medium review active",
+      "state": "independently accepted private-leaf reduction; committing",
       "files": [
         "packages/ui/src/controls.ts",
         "packages/ui/src/forms.ts",
@@ -721,7 +723,10 @@
       "model": "gpt-6.1-sol",
       "effort": "medium",
       "reason": "Multiple matched renderer/form leaf profiles; preserve divergent datetime profile",
-      "reviewer": "/root/impl_work_numeric"
+      "reviewer": "/root/impl_work_numeric",
+      "review": "ui-draft-independent-review.json",
+      "readable_reduction": 121,
+      "full_closure_reduction": 112
     },
     "DEL-A01-error": {
       "planning_status": "ready",
@@ -776,12 +781,17 @@
     },
     "DEL-A01-canonical": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "exact ACK; canonical leaf implementation active",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/http/export.ts",
         "packages/interfaces/src/http/canonical-json.ts"
-      ]
+      ],
+      "agent": "/root/impl_work_numeric",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "base": "e29ff90",
+      "reason": "Frozen identical canonical leaves; independent high review for actual byte/hash/error semantics"
     },
     "FINAL-R03": {
       "planning_status": "blocked",
@@ -801,7 +811,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:26:26.097308+00:00",
+  "updated_utc": "2026-10-07T19:31:36.796410+00:00",
   "critical_security_review": {
     "state": "frozen review received; root source-current joins under adjudication",
     "agent": "/root/critical_package_security",
