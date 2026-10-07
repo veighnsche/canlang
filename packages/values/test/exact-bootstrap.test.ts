@@ -58,6 +58,27 @@ describe("ts backend without bootstrap", () => {
     assert.throws(() => ts.call("add-int", [1n]), ValueError);
   });
 
+  it("refuses inherited operation names before reading arguments", () => {
+    const ts = tsBackend();
+    for (const op of ["foreign-op", "toString", "constructor", "__proto__", "valueOf", "hasOwnProperty"]) {
+      let reads = 0;
+      const args: unknown[] = [];
+      Object.defineProperty(args, 0, {
+        get() {
+          reads += 1;
+          throw new Error("unknown operation read an argument");
+        },
+      });
+      assert.throws(() => ts.call(op, args), (error: unknown) => {
+        assert.ok(error instanceof ValueError);
+        assert.equal(error.code, "invalid-construction");
+        assert.equal(error.message, `smoke backend has no op: ${op}`);
+        return true;
+      });
+      assert.equal(reads, 0, op);
+    }
+  });
+
   it("retains decimal scale -0 on the ts path (carrier pin control)", () => {
     const ts = tsBackend();
     const out = ts.call("negate-decimal", [new Decimal(1n, -0)]);
