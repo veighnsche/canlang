@@ -1019,3 +1019,4 @@ A1017	packages/work/src/schedule/every.ts	129	fc97cd662987d5deea757a4824c11e8286
 A1018	packages/work/src/schedule/index.ts	146	aebbea2a02862bb2805edd720f08f88c4b79d95e4f72f6587d4f1d478e3f13b4	observed_evidence	SW-054
 A1019	tests/e2e/fixtures/pilot-examples.ts	341	b52c98f481de8687aa78d3186f40a78c3eba3492727a6118e110e2ae0a15723a	observed_evidence	AD-testkit-runner,AD-testkit-sequence-gap
 A1020	tests/integration/b2-delivery.test.ts	52	5e3e47c3e9d2ac837ff95272bfb4b5a4883b305b39ac72353a60ff73ba114fb1	observed_evidence	AD-services-scenarios
+A1021	packages/interfaces/src/http/export.ts	260	5911ae027dcc94488285bd5f853561cf2b0e04766125b97a85a1a44db1dd128a	observed_evidence	AD-export-csv-bytes

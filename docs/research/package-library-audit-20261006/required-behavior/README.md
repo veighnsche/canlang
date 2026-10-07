@@ -99,3 +99,5 @@ The verifier checks all crosswalk IDs, categories, pinned sources and citation
 anchors, artifact hashes and current package equality. Human semantic review is
 recorded; line/hash checks alone cannot prove a citation's interpretation. It does
 not build, execute, install or qualify product behavior.
+
+Step 4 source recheck corrected `AD-export-csv-bytes`: the existing serializer uses LF record separators and a trailing LF (`export.ts:260`), not CRLF. The contract ID/classification and source checkpoint remain; this is a factual audit correction, with no runtime/profile change. The new exact observation anchor is `A1021`; source hashes and classification counts are unchanged.

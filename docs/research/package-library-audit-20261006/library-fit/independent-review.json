@@ -1,0 +1,577 @@
+{
+  "schema": "canlang-library-fit-contract-review-v1",
+  "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+  "review_scope": "Planning-only finite independent challenge of four selected seams. Prior Astra F03/F04/F07 classification reused, not security rereview.",
+  "analysis_model": "gpt-6.1-sol / high (finite consequential contract-conflict review per parent dispatch)",
+  "authorization_limits": {
+    "product_edits": false,
+    "installs": false,
+    "product_tests_builds_or_execution": false,
+    "git_mutation": false,
+    "shared_docs_edits": false,
+    "subagents": false,
+    "policy_selection": false,
+    "JEV_called": false
+  },
+  "summary": {
+    "new_substantive_fit_conflicts": [
+      "FIT-C01",
+      "FIT-C02"
+    ],
+    "new_evidence_wording_correction": [
+      "FIT-C03"
+    ],
+    "already_known_conflicts": [
+      "F03",
+      "F04",
+      "F07",
+      "SW-014",
+      "CF-C15",
+      "CF-C17",
+      "AD-csv-current-map",
+      "AD-csv-size-gap"
+    ],
+    "upstream_docs_grant_acceptance": false,
+    "permanence_invention_found": false,
+    "policy_changes_recommended_or_selected": false,
+    "runtime_acceptance_claimed": false
+  },
+  "findings": [
+    {
+      "id": "FIT-C01",
+      "severity": "P2",
+      "seam": "source-maps",
+      "kind": "new_library_fit_conflict",
+      "assessment": "delivery / delivery-maps / alternatives.library + minimum wrapper",
+      "title": "Plain GLB changes equal-column lookup even on sorted nonnegative maps",
+      "claim_challenged": "whole-map TraceMap GLB + units/raw-index projection and remapping",
+      "finding": "Pinned lookup advances through every eligible segment and picks the last exact duplicate generated column. traceSegment and originalPositionFor use GREATEST_LOWER_BOUND, but an exact match is moved through lowerBound to the first duplicate. remapping recursively calls traceSegment, so an unmodified original map can change composition too. This gap remains after excluding negative, unsorted and overflow maps.",
+      "static_witness": {
+        "status": "reasoned from source; not executed",
+        "decoded_line": [
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            1,
+            1
+          ]
+        ],
+        "sources": [
+          "a.can",
+          "b.can"
+        ],
+        "query": {
+          "generated_line_1based": 1,
+          "generated_column_0based": 0
+        },
+        "pinned_lookup": {
+          "source": "b.can",
+          "line_1based": 2,
+          "column_1based": 2
+        },
+        "library_GLB_originalPositionFor": {
+          "source": "a.can",
+          "line_1based": 1,
+          "column_0based": 0
+        }
+      },
+      "evidence": [
+        {
+          "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+          "lines": [
+            134,
+            160
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Source-order scan keeps last eligible segment."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md",
+          "lines": [
+            13,
+            17
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Finite profile explicitly names last duplicate and observable mutable maps."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/trace-mapping.ts",
+          "lines": [
+            169,
+            189
+          ],
+          "ref": null,
+          "note": "traceSegment uses GLB."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/trace-mapping.ts",
+          "lines": [
+            402,
+            415
+          ],
+          "ref": null,
+          "note": "GLB exact hit invokes lowerBound."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/binary-search.ts",
+          "lines": [
+            54,
+            73
+          ],
+          "ref": null,
+          "note": "upperBound walks forward; lowerBound walks backward over equal columns."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/src/source-map-tree.ts",
+          "lines": [
+            148,
+            170
+          ],
+          "ref": null,
+          "note": "Composition uses traceSegment on child maps."
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-maps.ts",
+          "lines": [
+            46,
+            60
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Existing effectiveLine coalesces equal thresholds to the last point before composition."
+        }
+      ],
+      "recommended_assessment_wording": "Full-map APIs are conditionally viable after qualifying input domain, exact-column tie behavior, raw source/name indexes, coordinate units and failure containment. Ordinary sorted maps with duplicate columns still require a small tie bridge/coalescing step or an explicitly selected different caller profile; units and raw-index projection alone are insufficient.",
+      "wrapper_judgment": {
+        "necessary_now": "Preserve current finite last-duplicate behavior while comparison promises same outcomes. A narrow coalescing/tie policy bridge can be materially smaller than the existing full compatibility mechanics.",
+        "avoidable_if_qualified": "Large overflow carriers and prefix-maximum transforms for unsorted maps need not become permanent requirements merely because the old oracle includes them.",
+        "not_claimed": "No implementation, runtime counterexample execution or generated-map duplicate inventory."
+      },
+      "owner_JEV": "A factual assessment correction does not select policy. Owner/JEV is required if changing supported tie behavior or narrowing legitimate callers; this review does not make that choice."
+    },
+    {
+      "id": "FIT-C02",
+      "severity": "P2",
+      "seam": "csv",
+      "kind": "new_source_vs_assessment_conflict_inherited_contract_error",
+      "assessment": "adapters / csv-export-stringify / required_outcomes, options_limitations, necessary_wrapper; inherited AD-export-csv-bytes",
+      "title": "Current CSV export uses LF, not CRLF",
+      "claim_challenged": "CRLF trailing terminator; fixed CRLF/eof options preserve current byte profile",
+      "finding": "At the semantic pin pageToCsv explicitly returns lines joined with LF plus one trailing LF. The finite C04 handoff retains that serializer and supplies no CRLF selection. The contract record and fit assessment both say current CRLF, which conflicts with their source authority. csv-stringify with record_delimiter CRLF would alter every record boundary compared with the pinned mechanics.",
+      "evidence": [
+        {
+          "path": "packages/interfaces/src/http/export.ts",
+          "lines": [
+            245,
+            260
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Header and armored/escaped data rows use lines.join(LF) plus LF."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+          "lines": [
+            14,
+            14
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Retain existing tiny serializer and separate formula neutralization."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/api/index.js",
+          "lines": [
+            51,
+            59
+          ],
+          "ref": null,
+          "note": "With eof=true the supplied record_delimiter is appended."
+        }
+      ],
+      "recommended_assessment_wording": "The current source profile uses LF record separators and a trailing LF. For a same-byte stringify candidate use LF with eof=true, keep owner formula armor, and force quotes for any comma, quote, LF or CR. CRLF is a different output profile that would need explicit selection if desired.",
+      "wrapper_judgment": {
+        "necessary_now": "Projection, current grants, exact selected row/header ordering, owner formula protection, fixed LF/eof and quoting options.",
+        "avoidable": "A second custom quoting scanner alongside stringify.",
+        "tradeoff": "The existing quote helper is tiny; retaining it remains a fair alternative and avoids a dependency without lowering product outcomes."
+      },
+      "owner_JEV": "Correcting the observed LF description requires no new policy. Selecting CRLF instead would be an owner choice, with affected output consumers qualified. No output change is authorized here."
+    },
+    {
+      "id": "FIT-C03",
+      "severity": "P3",
+      "seam": "source-maps",
+      "kind": "new_evidence_precision_correction",
+      "assessment": "delivery / delivery-maps / options_limitations",
+      "title": "Separate trace-map internal caching from mutation of caller-owned decoded arrays",
+      "claim_challenged": "TraceMap resolves raw names and caches/mutates sorted input domain",
+      "finding": "TraceMap retains raw sources/names and constructs resolvedSources. For unsorted decoded mappings supplied as an object, maybeSort shallow-copies the outer array and copies unsorted lines before sorting. It mutates arrays parsed from its own JSON input, not these caller-owned unsorted lines. Internal decoded caches and sharing of already-sorted input still require a mutation/invalidation-domain qualification, but the broad mutation claim overstates the actual implementation.",
+      "evidence": [
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/trace-mapping.ts",
+          "lines": [
+            106,
+            137
+          ],
+          "ref": null,
+          "note": "Raw tables are retained, resolved sources derived, ownership flag comes from JSON-string parsing."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/sort.ts",
+          "lines": [
+            5,
+            40
+          ],
+          "ref": null,
+          "note": "Non-owned outer/unsorted inner arrays are copied before sorting."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/trace-mapping.ts",
+          "lines": [
+            154,
+            162
+          ],
+          "ref": null,
+          "note": "Encoded and decoded forms are cached internally."
+        }
+      ],
+      "recommended_assessment_wording": "TraceMap derives resolvedSources and caches decoded mappings. Caller-supplied decoded unsorted lines are copied for sorting, while sorted input/table references may be shared. Cross-call map mutation and raw-identity handling need their own finite qualification; do not attribute arbitrary input mutation to the library.",
+      "owner_JEV": "Evidence wording correction only. A new cache lifetime or narrowed mutation domain would be a separate owner decision."
+    }
+  ],
+  "seam_reviews": [
+    {
+      "id": "canonicalize",
+      "packages": [
+        "canonicalize@2.1.0"
+      ],
+      "assessment_verdict": "retain now; resolve finite admission/profile then reassess",
+      "review_verdict": "Qualified verdict is supported; no newly discovered policy conflict.",
+      "known_conflicts": [
+        "SW-009 / F07: raw prevalidation hash versus desired normalized explicit-input semantics.",
+        "SW-013 / SW-014: rejection domain versus unresolved host-object traces."
+      ],
+      "verification": "Pinned replay.ts hashes sorted raw data before receipt lookup and validation (admission.ts:321,323,342,366). Canonicalize rejects nonfinite numbers but drops unsupported object fields, turns undefined/symbol array elements into null, and skips holes through reduce. It cannot replace fail-closed replay serialization on the unrestricted domain.",
+      "same_outcome_comparison": "JSON-only, dense, ordinary admitted values can be compared for sorted bytes; preservation of old receipt preimages and version evidence is separate from choosing normalized future inputs.",
+      "wrapper_judgment": "Domain admission and owner hash/error boundary can be necessary. A recursive legacy-emulation clone to advertise library adoption is avoidable and may exceed the existing serializer. Retaining the finite source is a fair comparator.",
+      "policy_choices": "Raw-versus-normalized persisted identity and narrowing legacy input domains belong to owner/JEV; no bulk rehash or migration choice made.",
+      "primary_source": "https://raw.githubusercontent.com/erdtman/canonicalize/v2.1.0/lib/canonicalize.js",
+      "primary_source_status": "Version-tagged official source read through web; no install or runtime acceptance."
+    },
+    {
+      "id": "csv",
+      "packages": [
+        "csv-parse@7.0.3",
+        "csv-stringify@6.6.0"
+      ],
+      "assessment_verdict": "Retain adopted parse library; retain tiny export serializer pending stronger benefit.",
+      "review_verdict": "Grammar and policy separation is sound, subject to FIT-C02 correcting LF profile.",
+      "known_conflicts": [
+        "F03: consent lacks full private app/team/time lifecycle and configured per-row owning business review.",
+        "F04: transport operation-ID age gate precedes canonical receipt lookup.",
+        "AD-csv-current-map: empty-cell omission is narrower than accepted typed/null mapping.",
+        "AD-csv-size-gap: generic JSON framing cap is narrower than accepted source-size profile."
+      ],
+      "evidence": [
+        {
+          "path": "packages/ui/src/csv/grammar.ts",
+          "lines": [
+            30,
+            70
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Scalar admission, explicit CRLF/LF input delimiters, no cast/trim/skip, mismatch retention, full parse before row ceiling."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/api/index.js",
+          "lines": [
+            192,
+            198
+          ],
+          "ref": null,
+          "note": "Delimiter autodiscovery occurs only without configured delimiters."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/api/index.js",
+          "lines": [
+            513,
+            568
+          ],
+          "ref": null,
+          "note": "Column-count relaxation retains records instead of failing parser."
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "lines": [
+            95,
+            102
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Current consent fields omit app/team/issued/expiry."
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "lines": [
+            466,
+            548
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Consent recomputation/current liveness and early age gate before invocation."
+        },
+        {
+          "path": "packages/interfaces/src/envelope/validate.ts",
+          "lines": [
+            64,
+            80
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Age validator reads clock and refuses old identity without consulting receipts."
+        },
+        {
+          "path": "packages/state/src/invocation/admission.ts",
+          "lines": [
+            321,
+            342
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Canonical receipt-first path applies age only to unseen identity."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "lines": [
+            773,
+            781
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Owning business review and independent review/receipt lifetimes remain required."
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/api/index.js",
+          "lines": [
+            191,
+            248
+          ],
+          "ref": null,
+          "note": "Formula protection is first-character based; supported quote match plus escaping owns quote mechanics."
+        }
+      ],
+      "same_outcome_comparison": "Parser grammar success cannot credit authoritative review, business review, consent, current grants, durability or receipt replay. Both retain and library alternatives owe those outcomes independently. Neither parser nor stringifier changes replay ordering.",
+      "wrapper_judgment": "Retain scalar admission, safe faults, shape/row limits at grammar seam. Typed mapping, consent, review and invoker joins are owner workflow duties rather than parser internals. Owner formula protection remains needed under the selected policy even with stringify escape_formulas disabled; the regex quote helper may remain cheaper than adding a library.",
+      "policy_choices": "Receipt replay after expired review versus fresh-row admission and current disclosure must be resolved by owner/JEV; this review does not bypass age, consent or authority checks."
+    },
+    {
+      "id": "source-maps",
+      "packages": [
+        "@jridgewell/trace-mapping@0.3.31",
+        "@jridgewell/remapping@2.3.5"
+      ],
+      "assessment_verdict": "Retain raw profile pending separately owned domain decision; composition already uses remapping.",
+      "review_verdict": "Retain/conditional verdict supported after FIT-C01 and FIT-C03 corrections.",
+      "known_conflicts": [
+        "CF-C15 malformed/overflow/unsorted/negative behavior lacks intrinsic permanent authority.",
+        "CF-C17 exact error wording/eager malformed-line order remains finite oracle rather than automatically permanent product policy."
+      ],
+      "same_outcome_comparison": "Compare original raw source/name/content identities, same position selection, exact coordinate units, absent/no-edit/invalid staging, and original handler-error containment on each declared input domain. A canonical-producer-only proposal does not satisfy arbitrary raw-input API comparison merely by carrying the same contract IDs.",
+      "wrapper_judgment": "traceSegment can expose source/name indexes directly for lookup without normalized-name reverse matching. Composition uses index-specific opaque IDs and restores original metadata to preserve duplicate raw strings/content. That protection is justified; it does not mandate a second codec. The full prefix/overflow compatibility machinery may be avoidable after profile selection, but ordinary duplicate-column handling is an additional concrete qualifier.",
+      "policy_choices": "Supported domain, error-text consumers, tie policy, cache lifetime and changed malformed/no-edit staging behavior need selected owner disposition before implementation. No profile was selected in this review."
+    },
+    {
+      "id": "numeric-text",
+      "packages": [
+        "ryu-js@1.0.3"
+      ],
+      "assessment_verdict": "Already adopted; redundant String branches can be simplified later.",
+      "review_verdict": "Source verifies proposed minimum String formatter and required JSON finite gate; no finding.",
+      "known_conflicts": [
+        "vv.number-diagnostics is unresolved product necessity even while selected finite diagnostic parity is retained.",
+        "SW-086 persisted Work numeric identity text needs byte qualification independent of diagnostic prose."
+      ],
+      "evidence": [
+        {
+          "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/buffer/mod.rs",
+          "lines": [
+            45,
+            60
+          ],
+          "ref": null,
+          "note": "Buffer::format handles nonfinite text and delegates finite numbers."
+        },
+        {
+          "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/buffer/mod.rs",
+          "lines": [
+            199,
+            219
+          ],
+          "ref": null,
+          "note": "f64 nonfinite masks select NaN or signed Infinity."
+        },
+        {
+          "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/pretty/mod.rs",
+          "lines": [
+            55,
+            72
+          ],
+          "ref": null,
+          "note": "Both positive and negative zero return 0 before sign is emitted."
+        },
+        {
+          "path": "packages/work-kernel/decisions/numeric_text.rs",
+          "lines": [
+            5,
+            27
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Current explicit String branches and separate JSON nonfinite-null channel."
+        },
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "lines": [
+            316,
+            334
+          ],
+          "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+          "note": "Values diagnostics use String policy."
+        }
+      ],
+      "same_outcome_comparison": "String route: Buffer::format(n).to_owned() preserves source-observed zero/nonfinite behavior. JSON route must still emit null for nonfinite and finite JS numeric text otherwise. format_finite alone is unsuitable for an unrestricted String input; neither formatter admits approximate Number as exact Can int/decimal.",
+      "wrapper_judgment": "String allocation/error integration and JSON-channel policy are necessary. Separate zero/NaN/Infinity branches are redundant with Buffer::format. No decimal/exponent rewrite or second numeric engine is needed.",
+      "policy_choices": "No policy choice is needed for mechanical removal of redundant branches after qualification. Changing persisted Work bytes or diagnostic promises would be separate owner work; no change implemented."
+    }
+  ],
+  "policy_escalation_notes": "Corrections establish facts and comparison limits, not policy adoption. If future implementation chooses normalized persisted hashing, review/receipt ordering or a different supported source-map profile, use owner/JEV with verified same-outcome alternatives and independent equivalent requests; preserve prior evidence/uncertainty. No such choice made here.",
+  "inputs": [
+    {
+      "path": "/private/tmp/canlang-library-fit-values.json",
+      "sha256": "b8858aa61bc62ea40202227906f2c013435fc162ae1aee097fd789d5854c1d81"
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-adapters.json",
+      "sha256": "53736ed5cb3481fd73ada52fc8e3c045250be107bc07719a8a8a5db412c0bdff"
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-delivery.json",
+      "sha256": "92770b1ac3146fefd31ef55b47d81fa21aff980b9249a2bb29db6e69f69e6441"
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "packages/state/src/invocation/replay.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36"
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6"
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc"
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e"
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3"
+    },
+    {
+      "path": "packages/interfaces/src/envelope/validate.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "115b21e75eb724664a2a87eea0434ab792114702e72e97cf8af9e8200d32d1ec"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00"
+    },
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "4c5b121f8cb8547660074d5cfd266d8b45139d2b461f725232bc90c4f3e8bff3"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.md",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "1e2b8b9331445f3c1c930746f1869d4c4218ca24ecaffa5d1fee3fcaa4dc4028"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/security-review.md",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "1dd45bbceb48ababc9f12a7e33abeccd1060f90261257dc0e55345802d6bc4d5"
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/buffer/mod.rs",
+      "source": "read-only exact published npm/cached Rust source",
+      "sha256": "5783fdd94040746e15f59ce6c66b203a6ce24de7773dce6cdfbc5a2775937ca2"
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/pretty/mod.rs",
+      "source": "read-only exact published npm/cached Rust source",
+      "sha256": "3507dc364f18901bd159cf4fe40bebe37d582ce8a87b59a0351e8af282154977"
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/api/index.js",
+      "source": "read-only exact published npm/cached Rust source",
+      "sha256": "07d98c0146bcce7d085c9e70a871342abf6ea4e7069d115d41c5eb37bed871e1"
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/api/index.js",
+      "source": "read-only exact published npm/cached Rust source",
+      "sha256": "eb6982f95d279a49d17a217a70001b72b6eae1045106c67681281563443effbd"
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/src/source-map-tree.ts",
+      "source": "read-only exact published npm/cached Rust source",
+      "sha256": "f570fed38f3797896d5545b61aec0c912efa9e9a5e8f038fd3a4f1ad15a5b936"
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/binary-search.ts",
+      "source": "read-only exact published npm/cached Rust source",
+      "sha256": "ae7ae4c8879a66c98ab0b1197e8e4110d121ac21cf52482dd66f6a4788e6c933"
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/sort.ts",
+      "source": "read-only exact published npm/cached Rust source",
+      "sha256": "afc9d966ec471f1be9f6e6843d009b30ce0a37853cbc31ec9834c8d273286403"
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/trace-mapping.ts",
+      "source": "read-only exact published npm/cached Rust source",
+      "sha256": "f37d9db53896dd9adb199cb75b79ab33c8c588b5a25793b714e20dad2f77187b"
+    }
+  ],
+  "limits": [
+    "Source verification and static reasoning only; examples were not executed.",
+    "No installed-host, bundle-size, persisted receipt inventory, generated-map corpus or whole workflow proof was created.",
+    "Canonicalize was verified against official version-tagged source, not a downloaded integrity-checked npm tarball.",
+    "Published npm integrity was inherited from the supplied inspection record; this review independently read exact extracted source."
+  ]
+}
