@@ -19,7 +19,7 @@ use canlang_compiler::source::{SourceDb, SourceId, Span};
 /// - `complete` decl: 52..60, param `task`: 61..65, type use `Todo`: 66..70
 /// - `members`: 75..82, `let` stmt: 87..111, `label` decl: 95..100
 /// - `task` use: 101..105, member `title`: 106..111 (unresolved)
-/// - set target `task`: 119..123 (unresolved), entry key `title`: 125..130
+/// - set target `task`: 119..123 (resolved), entry key `title`: 125..130
 /// - `label` use: 131..136
 const FIXTURE: &str = "app Tasks\nGiven\n Todo { title:text }\nWhen\n scenario complete(task:Todo) by=members\n  do\n   let label=task.title\n   set task {title=label}\nThen\n";
 
@@ -92,8 +92,14 @@ fn hover_predicate_and_unresolved_are_empty() {
     assert_eq!((predicate.span.start, predicate.span.end), (75, 82));
     // Member-navigation names have no resolution entry: empty, never a guess.
     assert!(snapshot.hover_at(108).is_none());
-    // Set-target paths are unresolved: empty.
-    assert!(snapshot.hover_at(120).is_none());
+    // Mutation targets resolve their head, without guessing field selectors.
+    assert!(
+        snapshot
+            .hover_at(120)
+            .unwrap()
+            .markdown
+            .contains("Tasks.complete.task")
+    );
     // Keywords and trivia: empty.
     assert!(snapshot.hover_at(1).is_none());
     // Past the end: empty.
@@ -259,11 +265,10 @@ fn references_spans() {
     // Todo: declaration plus the parameter type use.
     assert_eq!(spans_of(&snapshot.references_at(18)), [(17, 21), (66, 70)]);
     assert_eq!(spans_of(&snapshot.references_at(67)), [(17, 21), (66, 70)]);
-    // task: declaration plus the member-receiver use (the set-target
-    // path is unresolved, so it is honestly absent).
+    // task: declaration, member-receiver use and mutation-target head.
     assert_eq!(
         spans_of(&snapshot.references_at(63)),
-        [(61, 65), (101, 105)]
+        [(61, 65), (101, 105), (119, 123)]
     );
     // label: declaration plus the object-entry use.
     assert_eq!(
@@ -284,7 +289,7 @@ fn rename_spans_and_hash() {
     let (db, id) = load(FIXTURE);
     let snapshot = Snapshot::analyze(&db, id, None);
     let rename = snapshot.rename_at(102).expect("rename task");
-    assert_eq!(spans_of(&rename.spans), [(61, 65), (101, 105)]);
+    assert_eq!(spans_of(&rename.spans), [(61, 65), (101, 105), (119, 123)]);
     assert_eq!(rename.sha256, snapshot.sha256());
     assert_eq!(rename.sha256.len(), 64);
     let label = snapshot.rename_at(133).expect("rename label");
@@ -293,6 +298,113 @@ fn rename_spans_and_hash() {
     assert!(snapshot.rename_at(76).is_none());
     assert!(snapshot.rename_at(108).is_none());
     assert!(snapshot.rename_at(1).is_none());
+}
+
+#[test]
+fn mutation_target_references_capture_statement_time_identity() {
+    let text = "app T\nGiven\n Todo { title:text }\nWhen\n scenario complete(task:Todo,other:Todo) by=members\n  do\n   let label=task.title\n   set task {title=label}\n   delete task\n   let task=other\n   set task {title=label}\n   delete task\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let occurrences: Vec<_> = text
+        .match_indices("task")
+        .map(|(i, _)| (i as u32, i as u32 + 4))
+        .collect();
+    assert_eq!(occurrences.len(), 7);
+    let parameter = &occurrences[..4];
+    let local = &occurrences[4..];
+    for &(start, _) in parameter {
+        assert_eq!(spans_of(&snapshot.references_at(start)), parameter);
+        assert_eq!(
+            spans_of(&snapshot.rename_at(start).unwrap().spans),
+            parameter
+        );
+        assert_eq!(spans_of(&snapshot.definition_at(start)), [parameter[0]]);
+    }
+    for &(start, _) in local {
+        assert_eq!(spans_of(&snapshot.references_at(start)), local);
+        assert_eq!(spans_of(&snapshot.rename_at(start).unwrap().spans), local);
+        assert_eq!(spans_of(&snapshot.definition_at(start)), [local[0]]);
+    }
+}
+
+#[test]
+fn mutation_target_head_excludes_field_selectors_and_unresolved_names() {
+    let text = "app T\nGiven\n Todo { title:text }\n Box { child:Todo }\nWhen\n scenario complete(task:Box) by=members\n  do\n   set task.child {title=\"done\"}\n   delete task.child\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let expected: Vec<_> = text
+        .match_indices("task")
+        .map(|(i, _)| (i as u32, i as u32 + 4))
+        .collect();
+    assert_eq!(expected.len(), 3);
+    for &(start, _) in &expected {
+        assert_eq!(
+            spans_of(&snapshot.rename_at(start).unwrap().spans),
+            expected
+        );
+    }
+    for (i, _) in text.match_indices("task.child") {
+        assert!(snapshot.rename_at(i as u32 + 5).is_none());
+        assert!(snapshot.references_at(i as u32 + 5).is_empty());
+    }
+    let bad = text.replace("task.child", "missing.child");
+    let (db, id) = load(&bad);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    for (i, _) in bad.match_indices("missing.child") {
+        assert!(snapshot.rename_at(i as u32).is_none());
+    }
+}
+
+#[test]
+fn clean_rename_applies_to_reads_and_mutations_then_rechecks() {
+    let text = FIXTURE
+        .replace("   let", "   ## é😀\n   let")
+        .replace(
+            "   set task {title=label}",
+            "   set task {title=label}\n   delete task",
+        )
+        .replace('\n', "\r\n");
+    let (db, id) = load(&text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let rename = snapshot
+        .rename_at(text.find("set task").unwrap() as u32 + 4)
+        .unwrap();
+    let expected: Vec<_> = text
+        .match_indices("task")
+        .map(|(i, _)| (i as u32, i as u32 + 4))
+        .collect();
+    assert_eq!(expected.len(), 4);
+    assert_eq!(spans_of(&rename.spans), expected);
+    let mut applied = text.clone();
+    for span in rename.spans.iter().rev() {
+        applied.replace_range(span.start as usize..span.end as usize, "job");
+    }
+    assert_eq!(applied, text.replace("task", "job"));
+    assert!(applied.contains("job.title"));
+    assert!(applied.contains("set job {title=label}"));
+    assert!(applied.contains("delete job"));
+    let (db, id) = load(&applied);
+    let renamed = Snapshot::analyze(&db, id, None);
+    assert!(
+        renamed.diagnostics().is_empty(),
+        "{:?}",
+        renamed.diagnostics()
+    );
 }
 
 // --- completion ---
@@ -709,7 +821,7 @@ fn real_server() -> Server<RealAnalysis> {
     let responses = server.handle_json(&request(
         "1",
         "initialize",
-        r#"{"processId":null,"rootUri":null,"capabilities":{}}"#,
+        r#"{"processId":null,"rootUri":null,"capabilities":{"workspace":{"workspaceEdit":{"documentChanges":true}}}}"#,
     ));
     assert_eq!(responses.len(), 1);
     assert!(responses[0].contains("capabilities"));
@@ -862,10 +974,10 @@ fn server_rename_and_invalid_name() {
         "textDocument/rename",
         r#"{"textDocument":{"uri":"file:///a.can"},"position":{"line":6,"character":13},"newName":"job"}"#,
     ));
-    // Two edits (declaration + use), both retitled to `job`.
+    // Declaration, read and set-target edits are all retitled to `job`.
     assert_eq!(
         rename[0].matches("\"newText\":\"job\"").count(),
-        2,
+        3,
         "{}",
         rename[0]
     );

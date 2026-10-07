@@ -9,9 +9,9 @@
 //!
 //! Version/staleness contract: `didOpen`/`didChange` enqueue one analysis
 //! task per document version; [`Server::pump`] publishes diagnostics only
-//! for the task whose version still matches the open document and silently
-//! cancels stale ones. Diagnostics are therefore never published for an
-//! outdated buffer, and never for a closed one.
+//! for the task whose source snapshot and version still match the open
+//! document, while the session is ready. Close cancels its queued work and
+//! publishes an empty diagnostic set; shutdown cancels all queued work.
 //!
 //! All positions use UTF-16 encoding; only full-text sync is honored
 //! (incremental `range` edits are ignored and documented).
@@ -524,7 +524,8 @@ pub struct Server<A: LanguageAnalysis> {
     analysis: A,
     db: SourceDb,
     docs: HashMap<String, OpenDoc>,
-    pending: VecDeque<(String, i32)>,
+    pending: VecDeque<(String, i32, SourceId)>,
+    document_changes: bool,
     lifecycle: Lifecycle,
     exited: bool,
     exit_code: i32,
@@ -538,6 +539,7 @@ impl<A: LanguageAnalysis> Server<A> {
             db: SourceDb::new(),
             docs: HashMap::new(),
             pending: VecDeque::new(),
+            document_changes: false,
             lifecycle: Lifecycle::PreInit,
             exited: false,
             exit_code: 0,
@@ -560,8 +562,8 @@ impl<A: LanguageAnalysis> Server<A> {
     }
 
     /// Handle one parsed message body, returning raw JSON response and
-    /// notification bodies to send. Diagnostics for document sync are not
-    /// returned here; drain them with [`Server::pump`].
+    /// notification bodies to send, including the clear on document close.
+    /// Drain queued open/change diagnostics with [`Server::pump`].
     pub fn handle_json(&mut self, message: &Json) -> Vec<String> {
         let call = match t::parse_call(message) {
             Ok(call) => call,
@@ -575,10 +577,7 @@ impl<A: LanguageAnalysis> Server<A> {
         };
         match call.id {
             Some(id) => self.handle_request(&id, &call.method, call.params.as_ref()),
-            None => {
-                self.handle_notification(&call.method, call.params.as_ref());
-                Vec::new()
-            }
+            None => self.handle_notification(&call.method, call.params.as_ref()),
         }
     }
 
@@ -587,8 +586,15 @@ impl<A: LanguageAnalysis> Server<A> {
     /// are cancelled: no notification is emitted for them, ever.
     pub fn pump(&mut self) -> Vec<String> {
         let mut out = Vec::new();
-        while let Some((uri, version)) = self.pending.pop_front() {
-            let current = self.docs.get(&uri).filter(|doc| doc.version == version);
+        if self.lifecycle != Lifecycle::Ready || self.exited {
+            self.pending.clear();
+            return out;
+        }
+        while let Some((uri, version, source)) = self.pending.pop_front() {
+            let current = self
+                .docs
+                .get(&uri)
+                .filter(|doc| doc.version == version && doc.id == source);
             let Some(doc) = current else {
                 continue; // Stale or closed: cancelled.
             };
@@ -609,6 +615,12 @@ impl<A: LanguageAnalysis> Server<A> {
                             "bad initialize parameters",
                         )];
                     }
+                    self.document_changes = params
+                        .and_then(|p| p.get("capabilities"))
+                        .and_then(|p| p.get("workspace"))
+                        .and_then(|p| p.get("workspaceEdit"))
+                        .and_then(|p| p.get("documentChanges"))
+                        == Some(&Json::Bool(true));
                     self.lifecycle = Lifecycle::Ready;
                     vec![output::response(id, capabilities())]
                 }
@@ -645,6 +657,7 @@ impl<A: LanguageAnalysis> Server<A> {
         let response = match method {
             "shutdown" => {
                 self.lifecycle = Lifecycle::Shutdown;
+                self.pending.clear();
                 t::response_ok(id, Json::Null)
             }
             "textDocument/hover" => self.with_pos(params, id, |server, doc_id, pos| {
@@ -696,12 +709,23 @@ impl<A: LanguageAnalysis> Server<A> {
                     .and_then(|(uri, pos)| self.doc_id(&uri).map(|doc| (uri, doc, pos)));
                 match target {
                     Some((uri, doc_id, pos)) => {
-                        let locations: Vec<_> = self
-                            .analysis
-                            .references(&self.db, doc_id, &uri, pos)
-                            .into_iter()
-                            .map(output::location)
-                            .collect();
+                        let mut references = self.analysis.references(&self.db, doc_id, &uri, pos);
+                        if params
+                            .get("context")
+                            .and_then(|c| c.get("includeDeclaration"))
+                            == Some(&Json::Bool(false))
+                        {
+                            let declarations =
+                                self.analysis.definition(&self.db, doc_id, &uri, pos);
+                            references.retain(|reference| {
+                                !declarations.iter().any(|declaration| {
+                                    declaration.uri == reference.uri
+                                        && declaration.range == reference.range
+                                })
+                            });
+                        }
+                        let locations: Vec<_> =
+                            references.into_iter().map(output::location).collect();
                         output::response(id, locations)
                     }
                     None => t::response_err(
@@ -720,7 +744,10 @@ impl<A: LanguageAnalysis> Server<A> {
                 match target {
                     Some((uri, doc_id, version, pos, name)) => {
                         let edits = self.analysis.rename(&self.db, doc_id, pos, name);
-                        output::response(id, output::rename(uri, version, edits))
+                        output::response(
+                            id,
+                            output::rename(uri, version, edits, self.document_changes),
+                        )
                     }
                     None => t::response_ok(id, Json::Null),
                 }
@@ -750,9 +777,11 @@ impl<A: LanguageAnalysis> Server<A> {
                             .code_actions(&self.db, doc_id, &uri, range)
                             .into_iter()
                             .map(|action| {
-                                output::action(action, |uri| {
-                                    self.docs.get(uri).map(|doc| doc.version)
-                                })
+                                output::action(
+                                    action,
+                                    |uri| self.docs.get(uri).map(|doc| doc.version),
+                                    self.document_changes,
+                                )
                             })
                             .collect();
                         output::response(id, actions)
@@ -795,12 +824,12 @@ impl<A: LanguageAnalysis> Server<A> {
         self.docs.get(uri).map(|doc| doc.id)
     }
 
-    fn handle_notification(&mut self, method: &str, params: Option<&Json>) {
+    fn handle_notification(&mut self, method: &str, params: Option<&Json>) -> Vec<String> {
         if method != "exit" && self.lifecycle != Lifecycle::Ready {
-            return;
+            return Vec::new();
         }
         if !valid_params(method, params) {
-            return;
+            return Vec::new();
         }
         let absent = Json::Null;
         let params = params.unwrap_or(&absent);
@@ -819,14 +848,14 @@ impl<A: LanguageAnalysis> Server<A> {
             }
             "textDocument/didOpen" => {
                 let Some(doc) = params.get("textDocument") else {
-                    return;
+                    return Vec::new();
                 };
                 let (Some(uri), Some(version), Some(text)) = (
                     doc.get("uri").and_then(Json::as_str),
                     doc.get("version").and_then(t::integer_value),
                     doc.get("text").and_then(Json::as_str),
                 ) else {
-                    return;
+                    return Vec::new();
                 };
                 // No-op open (same text already tracked): reuse the live
                 // SourceId instead of appending a duplicate snapshot.
@@ -845,7 +874,7 @@ impl<A: LanguageAnalysis> Server<A> {
                         id,
                     },
                 );
-                self.pending.push_back((uri.to_string(), version));
+                self.pending.push_back((uri.to_string(), version, id));
             }
             "textDocument/didChange" => {
                 let (Some(selector), Some(version)) = (
@@ -855,13 +884,13 @@ impl<A: LanguageAnalysis> Server<A> {
                         .and_then(|d| d.get("version"))
                         .and_then(t::integer_value),
                 ) else {
-                    return;
+                    return Vec::new();
                 };
                 let Some(uri) = selector.get("uri").and_then(Json::as_str) else {
-                    return;
+                    return Vec::new();
                 };
                 let Some(open) = self.docs.get(uri) else {
-                    return;
+                    return Vec::new();
                 };
                 // Full-text sync only: last change without a `range` wins.
                 // Incremental edits are ignored (documented limitation).
@@ -876,7 +905,7 @@ impl<A: LanguageAnalysis> Server<A> {
                     }
                 }
                 let Some(full) = full else {
-                    return;
+                    return Vec::new();
                 };
                 // No-op change (identical text): reuse the live SourceId so
                 // a keystroke that nets no new text never grows the
@@ -897,7 +926,7 @@ impl<A: LanguageAnalysis> Server<A> {
                         id,
                     },
                 );
-                self.pending.push_back((uri.to_string(), version));
+                self.pending.push_back((uri.to_string(), version, id));
             }
             "textDocument/didClose" => {
                 if let Some(uri) = params
@@ -905,12 +934,15 @@ impl<A: LanguageAnalysis> Server<A> {
                     .and_then(|d| d.get("uri"))
                     .and_then(Json::as_str)
                 {
-                    self.docs.remove(uri);
-                    // Pending tasks for it go stale and are cancelled in pump.
+                    self.pending.retain(|(queued_uri, _, _)| queued_uri != uri);
+                    if let Some(doc) = self.docs.remove(uri) {
+                        return vec![publish_diagnostics(uri, doc.version, &doc.text, &[])];
+                    }
                 }
             }
             _ => {}
         }
+        Vec::new()
     }
 }
 

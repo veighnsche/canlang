@@ -402,7 +402,7 @@ pub struct ResolveTables {
     /// `provider.name` for positions whose target has no local symbol
     /// (action/delivery/invocation type targets, DESIGN §2.1).
     pub node_external_op: HashMap<NodeKey, String>,
-    /// Resolved expression names.
+    /// Resolved expression names and mutation-target head tokens.
     pub node_binding: HashMap<NodeKey, Binding>,
     /// Resolved type-position paths.
     pub node_typeref: HashMap<NodeKey, TypeRef>,
@@ -4072,6 +4072,18 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Capture the target head before later statements can add shadowing
+    /// bindings to this scope. Selectors remain outside name resolution.
+    fn resolve_mutation_head(&mut self, scope: ScopeId, target: &SyntaxNode, text: &str) {
+        self.tables.expr_scope.insert(NodeKey::of(target), scope);
+        if let Some(head) = target.children.iter().find(|n| n.kind == SyntaxKind::Name)
+            && let Some(name) = name_text(head, text)
+            && let Some(binding) = self.tables.resolve_name(scope, name, self.catalog)
+        {
+            self.tables.node_binding.insert(NodeKey::of(head), binding);
+        }
+    }
+
     /// Walk one execution statement, introducing bindings into `scope`.
     fn walk_statement(
         &mut self,
@@ -4135,7 +4147,7 @@ impl<'a> Resolver<'a> {
             SyntaxKind::Set => {
                 let parts = kids(node);
                 if let Some(target) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
-                    self.tables.expr_scope.insert(NodeKey::of(target), scope);
+                    self.resolve_mutation_head(scope, target, text);
                 }
                 if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
                     self.walk_object_values(module, scope, object, text, diags);
@@ -4144,7 +4156,7 @@ impl<'a> Resolver<'a> {
             SyntaxKind::Delete => {
                 let parts = kids(node);
                 if let Some(target) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
-                    self.tables.expr_scope.insert(NodeKey::of(target), scope);
+                    self.resolve_mutation_head(scope, target, text);
                 }
             }
             SyntaxKind::Call => {
