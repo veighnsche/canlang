@@ -1,0 +1,173 @@
+{
+  "mapped_derive_lines": [
+    {
+      "generated_line": 4,
+      "canonical": "Review.identity",
+      "source_line": 4,
+      "source_col": 7
+    },
+    {
+      "generated_line": 5,
+      "canonical": "Review.boolIdentity",
+      "source_line": 5,
+      "source_col": 7
+    },
+    {
+      "generated_line": 6,
+      "canonical": "Review.awaitOrder",
+      "source_line": 6,
+      "source_col": 7
+    },
+    {
+      "generated_line": 7,
+      "canonical": "Review.overflow",
+      "source_line": 7,
+      "source_col": 7
+    },
+    {
+      "generated_line": 8,
+      "canonical": "Review.overflowAsync",
+      "source_line": 8,
+      "source_col": 7
+    },
+    {
+      "generated_line": 9,
+      "canonical": "Review.coalesce",
+      "source_line": 9,
+      "source_col": 7
+    },
+    {
+      "generated_line": 10,
+      "canonical": "Review.andTaken",
+      "source_line": 10,
+      "source_col": 7
+    },
+    {
+      "generated_line": 11,
+      "canonical": "Review.orTaken",
+      "source_line": 11,
+      "source_col": 7
+    },
+    {
+      "generated_line": 12,
+      "canonical": "Review.nestedLazy",
+      "source_line": 12,
+      "source_col": 7
+    },
+    {
+      "generated_line": 13,
+      "canonical": "Review.enumExpected",
+      "source_line": 13,
+      "source_col": 7
+    },
+    {
+      "generated_line": 14,
+      "canonical": "Review.narrowAnd",
+      "source_line": 14,
+      "source_col": 7
+    },
+    {
+      "generated_line": 15,
+      "canonical": "Review.narrowOr",
+      "source_line": 15,
+      "source_col": 7
+    },
+    {
+      "generated_line": 16,
+      "canonical": "Review.membership",
+      "source_line": 16,
+      "source_col": 7
+    },
+    {
+      "generated_line": 17,
+      "canonical": "Review.textScope",
+      "source_line": 17,
+      "source_col": 7
+    },
+    {
+      "generated_line": 20,
+      "canonical": "Review.identity",
+      "source_line": 4,
+      "source_col": 7
+    },
+    {
+      "generated_line": 21,
+      "canonical": "Review.boolIdentity",
+      "source_line": 5,
+      "source_col": 7
+    },
+    {
+      "generated_line": 22,
+      "canonical": "Review.awaitOrder",
+      "source_line": 6,
+      "source_col": 7
+    },
+    {
+      "generated_line": 23,
+      "canonical": "Review.overflow",
+      "source_line": 7,
+      "source_col": 7
+    },
+    {
+      "generated_line": 24,
+      "canonical": "Review.overflowAsync",
+      "source_line": 8,
+      "source_col": 7
+    },
+    {
+      "generated_line": 25,
+      "canonical": "Review.coalesce",
+      "source_line": 9,
+      "source_col": 7
+    },
+    {
+      "generated_line": 26,
+      "canonical": "Review.andTaken",
+      "source_line": 10,
+      "source_col": 7
+    },
+    {
+      "generated_line": 27,
+      "canonical": "Review.orTaken",
+      "source_line": 11,
+      "source_col": 7
+    },
+    {
+      "generated_line": 28,
+      "canonical": "Review.nestedLazy",
+      "source_line": 12,
+      "source_col": 7
+    },
+    {
+      "generated_line": 29,
+      "canonical": "Review.enumExpected",
+      "source_line": 13,
+      "source_col": 7
+    },
+    {
+      "generated_line": 30,
+      "canonical": "Review.narrowAnd",
+      "source_line": 14,
+      "source_col": 7
+    },
+    {
+      "generated_line": 31,
+      "canonical": "Review.narrowOr",
+      "source_line": 15,
+      "source_col": 7
+    },
+    {
+      "generated_line": 32,
+      "canonical": "Review.membership",
+      "source_line": 16,
+      "source_col": 7
+    },
+    {
+      "generated_line": 33,
+      "canonical": "Review.textScope",
+      "source_line": 17,
+      "source_col": 7
+    }
+  ],
+  "all_line_maps_valid": true
+}

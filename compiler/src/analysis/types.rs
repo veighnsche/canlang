@@ -3492,107 +3492,81 @@ impl<'a> Typer<'a> {
     /// derive/builtin calls, and member paths prove nothing about
     /// the caller).
     fn auth_proves_actor(&self, node: &SyntaxNode, text: &str) -> bool {
-        match node.kind {
-            SyntaxKind::NameRef => {
-                let word = kids(node)
-                    .iter()
-                    .find_map(|n| name_text(n, text))
-                    .unwrap_or("");
-                if matches!(word, "members" | "owner" | "authenticated") {
-                    return true;
-                }
-                matches!(
-                    self.tables.node_binding.get(&NodeKey::of(node)),
-                    Some(Binding::Symbol(id))
-                        if matches!(
-                            self.tables.symbols[id.0 as usize].kind,
-                            SymbolKind::Role
-                        )
-                )
-            }
-            SyntaxKind::Call => self.role_call_on_caller(node, text),
-            SyntaxKind::Member => false,
-            SyntaxKind::Group => kids(node)
-                .iter()
-                .filter(|c| c.kind != SyntaxKind::Punct)
-                .any(|c| self.auth_proves_actor(c, text)),
-            SyntaxKind::Binary => {
-                let parts = kids(node);
-                if parts.len() != 3 {
-                    return false;
-                }
-                let op = op_text(node, text).unwrap_or("");
-                match op {
-                    "and" => {
-                        self.auth_proves_actor(parts[0], text)
-                            || self.auth_proves_actor(parts[2], text)
-                    }
-                    "or" => {
-                        self.auth_proves_actor(parts[0], text)
-                            && self.auth_proves_actor(parts[2], text)
-                    }
-                    _ => false,
-                }
-            }
-            SyntaxKind::Unary => {
-                let parts = kids(node);
-                let is_not = parts.first().is_some_and(|n| is_name(n, text, "not"));
-                parts
-                    .iter()
-                    .find(|n| is_expression(n.kind))
-                    .is_some_and(|operand| {
-                        is_not && self.auth_proves_actor_when_false(operand, text)
-                    })
-            }
-            _ => false,
-        }
+        self.auth_proofs(node, text)[&NodeKey::of(node)].0
     }
 
-    /// Whether an authorization expression proves an authenticated
-    /// caller when FALSE (T06): only a failing `public` test (a
-    /// non-public request is authenticated) admits; a failing role,
-    /// membership, `authenticated`, or role-call test leaves the
-    /// caller possibly-public. `not` flips to the true polarity;
-    /// `and`-false needs both sides (either may have failed) while
-    /// `or`-false needs either (both failed).
-    fn auth_proves_actor_when_false(&self, node: &SyntaxNode, text: &str) -> bool {
-        match node.kind {
-            SyntaxKind::NameRef => kids(node)
-                .iter()
-                .find_map(|n| name_text(n, text))
-                .is_some_and(|word| word == "public"),
-            SyntaxKind::Group => kids(node)
-                .iter()
-                .filter(|c| c.kind != SyntaxKind::Punct)
-                .any(|c| self.auth_proves_actor_when_false(c, text)),
-            SyntaxKind::Binary => {
-                let parts = kids(node);
-                if parts.len() != 3 {
-                    return false;
-                }
-                let op = op_text(node, text).unwrap_or("");
-                match op {
-                    "and" => {
-                        self.auth_proves_actor_when_false(parts[0], text)
-                            && self.auth_proves_actor_when_false(parts[2], text)
+    /// Caller-admission facts for both polarities, computed once per subtree.
+    /// Narrowing consults this table rather than rewalking each logical prefix.
+    fn auth_proofs(&self, node: &SyntaxNode, text: &str) -> HashMap<NodeKey, (bool, bool)> {
+        let mut work = vec![(node, false)];
+        let mut proofs = HashMap::new();
+        while let Some((current, ready)) = work.pop() {
+            if !ready {
+                work.push((current, true));
+                match current.kind {
+                    SyntaxKind::Group | SyntaxKind::Unary | SyntaxKind::Binary => {
+                        work.extend(
+                            kids(current)
+                                .into_iter()
+                                .filter(|n| is_expression(n.kind))
+                                .map(|n| (n, false)),
+                        );
                     }
-                    "or" => {
-                        self.auth_proves_actor_when_false(parts[0], text)
-                            || self.auth_proves_actor_when_false(parts[2], text)
-                    }
-                    _ => false,
+                    _ => {}
                 }
+                continue;
             }
-            SyntaxKind::Unary => {
-                let parts = kids(node);
-                let is_not = parts.first().is_some_and(|n| is_name(n, text, "not"));
-                parts
-                    .iter()
-                    .find(|n| is_expression(n.kind))
-                    .is_some_and(|operand| is_not && self.auth_proves_actor(operand, text))
-            }
-            _ => false,
+            let proof = |n: &SyntaxNode| {
+                proofs
+                    .get(&NodeKey::of(n))
+                    .copied()
+                    .unwrap_or((false, false))
+            };
+            let parts = kids(current);
+            let result = match current.kind {
+                SyntaxKind::NameRef => {
+                    let word = parts.iter().find_map(|n| name_text(n, text)).unwrap_or("");
+                    (
+                        matches!(word, "members" | "owner" | "authenticated")
+                            || matches!(
+                                self.tables.node_binding.get(&NodeKey::of(current)),
+                                Some(Binding::Symbol(id)) if matches!(self.tables.symbols[id.0 as usize].kind, SymbolKind::Role)
+                            ),
+                        word == "public",
+                    )
+                }
+                SyntaxKind::Call => (self.role_call_on_caller(current, text), false),
+                SyntaxKind::Group => parts.iter().filter(|n| n.kind != SyntaxKind::Punct).fold(
+                    (false, false),
+                    |(a, b), n| {
+                        let (t, f) = proof(n);
+                        (a || t, b || f)
+                    },
+                ),
+                SyntaxKind::Binary if parts.len() == 3 => {
+                    let (lt, lf) = proof(parts[0]);
+                    let (rt, rf) = proof(parts[2]);
+                    match op_text(current, text).unwrap_or("") {
+                        "and" => (lt || rt, lf && rf),
+                        "or" => (lt && rt, lf || rf),
+                        _ => (false, false),
+                    }
+                }
+                SyntaxKind::Unary if parts.first().is_some_and(|n| is_name(n, text, "not")) => {
+                    parts
+                        .iter()
+                        .find(|n| is_expression(n.kind))
+                        .map(|n| {
+                            let (t, f) = proof(n);
+                            (f, t)
+                        })
+                        .unwrap_or((false, false))
+                }
+                _ => (false, false),
+            };
+            proofs.insert(NodeKey::of(current), result);
         }
+        proofs
     }
 
     /// Whether `node` is a declared role tested on the literal
@@ -11080,131 +11054,161 @@ impl<'a> Typer<'a> {
     /// `and`/`or` (`E3007` operands; T03 §3 threading: `and`-right
     /// receives left-true facts, `or`-right left-false facts).
     fn type_binary(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> ResolvedType {
-        let parts = kids(node);
-        if parts.len() != 3 {
-            return ResolvedType::Error;
+        // Continuations retain the operand expectation, typing order and
+        // short-circuit environment without one native frame per operator.
+        type SharedNarrow = std::rc::Rc<NarrowEnv>;
+        enum Work<'n> {
+            Eval(&'n SyntaxNode, Option<ResolvedType>, SharedNarrow),
+            First(&'n SyntaxNode, SharedNarrow, bool),
+            Second(&'n SyntaxNode, SharedNarrow, ResolvedType, bool),
         }
-        let op = op_text(node, cx.text).unwrap_or("");
-        match op {
-            "and" | "or" => {
-                let left = self.expr(cx, parts[0], None);
-                self.expect_bool(
-                    cx,
-                    tight_span(cx.text, parts[0]),
-                    &left,
-                    "`and`/`or` operand",
-                );
-                if op == "and" {
-                    let mut extended = cx.narrow.clone();
-                    let extra = self.extract_narrow(cx, parts[0], false);
-                    extended.extend(extra);
-                    let right_cx = Ctx {
-                        module: cx.module,
-                        file: cx.file,
-                        text: cx.text,
-                        narrow: &extended,
-                        strict: cx.strict,
-                        server_default: cx.server_default,
-                    };
-                    let right = self.expr(&right_cx, parts[2], None);
-                    self.expect_bool(
-                        cx,
-                        tight_span(cx.text, parts[2]),
-                        &right,
-                        "`and`/`or` operand",
-                    );
-                    if left.is_error() || right.is_error() {
-                        return ResolvedType::Error;
+        let mut work = vec![Work::Eval(node, None, std::rc::Rc::new(cx.narrow.clone()))];
+        let mut value = ResolvedType::Error;
+        while let Some(step) = work.pop() {
+            let (current, narrow) = match &step {
+                Work::Eval(n, _, env) | Work::First(n, env, _) | Work::Second(n, env, _, _) => {
+                    (*n, env.clone())
+                }
+            };
+            let local = Ctx {
+                module: cx.module,
+                file: cx.file,
+                text: cx.text,
+                narrow: &narrow,
+                strict: cx.strict,
+                server_default: cx.server_default,
+            };
+            let parts = kids(current);
+            let op = op_text(current, cx.text).unwrap_or("");
+            match step {
+                Work::Eval(current, expect, narrow) => {
+                    if current.kind != SyntaxKind::Binary {
+                        value = self.expr(&local, current, expect);
+                        continue;
                     }
-                    if matches!(left, ResolvedType::Opaque(_) | ResolvedType::Unknown)
-                        || matches!(right, ResolvedType::Opaque(_) | ResolvedType::Unknown)
+                    if has_error(current)
+                        || !self.tables.expr_scope.contains_key(&NodeKey::of(current))
                     {
-                        return ResolvedType::Opaque("logical operand");
+                        value = ResolvedType::Error;
+                        continue;
                     }
-                    ResolvedType::Scalar(Scalar::Bool)
-                } else {
-                    // T03 §3: the right arm runs only when the left is
-                    // false, so it receives the left-false facts.
-                    let mut extended = cx.narrow.clone();
-                    let extra = self.extract_narrow(cx, parts[0], true);
-                    extended.extend(extra);
-                    let right_cx = Ctx {
-                        module: cx.module,
-                        file: cx.file,
-                        text: cx.text,
-                        narrow: &extended,
-                        strict: cx.strict,
-                        server_default: cx.server_default,
-                    };
-                    let right = self.expr(&right_cx, parts[2], None);
-                    self.expect_bool(
-                        cx,
-                        tight_span(cx.text, parts[2]),
-                        &right,
-                        "`and`/`or` operand",
-                    );
-                    if left.is_error() || right.is_error() {
-                        return ResolvedType::Error;
-                    }
-                    if matches!(left, ResolvedType::Opaque(_) | ResolvedType::Unknown)
-                        || matches!(right, ResolvedType::Opaque(_) | ResolvedType::Unknown)
+                    if parts.len() != 3
+                        || !matches!(
+                            op,
+                            "and"
+                                | "or"
+                                | "??"
+                                | "is"
+                                | "in"
+                                | "=="
+                                | "!="
+                                | "<"
+                                | "<="
+                                | ">"
+                                | ">="
+                                | "+"
+                                | "-"
+                                | "*"
+                                | "/"
+                                | "%"
+                        )
                     {
-                        return ResolvedType::Opaque("logical operand");
+                        value = self.record(current, ResolvedType::Error);
+                        continue;
                     }
-                    ResolvedType::Scalar(Scalar::Bool)
+                    let reverse = matches!(op, "==" | "!=")
+                        && self.is_case_candidate(parts[0])
+                        && !self.is_case_candidate(parts[2]);
+                    let first = if reverse { parts[2] } else { parts[0] };
+                    work.push(Work::First(current, narrow.clone(), reverse));
+                    work.push(Work::Eval(first, None, narrow));
+                }
+                Work::First(current, narrow, reverse) => {
+                    if op == "is" {
+                        value = self.type_is(&local, current, parts[2], value);
+                        self.record(current, value.clone());
+                        continue;
+                    }
+                    let mut right_narrow = narrow.clone();
+                    if matches!(op, "and" | "or") {
+                        self.expect_bool(
+                            &local,
+                            tight_span(cx.text, parts[0]),
+                            &value,
+                            "`and`/`or` operand",
+                        );
+                        let mut extended = (*narrow).clone();
+                        extended.extend(self.extract_narrow(&local, parts[0], op == "or"));
+                        right_narrow = std::rc::Rc::new(extended);
+                    }
+                    let expect = match op {
+                        "==" | "!=" => Some(value.clone()),
+                        "in" if matches!(
+                            value,
+                            ResolvedType::Enum { .. } | ResolvedType::Nullable(_)
+                        ) =>
+                        {
+                            Some(ResolvedType::Array {
+                                element: Box::new(value.clone()),
+                                ordered: false,
+                                nonempty: false,
+                            })
+                        }
+                        _ => None,
+                    };
+                    let second = if reverse { parts[0] } else { parts[2] };
+                    work.push(Work::Second(current, narrow, value, reverse));
+                    work.push(Work::Eval(second, expect, right_narrow));
+                    value = ResolvedType::Error;
+                }
+                Work::Second(current, _, first, reverse) => {
+                    let (left, right) = if reverse {
+                        (value, first)
+                    } else {
+                        (first, value)
+                    };
+                    value = match op {
+                        "and" | "or" => {
+                            self.expect_bool(
+                                &local,
+                                tight_span(cx.text, parts[2]),
+                                &right,
+                                "`and`/`or` operand",
+                            );
+                            if left.is_error() || right.is_error() {
+                                ResolvedType::Error
+                            } else if matches!(
+                                left,
+                                ResolvedType::Opaque(_) | ResolvedType::Unknown
+                            ) || matches!(
+                                right,
+                                ResolvedType::Opaque(_) | ResolvedType::Unknown
+                            ) {
+                                ResolvedType::Opaque("logical operand")
+                            } else {
+                                ResolvedType::Scalar(Scalar::Bool)
+                            }
+                        }
+                        "??" => self.type_coalesce(&local, current, left, right),
+                        "in" => self.type_in(&local, current, parts[0], &left, parts[2], &right),
+                        "==" | "!=" => {
+                            let (left, right) = self
+                                .claim_comparison_sides(&local, parts[0], left, parts[2], right);
+                            self.type_equality(&local, current, op, &left, &right)
+                        }
+                        "<" | "<=" | ">" | ">=" => {
+                            self.type_ordering(&local, current, op, &left, &right)
+                        }
+                        "+" | "-" | "*" | "/" | "%" => {
+                            self.type_arithmetic(&local, current, op, &left, &right)
+                        }
+                        _ => ResolvedType::Error,
+                    };
+                    self.record(current, value.clone());
                 }
             }
-            "??" => self.type_coalesce(cx, node, parts[0], parts[2]),
-            "is" => self.type_is(cx, node, parts[0], parts[2]),
-            "in" => {
-                let left = self.expr(cx, parts[0], None);
-                // The left side seeds the element expectation so
-                // `status in [approved,…]` claims its cases.
-                let expect = match &left {
-                    ResolvedType::Enum { .. } | ResolvedType::Nullable(_) => {
-                        Some(ResolvedType::Array {
-                            element: Box::new(left.clone()),
-                            ordered: false,
-                            nonempty: false,
-                        })
-                    }
-                    _ => None,
-                };
-                let right = self.expr(cx, parts[2], expect);
-                self.type_in(cx, node, parts[0], &left, parts[2], &right)
-            }
-            "==" | "!=" => {
-                // When exactly one side is a case-candidate name, type
-                // the other side first so the name side gets its
-                // expectation during typing: `draft==status` claims exactly
-                // like `status==draft` (the claim pass below stays as
-                // backstop for paths that drop expectation).
-                let (left, right) =
-                    if self.is_case_candidate(parts[0]) && !self.is_case_candidate(parts[2]) {
-                        let right = self.expr(cx, parts[2], None);
-                        let left = self.expr(cx, parts[0], Some(right.clone()));
-                        (left, right)
-                    } else {
-                        let left = self.expr(cx, parts[0], None);
-                        let right = self.expr(cx, parts[2], Some(left.clone()));
-                        (left, right)
-                    };
-                let (left, right) =
-                    self.claim_comparison_sides(cx, parts[0], left, parts[2], right);
-                self.type_equality(cx, node, op, &left, &right)
-            }
-            "<" | "<=" | ">" | ">=" => {
-                let left = self.expr(cx, parts[0], None);
-                let right = self.expr(cx, parts[2], None);
-                self.type_ordering(cx, node, op, &left, &right)
-            }
-            "+" | "-" | "*" | "/" | "%" => {
-                let left = self.expr(cx, parts[0], None);
-                let right = self.expr(cx, parts[2], None);
-                self.type_arithmetic(cx, node, op, &left, &right)
-            }
-            _ => ResolvedType::Error,
         }
+        value
     }
 
     /// Claim pass: when exactly one side of `==`/`!=`/`in` is an
@@ -11697,11 +11701,9 @@ impl<'a> Typer<'a> {
         &mut self,
         cx: &Ctx<'_, '_>,
         node: &SyntaxNode,
-        left_node: &SyntaxNode,
-        right_node: &SyntaxNode,
+        left: ResolvedType,
+        right: ResolvedType,
     ) -> ResolvedType {
-        let left = self.expr(cx, left_node, None);
-        let right = self.expr(cx, right_node, None);
         if left.is_error() || right.is_error() {
             return ResolvedType::Error;
         }
@@ -11756,10 +11758,9 @@ impl<'a> Typer<'a> {
         &mut self,
         cx: &Ctx<'_, '_>,
         node: &SyntaxNode,
-        left_node: &SyntaxNode,
         right_node: &SyntaxNode,
+        left: ResolvedType,
     ) -> ResolvedType {
-        let left = self.expr(cx, left_node, None);
         if left.is_error() {
             return ResolvedType::Error;
         }
@@ -11958,80 +11959,108 @@ impl<'a> Typer<'a> {
         else_branch: bool,
         env: &mut NarrowEnv,
     ) {
-        let current = unwrap_groups(node);
-        // T06 caller admission: a condition that proves an
-        // authenticated caller carries a non-null `actor` typing
-        // fact for exactly the continuations in which it holds
-        // (true- or false-continuation per polarity). Keyed and
-        // invalidated like any continuation fact (T03 §§6-8); a
-        // typing fact only, granting no permission and no currency
-        // (T03 §9). A role test on another subject never narrows
-        // the caller.
-        let admits = if else_branch {
-            self.auth_proves_actor_when_false(current, cx.text)
-        } else {
-            self.auth_proves_actor(current, cx.text)
-        };
-        if admits {
-            env.insert(
-                NarrowKey {
-                    decl: DeclKey::CtxActor,
-                    path: Vec::new(),
-                },
-                ResolvedType::Scalar(Scalar::User),
-            );
+        type SharedNarrow = std::rc::Rc<NarrowEnv>;
+        enum Work<'n> {
+            Eval(&'n SyntaxNode, bool, SharedNarrow),
+            Left(&'n SyntaxNode, bool, SharedNarrow, NarrowEnv),
+            Right(NarrowEnv, NarrowEnv),
+            Merge(NarrowEnv),
         }
-        if current.kind == SyntaxKind::Unary {
-            let is_not = kids(current).iter().any(|n| match n.kind {
-                SyntaxKind::Punct => n.token().is_some_and(|t| t.text(cx.text) == "not"),
-                SyntaxKind::Name => name_text(n, cx.text).is_some_and(|w| w == "not"),
-                _ => false,
-            });
-            if is_not && let Some(operand) = kids(current).iter().find(|n| is_expression(n.kind)) {
-                self.collect_narrow(cx, operand, !else_branch, env);
+        let proofs = self.auth_proofs(node, cx.text);
+        let mut work = vec![Work::Eval(
+            node,
+            else_branch,
+            std::rc::Rc::new(cx.narrow.clone()),
+        )];
+        let mut value = NarrowEnv::new();
+        while let Some(step) = work.pop() {
+            match step {
+                Work::Merge(mut base) => {
+                    base.extend(value);
+                    value = base;
+                }
+                Work::Right(mut base, mut extended) => {
+                    extended.extend(value);
+                    base.extend(extended);
+                    value = base;
+                }
+                Work::Left(current, polarity, narrow, base) => {
+                    let parts = kids(current);
+                    let mut extended = (*narrow).clone();
+                    extended.extend(value);
+                    work.push(Work::Right(base, extended.clone()));
+                    work.push(Work::Eval(parts[2], polarity, std::rc::Rc::new(extended)));
+                    value = NarrowEnv::new();
+                }
+                Work::Eval(current, polarity, narrow) => {
+                    let current = unwrap_groups(current);
+                    let local = Ctx {
+                        module: cx.module,
+                        file: cx.file,
+                        text: cx.text,
+                        narrow: &narrow,
+                        strict: cx.strict,
+                        server_default: cx.server_default,
+                    };
+                    value = NarrowEnv::new();
+                    let (on_true, on_false) = proofs
+                        .get(&NodeKey::of(current))
+                        .copied()
+                        .unwrap_or((false, false));
+                    if if polarity { on_false } else { on_true } {
+                        value.insert(
+                            NarrowKey {
+                                decl: DeclKey::CtxActor,
+                                path: Vec::new(),
+                            },
+                            ResolvedType::Scalar(Scalar::User),
+                        );
+                    }
+                    let parts = kids(current);
+                    if current.kind == SyntaxKind::Unary {
+                        let is_not = parts.iter().any(|n| match n.kind {
+                            SyntaxKind::Punct => {
+                                n.token().is_some_and(|t| t.text(cx.text) == "not")
+                            }
+                            SyntaxKind::Name => name_text(n, cx.text).is_some_and(|w| w == "not"),
+                            _ => false,
+                        });
+                        if is_not
+                            && let Some(operand) = parts.iter().find(|n| is_expression(n.kind))
+                        {
+                            work.push(Work::Merge(value));
+                            work.push(Work::Eval(operand, !polarity, narrow));
+                            value = NarrowEnv::new();
+                        }
+                        continue;
+                    }
+                    if current.kind != SyntaxKind::Binary || parts.len() != 3 {
+                        continue;
+                    }
+                    let op = op_text(current, cx.text).unwrap_or("");
+                    if (op == "and" && !polarity) || (op == "or" && polarity) {
+                        work.push(Work::Left(current, polarity, narrow.clone(), value));
+                        work.push(Work::Eval(parts[0], polarity, narrow));
+                        value = NarrowEnv::new();
+                    } else if op == "is" {
+                        self.narrow_is(&local, current, parts[0], parts[2], polarity, &mut value);
+                    } else if matches!(op, "==" | "!=") {
+                        self.narrow_null_eq(
+                            &local,
+                            parts[0],
+                            parts[2],
+                            op == "==",
+                            polarity,
+                            &mut value,
+                        );
+                        if !polarity && op == "==" {
+                            self.narrow_safe_eq(&local, current, parts[0], parts[2], &mut value);
+                        }
+                    }
+                }
             }
-            return;
         }
-        if current.kind != SyntaxKind::Binary {
-            return;
-        }
-        let parts = kids(current);
-        if parts.len() != 3 {
-            return;
-        }
-        let op = op_text(current, cx.text).unwrap_or("");
-        if (op == "and" && !else_branch) || (op == "or" && else_branch) {
-            // Left narrowings apply while collecting the right side.
-            let mut extended = cx.narrow.clone();
-            self.collect_narrow(cx, parts[0], else_branch, &mut extended);
-            // The right side reads the left-narrowed environment while
-            // writing its own additions elsewhere.
-            let snapshot = extended.clone();
-            let right_cx = Ctx {
-                module: cx.module,
-                file: cx.file,
-                text: cx.text,
-                narrow: &snapshot,
-                strict: cx.strict,
-                server_default: cx.server_default,
-            };
-            self.collect_narrow(&right_cx, parts[2], else_branch, &mut extended);
-            env.extend(extended);
-            return;
-        }
-        if op == "and" || op == "or" {
-            return;
-        }
-        if op == "is" {
-            self.narrow_is(cx, current, parts[0], parts[2], else_branch, env);
-            return;
-        }
-        if op == "==" || op == "!=" {
-            self.narrow_null_eq(cx, parts[0], parts[2], op == "==", else_branch, env);
-            if !else_branch && op == "==" {
-                self.narrow_safe_eq(cx, current, parts[0], parts[2], env);
-            }
-        }
+        env.extend(value);
     }
 
     /// Narrow from a direct null test (T03 §2): `==`/`!=` with exactly

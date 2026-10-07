@@ -1,0 +1,19 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "emission_direction": {
+      "type": "choice",
+      "choice": "long_only",
+      "confidence": 0.92,
+      "probabilities": {
+        "host_or_defer": 0.0,
+        "long_only": 0.95,
+        "all_binary": 0.05
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 687,
+    "output_tokens": 47
+  }
+}

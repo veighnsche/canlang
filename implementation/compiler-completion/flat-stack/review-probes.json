@@ -1,0 +1,76 @@
+{
+  "source_pins": {
+    "compiler/src/analysis/resolve.rs": "5538730df14427cf308d5785d722e5dacbf8ba99c98ca43b6fea309ddf8773a3",
+    "compiler/src/analysis/types.rs": "1d15148f53566841b9e7253c8a3a616b4fd31a1bc9ad8457d0aed49ddc19c8cc",
+    "compiler/src/codegen/ir.rs": "fa4f619e27c9b95864c4bae545323baa079925f073476cfae7ff0bf77fbc94f3",
+    "compiler/src/codegen/js.rs": "a691584450b0f0c5a0457f10461e23a231226da7daa5fa62eeadab9abf8a97ed",
+    "compiler/tests/flat_expression_runtime.rs": "5b37024b24fb1e92842b15db1323b96d385ac27a6d96471d494b0e98631806d2"
+  },
+  "results": [
+    {
+      "name": "check",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/flat-stack/review-source.can"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "compile",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/flat-stack/review-source.can"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "node",
+      "exit": 0
+    }
+  ],
+  "node": "v24.21.0",
+  "binary_sha256": "27d6e6a9485f59f3f8db67c9fe1b0d586139a45b786dd3fff812ceefcba52535",
+  "runtime_pins": {
+    "packages/stdlib/package.json": "1f5dda9a1bc0390590943772e7665e357e1337e705bb15c825c40eb2fcf5883b",
+    "packages/stdlib/dist/src/index.js": "7b3c6ca1193bd3a12a72dcd5a25e1baeafae28d5ca7013d8716e2a6b975c577c",
+    "packages/values/dist/src/index.js": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+    "packages/values/dist/src/int.js": "8037cdec233619a684fece45b2ed9ad67d445738090d4f7ecad8cff51d5f9ab2",
+    "packages/values/dist/src/errors.js": "eabcb6bcbb27010168cbaee15fa120681dc2efe81e174d267704c229823e43ea"
+  },
+  "authored_source_sha256": "07b9b3df97a94343395bcd7ea83b8daf21b197d9e5a2b287f61142bf3e1896ee",
+  "retained_hashes": {
+    "review-short-node.stdout": "e40724dc4c5d13ef6db4cf2b0ae1c4775ed6a9df47ca440888cf40b3ec499b58",
+    "review-compile.stdout": "3662e46ec75490c74bb975ec7ea7d9b7bff56fb33adb7a7c8d5451b705a89299",
+    "review-check-attempt1.stdout": "e6a3a483ae20b87aed7715fc9c6ed3c16c764098965fc437ccee9a6f7a4fad60",
+    "review-source-attempt1.can": "aa94d807defd920e4622f7378acca9d65d923acdae7159425a0972868fd2f485",
+    "review-check-attempt1.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-runner.mjs": "172d8e56c12360980a92f60b3653e256157a63067e0ae7b799db0a833c968286",
+    "review-compile.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-short-runner.mjs": "9f13928941c1bbc6386799e6859cdeb13b54bde43a048942f9d7e382074ba208",
+    "review-short.can": "84fb137325d0589cbbdbecefc7df98993ed8451250b9204832112837de5dbae6",
+    "review-short-node.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-node-enum-failure.stderr": "5901851da27c459bfc3a384ea6389fdc30908b6d4e3067c3fdfe75f75168bf2b",
+    "review-short-check.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-check.stdout": "94c9dde6e3c0cb432bd2162180d9da315b4662192476f80d7fb2def2651372f7",
+    "review-source.can": "07b9b3df97a94343395bcd7ea83b8daf21b197d9e5a2b287f61142bf3e1896ee",
+    "review-node.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-short-compile.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-ladder.stdout": "b1425327cf75f9cbfc86e77a0f144d8ccfa587c3f4ab62275bd42436fffe2f16",
+    "review-ladder.stderr": "85976dcd2b4c3b8c45dbeb876144aa1fd6226325719f59c97d38af5ab98300db",
+    "review-check.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-short-check.stdout": "b43b4432f00f3c0ef78b5d41120d23d8b2c04ac0b5f952817e5b8362e4e8ec80",
+    "review-short-compile.stdout": "939dc19b0462960f59792b0dc9e79ccdbc6d74fdb7f0189cec98170332209b0c",
+    "review-node.stdout": "b12dd1631e8dd2b66b5f17ed5680096aab648f8ded091ee537d84a29a37ddf09",
+    "review-node-enum-failure.stdout": "4e3f214a6adadb567bc702d2e669ded7fcdbcae370770d2069cbed6b9e79bdb5"
+  },
+  "review_ladder": "one focused test passed; three filtered; see review-ladder.stdout/stderr",
+  "short_controls": "actual short enum ReferenceError and membership right,left preserved as separate existing joins"
+}

@@ -1,0 +1,14 @@
+{
+  "state": "The repaired Rust debug compiler successfully emits legal additions with1024,2048,3000 operands; explicit traversal fixes its previous native stack abort. Running emitted text shows1024 succeeds while2048/3000 fail in Node parsing because per-operation int64 wrappers remain deeply nested. Required invariants are authored operator grouping, int64 overflow checks after each operation, once-only ordered operands, and lazy RHS for and/or/coalesce. Accepted source cannot receive a new depth refusal. Smaller generated expressions have useful existing snapshots. An IIFE can emit a sequence of disjoint temporary bindings and guarded RHS statements, then return a value. Async leaves would need await on an async IIFE, introducing an additional Promise continuation. All existing locals have encoded identities. Changes should remain focused on this consumer closure without representation overhaul.",
+  "questions": {
+    "emission_direction": {
+      "type": "choice",
+      "instructions": "Which approach best completes this bounded consumer repair while preserving the stated behavior? Treat async timing uncertainty explicitly.",
+      "criteria": {
+        "long_only": "Keep compact nested emission for short binary trees; above a small internal codegen traversal threshold, use ordered temporary statements in a synchronous/awaited async IIFE and branch for lazy RHS. This avoids the demonstrated host parse failure and bounds snapshot disruption, but creates two emission paths and requires async/order qualification. The threshold changes output strategy only, never source admission.",
+        "all_binary": "Use ordered temporary statements and conditional RHS within synchronous/awaited async IIFEs for every binary tree. One lowering strategy removes nested parse growth consistently, but changes all emitted snapshots/readability and adds async continuation boundaries for every async binary.",
+        "host_or_defer": "Keep existing nested output and qualify runtime with larger host stack settings or mark2048/3000 execution unresolved. This minimizes compiler code and async semantic change, but preserves a demonstrated consumer failure under ordinary supported Node invocation and transfers stack requirements to callers."
+      }
+    }
+  }
+}

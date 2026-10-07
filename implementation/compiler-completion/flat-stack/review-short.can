@@ -1,0 +1,7 @@
+app Short
+Given
+ contract Row { s:enum(a,b),a:int,items:int[] }
+ derive cases(row:Row):bool = a==row.s and row.s in [a,b]
+ derive membership(row:Row):bool = row.a in row.items
+When
+Then

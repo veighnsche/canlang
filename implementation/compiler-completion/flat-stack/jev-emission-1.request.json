@@ -1,0 +1,14 @@
+{
+  "state": "On this host, legal 1024/2048/3000-term integer additions now compile through every debug Rust stage using explicit binary traversal. The old emitted form int64(int64(...)+1n) runs at1024 but Node module parsing throws Maximum call stack size exceeded at2048/3000. Compiler must preserve source associativity, checked int64 after each arithmetic operation, left-before-right evaluation once, and logical/coalesce right-side skipping. No authored-source rejection or structural cap is authorized. Existing short-expression snapshots and readable emission are valuable. Awaited leaf operations already exist. Candidate statement-form lowering inside an expression IIFE binds each completed operation to an internal temporary; short-circuit nodes branch before evaluating their right subtree; asynchronous leaves require an awaited async IIFE, adding a Promise continuation boundary. Source bindings use an injective encoded namespace; temps must use a disjoint namespace. This is a bounded repair, not a new IR or statement-lifting framework.",
+  "questions": {
+    "emission_direction": {
+      "type": "choice",
+      "instructions": "Select the first focused repair to implement under these verified outcomes and invariants; advice is not semantic proof.",
+      "criteria": {
+        "long_only": "Keep compact nested emission for short binary trees; above a small internal codegen traversal threshold, use ordered temporary statements in a synchronous/awaited async IIFE and branch for lazy RHS. This avoids the demonstrated host parse failure and bounds snapshot disruption, but creates two emission paths and requires async/order qualification. The threshold changes output strategy only, never source admission.",
+        "all_binary": "Use ordered temporary statements and conditional RHS within synchronous/awaited async IIFEs for every binary tree. One lowering strategy removes nested parse growth consistently, but changes all emitted snapshots/readability and adds async continuation boundaries for every async binary.",
+        "host_or_defer": "Keep existing nested output and qualify runtime with larger host stack settings or mark2048/3000 execution unresolved. This minimizes compiler code and async semantic change, but preserves a demonstrated consumer failure under ordinary supported Node invocation and transfers stack requirements to callers."
+      }
+    }
+  }
+}

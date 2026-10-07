@@ -1,0 +1,7 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.49s
+     Running tests/b4_check.rs (compiler/target/debug/deps/b4_check-e34b2a9598cb6027)
+     Running tests/b4_resolve.rs (compiler/target/debug/deps/b4_resolve-6a0f6f63d06da789)
+     Running tests/b4_witness.rs (compiler/target/debug/deps/b4_witness-f18ea044fe0f7220)
+     Running tests/codegen.rs (compiler/target/debug/deps/codegen-05d37f97ce2b7725)
+     Running tests/flat_expression_runtime.rs (compiler/target/debug/deps/flat_expression_runtime-abc8893a3f3824dc)

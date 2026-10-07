@@ -1,0 +1,10 @@
+begin parse
+begin resolve
+begin types
+begin effects
+begin examples
+begin IR
+begin direct lower_expr
+direct lower_expr complete 145214 bytes
+begin drop
+all stages complete

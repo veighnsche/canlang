@@ -1,0 +1,14 @@
+{
+  "state": "Flat legal arithmetic reaches all current native debug compiler stages after replacing recursive walks; retained1024/2048/3000 cases now compile. Actual JavaScript runtime1024 returns the expected integer;2048 and3000 are rejected by Node's parser stack from the unchanged nested checked-arithmetic calls. Every arithmetic node must retain its overflow wrapper and source grouping; operands must execute in order once, with conditional RHS for boolean/null operators. The user disallows a new language admission bound. Current small-emission golden tests and readability matter. One possible lowering uses temporary statements inside an expression IIFE, branches for short circuit, and a final return; awaited subexpressions need an awaited async IIFE and therefore an extra Promise continuation. Internal temporary names must not collide with encoded source names. No broad AST redesign or statement lifting is authorized.",
+  "questions": {
+    "emission_direction": {
+      "type": "choice",
+      "instructions": "Recommend the smallest defensible emitted-consumer closure against the same correctness and compatibility goals.",
+      "criteria": {
+        "long_only": "Keep compact nested emission for short binary trees; above a small internal codegen traversal threshold, use ordered temporary statements in a synchronous/awaited async IIFE and branch for lazy RHS. This avoids the demonstrated host parse failure and bounds snapshot disruption, but creates two emission paths and requires async/order qualification. The threshold changes output strategy only, never source admission.",
+        "all_binary": "Use ordered temporary statements and conditional RHS within synchronous/awaited async IIFEs for every binary tree. One lowering strategy removes nested parse growth consistently, but changes all emitted snapshots/readability and adds async continuation boundaries for every async binary.",
+        "host_or_defer": "Keep existing nested output and qualify runtime with larger host stack settings or mark2048/3000 execution unresolved. This minimizes compiler code and async semantic change, but preserves a demonstrated consumer failure under ordinary supported Node invocation and transfers stack requirements to callers."
+      }
+    }
+  }
+}

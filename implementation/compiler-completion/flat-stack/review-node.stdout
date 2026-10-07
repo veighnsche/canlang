@@ -1,0 +1,4 @@
+awaited order/once ["a","a settled","b","b settled","c","c settled"]
+overflow exact code/message and later operand skipped
+taken/skipped conditional branches, enum expectation, narrowing, text escaping/scopes passed
+long membership operand source order ["left","right"]
