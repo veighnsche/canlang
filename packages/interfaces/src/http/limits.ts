@@ -100,7 +100,7 @@ export async function parseFormBody(
   const params = new URLSearchParams(text);
   const out: Record<string, string> = {};
   params.forEach((value, key) => {
-    out[key] = value;
+    Object.defineProperty(out, key, { value, enumerable: true, writable: true, configurable: true });
   });
   return out;
 }
@@ -146,7 +146,7 @@ export function parseCollectionQuery(url: URL): CollectionQueryOutcome {
   params.forEach((value, key) => {
     const match = FILTER_PARAM_PATTERN.exec(key);
     if (match?.[1] !== undefined) {
-      filters[match[1]] = value;
+      Object.defineProperty(filters, match[1], { value, enumerable: true, writable: true, configurable: true });
       hasFilters = true;
     }
   });
