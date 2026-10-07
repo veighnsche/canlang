@@ -1,0 +1,6 @@
+[
+  "2026-10-07 \u2014 Checked facts retain their exact input owners (accepted bounded)",
+  "2026-10-07 \u2014 Recover same-column boundaries in EOF-unclosed joins (accepted bounded)",
+  "2026-10-07 \u2014 Static-call cycle witnesses follow checked symbol order (accepted bounded)",
+  "2026-10-07 \u2014 Email admission shares the public scalar-string floor (accepted bounded)"
+]
