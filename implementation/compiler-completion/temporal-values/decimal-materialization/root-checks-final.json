@@ -1,0 +1,59 @@
+{
+  "checks": [
+    {
+      "name": "format-check-final",
+      "command": [
+        "rustfmt",
+        "--check",
+        "--edition",
+        "2024",
+        "compiler/src/codegen/js.rs",
+        "compiler/tests/codegen.rs",
+        "compiler/tests/decimal_runtime.rs"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "golden-check-final",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--test",
+        "codegen",
+        "construct_scalars_per_op",
+        "--",
+        "--exact"
+      ],
+      "exit_code": 0,
+      "log_sha256": "4619e735d292a1be112c90fb7934668a4d4d4fb15d004845151f8af7a7d7d875"
+    },
+    {
+      "name": "strict-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "log_sha256": "518d5fe74679d9efcf335d7fac32ca33ae068213da6ea85ed0121a1b49866317"
+    }
+  ],
+  "selected_sources_unchanged": true,
+  "final_source_pins": {
+    "compiler/src/codegen/js.rs": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+    "compiler/tests/codegen.rs": "294731cd3d4bf43ddea8bff2c89a7a4be4c048e12c0686108546d30808a3c680",
+    "compiler/tests/decimal_runtime.rs": "f84ca05db37c182d5a964d4432cd3a6ded5ddcc67ead5ad4d39814cb6289b6b5"
+  }
+}

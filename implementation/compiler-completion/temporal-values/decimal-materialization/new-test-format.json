@@ -1,0 +1,5 @@
+{
+  "scope": "Format only newly added decimal_runtime.rs; no behavior changes intended.",
+  "before_sha256": "9d1222a64d5936b573797dc6ab72ca02c32335cc4e867e9c29387fa42c918e87",
+  "after_sha256": "f84ca05db37c182d5a964d4432cd3a6ded5ddcc67ead5ad4d39814cb6289b6b5"
+}

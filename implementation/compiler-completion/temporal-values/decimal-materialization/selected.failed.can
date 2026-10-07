@@ -1,0 +1,26 @@
+app Exact
+Given
+ contract Nested { amount:decimal, values:decimal[] }
+ Amount { value:decimal=1.50, integral:decimal=42, optional:decimal?, nullableDefault:decimal?=2.00 }
+ derive positive():decimal = +0001.50
+ derive negative():decimal = -1.50
+ derive zero():decimal = -0.00
+ derive integer():decimal = 99999999999999999999999999999999999999
+ derive fraction():decimal = 99999999999999999999.123456789012345678
+ derive tiny():decimal = 0.000000000000000001
+ derive optional():decimal? = 7
+ derive whole():int = 42
+ derive nested():Nested = {amount=3,values=[1.50,-2.00,4]}
+ derive identity(value:decimal=1.50):decimal = value
+ derive defaults():decimal = identity()
+When
+ scenario literal() read=true -> decimal by=members
+  do
+   return -1.50
+ scenario mutate(value:decimal=2.50) -> decimal by=members
+  do
+   return value
+ scenario descriptor() read=true -> action(mutate) by=members
+  do
+   return action(mutate,value=1.50)
+Then
