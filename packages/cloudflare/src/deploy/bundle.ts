@@ -201,6 +201,9 @@ const STATE_D1_VENDOR_ENTRY = "vendor/state/storage/d1.js";
 const STATE_RECEIPT_JOIN_VENDOR_ENTRY = "vendor/state/receipt/join.js";
 const STATE_RECEIPT_OBSERVER_VENDOR_ENTRY = "vendor/state/receipt/index.js";
 const VALUES_VENDOR_ENTRY = "vendor/values/index.js";
+/** The runtime mapper's only external dependency; host import tooling stays out. */
+const SOURCEMAP_CODEC_SPECIFIER = "@jridgewell/sourcemap-codec";
+const SOURCEMAP_CODEC_VENDOR_ENTRY = "vendor/sourcemap-codec/sourcemap-codec.js";
 
 export interface BuildDeployBundleOptions {
   /** @deprecated Ignored. Producer files resolve through installed package exports. */
@@ -324,6 +327,28 @@ function stageRuntimeDist(runtimeDistDir: string): Record<string, string> {
     staged[key] = rewriteRuntimeImports(readFileSync(full, "utf8"), key);
   }
   return staged;
+}
+
+/** Read the pinned package's published ESM export, including in installed hosts. */
+function stageSourceMapCodec(): Record<string, string> {
+  const installCommand = "bun install --frozen-lockfile";
+  const manifestFile = resolveProducerFile(`${SOURCEMAP_CODEC_SPECIFIER}/package.json`, installCommand);
+  try {
+    const manifest = JSON.parse(readFileSync(manifestFile, "utf8")) as {
+      version?: string;
+      exports?: { "."?: readonly { import?: { default?: string } }[] };
+    };
+    const entry = manifest.exports?.["."]?.[0]?.import?.default;
+    if (manifest.version !== "1.6.0" || entry !== "./dist/sourcemap-codec.mjs") {
+      throw new Error("unexpected codec version or ESM export");
+    }
+    return { [SOURCEMAP_CODEC_VENDOR_ENTRY]: readFileSync(join(dirname(manifestFile), entry), "utf8") };
+  } catch (cause) {
+    throw new Error(
+      `deploy bundle: ${SOURCEMAP_CODEC_SPECIFIER} 1.6.0 ESM export missing or invalid; run \`${installCommand}\` first`,
+      { cause },
+    );
+  }
 }
 
 /** Sorted vendor-tree read, mirroring the e2e loader (never stubbed). */
@@ -453,6 +478,7 @@ const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
 /** Rewrite pinned-runtime producer imports to module-relative `vendor/` keys. */
 function rewriteRuntimeImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
+    if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
     if (spec === STATE_RECEIPT_JOIN_SOURCE_SPECIFIER) {
@@ -992,6 +1018,7 @@ export function buildDeployBundle(
   for (const tree of VENDOR_TREES) {
     Object.assign(modules, readVendorTree(tree));
   }
+  Object.assign(modules, stageSourceMapCodec());
   modules[MCP_HANDLER_MODULE] = buildMcpBundle();
   modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle();
   modules[ARTIFACT_MODULE] = renderStagedDeployment(

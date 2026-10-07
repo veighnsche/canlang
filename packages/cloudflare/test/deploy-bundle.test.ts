@@ -118,6 +118,25 @@ function fakeRuntimeDistWithObserverSeam(): string {
 }
 
 describe("deploy bundle (P-B)", () => {
+  it("ships the runtime mapper's ESM codec without host import tooling", () => {
+    const bundle = buildDeployBundle(testArtifact(), {
+      repoRoot,
+      workerDistDir: fakeWorkerDist(),
+      verdict: ACTIVE_VERDICT,
+    });
+    const key = "vendor/sourcemap-codec/sourcemap-codec.js";
+    expect(bundle.modules["runtime/sourcemap.js"]).toContain(`"../${key}"`);
+    expect(bundle.modules[key]).toContain("export {");
+    expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
+    expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+    expect(Object.keys(bundle.modules).some((name) => /(?:es-module-lexer|magic-string|trace-mapping|resolve-uri)/.test(name))).toBe(false);
+    const missingCodec = { ...bundle.modules };
+    delete missingCodec[key];
+    expect(() => assertLinksResolve(missingCodec)).toThrow(
+      `deploy bundle: module "runtime/sourcemap.js" imports "../${key}" (resolves to "${key}"): no such staged module`,
+    );
+  });
+
   it("never vendors TEST-ONLY bridges (node-only helpers stay out of workerd)", () => {
     // C4: state's work-loader.js bridges (T25/F5 join proofs) emit
     // beside sources under non-test names with node:url/node:path

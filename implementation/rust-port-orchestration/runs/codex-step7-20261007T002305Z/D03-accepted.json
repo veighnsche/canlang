@@ -1,0 +1,18 @@
+{
+  "accepted_by": "Codex root after independent D03+R3 reviews",
+  "accepted_at_utc": "2026-10-07T00:38:15.124647+00:00",
+  "source_pins": {
+    "packages/cloudflare/package.json": "f8d1483482dde2a5b333d35196584e4b61c9985c9825249a4aba9e9716d51252",
+    "packages/cloudflare/src/deploy/bundle.ts": "ad64a7974ecd4b245f2c58d8edf8a243e8f9a4df939b026178cc590a330b34fb",
+    "packages/cloudflare/test/deploy-bundle.test.ts": "6c006032979736f8d72660fc920c7f1fea69c987993e55e4054b14ae76a39b63",
+    "packages/cloudflare/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "packages/cloudflare/src/runtime/modules.ts": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230",
+    "packages/cloudflare/src/runtime/invoke.ts": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+    "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+    "bun.lock": "aec35229030b460af533a1aee3b95581f0eab7cc82a166ea00fbb871d8bc1a4a",
+    "packages/cloudflare/test/raw-source-map-contract.test.ts": "879771aa9af09b49593dc41901b04de56091655a1d4d6b9fcaf9282277108f90",
+    "packages/cloudflare/test/fixtures/raw-source-map-contract.json": "9099f386c64d25a8f848125213c18620aba5a13e4e520fe0f3219f08ebdca23a"
+  },
+  "scope": "Preserving per-segment codec mapper + actual dependency manifest/lock and staged Worker closure. Full D02 caller adoption/repair and D04/standalone installed/default/native gates remain separate.",
+  "raw_worker_limits": "Real DB auth401 boot, not business workflows; concrete mapper directchecks and missing/corruptfilecontrols."
+}
