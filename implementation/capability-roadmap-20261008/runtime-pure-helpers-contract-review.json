@@ -1,0 +1,15 @@
+{
+  "status": "root_source_contract_review_released_bounded_writer_ack_ready",
+  "reviewer": "root; separate from preparation author",
+  "captured_utc": "2026-10-07T23:33:51.518940+00:00",
+  "source_sha256": "12505068df2bbe3b6cdf74d52d1e7f2533283c3649bb22333bd77516d437e272",
+  "new_test_absent": "packages/cloudflare/test/runtime-stdlib-pure.test.ts",
+  "allowed_change": "export { int64, datetime, compareInstant } from '@canlang/values'; plus explanatory comment and focused owning test",
+  "source_contract": "Existing public Values int64/temporal signatures and public stdlib verbatim groups govern pure values/error identity. Root inspected actual bodies and existing State guard/transition reexports. Startup graph review must be checked by actual isolated preload; no claim of zero initializer effects or whole-host backend acceptance.",
+  "root_verified_pin_count": 48,
+  "accepted": "Exact known direct owning export contract at source-preparation scope. No wrappers, facade/data-plane move, target/backend changes, typed hydration/default/result/context policy or capability expansion.",
+  "command_scope": "After root exact ACK, private frozen db57 snapshot and verified existing compiler may support a historical-producer/current-runtime bounded compatibility witness. It must be labeled that scope, not a current compiler refresh. The separate selected-page refresh requires compiler-owner current executable handoff. No shared dist/dependency/build target.",
+  "tests": "Exact function reference and Values error identity, boundary constructors/order; actual caller-text datetime boolean source and unchanged genuine NumericControl preload/observed failure, existing runtime stdlib regressions.",
+  "independent_review": "Different-author post-patch review and writer/commands release remain required before integration.",
+  "jev": "Not required for direct unchanged already-filed pure producer exports; stop if consequential ABI/initialization contradiction appears."
+}

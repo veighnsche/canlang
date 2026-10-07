@@ -58,9 +58,6 @@ import type {
 } from '@canlang/contracts';
 import type { CanonicalEffectsScope, HandlerContext } from './context.js';
 
-// Generated pure helpers retain their Values producer identity.
-export { int64, datetime, compareInstant } from '@canlang/values';
-
 /** Input for {@link create}: explicit id plus data (crud interim convention). */
 export interface CreateInput {
   readonly id: string;

@@ -1,0 +1,202 @@
+{
+  "status": "accepted_bounded_exact_producer_relay; no integration_review_blockers",
+  "reviewer": "roadmap_runtime_pure_helpers_review; independent of candidate author",
+  "scope": "Frozen two-path pure direct Values reexport candidate, historical db57 producer/compiler compatibility only.",
+  "candidate_pins": {
+    "packages/cloudflare/src/runtime/stdlib.ts": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+    "packages/cloudflare/test/runtime-stdlib-pure.test.ts": "6af5cdec3681419fba28eb50b96f3dd89ed605313d140306eb1b549bb12ba750"
+  },
+  "before_source_sha256": "12505068df2bbe3b6cdf74d52d1e7f2533283c3649bb22333bd77516d437e272",
+  "source_findings": [],
+  "checks": {
+    "targeted_pins": {
+      "passed": 83,
+      "failed": 0
+    },
+    "exact_candidate_diff": true,
+    "new_suite_retained": {
+      "passed": 4,
+      "failed": 0
+    },
+    "existing_retained_baseline_comparison": {
+      "candidate_failed_tests": [
+        "create > stages an insert through the pipeline and commits it once with the scenario receipt",
+        "create > passes a parent link through to the staged row",
+        "set > merges the patch over the staged row and keeps a new row at version 1",
+        "set > rejects a patch on a missing record with the engine not_found",
+        "deleteRecord > stages a remove honoring the model delete mode and commits it once",
+        "deleteRecord > rejects a remove on a missing record with the engine not_found",
+        "records > serves the whole model through invokeRead over the staged overlay",
+        "records > defaults to the bare whole-model viewer read with the full projected envelope"
+      ],
+      "baseline_failed_tests": [
+        "create > stages an insert through the pipeline and commits it once with the scenario receipt",
+        "create > passes a parent link through to the staged row",
+        "set > merges the patch over the staged row and keeps a new row at version 1",
+        "set > rejects a patch on a missing record with the engine not_found",
+        "deleteRecord > stages a remove honoring the model delete mode and commits it once",
+        "deleteRecord > rejects a remove on a missing record with the engine not_found",
+        "records > serves the whole model through invokeRead over the staged overlay",
+        "records > defaults to the bare whole-model viewer read with the full projected envelope"
+      ],
+      "same_failed_test_names": true,
+      "candidate_count": {
+        "passed": 12,
+        "failed": 8
+      },
+      "baseline_count": {
+        "passed": 12,
+        "failed": 8
+      },
+      "policy_message_present_in_both": true
+    },
+    "independent_preload": {
+      "node": "v24.21.0",
+      "node_exec": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "node_exec_realpath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "node_exec_sha256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b",
+      "values_path": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/values/dist/src/index.js",
+      "runtime_path": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/cloudflare/dist/runtime/stdlib.js",
+      "checks": [
+        "int64 exact function identity",
+        "datetime exact function identity",
+        "compareInstant exact function identity",
+        "int64 number rejection invalid-construction",
+        "int64 string rejection invalid-construction",
+        "int64 bigint rejection overflow",
+        "int64 bigint rejection overflow",
+        "int64 boundaries",
+        "datetime offset/order/frozen bigint carrier",
+        "datetime producer error identity"
+      ],
+      "all_passed": true
+    },
+    "runtime_retained": {
+      "passed": 7,
+      "failed": 1
+    }
+  },
+  "runtime_findings": [
+    "Real NumericControl omitted default creates row version1 count string 1; canonical ref has id and string version; increment reaches unchanged int64 and rejects non-bigint. Expected2n control fails.",
+    "Datetime input is caller text passed to actual datetime constructor inside do; fixed datetime RHS and compareInstant emitted; earlier/equal/later results true/false/false. Earlier replay preserves exact bool and every SQL snapshot.",
+    "Fresh numeric and malformed-datetime refusals preserve records/history/outbox/schedules; receipts/fence/fence_log and revision advance, so no full database equality claim."
+  ],
+  "unqualified": [
+    "Typed numeric/datetime hydration or persistence",
+    "void immediate undefined versus replay null gap",
+    "Default/result/fixture policy repairs",
+    "Public facade/data-plane union",
+    "Current compiler refresh",
+    "Whole-host or WASM backend acceptance",
+    "Installed/provider/process restart/durable claims",
+    "General context or task9/10 authority"
+  ],
+  "mutations": "Only independent review files and own receipts written; no frozen candidate/private outputs/product/Git/docs decisions/filetree edits.",
+  "commands": "All own commands completed; no live command handles or writers.",
+  "receipts_directory": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers-review-receipts",
+  "resolved_evidence_findings": [
+    {
+      "id": "node-attribution",
+      "severity": "blocking_evidence_correction",
+      "paths": [
+        "runtime-pure-helpers/REPORT.md",
+        "runtime-pure-helpers/final-pins.json",
+        "runtime-pure-helpers/freeze.json"
+      ],
+      "finding": "REPORT claims actual invocation v26.10.0 distinct from historical F1 v24.21.0, and claims exact current executable pinned. Frozen runtime-results and final-pins both record v24.21.0; no final runtime argv/process.execPath/executable hash retained. Initial failed build.stderr records v26.10.0. Existing packet does not establish final runtime executable identity.",
+      "required_correction": "Correct report to retained final invocation process.version v24.21.0 and distinguish initial failed build v26.10.0. Remove unsupported exact original-run executable pin claim, or recover exact original command/executable evidence from the author. Preserve original frozen files; authorized root/author correction should record supersession and refresh affected report/freeze hashes. Own review executable receipt qualifies only this independent preload.",
+      "resolution": {
+        "status": "validated; evidence blocker resolved within retained original executable limitation",
+        "affected_hash_checks": {
+          "REPORT.md": {
+            "expected": "b63660d847c6fc7e72e57c7487962358b28a25994d5eceb654adc67b62584359",
+            "actual": "b63660d847c6fc7e72e57c7487962358b28a25994d5eceb654adc67b62584359",
+            "matches": true
+          },
+          "freeze.json": {
+            "expected": "70997cdae110731c630065d5c607548ade155227d92dcbe88782c8c23354dcb7",
+            "actual": "70997cdae110731c630065d5c607548ade155227d92dcbe88782c8c23354dcb7",
+            "matches": true
+          },
+          "review-corrections/before-REPORT.md": {
+            "expected": "6cf0a54bb81b8b2d26ded4867958fa3ccfb96c17711d97808184f306756168ef",
+            "actual": "6cf0a54bb81b8b2d26ded4867958fa3ccfb96c17711d97808184f306756168ef",
+            "matches": true
+          },
+          "review-corrections/before-freeze.json": {
+            "expected": "6ed038b4316a0d1b7510a0f8610aa78fd853e5e624759501c6f98a5d00f031c0",
+            "actual": "6ed038b4316a0d1b7510a0f8610aa78fd853e5e624759501c6f98a5d00f031c0",
+            "matches": true
+          },
+          "review-corrections/receipt.json": {
+            "expected": "bdfd6bcf3af2dde172af55bc14ae5aaa17236450f1968557a7c7a8fef76b81cc",
+            "actual": "bdfd6bcf3af2dde172af55bc14ae5aaa17236450f1968557a7c7a8fef76b81cc",
+            "matches": true
+          },
+          "packages/cloudflare/src/runtime/stdlib.ts": {
+            "expected": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+            "actual": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+            "matches": true
+          },
+          "packages/cloudflare/test/runtime-stdlib-pure.test.ts": {
+            "expected": "6af5cdec3681419fba28eb50b96f3dd89ed605313d140306eb1b549bb12ba750",
+            "actual": "6af5cdec3681419fba28eb50b96f3dd89ed605313d140306eb1b549bb12ba750",
+            "matches": true
+          }
+        },
+        "unchanged_original_manifest_entries": 36,
+        "unchanged_original_entries_match_preserved_freeze": true,
+        "original_runtime_exact_executable": "unrecorded",
+        "no_control_rerun": true,
+        "commands_released": true
+      }
+    }
+  ],
+  "evidence_blockers": [],
+  "correction_validation": {
+    "status": "validated; evidence blocker resolved within retained original executable limitation",
+    "affected_hash_checks": {
+      "REPORT.md": {
+        "expected": "b63660d847c6fc7e72e57c7487962358b28a25994d5eceb654adc67b62584359",
+        "actual": "b63660d847c6fc7e72e57c7487962358b28a25994d5eceb654adc67b62584359",
+        "matches": true
+      },
+      "freeze.json": {
+        "expected": "70997cdae110731c630065d5c607548ade155227d92dcbe88782c8c23354dcb7",
+        "actual": "70997cdae110731c630065d5c607548ade155227d92dcbe88782c8c23354dcb7",
+        "matches": true
+      },
+      "review-corrections/before-REPORT.md": {
+        "expected": "6cf0a54bb81b8b2d26ded4867958fa3ccfb96c17711d97808184f306756168ef",
+        "actual": "6cf0a54bb81b8b2d26ded4867958fa3ccfb96c17711d97808184f306756168ef",
+        "matches": true
+      },
+      "review-corrections/before-freeze.json": {
+        "expected": "6ed038b4316a0d1b7510a0f8610aa78fd853e5e624759501c6f98a5d00f031c0",
+        "actual": "6ed038b4316a0d1b7510a0f8610aa78fd853e5e624759501c6f98a5d00f031c0",
+        "matches": true
+      },
+      "review-corrections/receipt.json": {
+        "expected": "bdfd6bcf3af2dde172af55bc14ae5aaa17236450f1968557a7c7a8fef76b81cc",
+        "actual": "bdfd6bcf3af2dde172af55bc14ae5aaa17236450f1968557a7c7a8fef76b81cc",
+        "matches": true
+      },
+      "packages/cloudflare/src/runtime/stdlib.ts": {
+        "expected": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+        "actual": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+        "matches": true
+      },
+      "packages/cloudflare/test/runtime-stdlib-pure.test.ts": {
+        "expected": "6af5cdec3681419fba28eb50b96f3dd89ed605313d140306eb1b549bb12ba750",
+        "actual": "6af5cdec3681419fba28eb50b96f3dd89ed605313d140306eb1b549bb12ba750",
+        "matches": true
+      }
+    },
+    "unchanged_original_manifest_entries": 36,
+    "unchanged_original_entries_match_preserved_freeze": true,
+    "original_runtime_exact_executable": "unrecorded",
+    "no_control_rerun": true,
+    "commands_released": true
+  },
+  "retained_original_runtime_limit": "Final runtime process.version v24.21.0; original final argv, execPath and executable SHA256 unrecorded. Independent executable pin/preload does not retroactively qualify original run."
+}

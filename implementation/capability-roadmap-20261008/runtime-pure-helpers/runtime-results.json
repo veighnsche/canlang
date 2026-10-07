@@ -1,0 +1,1806 @@
+{
+  "qualification": "Historical frozen db57 compiler/producer outputs with acknowledged current runtime pure reexports; actual canonical State/D1 route, memory identity, same Node host. No current compiler refresh, nullable repair, installed/provider/durable claim.",
+  "node": "v24.21.0",
+  "snapshot": "/private/tmp/canlang-runtime-pure-after-db57c379",
+  "privateRoot": "/private/tmp/canlang-runtime-pure-d1-final-db57c379",
+  "resolution": {
+    "@canlang/values": {
+      "path": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/values/dist/src/index.js",
+      "realpath": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/values/dist/src/index.js",
+      "sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c"
+    },
+    "@canlang/state": {
+      "path": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/state/dist/src/index.js",
+      "realpath": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/state/dist/src/index.js",
+      "sha256": "ee3b80800bb78edcb884f5dd9738aad9ed8d1897919fd6800355d40a1368383d"
+    },
+    "@canlang/contracts": {
+      "path": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/contracts/dist/index.js",
+      "realpath": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/contracts/dist/index.js",
+      "sha256": "7144e217dc766394fe4eaef56a5f1ef7eb272a2cd4e2907a18a8117ce4fcb36f"
+    },
+    "@canlang/identity": {
+      "path": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/identity/dist/src/index.js",
+      "realpath": "/private/tmp/canlang-runtime-pure-after-db57c379/packages/identity/dist/src/index.js",
+      "sha256": "9bd32aa605d85ac06c148cdf4af2844a0d98a7aa1ae1cb4552d3d8aea044bdbe"
+    },
+    "miniflare": {
+      "path": "/Users/vince/Projects/canlang/node_modules/.bun/miniflare@4.20260730.0/node_modules/miniflare/dist/src/index.js",
+      "realpath": "/Users/vince/Projects/canlang/node_modules/.bun/miniflare@4.20260730.0/node_modules/miniflare/dist/src/index.js",
+      "sha256": "25f0935c66e24b503a64561e77625b1dd163995ce2177485e3be48d05bde7d45"
+    }
+  },
+  "preload": {
+    "peerUrl": "file:///private/tmp/canlang-runtime-pure-after-db57c379/packages/cloudflare/dist/runtime/stdlib.js",
+    "success": true,
+    "identity": {
+      "int64": true,
+      "datetime": true,
+      "compareInstant": true
+    }
+  },
+  "receipts": [
+    {
+      "name": "numeric-create",
+      "envelope": {
+        "operation": "NumericControl.Job.create",
+        "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+        "inputs": {}
+      },
+      "outcome": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+          "result": {
+            "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+            "version": 1,
+            "created": 1791416246487,
+            "updated": 1791416246487,
+            "createdBy": "public",
+            "updatedBy": "public",
+            "archivedAt": null,
+            "parent": null,
+            "data": {
+              "count": "1"
+            }
+          },
+          "deliveries": []
+        }
+      },
+      "resultType": "object",
+      "before": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      },
+      "after": {
+        "revision": 1,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 1
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "numeric-increment",
+      "envelope": {
+        "operation": "NumericControl.increment",
+        "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+        "inputs": {
+          "job": {
+            "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+            "version": "1"
+          }
+        }
+      },
+      "outcome": {
+        "error": {
+          "code": "rule_failed",
+          "message": "int64 must be a bigint",
+          "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+          "retryable": false
+        }
+      },
+      "resultType": null,
+      "before": {
+        "revision": 1,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 1
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "datetime-earlier",
+      "envelope": {
+        "operation": "DatetimeControl.before",
+        "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+        "inputs": {
+          "stamp": "2026-10-07T23:59:59.999Z"
+        }
+      },
+      "outcome": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+          "result": true,
+          "deliveries": []
+        }
+      },
+      "resultType": "boolean",
+      "before": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 3,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+              "input_hash": "f71e2a0b195f0987f27a906d04de0881591f0e55c1d97d8b02fbca8d936e8d12",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":true,\"recordVersions\":[]}",
+              "committed_revision": 3,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 3
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            },
+            {
+              "revision": 3,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "datetime-earlier-replay",
+      "envelope": {
+        "operation": "DatetimeControl.before",
+        "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+        "inputs": {
+          "stamp": "2026-10-07T23:59:59.999Z"
+        }
+      },
+      "outcome": {
+        "result": {
+          "status": "replayed",
+          "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+          "result": true
+        }
+      },
+      "resultType": "boolean",
+      "before": {
+        "revision": 3,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+              "input_hash": "f71e2a0b195f0987f27a906d04de0881591f0e55c1d97d8b02fbca8d936e8d12",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":true,\"recordVersions\":[]}",
+              "committed_revision": 3,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 3
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            },
+            {
+              "revision": 3,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 3,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+              "input_hash": "f71e2a0b195f0987f27a906d04de0881591f0e55c1d97d8b02fbca8d936e8d12",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":true,\"recordVersions\":[]}",
+              "committed_revision": 3,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 3
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            },
+            {
+              "revision": 3,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "datetime-equal",
+      "envelope": {
+        "operation": "DatetimeControl.before",
+        "operation_id": "01a118ba-a0d7-7903-8c84-1638df876184",
+        "inputs": {
+          "stamp": "2026-10-08T00:00:00.000Z"
+        }
+      },
+      "outcome": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118ba-a0d7-7903-8c84-1638df876184",
+          "result": false,
+          "deliveries": []
+        }
+      },
+      "resultType": "boolean",
+      "before": {
+        "revision": 3,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+              "input_hash": "f71e2a0b195f0987f27a906d04de0881591f0e55c1d97d8b02fbca8d936e8d12",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":true,\"recordVersions\":[]}",
+              "committed_revision": 3,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 3
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            },
+            {
+              "revision": 3,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 4,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+              "input_hash": "f71e2a0b195f0987f27a906d04de0881591f0e55c1d97d8b02fbca8d936e8d12",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":true,\"recordVersions\":[]}",
+              "committed_revision": 3,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7903-8c84-1638df876184",
+              "input_hash": "acd0c96d56fd253cea3dbfdc6b88623d27854ee36e63587f7550b79ce3572598",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":false,\"recordVersions\":[]}",
+              "committed_revision": 4,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 4
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            },
+            {
+              "revision": 3,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            },
+            {
+              "revision": 4,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "datetime-later",
+      "envelope": {
+        "operation": "DatetimeControl.before",
+        "operation_id": "01a118ba-a0d7-7d27-8243-5017a66b3c13",
+        "inputs": {
+          "stamp": "2026-10-08T00:00:00.001Z"
+        }
+      },
+      "outcome": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118ba-a0d7-7d27-8243-5017a66b3c13",
+          "result": false,
+          "deliveries": []
+        }
+      },
+      "resultType": "boolean",
+      "before": {
+        "revision": 4,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+              "input_hash": "f71e2a0b195f0987f27a906d04de0881591f0e55c1d97d8b02fbca8d936e8d12",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":true,\"recordVersions\":[]}",
+              "committed_revision": 3,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7903-8c84-1638df876184",
+              "input_hash": "acd0c96d56fd253cea3dbfdc6b88623d27854ee36e63587f7550b79ce3572598",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":false,\"recordVersions\":[]}",
+              "committed_revision": 4,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 4
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            },
+            {
+              "revision": 3,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            },
+            {
+              "revision": 4,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 5,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+              "input_hash": "f71e2a0b195f0987f27a906d04de0881591f0e55c1d97d8b02fbca8d936e8d12",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":true,\"recordVersions\":[]}",
+              "committed_revision": 3,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7903-8c84-1638df876184",
+              "input_hash": "acd0c96d56fd253cea3dbfdc6b88623d27854ee36e63587f7550b79ce3572598",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":false,\"recordVersions\":[]}",
+              "committed_revision": 4,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7d27-8243-5017a66b3c13",
+              "input_hash": "77cd6edbb18d6c1af7e53be0fcc6c6fa3d498e02de11236be304ecf4015ee72e",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":false,\"recordVersions\":[]}",
+              "committed_revision": 5,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 5
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            },
+            {
+              "revision": 3,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            },
+            {
+              "revision": 4,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            },
+            {
+              "revision": 5,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "datetime-invalid",
+      "envelope": {
+        "operation": "DatetimeControl.before",
+        "operation_id": "01a118ba-a0d7-71bd-8a52-2a3bda453175",
+        "inputs": {
+          "stamp": "malformed"
+        }
+      },
+      "outcome": {
+        "error": {
+          "code": "rule_failed",
+          "message": "invalid datetime text: malformed",
+          "operation_id": "01a118ba-a0d7-71bd-8a52-2a3bda453175",
+          "retryable": false
+        }
+      },
+      "resultType": null,
+      "before": {
+        "revision": 5,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+              "input_hash": "f71e2a0b195f0987f27a906d04de0881591f0e55c1d97d8b02fbca8d936e8d12",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":true,\"recordVersions\":[]}",
+              "committed_revision": 3,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7903-8c84-1638df876184",
+              "input_hash": "acd0c96d56fd253cea3dbfdc6b88623d27854ee36e63587f7550b79ce3572598",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":false,\"recordVersions\":[]}",
+              "committed_revision": 4,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7d27-8243-5017a66b3c13",
+              "input_hash": "77cd6edbb18d6c1af7e53be0fcc6c6fa3d498e02de11236be304ecf4015ee72e",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":false,\"recordVersions\":[]}",
+              "committed_revision": 5,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 5
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            },
+            {
+              "revision": 3,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            },
+            {
+              "revision": 4,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            },
+            {
+              "revision": 5,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 6,
+        "tables": {
+          "records": [
+            {
+              "model": "NumericControl.Job",
+              "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "created": 1791416246487,
+              "updated": 1791416246487,
+              "created_by": "public",
+              "updated_by": "public",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"count\":\"1\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "NumericControl.Job",
+              "record_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "version": 1,
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "actor": "public",
+              "at": 1791416246487,
+              "change": "create",
+              "before": null,
+              "after": "{\"count\":\"1\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.Job.create",
+              "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"count\":\"1\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1,\"created\":1791416246487,\"updated\":1791416246487,\"createdBy\":\"public\",\"updatedBy\":\"public\",\"archivedAt\":null,\"parent\":null,\"data\":{\"count\":\"1\"}},\"recordVersions\":[{\"model\":\"NumericControl.Job\",\"id\":\"01a118ba-a0d7-71fc-81e3-c294751dd423\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "NumericControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "NumericControl.increment",
+              "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+              "input_hash": "964ee8b56222d9e7dfd602158b2ac60c6563367c715b9cf89a4fdaed6bf89c1c",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"int64 must be a bigint\"}",
+              "committed_revision": 2,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+              "input_hash": "f71e2a0b195f0987f27a906d04de0881591f0e55c1d97d8b02fbca8d936e8d12",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":true,\"recordVersions\":[]}",
+              "committed_revision": 3,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7903-8c84-1638df876184",
+              "input_hash": "acd0c96d56fd253cea3dbfdc6b88623d27854ee36e63587f7550b79ce3572598",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":false,\"recordVersions\":[]}",
+              "committed_revision": 4,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-7d27-8243-5017a66b3c13",
+              "input_hash": "77cd6edbb18d6c1af7e53be0fcc6c6fa3d498e02de11236be304ecf4015ee72e",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"committed\",\"result\":false,\"recordVersions\":[]}",
+              "committed_revision": 5,
+              "created_at": 1791416246487
+            },
+            {
+              "app": "DatetimeControl",
+              "owner": "app",
+              "principal": "public",
+              "operation": "DatetimeControl.before",
+              "operation_id": "01a118ba-a0d7-71bd-8a52-2a3bda453175",
+              "input_hash": "dd0f3fa1c7b097bf4eebea6302e05c8076acfacfb29d5c0866c029e9d042b4d6",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"invalid datetime text: malformed\"}",
+              "committed_revision": 6,
+              "created_at": 1791416246487
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 6
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791416246487,
+              "operation": "NumericControl.Job.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791416246487,
+              "operation": "NumericControl.increment"
+            },
+            {
+              "revision": 3,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            },
+            {
+              "revision": 4,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            },
+            {
+              "revision": 5,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            },
+            {
+              "revision": 6,
+              "at": 1791416246487,
+              "operation": "DatetimeControl.before"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "numeric genuine module preload and actual omitted-default row creation",
+      "passed": true,
+      "detail": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+          "result": {
+            "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+            "version": 1,
+            "created": 1791416246487,
+            "updated": 1791416246487,
+            "createdBy": "public",
+            "updatedBy": "public",
+            "archivedAt": null,
+            "parent": null,
+            "data": {
+              "count": "1"
+            }
+          },
+          "deliveries": []
+        }
+      }
+    },
+    {
+      "name": "numeric actual arithmetic result equals 2n",
+      "passed": false,
+      "detail": {
+        "error": {
+          "code": "rule_failed",
+          "message": "int64 must be a bigint",
+          "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "datetime caller text constructor and real fixed datetime comparison emitted",
+      "passed": true,
+      "detail": "// Generated by can compile from DatetimeControl; do not edit.\nimport { require as check, compareInstant, datetime, hasRole } from \"@canlang/stdlib\";\nexport const $can$o$4461746574696d65436f6e74726f6c2e6265666f7265=\"DatetimeControl.before\";\nexport const appDefinition={id:\"DatetimeControl\",uses:[],packages:{DatetimeControl:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{},preferences:{},operations:{\"DatetimeControl.before\":{handler:\"DatetimeControl.before\",inputs:{stamp:{type:\"text\"}},by:\"public\",read:false,result:{type:\"bool\"}}},policy:{roles:[],models:{},operations:{\"DatetimeControl.before\":{by:[\"public\"]}}},pages:[],disabled:[]};\nexport function canApp(){\nreturn {\noperations:[{\"name\":\"DatetimeControl.before\",\"kind\":\"scenario\",\"description\":\"\",\"inputs\":{\"fields\":[{\"name\":\"stamp\",\"field\":{\"kind\":\"string\"},\"required\":true}]}}],\nasync \"DatetimeControl.before\"(c,{stamp:$can$l$303a7374616d70}){\ncheck(hasRole(c,\"public\"),\"forbidden\");\nconst $can$l$313a6f62736572766564 = datetime($can$l$303a7374616d70);\nreturn compareInstant($can$l$313a6f62736572766564,datetime(\"2026-10-08T00:00:00.000Z\")) < 0;\n},\npolicy:{roles:[],models:{},operations:{\"DatetimeControl.before\":{by:[\"public\"]}}},\n};}\n"
+    },
+    {
+      "name": "datetime earlier caller text yields exact boolean",
+      "passed": true,
+      "detail": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+          "result": true,
+          "deliveries": []
+        }
+      }
+    },
+    {
+      "name": "datetime boolean replay exact result",
+      "passed": true,
+      "detail": {
+        "result": {
+          "result": {
+            "status": "committed",
+            "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+            "result": true,
+            "deliveries": []
+          }
+        },
+        "replay": {
+          "result": {
+            "status": "replayed",
+            "operation_id": "01a118ba-a0d7-7e92-8537-175d8bd59be1",
+            "result": true
+          }
+        }
+      }
+    },
+    {
+      "name": "datetime equal caller text yields exact boolean",
+      "passed": true,
+      "detail": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118ba-a0d7-7903-8c84-1638df876184",
+          "result": false,
+          "deliveries": []
+        }
+      }
+    },
+    {
+      "name": "datetime later caller text yields exact boolean",
+      "passed": true,
+      "detail": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118ba-a0d7-7d27-8243-5017a66b3c13",
+          "result": false,
+          "deliveries": []
+        }
+      }
+    },
+    {
+      "name": "datetime malformed runtime text refuses",
+      "passed": true,
+      "detail": {
+        "error": {
+          "code": "rule_failed",
+          "message": "invalid datetime text: malformed",
+          "operation_id": "01a118ba-a0d7-71bd-8a52-2a3bda453175",
+          "retryable": false
+        }
+      }
+    }
+  ],
+  "numeric": {
+    "artifactPath": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers//../f1-invocation/numeric-control-compile.json",
+    "sha256": "4dfdc4baf13a9c05a41badd7f3e47b8ec5f010d40fcc6bfd3ca71bb3535612d9",
+    "sourcePath": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers//../f1-invocation/NumericControl.can",
+    "sourceSha256": "bc734b652caa04d0a73fd9e090b66efe16825a623fad6bb0b2a262baa07a60be",
+    "modules": [
+      {
+        "path": "$can$m$4e756d65726963436f6e74726f6c.mjs",
+        "js": "// Generated by can compile from NumericControl; do not edit.\nimport { require as check, create, deleteRecord, hasRole, int64, set } from \"@canlang/stdlib\";\nexport const $can$o$4e756d65726963436f6e74726f6c2e4a6f622e637265617465=\"NumericControl.Job.create\";\nexport const $can$o$4e756d65726963436f6e74726f6c2e4a6f622e757064617465=\"NumericControl.Job.update\";\nexport const $can$o$4e756d65726963436f6e74726f6c2e4a6f622e64656c657465=\"NumericControl.Job.delete\";\nexport const $can$o$4e756d65726963436f6e74726f6c2e696e6372656d656e74=\"NumericControl.increment\";\nexport const appDefinition={id:\"NumericControl\",uses:[],packages:{NumericControl:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{\"NumericControl.Job\":{readGrants:[{rule:\"Job.read.1\"}],fields:{count:{type:\"int\",default:1n}}}},preferences:{},operations:{\"NumericControl.Job.create\":{handler:\"NumericControl.Job.create\",kind:\"create\",model:\"NumericControl.Job\",read:false,inputs:{fields:[\"count\"]},by:\"public\"},\"NumericControl.Job.update\":{handler:\"NumericControl.Job.update\",kind:\"update\",model:\"NumericControl.Job\",read:false,inputs:{record:{type:\"NumericControl.Job\"},changes:{fields:[\"count\"]}},by:\"public\"},\"NumericControl.Job.delete\":{handler:\"NumericControl.Job.delete\",kind:\"delete\",model:\"NumericControl.Job\",read:false,inputs:{record:{type:\"NumericControl.Job\"}},by:\"public\"},\"NumericControl.increment\":{handler:\"NumericControl.increment\",inputs:{job:{type:\"NumericControl.Job\"}},by:\"public\",read:false,result:{type:\"int\"}}},policy:{roles:[],models:{\"NumericControl.Job\":{read:[\"Job.read.1\"],public:[\"Job.read.1\"]}},operations:{\"NumericControl.Job.create\":{by:[\"public\"]},\"NumericControl.Job.update\":{by:[\"public\"]},\"NumericControl.Job.delete\":{by:[\"public\"]},\"NumericControl.increment\":{by:[\"public\"]}}},pages:[],disabled:[]};\nexport function canApp(){\nreturn {\noperations:[{\"name\":\"NumericControl.Job.read\",\"kind\":\"read\",\"description\":\"\",\"inputs\":{\"fields\":[]}},{\"name\":\"NumericControl.Job.create\",\"kind\":\"create\",\"description\":\"\",\"inputs\":{\"fields\":[{\"name\":\"count\",\"field\":{\"kind\":\"integer\"},\"required\":false,\"default\":{\"kind\":\"literal\",\"value\":\"1\"}}]}},{\"name\":\"NumericControl.Job.update\",\"kind\":\"update\",\"description\":\"\",\"inputs\":{\"fields\":[{\"name\":\"record\",\"field\":{\"kind\":\"ref\",\"model\":\"NumericControl.Job\",\"requireVersion\":true},\"required\":true},{\"name\":\"count\",\"field\":{\"kind\":\"integer\"},\"required\":false}]}},{\"name\":\"NumericControl.Job.delete\",\"kind\":\"delete\",\"description\":\"\",\"inputs\":{\"fields\":[{\"name\":\"record\",\"field\":{\"kind\":\"ref\",\"model\":\"NumericControl.Job\",\"requireVersion\":true},\"required\":true}]}},{\"name\":\"NumericControl.increment\",\"kind\":\"scenario\",\"description\":\"\",\"inputs\":{\"fields\":[{\"name\":\"job\",\"field\":{\"kind\":\"ref\",\"model\":\"NumericControl.Job\",\"requireVersion\":true},\"required\":true}]}}],\nread:{\"Job.read.1\":(c,row)=>hasRole(c,\"public\")},\nasync \"NumericControl.Job.create\"(c,input){\ncheck(hasRole(c,\"public\"),\"forbidden\");\nawait create(c,\"NumericControl.Job\",input);\n},\nasync \"NumericControl.Job.update\"(c,{record,changes}){\ncheck(hasRole(c,\"public\"),\"forbidden\");\nawait set(c,record,changes);\n},\nasync \"NumericControl.Job.delete\"(c,{record}){\ncheck(hasRole(c,\"public\"),\"forbidden\");\nawait deleteRecord(c,record,{mode:'archive'});\n},\nasync \"NumericControl.increment\"(c,{job:$can$l$303a6a6f62}){\ncheck(hasRole(c,\"public\"),\"forbidden\");\nreturn int64($can$l$303a6a6f62.count + 1n);\n},\npolicy:{roles:[],models:{\"NumericControl.Job\":{read:[\"Job.read.1\"],public:[\"Job.read.1\"]}},operations:{\"NumericControl.Job.create\":{by:[\"public\"]},\"NumericControl.Job.update\":{by:[\"public\"]},\"NumericControl.Job.delete\":{by:[\"public\"]},\"NumericControl.increment\":{by:[\"public\"]}}},\n};}\n",
+        "map": {
+          "version": 3,
+          "file": "$can$m$4e756d65726963436f6e74726f6c.mjs",
+          "sources": [
+            "implementation/capability-roadmap-20261008/f1-invocation/NumericControl.can"
+          ],
+          "sourcesContent": [
+            "## Separate complete bounded control for typed arithmetic on an integer model default.\napp NumericControl\nGiven\n Job { count:int=1 }\n policy Job read=public\nWhen\n crud Job by=public fields=count\n scenario increment(job:Job) by=public -> int\n  do return job.count+1\nThen\n"
+          ],
+          "names": [
+            "NumericControl.Job.create",
+            "NumericControl.Job.update",
+            "NumericControl.Job.delete",
+            "NumericControl.increment",
+            "appDefinition",
+            "canApp"
+          ],
+          "mappings": "AAAA;AAAA;AAKIA;AAAAC;AAAAC;AAEMC;AAPVC;AAAAC;AAAAA;AAAAA;AAAAA;AAKIL;AAAAK;AAAAL;AAAAA;AAAAC;AAAAI;AAAAJ;AAAAA;AAAAC;AAAAG;AAAAH;AAAAA;AAEMC;AAAAE;AACNF;AADMA;AAPVE;AAAAA"
+        }
+      }
+    ],
+    "assembled": {
+      "dir": "/private/tmp/canlang-runtime-pure-d1-final-db57c379/modules/numeric",
+      "entryUrl": "file:///private/tmp/canlang-runtime-pure-d1-final-db57c379/modules/numeric/$can$m$4e756d65726963436f6e74726f6c.mjs",
+      "moduleUrls": {
+        "$can$m$4e756d65726963436f6e74726f6c.mjs": "file:///private/tmp/canlang-runtime-pure-d1-final-db57c379/modules/numeric/$can$m$4e756d65726963436f6e74726f6c.mjs"
+      },
+      "mapUrls": {
+        "$can$m$4e756d65726963436f6e74726f6c.mjs": "file:///private/tmp/canlang-runtime-pure-d1-final-db57c379/modules/numeric/$can$m$4e756d65726963436f6e74726f6c.mjs.map"
+      },
+      "sourceMaps": {
+        "$can$m$4e756d65726963436f6e74726f6c.mjs": {
+          "version": 3,
+          "file": "$can$m$4e756d65726963436f6e74726f6c.mjs",
+          "sources": [
+            "implementation/capability-roadmap-20261008/f1-invocation/NumericControl.can"
+          ],
+          "sourcesContent": [
+            "## Separate complete bounded control for typed arithmetic on an integer model default.\napp NumericControl\nGiven\n Job { count:int=1 }\n policy Job read=public\nWhen\n crud Job by=public fields=count\n scenario increment(job:Job) by=public -> int\n  do return job.count+1\nThen\n"
+          ],
+          "names": [
+            "NumericControl.Job.create",
+            "NumericControl.Job.update",
+            "NumericControl.Job.delete",
+            "NumericControl.increment",
+            "appDefinition",
+            "canApp"
+          ],
+          "mappings": "AAAA;AAAA;AAKIA;AAAAC;AAAAC;AAEMC;AAPVC;AAAAC;AAAAA;AAAAA;AAAAA;AAKIL;AAAAK;AAAAL;AAAAA;AAAAC;AAAAI;AAAAJ;AAAAA;AAAAC;AAAAG;AAAAH;AAAAA;AAEMC;AAAAE;AACNF;AADMA;AAPVE;AAAAA"
+        }
+      }
+    },
+    "rows": [
+      {
+        "model": "NumericControl.Job",
+        "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+        "version": 1,
+        "created": 1791416246487,
+        "updated": 1791416246487,
+        "created_by": "public",
+        "updated_by": "public",
+        "archived_at": null,
+        "owner": "",
+        "parent_model": null,
+        "parent_id": null,
+        "data": "{\"count\":\"1\"}"
+      }
+    ],
+    "actualRef": {
+      "id": "01a118ba-a0d7-71fc-81e3-c294751dd423",
+      "version": "1"
+    },
+    "observedArithmetic": {
+      "error": {
+        "code": "rule_failed",
+        "message": "int64 must be a bigint",
+        "operation_id": "01a118ba-a0d7-7e57-85e1-a74045e671f8",
+        "retryable": false
+      }
+    }
+  },
+  "datetime": {
+    "artifactPath": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers//datetime-compile.json",
+    "sha256": "2a4c04417e6083e04802656e1cf3e31cafa2ef03c4341ecdd89dbab31e909b39",
+    "sourcePath": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers//DatetimeControl.can",
+    "sourceSha256": "c48e64a1157465fa9e84e27d38cfae99bb9eb8f8303e6b15a338bf58f416e3e7",
+    "modules": [
+      {
+        "path": "$can$m$4461746574696d65436f6e74726f6c.mjs",
+        "js": "// Generated by can compile from DatetimeControl; do not edit.\nimport { require as check, compareInstant, datetime, hasRole } from \"@canlang/stdlib\";\nexport const $can$o$4461746574696d65436f6e74726f6c2e6265666f7265=\"DatetimeControl.before\";\nexport const appDefinition={id:\"DatetimeControl\",uses:[],packages:{DatetimeControl:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{},preferences:{},operations:{\"DatetimeControl.before\":{handler:\"DatetimeControl.before\",inputs:{stamp:{type:\"text\"}},by:\"public\",read:false,result:{type:\"bool\"}}},policy:{roles:[],models:{},operations:{\"DatetimeControl.before\":{by:[\"public\"]}}},pages:[],disabled:[]};\nexport function canApp(){\nreturn {\noperations:[{\"name\":\"DatetimeControl.before\",\"kind\":\"scenario\",\"description\":\"\",\"inputs\":{\"fields\":[{\"name\":\"stamp\",\"field\":{\"kind\":\"string\"},\"required\":true}]}}],\nasync \"DatetimeControl.before\"(c,{stamp:$can$l$303a7374616d70}){\ncheck(hasRole(c,\"public\"),\"forbidden\");\nconst $can$l$313a6f62736572766564 = datetime($can$l$303a7374616d70);\nreturn compareInstant($can$l$313a6f62736572766564,datetime(\"2026-10-08T00:00:00.000Z\")) < 0;\n},\npolicy:{roles:[],models:{},operations:{\"DatetimeControl.before\":{by:[\"public\"]}}},\n};}\n",
+        "map": {
+          "version": 3,
+          "file": "$can$m$4461746574696d65436f6e74726f6c.mjs",
+          "sources": [
+            "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers/DatetimeControl.can"
+          ],
+          "sourcesContent": [
+            "## Caller text remains runtime input; result is a JSON-safe boolean.\napp DatetimeControl\nGiven\nWhen\n scenario before(stamp:text) by=public -> bool\n  do\n   let observed = datetime(stamp)\n   return observed < datetime(\"2026-10-08T00:00:00.000Z\")\nThen\n"
+          ],
+          "names": [
+            "DatetimeControl.before",
+            "appDefinition",
+            "canApp"
+          ],
+          "mappings": "AAAA;AAAA;AAIUA;AAJVC;AAAAC;AAAAA;AAAAA;AAIUF;AAAAE;AACNF;AAC6BA;AAFvBA;AAJVE;AAAAA"
+        }
+      }
+    ],
+    "assembled": {
+      "dir": "/private/tmp/canlang-runtime-pure-d1-final-db57c379/modules/datetime",
+      "entryUrl": "file:///private/tmp/canlang-runtime-pure-d1-final-db57c379/modules/datetime/$can$m$4461746574696d65436f6e74726f6c.mjs",
+      "moduleUrls": {
+        "$can$m$4461746574696d65436f6e74726f6c.mjs": "file:///private/tmp/canlang-runtime-pure-d1-final-db57c379/modules/datetime/$can$m$4461746574696d65436f6e74726f6c.mjs"
+      },
+      "mapUrls": {
+        "$can$m$4461746574696d65436f6e74726f6c.mjs": "file:///private/tmp/canlang-runtime-pure-d1-final-db57c379/modules/datetime/$can$m$4461746574696d65436f6e74726f6c.mjs.map"
+      },
+      "sourceMaps": {
+        "$can$m$4461746574696d65436f6e74726f6c.mjs": {
+          "version": 3,
+          "file": "$can$m$4461746574696d65436f6e74726f6c.mjs",
+          "sources": [
+            "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers/DatetimeControl.can"
+          ],
+          "sourcesContent": [
+            "## Caller text remains runtime input; result is a JSON-safe boolean.\napp DatetimeControl\nGiven\nWhen\n scenario before(stamp:text) by=public -> bool\n  do\n   let observed = datetime(stamp)\n   return observed < datetime(\"2026-10-08T00:00:00.000Z\")\nThen\n"
+          ],
+          "names": [
+            "DatetimeControl.before",
+            "appDefinition",
+            "canApp"
+          ],
+          "mappings": "AAAA;AAAA;AAIUA;AAJVC;AAAAC;AAAAA;AAAAA;AAIUF;AAAAE;AACNF;AAC6BA;AAFvBA;AAJVE;AAAAA"
+        }
+      }
+    }
+  },
+  "counts": {
+    "passed": 7,
+    "failed": 1
+  }
+}

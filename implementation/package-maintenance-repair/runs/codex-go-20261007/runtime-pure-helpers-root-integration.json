@@ -1,0 +1,43 @@
+{
+  "status": "root_accepted_exact_existing_values_function_relay",
+  "captured_utc": "2026-10-07T23:57:00.070551+00:00",
+  "head_before": "0a771e1453189d5a64c1cb1a95924c9bdb89cf90",
+  "manifest": "implementation/capability-roadmap-20261008/runtime-pure-helpers-integration-request.json",
+  "manifest_sha256": "dc73b7e6b7932c4106681758a70c8d454b9b0c0e2f2bbc807c10d7dd8b906d00",
+  "exact_files_verified": 58,
+  "exact_bytes": 341336,
+  "product_paths": [
+    "packages/cloudflare/src/runtime/stdlib.ts",
+    "packages/cloudflare/test/runtime-stdlib-pure.test.ts"
+  ],
+  "review_sha256": "4bc439749fc4be9a17aabd59cbfed689f1421607fb7badbc5dc5af62a8658eed",
+  "root_review": "Direct3owning reexports only, no wrapper/facade/shape/backend change. Inspected owning test4positive/error/function-identity controls and independent actual preload plus before/current failure comparison. All58 current manifest hashes/bytes independently verified.",
+  "evidence": {
+    "new_tests": 4,
+    "existing_before_and_after_pass": 12,
+    "existing_before_and_after_same_failures": 8,
+    "actual_runtime": {
+      "pass": 7,
+      "fail": 1
+    }
+  },
+  "retained_failures": [
+    "Integer default remains string and native int64 refuses it",
+    "Initial undefined vs replay null remains open",
+    "Original final runtime argv/execPath/hash unrecorded; retained process.version24 and independent pinned24preload are distinct"
+  ],
+  "limits": [
+    "Typed numeric/datetime hydration or persistence",
+    "void immediate undefined versus replay null gap",
+    "Default/result/fixture policy repairs",
+    "Public facade/data-plane union",
+    "Current compiler refresh",
+    "Whole-host or WASM backend acceptance",
+    "Installed/provider/process restart/durable claims",
+    "General context or task9/10 authority"
+  ],
+  "zero_initializer_effects_claimed": false,
+  "writer_reader_commands_released": true,
+  "commit_pending": true,
+  "no_parent_closure": true
+}

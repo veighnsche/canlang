@@ -1,0 +1,113 @@
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/cloudflare/test/runtime-stdlib.test.ts > create > stages an insert through the pipeline and commits it once with the scenario receipt
+Error: want result, got {"error":{"code":"rule_failed","message":"t17b: model \"acme.Todo\" appDefinition/canApp policy disagreement.","operation_id":"01a118ba-795d-7bd7-8bbf-fc695a10bf97","retryable":false}}
+ ❯ mustResult packages/cloudflare/test/runtime-stdlib.test.ts:341:9
+    339| function mustResult(outcome: MutationOutcome): MutationResult {
+    340|   if ("result" in outcome) return outcome.result;
+    341|   throw new Error(`want result, got ${JSON.stringify(outcome)}`);
+       |         ^
+    342| }
+    343| 
+ ❯ packages/cloudflare/test/runtime-stdlib.test.ts:359:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  packages/cloudflare/test/runtime-stdlib.test.ts > create > passes a parent link through to the staged row
+Error: want result, got {"error":{"code":"rule_failed","message":"t17b: model \"acme.Todo\" appDefinition/canApp policy disagreement.","operation_id":"01a118ba-7a1d-7353-878d-f08ee949eef9","retryable":false}}
+ ❯ mustResult packages/cloudflare/test/runtime-stdlib.test.ts:341:9
+    339| function mustResult(outcome: MutationOutcome): MutationResult {
+    340|   if ("result" in outcome) return outcome.result;
+    341|   throw new Error(`want result, got ${JSON.stringify(outcome)}`);
+       |         ^
+    342| }
+    343| 
+ ❯ packages/cloudflare/test/runtime-stdlib.test.ts:392:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  packages/cloudflare/test/runtime-stdlib.test.ts > set > merges the patch over the staged row and keeps a new row at version 1
+Error: want result, got {"error":{"code":"rule_failed","message":"t17b: model \"acme.Todo\" appDefinition/canApp policy disagreement.","operation_id":"01a118ba-7a21-7868-88b6-318b91fdf3e7","retryable":false}}
+ ❯ mustResult packages/cloudflare/test/runtime-stdlib.test.ts:341:9
+    339| function mustResult(outcome: MutationOutcome): MutationResult {
+    340|   if ("result" in outcome) return outcome.result;
+    341|   throw new Error(`want result, got ${JSON.stringify(outcome)}`);
+       |         ^
+    342| }
+    343| 
+ ❯ packages/cloudflare/test/runtime-stdlib.test.ts:419:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  packages/cloudflare/test/runtime-stdlib.test.ts > set > rejects a patch on a missing record with the engine not_found
+AssertionError: expected 'rule_failed' to be 'not_found' // Object.is equality
+
+Expected: "not_found"
+Received: "rule_failed"
+
+ ❯ packages/cloudflare/test/runtime-stdlib.test.ts:467:22
+    465|       ),
+    466|     );
+    467|     expect(err.code).toBe("not_found");
+       |                      ^
+    468|     expect(err.message).toContain("Record not found");
+    469|     expect(await s.store.readRevision()).toBe(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  packages/cloudflare/test/runtime-stdlib.test.ts > deleteRecord > stages a remove honoring the model delete mode and commits it once
+Error: want result, got {"error":{"code":"rule_failed","message":"t17b: model \"acme.Todo\" appDefinition/canApp policy disagreement.","operation_id":"01a118ba-7a2a-71d6-83f3-5479c27bdd7e","retryable":false}}
+ ❯ mustResult packages/cloudflare/test/runtime-stdlib.test.ts:341:9
+    339| function mustResult(outcome: MutationOutcome): MutationResult {
+    340|   if ("result" in outcome) return outcome.result;
+    341|   throw new Error(`want result, got ${JSON.stringify(outcome)}`);
+       |         ^
+    342| }
+    343| 
+ ❯ packages/cloudflare/test/runtime-stdlib.test.ts:481:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  packages/cloudflare/test/runtime-stdlib.test.ts > deleteRecord > rejects a remove on a missing record with the engine not_found
+AssertionError: expected 'rule_failed' to be 'not_found' // Object.is equality
+
+Expected: "not_found"
+Received: "rule_failed"
+
+ ❯ packages/cloudflare/test/runtime-stdlib.test.ts:512:22
+    510|       ),
+    511|     );
+    512|     expect(err.code).toBe("not_found");
+       |                      ^
+    513|     expect(err.message).toContain("Record not found");
+    514|     expect(await s.store.readRevision()).toBe(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  packages/cloudflare/test/runtime-stdlib.test.ts > records > serves the whole model through invokeRead over the staged overlay
+Error: want result, got {"error":{"code":"rule_failed","message":"t17b: model \"acme.Todo\" appDefinition/canApp policy disagreement.","operation_id":"01a118ba-7a30-7c28-802f-6170606280b1","retryable":false}}
+ ❯ mustResult packages/cloudflare/test/runtime-stdlib.test.ts:341:9
+    339| function mustResult(outcome: MutationOutcome): MutationResult {
+    340|   if ("result" in outcome) return outcome.result;
+    341|   throw new Error(`want result, got ${JSON.stringify(outcome)}`);
+       |         ^
+    342| }
+    343| 
+ ❯ packages/cloudflare/test/runtime-stdlib.test.ts:527:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  packages/cloudflare/test/runtime-stdlib.test.ts > records > defaults to the bare whole-model viewer read with the full projected envelope
+Error: want result, got {"error":{"code":"rule_failed","message":"t17b: model \"acme.Todo\" appDefinition/canApp policy disagreement.","operation_id":"01a118ba-7a34-7cad-81df-ca479c48c68f","retryable":false}}
+ ❯ mustResult packages/cloudflare/test/runtime-stdlib.test.ts:341:9
+    339| function mustResult(outcome: MutationOutcome): MutationResult {
+    340|   if ("result" in outcome) return outcome.result;
+    341|   throw new Error(`want result, got ${JSON.stringify(outcome)}`);
+       |         ^
+    342| }
+    343| 
+ ❯ packages/cloudflare/test/runtime-stdlib.test.ts:557:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
