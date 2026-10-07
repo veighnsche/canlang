@@ -1,0 +1,419 @@
+{
+  "schema_version": 1,
+  "step": "10 outputs: serialization primary view",
+  "source_baseline": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "starting_head": "0edfde19",
+  "mode": "planning/evidence only; bounded read-only production source and consumer/contracts scan",
+  "execution": "none: no builds/tests/CLI probes performed by this worker",
+  "finite_duties": [
+    {
+      "id": "SER-01",
+      "duty": "Shared compact typed JSON values and strings",
+      "defining_declarations": [
+        "compiler/src/json.rs:18\u201359"
+      ],
+      "caller_closure": [
+        "diagnostic::push_json_str; typed diagnostic/artifact/descriptor/reference/explain/fix/policy and LSP adapters",
+        "JS and BDD js_string"
+      ],
+      "real_consumers": [
+        "CLI stdout and platform stdin; Node JSON.parse; public Rust string adapters"
+      ],
+      "independent_authority": [
+        "GRAMMAR.md:13\u201325 JSON strings and Unicode validity",
+        "Step4 compatibility migration guard; independent expected bytes in typed_json.rs"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_json.rs:1\u2013103"
+      ],
+      "obligation": "Exact released escape bytes: backspace/formfeed use lowercase \\u0008/\\u000c, LF/CR/tab use short escapes; quotes/backslash escaped; slash, Unicode scalars, U+2028/U+2029 literal. DTO/map owners own order. Generic errors propagate.",
+      "limits": "Read-only source inspection; no execution. Public generic serde API admits Number floats/nonfinite per serde policy; exact compiler scalars use strings/BigInt, so this is not a generic arbitrary-exact-number serializer or HTML embedding sanitizer."
+    },
+    {
+      "id": "SER-02",
+      "duty": "Ordered legacy JSON value rendering",
+      "defining_declarations": [
+        "compiler/src/json.rs:70\u201385,336\u2013370",
+        "compiler/src/diagnostic.rs:323\u2013325"
+      ],
+      "caller_closure": [
+        "json::render -> push_json_str -> compact serializer",
+        "lsp::transport::{response_ok,response_err,notification}"
+      ],
+      "real_consumers": [
+        "LSP server/editor request correlation; legacy public callers"
+      ],
+      "independent_authority": [
+        "Step4 compatibility.md input/LSP raw-ID obligations"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/json_input_contract.rs; compiler/tests/lsp_typed_output.rs (inventory only)"
+      ],
+      "obligation": "Raw Num spelling, ordered duplicate members and arrays survive render; strings preserve decoded scalar values using shared released bytes.",
+      "limits": "Public Json::Num can contain invalid text; public view is not admission. Step4 qualification applies only admitted numbers. No new transport/admission claim."
+    },
+    {
+      "id": "SER-03",
+      "duty": "Diagnostic wire envelope and human source attribution",
+      "defining_declarations": [
+        "compiler/src/diagnostic.rs:108\u2013203,223\u2013310"
+      ],
+      "caller_closure": [
+        "DiagnosticResult Serialize/to_json/to_text; CLI emit_diagnostics/check/lint/fmt/compile failure"
+      ],
+      "real_consumers": [
+        "packages/contracts/src/diagnostic.ts; editors/vscode; CLI human users"
+      ],
+      "independent_authority": [
+        "packages/contracts/src/diagnostic.ts",
+        "SourceDb identities/byte spans; Step5 provenance findings"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_diagnostics_cli.rs; diagnostic.rs:347\u2013360 (read); Step5 provenance receipts reused"
+      ],
+      "obligation": "Exact envelope member order, always present complete/omitted/sources/related/tags; diagnostics sorted by file/start/end/code/message. Text resolves paths and one-based line/byte-column coordinates from SourceDb.",
+      "limits": "Renderer receives a finished coherent result; no independent SourceDb verification. Public tied sort keys with different payloads retain insertion order; root probe pending. Byte-order guard is stronger than consumer JSON equality but documented locally."
+    },
+    {
+      "id": "SER-04",
+      "duty": "Artifact envelope, linkage and optional directives",
+      "defining_declarations": [
+        "compiler/src/codegen/artifact.rs:492\u2013670",
+        "compiler/src/codegen/mod.rs:221\u2013222"
+      ],
+      "caller_closure": [
+        "emit -> assemble -> artifact::to_json -> CLI run_compile"
+      ],
+      "real_consumers": [
+        "packages/contracts/src/artifact.ts; Cloudflare deployment/artifact intake; testkit artifact loading"
+      ],
+      "independent_authority": [
+        "packages/contracts/src/artifact.ts:1\u201393 additive boundary/linkage/source contracts",
+        "DESIGN.md \u00a713 desired direct JS output, at declared proposed stage"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_artifact.rs:1\u2013160 read; typed_artifact_consumer.rs inventory only"
+      ],
+      "obligation": "Exact released root order/version and ordered module/source/callable/page/test arrays. Absent directive optionals omitted; present empty string preserved. Nested source maps and JS strings encoded once each.",
+      "limits": "Assembly sorting/identity transformations are separate duties; contract semantic shape alone does not require root member order. Root should freshly check consumers; inspected tests do not prove current execution."
+    },
+    {
+      "id": "SER-05",
+      "duty": "Descriptor closed tags, defaults, omission and explicit false",
+      "defining_declarations": [
+        "compiler/src/codegen/js.rs:575\u2013905"
+      ],
+      "caller_closure": [
+        "descriptor_json -> JsMcpField/JsModelFieldType/JsOperationField/JsModelField/JsOperation/JsModel",
+        "operations_json shared artifact and canApp registry"
+      ],
+      "real_consumers": [
+        "packages/contracts/src/artifact.ts; interfaces MCP schema builder; runtime registry intake; model-default decoding"
+      ],
+      "independent_authority": [
+        "packages/contracts/src/artifact.ts field/default/model contracts",
+        "Step6 integration inventory and caller closure"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_descriptors.rs:1\u2013230 read, remainder inventory"
+      ],
+      "obligation": "Closed field kind tags; declaration/producer order retained. nullable false omitted, serverOnly/required false present; array required false preserved; default absent vs literal null vs empty description distinct. Ref requireVersion present for operation input, absent for stored model.",
+      "limits": "Public JsFieldDefault::Literal carries caller String: invalid fragment fails Serialize and to_json panics. Compiler-owned fragment comes from literal_json; RawValue is grammar validation, not Unicode scalar validation. No claim of general external fragment admission."
+    },
+    {
+      "id": "SER-06",
+      "duty": "Exact literal wire defaults and authored Decimal scale",
+      "defining_declarations": [
+        "compiler/src/codegen/js.rs:360\u2013490",
+        "compiler/src/codegen/ir.rs:949\u2013973,2323"
+      ],
+      "caller_closure": [
+        "IrDefault Literal -> js_field_default -> literal_json -> WireLiteral Serialize -> descriptor default RawValue"
+      ],
+      "real_consumers": [
+        "interfaces/schema baking/default decode; values decodeValue/parseDecimal"
+      ],
+      "independent_authority": [
+        "DESIGN.md:909 decimal-string MCP values",
+        "packages/values/src/internal/wire-core.ts:1\u201326,349\u2013360,1596\u20131600",
+        "packages/contracts/src/artifact.ts default contracts"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_descriptors.rs:193\u2013230 exact literals read; typed_json.rs:50\u2013103; Step7 decimal-emission-gap witness reused"
+      ],
+      "obligation": "No binary floats. int/duration/money.minor emit exact decimal strings; Decimal spelling retains authored scale in descriptor default; text/date/datetime values scalar exact; ordered objects/arrays recurse; null stays null. Unary int negation checks overflow.",
+      "limits": "Default representation is distinct from runtime expression lowering: js.rs:1607 emits E6008 for Decimal literal. values encodeValue normalizes decimal trailing zeros; decode preserves input scale, so default spelling fidelity must not be generalized to runtime numeric canonical output."
+    },
+    {
+      "id": "SER-07",
+      "duty": "JS string-literal payload quoting",
+      "defining_declarations": [
+        "compiler/src/codegen/js.rs:1080\u20131082,1594\u20131640"
+      ],
+      "caller_closure": [
+        "Emitter lower_expr Text/Money/Date/Datetime; metadata/schema/page/message paths -> js_string"
+      ],
+      "real_consumers": [
+        "Node module execution; @canlang/stdlib and @canlang/ui generated metadata"
+      ],
+      "independent_authority": [
+        "GRAMMAR.md:21\u201325 JSON STRING",
+        "DESIGN.md \u00a713 direct JavaScript; JS modern string literals"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/string_payload_runtime.rs:1\u2013175; compiler/tests/typed_json.rs:7\u201340"
+      ],
+      "obligation": "Payload scalars preserve value and string boundaries; controls/quotes/backslash escaped once. Modern JS accepts literal U+2028/U+2029.",
+      "limits": "Identifier mangling, reserved words, expression precedence, HTML raw-script sinks and Decimal emission are separate transformations. Runtime test may skip without packages/Node; this worker did not run it."
+    },
+    {
+      "id": "SER-08",
+      "duty": "BDD executable strings and recipe lists",
+      "defining_declarations": [
+        "compiler/src/codegen/bdd.rs:64\u2013151,234\u2013408,431\u2013433"
+      ],
+      "caller_closure": [
+        "emit_suite/emit_fixture_shell -> lower_recipe/table/row/sequence/step -> Emitter and BDD js_string"
+      ],
+      "real_consumers": [
+        "@canlang/testkit loadExampleSuite, setup, stashedRowOf, observe"
+      ],
+      "independent_authority": [
+        "packages/contracts/src/examples.ts; actual testkit public loading API",
+        "GRAMMAR authored example syntax"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_bdd.rs:29\u201394; string_payload_runtime.rs:1\u2013175"
+      ],
+      "obligation": "Values/errors/labels stay quoted inside callable recipe closures; names_list serializes identifier references separately. Suite data stays source ordered; separate test modules.",
+      "limits": "sanitize at bdd.rs:417\u2013428 is an identifier transformation, not quoting. Inspected execution-oriented test uses testkit but skips missing dependencies; no fresh runtime assertion."
+    },
+    {
+      "id": "SER-09",
+      "duty": "Reference typed JSON presence, location and revision",
+      "defining_declarations": [
+        "compiler/src/docs.rs:114\u2013343,355\u2013460,967\u2013983,1017\u20131109,1116\u20131219"
+      ],
+      "caller_closure": [
+        "extract_reference -> ReferenceModel::to_json_string -> CLI docs stdin; public to_json compatibility views"
+      ],
+      "real_consumers": [
+        "packages/contracts/src/reference.ts; packages/interfaces/src/docs/reference.ts; can-platform docs"
+      ],
+      "independent_authority": [
+        "packages/contracts/src/reference.ts:1\u2013125 frozen v1 absence/empty/null/authored examples contract",
+        "Step5 source provenance; docs.rs:71\u201382 revision definition"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_references.rs:14\u2013159; typed_reference_policy_consumers.rs:90\u2013208; docs.rs extraction docs read"
+      ],
+      "obligation": "camelCase keys and ordered typed fields; missing description/default omitted; null translation/catalog version retained; source examples preserve source spelling, no execution result invented; portable paths and sorted path-NUL-text-NUL revision hash.",
+      "limits": "Extraction may omit unresolved facts and assumes successful coherent analysis; sourceRevision is content hash not semantic hash. Internal public reference_json parses serialized model at depth64; production to_json_string bypasses this compatibility conversion."
+    },
+    {
+      "id": "SER-10",
+      "duty": "Documentation boundary and Markdown embedding",
+      "defining_declarations": [
+        "compiler/src/cli.rs:886\u20131040",
+        "packages/interfaces/src/docs/reference.ts:158\u2013178,491\u2013498,539\u2013594,607\u2013632,644\u2013677"
+      ],
+      "caller_closure": [
+        "run_docs -> extract_reference -> fixed can-platform docs argv + stdin JSON -> renderReferenceMarkdown -> stdout/atomic out"
+      ],
+      "real_consumers": [
+        "can-platform docs consumer; Markdown renderer; generated internal documentation readers"
+      ],
+      "independent_authority": [
+        "ReferenceModel v1; CLI docs help at cli.rs:658; GRAMMAR descriptions; renderer no-prose-injection comment"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_reference_policy_consumers.rs:90\u2013208; packages/interfaces/test/docs-reference.test.ts (inventory only)"
+      ],
+      "obligation": "Compiler transport uses stdin JSON with fixed argv, captures truthful renderer failure; no business handlers/examples run. Authored prose HTML/entities/Markdown tokens escaped at Markdown sink; source strings are not executable. Authored examples use codeBlock with a backtick fence longer than any payload backtick run (491\u2013498); examples remain labeled as authored.",
+      "limits": "Downstream package renderer owns Markdown escaping. codeSpan uses one backtick plus backslash escape and omits pipe escaping; root probe pending. No HTML raw script embedding exists in inspected compiler docs/reference path; do not claim JSON quoting protects arbitrary HTML scripts."
+    },
+    {
+      "id": "SER-11",
+      "duty": "Policy typed wire, human text and HTML consumer",
+      "defining_declarations": [
+        "compiler/src/policy.rs:33\u2013113,145\u2013308",
+        "compiler/src/cli.rs:789\u2013827",
+        "packages/ui/src/policyPage.ts:26,204\u2013212"
+      ],
+      "caller_closure": [
+        "policy_dump -> policy_dump_json PolicyFormatter -> run_policy",
+        "public policy sections/page renderer -> escapeAttr/escapeHtml"
+      ],
+      "real_consumers": [
+        "packages/ui/src/policyPage.ts policy sections and HTML page; CLI"
+      ],
+      "independent_authority": [
+        "policy dump version1 source-order declarations; consuming PolicyDump interface in policyPage.ts",
+        "GRAMMAR policies/operation gates"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_policy.rs:5\u2013167; typed_reference_policy_consumers.rs:211 onward (partial inventory)"
+      ],
+      "obligation": "Exact pretty mixed inline/multiline released layout, source order, omission vs empty string preserved. Serializer adds LF; CLI adds its existing second LF. HTML sink escapes prose/attributes independently.",
+      "limits": "PolicyFormatter key-name layout is formatting-only closed DTO policy; arbitrary map keys/containers outside these DTOs unqualified. No raw-script JSON embedding in inspected policy page."
+    },
+    {
+      "id": "SER-12",
+      "duty": "Explain JSON and text catalog values",
+      "defining_declarations": [
+        "compiler/src/explain.rs:28\u201397",
+        "compiler/src/cli.rs:1196"
+      ],
+      "caller_closure": [
+        "lookup -> entry_to_json/entry_to_text -> CLI run_explain"
+      ],
+      "real_consumers": [
+        "CLI users/editor diagnostic explanation links"
+      ],
+      "independent_authority": [
+        "Explain CodeInfo stable code/severity fields; GRAMMAR diagnostic meaning examples"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_explain.rs:7\u201374"
+      ],
+      "obligation": "Six fixed JSON keys, stable severity spellings, blank values preserved, compact serializer no newline; CLI adds LF. Text preserves catalog example/explanation values.",
+      "limits": "Explanation content accuracy/completeness and reserved placeholders are separate semantic/catalog duties, not serialization proof."
+    },
+    {
+      "id": "SER-13",
+      "duty": "Fix and rejection JSON, lint extension",
+      "defining_declarations": [
+        "compiler/src/lint/driver.rs:239\u2013270,337\u2013441",
+        "compiler/src/cli.rs:1692\u20131707"
+      ],
+      "caller_closure": [
+        "fix_to_json/fixes_to_json/rejected_to_json; lint --fix flattened DiagnosticResult plus fixes"
+      ],
+      "real_consumers": [
+        "CLI clients; IDE code actions/source edit workflow"
+      ],
+      "independent_authority": [
+        "LintFix source byte range/hash contract driver.rs:239\u2013253; packages/contracts/src/diagnostic.ts"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/typed_fixes.rs:19\u201383; typed_fixes_cli.rs (inventory only)"
+      ],
+      "obligation": "Exact member/variant order; empty list []; stale/spans/refusal fields retained; source file/span/hash/replacement not coerced; lint diagnostics envelope followed by fixes array.",
+      "limits": "Fix validity/application, hashes and overlap/order checks are transformation/admission duties; serializer only carries their result. Public structs can carry incoherent file/span without serialization validation."
+    },
+    {
+      "id": "SER-14",
+      "duty": "Source-map JSON envelope and embedded source content",
+      "defining_declarations": [
+        "compiler/src/codegen/sourcemap.rs:104\u2013131"
+      ],
+      "caller_closure": [
+        "SourceMap Serialize/to_json; Artifact ModuleWire map -> JSON; source-map consumer adapters"
+      ],
+      "real_consumers": [
+        "packages/contracts/src/artifact.ts:43\u201360; cloudflare dev/deploy source-map consumers"
+      ],
+      "independent_authority": [
+        "SourceMap V3 contract; compiler/tests/sourcemap_contract.rs; Step4 qualified codec evidence"
+      ],
+      "inspected_regressions": [
+        "sourcemap.rs:321 expected byte test (inventory); typed_artifact.rs nested map test read"
+      ],
+      "obligation": "version3/file/sources/sourcesContent/names/mappings fixed wire order; null source content distinct from empty text; source strings use shared escape policy.",
+      "limits": "VLQ/base64 encoding, generated-line mapping, source coordinates, Consumer source identity are root-owned transformations/coordinate review, not newly certified here."
+    },
+    {
+      "id": "SER-15",
+      "duty": "Typed LSP response/payload and raw request-ID echo",
+      "defining_declarations": [
+        "compiler/src/lsp/output.rs:11\u201341,53\u2013175",
+        "compiler/src/lsp/transport.rs:217\u2013250"
+      ],
+      "caller_closure": [
+        "server request handlers -> output::response/notification typed DTO -> compact; legacy transport errors -> ordered Json render"
+      ],
+      "real_consumers": [
+        "VS Code LanguageClient editor operations and diagnostics"
+      ],
+      "independent_authority": [
+        "Step4 compatibility LSP qualification and real editor closure",
+        "lsp-types DTO null/omission contract; output.rs:9\u201310 raw identity promise"
+      ],
+      "inspected_regressions": [
+        "compiler/tests/lsp_typed_output.rs (inventory); compatibility-review.json LSP rows reused"
+      ],
+      "obligation": "Admitted raw request ID alone is RawValue so exponent/negative zero spellings survive; typed results use DTOs. DocumentIdentifier version None deliberately null; empty action edit omitted; URI String not forcibly normalized by URL types.",
+      "limits": "Semantic payload equality usually sufficient to clients; retained bytes are migration/public ID guard. Coordinates, grouping/reordering and edit safety separately root-owned. Reuse Step4 evidence without rerunning or widening protocol assurance."
+    }
+  ],
+  "reused_evidence": [
+    {
+      "step": 4,
+      "paths": [
+        "responsibility-map/compatibility.md",
+        "responsibility-map/compatibility-review.json"
+      ],
+      "limit": "accepted migration and protocol qualifications; no fresh standard verification"
+    },
+    {
+      "step": 5,
+      "paths": [
+        "responsibility-map/representation-review.json",
+        "responsibility-map/representation-evidence/provenance/receipt.json"
+      ],
+      "limit": "coherence publicly assumed; production paths construct coherent carriers, not a serializer provenance validator"
+    },
+    {
+      "step": 6,
+      "paths": [
+        "responsibility-map/integration-evidence/inventory.json"
+      ],
+      "limit": "caller inventory navigation only; no renewed consumer execution"
+    },
+    {
+      "step": 7,
+      "paths": [
+        "responsibility-map/syntax-evidence/case-decimal-emission-gap.stdout"
+      ],
+      "limit": "known unsupported decimal expression must not erase exact descriptor default scale obligation"
+    },
+    {
+      "step": 8,
+      "paths": [
+        "responsibility-map/semantics.md",
+        "responsibility-map/semantic-evidence"
+      ],
+      "limit": "semantic validation/evaluation ownership remains distinct; path navigation only, no uninspected witness claimed"
+    }
+  ],
+  "new_defect_leads": [
+    {
+      "id": "SER-LEAD-1",
+      "family": "identifier transformation",
+      "status": "source lead; root fresh CLI/Node witness requested",
+      "anchor": "compiler/src/codegen/js.rs:1063\u20131075",
+      "vector": "scenario echo(class:text) read=true -> text by=members; do return class",
+      "authority": "GRAMMAR.md:74 contextual identifiers vs JavaScript reserved words",
+      "scope": "not shared JSON string serialization"
+    },
+    {
+      "id": "SER-LEAD-2",
+      "family": "diagnostic ordering",
+      "status": "public API source lead; root witness/contract classification requested",
+      "anchor": "compiler/src/diagnostic.rs:244\u2013265",
+      "vector": "reverse insertion of two diagnostics with identical sort key but different severity/related/tags; finish then compare to_json",
+      "authority": "finish doc claims insertion-order-independent byte determinism; defining key documents narrower order",
+      "scope": "no production CLI producer occurrence demonstrated"
+    },
+    {
+      "id": "SER-LEAD-3",
+      "family": "Markdown code-span embedding",
+      "status": "downstream package source lead; root public renderer witness requested",
+      "anchor": "packages/interfaces/src/docs/reference.ts:173\u2013178",
+      "vector": "field.default source spelling containing embedded backtick and pipe, e.g. a`|b",
+      "authority": "renderer escapes value in Markdown code span; single backticks/backslash not a delimiter-safe code span",
+      "scope": "outside compiler source; no package edits authorized"
+    }
+  ],
+  "overall_limit": "Defining declarations and consumer contracts were inspected selectively. Regression records distinguish read source from inventory-only navigation; all fresh verification and acceptance stay root-owned. No API/policy decision, JEV call or implementation authorized."
+}

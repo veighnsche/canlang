@@ -1,0 +1,77 @@
+{
+  "scope": "Step10 bounded compiler output/transform audit; no implementation",
+  "head": "0edfde19ac2a23a073303823f71b5c7062d4a53b",
+  "compiler_source_commit": "4ecd991a80ca025b6d5899ffdcea96075c60c25e",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "allocation": {
+    "serialization_and_independent_review": "gpt-6.1-sol medium",
+    "other_lanes": "root: extra dispatch unavailable (agent thread limit); no escalation"
+  },
+  "rechecked_pin_references": 669,
+  "mismatches": [],
+  "historical_decisions": "prior prefix retained; append-only decisions are not compiler/runtime input drift",
+  "pins": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+      "bytes": 1886
+    },
+    {
+      "path": "compiler/Cargo.toml",
+      "sha256": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+      "bytes": 1439
+    },
+    {
+      "path": "compiler/Cargo.lock",
+      "sha256": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+      "bytes": 21845
+    },
+    {
+      "path": "docs/specification/GRAMMAR.md",
+      "sha256": "ace09efbe7df6326fb3fa35090b76befeb8d554dab3e3a3123b7ddf285590c36",
+      "bytes": 66676
+    },
+    {
+      "path": "docs/specification/DESIGN.md",
+      "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+      "bytes": 267727
+    },
+    {
+      "path": "packages/values/dist/catalog.json",
+      "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "bytes": 22290
+    },
+    {
+      "path": "packages/interfaces/src/docs/reference.ts",
+      "sha256": "e52d702a4391588374160ad7a7d615f1ed23a9d4d8a78d07826a443181f9193f",
+      "bytes": 26854
+    },
+    {
+      "path": "packages/interfaces/dist/src/docs/reference.js",
+      "sha256": "e04ff9bd750de5bd0318c93fca530346189636095eb0f0c1b15c4d41f3a691bb",
+      "bytes": 23248
+    },
+    {
+      "path": "packages/interfaces/dist/src/index.js",
+      "sha256": "5719fb1eebb73724a81e2347dcc03b4e7c28d2f0277b0ef1cb58edc038d74fe8",
+      "bytes": 1172
+    },
+    {
+      "path": "packages/cloudflare/dist/cli/platform.js",
+      "sha256": "f3b2415475d81162b9292d0d295068583f2c88d15afb823c127ac60f91665ffa",
+      "bytes": 17187
+    },
+    {
+      "path": "compiler/tests/fixtures/sourcemap-consumer.mjs",
+      "sha256": "3b16e56520173a45ca44e98858009714e2308b7281353a3d6ddeb67f805f0b32",
+      "bytes": 9160
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/model-allocation-20261007.md",
+      "sha256": "f7f96701e9588cba6e22bad1d01cfd06517202d2fd99959763d77173243341d8",
+      "bytes": 11651
+    }
+  ],
+  "cases_sha256": "839cd36801dba813e4b504a6f69f70eeaa876b747e9c25730d63c2bbe954263c"
+}
