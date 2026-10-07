@@ -1,0 +1,12 @@
+{
+  "compiler_inputs": 114,
+  "only_changed_input": {
+    "compiler/tests/ide.rs": {
+      "before": "7dc8eb5db8fdff6930a6a68f335b03c297cfbc7470930e78c877bb32cc6c6336",
+      "corrected": "49625acf4796e14ff68c043562741b78615c3dce74aa6123b33be7f76e58425f"
+    }
+  },
+  "targeted_ide_passed": 35,
+  "all_target_clippy_exit": 0,
+  "broader_bdd_consumer_gaps": "independent-review identifies free result/params and missing reachable derive helper; full existing harness cannot qualify those untested controls"
+}

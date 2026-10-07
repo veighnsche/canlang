@@ -1,0 +1,26 @@
+{
+  "files": {
+    "compiler/tests/flat_expression_runtime.rs": {
+      "sha256": "0f2d6eb84fa2d80b291702382a6aa6595f74963c0f047c96e0934fdb361a04e3",
+      "size": 18213
+    },
+    "compiler/target/debug/deps/flat_expression_runtime-abc8893a3f3824dc": {
+      "sha256": "cf3910e07c2cf73ed6ef06f622fd6a3971f86d9b8f73fa3278c23dbe5309e158",
+      "size": 13385624
+    },
+    "compiler/target/debug/can": {
+      "sha256": "b6c03834770e70e00505b30392d34efe677441b674455ad0985db6aa303b05ba",
+      "size": 20903496
+    },
+    "packages/stdlib/package.json": {
+      "sha256": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+      "size": 1279
+    },
+    "packages/values/dist/catalog.json": {
+      "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "size": 22290
+    }
+  },
+  "TMPDIR": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/",
+  "time_ns": 1791412293497071000
+}

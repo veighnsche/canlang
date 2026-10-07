@@ -3,17 +3,26 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-struct Scratch(tempfile::TempDir);
+struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> Self {
-        Self(
-            tempfile::Builder::new()
-                .prefix("can-flat-")
-                .tempdir()
-                .unwrap(),
-        )
+        let path = std::env::temp_dir().join(format!(
+            "can-flat-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&path).unwrap();
+        Self(path)
+    }
+}
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 
@@ -113,7 +122,7 @@ fn flat_ladder_checks_compiles_and_executes_actual_artifacts() {
             vec!["1"; terms].join("+")
         );
         // Retain the actual failing scenario-source consumer through compile.
-        compile(scratch.0.path(), &source, &format!("scenario{terms}"));
+        compile(&scratch.0, &source, &format!("scenario{terms}"));
         // Scenario gates have separate unimplemented stdlib exports. A compiled
         // pure owner executes the same arithmetic through the real facade.
         let pure = format!(
@@ -122,7 +131,7 @@ fn flat_ladder_checks_compiles_and_executes_actual_artifacts() {
         );
         artifacts.push((
             format!("sum{terms}"),
-            compile(scratch.0.path(), &pure, &format!("sum{terms}")),
+            compile(&scratch.0, &pure, &format!("sum{terms}")),
         ));
     }
     let refs: Vec<_> = artifacts
@@ -130,7 +139,7 @@ fn flat_ladder_checks_compiles_and_executes_actual_artifacts() {
         .map(|(name, json)| (name.as_str(), json.clone()))
         .collect();
     execute(
-        scratch.0.path(),
+        &scratch.0,
         &refs,
         "for(const terms of [64,512,1024,2048,3000]){const call=await load('sum'+terms);assert.equal(await call('s')(context),BigInt(terms));}",
     );
@@ -184,9 +193,9 @@ fn long_binary_emission_preserves_order_overflow_grouping_and_lazy_rhs() {
         ));
     }
     source.push_str("When\nThen\n");
-    let artifact = compile(scratch.0.path(), &source, "semantics");
+    let artifact = compile(&scratch.0, &source, "semantics");
     execute(
-        scratch.0.path(),
+        &scratch.0,
         &[("semantics", artifact)],
         r#"
 const call=await load('semantics');
@@ -212,17 +221,17 @@ fn long_logical_check_and_recovery_keep_valid_siblings() {
         "app T\nGiven\n derive s():bool = {}\nWhen\nThen\n",
         vec!["true"; 1024].join(" and ")
     );
-    let artifact = compile(scratch.0.path(), &source, "logical");
+    let artifact = compile(&scratch.0, &source, "logical");
     execute(
-        scratch.0.path(),
+        &scratch.0,
         &[("logical", artifact)],
         "const call=await load('logical');assert.equal(await call('s')(context),true);",
     );
-    let malformed = scratch.0.path().join("recovery.can");
+    let malformed = scratch.0.join("recovery.can");
     std::fs::write(&malformed, "app T\nGiven\nWhen\n scenario bad() read=true -> int by=members\n  do return 1+\n scenario good() read=true -> int by=members\n  do return 2+3\nThen\n").unwrap();
     let catalog = root().join("packages/values/dist/catalog.json");
     let (ok, output, error) = run(
-        scratch.0.path(),
+        &scratch.0,
         env!("CARGO_BIN_EXE_can"),
         &[
             "check",
@@ -361,9 +370,9 @@ fn enum_claims_and_membership_execute_with_binding_and_order_controls() {
         source.push_str(&format!(" derive {name}(row:Row):bool = {expression}\n"));
     }
     source.push_str("When\nThen\n");
-    let artifact = compile(scratch.0.path(), &source, "joins");
+    let artifact = compile(&scratch.0, &source, "joins");
     execute(
-        scratch.0.path(),
+        &scratch.0,
         &[("joins", artifact)],
         r#"
 const call=await load('joins');
@@ -407,7 +416,7 @@ for(const name of ['lazy','lazyLong']){
 fn enum_local_shadowing_keeps_resolved_slots_in_compiled_scenario() {
     let scratch = Scratch::new();
     let source = "app Local\nGiven\n contract Row { s:enum(a,b),a:int,b:int }\nWhen\n scenario local(row:Row) read=true -> bool by=members\n  do\n   let a = row.s\n   let b = row.s\n   return a==row.s and row.s in [a,b]\nThen\n";
-    let output = compile(scratch.0.path(), source, "locals");
+    let output = compile(&scratch.0, source, "locals");
     let json = canlang_compiler::json::parse(&output).unwrap();
     let js = json.get("modules").unwrap().as_arr().unwrap()[0]
         .get("js")

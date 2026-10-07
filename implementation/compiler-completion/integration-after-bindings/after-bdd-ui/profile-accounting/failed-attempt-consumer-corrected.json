@@ -1,0 +1,36 @@
+{
+  "status": "failed_attempt_incomplete_suite",
+  "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline -- --nocapture",
+  "exit_code": 101,
+  "log": {
+    "path": "full-suite-consumer-corrected.log",
+    "sha256": "3584d95481fd308e9f6a34b9c2930477f5e378d90ce03ca346b6165aa25a751b"
+  },
+  "accounting": {
+    "test_binary_summaries_reached": 31,
+    "passed_before_abort": 860,
+    "failed": 1,
+    "ignored": 0,
+    "first_failure": "flat_expression_runtime::flat_ladder_checks_compiles_and_executes_actual_artifacts",
+    "failure_location": "compiler/tests/flat_expression_runtime.rs:59",
+    "failure": "Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+    "scope": "Cargo stopped after the failing test binary; later suite binaries were not reached. This is not a full-suite acceptance result."
+  },
+  "optional_body_skips": [
+    "SKIP mode 4750: this host did not retain the requested fixture bits; body-level optional skip, not a Rust ignored test."
+  ],
+  "inputs": {
+    "manifest": "before-inputs-consumer-corrected.json",
+    "count": 114,
+    "changed_during_run": [],
+    "manifest_sha256": "5b5f52ed14bce7f5bd93407417c4f94604ba834ca446d7ca891fa35a1bb60d04"
+  },
+  "clippy": {
+    "command": "cargo clippy --manifest-path compiler/Cargo.toml --locked --offline --all-targets -- -D warnings",
+    "exit_code": 0,
+    "log": "all-target-clippy.log",
+    "log_sha256": "ba300eefe5e5cc905e9efe216079ec907357baf8d6398478b372d5b31e0ff431"
+  },
+  "historical_receipts": "This consumer-corrected attempt is separately recorded. It does not re-credit either prior full-suite attempt or the older 107-input / 1130-pass receipt.",
+  "scope": "Compact accounting for this incomplete failed attempt only; no full-suite acceptance claim."
+}

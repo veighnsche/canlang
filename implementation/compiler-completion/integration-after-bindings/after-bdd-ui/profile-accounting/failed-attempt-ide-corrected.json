@@ -1,0 +1,43 @@
+{
+  "status": "failed_attempt",
+  "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline -- --nocapture",
+  "exit_code": 101,
+  "suite_accounting": {
+    "test_binary_summaries": 60,
+    "passed": 1134,
+    "failed": 1,
+    "ignored": 0,
+    "failed_test": "typed_reference_policy_consumers::fresh_docs_cli_and_extracted_typed_json_enter_public_markdown_renderer",
+    "failure_note": "Confirmed old escape-oracle mismatch in the Markdown renderer expectation; this attempt is not a full-suite acceptance receipt."
+  },
+  "optional_body_skips": [
+    {
+      "line": "SKIP mode 4750: this host did not retain the requested fixture bits",
+      "meaning": "The native mode-4750 fixture body did not execute on this host. This is a body-level optional skip inside a passing harness test, not a Rust ignored test."
+    }
+  ],
+  "inputs": {
+    "manifest": "before-inputs-ide-corrected.json",
+    "count": 114,
+    "changed_during_run": [],
+    "manifest_sha256": "e0fbd2029e39a840b630d2066d1c745c34b98b42c23615a04ab1291cb4993d74"
+  },
+  "log": {
+    "path": "full-suite-ide-corrected.log",
+    "sha256": "93dacf5434bbde273fda9d697b3d19f4def7911fef59aebfcdcc7bed0a351e2a"
+  },
+  "clippy": {
+    "command": "cargo clippy --manifest-path compiler/Cargo.toml --locked --offline --all-targets -- -D warnings",
+    "exit_code": 0,
+    "log": "all-target-clippy.log",
+    "log_sha256": "ba300eefe5e5cc905e9efe216079ec907357baf8d6398478b372d5b31e0ff431"
+  },
+  "coverage_notes": {
+    "actual_runtime_bodies": "Includes Node-based generated BDD/testkit execution, actual UI adapter and policy-page JavaScript consumers, fresh catalog producer/loader/CLI execution, and canonical runtime/state-driven UI lifecycle execution where their prerequisite packages were present.",
+    "mocked_or_scoped_bodies": "BDD sequence invocation uses an invocation port; its source explicitly excludes application-operation execution against a state engine. Existing canonical-memory scope limitations remain. Harness passes do not imply those independent runtime scopes were exercised.",
+    "conditional_dependencies": "The optional native mode fixture was skipped as recorded above. No full original-application, GUI, or cross-host certification is claimed.",
+    "independent_gaps": "This receipt does not close independent BDD consumer reference errors or establish complete executable closure."
+  },
+  "historical_receipts": "The older producer-refresh 107-input / 1130-pass receipt is not re-credited by this run.",
+  "scope": "Accounting for the failed IDE-corrected full-suite attempt only; no full-suite acceptance claim."
+}

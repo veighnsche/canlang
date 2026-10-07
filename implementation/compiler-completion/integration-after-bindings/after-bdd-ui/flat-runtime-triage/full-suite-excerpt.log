@@ -1,0 +1,22 @@
+     Running tests/flat_expression_runtime.rs (compiler/target/debug/deps/flat_expression_runtime-abc8893a3f3824dc)
+
+running 6 tests
+test unsupported_binary_retains_skipped_operand_diagnostics ... ok
+test enum_local_shadowing_keeps_resolved_slots_in_compiled_scenario ... ok
+test long_binary_emission_preserves_order_overflow_grouping_and_lazy_rhs ... ok
+test enum_claims_and_membership_execute_with_binding_and_order_controls ... ok
+
+thread 'flat_ladder_checks_compiles_and_executes_actual_artifacts' (1999443) panicked at tests/flat_expression_runtime.rs:59:41:
+called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test flat_ladder_checks_compiles_and_executes_actual_artifacts ... FAILED
+test long_logical_check_and_recovery_keep_valid_siblings ... ok
+
+failures:
+
+failures:
+    flat_ladder_checks_compiles_and_executes_actual_artifacts
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.86s
+
+error: test failed, to rerun pass `--test flat_expression_runtime`

@@ -1,0 +1,43 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.59s
+     Running tests/ide.rs (compiler/target/debug/deps/ide-a74d562d867072bf)
+
+running 35 tests
+test definition_spans ... ok
+test document_symbols_outline ... ok
+test hover_description_shows_source_language_only ... ok
+test completion_builtin_with_catalog ... ok
+test completion_expression_scope ... ok
+test clean_rename_applies_to_reads_and_mutations_then_rechecks ... ok
+test completion_section_keywords ... ok
+test fixes_for_analysis_diagnostics_are_deliberately_empty ... ok
+test hover_builtin_with_catalog ... ok
+test completion_type_position ... ok
+test hover_local_binding_shows_type ... ok
+test hover_field_description_spellings ... ok
+test hover_shows_descriptions ... ok
+test hover_description_static_reference_resolves_wording ... ok
+test import_member_resolves_to_export ... ok
+test hover_symbol_decl_and_use ... ok
+test hover_param_description_from_slot ... ok
+test offset_at_position_cases ... ok
+test hover_predicate_and_unresolved_are_empty ... ok
+test offset_at_position_roundtrips_addressable_scalar_boundaries ... ok
+test lint_fix_wrap_apply_and_stale ... ok
+test semantic_tokens_tiny_exact ... ok
+test mutation_target_head_excludes_field_selectors_and_unresolved_names ... ok
+test rename_spans_and_hash ... ok
+test mutation_target_references_capture_statement_time_identity ... ok
+test server_capability_negotiation ... ok
+test references_spans ... ok
+test semantic_tokens_classify_fixture ... ok
+test lint_fix_preserves_analysis ... ok
+test server_completion_and_semantic_tokens ... ok
+test server_publishes_analysis_and_lint ... ok
+test server_code_action_fix_application ... ok
+test server_stale_version_suppressed_with_real_backend ... ok
+test server_hover_definition_references_roundtrip ... ok
+test server_rename_and_invalid_name ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

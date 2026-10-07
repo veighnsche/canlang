@@ -1,0 +1,9 @@
+{
+  "command": [
+    "compiler/target/debug/deps/flat_expression_runtime-abc8893a3f3824dc",
+    "flat_ladder_checks_compiles_and_executes_actual_artifacts",
+    "--exact",
+    "--nocapture"
+  ],
+  "exit": 0
+}

@@ -1,0 +1,1090 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.13s
+     Running unittests src/lib.rs (compiler/target/debug/deps/canlang_compiler-8bc9585627feb9a7)
+
+running 129 tests
+test analysis::catalog::t13a_tests::version_stamps_match_frozen_producers ... ok
+test analysis::catalog::t13a_tests::capability_set_is_exactly_the_three_frozen_contracts ... ok
+test analysis::catalog::t13b_tests::capability_set_is_exactly_the_three_frozen_t13b_contracts ... ok
+test analysis::catalog::t13a_tests::nominal_types_are_the_accepted_t13a_set ... ok
+test analysis::catalog::t13a_tests::delivery_observables_cover_exactly_the_six_send_targets ... ok
+test analysis::catalog::t13b_tests::delivery_observables_cover_exactly_the_ten_send_targets ... ok
+test analysis::catalog::t13a_tests::errors_v1_report_shape_is_exact ... ok
+test analysis::catalog::t13b_tests::mailbox_ops_and_received_event_are_exact ... ok
+test analysis::catalog::t13a_tests::email_v1_is_send_only_with_required_attachments ... ok
+test analysis::catalog::t13a_tests::payments_v1_ops_and_changed_event_are_exact ... ok
+test analysis::catalog::t13b_tests::images_ops_are_exact ... ok
+test analysis::catalog::t13a_tests::handbook_interface_has_no_schemas_e3019_preserved ... ok
+test analysis::catalog::t13b_tests::nominal_types_are_the_accepted_t13b_set ... ok
+test analysis::catalog::t13b_tests::text_generation_ops_are_exact ... ok
+test analysis::catalog::t13b_tests::version_stamps_match_frozen_producers ... ok
+test analysis::catalog::t13c_tests::handbook_ts_only_and_unknown_names_have_no_leaf_schemas ... ok
+test analysis::catalog::t13c_tests::t13a_acceptance_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13a_common_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13a_payment_state_matches_producer_and_changed ... ok
+test analysis::catalog::t13c_tests::leaf_key_sets_equal_accepted_nominal_sets ... ok
+test analysis::catalog::t13c_tests::t13b_mailbox_judgment_knowledge_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13b_text_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13b_workflow_and_image_leaves_are_exact ... ok
+test analysis::migrate_check::tests::targetless_rename_is_e6009 ... ok
+test analysis::migrate_check::tests::non_before_source_is_e6009 ... ok
+test analysis::migrate_check::tests::missing_from_is_e6010 ... ok
+test analysis::migrate_check::tests::empty_invalidate_is_e6009 ... ok
+test analysis::migrate_check::tests::unknown_owner_stands_down_existence_but_keeps_exactly_once ... ok
+test cli::tests::docs_help_names_modes_and_refusal ... ok
+test cli::tests::docs_requires_operands ... ok
+test cli::replacement_tests::partial_staging_write_failure_keeps_destination_and_cleans_up ... ok
+test cli::replacement_tests::concurrent_creation_is_not_overwritten_and_staging_is_removed ... ok
+test cli::replacement_tests::persist_failure_keeps_directory_and_cleans_up ... ok
+test cli::replacement_tests::stale_format_input_is_rejected_before_staging ... ok
+test cli::tests::locale_and_out_are_docs_only ... ok
+test cli::replacement_tests::concurrent_permission_change_is_not_reverted ... ok
+test cli::replacement_tests::concurrent_content_change_is_not_overwritten ... ok
+test cli::tests::out_refuses_can_sources_before_any_input_read ... ok
+test cli::replacement_tests::replacement_inode_is_detected_with_equal_bytes_mode_and_mtime ... ok
+test cli::replacement_tests::symlink_target_permission_change_is_not_reverted ... ok
+test cli::tests::diagnostics_fail_with_no_spawn_and_no_file_write ... ok
+test cli::tests::format_json_shapes_diagnostics_not_markdown ... ok
+test cli::tests::stderr_tail_caps_and_names_absence ... ok
+test cli::tests::out_refuses_to_overwrite_input_files ... ok
+test cli::tests::stub_backend_reports_needs_pipeline_before_spawn ... ok
+test codegen::bdd::string_tests::fixed_string_bytes_cover_every_control_and_unicode ... ok
+test codegen::ir::string_payload_tests::c01_literal_string_distinguishes_empty_null_and_missing_payload ... ok
+test codegen::js::string_tests::fixed_string_bytes_cover_every_control_unicode_and_quotes ... ok
+test codegen::sourcemap::tests::compatibility_rows_and_unsorted_segments_remain_in_authored_order ... ok
+test codegen::sourcemap::tests::duplicate_paths_keep_snapshot_ids_and_byte_columns ... ok
+test codegen::sourcemap::tests::empty_and_missing_sources_keep_names_and_generated_rows ... ok
+test codegen::sourcemap::tests::malformed_numeric_and_delta_overflow_return_errors ... ok
+test codegen::sourcemap::tests::ordered_serializer_uses_shared_escaping_and_null_contents ... ok
+test diagnostic::tests::finish_sorts_by_file_start_code ... ok
+test diagnostic::tests::json_escapes_control_chars ... ok
+test diagnostic::tests::json_is_deterministic ... ok
+test diagnostic::tests::text_rendering_points_at_source ... ok
+test docs::lexical_path_tests::lexical_normalize_preserves_leading_parents ... ok
+test docs::lexical_path_tests::lexical_normalize_preserves_literal_parents_above_absolute_root ... ok
+test explain::tests::catalog_is_sorted_unique_and_covers_policy_ranges ... ok
+test explain::tests::json_shape_has_all_fields ... ok
+test explain::tests::lookup_normalizes_case_and_whitespace ... ok
+test cli::tests::missing_platform_binary_is_e7004 ... ok
+test json::input_tests::ignoring_numbers_never_ignores_marker_objects_or_unicode ... ok
+test json::input_tests::native_error_anchors_count_utf8_bytes_newlines_and_eof ... ok
+test json::input_tests::nested_error_anchors_survive_container_cleanup_and_eof ... ok
+test json::input_tests::reader_limits_bulk_requests_and_depth_stops_before_the_tail ... ok
+test lsp::output::tests::action_groups_keep_versions_order_and_optional_edits ... ok
+test lsp::output::tests::plain_edit_keeps_authored_uri_and_group_order ... ok
+test json::input_tests::numeric_source_spans_cover_all_seed_origins_and_eof ... ok
+test lsp::output::tests::typed_envelope_keeps_id_and_all_control_escapes ... ok
+test lsp::server::tests::completion_kind_names_map_to_lsp_integers ... ok
+test lsp::output::tests::uri_outputs_keep_original_spelling_on_both_paths ... ok
+test lsp::server::tests::exit_without_shutdown_is_an_error ... ok
+test lsp::server::tests::completion_response_carries_integer_kinds ... ok
+test lsp::server::tests::identical_content_change_keeps_version_semantics ... ok
+test lsp::server::tests::lifecycle_gates_requests_and_exit_codes ... ok
+test lsp::server::tests::invalid_notifications_and_initialize_leave_state_unchanged ... ok
+test lsp::server::tests::requests_after_shutdown_are_invalid ... ok
+test lsp::server::tests::out_of_range_positions_are_invalid_params ... ok
+test lsp::server::tests::uri_to_path_decodes_file_uris ... ok
+test lsp::server::tests::stub_requests_answer_empty ... ok
+test lsp::transport::tests::envelopes_reject_reserved_duplicates_and_preserve_safe_correlation ... ok
+test lsp::transport::tests::exact_lsp_integers_accept_decimal_equivalents_without_rounding ... ok
+test lsp::transport::tests::framing_counts_multibyte_unicode_as_bytes ... ok
+test lsp::transport::tests::framing_errors_are_invalid_data ... ok
+test lsp::transport::tests::framing_preserves_the_bare_lf_compatibility_extension ... ok
+test lsp::transport::tests::framing_round_trip_with_split_reads ... ok
+test lsp::transport::tests::framing_preserves_malformed_utf8_and_the_next_frame ... ok
+test lsp::transport::tests::incomplete_utf8_sequence_stops_at_the_body_boundary ... ok
+test lsp::transport::tests::json_round_trip_with_escapes_and_unicode ... ok
+test lsp::transport::tests::malformed_content_length_values_rejected ... ok
+test lsp::transport::tests::malformed_json_rejected ... ok
+test lsp::transport::tests::rpc_builders_shape ... ok
+test lsp::transport::tests::surrogate_pairs_decode_and_lone_surrogates_fail ... ok
+test lsp::uri::tests::nonfile_and_unsupported_forms_keep_authored_identity ... ok
+test lsp::uri::tests::unix_file_authority_and_exact_unicode_projection ... ok
+test lsp::transport::tests::large_multibyte_string_parses_in_linear_time ... ok
+test policy::tests::minimal_source_dump_reports_every_surface ... ok
+test source::tests::line_index_lf_crlf ... ok
+test source::tests::line_index_lsp_utf16 ... ok
+test policy::tests::golden_expenseflow_policy_dump ... ok
+test source::tests::sha256_preserves_exact_bytes_and_hex_contract ... ok
+test source::tests::sha256_vectors ... ok
+test source::tests::source_db_ids_stable ... ok
+test syntax::cst::tests::coverage_detects_gaps_and_overlaps ... ok
+test syntax::cst::tests::traversal_visits_preorder ... ok
+test syntax::layout::tests::blank_and_comment_lines_emit_nothing ... ok
+test syntax::layout::tests::brackets_join_without_blocks ... ok
+test syntax::layout::tests::ineligible_heads_rejected ... ok
+test syntax::layout::tests::mismatched_and_unclosed_delimiters ... ok
+test syntax::layout::tests::one_space_indent_and_dedent ... ok
+test syntax::layout::tests::prose_attaches_at_same_column ... ok
+test syntax::layout::tests::ref_rules_and_suffix_rules ... ok
+test syntax::lexer::tests::crlf_ok_bare_cr_rejected ... ok
+test syntax::lexer::tests::inline_hash_and_backslash_continuation_rejected ... ok
+test syntax::lexer::tests::longest_match_punctuation ... ok
+test syntax::lexer::tests::numeric_units_and_adjacency ... ok
+test syntax::lexer::tests::strings_decode_json_escapes ... ok
+test syntax::lexer::tests::tabs_prose_ok_code_rejected ... ok
+test source::tests::sha256_padding_and_large_input ... ok
+test cli::tests::failed_renderer_input_terminates_and_reaps_the_child ... ok
+test cli::tests::unwritable_out_is_e7007 ... ok
+test cli::tests::renders_to_stdout_with_fixed_argv_and_stdin_payload ... ok
+test cli::tests::renderer_failure_reports_producer_detail_as_e7004 ... ok
+test cli::tests::out_writes_the_file_and_stays_silent ... ok
+test cli::tests::renderer_output_is_drained_while_its_input_is_written ... ok
+test cli::tests::renders_without_locale_omits_the_flag ... ok
+test cli::tests::empty_and_non_utf8_output_are_e7004 ... ok
+
+test result: ok. 129 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running unittests src/main.rs (compiler/target/debug/deps/can-7fdba0986254811e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/analysis.rs (compiler/target/debug/deps/analysis-33fe4504353b37c5)
+
+running 37 tests
+test cli_catalog_flag_rejections ... ok
+test c01_invalid_delivery_status_keeps_payload_diagnostics ... ok
+test catalog_missing_unavailable_and_helper_misuse ... ok
+test duplicates ... ok
+test cli_catalog_flag_forms ... ok
+test e3009_entry_names_ctor_code ... ok
+test cli_real_pipeline_exit_codes_and_discipline ... ok
+test explain_round_trip_loader_codes ... ok
+test imports_and_visibility ... ok
+test invalid_app_header_suite_does_not_reserve_module_identity ... ok
+test fixture_mime_and_quoted_locale_keys ... ok
+test c01_decoded_strings_reach_analysis_callers ... ok
+test call_on_action_reports_missing ... ok
+test c01_invalid_strings_do_not_fabricate_values_or_hide_siblings ... ok
+test lane05_component_shape ... ok
+test malformed_owner_headers_still_suppress_body_cascades ... ok
+test malformed_declaration_preserves_independent_sibling_diagnostics ... ok
+test invocation_result_type_and_call ... ok
+test invocation_type_position ... ok
+test misplaced_body_line_preserves_independent_sibling_diagnostics ... ok
+test lane05_component_shape_gaps ... ok
+test real_catalog_end_to_end ... ok
+test read_scenarios_rejected_as_action_targets ... ok
+test operator_matrix ... ok
+test message_calls_against_real_catalog ... ok
+test invocation_constructor_complete_inputs ... ok
+test expense_flow_checks_clean_with_implemented_sum ... ok
+test ui_transparent_groups_resolve ... ok
+test ui_row_enum_cases_claim ... ok
+test suffix_bang_and_default_order ... ok
+test signature_shape_gaps ... ok
+test unknown_names_and_cascade_suppression ... ok
+test team_tasks_checks_clean ... ok
+test valid_corpus_checks_clean ... ok
+test c03_url_owner_admission_and_source_anchors ... ok
+test explain_round_trip_source_codes ... ok
+test draft_outcome_table ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.62s
+
+     Running tests/authoring.rs (compiler/target/debug/deps/authoring-d007f01d6ce3750e)
+
+running 30 tests
+test cli_fmt_missing_file_is_tool_failure ... ok
+test cli_every_subcommand_answers_help ... ok
+test cli_check_rejects_missing_operand_and_unreadable_file ... ok
+test cli_compile_with_stub_reports_e7001 ... ok
+test cli_format_flag_rejected_where_it_does_nothing ... ok
+test cli_help_and_version ... ok
+test cli_explain_json_shape_and_unknown_code ... ok
+test cli_check_like_commands_emit_envelope_json ... ok
+test cli_lsp_returns_stdio_flag ... ok
+test cli_check_like_commands_exit_10_on_errors ... ok
+test cli_fmt_parse_failure_reports_envelope_and_writes_nothing ... ok
+test cli_thin_entries_report_missing_producer ... ok
+test cli_lint_operand_errors_are_tool_failures ... ok
+test cli_unknown_command_with_help_is_still_a_tool_failure ... ok
+test cli_unknown_command_and_flags_are_tool_failures ... ok
+test cli_fmt_rewrites_files_in_place ... ok
+test cli_fmt_check_clean_and_drift ... ok
+test server_ignores_incremental_only_changes ... ok
+test server_publishes_nothing_after_close ... ok
+test server_publishes_only_current_versions ... ok
+test server_reports_method_not_found ... ok
+test explain_e1xxx_valid_examples_parse_clean ... ok
+test transport_json_values_round_trip ... ok
+test transport_framing_round_trip_with_split_reads ... ok
+test cli_lint_analysis_errors_exit_10_without_findings ... ok
+test cli_lint_clean_file_reports_empty_envelope ... ok
+test cli_lint_reports_findings_and_exits_zero ... ok
+test cli_compile_teamtasks_reports_emission_diagnostics ... ok
+test cli_thin_entries_passthrough_args_and_exit_codes ... ok
+test explain_round_trips_every_emitted_code ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/b1_join.rs (compiler/target/debug/deps/b1_join-b34516eeaf75961f)
+
+running 2 tests
+test b1_teamtasks_artifact ... ok
+test b2_expenseflow_artifact ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/b3_authoring_join.rs (compiler/target/debug/deps/b3_authoring_join-8f3fe800ff8e1939)
+
+running 3 tests
+test fixture_parses_clean_in_process ... ok
+test authoring_join_demo_empty_catalog ... ok
+test authoring_join_demo ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/b3_i5.rs (compiler/target/debug/deps/b3_i5-e6d4ba7280ffffd1)
+
+running 4 tests
+test plain_snippet_emits_no_forms_or_policy_members ... ok
+test b7_ops_public_spelling_unchanged ... ok
+test b7_canapp_policy_with_public_provenance ... ok
+test gated_snippet_emits_forms_and_policy_members ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/b3_migrate.rs (compiler/target/debug/deps/b3_migrate-b715bd29fc9cd09d)
+
+running 9 tests
+test valid_model_rename_lowers ... ok
+test valid_field_directives_and_backfill_lower ... ok
+test artifact_carries_migration_registry ... ok
+test predecessor_problems_are_e6010 ... ok
+test valid_drop_model_invalidate_and_owner_drop_lower ... ok
+test violations_emit_no_e6008 ... ok
+test invalid_migration_lowers_nothing ... ok
+test body_digest_is_deterministic ... ok
+test exactly_once_violations_are_e6009 ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/b3_s4.rs (compiler/target/debug/deps/b3_s4-8fb5aec04ae0981a)
+
+running 4 tests
+test stale_reapply_reports_both_hashes_as_json ... ok
+test lint_without_fix_has_no_fixes_key ... ok
+test lsp_driver_code_action_roundtrip_through_real_binary ... ok
+test fix_json_is_deterministic_across_reruns ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/b4_check.rs (compiler/target/debug/deps/b4_check-e34b2a9598cb6027)
+
+running 281 tests
+test a5_s3_opaque_known_leaf_nonterminal_e2013 ... ok
+test a3_order_key_unordered_e3006 ... ok
+test a3_page_title_present_clean ... ok
+test a3_order_key_ordered_clean ... ok
+test a5_s1_ui_columns_accept_id_version ... ok
+test a3_page_title_missing_e1204 ... ok
+test a5_s1_id_version_descent_rejected ... ok
+test a5_s4_ui_columns_reference_interior_e4012 ... ok
+test a5_s4_ui_filter_reserved_reference_e4012 ... ok
+test a3_order_key_nullable_datetime_clean ... ok
+test d02b_dynamic_stays_parse_only ... ok
+test d02b_attached_hash_feeds_slot ... ok
+test d02b_bad_locale_rejected ... ok
+test d02b_attached_reference_resolves ... ok
+test d02b_inline_empty_is_present ... ok
+test d02b_inline_variants_ordered ... ok
+test d02b_label_after_desc_still_decodes ... ok
+test auth_narrowing_policy_where ... ok
+test d02b_legacy_annotation_adapts ... ok
+test auth_no_narrowing_by_public ... ok
+test d02b_inline_plain_on_field_and_param ... ok
+test d02b_member_past_message_rejected ... ok
+test auth_narrowing_by_role ... ok
+test d02b_message_reference_resolves_wording ... ok
+test d02b_parameterized_call_stays_parse_only ... ok
+test d02b_record_query_stays_parse_only ... ok
+test d02b_non_message_reference_rejected ... ok
+test d02b_message_reference_cross_module_lang ... ok
+test d02b_unresolved_reference_rejected ... ok
+test d02b_source_repeat_rejected ... ok
+test d02b_parameterized_message_rejected ... ok
+test delivery_leaf_in_policy_fields ... ok
+test empty_array_unifies ... ok
+test delivery_leaf_descent_past_leaf_errors ... ok
+test delivery_leaf_in_ui_columns ... ok
+test derived_field_not_required ... ok
+test format_descriptor_with_null_locale ... ok
+test explain_e3019_round_trip ... ok
+test opaque_receipt_fixture ... ok
+test local_event_payload_typed ... ok
+test local_event_unknown_member_errors ... ok
+test opaque_receipt_send ... ok
+test t05_affiliate_if_else ... ok
+test t05_catch_or_chain_require ... ok
+test local_capability_receipt_clean ... ok
+test t05_chat_require_chain ... ok
+test recovered_siblings_preserve_module_source_language ... ok
+test t05_decl_alias_separation ... ok
+test t05_ic1_unguarded_member ... ok
+test t05_contract_invariant_or ... ok
+test t05_check_require_lookup ... ok
+test t05_ic1_nullable_arg ... ok
+test t05_approve_and_send_when ... ok
+test t05_decl_shadow_separation ... ok
+test t05_ic2_earlier_conjunct ... ok
+test t05_ic2_read_before_guard ... ok
+test t05_ic3_or_null_arm ... ok
+test t05_ic5_contradictory_branches ... ok
+test t05_ic4_set_invalidates_path ... ok
+test t05_ic3_or_sibling_no_leak ... ok
+test t05_ic5_post_join_no_fact ... ok
+test t05_ic4_send_invalidates_path ... ok
+test t05_ic6_body_fact_no_escape ... ok
+test t05_ic6_nullable_domain ... ok
+test t05_ic7_safe_access_eq_value ... ok
+test t05_ic8_cross_scenario_no_leak ... ok
+test t05_presence_other_subject_no_actor ... ok
+test t05_ic7_safe_access_eq_null ... ok
+test t05_ic7_safe_access_null_test ... ok
+test t05_nested_and_or ... ok
+test t05_presence_sibling_no_leak ... ok
+test t06_bounded_read_stays_gated ... ok
+test t05_shorthand_reads_fact ... ok
+test t06_by_not_public_admits ... ok
+test t05_reversed_parens_not ... ok
+test t06_composite_policy_and_admits ... ok
+test t06_by_or_of_roles_admits ... ok
+test t06_composite_policy_or_admits_where ... ok
+test t06_composite_policy_nested_admits_where ... ok
+test t06_crud_by_to_when_admits ... ok
+test t06_if_branch_admits ... ok
+test t06_crud_public_when_rejected ... ok
+test t06_preauthorization_default_rejected ... ok
+test t06_no_leak_derive_call_never_admits ... ok
+test t06_or_with_public_rejected ... ok
+test t06_no_leak_require_role_on_other_subject ... ok
+test t06_require_carries_admission ... ok
+test t06_no_leak_by_role_on_other_subject ... ok
+test t06_public_guard_use_rejected ... ok
+test t06_role_call_on_caller_admits_body ... ok
+test nullable_array_elements_are_order_independent ... ok
+test t06_require_chain_admits ... ok
+test t06_trusted_actor_stays_null ... ok
+test t07_alias_second_handle_keeps_no_facts ... ok
+test t07_for_item_inherits_where ... ok
+test t07_nested_inner_keeps_no_outward_facts ... ok
+test t07_for_body_set_drops_item_fact ... ok
+test t07_list_body_names_alias ... ok
+test t07_for_select_blocks_item_remap ... ok
+test t07_outer_require_flows_into_select ... ok
+test t07_table_row_inherits_where ... ok
+test t07_outer_where_flows_into_nested_select ... ok
+test t07_sibling_child_keeps_no_facts ... ok
+test t07_where_narrows_select_element ... ok
+test t07_table_select_keeps_alias_facts ... ok
+test t07_where_narrows_select_deref ... ok
+test t07_table_select_blocks_row_remap ... ok
+test t08_error_base_suppresses_selector_cascade ... ok
+test t08_crud_metadata_input_still_e2013 ... ok
+test t07_where_safe_access_grants_nothing ... ok
+test t07_where_or_carries_nothing ... ok
+test t08_import_alias_delivery_leaf ... ok
+test t08_nullable_money_intermediate ... ok
+test t08_metadata_write_still_rejected ... ok
+test t08_parent_interior_still_e2013 ... ok
+test t08_parent_in_lock_fields ... ok
+test t08_parent_without_containment_still_e2013 ... ok
+test t08_reference_interior_still_e2013 ... ok
+test t08_parent_metadata_value_in_policy_fields ... ok
+test t08_scalar_leaf_descent_still_e2013 ... ok
+test t08_opaque_interior_defers ... ok
+test t08_parent_metadata_value_in_ui ... ok
+test t08_selector_grants_no_fact ... ok
+test t08_typed_delivery_leaf_scope_preserved ... ok
+test t08_unknown_leaf_still_e2013 ... ok
+test t08_user_email_disclosure_still_e2013 ... ok
+test t09_ordinary_array_create_omission_accepted ... ok
+test t09_ordinary_array_fixture_omission_accepted ... ok
+test t09_required_array_fixture_omission_rejected ... ok
+test t08_user_id_member ... ok
+test t09_required_scalar_fixture_omission_rejected ... ok
+test t09_required_array_create_omission_rejected ... ok
+test t10_create_nested_literal_accepted ... ok
+test t10_cross_enum_comparison_rejected ... ok
+test t10_literal_for_delivery_rejected ... ok
+test t10_literal_for_model_ref_rejected ... ok
+test t10_missing_nested_required_rejected ... ok
+test t10_fixture_nested_literal_accepted ... ok
+test t10_examples_event_claims_nested_cases ... ok
+test t10_literal_supplied_server_field_accepted ... ok
+test t10_nested_array_of_contracts_accepted ... ok
+test t10_null_for_nonnull_nested_rejected ... ok
+test t10_recipe_request_literal_accepted ... ok
+test t10_send_request_literal_accepted ... ok
+test t11_big_integral_beyond_i64_accepted ... ok
+test t10_unknown_nested_key_rejected ... ok
+test t10_set_nullable_literal_accepted ... ok
+test t11_decimal_bounds_accept_integral ... ok
+test t11_decimal_default_accepts_integral ... ok
+test t11_call_result_stays_rejected ... ok
+test t10_wrong_nested_scalar_rejected ... ok
+test t10_wrong_nested_enum_case_rejected ... ok
+test t11_create_accepts_integral ... ok
+test t11_call_input_accepts_integral ... ok
+test t11_derive_arg_accepts_integral ... ok
+test t11_fixture_accepts_integral ... ok
+test t11_int_bound_rejects_decimal ... ok
+test t11_int_variable_stays_rejected ... ok
+test t11_money_bound_rejects_integral ... ok
+test t11_negative_integral_accepted ... ok
+test t11_min_exceeds_max_still_checked ... ok
+test t11_out_of_range_integral_rejected ... ok
+test t11_member_access_stays_rejected ... ok
+test t11_mixed_array_stays_rejected ... ok
+test t11_nullable_decimal_accepts_integral ... ok
+test t11_overload_result_never_inhabits ... ok
+test t11_overload_exact_int_wins ... ok
+test t14a_std_delivery_known_silent ... ok
+test t14a_std_delivery_wrong_op ... ok
+test t14a_std_recipe_failed_envelope ... ok
+test t11_structural_literal_accepts_integral ... ok
+test t14a_std_recipe_mail_clean ... ok
+test t14a_std_recipe_missing_required ... ok
+test t14a_std_recipe_payments_reconcile ... ok
+test t14a_std_recipe_type_mismatch ... ok
+test t14a_std_recipe_unknown_input ... ok
+test t14a_std_recipe_wrong_op ... ok
+test t14a_std_send_mail_with_attachments ... ok
+test t14a_std_send_missing_required ... ok
+test t14a_std_send_errors_report_passthrough ... ok
+test t14a_std_send_attachments_text_rejected ... ok
+test t14a_std_send_unknown_input ... ok
+test t14a_std_send_mail_clean ... ok
+test t14a_std_send_consent_omitted ... ok
+test t14a_std_send_wrong_op ... ok
+test t14b_b11_bound_nominal_type_position ... ok
+test t14a_std_send_type_mismatch ... ok
+test t14a_std_send_payments_collect ... ok
+test t14a_std_unknown_member_stays_e3019 ... ok
+test t14b_b1_unbound_nominal_type_position ... ok
+test t14b_b1_nonstd_unbound_provider_stays_e2005 ... ok
+test t14b_b1_mixed_line_binds_known_rejects_unknown ... ok
+test t14b_b1_unbound_nominal_construct ... ok
+test t14b_b1_unbound_capability_resolves ... ok
+test t14b_b1_nominal_fixture_flow_surfaces_e3015 ... ok
+test t14b_std_delivery_llm_wrong_op ... ok
+test t14b_b1_unbound_unknown_member ... ok
+test t14b_std_recipe_images_validate_clean ... ok
+test t14b_std_delivery_t13b_known_silent ... ok
+test t14b_handbook_send_stays_e3019 ... ok
+test t14b_std_recipe_images_wrong_op ... ok
+test t14b_std_recipe_llm_generate_clean ... ok
+test t14b_std_recipe_post_reconcile_clean ... ok
+test t14b_std_recipe_post_reply_unknown_input ... ok
+test t14b_std_send_images_inspect_graph_text ... ok
+test t14b_std_send_images_submit_clean ... ok
+test t14b_std_send_images_inspect_clean ... ok
+test t14b_std_send_llm_cancel_revision_text ... ok
+test t14b_std_send_images_wrong_op ... ok
+test t14c_std_delivery_cross_target_assign_rejects ... ok
+test t14b_std_send_llm_cancel_clean ... ok
+test t14b_std_send_llm_generate_clean ... ok
+test t14b_std_send_post_reply_clean ... ok
+test t14b_std_send_post_reconcile_clean ... ok
+test t14b_std_send_llm_cancel_missing_revision ... ok
+test t14c_std_delivery_field_must_be_nullable ... ok
+test t14b_std_send_post_reconcile_with_revision ... ok
+test t14c_std_receipt_known_leaves_accept ... ok
+test t14c_std_receipt_wrong_leaf_rejects ... ok
+test t14c_std_delivery_same_target_assign_accepts ... ok
+test t14c_std_receipt_same_target_compares ... ok
+test t14d_handbook_result_stays_opaque ... ok
+test t14c_std_unknown_receipt_stays_opaque ... ok
+test t14c_std_receipt_cross_target_compare_rejects ... ok
+test t14c_std_receipt_result_accepts ... ok
+test t14d_email_accepted_reference ... ok
+test t14d_error_accepted_reference ... ok
+test t14d_image_run_named_ref_nesting ... ok
+test t14d_payment_state_enum_leaf ... ok
+test t14d_leaves_do_not_leak_across_nominals ... ok
+test t14d_mail_reply_outcome_leaves ... ok
+test t14d_nominal_value_position_stays_opaque ... ok
+test t14d_nullable_leaf_into_required_input_rejects ... ok
+test t14d_wrong_leaf_narrowed_rejects ... ok
+test t29_cross_package_cycle_rejected ... ok
+test t14d_same_target_leaf_compares ... ok
+test t14d_text_run_leaves ... ok
+test t29_bound_parent_rejected ... ok
+test t14d_payment_state_refinement ... ok
+test t29_external_parent_rejected ... ok
+test t29_plain_imported_parent_accepted ... ok
+test t14d_workflow_validation_leaves ... ok
+test t29_imported_non_model_rejected ... ok
+test t30_after_outside_hook_rejected ... ok
+test t30_delete_hook_cannot_adjust ... ok
+test t14d_workflow_inspection_fields_opaque ... ok
+test t14d_wrong_result_leaf_rejects ... ok
+test t29_imported_child_create_requires_parent ... ok
+test t30_delete_via_reference_matches_alias ... ok
+test t30_before_parent_row_mutable ... ok
+test t30_hook_before_typed ... ok
+test t30_hook_after_typed ... ok
+test t30_nullable_event_path_rejected ... ok
+test t30_param_named_event_mutable ... ok
+test t30_opaque_payload_fail_closed ... ok
+test t30_snapshot_before_readonly ... ok
+test t30_pending_delete_rejected ... ok
+test t30_set_param_event_drops_param_facts ... ok
+test t30_reference_value_data_readonly ... ok
+test t30_verified_reference_write_accepted ... ok
+test t30_whole_payload_readonly ... ok
+test t35r23_disabled_delete_stays_rejected ... ok
+test t35r23_disabled_update_stays_rejected ... ok
+test t35r23_no_crud_declaration_stays_rejected ... ok
+test t35r23_bound_import_gets_no_alias ... ok
+test t35r25_malformed_head_fallback_still_rejected ... ok
+test t35r25_nested_select_plural_clean ... ok
+test t35r25_select_literal_bodies_clean ... ok
+test t35r23_imported_update_resolves ... ok
+test t35r23_imported_delete_resolves ... ok
+test t35r25_plural_literal_bodies_clean ... ok
+test t35r25_unknown_in_variant_still_rejected ... ok
+test t35r25_typed_simple_forms_clean ... ok
+test t35r23_imported_create_resolves ... ok
+test t35r25_unknown_selector_arg_still_rejected ... ok
+test t35r23_boundary_same_shape_owner_posture ... ok
+test t35r25_unknown_nested_in_branch_still_rejected ... ok
+test t35r25_unknown_top_level_still_rejected ... ok
+test t30_param_rename_invariance ... ok
+test t35r23_private_model_stays_unavailable ... ok
+test timeline_slot_binds_row ... ok
+
+test result: ok. 281 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/b4_examples.rs (compiler/target/debug/deps/b4_examples-d17d793d1dc0add8)
+
+running 25 tests
+test t02_derive_state_read_builtin_rejected ... ok
+test header_enum_case_elides_like_fixture ... ok
+test t02_derive_pure_accepted ... ok
+test header_non_case_still_e2001 ... ok
+test t02_completion_body_sees_typed_envelope ... ok
+test t02_preferences_invariant_guarded_actor_accepted ... ok
+test t02_preferences_invariant_nullable_actor_rejected ... ok
+test minimal_table_rows_emit_expected_and_error ... ok
+test t35r24_contained_parent_rejected ... ok
+test t35r24_completion_result_version_observable ... ok
+test t35r24_event_value_version_observable ... ok
+test t35r24_event_value_id_observable ... ok
+test t35r24_parent_midpath_navigates ... ok
+test t35r24_provenance_key_parent ... ok
+test t35r24_provenance_key_payload_vs_stored ... ok
+test t35r24_stored_id_rejected ... ok
+test t35r24_stored_created_rejected ... ok
+test t35r24_stored_version_rejected ... ok
+test t36_report_parent_override_resolved ... ok
+test t35r24_desk139_value_id_observable ... ok
+test canfeedback_176_planned_elides ... ok
+test caninbox_header_routine_parity ... ok
+test canfeedback_tables_row_parity ... ok
+test caninbox_tables_row_parity ... ok
+test t35r24_propose_result_and_value_version_observable ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests/b4_parse.rs (compiler/target/debug/deps/b4_parse-7718c8ea814570c6)
+
+running 20 tests
+test desc_dynamic_rejected ... ok
+test desc_compact_plus_legacy_rejected ... ok
+test desc_duplicate_compact_rejected ... ok
+test desc_hash_plus_legacy_rejected ... ok
+test desc_hash_plus_compact_rejected ... ok
+test desc_legacy_annotation_still_parses ... ok
+test desc_message_path ... ok
+test desc_delimits_default_bounds_label ... ok
+test desc_parameterized_rejected ... ok
+test desc_record_query_rejected ... ok
+test desc_variant_duplicate_rejected ... ok
+test desc_with_variants ... ok
+test desc_plain_string_on_field_and_param ... ok
+test each_keeps_e1203_without_error_node ... ok
+test each_event_path_parses ... ok
+test form_import_review_parse ... ok
+test each_package_body_still_checked ... ok
+test delivery_invocation_type_positions_parse ... ok
+test page_refresh_parses ... ok
+test crud_expose_parses ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/b4_resolve.rs (compiler/target/debug/deps/b4_resolve-6a0f6f63d06da789)
+
+running 11 tests
+test t35r23_alias_targets_owner_operation ... ok
+test t35r23_disabled_operation_has_no_alias ... ok
+test judgment_registers_and_self_import_resolves ... ok
+test failed_plain_scenario_stays_untrusted ... ok
+test failed_trusted_handler_builtin_name_keeps_event ... ok
+test failed_trusted_handler_keeps_event ... ok
+test judgment_import_undeclared_still_e2004 ... ok
+test judgment_duplicate_is_e2002 ... ok
+test set_parent_target_parity ... ok
+test t35r23_self_import_leaves_canonical_untouched ... ok
+test t35r23_ambiguous_model_names_have_no_alias ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/b4_setparent.rs (compiler/target/debug/deps/b4_setparent-37197124c8416f7a)
+
+running 4 tests
+test set_parent_resolves_like_expression ... ok
+test set_parent_bad_value_still_errors ... ok
+test set_parent_enum_value_elides ... ok
+test set_parent_phantom_member_still_e2013 ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/b4_witness.rs (compiler/target/debug/deps/b4_witness-f18ea044fe0f7220)
+
+running 8 tests
+test runtime_choice_count_unenforced_gap ... ok
+test corpus_declaration_checks_clean ... ok
+test gallery_image_required ... ok
+test runtime_choice_map_nonempty_and_unique ... ok
+test gallery_image_target_unvalidated_gap ... ok
+test corpus_query_members_unvalidated_gap ... ok
+test progressed_event_unvalidated_gap ... ok
+test progress_member_unimplemented_gap ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/bdd_binding_runtime.rs (compiler/target/debug/deps/bdd_binding_runtime-7f66ea5153eb937e)
+
+running 1 test
+BDD bindings: reserved/context recipes, Unicode payloads, suite paths and progressive sequence property/Map reads executed
+test fixture_bindings_and_suite_paths_execute_through_testkit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.14s
+
+     Running tests/bdd_checked_facts.rs (compiler/target/debug/deps/bdd_checked_facts-afeefbf791508b04)
+
+running 2 tests
+test header_fixture_scope_and_runner_error_ownership_remain_distinct ... ok
+test original_expenseflow_publishes_bdd_calls_and_sequence_observation_types ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/catalog_input_contract.rs (compiler/target/debug/deps/catalog_input_contract-831670dfb8969426)
+
+running 6 tests
+PROFILE packages/values/src/catalog.ts: bytes=18748 sha256=443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb
+PROFILE packages/values/scripts/emit-catalog.mjs: bytes=2518 sha256=45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d
+PROFILE packages/values/dist/src/catalog.js: bytes=18732 sha256=1b5a52a148437ee7301cff8a68efa439448b7304b4ff85f6189ecaf75ad8925f
+PROFILE packages/values/dist/src/index.js: bytes=630 sha256=51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c
+PROFILE packages/values/dist/catalog.json: bytes=22290 sha256=cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62
+test loader_and_cli_retain_first_decoded_member_and_ignore_unknown_extras ... ok
+test catalog_invalid_utf8_bytes_keep_catalog_code_and_source_primary ... ok
+test available_producer_catalog_loads_without_rebuilding_packages ... ok
+test syntax_envelope_entry_and_signature_failures_keep_codes_and_source_anchor ... ok
+test catalog_unknown_value_depth_counts_from_envelope_root ... ok
+test ignored_catalog_extras_still_require_strict_complete_json ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/catalog_producer_runtime.rs (compiler/target/debug/deps/catalog_producer_runtime-0c29ccdbf308106b)
+
+running 1 test
+PROFILE packages/values/src/catalog.ts: bytes=18748 sha256=443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb
+PROFILE packages/values/scripts/emit-catalog.mjs: bytes=2518 sha256=45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d
+PROFILE packages/values/dist/src/catalog.js: bytes=18732 sha256=1b5a52a148437ee7301cff8a68efa439448b7304b4ff85f6189ecaf75ad8925f
+PROFILE packages/values/dist/src/index.js: bytes=630 sha256=51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c
+PROFILE packages/values/dist/catalog.json: bytes=22290 sha256=cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62
+PROFILE Node v24.21.0
+EXECUTED source-built equality; actual runtime trim; entries=59
+EXECUTED catalog 0.1.0-lane02-draft: 59 entries, 15 features -> dist/catalog.json
+PROFILE fresh isolated dist/catalog.json: bytes=22290 sha256=cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62
+EXECUTED actual catalog loader and fresh CLI check: complete=true diagnostics=[]
+test unchanged_catalog_producer_matches_authored_source_and_feeds_real_consumers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.84s
+
+     Running tests/check.rs (compiler/target/debug/deps/check-303aec0da8e456d7)
+
+running 37 tests
+test error_code_vocabulary_is_closed ... ok
+test dedup_keeps_first_across_passes ... ok
+test disabled_crud_operation_rejects_examples ... ok
+test example_tables_carry_all_families ... ok
+test broken_import_caller_and_crud_head_stay_quiet ... ok
+test e5001_create_header_still_requires_writable_fields ... ok
+test e5001_create_header_skips_derived_fields ... ok
+test delivery_recipe_selectors ... ok
+test fixture_overrides ... ok
+test expected_error_codes ... ok
+test icu_number_style_and_source_anchor ... ok
+test message_signatures ... ok
+test icu_profile_violations ... ok
+test missing_required_input ... ok
+test icu_numeric_type_matrix ... ok
+test readiness_gate ... ok
+test imported_wrong_kind_names_fire ... ok
+test icu_selector_types ... ok
+test sequence_caller_names_known_wrong_kinds ... ok
+test observation_roots ... ok
+test parent_selectors ... ok
+test sort_matches_check_program_key ... ok
+test seed_rejects_catalog_names ... ok
+test trusted_handlers_take_no_as ... ok
+test sequences_call_their_enclosing_scenario ... ok
+test request_selectors ... ok
+test overlapping_selectors ... ok
+test sequence_bindings_and_results ... ok
+test warnings_never_block ... ok
+test unresolved_imports_stay_quiet ... ok
+test sequence_call_targets ... ok
+test sequence_callers_arguments_and_envelopes ... ok
+test table_callers ... ok
+test unknown_binding_and_seed_shape ... ok
+test unknown_selectors ... ok
+test shipped_examples_are_e5xxx_clean_through_check_program ... ok
+test shipped_examples_are_e5xxx_clean ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/checked_cohort.rs (compiler/target/debug/deps/checked_cohort-71a015d860e3fdcb)
+
+running 8 tests
+test originally_nonexistent_selected_id_cannot_become_checked_by_append ... ok
+test complete_gate_and_test_only_acknowledgment_are_separate_from_cohort ... ok
+test selected_nonzero_sources_and_caller_order_are_preserved ... ok
+test swapped_source_numbering_refuses_and_rechecking_restores_ownership ... ok
+test catalog_absence_is_part_of_the_checked_owner_contract ... ok
+test owned_control_and_foreign_equal_ids_spans_or_hashes ... ok
+test owner_moves_catalog_clone_and_immutable_append_preserve_old_semantics_and_inventory ... ok
+test changed_or_independently_reloaded_catalog_requires_rechecking ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/codegen.rs (compiler/target/debug/deps/codegen-05d37f97ce2b7725)
+
+running 117 tests
+test a2a_action_external_targets_lower_to_schema ... ok
+test a2a_for_limit_checks_length_then_loops ... ok
+test a2b_composite_unique_emits_sparse_member_and_registry_rule ... ok
+test a2b_require_desugars_to_admit_and_gate ... ok
+test a2a_derive_call_lowers_to_awaited_named_fn ... ok
+test a2a_page_poll_refresh_lower_to_descriptor ... ok
+test a2b_ui_profiles_lower_to_factories ... ok
+test a2b_named_args_lower_positionally_in_signature_order ... ok
+test construct_defaults ... ok
+test construct_delivery ... ok
+test construct_effects ... ok
+test construct_fixtures_and_recipes ... ok
+test catalog_profile_violations_stay_loud ... ok
+test construct_guards ... ok
+test construct_messages_and_format ... ok
+test construct_page_admit_returns_preference_defaults ... ok
+test construct_models_and_grants ... ok
+test construct_page_preferences_preamble_reads_bindings ... ok
+test construct_sequences ... ok
+test construct_pages_admit_render ... ok
+test construct_scalars_per_op ... ok
+test construct_tables ... ok
+test catalog_factories_lower_from_source ... ok
+test construct_ui_factories ... ok
+test construct_ui_gate_ternary ... ok
+test construct_value_query ... ok
+test d03_inline_param_desc_reaches_mcp_source ... ok
+test d03_empty_desc_stays_present ... ok
+test d03_attached_and_legacy_feed_same_slot ... ok
+test d03_inline_field_variants_emit_source_only ... ok
+test d03_undescribed_inputs_omit_member ... ok
+test derive_result_resolves_from_symbol_results ... ok
+test f6_invalid_cohort_emits_no_descriptor ... ok
+test d03_message_reference_resolves_to_source ... ok
+test f6_missing_bind_emits_null ... ok
+test f6_both_spellings_emit_cohort_descriptors ... ok
+test c01_lexer_strings_reach_literal_metadata_and_message_lowering ... ok
+test form_fields_unknown_op_stays_loud ... ok
+test gap_helper_multiply_decimal ... ok
+test gap_helper_add_decimal ... ok
+test gap_helper_divide_decimal_shapes ... ok
+test gap_helper_divide_money ... ok
+test gap_helper_negate_decimal ... ok
+test gap_helper_scalar_money_product ... ok
+test f6_no_cohort_emits_no_member ... ok
+test gap_helper_subtract_decimal ... ok
+test awaited_follows_catalog_effects ... ok
+test omission_marker_flows_from_spelling_to_descriptor ... ok
+test requires_pins_catalog_and_families ... ok
+test sourcemap_emitted_fixture_plain_snippet ... ok
+test sourcemap_mappings_round_trip ... ok
+test sequence_as_binding_decodes ... ok
+test t15a_field_default_mapping ... ok
+test refuses_incomplete_analysis_without_ack ... ok
+test t15a_callable_identity ... ok
+test t15a_literal_json_exactness ... ok
+test t15a_model_field_tags ... ok
+test form_fields_default_to_model_schema ... ok
+test t15a_negative_exotic_omits_operation_only ... ok
+test t15a_negative_duplicate_record_name ... ok
+test t15a_models_shape_end_to_end ... ok
+test t15a_operation_inputs_carry_arrays_defaults_nullable ... ok
+test t15a_parent_path_extraction ... ok
+test t15a_ownership_and_recursion ... ok
+test t15a_structural_literal_default ... ok
+test t15b_delivery_descriptor_helper ... ok
+test t15a_parent_defaults_delete_modes_derived ... ok
+test t15a_negative_kinds_closed ... ok
+test t15b_closed_kinds_with_delivery ... ok
+test t15b_operation_input_delivery_end_to_end ... ok
+test t15b_recipe_join_negatives_stay_shelled ... ok
+test t15b_no_regress_t15a_mixed ... ok
+test t15b_std_delivery_model_tags ... ok
+test t15b_model_delivery_end_to_end ... ok
+test t15b_recipe_join_std ... ok
+test t18_server_init_mapping ... ok
+test t15a_example_separation ... ok
+test t18_child_create_parent_input ... ok
+test t18_r27_server_owned_checker ... ok
+test t31_before_after_reads_legal ... ok
+test t31_before_delete_rejected_once ... ok
+test t31_cross_model_staging_legal ... ok
+test t31_before_snapshot_write_rejected ... ok
+test t31_delete_hook_after_adjust_rejected ... ok
+test t18_server_init_end_to_end ... ok
+test t31_delete_hook_cancel_barred ... ok
+test t31_delete_hook_create_barred ... ok
+test t31_delete_hook_require_read_legal ... ok
+test t31_delete_hook_same_model_order ... ok
+test t31_delete_hook_schedule_barred ... ok
+test t31_delete_outside_hook_legal ... ok
+test t31_delete_hook_set_barred ... ok
+test t31_hook_decimal_eq_unsupported ... ok
+test t31_hook_emit_unsupported ... ok
+test t31_hook_expr_gaps ... ok
+test t31_hook_query_unsupported ... ok
+test t31_e2e_staged_failure_names_hook ... ok
+test t31_hook_stmt_backstops ... ok
+test t31_nested_same_model_barred ... ok
+test t31_pending_delete_rejected_once ... ok
+test t31_e2e_emitted_hook_drives_engine ... ok
+test t31_same_model_create_barred ... ok
+test t31_same_model_set_barred ... ok
+test t31_staged_delete_barred ... ok
+test t31_verified_ref_set_outside_hook_legal ... ok
+test unavailable_capability_errors ... ok
+test unsupported_schema_positions_error ... ok
+test value_queries_lower_from_source ... ok
+test t31_hook_delete_op_registry ... ok
+test b4g_hook_team_operation_unchanged ... ok
+test b4g_operation_id_lowers_through_c ... ok
+test t31_plain_schedule_lowers ... ok
+test b4g_team_id_lowers_through_c ... ok
+test t31_hook_run_shape ... ok
+test t21l1_single_app_crud_entry_imports_and_executes ... ok
+test golden_teamtasks_structure ... ok
+test golden_expenseflow_structure ... ok
+
+test result: ok. 117 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.48s
+
+     Running tests/completion_contract.rs (compiler/target/debug/deps/completion_contract-93abd0692b448ebb)
+
+running 2 tests
+test embedded_scripts_match_and_fish_declares_lint_fix ... ok
+test actual_completion_engines ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.29s
+
+     Running tests/cycle_witness.rs (compiler/target/debug/deps/cycle_witness-8e0e4a902291acbc)
+
+running 11 tests
+test fresh_process_child ... ok
+test standalone_derive_cycles_do_not_become_static_call_cycles ... ok
+test diamond_keeps_distinct_path_vertex_sets_inside_one_scc ... ok
+test rejected_trusted_handler_call_does_not_install_a_cycle_edge ... ok
+test acyclic_scenario_derive_crud_and_capability_calls_are_leaves ... ok
+test declaration_permutations_deliberately_follow_index_order ... ok
+test upstream_and_overlapping_cycles_have_exact_witnesses ... ok
+test independent_self_and_duplicate_closing_edges_keep_vertex_set_dedup ... ok
+test containment_composition_and_fixture_seed_order_keep_their_own_policies ... ok
+test check_file_permutations_follow_index_order_even_for_duplicate_paths ... ok
+test identical_input_is_exact_across_fresh_processes ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/delimiter_recovery.rs (compiler/target/debug/deps/delimiter_recovery-1fa2f579667a247e)
+
+running 6 tests
+test deeper_unfinished_continuations_remain_in_the_failed_join ... ok
+test balanced_continuations_ignore_same_and_dedented_columns ... ok
+test mismatched_closer_before_eof_replay_is_reported_once ... ok
+test replay_keeps_balanced_subjoin_and_description_comment_ownership ... ok
+test eof_unclosed_schema_keeps_later_module_and_nested_machine_workflow ... ok
+test eof_unclosed_declarations_keep_independent_type_and_name_findings ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/docs.rs (compiler/target/debug/deps/docs-6f724f8354ff893d)
+
+running 30 tests
+test available_shape_conforms_when_constructed ... ok
+test dotted_message_references_stay_unresolved ... ok
+test app_default_locale_follows_the_single_app_module ... ok
+test extracts_user_operations_without_authorization ... ok
+test extracts_owners_declarations_and_fields ... ok
+test declaration_descriptions_attach_from_hash_sets ... ok
+test app_default_locale_prefers_the_checked_default_over_source ... ok
+test app_default_locale_falls_back_to_first_module ... ok
+test missing_relative_roots_preserve_external_leading_parents ... ok
+test message_reference_descriptions_resolve ... ok
+test imported_bare_message_wording_resolves ... ok
+test field_and_param_descriptions_use_checked_seam ... ok
+test mixed_table_and_sequence_examples_merge_in_source_order ... ok
+test field_type_nullability_requiredness_defaults_constraints ... ok
+test availability_is_unknown_and_catalog_version_nullable ... ok
+test moved_checkout_identity_covers_every_spelling ... ok
+test operation_sequences_become_authored_source_examples ... ok
+test fixtures_become_labeled_declaration_examples ... ok
+test required_array_spelling_is_preserved ... ok
+test relative_symlink_spellings_match_their_target ... ok
+test sequence_fixture_checks_fully_clean ... ok
+test same_external_file_agrees_through_relative_and_absolute ... ok
+test operation_tables_become_labeled_row_examples ... ok
+test external_inputs_are_marked_and_stable ... ok
+test unavailable_requested_locale_falls_back_through_default_to_source ... ok
+test v1_json_conforms_to_reference_ts ... ok
+test output_is_deterministic ... ok
+test moved_checkout_equivalence ... ok
+test relative_vs_absolute_spellings_are_identical ... ok
+test all_spellings_of_one_input_are_identical ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/effects.rs (compiler/target/debug/deps/effects-904d5d38a6756069)
+
+running 46 tests
+test cross_package_rule ... ok
+test cross_package_crud ... ok
+test containment_cycle_terminates ... ok
+test bound_crud_call_exempt ... ok
+test backfill_tables ... ok
+test delete_disabled ... ok
+test app_scope_needs_policy ... ok
+test cross_package_mutation ... ok
+test call_remote_target ... ok
+test cross_package_member_mutation ... ok
+test f6_committed_trigger_bare_model_checks ... ok
+test f6_anchored_misuse_diagnosed ... ok
+test f6_bare_model_checks_with_only_the_standing_e1203 ... ok
+test f6_bounded_loop_rules_retained ... ok
+test f6_anchored_collection_checks_with_only_the_standing_e1203 ... ok
+test f6_missing_as_binding_accepted ... ok
+test f6_uncontained_child_diagnosed ... ok
+test f6_unknown_collection_hop_diagnosed ... ok
+test f6_cross_owner_cohort_diagnosed ... ok
+test emission_table_shapes ... ok
+test f6_undecoded_trigger_stands_down ... ok
+test hook_on_disabled_op ... ok
+test heterogeneous_action_call ... ok
+test hook_tables ... ok
+test f6_unknown_model_diagnosed ... ok
+test migration_tables ... ok
+test mixed_handler_scope ... ok
+test f6_unsupported_forms_diagnosed ... ok
+test nullable_secret_grant ... ok
+test redundant_actor_subject ... ok
+test secret_field_grant ... ok
+test secret_return ... ok
+test t25_l1_unsupported_traversal_stays_e2013 ... ok
+test t25_l1_user_traversal_is_e4012 ... ok
+test t25_l1_member_traversal_is_e4012 ... ok
+test t25_l1_embedded_value_leaves_stay_clean ... ok
+test t25_l1_unknown_leaves_stay_e2013_only ... ok
+test t25_l1_valid_leaf_grants_stay_clean ... ok
+test write_only_handler_scope ... ok
+test unreachable_after_return ... ok
+test transitive_handler_scope ... ok
+test teamtasks_stays_e4_clean ... ok
+test every_scope_follows_only_bound_reachable_derives ... ok
+test expenseflow_stays_e4_clean ... ok
+test recovered_declarations_keep_independent_effects_and_policies ... ok
+test f6_draft_bodies_accepted_without_trimming ... ok
+
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/email_admission.rs (compiler/target/debug/deps/email_admission-4dc316eb696174b8)
+
+running 1 test
+{
+  "vectors": 113,
+  "publicDirections": 226,
+  "publicAccepted": 29,
+  "compilerAccepted": 29,
+  "mismatches": [],
+  "generated": 29,
+  "generatedImported": 29,
+  "node": "v24.21.0",
+  "icu": "78.3",
+  "compiler": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+  "compilerHash": "b6c03834770e70e00505b30392d34efe677441b674455ad0985db6aa303b05ba",
+  "limits": "Current CLI, generated metadata modules and actual installed public values exports; metadata execution only, not application invocation, DNS, deliverability or auth."
+}
+test email_admission_matches_public_codecs_and_production_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.05s
+
+     Running tests/exe.rs (compiler/target/debug/deps/exe-edca8108075ad88b)
+
+running 11 tests
+test forced_internal_error_is_e7005_exit_2_without_trace ... ok
+test docs_broken_source_exits_10_without_writing ... ok
+test docs_help_golden_names_flags_and_exits ... ok
+test docs_out_refuses_can_sources_before_any_work ... ok
+test lsp_eof_and_shutdown_exit_cleanly ... ok
+test help_golden_documents_everything ... ok
+test version_golden_has_versions_and_commit ... ok
+test exit_codes_are_stable ... ok
+test completions_snapshot_matches_shipped_scripts ... ok
+test help_alias_matches_flag_form ... ok
+test compile_twice_is_byte_identical ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/file_ownership.rs (compiler/target/debug/deps/file_ownership-cf0d212bd995ec29)
+
+running 9 tests
+test fmt_missing_input_is_e7002_and_does_not_create_output ... ok
+test fmt_changed_symlink_replaces_entry_and_keeps_target_private_and_unchanged ... ok
+test fmt_repeated_operands_and_already_formatted_alias_are_noops ... ok
+test fmt_changed_hardlink_replaces_only_requested_entry ... ok
+test fmt_noop_preserves_inode_links_and_mode ... ok
+SKIP mode 4750: this host did not retain the requested fixture bits
+test fmt_preserves_modes_including_private_readonly_and_special_bits ... ok
+test docs_write_failure_keeps_directory_and_removes_staging ... ok
+test docs_new_output_obeys_umask_and_existing_output_keeps_mode ... ok
+test docs_symlink_outputs_replace_entry_and_keep_targets ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/flat_expression_runtime.rs (compiler/target/debug/deps/flat_expression_runtime-abc8893a3f3824dc)
+
+running 6 tests
+test unsupported_binary_retains_skipped_operand_diagnostics ... ok
+test enum_local_shadowing_keeps_resolved_slots_in_compiled_scenario ... ok
+test long_binary_emission_preserves_order_overflow_grouping_and_lazy_rhs ... ok
+test enum_claims_and_membership_execute_with_binding_and_order_controls ... ok
+
+thread 'flat_ladder_checks_compiles_and_executes_actual_artifacts' (1999443) panicked at tests/flat_expression_runtime.rs:59:41:
+called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test flat_ladder_checks_compiles_and_executes_actual_artifacts ... FAILED
+test long_logical_check_and_recovery_keep_valid_siblings ... ok
+
+failures:
+
+failures:
+    flat_ladder_checks_compiles_and_executes_actual_artifacts
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.86s
+
+error: test failed, to rerun pass `--test flat_expression_runtime`

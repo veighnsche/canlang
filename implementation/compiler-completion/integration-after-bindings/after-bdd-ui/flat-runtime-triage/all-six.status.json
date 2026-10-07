@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--locked",
+    "--offline",
+    "--test",
+    "flat_expression_runtime",
+    "--",
+    "--nocapture"
+  ],
+  "exit": 0,
+  "source_sha256": "2c6c5dcbdaa00e888a780ea6762f4967624892360d0032a142c87a31c21d6e97"
+}
