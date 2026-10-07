@@ -1,0 +1,65 @@
+{
+  "release_sizes": {
+    "native": {
+      "before": 2167152,
+      "after": 2217152,
+      "delta_bytes": 50000,
+      "delta_percent": 2.3071755003802226
+    },
+    "linux": {
+      "before": 2960352,
+      "after": 3025752,
+      "delta_bytes": 65400,
+      "delta_percent": 2.2091967441709635
+    }
+  },
+  "artifacts": {
+    "current-native-can": {
+      "bytes": 2217152,
+      "sha256": "48b2bfafa37c44e86ff0a334e37ab5e7866c706dca02839076fe12c71e4e8ec7"
+    },
+    "baseline-native-can": {
+      "bytes": 2167152,
+      "sha256": "772b882a4e782469654847b579b73d51c8c4742e884c2a9db0b00f3335ed256b"
+    },
+    "current-linux-can": {
+      "bytes": 3025752,
+      "sha256": "382ca72a91987efa91557b0f497ae489dca22785de0a4c87356b757cabc34e4c"
+    },
+    "baseline-linux-can": {
+      "bytes": 2960352,
+      "sha256": "4238df17c6763fcd0af7fe267d28f710dc3c7507bac458aabd95067662fdfd30"
+    }
+  },
+  "git_head_at_final_profile": "56857d7bb0c176ca81b2dd66b71dcd81bd60a048",
+  "snapshot_parity": {
+    "snapshot_files": 106,
+    "snapshot_drift": [],
+    "live_drift": []
+  },
+  "linux_lib": {
+    "command": "cargo test --offline --locked --manifest-path /profile/current/compiler/Cargo.toml --target-dir /linux-target --lib lsp -- --nocapture",
+    "passed": 30,
+    "filtered": 89,
+    "note": "Substring filter also selects source::tests::line_index_lsp_utf16; no claim of identical reviewer lsp:: count."
+  },
+  "linux_integrations": {
+    "b3_authoring_join": 3,
+    "b3_s4": 4,
+    "ide": 31,
+    "lsp_admission": 26,
+    "lsp_typed_output": 3
+  },
+  "linux_total_harness_passes": 97,
+  "linux_explicit_skips": [
+    "SKIP fix_json_is_deterministic_across_reruns: no packages/values/dist/catalog.json",
+    "SKIP lint_without_fix_has_no_fixes_key: no packages/values/dist/catalog.json"
+  ],
+  "linux_executed_test_bodies": 95,
+  "initial_integration_setup_failure": "missing two include_str! editor .can fixture inputs; fixed, hashed, and all5targets rerun successfully",
+  "versions": "Rust and Cargo1.99.0 on both; macOS aarch64, Debian13.7 x86_64; both version binaries report commit unknown",
+  "no_unrelated_dependency_upgrades": true,
+  "windows": "source-only; no Windows process execution",
+  "msrv": "Compiler declares1.99. Executed1.99 only; omitted dependency rust-version fields remain unknown minimum compatibility.",
+  "scope": "root separately qualifies native fulltests and actual Node/editor; no runtime speed claim"
+}

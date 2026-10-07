@@ -1,0 +1,24 @@
+{
+  "current_features": {
+    "serde": [
+      "default",
+      "derive",
+      "serde_derive",
+      "std"
+    ],
+    "serde_json": [
+      "default",
+      "raw_value",
+      "std"
+    ]
+  },
+  "added_aliases": {
+    "serde": [
+      "default"
+    ],
+    "serde_json": [
+      "default"
+    ]
+  },
+  "alias_expansion": "Each newly activated default alias expands to already-enabled std. serde derive and serde_json raw_value remain enabled. No new numeric/order/format feature is activated. Resolved feature labels therefore change, while those effective capabilities were already enabled."
+}

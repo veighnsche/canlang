@@ -1,0 +1,18 @@
+{
+  "current-native-can": {
+    "bytes": 2217152,
+    "sha256": "48b2bfafa37c44e86ff0a334e37ab5e7866c706dca02839076fe12c71e4e8ec7"
+  },
+  "baseline-native-can": {
+    "bytes": 2167152,
+    "sha256": "772b882a4e782469654847b579b73d51c8c4742e884c2a9db0b00f3335ed256b"
+  },
+  "current-linux-can": {
+    "bytes": 3025752,
+    "sha256": "382ca72a91987efa91557b0f497ae489dca22785de0a4c87356b757cabc34e4c"
+  },
+  "baseline-linux-can": {
+    "bytes": 2960352,
+    "sha256": "4238df17c6763fcd0af7fe267d28f710dc3c7507bac458aabd95067662fdfd30"
+  }
+}
