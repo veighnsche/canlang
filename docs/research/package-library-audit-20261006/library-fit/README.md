@@ -6,6 +6,12 @@ The [assessment](assessments.md) compares **27 integration slices covering all 2
 
 Source is frozen at `f8e9e73b11f19a7d59ac62487033a5bc189c46a1`. The package tree is unchanged at verification. Current compiler documentation work is separate and preserved. The [source index](source-index.json) records repository and read-only dependency hashes. No dependency installation, product build/test, policy change, backend adoption or implementation was performed.
 
+The subsequent [adapter branch audit](../adapter-branches/README.md) traces the selected
+normalization, conversion, retry, sort, escape and output-rearrangement mechanisms.
+It also reconciles historical source-matched identity host receipts: a missing current
+local installation or unavailable private log does not erase finite committed acceptance.
+Its source findings and conditional dispositions remain planning inputs, not new runtime proof.
+
 ## Findings that change the simplification plan
 
 - **Many intended replacements are already in source.** Number text, Rust-str escaping, import discovery/edits, map composition, CSV grammar, identity codecs/cookies, native equality and signal fan-in use their chosen libraries or primitives. Old “unwired” premises must not generate repeat implementation. Their exact host/installed/workflow gates remain distinct.
