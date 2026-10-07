@@ -35,6 +35,7 @@ import { CSRF_FIELD } from "@canlang/contracts";
 import type { SubmitFetch, SubmitFetchResponse } from "../client.js";
 import { escapeAttr, escapeHtml, safeHref } from "../escape.js";
 import { assertRegionId } from "../htmx.js";
+import { digestBusinessError } from "../internal/business-errors.js";
 
 /**
  * Session CSRF header spelling. Pins the identity-owned spelling the
@@ -69,34 +70,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Never throws on data; never passes raw bodies through.
  */
 export function digestExportError(value: unknown): ExportBusinessError | null {
-  if (!isRecord(value)) return null;
-  const code = value["code"];
-  const message = value["message"];
-  if (typeof code !== "string" || code === "" || typeof message !== "string" || message === "") {
-    return null;
-  }
-  const fields = value["fields"];
-  const digested: Array<{ path: string; code?: string; message: string }> = [];
-  if (Array.isArray(fields)) {
-    for (const entry of fields) {
-      if (!isRecord(entry)) continue;
-      const path = entry["path"];
-      const fieldMessage = entry["message"];
-      if (typeof path !== "string" || typeof fieldMessage !== "string") continue;
-      const fieldCode = entry["code"];
-      if (typeof fieldCode === "string") {
-        digested.push({ path, code: fieldCode, message: fieldMessage });
-      } else {
-        digested.push({ path, message: fieldMessage });
-      }
-    }
-  }
-  return {
-    code,
-    message,
-    ...(digested.length > 0 ? { fields: digested } : {}),
-    ...(typeof value["retryable"] === "boolean" ? { retryable: value["retryable"] } : {}),
-  };
+  return digestBusinessError(value);
 }
 
 /** Parsed download descriptor (contract shape; D fulfills the URLs). */
