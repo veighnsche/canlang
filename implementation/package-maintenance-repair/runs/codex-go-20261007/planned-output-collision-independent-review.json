@@ -1,0 +1,124 @@
+{
+  "status": "independently_accepted_bounded_planned_ancestry_preflight",
+  "captured_utc": "2026-10-07T23:45:52.419921+00:00",
+  "head_before": "06bc25d1dd12fec6bd1f66502f93b09dddab1b06",
+  "review_sha256": "23bf30c6e1b9de4d772e0f33eae12f857ccb0f27678a87f5cafabceb390cbc38",
+  "review_private": "/private/tmp/canlang-repair-go-20261007/planned-output-independent/result.json",
+  "source_pins": {
+    "baselineCommit": "73942cbdb57d6fdcae1ce81aa1c068324844dc4e",
+    "baselineSHA256": "1f28c42614a303ac89460539ac94fd768c792cc268bf060a6fdbf5fd8d500121",
+    "sourceSHA256": "8ccf7b1178df87cdb02c1312bf4e2314680697034b5391fdad6a062ed80a7f85",
+    "testSHA256": "c3d09faf0da8ac9e27d1f756d5491906dec4ee7f0452a6312c19d240c37536f8",
+    "supportEqual": 1136,
+    "originalConfigs": {
+      "tsconfig.base.json": "56d05912029f16842996d66df2e6fc4279950a243874a794d9ff2e13e220ded8",
+      "packages/cloudflare/tsconfig.json": "8288e51cec217797ce3fcb51b33f70f55c705b4eefbc4d530fa28c4706ed781b"
+    }
+  },
+  "public_declarations": {
+    "deploy/bundle.d.ts": {
+      "sha256": "5ac350ef5223925a2f2bfa7a69f4fafbc7f2914c56e828b50f725a5fdc63b576",
+      "bytes": 15197,
+      "equal": true
+    },
+    "deploy/module-imports.d.ts": {
+      "sha256": "26632079cce666296f88b4dd7ec1d6d80b31c61e447a0d27da1d15c6d1817804",
+      "bytes": 2941,
+      "equal": true
+    },
+    "deploy/module-maps.d.ts": {
+      "sha256": "a8dd7a21dd3f78ad16e8d7db5b4ad8a6700a68de987517c055d716ff2be0421f",
+      "bytes": 1176,
+      "equal": true
+    },
+    "deploy/package-assets.d.ts": {
+      "sha256": "be5228ab4a58ba9aaa5c8101725fd2f802ad69adbd7604a8ba8ed6aa249c6652",
+      "bytes": 958,
+      "equal": true
+    },
+    "deploy/producer-files.d.ts": {
+      "sha256": "2922bd6b603adee7858e8bc1dc468d7c2804ae0a2a5f5dae6edfd0f666198b5f",
+      "bytes": 228,
+      "equal": true
+    },
+    "runtime/modules.d.ts": {
+      "sha256": "a0352270255bb9d201f7c78e85666b7a2f47861def49f377fbf9b0700f4077a4",
+      "bytes": 3017,
+      "equal": true
+    },
+    "runtime/sourcemap.d.ts": {
+      "sha256": "6413d11d86592369d0aa71477659def78c0105f3ab277b99642d0296d7ea7ca2",
+      "bytes": 2894,
+      "equal": true
+    }
+  },
+  "maintenance_accounting": {
+    "production": {
+      "beforeBytes": 63634,
+      "afterBytes": 64100,
+      "deltaBytes": 466,
+      "beforeLines": 1447,
+      "afterLines": 1455,
+      "diffAddedLines": 10,
+      "diffRemovedLines": 2
+    },
+    "maintainedTest": {
+      "newBytes": 9626,
+      "newLines": 163
+    },
+    "wholeAttributable": {
+      "files": 2,
+      "deltaBytes": 10092,
+      "deltaLines": 171
+    },
+    "proofCost": {
+      "processWallSeconds": 7.484449625015259,
+      "handles": 8,
+      "freshRawCases": 78,
+      "edgeCases": 32,
+      "independentlyAuthoredMatrixCases": 336,
+      "independentlyAuthoredPrecedenceCases": 12,
+      "maintainedTestsBefore": {
+        "pass": 9,
+        "fail": 29
+      },
+      "maintainedTestsCurrent": {
+        "pass": 38,
+        "fail": 0
+      },
+      "supportEqualityCount": 1136,
+      "runtimeLoadedSupportCount": 301,
+      "additionalStrictSupportCount": 127,
+      "privateEvidenceBytesExcludingCopiedBuildTrees": 1598777
+    }
+  },
+  "model": {
+    "implementation": "Sol6.1 medium fixed released scope",
+    "independent_review": "Sol6.1 medium clean-room fixed FS/error/declaration contract"
+  },
+  "independent_observations": {
+    "ancestry_matrix": 336,
+    "current_conflicts_before_effects": 168,
+    "exact_error_identity": 12,
+    "paired_raw_checks": 78,
+    "edge_checks": 32,
+    "new_tests_before": {
+      "pass": 9,
+      "fail": 29
+    },
+    "new_tests_current": {
+      "pass": 38,
+      "fail": 0
+    }
+  },
+  "reader_and_commands_released": true,
+  "contract": "Same defining ancestry mechanism; Package at original layout precedence, Mixed after snapshot/layout/digest and before physical/write; onlyMixed2manifestpaths. Trailing slash private collision identity; raw names and standalone native trailing failures preserved.",
+  "limits": [
+    "General atomic publication and races",
+    "Standalone/native error partial effects",
+    "Host sidecar/timeout/run URL lifetime",
+    "Installed/real Worker/fullparent DEL-D03",
+    "Human-held native preparation/release"
+  ],
+  "commit_pending": true
+}

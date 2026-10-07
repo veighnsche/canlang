@@ -56,10 +56,11 @@
   "writer_and_commands": "Released before exact Git integration",
   "git": "Root exact manifest only; no push, checkout switch, unrelated compiler/State evidence or other writers staged.",
   "filetree": "Existing State responsibility retained; new owning nullable-ref test; no merge or complete checkpoint advance.",
-  "commit_pending": true,
+  "commit_pending": false,
   "whitespace": {
     "full_staged_check": 2,
     "findings": "Only preserved raw command stdout/log EOF blank lines and unified-diff context whitespace; no product source defect. Exact manifest bytes preserved rather than rewriting evidence.",
     "required_scope": "Product/test files and root-owned records/docs checked separately before commit."
-  }
+  },
+  "commit": "06bc25d1dd12fec6bd1f66502f93b09dddab1b06"
 }
