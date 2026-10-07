@@ -1,0 +1,7 @@
+{
+  "removed_path": "/Users/vince/Projects/canlang/compiler/target/debug/incremental",
+  "removed_regular_file_bytes": 6247294419,
+  "free_before_bytes": 15974400000,
+  "free_after_bytes": 20316160000,
+  "safety": "full tests and Clippy finished; escalated filtered ps found0 cleanup-root processes; lsof target and incremental returned no open files; kept debug binaries/dependency cache/source/Git/unique results and shared release/Linux target caches; task-owned scratch library target already removed by concurrent cleanup"
+}

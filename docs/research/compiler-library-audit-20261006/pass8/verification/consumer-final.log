@@ -1,0 +1,9 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.41s
+     Running tests/sourcemap_contract.rs (compiler/target/debug/deps/sourcemap_contract-354f7960a36a2283)
+
+running 1 test
+{"sourcePins":{"sourcemap.ts":"565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113","invoke.ts":"55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db","artifact.ts":"e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d","context.ts":"9f628244197b61fc376319c9a4fe5aed82fbd04a62b283c96e564f6877a614d8","report.ts":"79cbbfce42ed673196b6f0d2b32d567a3d302e4b8104429119bfd52a6ae6bcd1"},"profile":"original Can byte columns; generated point column zero","node":"24.21.0","codec":"1.6.0","codecSha256":"2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0","consumer":"current source artifact parse/load, lookup, invokeCallable, formatFailureLocation","syntheticInvocation":"coordinate.can:1:7","freshCliModules":1,"freshCliPoints":24,"browserUTF16":"unqualified"}
+test byte_point_maps_reach_independent_decoder_and_current_consumers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s

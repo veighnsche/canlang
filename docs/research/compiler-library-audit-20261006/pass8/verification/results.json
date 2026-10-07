@@ -1,0 +1,47 @@
+{
+  "native": {
+    "passed": 1040,
+    "failed": 0,
+    "ignored": 0,
+    "harnesses": 49,
+    "clippy": "all-targets -D warnings passed",
+    "offline_check": "passed"
+  },
+  "consumer": {
+    "sourcePins": {
+      "sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "invoke.ts": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "artifact.ts": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d",
+      "context.ts": "9f628244197b61fc376319c9a4fe5aed82fbd04a62b283c96e564f6877a614d8",
+      "report.ts": "79cbbfce42ed673196b6f0d2b32d567a3d302e4b8104429119bfd52a6ae6bcd1"
+    },
+    "profile": "original Can byte columns; generated point column zero",
+    "node": "24.21.0",
+    "codec": "1.6.0",
+    "codecSha256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0",
+    "consumer": "current source artifact parse/load, lookup, invokeCallable, formatFailureLocation",
+    "syntheticInvocation": "coordinate.can:1:7",
+    "freshCliModules": 1,
+    "freshCliPoints": 24,
+    "browserUTF16": "unqualified"
+  },
+  "source_pins": {
+    "compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+    "compiler/src/codegen/artifact.rs": "5ee76bea1b84bb36985e99277292e688f02ae9097257ecafbb5571774c2c5d61",
+    "compiler/tests/sourcemap_contract.rs": "d6b245794c1aa323ba9eaa14804d734da1eaaf7c30e0a22e4ffaa39ed0c4bece",
+    "compiler/tests/fixtures/sourcemap-consumer.mjs": "3b16e56520173a45ca44e98858009714e2308b7281353a3d6ddeb67f805f0b32",
+    "packages/cloudflare/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "packages/cloudflare/src/runtime/invoke.ts": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+    "packages/cloudflare/src/runtime/artifact.ts": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d",
+    "packages/cloudflare/src/runtime/context.ts": "9f628244197b61fc376319c9a4fe5aed82fbd04a62b283c96e564f6877a614d8",
+    "packages/testkit/src/reporting/report.ts": "79cbbfce42ed673196b6f0d2b32d567a3d302e4b8104429119bfd52a6ae6bcd1"
+  },
+  "review_pin_drift": [],
+  "formatting": {
+    "baseline_hunks": 83,
+    "current_hunks": 83,
+    "added_hunks": 0,
+    "removed_hunks": 0,
+    "added": []
+  }
+}

@@ -21,7 +21,6 @@ use crate::codegen::sourcemap::{self, SourceMap};
 use crate::diagnostic::Diagnostic;
 use crate::source::SourceDb;
 use serde::Serialize;
-use serde_json::value::RawValue;
 use std::collections::BTreeSet;
 
 /// Artifact envelope version (matches `ARTIFACT_VERSION` in `artifact.ts`).
@@ -570,12 +569,6 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
     crate::json::to_compact_string(&wire).expect("artifact DTO serialization is infallible")
 }
 
-// The existing compiler-owned source-map producer remains a separate release.
-// Validate their JSON before embedding it, preserving tokens and field order.
-fn encoded_fragment(json: String) -> Box<RawValue> {
-    RawValue::from_string(json).expect("compiler-owned artifact fragment must be valid JSON")
-}
-
 #[derive(Serialize)]
 struct ArtifactWire<'a> {
     artifact_version: u32,
@@ -602,7 +595,7 @@ struct SourceWire<'a> {
 struct ModuleWire<'a> {
     path: &'a str,
     js: &'a str,
-    map: Box<RawValue>,
+    map: &'a SourceMap,
 }
 
 impl<'a> ModuleWire<'a> {
@@ -610,7 +603,7 @@ impl<'a> ModuleWire<'a> {
         Self {
             path: &module.path,
             js: &module.js,
-            map: encoded_fragment(sourcemap::to_json(&module.map)),
+            map: &module.map,
         }
     }
 }
