@@ -176,7 +176,7 @@
       "state": "actual security join adjudication"
     },
     {
-      "id": "DEL-A01-canonical",
+      "id": "TECH-SV04",
       "agent": "/root/impl_work_numeric",
       "state": "finite implementation active"
     }
@@ -439,7 +439,7 @@
     },
     "TECH-SV04": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "exact ACK; private profile-matched harness implementation active",
       "files": [
         "packages/services/src/scenarios.ts",
         "packages/testkit/src/fixtures/playback.ts",
@@ -449,7 +449,12 @@
         "packages/services/src/ports.ts",
         "packages/services/src/internal/scenario-admission.ts",
         "packages/services/src/internal/controlled-http.ts"
-      ]
+      ],
+      "agent": "/root/impl_work_numeric",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "base": "e284d1426d15dcac840bca537b928034f825242a",
+      "reason": "Known private profile comparisons; lifecycle/security decisions stay separate"
     },
     "DEL-D01": {
       "planning_status": "ready",
@@ -713,7 +718,7 @@
     },
     "DEL-U01-draft": {
       "planning_status": "ready",
-      "state": "independently accepted private-leaf reduction; committing",
+      "state": "accepted private reduction; committed",
       "files": [
         "packages/ui/src/controls.ts",
         "packages/ui/src/forms.ts",
@@ -726,7 +731,8 @@
       "reviewer": "/root/impl_work_numeric",
       "review": "ui-draft-independent-review.json",
       "readable_reduction": 121,
-      "full_closure_reduction": 112
+      "full_closure_reduction": 112,
+      "commit": "17dd3bb"
     },
     "DEL-A01-error": {
       "planning_status": "ready",
@@ -781,7 +787,7 @@
     },
     "DEL-A01-canonical": {
       "planning_status": "ready",
-      "state": "exact ACK; canonical leaf implementation active",
+      "state": "candidate released; independent Sol high review pending",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/http/export.ts",
@@ -811,9 +817,9 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:31:36.796410+00:00",
+  "updated_utc": "2026-10-07T19:35:48.413912+00:00",
   "critical_security_review": {
-    "state": "frozen review received; root source-current joins under adjudication",
+    "state": "finite frozen review received; security joins/repairs open",
     "agent": "/root/critical_package_security",
     "model": "gpt-6-astra",
     "effort": "high",

@@ -1,0 +1,199 @@
+{
+  "review": "finite independent read-only persisted-security source review",
+  "payload": {
+    "path": "/Users/vince/Projects/canlang/implementation/package-maintenance-repair/runs/codex-go-20261007/critical-review-request/source-excerpts.txt",
+    "sha256": "5e38ac5a4107eea2e2c4f3c920b636da7ddc2062f8c4f6ed2e0e3e1bf68c393b",
+    "bytes": 186981,
+    "hash_verified": true,
+    "model": "gpt-6-astra",
+    "reasoning_effort": "high",
+    "model_provenance": "Model/effort specified by dispatch and approved scope; no separate runtime model-attestation tool used.",
+    "source_context": "Only approved source-excerpts.txt, scope.json and request.txt. scope.json approval-pending text is historical; dispatch reports human approval. No earlier findings or unrelated source read."
+  },
+  "assessment": "Concrete defects exist in supplied feature/store compositions; production reachability and current-source joins remain root work. Confidentiality and ownership findings are conditional where required downstream code/configuration is absent. This does not certify any package or deployed service.",
+  "findings": [
+    {
+      "id": "SEC-01",
+      "title": "Concurrent code exchange can mint two grants from one authorization code",
+      "severity": "high / P1 if this helper is exposed with the supplied D1 store",
+      "status": "confirmed source-level feature/store defect; endpoint reachability unverified",
+      "citations": [
+        "packages/identity/src/authentication/oauth.ts:229-245",
+        "packages/identity/src/storage/d1.ts:883-895",
+        "packages/identity/src/ports.ts:218-219"
+      ],
+      "minimal_witness": "Start two exchangeCode calls with the same live code, matching client/redirect and valid verifier. Both findAuthCodeByHash reads see consumed_at=null. The first conditional UPDATE consumes it; the second UPDATE affects zero rows but consumeAuthCode returns void and never checks the result. Both proceed to issueMcpGrant and persist distinct grants.",
+      "enforcement_gap": "Single-use success must be decided at the storage consume operation; read-before-consume and a conditional UPDATE whose outcome is discarded do not enforce it.",
+      "counterevidence": "Sequential reuse is rejected, expiry/client/redirect/PKCE checks exist, and the token/code hashes are unique. Those controls do not reject the losing concurrent consumer. The D1 header explicitly acknowledges the missing multi-step fence (17-24).",
+      "root_verification_needed": "Join exchangeCode to actual token-route consumers and their store/wrappers; verify concurrent exchange with a barrier before consume, asserting one grant at most. Do not claim a deployed OAuth exploit without this join."
+    },
+    {
+      "id": "SEC-02",
+      "title": "Recovery token check and password/revocation cascade are not one atomic recovery",
+      "severity": "high / P1 if recovery uses this D1 composition",
+      "status": "confirmed source-level feature/store defect; endpoint reachability unverified",
+      "citations": [
+        "packages/identity/src/accounts/recovery.ts:72-87",
+        "packages/identity/src/storage/d1.ts:492-496",
+        "packages/identity/src/storage/d1.ts:757-769",
+        "packages/identity/src/storage/d1.ts:709-713",
+        "packages/identity/src/storage/d1.ts:812-816"
+      ],
+      "minimal_witness": "A and B both read the same unused recovery token and choose different valid passwords. A completes password write, consumption and revocations. B, paused during hashing after its earlier read, then writes its password and succeeds despite A having already consumed/revoked the token. Separately, failure after the password UPDATE and before revocations leaves a changed password and live prior credentials.",
+      "enforcement_gap": "Password mutation precedes token consumption; all effects are independent committed statements. Even changing order alone would retain the unchecked losing-consume problem.",
+      "counterevidence": "Purpose/expiry/consumed checks reject invalid or sequentially reused tokens; a fully completed, uncontended recovery revokes all sessions/grants existing at those statements. Failure is not falsely reported as success. The missing fence is explicitly declared in D1 lines 17-24, so this is an implemented limitation rather than a hidden production-readiness promise.",
+      "root_verification_needed": "Confirm recovery route/store wiring and any external operation-level serialization. Test the two-reader interleaving and injected failure before credential revocation. Determine the intended atomic recovery contract before repair."
+    },
+    {
+      "id": "SEC-03",
+      "title": "Concurrent last-owner mutations can leave a team with no active owner",
+      "severity": "high / P1 if team management uses this D1 composition",
+      "status": "confirmed source-level feature/store defect; endpoint reachability unverified",
+      "citations": [
+        "packages/identity/src/teams/membership.ts:22-36",
+        "packages/identity/src/teams/roles.ts:40-59",
+        "packages/identity/src/storage/d1.ts:581-606",
+        "docs/specification/DESIGN.md:291"
+      ],
+      "minimal_witness": "With exactly active owners A and B, concurrent demotions/removals targeting different owners both read two active owners and pass. Their independent UPDATEs then remove/demote both. The UNIQUE(team_id,user_id) constraint is unaffected and cannot enforce an aggregate last-owner invariant.",
+      "counterevidence": "Sequential removal/demotion of the sole owner is rejected; initiators and targets are checked for active membership and owner privilege. These are effective sequential controls, not an atomic aggregate guard.",
+      "root_verification_needed": "Locate actual system-tool/HTTP callers and check whether their whole feature operation is fenced or serialized. Exercise mixed remove/demote as well as two demotions. The supplied D1 binding itself has no such fence."
+    },
+    {
+      "id": "SEC-04",
+      "title": "Pre-session token deletion does not enforce concurrent single use",
+      "severity": "medium / P2; higher consequences depend on login caller",
+      "status": "confirmed source-level helper/store defect; login consumer absent",
+      "citations": [
+        "packages/identity/src/sessions/presession.ts:60-70",
+        "packages/identity/src/storage/d1.ts:726-737"
+      ],
+      "minimal_witness": "Two consumePreSessionToken calls read the same unexpired row before either DELETE. Both DELETEs resolve (one affects zero rows), and both return true from the previously read expiry.",
+      "counterevidence": "Later sequential reuse fails because the row is gone. This defect does not by itself expose a session or bypass password checking.",
+      "root_verification_needed": "Join the actual login POST. Also verify browser binding/origin enforcement: the helper accepts only a bearer token and no browser-specific binding. Its comments rely on same-origin secrecy, but an attacker can obtain an anonymous token in their own browser. If the route accepts that token in a victim's forged login POST without an independent origin/browser binding, the intended login-CSRF defense fails even on its first use. That route-level issue is conditional, not proven by these excerpts."
+    },
+    {
+      "id": "SEC-05",
+      "title": "The HTTP credential liveness check is before invocation, not at its eventual commit",
+      "severity": "high / P1 if the stated mid-flight revocation guarantee is required",
+      "status": "confirmed enforcement-point mismatch; complete canonical path missing",
+      "citations": [
+        "packages/interfaces/src/http/operations.ts:284-301",
+        "packages/identity/src/authentication/revocation.ts:111-133",
+        "packages/state/src/invocation/invoke.ts:299-350",
+        "packages/identity/src/storage/d1.ts:703-713",
+        "packages/identity/src/storage/d1.ts:17-24"
+      ],
+      "minimal_witness": "Allow assertCredentialLive at HTTP line 289 to succeed, then pause execution inside invokeMutation. Revoke the session, then resume execution/commit. The visible check has already completed; the visible state commit revalidates by/guards and a state revision, but the shown session UPDATE never changes that revision. Without an omitted credential-aware commit check, the operation commits after revocation despite the HTTP comment.",
+      "counterevidence": "Current credentials are checked at identity resolution and again immediately before invoking the mutation; this does block revocation completed before that second read. Membership revalidation exists, and the design permits some already-admitted membership operations to finish (DESIGN 291, 549). A stronger credential boundary must not be inferred merely from the membership rule. assertAuthorityLive explicitly leaves an already-fenced race open at lines 78-80.",
+      "root_verification_needed": "Inspect invokeMutationCanonical, admission/revalidateCommitForFence, executor guards, and actual identity/state DB join. Decide which credential revocation boundary is accepted versus proposed; prove its exact enforcement point with controlled revoke-after-invoker-entry timing. Do not equate a helper named commit-time with an atomic commit check."
+    },
+    {
+      "id": "SEC-06",
+      "title": "Generated CRUD and first-success producer return full stored rows without projection",
+      "severity": "high / P1 if passed through to caller",
+      "status": "confirmed raw producer result; external disclosure conditional on omitted canonical wrapper",
+      "citations": [
+        "packages/state/src/mutation/crud.ts:459-472",
+        "packages/state/src/mutation/crud.ts:514-527",
+        "packages/state/src/invocation/invoke.ts:328-358",
+        "packages/cloudflare/src/worker/assembly.ts:901-920",
+        "packages/interfaces/src/http/operations.ts:295-301",
+        "packages/state/src/mutation/pipeline.ts:190-196",
+        "docs/specification/DESIGN.md:235",
+        "docs/specification/DESIGN.md:368",
+        "docs/specification/DESIGN.md:558-562"
+      ],
+      "minimal_witness": "An authorized generated create/update changes a model row that also contains a field the caller cannot read (or a random_secret initializer). generatedCrudExecute returns first.row, and invoke's first committed success returns effects.result unchanged and saves it in the receipt. A pass-through canonical wrapper would serialize the hidden field on the first HTTP success even if viewer reads/replays are correctly projected.",
+      "counterevidence": "invoke.ts lines 1-9 openly describe an S3 unprojected result stage; it is inappropriate to present that helper as a full S4 API. Runtime invokeMutationCanonical is called by assembly but its body is absent, so it could add projection. Returning/persisting raw server-side state internally is not itself external disclosure. Replay handling is outside the excerpt.",
+      "root_verification_needed": "Trace generatedCrudExecute through invokeMutationCanonical to the serializer and inspect result projection at first success. Test unreadable ordinary fields and random_secret values independently. Inspect replay separately under changed read grants; storing a raw receipt is insufficient evidence of a replay leak."
+    },
+    {
+      "id": "SEC-07",
+      "title": "Public read-policy transcription discards secret metadata and grants every declared field name",
+      "severity": "high / P1 if canonical model fields include secrets and the projector uses this table",
+      "status": "confirmed metadata loss; secret disclosure requires omitted model/projector join",
+      "citations": [
+        "packages/cloudflare/src/runtime/invoke.ts:849-853",
+        "packages/cloudflare/src/runtime/invoke.ts:1783-1791",
+        "packages/cloudflare/src/runtime/invoke.ts:2146-2162",
+        "packages/state/src/query/engine.ts:714-728",
+        "packages/state/src/query/engine.ts:776-788",
+        "docs/specification/DESIGN.md:306"
+      ],
+      "minimal_witness": "Load a canonical model whose fields map includes ordinary field label and secret field token, with a supported public read mark. canonicalModelFields supplies both names; publicInput constructs secretFields=[] and a public grant over both. If projectRow relies on these secret paths or does not independently identify the stored plain string secret, the public query returns token.",
+      "counterevidence": "Absent read policy yields zero grants, ruled models are omitted/refused, and the engine projects rows before filtering. The actual mapReadRulesToPolicy acceptance branch after line 875, buildPolicyTable, projectRow/isSecretValue, canonical secret representation, and serve invocation are absent. Runtime may reject unsupported shapes or perform independent redaction. Do not claim a tested public leak from metadata loss alone.",
+      "root_verification_needed": "Use an actually emitted supported public model with a secret initializer, verify loaded field/type metadata and final response, and inspect field-selector transcription too. Preserve the declared T17/B7 host scope rather than assume every design policy is implemented."
+    },
+    {
+      "id": "SEC-08",
+      "title": "Production cookie-authenticated grant route mints credentials without its own CSRF/origin check",
+      "severity": "medium / P2 for consent/CSRF enforcement gap; token theft not established",
+      "status": "confirmed route-level missing enforcement; attackability depends on browser/origin deployment",
+      "citations": [
+        "packages/cloudflare/src/runtime/grant-route.ts:149-197",
+        "packages/cloudflare/src/worker/main.ts:575-609",
+        "packages/cloudflare/src/worker/entry.ts:20-31",
+        "packages/identity/src/sessions/csrf.ts:4-11",
+        "packages/identity/src/sessions/cookies.ts:79-88"
+      ],
+      "minimal_witness": "A POST carrying a valid session cookie, a JSON-parsable body and any nonblank client_id reaches issueMcpGrant without a CSRF token or Origin validation. req.json() does not require an application/json Content-Type. The shown main path dispatches this route directly after a binding gate.",
+      "counterevidence": "SameSite=Lax normally suppresses session cookies on cross-site POSTs, and same-origin response restrictions normally prevent reading the returned token. Therefore the excerpts do not establish generic cross-site bearer exfiltration. Same-site untrusted origins or broader cookie configuration could still make unauthorized issuance possible. Membership is checked before minting.",
+      "root_verification_needed": "Inspect trusted-origin policy, any edge middleware, actual cookie Domain/SameSite use, and endpoint consent contract. Check no-token/mismatched-token POST behavior at the actual route. Resolve another conditional contract gap: route comments require a verified actor, but its condition at 164-169 never checks actor.email_verified and resolveIdentity returns that flag without requiring true; determine whether active unverified memberships are reachable."
+    }
+  ],
+  "unresolved_security_joins": [
+    {
+      "topic": "App/team/storage-owner correspondence",
+      "citations": [
+        "packages/state/src/storage/d1.ts:636-646",
+        "packages/state/src/storage/d1.ts:704-721",
+        "packages/state/src/query/engine.ts:692-714",
+        "packages/state/src/query/engine.ts:743-764",
+        "packages/cloudflare/src/worker/assembly.ts:907-918",
+        "packages/cloudflare/src/worker/assembly.ts:1684-1694",
+        "docs/specification/DESIGN.md:306",
+        "docs/specification/DESIGN.md:547-549"
+      ],
+      "evidence": "Storage load/query selects by model/id or model, inserts owner as an empty string, and supplied assembly closes over an injected store. Query membership uses context.teamId but the scanned rows have no shown team/owner restriction. Owner authority deliberately skips viewer grants. This is safe only if an upstream trusted selection or model boundary establishes the correct store/record scope.",
+      "minimal_conditional_witness": "If two independently scoped teams share the injected record namespace and the same qualified model, membership in T2 plus a member grant can see T1 rows because the shown scan does not correlate those rows to T2. A public grant does not itself remove the design's record/team boundary. Conversely, a verified one-owner store could make the unscoped SQL correct.",
+      "root_verification_needed": "Inspect env-assembly production constructor, binding provisioning, artifact app mapping, owner routing/admission, store identity, and records from two teams/owners. Establish whether state and identity truly share the same physical DB and fence. Do not prescribe database topology or mark cross-tenant exposure without this evidence."
+    },
+    {
+      "topic": "Replay projection and identity scoping",
+      "evidence": "Raw receipt outcome is visible at invoke.ts 328-338; receipt lookup, receiptIdentityFor implementation, replay consumer and current-access projector are not supplied. No conclusion about completed replay secrecy, app/team/principal receipt isolation or deterministic root routing is justified.",
+      "root_verification_needed": "Trace receipt identity fields and current-access replay projection; test same operation ID across two principals/teams and loss of read access before replay."
+    },
+    {
+      "topic": "Outstanding auth codes after revocation/recovery",
+      "citations": [
+        "packages/identity/src/authentication/revocation.ts:21-27",
+        "packages/identity/src/accounts/recovery.ts:82-87",
+        "packages/identity/src/authentication/oauth.ts:229-245",
+        "packages/identity/src/ports.ts:203-219"
+      ],
+      "evidence": "Completed sign-out-everywhere/recovery revoke sessions and grants but not outstanding authorization codes. A still-valid unconsumed preexisting code plus its verifier can later mint a fresh grant, without session revalidation in exchangeCode. This is a sequential behavior, not only a race.",
+      "root_verification_needed": "Determine whether the accepted recovery/global-revocation contract invalidates outstanding authorization authority as well as already-issued grants. Check consent/issuance provenance and token-route reachability. Do not silently expand revocation policy."
+    },
+    {
+      "topic": "Read snapshot consistency and invitations",
+      "evidence": "The supplied engine reads a starting revision, membership and rows; the wrapper after engine.ts 815 is missing, so absence of a final read-fence check cannot be inferred. Invitation accept/revoke storage methods are present but invitation feature/route consumers are absent; no addressed-email, role-ceiling or acceptance-race verdict is possible.",
+      "root_verification_needed": "Inspect final query/invokeRead wrappers and invitation callers before claiming violations of DESIGN 291 or 558."
+    }
+  ],
+  "positive_evidence": [
+    "resolveIdentity checks current token hash records for revocation and expiry on each call; team-bound MCP grants reject explicit team mismatch and missing active membership (context.ts 117-152).",
+    "Sessions distinguish authentication from active membership; an actor with null membership is not itself a bypass. Subsequent operation policy must decide access.",
+    "OAuth authorization checks registered redirect exact match and PKCE; exchange validates client, redirect, expiry, consumption and S256 verifier before minting (oauth.ts 139-153, 229-245).",
+    "Viewer engine resolves grant predicates, projects each matching row before caller filters and sorting, and returns no rows for zero grants (engine.ts 714-788). Secret projection internals are outside the payload.",
+    "State mutations use a revision fence and revalidation; the presence of those mechanisms is evidence against blanket claims that state commits have no concurrency control (invoke.ts 299-350; state/storage/d1.ts 670-698). Their coverage of identity writers is a separate issue.",
+    "Raw credential material is returned at issuance while only hashes are persisted in the shown identity store. No logging of those raw issuance values appears in the selected route."
+  ],
+  "limits": [
+    "Only frozen selected ranges were reviewed. Full source files, tests, deployed configuration, earlier assessments and current changes were not accessed.",
+    "No product source edits, network calls, tests, deployments, model launches or subagents were performed. Only the authorized private report was written.",
+    "Witnesses are reasoned interleavings/inputs, not executed reproductions. High severity for conditional paths describes impact if root confirms reachability and contract.",
+    "Comments describing desired joins do not establish implemented joins; comments explicitly admitting interim limitations were preserved as counterevidence. Helpers alone do not establish endpoint exposure.",
+    "Root must join each source path/hash/range to current code, inspect named missing callers/configuration, independently adjudicate and route any narrowly scoped repairs. No new topology, security/resource policy or package acceptance is selected here."
+  ]
+}
