@@ -1,0 +1,536 @@
+{
+  "schema_version": 1,
+  "step": 11,
+  "reviewer": "output_serialization worker independent source/oracle review; no execution",
+  "scope": "Root final public API and actual framed process receipts; actual client execution reviewed by another worker",
+  "inputs": [
+    {
+      "path": "probe.rs",
+      "sha256": "f1c3a736c8cd0069728883fab3aabf1336d06ab17bf106188509b2de9cd10a66"
+    },
+    {
+      "path": "run.py",
+      "sha256": "0169ed8cf616136483fcad00ba8c48c0e4cacab314c0a38f8bedef6a1ee25a33"
+    },
+    {
+      "path": "execution.json",
+      "sha256": "d4680cd10a9fd6f5d6ba9c4dd7619e86c553f23d713683eaf80799d900b68d33"
+    },
+    {
+      "path": "process.py",
+      "sha256": "6539e315b90045bd7dc9a6ec5e54a33cb3c9d472b8a4dc37206d5f319f7e23de"
+    },
+    {
+      "path": "process-cases.json",
+      "sha256": "ae6e85f3eebf4e4c802f94722b7611d942a2454f4b27c9f1b0690c7c42ab3439"
+    },
+    {
+      "path": "process-execution.json",
+      "sha256": "9521e94b56cceb02eb31849455917a2a7d80a95040a4de839e7dc6783134b5e3"
+    },
+    {
+      "path": "process-observations.json",
+      "sha256": "61da871df227ca270a542a898b3d0b22830c76634873ad5253cd458d29b69503"
+    },
+    {
+      "path": "public-batch.stdout",
+      "sha256": "f077b0a3516fd27ef221fff79ab0bca214f51cc51d4255b84b96e2f339c22796"
+    },
+    {
+      "path": "public-retention.stdout",
+      "sha256": "8c47aaeb0c2fd30ba0b5aea0827c535994fdcb0075f557308dc0dba61d55a1ca"
+    },
+    {
+      "path": "server-options.py",
+      "sha256": "d615314b1ee6cc96bb0abfa297d183c6a6d611a4856bc1feddbb1d09aeccf09a"
+    },
+    {
+      "path": "server-options.json",
+      "sha256": "cb26bb7cdf1eb7b9c0035ec7d0b19e813ef3b3d5464380636c9a1743b9714a7d"
+    },
+    {
+      "path": "observer-corrections.json",
+      "sha256": "48c8e4517d8603e674e223e2ff537cd886078e09d916f6240df761d25e50aa72"
+    }
+  ],
+  "raw_receipt_hash_check": {
+    "streams": 61,
+    "mismatches": 0,
+    "records": [
+      {
+        "receipt": "execution.json",
+        "command": "rustc-version",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "rustc-version",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "cargo-version",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "cargo-version",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "node-version",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "node-version",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "fresh-build",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "fresh-build",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "compile-probe",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "compile-probe",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "public-batch",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "public-batch",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "public-retention",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "public-retention",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "focused-suites",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "focused-suites",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "lsp-unit",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "execution.json",
+        "command": "lsp-unit",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "lifecycle",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "lifecycle",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "lifecycle",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "cancel-sync",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "cancel-sync",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "cancel-sync",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "invalid-version-robustness",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "invalid-version-robustness",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "invalid-version-robustness",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "reopen",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "reopen",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "reopen",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "early-exit",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "early-exit",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "early-exit",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "clean-disconnect",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "clean-disconnect",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "clean-disconnect",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "torn-header",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "torn-header",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "torn-header",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "torn-body",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "torn-body",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "torn-body",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "catalog-invalidation",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "catalog-invalidation",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "catalog-invalidation",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "catalog-restart",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "catalog-restart",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "catalog-restart",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "cross-file-cli-check",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "cross-file-cli-check",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "cross-file-server",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "cross-file-server",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "process-execution.json",
+        "command": "cross-file-server",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "server-options.json",
+        "command": "server-options-cli-control",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "server-options.json",
+        "command": "server-options-cli-control",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "server-options.json",
+        "command": "server-options-absent",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "server-options.json",
+        "command": "server-options-absent",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "server-options.json",
+        "command": "server-options-absent",
+        "stream": "stderr",
+        "matches": true
+      },
+      {
+        "receipt": "server-options.json",
+        "command": "server-options-versioned",
+        "stream": "stdin",
+        "matches": true
+      },
+      {
+        "receipt": "server-options.json",
+        "command": "server-options-versioned",
+        "stream": "stdout",
+        "matches": true
+      },
+      {
+        "receipt": "server-options.json",
+        "command": "server-options-versioned",
+        "stream": "stderr",
+        "matches": true
+      }
+    ]
+  },
+  "retention_checks": {
+    "distinct96": true,
+    "same96": true,
+    "reopen97": true,
+    "reopen_same_hash": true,
+    "analysis129": true,
+    "pending0": true,
+    "batch2": true,
+    "batch_current_only": true
+  },
+  "process_count": {
+    "commands": 12,
+    "actual_lsp_processes": 11,
+    "joint_cli_control": 1,
+    "server_options_additional_commands": 3,
+    "server_options_lsp_processes": 2,
+    "server_options_cli_control": 1
+  },
+  "suite_counts": {
+    "authoring": 30,
+    "b3_authoring_join": 3,
+    "b3_s4": 4,
+    "ide": 32,
+    "lsp_admission": 26,
+    "lsp_typed_output": 4,
+    "integration_total": 99,
+    "lsp_unit": 29,
+    "total_passed": 128,
+    "failed": 0,
+    "ignored": 0,
+    "lib_filtered_out": 97
+  },
+  "conclusions": [
+    {
+      "id": "EPR01",
+      "duties": [
+        "ES-01",
+        "ES-02",
+        "ES-07",
+        "ES-08",
+        "ES-12",
+        "ES-13"
+      ],
+      "verdict": "qualified actual lifecycle evidence",
+      "reason": "Successful init; malformed source diagnostic then repair empty; close makes query unknown; shutdown null then InvalidRequest; normal exit 0/early exit 1; clean/torn-input disconnects exit 0. Reopen bad-close/barrier/good-open omits intervening empty diagnostic clear.",
+      "limit": "Close clear is server-owned single-file VS Code guidance; bundled client clears locally. EOF is not exit-notification semantics. No GUI or parent-monitor/signal/outbound-write-failure witness."
+    },
+    {
+      "id": "EPR02",
+      "duties": [
+        "ES-05",
+        "ES-06",
+        "ES-11",
+        "ES-12"
+      ],
+      "verdict": "public/production and valid/invalid inputs separated",
+      "reason": "Public delayed pump gives two analyses of identical reopened current SourceId/hash, and a queued publication after shutdown. Actual stdio processes and pumps serially; cancel notification before/after request does not interrupt. Decreasing/equal versions replace text in invalid-client robustness session.",
+      "limit": "No actual async stale old-byte result, valid-client decreasing-version defect, burst coalescing, request interrupt, or background worker proven."
+    },
+    {
+      "id": "EPR03",
+      "duties": [
+        "ES-16",
+        "ES-17"
+      ],
+      "verdict": "direct real-backend retention evidence",
+      "reason": "All retention checks pass. RealAnalysis delegated unchanged. Distinct96 retains96 sources/791031 text bytes; 32 equal-text live changes stay96; same-text reopen adds97/799271. Source proves parse/lint traversal over retained history.",
+      "limit": "Snapshot typechecks only current file; historical revisions undergo parse/lint, not all historical typechecks. Timings are single-host observations, not isolated lint benchmark, measured RSS, exhaustion or crash."
+    },
+    {
+      "id": "EPR04",
+      "duties": [
+        "ES-14",
+        "ES-15"
+      ],
+      "verdict": "bounded static-catalog/single-file scope confirmed",
+      "reason": "Both roots use cwd catalog; watcher/config/folder notifications do not refresh captured catalog; fresh process sees missing lower E2001. Joint valid CLI package/import set exits0 clean; both-open LSP shows E2005 and definition result is empty.",
+      "limit": "No project graph or live invalidation advertised. References capability is advertised and official feature says project-wide: lack of workspace capabilities does not erase broad reference scope; project scope needs separate design qualification."
+    },
+    {
+      "id": "EPR05",
+      "duties": [
+        "ES-09",
+        "ES-10",
+        "ES-02"
+      ],
+      "verdict": "two supported-option defects independently controlled",
+      "reason": "Clean fixture and successful init in both server-options sessions. includeDeclaration false still returns known declaration, same as true. Absent workspaceEdit capabilities still yields versioned documentChanges, identical carrier to supported session; official LSP allows only changes for clients supporting neither documentChanges nor resource operations.",
+      "limit": "Wire defects established; no actual GUI application failure, fix code-action carrier reproduction, arbitrary-symbol completeness, or edit-application witness inferred."
+    },
+    {
+      "id": "EPR06",
+      "duties": [
+        "ES-01",
+        "ES-02",
+        "ES-15"
+      ],
+      "verdict": "failed observers retained and excluded",
+      "reason": "attempt1 omitted required initializer fields and malformed joint source; public retention panic was observer unwrap, not compiler. Corrections assert successful init and clean CLI control; observer-corrections records intermediate Python indentation error.",
+      "limit": "Only corrected final receipts support conclusions; original empty callback/catalog output is not lifecycle evidence."
+    }
+  ],
+  "normative_sources": {
+    "references": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/language/references.md",
+    "workspace_edit": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/types/workspaceEdit.md",
+    "version": "LSP3.17 maintained official gh-pages source; not a SHA-pinned specification revision"
+  },
+  "final_status": "complete bounded review; root owns ledger, acceptance and commits"
+}

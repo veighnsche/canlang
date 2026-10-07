@@ -1,0 +1,984 @@
+[
+  {
+    "id": "lifecycle",
+    "exit": 0,
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "error": {
+          "code": -32002,
+          "message": "initialize first"
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [
+            {
+              "range": {
+                "start": {
+                  "line": 2,
+                  "character": 20
+                },
+                "end": {
+                  "line": 2,
+                  "character": 21
+                }
+              },
+              "severity": 1,
+              "code": "E1006",
+              "source": "can",
+              "message": "unknown string escape `\\q`"
+            }
+          ],
+          "version": 1
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [],
+          "version": 2
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "contents": {
+            "kind": "markdown",
+            "value": "**T.Item** — model"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "error": {
+          "code": -32602,
+          "message": "unknown document or bad position"
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": null
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "error": {
+          "code": -32600,
+          "message": "server is shut down"
+        }
+      }
+    ],
+    "raw": "lifecycle.stdout"
+  },
+  {
+    "id": "cancel-sync",
+    "exit": 0,
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [],
+          "version": 1
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "contents": {
+            "kind": "markdown",
+            "value": "**T.Item** — model"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 99,
+        "result": null
+      }
+    ],
+    "raw": "cancel-sync.stdout"
+  },
+  {
+    "id": "invalid-version-robustness",
+    "exit": 0,
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [
+            {
+              "range": {
+                "start": {
+                  "line": 2,
+                  "character": 20
+                },
+                "end": {
+                  "line": 2,
+                  "character": 21
+                }
+              },
+              "severity": 1,
+              "code": "E1006",
+              "source": "can",
+              "message": "unknown string escape `\\q`"
+            }
+          ],
+          "version": 5
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [],
+          "version": 6
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [
+            {
+              "range": {
+                "start": {
+                  "line": 2,
+                  "character": 20
+                },
+                "end": {
+                  "line": 2,
+                  "character": 21
+                }
+              },
+              "severity": 1,
+              "code": "E1006",
+              "source": "can",
+              "message": "unknown string escape `\\q`"
+            }
+          ],
+          "version": 5
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [],
+          "version": 5
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 99,
+        "result": null
+      }
+    ],
+    "raw": "invalid-version-robustness.stdout"
+  },
+  {
+    "id": "reopen",
+    "exit": 0,
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [
+            {
+              "range": {
+                "start": {
+                  "line": 2,
+                  "character": 20
+                },
+                "end": {
+                  "line": 2,
+                  "character": 21
+                }
+              },
+              "severity": 1,
+              "code": "E1006",
+              "source": "can",
+              "message": "unknown string escape `\\q`"
+            }
+          ],
+          "version": 1
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "error": {
+          "code": -32601,
+          "message": "unknown method 'unknown/barrier'"
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [],
+          "version": 1
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 99,
+        "result": null
+      }
+    ],
+    "raw": "reopen.stdout"
+  },
+  {
+    "id": "early-exit",
+    "exit": 1,
+    "frames": [],
+    "raw": "early-exit.stdout"
+  },
+  {
+    "id": "clean-disconnect",
+    "exit": 0,
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "untitled:Step11-é😀",
+          "diagnostics": [],
+          "version": 1
+        }
+      }
+    ],
+    "raw": "clean-disconnect.stdout"
+  },
+  {
+    "id": "torn-header",
+    "exit": 0,
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      }
+    ],
+    "raw": "torn-header.stdout"
+  },
+  {
+    "id": "torn-body",
+    "exit": 0,
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      }
+    ],
+    "raw": "torn-body.stdout"
+  },
+  {
+    "id": "catalog-invalidation",
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/a.can",
+          "diagnostics": [],
+          "version": 1
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-b/b.can",
+          "diagnostics": [],
+          "version": 1
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "error": {
+          "code": -32601,
+          "message": "unknown method 'unknown/barrier'"
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/a.can",
+          "diagnostics": [],
+          "version": 2
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "error": {
+          "code": -32601,
+          "message": "unknown method 'unknown/barrier'"
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 99,
+        "result": null
+      }
+    ],
+    "root_a_initial_catalog": "0b03d71ee0406cc42defa6c251639ab36e9f1ef8bdec2ad527a8d94a6f821689",
+    "root_b_catalog": "8fbde9dbc994613b84e45a51bfc94ed97ff9b17268789549f56d50ba595c46be",
+    "root_a_mutated_catalog": "8fbde9dbc994613b84e45a51bfc94ed97ff9b17268789549f56d50ba595c46be",
+    "scope": "one process selects cwd catalog; notifications ignored; same text rechecked against captured old catalog"
+  },
+  {
+    "id": "catalog-restart",
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/a.can",
+          "diagnostics": [
+            {
+              "range": {
+                "start": {
+                  "line": 4,
+                  "character": 12
+                },
+                "end": {
+                  "line": 4,
+                  "character": 17
+                }
+              },
+              "severity": 1,
+              "code": "E2001",
+              "source": "can",
+              "message": "unresolved name 'lower'"
+            }
+          ],
+          "version": 3
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "error": {
+          "code": -32601,
+          "message": "unknown method 'unknown/barrier'"
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 99,
+        "result": null
+      }
+    ],
+    "scope": "fresh process loads mutated cwd catalog"
+  },
+  {
+    "id": "cross-file-cli-check",
+    "exit": 0,
+    "codes": []
+  },
+  {
+    "id": "cross-file-server",
+    "frames": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "positionEncoding": "utf-16",
+            "textDocumentSync": 1,
+            "hoverProvider": true,
+            "completionProvider": {},
+            "definitionProvider": true,
+            "referencesProvider": true,
+            "codeActionProvider": true,
+            "renameProvider": true,
+            "semanticTokensProvider": {
+              "legend": {
+                "tokenTypes": [
+                  "namespace",
+                  "type",
+                  "class",
+                  "interface",
+                  "enum",
+                  "struct",
+                  "parameter",
+                  "variable",
+                  "property",
+                  "enumMember",
+                  "event",
+                  "function",
+                  "method",
+                  "keyword",
+                  "comment",
+                  "string",
+                  "number",
+                  "operator"
+                ],
+                "tokenModifiers": [
+                  "declaration",
+                  "documentation",
+                  "defaultLibrary",
+                  "readonly"
+                ]
+              },
+              "full": true
+            }
+          },
+          "serverInfo": {
+            "name": "can",
+            "version": "0.1.0"
+          }
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/p.can",
+          "diagnostics": [],
+          "version": 1
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+          "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/app.can",
+          "diagnostics": [
+            {
+              "range": {
+                "start": {
+                  "line": 0,
+                  "character": 4
+                },
+                "end": {
+                  "line": 0,
+                  "character": 5
+                }
+              },
+              "severity": 1,
+              "code": "E2005",
+              "source": "can",
+              "message": "app 'T' selects unknown member 'p'"
+            },
+            {
+              "range": {
+                "start": {
+                  "line": 2,
+                  "character": 5
+                },
+                "end": {
+                  "line": 2,
+                  "character": 6
+                }
+              },
+              "severity": 1,
+              "code": "E2005",
+              "source": "can",
+              "message": "import provider 'p' names no known app or package"
+            }
+          ],
+          "version": 1
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "error": {
+          "code": -32601,
+          "message": "unknown method 'unknown/barrier'"
+        }
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": []
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 99,
+        "result": null
+      }
+    ],
+    "definition": {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "result": []
+    },
+    "scope": "both documents open, each Snapshot checks own source only"
+  }
+]

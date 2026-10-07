@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "step": 11,
+  "reviewer": "client lane independent server source review",
+  "scope": "Only review-server.json/.md; no execution or edits of primary server map",
+  "reviewed_primary": [
+    "server.json",
+    "server-notes.md"
+  ],
+  "pins": [
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "sha256": "79c53edb9ba35b411e48d7d0064776dfbb4b8b622f748dbb13d3958cb9f78743"
+    },
+    {
+      "path": "compiler/src/lsp/output.rs",
+      "sha256": "8b9a350c847dcc326007ca08108fc8a986cb5f0089b2438a22a8b04f33ee0a0b"
+    },
+    {
+      "path": "compiler/src/ide/queries.rs",
+      "sha256": "070e6a13702a5da87bd1da5b1ec92ee27361d682cf31849c37502076556215d8"
+    },
+    {
+      "path": "compiler/src/lint/driver.rs",
+      "sha256": "c16c9473a594066de41ebf88e1409584bd8fbb9375a94f110a964a19307a17dc"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "sha256": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a"
+    },
+    {
+      "path": "editors/vscode/src/client.ts",
+      "sha256": "048b44dce7fc1ba5bba80985ba3b4710c392993f2b03d8db19fd0a48072063af"
+    },
+    {
+      "path": "editors/vscode/src/extension.ts",
+      "sha256": "916ccb65410f7f55e1b4ffe5a3e9a1e0294d6fba11abb3ffd802515103da86b6"
+    },
+    {
+      "path": "implementation/DIAGNOSTICS.md",
+      "sha256": "90f6233569bc999149dc09b4a7dc239d8f99860de14c2da2c7cea1c331231061"
+    }
+  ],
+  "normative_sources": {
+    "diagnostics": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/language/publishDiagnostics.md",
+    "references": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/language/references.md",
+    "versions": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/types/versionedTextDocumentIdentifier.md",
+    "base": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/specification.md",
+    "workspace_edit": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/types/workspaceEdit.md"
+  },
+  "conclusions": [
+    {
+      "id": "ERS01",
+      "primary_ids": [
+        "ES-02",
+        "ES-11"
+      ],
+      "verdict": "Agree with qualification",
+      "source": "server.rs:616-658,824-826,1169-1208",
+      "reason": "Initialize changes Ready before initialized, but initialized ordering is a client requirement. Synchronous server may ignore dollar notifications; cancellation latency is project/responsiveness gap, not mandatory interrupt support. Non-null parent disappearance is should guidance, bundled client sends null.",
+      "bound": "No new blocking defect from these choices; retain project stale-cancellation promise separately."
+    },
+    {
+      "id": "ERS02",
+      "primary_ids": [
+        "ES-05"
+      ],
+      "verdict": "Agree invalid-client bound",
+      "source": "server.rs:849-863,897-915; official VERSION",
+      "reason": "Versions must increase at client; server admits equal/decreasing i32 versions. Public replacement proves robustness behavior, not a required rejection rule. Negative initial i32 is not itself an identified prohibition.",
+      "bound": "Do not count decreasing-version probe as valid-client protocol regression."
+    },
+    {
+      "id": "ERS03",
+      "primary_ids": [
+        "ES-06",
+        "ES-12"
+      ],
+      "verdict": "Agree public/stdio distinction",
+      "source": "server.rs:600-613,1169-1208",
+      "reason": "Public batched handle calls can preserve stale queue entries across close/reopen same URI+version and shutdown. Real stdio pumps after each input before next read. Reopened queue entries analyze current text twice; they do not emit old text.",
+      "bound": "Duplicate public work/source-comment mismatch is bounded; real burst coalescing/background cancellation has not been implemented or witnessed."
+    },
+    {
+      "id": "ERS04",
+      "primary_ids": [
+        "ES-08"
+      ],
+      "verdict": "Agree with normative precision",
+      "source": "server.rs:917-926; client.ts:719-729; official DIAGNOSTICS",
+      "reason": "Server removes live document without publishing empty diagnostics. Official document gives a VSCode single-file clearing rule and server ownership; bundled client deletes locally.",
+      "bound": "Real wire close-clear gap deserves probe; no actual visible stale bundled UI claim, and no universal all-server close clearing MUST."
+    },
+    {
+      "id": "ERS05",
+      "primary_ids": [
+        "ES-14",
+        "ES-15"
+      ],
+      "verdict": "Agree scope, qualify advertised references",
+      "source": "server.rs:254-273,353-381; queries.rs:225-241; official references",
+      "reason": "Static process catalog and one-file semantic analysis are real limits. No workspaceFolders/dynamic invalidation advertised. Reference capability is advertised and official feature describes project-wide lookup; current-document implementation remains explicitly bounded by project plan.",
+      "bound": "Record unsupported crossfile/per-root/live reload as desired capability gaps; do not assert these implemented from open SourceDb or trait crossURI fixtures, nor erase broad references promise merely because workspace capability absent."
+    },
+    {
+      "id": "ERS06",
+      "primary_ids": [
+        "ES-16",
+        "ES-17"
+      ],
+      "verdict": "Agree source resource lead, narrow traversal",
+      "source": "source.rs:26-73; lint/driver.rs:466-483; server.rs:286-303,411-455",
+      "reason": "Append-only SourceDb retains distinct revisions and reopens; lint iterates all history before current-file filter. It reparses and runs syntax/lint rules per retained source using current CheckedProgram; it does not typecheck every historical source. Fresh Snapshot checks only requested file.",
+      "bound": "Source proves history-scaled work and retention, not measured RSS, crash, latency, or stale result leak; root measurements must use RealAnalysis."
+    },
+    {
+      "id": "ERS07",
+      "primary_ids": [
+        "ES-09"
+      ],
+      "verdict": "New valid supported-option defect lead",
+      "source": "server.rs:713-730,1040-1046,364-381; queries.rs:343-363",
+      "reason": "References includeDeclaration is validated but not read/forwarded. Snapshot references include declaration plus uses. Official context boolean explicitly controls declaration inclusion. Extension forwards host includeDeclaration.",
+      "bound": "Root true/false same-symbol public/native probe requested; expected false omits declaration while source predicts identical arrays. This is distinct from invalid-client version robustness and unsupported crossfile graph."
+    },
+    {
+      "id": "ERS08",
+      "primary_ids": [
+        "ES-02",
+        "ES-10"
+      ],
+      "verdict": "New capability negotiation seam",
+      "source": "server.rs:616-658,730-777; output.rs:85-175; client.ts:544-570",
+      "reason": "Initialize capabilities are not stored. Rename/action always emit documentChanges. Bundled client does not advertise workspaceEdit.documentChanges or resourceOperations. Official WorkspaceEdit supports plain changes when neither capability is present; local converter accepting versioned changes masks this negotiated carrier mismatch.",
+      "bound": "Root absent/true documentChanges capability rename control requested. Source predicts same documentChanges output. No host application failure inferred; stale-version discard remains an independent client seam."
+    }
+  ],
+  "fresh_execution": "None by reviewer; root receipts pending."
+}

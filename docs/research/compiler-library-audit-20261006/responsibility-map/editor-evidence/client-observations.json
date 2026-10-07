@@ -1,0 +1,1422 @@
+{
+  "scope": "unmodified freshly compiled class/providers + actual server frames; strict host stand-ins, controlled delivery; no GUI/edit application",
+  "observations": [
+    {
+      "id": "client-stale-diagnostic",
+      "currentVersion": 2,
+      "actualWireVersion": 1,
+      "installed": {
+        "uri": "file:///Users/vince/Projects/canlang/step11.can",
+        "codes": [
+          "E1006"
+        ],
+        "count": 1
+      },
+      "expected": "discard version1 for known current version2"
+    },
+    {
+      "id": "client-closed-diagnostic",
+      "deletedOnClose": true,
+      "lateWireVersion": 3,
+      "installed": {
+        "uri": "file:///Users/vince/Projects/canlang/step11.can",
+        "codes": [
+          "E1006"
+        ],
+        "count": 1
+      },
+      "expected": "closed document remains cleared"
+    },
+    {
+      "id": "client-stop",
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "disposed": 1,
+      "droppedAfterStop": true
+    },
+    {
+      "id": "completion-kinds",
+      "selected": [
+        {
+          "label": "Todo",
+          "kind": 7,
+          "expected": 6
+        },
+        {
+          "label": "and",
+          "kind": 14,
+          "expected": 13
+        },
+        {
+          "label": "task",
+          "kind": 6,
+          "expected": 5
+        }
+      ],
+      "oracle": "VS Code1.91 public enum values; actual provider converts actual server items"
+    },
+    {
+      "id": "stale-versioned-rename",
+      "actualWireVersion": 1,
+      "currentVersion": 2,
+      "converted": {
+        "entries": [
+          {
+            "uri": "file:///Users/vince/Projects/canlang/step11.can",
+            "edits": [
+              {
+                "range": {
+                  "start": {
+                    "line": 2,
+                    "character": 1
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 5
+                  }
+                },
+                "newText": "Task"
+              },
+              {
+                "range": {
+                  "start": {
+                    "line": 4,
+                    "character": 17
+                  },
+                  "end": {
+                    "line": 4,
+                    "character": 21
+                  }
+                },
+                "newText": "Task"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "do not offer version1 edit against known revision2"
+    },
+    {
+      "id": "cancelled-provider",
+      "alreadyCancelled": true,
+      "cancelListenerCount": 0,
+      "cancelFrames": 0,
+      "resultOffered": true,
+      "expected": "honor cancelled provider result"
+    },
+    {
+      "id": "extension-restart-replay",
+      "oldExit": {
+        "code": 0,
+        "signal": null
+      },
+      "replayedVersion": 2,
+      "replayedCurrentText": true
+    },
+    {
+      "id": "extension-deactivate",
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "scope": "real cooperative server exit; no stubborn-child/host shutdown deadline claim"
+    },
+    {
+      "id": "client-death-pending",
+      "exit": {
+        "code": null,
+        "signal": "SIGTERM"
+      },
+      "pendingResult": null,
+      "onExitCalls": 1,
+      "droppedAfterDeath": true,
+      "disposed": 1
+    }
+  ],
+  "sessions": [
+    {
+      "name": "client-diagnostics-0",
+      "command": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+      "args": [
+        "lsp"
+      ],
+      "options": {
+        "cwd": "/Users/vince/Projects/canlang"
+      },
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "files": [
+        "client-diagnostics-0.stdin",
+        "client-diagnostics-0.stdout",
+        "client-diagnostics-0.stderr"
+      ],
+      "sent": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "initialize",
+          "params": {
+            "processId": null,
+            "rootUri": null,
+            "capabilities": {
+              "textDocument": {
+                "synchronization": {
+                  "didSave": true
+                },
+                "publishDiagnostics": {
+                  "versionSupport": true
+                },
+                "hover": {
+                  "contentFormat": [
+                    "markdown",
+                    "plaintext"
+                  ]
+                },
+                "completion": {
+                  "completionItem": {
+                    "documentationFormat": [
+                      "markdown",
+                      "plaintext"
+                    ]
+                  }
+                },
+                "definition": {
+                  "linkSupport": false
+                },
+                "references": {},
+                "rename": {
+                  "prepareSupport": false
+                },
+                "semanticTokens": {
+                  "formats": [
+                    "relative"
+                  ],
+                  "requests": {
+                    "full": true
+                  },
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "codeAction": {
+                  "codeActionLiteralSupport": {
+                    "codeActionKind": {
+                      "valueSet": [
+                        "quickfix"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "initialized",
+          "params": {}
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/didOpen",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can",
+              "languageId": "can",
+              "version": 1,
+              "text": "app T\nGiven\n Item {title:text=\"\\q\"}\nWhen\nThen\n"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/didChange",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can",
+              "version": 2
+            },
+            "contentChanges": [
+              {
+                "text": "app T\nGiven\n Item {title:text}\nWhen\nThen\n"
+              }
+            ]
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/didChange",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can",
+              "version": 3
+            },
+            "contentChanges": [
+              {
+                "text": "app T\nGiven\n Item {title:text=\"\\q\"}\nWhen\nThen\n"
+              }
+            ]
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/didClose",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "shutdown",
+          "params": null
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "exit",
+          "params": null
+        }
+      ],
+      "received": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": {
+            "uri": "file:///Users/vince/Projects/canlang/step11.can",
+            "diagnostics": [
+              {
+                "range": {
+                  "start": {
+                    "line": 2,
+                    "character": 20
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 21
+                  }
+                },
+                "severity": 1,
+                "code": "E1006",
+                "source": "can",
+                "message": "unknown string escape `\\q`"
+              }
+            ],
+            "version": 1
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": {
+            "uri": "file:///Users/vince/Projects/canlang/step11.can",
+            "diagnostics": [],
+            "version": 2
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": {
+            "uri": "file:///Users/vince/Projects/canlang/step11.can",
+            "diagnostics": [
+              {
+                "range": {
+                  "start": {
+                    "line": 2,
+                    "character": 20
+                  },
+                  "end": {
+                    "line": 2,
+                    "character": 21
+                  }
+                },
+                "severity": 1,
+                "code": "E1006",
+                "source": "can",
+                "message": "unknown string escape `\\q`"
+              }
+            ],
+            "version": 3
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": null
+        }
+      ]
+    },
+    {
+      "name": "extension-providers-0",
+      "command": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+      "args": [
+        "lsp"
+      ],
+      "options": {
+        "cwd": "/Users/vince/Projects/canlang"
+      },
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "files": [
+        "extension-providers-0.stdin",
+        "extension-providers-0.stdout",
+        "extension-providers-0.stderr"
+      ],
+      "sent": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "initialize",
+          "params": {
+            "processId": null,
+            "rootUri": null,
+            "capabilities": {
+              "textDocument": {
+                "synchronization": {
+                  "didSave": true
+                },
+                "publishDiagnostics": {
+                  "versionSupport": true
+                },
+                "hover": {
+                  "contentFormat": [
+                    "markdown",
+                    "plaintext"
+                  ]
+                },
+                "completion": {
+                  "completionItem": {
+                    "documentationFormat": [
+                      "markdown",
+                      "plaintext"
+                    ]
+                  }
+                },
+                "definition": {
+                  "linkSupport": false
+                },
+                "references": {},
+                "rename": {
+                  "prepareSupport": false
+                },
+                "semanticTokens": {
+                  "formats": [
+                    "relative"
+                  ],
+                  "requests": {
+                    "full": true
+                  },
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "codeAction": {
+                  "codeActionLiteralSupport": {
+                    "codeActionKind": {
+                      "valueSet": [
+                        "quickfix"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "initialized",
+          "params": {}
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/didOpen",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can",
+              "languageId": "can",
+              "version": 1,
+              "text": "app T\nGiven\n Todo {title:text}\nWhen\n scenario s(task:Todo) read=true -> text by=members\n  do return task.title\nThen\n"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "textDocument/completion",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can"
+            },
+            "position": {
+              "line": 5,
+              "character": 12
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "textDocument/rename",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can"
+            },
+            "position": {
+              "line": 2,
+              "character": 2
+            },
+            "newName": "Task"
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/didChange",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can",
+              "version": 2
+            },
+            "contentChanges": [
+              {
+                "text": "app T\nGiven\n Different {title:text}\nWhen\n scenario s(task:Todo) read=true -> text by=members\n  do return task.title\nThen\n"
+              }
+            ]
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "method": "textDocument/hover",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can"
+            },
+            "position": {
+              "line": 2,
+              "character": 2
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 5,
+          "method": "shutdown",
+          "params": null
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "exit",
+          "params": null
+        }
+      ],
+      "received": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": {
+            "uri": "file:///Users/vince/Projects/canlang/step11.can",
+            "diagnostics": [],
+            "version": 1
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": [
+            {
+              "label": "Todo",
+              "kind": 7
+            },
+            {
+              "label": "abs",
+              "kind": 3
+            },
+            {
+              "label": "action",
+              "kind": 3
+            },
+            {
+              "label": "active_member",
+              "kind": 3
+            },
+            {
+              "label": "actor",
+              "kind": 6
+            },
+            {
+              "label": "add_days",
+              "kind": 3
+            },
+            {
+              "label": "add_months",
+              "kind": 3
+            },
+            {
+              "label": "all",
+              "kind": 3
+            },
+            {
+              "label": "and",
+              "kind": 14
+            },
+            {
+              "label": "any",
+              "kind": 3
+            },
+            {
+              "label": "app_url",
+              "kind": 3
+            },
+            {
+              "label": "archived",
+              "kind": 14
+            },
+            {
+              "label": "as",
+              "kind": 14
+            },
+            {
+              "label": "at",
+              "kind": 3
+            },
+            {
+              "label": "choose",
+              "kind": 3
+            },
+            {
+              "label": "contains",
+              "kind": 3
+            },
+            {
+              "label": "count",
+              "kind": 3
+            },
+            {
+              "label": "date",
+              "kind": 3
+            },
+            {
+              "label": "date_year",
+              "kind": 3
+            },
+            {
+              "label": "dates",
+              "kind": 3
+            },
+            {
+              "label": "datetime",
+              "kind": 3
+            },
+            {
+              "label": "false",
+              "kind": 14
+            },
+            {
+              "label": "first",
+              "kind": 3
+            },
+            {
+              "label": "flatten",
+              "kind": 3
+            },
+            {
+              "label": "format",
+              "kind": 3
+            },
+            {
+              "label": "group",
+              "kind": 3
+            },
+            {
+              "label": "in",
+              "kind": 14
+            },
+            {
+              "label": "include",
+              "kind": 14
+            },
+            {
+              "label": "invocation",
+              "kind": 3
+            },
+            {
+              "label": "is",
+              "kind": 14
+            },
+            {
+              "label": "join",
+              "kind": 3
+            },
+            {
+              "label": "local_date",
+              "kind": 3
+            },
+            {
+              "label": "local_instant",
+              "kind": 3
+            },
+            {
+              "label": "lower",
+              "kind": 3
+            },
+            {
+              "label": "max",
+              "kind": 3
+            },
+            {
+              "label": "min",
+              "kind": 3
+            },
+            {
+              "label": "money",
+              "kind": 3
+            },
+            {
+              "label": "not",
+              "kind": 14
+            },
+            {
+              "label": "now",
+              "kind": 6
+            },
+            {
+              "label": "null",
+              "kind": 14
+            },
+            {
+              "label": "operation",
+              "kind": 6
+            },
+            {
+              "label": "or",
+              "kind": 14
+            },
+            {
+              "label": "order",
+              "kind": 14
+            },
+            {
+              "label": "overlaps",
+              "kind": 3
+            },
+            {
+              "label": "random_secret",
+              "kind": 3
+            },
+            {
+              "label": "round",
+              "kind": 3
+            },
+            {
+              "label": "s",
+              "kind": 3
+            },
+            {
+              "label": "select",
+              "kind": 14
+            },
+            {
+              "label": "starts_with",
+              "kind": 3
+            },
+            {
+              "label": "sum",
+              "kind": 3
+            },
+            {
+              "label": "task",
+              "kind": 6
+            },
+            {
+              "label": "team",
+              "kind": 6
+            },
+            {
+              "label": "trim",
+              "kind": 3
+            },
+            {
+              "label": "true",
+              "kind": 14
+            },
+            {
+              "label": "upper",
+              "kind": 3
+            },
+            {
+              "label": "weekday",
+              "kind": 3
+            },
+            {
+              "label": "where",
+              "kind": 14
+            }
+          ]
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "result": {
+            "documentChanges": [
+              {
+                "textDocument": {
+                  "uri": "file:///Users/vince/Projects/canlang/step11.can",
+                  "version": 1
+                },
+                "edits": [
+                  {
+                    "range": {
+                      "start": {
+                        "line": 2,
+                        "character": 1
+                      },
+                      "end": {
+                        "line": 2,
+                        "character": 5
+                      }
+                    },
+                    "newText": "Task"
+                  },
+                  {
+                    "range": {
+                      "start": {
+                        "line": 4,
+                        "character": 17
+                      },
+                      "end": {
+                        "line": 4,
+                        "character": 21
+                      }
+                    },
+                    "newText": "Task"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": {
+            "uri": "file:///Users/vince/Projects/canlang/step11.can",
+            "diagnostics": [
+              {
+                "range": {
+                  "start": {
+                    "line": 4,
+                    "character": 17
+                  },
+                  "end": {
+                    "line": 4,
+                    "character": 21
+                  }
+                },
+                "severity": 1,
+                "code": "E2001",
+                "source": "can",
+                "message": "unresolved name 'Todo'"
+              }
+            ],
+            "version": 2
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "result": {
+            "contents": {
+              "kind": "markdown",
+              "value": "**T.Different** — model"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 5,
+          "result": null
+        }
+      ]
+    },
+    {
+      "name": "extension-providers-1",
+      "command": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+      "args": [
+        "lsp"
+      ],
+      "options": {
+        "cwd": "/Users/vince/Projects/canlang"
+      },
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "files": [
+        "extension-providers-1.stdin",
+        "extension-providers-1.stdout",
+        "extension-providers-1.stderr"
+      ],
+      "sent": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "initialize",
+          "params": {
+            "processId": null,
+            "rootUri": null,
+            "capabilities": {
+              "textDocument": {
+                "synchronization": {
+                  "didSave": true
+                },
+                "publishDiagnostics": {
+                  "versionSupport": true
+                },
+                "hover": {
+                  "contentFormat": [
+                    "markdown",
+                    "plaintext"
+                  ]
+                },
+                "completion": {
+                  "completionItem": {
+                    "documentationFormat": [
+                      "markdown",
+                      "plaintext"
+                    ]
+                  }
+                },
+                "definition": {
+                  "linkSupport": false
+                },
+                "references": {},
+                "rename": {
+                  "prepareSupport": false
+                },
+                "semanticTokens": {
+                  "formats": [
+                    "relative"
+                  ],
+                  "requests": {
+                    "full": true
+                  },
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "codeAction": {
+                  "codeActionLiteralSupport": {
+                    "codeActionKind": {
+                      "valueSet": [
+                        "quickfix"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "initialized",
+          "params": {}
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/didOpen",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can",
+              "languageId": "can",
+              "version": 2,
+              "text": "app T\nGiven\n Different {title:text}\nWhen\n scenario s(task:Todo) read=true -> text by=members\n  do return task.title\nThen\n"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "shutdown",
+          "params": null
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "exit",
+          "params": null
+        }
+      ],
+      "received": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": {
+            "uri": "file:///Users/vince/Projects/canlang/step11.can",
+            "diagnostics": [
+              {
+                "range": {
+                  "start": {
+                    "line": 4,
+                    "character": 17
+                  },
+                  "end": {
+                    "line": 4,
+                    "character": 21
+                  }
+                },
+                "severity": 1,
+                "code": "E2001",
+                "source": "can",
+                "message": "unresolved name 'Todo'"
+              }
+            ],
+            "version": 2
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": null
+        }
+      ]
+    },
+    {
+      "name": "client-death-0",
+      "command": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+      "args": [
+        "lsp"
+      ],
+      "options": {
+        "cwd": "/Users/vince/Projects/canlang"
+      },
+      "exit": {
+        "code": null,
+        "signal": "SIGTERM"
+      },
+      "files": [
+        "client-death-0.stdin",
+        "client-death-0.stdout",
+        "client-death-0.stderr"
+      ],
+      "sent": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "initialize",
+          "params": {
+            "processId": null,
+            "rootUri": null,
+            "capabilities": {
+              "textDocument": {
+                "synchronization": {
+                  "didSave": true
+                },
+                "publishDiagnostics": {
+                  "versionSupport": true
+                },
+                "hover": {
+                  "contentFormat": [
+                    "markdown",
+                    "plaintext"
+                  ]
+                },
+                "completion": {
+                  "completionItem": {
+                    "documentationFormat": [
+                      "markdown",
+                      "plaintext"
+                    ]
+                  }
+                },
+                "definition": {
+                  "linkSupport": false
+                },
+                "references": {},
+                "rename": {
+                  "prepareSupport": false
+                },
+                "semanticTokens": {
+                  "formats": [
+                    "relative"
+                  ],
+                  "requests": {
+                    "full": true
+                  },
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "codeAction": {
+                  "codeActionLiteralSupport": {
+                    "codeActionKind": {
+                      "valueSet": [
+                        "quickfix"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "initialized",
+          "params": {}
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/didOpen",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can",
+              "languageId": "can",
+              "version": 1,
+              "text": "app T\nGiven\n Item {title:text}\nWhen\nThen\n"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "textDocument/hover",
+          "params": {
+            "textDocument": {
+              "uri": "file:///Users/vince/Projects/canlang/step11.can"
+            },
+            "position": {
+              "line": 2,
+              "character": 2
+            }
+          }
+        }
+      ],
+      "received": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": {
+            "uri": "file:///Users/vince/Projects/canlang/step11.can",
+            "diagnostics": [],
+            "version": 1
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {
+            "contents": {
+              "kind": "markdown",
+              "value": "**T.Item** — model"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

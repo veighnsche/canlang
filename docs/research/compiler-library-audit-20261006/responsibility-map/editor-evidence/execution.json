@@ -1,0 +1,190 @@
+{
+  "commands": [
+    {
+      "name": "rustc-version",
+      "argv": [
+        "rustc",
+        "-Vv"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0501,
+      "stdout": "rustc-version.stdout",
+      "stdout_sha256": "352d6857968e80a6357a926ac685b9b07f77c479aaafde33e73a53945e802909",
+      "stderr": "rustc-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cargo-version",
+      "argv": [
+        "cargo",
+        "-V"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0327,
+      "stdout": "cargo-version.stdout",
+      "stdout_sha256": "1f88eaf7fe1aaec83184752cf4c944cd22f00184136ff36a3e4c318cc60ef566",
+      "stderr": "cargo-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "node-version",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 5.7939,
+      "stdout": "node-version.stdout",
+      "stdout_sha256": "f2ec568164f99546161909b0189b57bb5be3e80f8e2ccd8a51a4aed8c4055a04",
+      "stderr": "node-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "fresh-build",
+      "argv": [
+        "cargo",
+        "build",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--lib",
+        "--bin",
+        "can",
+        "--message-format=json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.211,
+      "stdout": "fresh-build.stdout",
+      "stdout_sha256": "f190725e43f3bcebd6f4374592d2ebaca49718d03fcf8eace37fc2bae20f1f86",
+      "stderr": "fresh-build.stderr",
+      "stderr_sha256": "299f16a2c523be18fef769975d2df00e0505521db047540feea3a74b94666887"
+    },
+    {
+      "name": "compile-probe",
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/probe.rs",
+        "--extern",
+        "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+        "--extern",
+        "serde_json=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "-o",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-mnchqxl4/probe"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 4.2377,
+      "stdout": "compile-probe.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "compile-probe.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "public-batch",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-mnchqxl4/probe",
+        "batch"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.2996,
+      "stdout": "public-batch.stdout",
+      "stdout_sha256": "f077b0a3516fd27ef221fff79ab0bca214f51cc51d4255b84b96e2f339c22796",
+      "stderr": "public-batch.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "public-retention",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-mnchqxl4/probe",
+        "retention"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.3842,
+      "stdout": "public-retention.stdout",
+      "stdout_sha256": "8c47aaeb0c2fd30ba0b5aea0827c535994fdcb0075f557308dc0dba61d55a1ca",
+      "stderr": "public-retention.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "focused-suites",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--test",
+        "ide",
+        "--test",
+        "authoring",
+        "--test",
+        "lsp_admission",
+        "--test",
+        "lsp_typed_output",
+        "--test",
+        "b3_authoring_join",
+        "--test",
+        "b3_s4",
+        "--",
+        "--nocapture"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 14.3913,
+      "stdout": "focused-suites.stdout",
+      "stdout_sha256": "bbb2bc9b95a519688a7b76bc3e0eb11faa9a51eb22bd07235c488b163083e0a1",
+      "stderr": "focused-suites.stderr",
+      "stderr_sha256": "6d66dddad2b664e02ab2b4a4127a5b59c72ba60d79b0758f9769b587ee12d4ca"
+    },
+    {
+      "name": "lsp-unit",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--lib",
+        "lsp::",
+        "--",
+        "--nocapture"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 3.362,
+      "stdout": "lsp-unit.stdout",
+      "stdout_sha256": "2afb05b2baefe26d65d7c3c2d32d64db8c140bdb206d040245f6149d82f1909c",
+      "stderr": "lsp-unit.stderr",
+      "stderr_sha256": "9aeb89650855f4a696e8b48d5daa55bc58026b2808ec922119981e5c0e2b0cec"
+    }
+  ],
+  "libraries": [
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+      "sha256": "961feefcea0ce0491979aa3ba80357dc3fb5a3e2a49e370d52a3dc2d24fc876a"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+      "sha256": "9df7249a7ee38c342a482ae8da8d164e14dd17f3749232dd0d6b4c8e43021aac"
+    }
+  ],
+  "binary": {
+    "path": "compiler/target/debug/can",
+    "sha256": "f4684bab824791d2a46a950d0db0661c80f3ca16b5e381db066e8d2be028476a"
+  },
+  "suite_exit": 0,
+  "unit_exit": 0,
+  "scope": "Native host; public Server queue/retention observers and selected suites, not GUI or universal workload benchmark"
+}

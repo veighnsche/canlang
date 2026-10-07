@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "step": 11,
+  "scope": "Independent source+raw receipt review; no rerun or harness/source/shared ledger edits",
+  "pins": [
+    {
+      "path": "editors/vscode/src/client.ts",
+      "sha256": "048b44dce7fc1ba5bba80985ba3b4710c392993f2b03d8db19fd0a48072063af"
+    },
+    {
+      "path": "editors/vscode/src/extension.ts",
+      "sha256": "916ccb65410f7f55e1b4ffe5a3e9a1e0294d6fba11abb3ffd802515103da86b6"
+    },
+    {
+      "path": "editors/vscode/test/server-startup.cjs",
+      "sha256": "4e6330d7b7ab04021e090740c1c4ac3b352637cae79f9a4fbd0e61eb01300fca"
+    },
+    {
+      "path": "compiler/target/debug/can",
+      "sha256": "f4684bab824791d2a46a950d0db0661c80f3ca16b5e381db066e8d2be028476a"
+    },
+    {
+      "path": "packages/values/dist/catalog.json",
+      "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-probe.cjs",
+      "sha256": "5859e7700059b9dfe7b9a051850915ee385bb5cc154de30c9689b2d2409ba2a6"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-run.py",
+      "sha256": "0b2a439ab01115c13e45ca0986b6372c19b6d27e475937dd850afbe860f8fd6b"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-execution.json",
+      "sha256": "e3f61a5d8fd1255f66f3eacf6b73ccc786dc5a7ed3b82ab633f0c5c63e11d795"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-observations.json",
+      "sha256": "9fed42492fc1076f8f863a9a8d02c4d8d46d8a7b0c135979f93d4db093d206d8"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-diagnostics-0.stdin",
+      "sha256": "13b764ddcaf1d48843c625be9fb9ef17bcfcec048b0204f77bcd6d536a044386"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-diagnostics-0.stdout",
+      "sha256": "a09847048ed792fd40a6c382e13531d0f1a79da2a4dab5ff9c553375b6b361bd"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-diagnostics-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/extension-providers-0.stdin",
+      "sha256": "3c992fb583acb8e4169ac6ac32e6e9f5d1df49fcc1d7f684cc43fad812e1c710"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/extension-providers-0.stdout",
+      "sha256": "7b86ba2c0d2d44538031f49fb1347eed03b7af426f6dec08d2d2b78cbd25c2f2"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/extension-providers-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/extension-providers-1.stdin",
+      "sha256": "65ee0a939486cf1aa359459e79ef4d86eed49c319d9c8af6c67c66097b1c466c"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/extension-providers-1.stdout",
+      "sha256": "cf281f7b8ae6a93c997aa17dbe5ba20c0a4644faec98c1022e4010caa6758724"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/extension-providers-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-death-0.stdin",
+      "sha256": "584108342da1ed8b3c470baddf1bd9d3cfedfc324406510a5c0e94a5f022fd5e"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-death-0.stdout",
+      "sha256": "fdf84eae032d818c452c0094fc08d49034697b44e3638e9dcaae47bf795577f7"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-death-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "checks_performed": [
+    "Latest 4 command stdout/stderr hashes verified",
+    "Latest 4 raw framed stdin/stdout streams independently decoded and matched session records (8/5,9/7,5/3,4/3)",
+    "Current binary SHA256 matches latest execution record",
+    "Latest root compile and stand-in harness inspected against current client/provider source",
+    "Final run has 4 sessions and 9 observations; completion token argument order corrected"
+  ],
+  "conclusions": [
+    {
+      "id": "ERC01",
+      "verdict": "Accept compile/module provenance with retention limit",
+      "source": "client-run.py:8-16; client-probe.cjs:40-42",
+      "evidence": "Recorded successful strict tsc invocation consumes original TS, writes temporary output, then vm loads files verbatim with substituted vscode/child_process modules. Compiled hashes and actual binary hash recorded; client execution exit0.",
+      "limit": "No production source mutation or fabricated LSP response appears in harness. Temporary compiled files deleted at context exit, so this review cannot reread retained artifacts or independently reproduce hashes; recorded compile receipt is bounded provenance."
+    },
+    {
+      "id": "ERC02",
+      "verdict": "Accept exact actual server frames",
+      "source": "client-probe.cjs:30-37; three raw session streams",
+      "evidence": "Independent decoder verified stdin==sent and stdout==received in all 4 latest sessions (8/5,9/7,5/3,4/3 messages); command stdout/stderr SHA256 and current binary pin match. All child stderrs empty. Real cp.spawn can lsp and CAN_CATALOG inherit recorded environment.",
+      "limit": "Gate/release alters delivery timing but reuses exact bytes emitted by server. It is a controlled latency witness, not untouched pipe scheduling or real host timing."
+    },
+    {
+      "id": "ERC03",
+      "verdict": "Accept stale/closed diagnostic boundary",
+      "source": "client-probe.cjs:45-48; client-diagnostics-0 streams; client.ts:839-896",
+      "evidence": "Real version1 E1006 held while local version2 is sent, then installed. Real version2 empty clears it. Real version3 E1006 held, close clears stand-in collection, then late delivery installs again. No server result invention or version reversal needed.",
+      "limit": "Proves diagnostic collection API writes from actual client at known newer/closed state. Does not demonstrate visible editor Problems UI or that real host would discard/recompute for its own reasons."
+    },
+    {
+      "id": "ERC04",
+      "verdict": "Accept version-fence loss, not edit application",
+      "source": "client-probe.cjs:53; extension-providers-0 streams; extension.ts:115-162,272-287",
+      "evidence": "Actual version1 rename contains 2 edits; hold reply, mutate document to version2 and call real change handler, release unchanged reply; provider returns edits without document.version check. Changed model name Different leaves old Todo parameter unresolved, but valid protocol version advances; real version2 diagnostic E2001 confirms changed source.",
+      "limit": "Returned stale edit and discarded fence established. Host WorkspaceEdit stand-in serializes fields only; no workspace.applyEdit, actual text mutation, host version guard or atomicity tested. Version2 source need not be analysis-clean to witness an edit-time race."
+    },
+    {
+      "id": "ERC05",
+      "verdict": "Accept completion enum seam only",
+      "source": "client-probe.cjs:24-26,52; extension.ts:203-214; actual wire response id2",
+      "evidence": "Actual Todo7/task6/and14 kinds become same numbers in provider. Independent official VSCode1.91 expects Class6/Variable5/Keyword13. Selected 3 actual items mismatch.",
+      "limit": "Latest harness completion invocation uses correct token third/context fourth order. Kind seam confirmed; cancellation conclusion still specifically uses correct-slot hover witness. No rendered icon assertion."
+    },
+    {
+      "id": "ERC06",
+      "verdict": "Accept cancelled hover/provider offer, bound protocol claim",
+      "source": "client-probe.cjs:51,54; extension-providers-0 streams; extension.ts:164-185",
+      "evidence": "Correct-slot already-cancelled hover token yields no subscription, no cancel frame and an offered actual hover result after held reply. Rename also receives token in correct fourth slot.",
+      "limit": "Tests pre-cancelled token, not transition from live to cancelled. Does not prove editor displays obsolete result; synchronous server allowed ignoring dollar cancellation. Project/provider cancellation gap separate from universal mandatory LSP interrupt."
+    },
+    {
+      "id": "ERC07",
+      "verdict": "Accept cooperative stop and client-pending death cleanup",
+      "source": "client-probe.cjs:49,55-56; client-diagnostics-0/client-death-0 streams",
+      "evidence": "Cooperative shutdown/exit reaches code0; collection disposed and calls after stop dropped. SIGTERM real child with response held causes client pending promise null, onExit once, disposed collection, no post-death change.",
+      "limit": "Request was already answered by server; held delivery leaves client pending, so no evidence of interrupting active server analysis. No stubborn child, pipe-only disconnect, rapid overlapping restart or deactivation host deadline certified. One cooperative manual restart separately confirmed by ERC09."
+    },
+    {
+      "id": "ERC08",
+      "verdict": "Accept limited host stand-ins, reject full host equivalence",
+      "source": "client-probe.cjs:15-28",
+      "evidence": "Position validates basic numbers; diagnostic collection tracks writes/delete/dispose; constructors preserve fields; official enum samples independent. Raw server results positive.",
+      "limit": "Uri.parse/Range permissive; WorkspaceEdit.set appends whereas host replaces per URI; many API constructors empty. Current single URI/set edit witness unaffected, but mixed-edit precedence, URI validation, real UI, actual apply and full VSCode/Cursor compatibility remain unqualified."
+    },
+    {
+      "id": "ERC09",
+      "verdict": "Accept manual cooperative extension restart/replay",
+      "source": "client-probe.cjs:55; extension-providers-0 and extension-providers-1 streams; extension.ts:385-417",
+      "evidence": "Actual registered can.restartServer command stops old real child (shutdown/exit0), starts a new real child, initializes it and replays current document version2 and current text. Latest raw new-child didOpen matches old-child didChange text/version. New child emits version2 E2001 consistent with intentionally renamed model leaving parameter type unresolved.",
+      "limit": "One controlled manual restart and cooperative deactivation, not concurrent restart serialization, catalog reload/per-root behavior, crash-triggered automatic restart or actual host reload lifecycle."
+    }
+  ],
+  "normative_urls": {
+    "vscode_1_91": "https://raw.githubusercontent.com/microsoft/vscode/1.91.0/src/vscode-dts/vscode.d.ts",
+    "diagnostics": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/language/publishDiagnostics.md",
+    "workspace_edit": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/types/workspaceEdit.md",
+    "lsp_base": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/specification.md"
+  },
+  "acceptance": "9 bounded conclusions; latest 4 sessions/9 observations accepted at actual module/real frame/controlled host API stand-in scope; GUI and actual edit application remain unqualified"
+}

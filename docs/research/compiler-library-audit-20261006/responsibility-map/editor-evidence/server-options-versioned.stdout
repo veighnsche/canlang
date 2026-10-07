@@ -1,0 +1,13 @@
+Content-Length: 613
+
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"positionEncoding":"utf-16","textDocumentSync":1,"hoverProvider":true,"completionProvider":{},"definitionProvider":true,"referencesProvider":true,"codeActionProvider":true,"renameProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":["namespace","type","class","interface","enum","struct","parameter","variable","property","enumMember","event","function","method","keyword","comment","string","number","operator"],"tokenModifiers":["declaration","documentation","defaultLibrary","readonly"]},"full":true}},"serverInfo":{"name":"can","version":"0.1.0"}}}Content-Length: 204
+
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can","diagnostics":[],"version":1}}Content-Length: 399
+
+{"jsonrpc":"2.0","id":3,"result":[{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can","range":{"start":{"line":4,"character":19},"end":{"line":4,"character":23}}},{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can","range":{"start":{"line":6,"character":13},"end":{"line":6,"character":17}}}]}Content-Length: 399
+
+{"jsonrpc":"2.0","id":4,"result":[{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can","range":{"start":{"line":4,"character":19},"end":{"line":4,"character":23}}},{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can","range":{"start":{"line":6,"character":13},"end":{"line":6,"character":17}}}]}Content-Length: 388
+
+{"jsonrpc":"2.0","id":5,"result":{"documentChanges":[{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can","version":1},"edits":[{"range":{"start":{"line":4,"character":19},"end":{"line":4,"character":23}},"newText":"job"},{"range":{"start":{"line":6,"character":13},"end":{"line":6,"character":17}},"newText":"job"}]}]}}Content-Length: 39
+
+{"jsonrpc":"2.0","id":99,"result":null}

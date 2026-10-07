@@ -1,0 +1,17 @@
+Content-Length: 161
+
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"workspace":{"workspaceEdit":{"documentChanges":true}}}}}Content-Length: 52
+
+{"jsonrpc":"2.0","method":"initialized","params":{}}Content-Length: 374
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can","languageId":"can","version":1,"text":"app Tasks\nGiven\n Todo { title:text }\nWhen\n scenario complete(task:Todo) by=members\n  do\n   let label=task.title\n   set task {title=label}\nThen\n"}}}Content-Length: 266
+
+{"jsonrpc":"2.0","id":3,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can"},"position":{"line":6,"character":13},"context":{"includeDeclaration":true}}}Content-Length: 267
+
+{"jsonrpc":"2.0","id":4,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can"},"position":{"line":6,"character":13},"context":{"includeDeclaration":false}}}Content-Length: 240
+
+{"jsonrpc":"2.0","id":5,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can"},"position":{"line":6,"character":13},"newName":"job"}}Content-Length: 59
+
+{"jsonrpc":"2.0","id":99,"method":"shutdown","params":null}Content-Length: 47
+
+{"jsonrpc":"2.0","method":"exit","params":null}
