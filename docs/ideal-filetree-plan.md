@@ -154,3 +154,5 @@ Values internal/gregorian.ts now owns the unchanged pure leap/month rules for ki
 Work decisions/utf16_json.rs owns shared byte-exact UTF16 JSON append mechanics. Leaf carrier/error domains and recovery allocation stay local; the Cargo module is registered and exhaustive raw-unit/pair plus actual native caller controls pass. Original public routing, Wasm and delivery joins remain separate; complete checkpoint unchanged.
 
 Interfaces retains ordinary form/filter/coercion objects with explicit own data descriptors; contracts records that declared keys are data. The mounted HTTP correction is accepted with separate correctness growth; collection-query remains helper-only. No owner migration or complete checkpoint advance.
+
+UI internal/business-errors.ts shares exact private digest mechanics for export and CSV. Original public interfaces retain declaration merging and wrappers retain their return contracts; no third private shape declaration is maintained. Narrow source-current closure reduction is accepted, with broader CSV/browser and complete checkpoint review still open.
