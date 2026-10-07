@@ -1,0 +1,105 @@
+{
+  "values-work": {
+    "reviewed_families": [
+      "numeric wrappers and library replacement remnants",
+      "native Work repeated code-unit/carrier/codec/policy mechanisms",
+      "values canonical core/public facades/prepared admission traces",
+      "stdlib assembly",
+      "test-only state and ports",
+      "exact/scaffold transport validation boundaries",
+      "TS/native adoption/retirement"
+    ],
+    "caller_check": "Frozen sources from git show PIN, all package/compiler textual symbol checks, selected responsibility records used for runtime stage and dynamic caveats. Sources-only witnesses are not test execution.",
+    "exclusions": [
+      "No full ICU/schema/temporal algorithm equivalence proof",
+      "No blanket Rust leaf profile merge, new library choice, semantic design adoption or implementation scheduling",
+      "No external consumer census, dynamic generated operation reachability or installed production use proof",
+      "Generated Wasm/glue inspected only prior receipt metadata; no binary/runtime probe"
+    ],
+    "old_algorithm_finding": "At frozen pin numeric shortest-decimal and valid-str escape loops already retired in values: ryu-js and serde_json used. Remaining numeric special guards are DV01; Work custom UTF16 escaping retained separately.",
+    "unresolved": [
+      "Can public function name/stack/identity observations permit alias export DV05?",
+      "Should factory-lineage future gate be retired or remain private state DV08?",
+      "What narrower Rust profile helper sharing avoids introducing conversion and error-order changes DV03/DV04?"
+    ],
+    "retained_algorithm_witnesses": [
+      {
+        "path": "packages/values/semantics/src/codecs/numeric.rs",
+        "lines": [
+          152,
+          156
+        ],
+        "fact": "valid-str serializer already serde_json::to_string; no old value escape loop alongside it"
+      },
+      {
+        "path": "packages/values/semantics/src/numeric/rounding.rs",
+        "lines": [
+          50,
+          61
+        ],
+        "fact": "pow10 and rational rounding exact shared decimal/money arithmetic; not obsolete host-f64 formatting"
+      }
+    ],
+    "verification": {
+      "source_ranges_validated": true,
+      "caller_anchors_source_text_saved": true,
+      "all_symbol_reference_files_hashed": true,
+      "artifact_json_parsed": true,
+      "tests_run": false
+    }
+  },
+  "consumers": {
+    "source_inventory_count": 210,
+    "retained_examples": [
+      "shared library CSV grammar",
+      "private host-native constant-time compare leaves",
+      "AbortSignal.any wrapper plus timeout cleanup",
+      "authority/join fences and different persisted row domains",
+      "separate log vs user-facing redaction",
+      "testkit Worker Response transport vs localhost endpoint harness"
+    ],
+    "gaps": [
+      "No external caller inventory; root/subpath exports remain obligations even where only test constructors seen",
+      "Static caller observations do not prove dynamic mounts or deployed full workflows",
+      "MCP and delivery internals owned by sibling audits; references here are caller/negative evidence only",
+      "Not every scoped source file received line-by-line semantic read; source hash inventory and prior responsibility/contract coverage bound screening",
+      "No new library upstream research or consequential policy selection; unresolved serializer historical domains/effect admission retained as future gates",
+      "Identity credential re-read and state live owner fence are distinct authority domains; no repeated admission removal claimed"
+    ]
+  },
+  "delivery": {
+    "candidate_count": 16,
+    "depth": "Targeted semantic ranges and caller chains, not exhaustive entire invoke.ts or all Cloudflare/interfaces functionality. Rust library/test membership and job real/scaffold path distinguished.",
+    "covered_families": [
+      "duplicate host phase bodies",
+      "forward-only wrapper",
+      "Rust accessor/quote preludes",
+      "TS import/map library-adapter survival",
+      "repeated parse/validation passes",
+      "native older scanners and unfinished routes",
+      "relocated test-loader exclusions",
+      "prepared MCP unadopted layer",
+      "Worker loader injection/public exports",
+      "per-env cache mechanics",
+      "conditional dispatch/fanout composition",
+      "publication dominated paths",
+      "finite CLI syntax adapter versus current parser"
+    ],
+    "retained_counterexamples": [
+      "Codec adapter compensates unsorted raw-map signed semantics rather than duplicating VLQ algorithm.",
+      "CommonJS masking scanner answers different question than ESM lexer.",
+      "Worker loaders have real default production route and source-relative imports.",
+      "Outer staged guard precedes DDL, deep assembly guard protects direct package callers.",
+      "Production receipt observer loader is live and must remain; test work-loaders moved to work/test.",
+      "Rust modules are registered public algorithms even when current native job never calls them.",
+      "Preparation source profiles not equivalent to accepted TS import/map adapters."
+    ],
+    "gaps": [
+      "No exhaustive per-symbol caller census across generated fixtures or external installed deep-dist clients.",
+      "No actual package/archive or stale-emission/runtime qualification.",
+      "No benchmark; line/call complexity comparison only.",
+      "No native P07 authority/adoption/release.",
+      "No new consequential design choice selected; no JEV needed for conditional proposals."
+    ]
+  }
+}

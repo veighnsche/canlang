@@ -1,0 +1,889 @@
+{
+  "pin": "4659b9477173e9ff423d2b4d8f1d1a19c8c2d007",
+  "method": "Finite independent source challenges; conclusions visible, not clean-room. Sol medium. Root reconciled every listed correction into authoritative candidate records.",
+  "reviews": [
+    {
+      "schema_version": 1,
+      "pin": "4659b9477173e9ff423d2b4d8f1d1a19c8c2d007",
+      "reviewed": "/private/tmp/canlang-duplication-consumers.json",
+      "review_mode": "finite independent challenge; prior conclusions visible, not clean-room",
+      "planning_only": true,
+      "findings": [
+        {
+          "id": "DCR-01",
+          "candidate": "DC-01",
+          "severity": "clarification",
+          "verdict": "same-package exact duplication supported; cross-package peer intentionally bounded",
+          "finding": "CSV and export functions are textually identical. Media Object.keys.sort then property reads differs from Object.entries eager reads then sort, independently of replay stricter value policy. Add getter/read-order negative witness so further cross-package reuse cannot be mistaken for exact duplication.",
+          "evidence": [
+            {
+              "path": "packages/interfaces/src/http/csv.ts",
+              "start": 165,
+              "end": 174,
+              "note": "Object.entries eagerly reads before sorting"
+            },
+            {
+              "path": "packages/interfaces/src/http/export.ts",
+              "start": 119,
+              "end": 128,
+              "note": "identical implementation"
+            },
+            {
+              "path": "packages/services/src/media/mapping.ts",
+              "start": 53,
+              "end": 66,
+              "note": "sorted keys read later"
+            },
+            {
+              "path": "packages/state/src/invocation/replay.ts",
+              "start": 20,
+              "end": 60,
+              "note": "rejects nonfinite/undefined and honors toJSON"
+            }
+          ],
+          "correction": "Keep consolidate for two interfaces copies only; label media/replay similar mechanisms, not exact peers. A getter on insertion-order b,a can observe b then a in interfaces and a then b in media; no runtime probe performed."
+        },
+        {
+          "id": "DCR-02",
+          "candidate": "DC-02",
+          "severity": "must-correct",
+          "verdict": "real mirrored admission; one caller chain false and Node import claim too broad",
+          "finding": "services scenarios.ts:942 does not call parseScenarioTable. It only deep-freezes authored tables. All observed parseScenarioTable callers are tests or testkit differential tests. All scenario module harness imports are import type, so they do not themselves pull node:http into emitted JS. Worker limitation is Buffer used when decoding/encoding media files; runtime dependency manifest/distribution qualification remains real.",
+          "evidence": [
+            {
+              "path": "packages/services/src/scenarios.ts",
+              "start": 33,
+              "end": 39,
+              "note": "type-only harness imports"
+            },
+            {
+              "path": "packages/services/src/scenarios.ts",
+              "start": 371,
+              "end": 395,
+              "note": "Buffer base64 calls"
+            },
+            {
+              "path": "packages/services/src/scenarios.ts",
+              "start": 480,
+              "end": 510,
+              "note": "actual parser -> provider validators"
+            },
+            {
+              "path": "packages/services/src/scenarios.ts",
+              "start": 942,
+              "end": 949,
+              "note": "catalog deep-freezing, no parser call"
+            },
+            {
+              "path": "packages/services/test/scenarios.test.ts",
+              "start": 65,
+              "end": 76,
+              "note": "test parser caller"
+            },
+            {
+              "path": "packages/testkit/test/playback.test.ts",
+              "start": 515,
+              "end": 534,
+              "note": "test differential parser caller"
+            },
+            {
+              "path": "packages/testkit/src/fixtures/playback.ts",
+              "start": 1158,
+              "end": 1164,
+              "note": "actual handler construction -> checkSeedTable"
+            }
+          ],
+          "correction": "Replace services :942 -> parser chain with test/scenarios.test.ts:69 or testkit/test/playback.test.ts:516 -> parseScenarioTable:480 -> validators. Change direct import concern to Buffer execution and declarations/dependency qualification; type-only imports alone are not Worker runtime blockers. Keep admission portability and public error mapping gates."
+        },
+        {
+          "id": "DCR-03",
+          "candidate": "DC-03",
+          "severity": "clarification",
+          "verdict": "placement proposal supported; no proved production closure reduction",
+          "finding": "Moving controlled-mail server to owned harness improves module responsibility, but root/ports compatibility reexports preserve static reachability. Also node:crypto randomUUID remains in ports as runtime default even after node:http extraction. Candidate already acknowledges no demonstrated shipping bug; retain that limit and avoid asserting total Node closure removal.",
+          "evidence": [
+            {
+              "path": "packages/services/src/ports.ts",
+              "start": 30,
+              "end": 32,
+              "note": "runtime randomUUID/http, type-only socket"
+            },
+            {
+              "path": "packages/services/src/ports.ts",
+              "start": 173,
+              "end": 196,
+              "note": "controlled-scenario test-support types"
+            },
+            {
+              "path": "packages/services/src/ports.ts",
+              "start": 275,
+              "end": 287,
+              "note": "public controlled server constructor"
+            },
+            {
+              "path": "packages/services/src/index.ts",
+              "start": 11,
+              "end": 11,
+              "note": "root ports export"
+            }
+          ],
+          "correction": "Benefit is readability and potentially narrower explicit subpath consumption. Only claim smaller production closure after distribution/import changes qualify; do not require retirement approval merely to reversible-move with compatibility retained."
+        },
+        {
+          "id": "DCR-04",
+          "candidate": "DC-04",
+          "severity": "clarification",
+          "verdict": "test-only placement supported, additional test consumer should be covered",
+          "finding": "Cloudflare assembly tests also instantiate files doubles. No non-test constructor found in frozen package/compiler symbol check. Public root/ports migration gate is sound; separate test support does not remove code from emitted dist if build compiles all sources or root compatibility reexports it.",
+          "evidence": [
+            {
+              "path": "packages/files/src/index.ts",
+              "start": 4,
+              "end": 4,
+              "note": "public ports reexport"
+            },
+            {
+              "path": "packages/files/test/helpers.ts",
+              "start": 109,
+              "end": 114,
+              "note": "files test instantiation"
+            },
+            {
+              "path": "packages/cloudflare/test/assembly.test.ts",
+              "start": 730,
+              "end": 733,
+              "note": "cross-package test constructor witness"
+            },
+            {
+              "path": "packages/files/src/ports.ts",
+              "start": 22,
+              "end": 28,
+              "note": "explicit test-double prohibition"
+            }
+          ],
+          "correction": "Add Cloudflare assembly.test.ts:730-733 test chain. Keep simplify as placement proposal, not dead-code deletion or measured shipping savings; compatibility exports avoid unnecessarily broad removal gate."
+        },
+        {
+          "id": "DCR-05",
+          "candidate": "DC-06",
+          "severity": "must-tighten",
+          "verdict": "readonly compatibility already supported; copying reduction requires observation-domain gate",
+          "finding": "OperationInputShape already uses readonly arrays. checkClosedInputs only calls allowed.includes and iterates required; factory plan allowed/required arrays are frozen snapshots, so direct factory-plan shape structurally fits without interface design change. Public runner also accepts structurally supplied plans: current spreads eagerly iterate both lists before framing validation, whereas direct plan reads change iterator/getter/error order. Do not claim universal equivalence for arbitrary public plans.",
+          "evidence": [
+            {
+              "path": "packages/interfaces/src/ports.ts",
+              "start": 26,
+              "end": 32,
+              "note": "readonly arrays already compatible"
+            },
+            {
+              "path": "packages/interfaces/src/envelope/validate.ts",
+              "start": 98,
+              "end": 122,
+              "note": "read-only canonical shape use"
+            },
+            {
+              "path": "packages/interfaces/src/envelope/prepared.ts",
+              "start": 109,
+              "end": 145,
+              "note": "factory freezes snapshots, runner copies before check"
+            },
+            {
+              "path": "packages/interfaces/src/http/csv.ts",
+              "start": 232,
+              "end": 255,
+              "note": "prepare once, run per row real caller"
+            }
+          ],
+          "correction": "Resolve prerequisite readonly compatibility as statically verified. Bound simplification to plans returned by prepareHttpPlan with ordinary frozen array snapshots, or qualify public forged/getter/proxy/custom-iterator behavior before removal. Keep exported metadata removal separately HOLD; plan is shallow frozen and derived is retained by reference. No MCP ownership claim needed."
+        }
+      ],
+      "source_hash_index": {
+        "packages/interfaces/src/http/csv.ts": {
+          "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+          "git_blob": "d6b10500375c08e1b8f82effb4c97cec6f0a2adc"
+        },
+        "packages/interfaces/src/http/export.ts": {
+          "sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+          "git_blob": "b70f6e645651629c821263d85f0f9393a904e776"
+        },
+        "packages/services/src/media/mapping.ts": {
+          "sha256": "507306b2f97b72ebe5aa4dce54fe0af2164bfd1dcf6604efea6d1b7ccd151da1",
+          "git_blob": "ae8211b9891c6f76b0e1ae4d4398d0ec61f0949d"
+        },
+        "packages/state/src/invocation/replay.ts": {
+          "sha256": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36",
+          "git_blob": "b99739bc2964fdf69b8e7e62be33c70e5a810399"
+        },
+        "packages/services/src/scenarios.ts": {
+          "sha256": "0cca83df6c4dbd91a345c744e00eb005e9b17a4620770df572f0e14b4ee35aec",
+          "git_blob": "1899efe5fbd778ae23565967169dbdf93a725d7f"
+        },
+        "packages/services/test/scenarios.test.ts": {
+          "sha256": "a562a97bb026f0062b972ed5b933d120a6ff9d810fe50f59cd4976135f60dc88",
+          "git_blob": "f507c94a8f6bab033daa0a00f60cd69e1afd9e59"
+        },
+        "packages/testkit/test/playback.test.ts": {
+          "sha256": "495891e6b9029fb6ee32a8174351f52c1cea9a461138d418b7168b43fc83ebd5",
+          "git_blob": "37e1a5b7776ebb8b754e1bf5512c29ecf914664e"
+        },
+        "packages/testkit/src/fixtures/playback.ts": {
+          "sha256": "2f0805a6c150aafb900c4d296e5cee5b3c97996c338a4339a70e83235166617d",
+          "git_blob": "2aae9126a46b7e6e299df8abf80d5c74a7494bb6"
+        },
+        "packages/services/src/ports.ts": {
+          "sha256": "51d4defdf88217c59674eed1b6a4c6c490237387484eb3d961a91f7bdaa4d410",
+          "git_blob": "d9135ba3597f58af062fa4f176db154bec5c0730"
+        },
+        "packages/services/src/index.ts": {
+          "sha256": "40caee729c74d1c744d39f8247885332fbe1cc37ecec9916b9b0db1e96f78135",
+          "git_blob": "f42a10e011b67cae1ee504dfd0898d1c9e96b303"
+        },
+        "packages/files/src/index.ts": {
+          "sha256": "34872aaa3e9f6dc56d091fbc162353b30bd42d21bf8d98f44bf05d8bbfba9570",
+          "git_blob": "987b5f0150ac081e71b3290f8b042f2e48a31463"
+        },
+        "packages/files/test/helpers.ts": {
+          "sha256": "88b1e672fc5281d447eabb49a916ee3001a35e22cd01ec4b12c24d7e76d16157",
+          "git_blob": "a038f1a30b97a855216bf391639f213df3ebeec3"
+        },
+        "packages/cloudflare/test/assembly.test.ts": {
+          "sha256": "fe6b02ed4ebb89c401b5d3646f4ec8708f371a1891f2244ebc404702d74c7407",
+          "git_blob": "a3843fc4fbff14dfa2deb6b9cdc74d8177be84aa"
+        },
+        "packages/files/src/ports.ts": {
+          "sha256": "2a7cd17c0e3775e3909468eec53aa046a404dcf3d87721c083fb5158a55d7c6b",
+          "git_blob": "25764390e63e8b3e37b04b5c99a730e3dec4f341"
+        },
+        "packages/interfaces/src/ports.ts": {
+          "sha256": "b326f155d580543bd83f2aa00b8c1be18a468399474cb957e220d5c32f0c3629",
+          "git_blob": "ee9a83c045453c5e66aeef645d2e49cfb79b54a7"
+        },
+        "packages/interfaces/src/envelope/validate.ts": {
+          "sha256": "115b21e75eb724664a2a87eea0434ab792114702e72e97cf8af9e8200d32d1ec",
+          "git_blob": "0bcf16658b2e27b49becc67d865914404554a6cb"
+        },
+        "packages/interfaces/src/envelope/prepared.ts": {
+          "sha256": "b10355f3bf2f3490ba2b62380e8e8e73606e46b934170ece8cb55371ed429f97",
+          "git_blob": "41896d9cec908420955e9f74bea5ced273c7dd45"
+        }
+      },
+      "checks": {
+        "all_selected_ranges_in_bounds": true,
+        "exact_same_package_serializer_source_checked": true,
+        "selected_symbols_checked_in_frozen_packages_and_compiler": true,
+        "no_non_test_constructor_observed_for_selected_test_support": true
+      },
+      "limits": [
+        "No product execution, builds/tests, installations, runtime probes, repository edits or Git mutation.",
+        "Lexical source search does not exhaust generated/computed/external callers.",
+        "No measured distribution closure, allocation performance or Worker qualification."
+      ]
+    },
+    {
+      "schema_version": 1,
+      "pin": "4659b9477173e9ff423d2b4d8f1d1a19c8c2d007",
+      "review_type": "finite visible-conclusions independent challenge",
+      "model": "Sol medium",
+      "planning_only": true,
+      "input_hashes": [
+        {
+          "path": "/private/tmp/canlang-duplication-delivery.json",
+          "sha256": "23d78e76511405dacd42353d6a631d376468ad5f10bc24e4a43b39aff843dcc0"
+        },
+        {
+          "path": "/private/tmp/canlang-duplication-values-work.json",
+          "sha256": "b5d02ac3192197e20d29617cdf529ea4f777f7795ac3ea27f82d3a95f55e17e6"
+        }
+      ],
+      "findings": [
+        {
+          "candidate": "DD-001",
+          "verdict": "confirmed with count correction",
+          "evidence": [
+            "build-adapter.ts:60-168 implements the same MCP and HTTP bundler operations as bundle.ts:600-718; error literals differ only TS quoting notation, not produced text. Catalog bake :195-208 matches bundle.ts:578-592.",
+            "host.ts:362 invokes only buildBundleWithHostPhases -> buildDeployBundle. Explicit phase callers are preparation-protocol.test.ts:191,194,200,230, not normal host deploy.",
+            "Phase wrappers are publicly source-exported held seam; existing bundle functions are exported through package bundle boundary."
+          ],
+          "correction_or_constraint": [
+            "Preserve stage wrappers and error ordering; delegate bodies to owner functions under existing acceptance/HOLD gates. No reduction in two Bun executions claimed.",
+            "Current three body ranges cover 123 physical lines including function syntax (109+14), not ~167; the peer 578-718 range includes extensive documentation. Use non-measured wording or reproducible body count."
+          ]
+        },
+        {
+          "candidate": "DD-002",
+          "verdict": "confirmed; trivial benefit",
+          "evidence": [
+            "build-adapter.ts:216-220 forwards args/result directly to buildDeployBundle; host.ts:362 is real source caller.",
+            "Protocol test imports wrapper and explicit phases separately; wrapper does not call explicit phases."
+          ],
+          "correction_or_constraint": [
+            "Retain compatibility alias if seam remains declared; erasing file indirection does not change workflow complexity or duplicate phase execution. Future preparation seam is contract context, not automatic current redundancy permission."
+          ]
+        },
+        {
+          "candidate": "DD-003",
+          "verdict": "confirmed; broaden exact duplicate list",
+          "evidence": [
+            "artifact.rs:88-139 and input.rs:75-127 use identical Node, slices, borrowed output, first ordered matching property and ASCII-byte units comparison.",
+            "input.rs:97-99 duplicates artifact.rs:109-111 nonempty_text exactly. Neither lookup is general Unicode key comparison."
+          ],
+          "correction_or_constraint": [
+            "Proposal currently preserves local nonempty_text unnecessarily; can import it as well if held cleanup approved. Preserve num_value separately (artifact.rs:141-143).",
+            "Precise input accessor peer ends at127; :129 starts render_text documentation, not accessor body. Tests/errors remain domain owner."
+          ]
+        },
+        {
+          "candidate": "DD-004",
+          "verdict": "confirmed equivalent string domain",
+          "evidence": [
+            "artifact.rs:161-207 and input.rs:140-182 both emit surrounding quotes, same short C0 escapes, lowercase Unicode escapes, paired-surrogate scalar UTF8 and lone-surrogate escapes.",
+            "artifact next default0 cannot be low surrogate; input explicit bounds guard yields same branch. Non-surrogate BMP branch cannot fail char::from_u32, so unwrap_or fallback is unreachable."
+          ],
+          "correction_or_constraint": [
+            "Retain exported escape_json_string alias/delegate. No byte mismatch found; no general artifact/render serializer consolidation justified by string emitter equivalence."
+          ]
+        },
+        {
+          "candidate": "DD-009",
+          "verdict": "confirmed candidate; source-only deletion not justified",
+          "evidence": [
+            "bundle.ts:187-194 excludes exact historical vendor/state/fanout/work-loader.js and receipt/work-loader.js; walk :405-415 consumes emitted distribution files.",
+            "Pinned state source has no corresponding non-test loader file. scripts/build-package.mjs:21-40 cleans owned outputs; standard package build uses that wrapper.",
+            "Direct build:emit and arbitrary installed archives can carry a different emission history; source relocation is not installed closure evidence. Production receipt observer must remain separately vendored."
+          ],
+          "correction_or_constraint": [
+            "Add standard owned-output cleanup as existing positive evidence; still require archive/fresh-vs-stale closure qualification before deleting exclusions. Do not use test helper relocation as reason to delete production observer-loader or NODE_HOST_VENDOR_KEYS."
+          ]
+        },
+        {
+          "candidate": "DD-012",
+          "verdict": "confirmed small duplication; retain separate cache authority",
+          "evidence": [
+            "main.ts:507-519 and :563-575 are same WeakMap promise lookup/set/rejection-identity eviction mechanics.",
+            "main.ts:490-492 constructs two distinct maps per createMainFetch; buildWorker is async (:521) and gates staged deployment before prod dependencies. loadProdDeps injected factory is called directly and can throw before returning promise."
+          ],
+          "correction_or_constraint": [
+            "Generic keyed memoizer only if reduced maintenance exceeds new layer; preserve two maps and policy-named accessors.",
+            "Do not wrap factory in Promise.resolve().then(factory): synchronous loader throws, invocation timing, promise identity and initialization order would change. Singleton memoize at457-471 is related mechanics but different key domain."
+          ]
+        },
+        {
+          "candidate": "DD-015",
+          "verdict": "confirmed exact predicate domination",
+          "evidence": [
+            "publication.ts:103-107 rejects every backslash before :111 UNC startsWith predicate.",
+            "Broad /^[A-Za-z]:/ at110 logically subsumes /^[A-Za-z]:[\\/]/ at112 regardless of prior backslash rule."
+          ],
+          "correction_or_constraint": [
+            "Only remove two dominated alternatives; retain earlier rejection and broader drive prefix gate to preserve C:relative classification. Public validateRelativeKey API and other publication barriers unchanged. No runtime proof claimed."
+          ]
+        },
+        {
+          "candidate": "DV01",
+          "verdict": "confirmed against pinned upstream mechanics",
+          "evidence": [
+            "values numeric.rs:319-334 and Work numeric_text.rs:5-19 repeat signed-zero/nonfinite cases before ryu_js Buffer::format_finite.",
+            "Local locked ryu-js1.0.3 source buffer/mod.rs:55-61 delegates finite values and formats nonfinite words; pretty/mod.rs zero branch emits0 for either zero sign.",
+            "Current public values formatter and private Work String channel have direct native/test callers; JSON channel numeric_text.rs:21-26 separately emits null for nonfinite."
+          ],
+          "correction_or_constraint": [
+            "Safe proposal is Buffer::format(n).to_owned(), not merely removing guards before format_finite. Retain String/JSON split and actual native qualification/HOLD gates; no cross-package runtime abstraction needed."
+          ]
+        },
+        {
+          "candidate": "DV02",
+          "verdict": "confirmed low-value simplification",
+          "evidence": [
+            "rows.rs:235-242, receipt.rs:212-219, linkage.rs:213-220, recovery.rs:1256-1258 are pure forwards to numeric_text String/JSON channels.",
+            "Numeric formatting has real leaf callers for diagnostic strings and serialized Value::Num; rows tests also reference js_num/js_json_num."
+          ],
+          "correction_or_constraint": [
+            "Alias imports may remove definitions without adding per-call complexity. Navigation-only benefit; preserve module-local names or deliberately update tests, retain distinct channels. Functions private, public leaf API unchanged."
+          ]
+        },
+        {
+          "candidate": "DV03",
+          "verdict": "confirmed mechanical overlap; HOLD remains material",
+          "evidence": [
+            "decisions/lib.rs:3-6 explicitly retains namespaced producer types and refuses structural-conversion authority.",
+            "rows/receipt/linkage/recovery expose different native U16/Value variants and clone/identity profiles. Mechanically same escaping can be compared independently of carriers."
+          ],
+          "correction_or_constraint": [
+            "Do not title whole carrier merge as accepted consolidation: only same-input/output slice quote helpers are candidates after profiles qualify. Generic enum helper over distinct U16 pair types may add conversion/generic plumbing, so actual caller-complexity benefit unproved. Preserve public native leaf types and HOLD."
+          ]
+        },
+        {
+          "candidate": "DV08",
+          "verdict": "confirmed test-only observed query, conditional deletion",
+          "evidence": [
+            "schema-core.ts:110 WeakSet, :113-115 query; normalizeSchema:1809-1812 writes exact completed frozen output. Pinned all-source symbol grep finds query only in prepared-hook.test.ts.",
+            "prepared-hook.test.ts:151-173 explicitly tests success-only identity and hostile proxy/descriptor rejection. separate recordFactoryProvenance in prepared/plan.ts:153 remains.",
+            "Package root does not expose internal query; emitted deep file nevertheless exists and declared future lineage assertions may remain gates."
+          ],
+          "correction_or_constraint": [
+            "Characterize deletion as retirement of current test assertion and optional future gate, not proof of no purpose. WeakSet has weak references (not unbounded retained-state leak); real runtime bookkeeping is one write per completed normalization. No owner provenance/plan registry removal."
+          ]
+        }
+      ],
+      "summary": "No selected candidate disproved. DD-001 count correction, DD-003 accessor scope correction, and stricter benefit/domain wording for DD-012/DV03/DV08. All conditional/HOLD/public obligations preserved.",
+      "source_hash_index": [
+        {
+          "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+          "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383",
+          "lines": 221,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+          "lines": 1424,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+          "lines": 650,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/cloudflare/test/preparation-protocol.test.ts",
+          "sha256": "10b67f7245a1a0b7fdb2bd459ce336dfa355061f78e0aa95965c498a56606447",
+          "lines": 236,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/artifact.rs",
+          "sha256": "f914d433c496f39882ed6c2d3ca1c043780e0f2ff3999a2b41da61ada65d50e9",
+          "lines": 732,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/input.rs",
+          "sha256": "c0475ca0c94514e47011e594122ddadf3980232bfbce1e29557077c6f37b8002",
+          "lines": 503,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/cloudflare/src/worker/main.ts",
+          "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+          "lines": 629,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8",
+          "lines": 341,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "scripts/build-package.mjs",
+          "sha256": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+          "lines": 46,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+          "lines": 551,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/work-kernel/decisions/numeric_text.rs",
+          "sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+          "lines": 27,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/work-kernel/decisions/lib.rs",
+          "sha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+          "lines": 16,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/work-kernel/decisions/rows.rs",
+          "sha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+          "lines": 6925,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/work-kernel/decisions/receipt.rs",
+          "sha256": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+          "lines": 2465,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/work-kernel/decisions/linkage.rs",
+          "sha256": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+          "lines": 2673,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+          "lines": 3700,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/values/src/internal/schema-core.ts",
+          "sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+          "lines": 1978,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/values/test/prepared-hook.test.ts",
+          "sha256": "b9f7e31d0c22df220c98ea9c6e597a96599e031ee5b66d970d160d73064eca7c",
+          "lines": 180,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/values/src/prepared/plan.ts",
+          "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+          "lines": 565,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "packages/values/package.json",
+          "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+          "lines": 78,
+          "read_scope": "bounded relevant ranges/symbols, not exhaustive file review"
+        },
+        {
+          "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/buffer/mod.rs",
+          "sha256": "5783fdd94040746e15f59ce6c66b203a6ce24de7773dce6cdfbc5a2775937ca2",
+          "source": "local pinned installed upstream1.0.3; no network/install/runtime"
+        },
+        {
+          "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/pretty/mod.rs",
+          "sha256": "3507dc364f18901bd159cf4fe40bebe37d582ce8a87b59a0351e8af282154977",
+          "source": "local pinned installed upstream1.0.3; no network/install/runtime"
+        }
+      ],
+      "limits": [
+        "No builds/tests/runtime probes/install/Git mutation/source edit",
+        "Bounded selected-candidate review, not exhaustive repetition",
+        "No claim external/deep-dist/public consumers exhausted",
+        "No new policy or consequential contract selected"
+      ]
+    },
+    {
+      "schema_version": 1,
+      "pin": "4659b9477173e9ff423d2b4d8f1d1a19c8c2d007",
+      "review": "finite independent visible-conclusions screen challenge",
+      "model": "Sol medium",
+      "planning_only": true,
+      "input_hashes": [
+        {
+          "path": "/private/tmp/canlang-duplication-screen-followup.json",
+          "sha256": "9e66ac98e1f9680b3341eab5a0834ac409101b143272bf704f73cbd1c9e0204c"
+        },
+        {
+          "path": "/private/tmp/canlang-duplication-values-screen-followup.json",
+          "sha256": "bbc26fbd56bcb80d41f13bec70d4d28d8dd70b3bf6ab4e0cd5ae55d0d37dff0d"
+        }
+      ],
+      "findings": [
+        {
+          "candidates": [
+            "DR01"
+          ],
+          "verdict": "confirmed narrow duplicate leaves; backend consolidation excluded",
+          "actual_anchors": [
+            "state/storage/d1.ts:96-114,127-151,153-229 versus durable-object.ts:106-124,137-161,163-239 share row fields, field regex/column map, boolean/undefined binding and same predicate/order code.",
+            "d1.ts:604-627 mergePublishedColumns carries first matching history and nullish fallback policy, not just generic serialization.",
+            "D1:880,1040,1190 commits use db.batch; DO:76-84 transactionSync and :273-293 no-await atomicity differ.",
+            "Real source leaf callers D1:641,658-667 and DO:1151,1168-1177; factory interfaces and state subpath exports remain."
+          ],
+          "corrections_and_constraints": [
+            "No incorrect equivalence found for selected pure leaves; preserve exact dependencies and signatures in private same-package module. Pure here means no storage IO, not policy-free: fallback/null/ordering and parse failure obligations remain.",
+            "Do not deduce DO production adoption from D1 source assembly or consolidate transaction paths. Exported factory/ensure APIs stay supported."
+          ]
+        },
+        {
+          "candidates": [
+            "DR03"
+          ],
+          "verdict": "confirmed same-domain projection; getter behavior material",
+          "actual_anchors": [
+            "ui/controls.ts:100-121 reads tone,size,variant,orientation in that order; each defined key is read twice. Other nine word-module anchors screen the same helper signature/body.",
+            "appearanceClasses validates owning word catalog; collection call anchors:853,976 and controls render call sites preserve composition."
+          ],
+          "corrections_and_constraints": [
+            "Shared private projection is plausible maintenance reduction with same props object call; use type-only imports to avoid broad module dependency. No generic props sanitizer or spread replacement: getters/inherited access/read counts/null values differ.",
+            "idAttr seed remains tiny/local retain unless actual import graph clarity benefit shown; its token identity does not expand projection scope. All ten pinned pickAppearance source slices were byte-compared and match; no mounted workflow execution claimed."
+          ]
+        },
+        {
+          "candidates": [
+            "DR04"
+          ],
+          "verdict": "confirmed selected draft leaves; terminology caution",
+          "actual_anchors": [
+            "controls.ts:188-250 and forms.ts:353-415 selected numeric helpers share FormFieldDef and matching INT_RE/DECIMAL_RE at controls:78-80/forms:119-121.",
+            "controls.ts:128-144 and forms.ts:216-232 both use Date.UTC with same year0-99 behavior; dateFieldValue remains regex and helper gated.",
+            "controls.ts:815-830/forms.ts:910-925 rawText performs JSON.stringify then String fallback; String fallback can throw."
+          ],
+          "corrections_and_constraints": [
+            "Keep selected exact leaf calls and error messages; do not parameterize int/money branches into universal numeric converter.",
+            "Current regex admits plus signs and leading zeros (e.g. +001): phrase canonical spelling must not be interpreted as new canonicalization requirement or narrowing. Preserve existing bytes.",
+            "No date-library replacement, timezone cleanup or no-throw claim follows from leaf sharing. Getter reads of field.value/path and toString/JSON side effects stay unchanged."
+          ]
+        },
+        {
+          "candidates": [
+            "DR06",
+            "DR07"
+          ],
+          "verdict": "confirmed small duplicates; separate private leaves only",
+          "actual_anchors": [
+            "envelope/prepared.ts:83-101 vs mcp/prepared.ts:88-106 identical deferral projection; enumValues undefined check reads once, defined value copied after second read, then deferral rereads input.kind up to three times.",
+            "csv.ts:311-321/export.ts:284-294 and uploads/routes.ts:184-194 share content-type-before-body, same parseJsonBody and IdentityError shape; uploads differs constant spelling only.",
+            "mcp/server.ts:94-101/uploads/routes.ts:123-130 extract Bearer using literal space index after trim."
+          ],
+          "corrections_and_constraints": [
+            "Do not introduce generic auth/request/preparation framework; two tiny private request leaves and a common projection are enough if import graph payoff warrants move.",
+            "Prepared projection sharing does not adopt prepared MCP ordinary server path; exposed HTTP/MCP plan types remain public separately.",
+            "Do not replace Bearer splitting with whitespace regex: tab separator currently fails. Token extraction may share, but uploads cookie fallback and MCP grant-only authority remain separate.",
+            "Preserve getter order/frozen enum copy and content type validation before consuming request body; source callers conditional/injected for CSV/export, not exhaustive mounted proof."
+          ]
+        },
+        {
+          "candidates": [
+            "DR10"
+          ],
+          "verdict": "confirmed retain oracle/donor boundary; no delete/adopt inference",
+          "actual_anchors": [
+            "work-kernel/src/index.ts:5-33 exports version/facts and fact validation, not decision modules; package.json:12-20 declares only root/distribution subpaths.",
+            "Kernel conformance tests import extracted decision files by source path; targeted pinned work/state/compiler source search found no non-test decision-module import.",
+            "state/receipt/tables.ts:323-348 and work-kernel/receipt.ts:384-409 match newRow token body but resolve module-local checkJsonSafe/ReceiptTableError; state/receipt/join.ts:301 is live donor reader."
+          ],
+          "corrections_and_constraints": [
+            "Absence of non-test import is observed bounded static result, not unreachable/external proof. Built dist decision files and direct-path consumers remain review obligations even with Node exports blocking package subpaths.",
+            "Do not route donors into kernel merely from token matches: direction, local error instanceof, cloned/reference domains and oracle independence must qualify. Main facts API is real public surface and cannot be removed with semantic prototypes.",
+            "Keep conformance as independent oracle until explicit retirement/adoption gates resolve; no kernel cleanup scheduling implied."
+          ]
+        },
+        {
+          "candidates": [
+            "DR11"
+          ],
+          "verdict": "confirmed exact append mechanism and optional-field semantics",
+          "actual_anchors": [
+            "schema-core.ts:266-282 and wire-core.ts:159-175 have identical pushViolation signatures after Collector/DecodeContext structural violations-array input.",
+            "Both freeze a copied path then append synchronously; expected undefined omits both expected and actual, even when actual argument supplied.",
+            "Public schema/wire facade callers exercise each owning validation traversal; helper private, Violation contract public."
+          ],
+          "corrections_and_constraints": [
+            "One internal no-runtime-owner-import helper can remove body drift; preserve property insertion order and exact own-field omission, frozen path copy and append order.",
+            "Do not sort/deduplicate, spread optional fields or centralize semantic validation. Path types are structurally readonly string|number arrays; helper must avoid schema/wire cycle."
+          ]
+        },
+        {
+          "candidates": [
+            "DR12"
+          ],
+          "verdict": "confirmed cycle-safe calendar leaves",
+          "actual_anchors": [
+            "kinds.ts:82-106 and temporal.ts:58-82 match leap arithmetic and daysInMonth switch/default0 exactly.",
+            "temporal.ts:32 runtime-imports kinds; kinds.ts:154-159 documents existing temporal back-edge avoidance.",
+            "kinds admission/makeDate:108-136; temporal date/datetime/month clamp calls:203,242,321 use same month leaf."
+          ],
+          "corrections_and_constraints": [
+            "Extract only pure no-owner-dependency leaf, not kinds importing temporal. Public constructors/errors retain range/integer checks and order.",
+            "Keep invalid month default0, signed remainder/NaN behavior, proleptic rules; runtime Date/Intl replacement adds unrelated host/timezone policy. DATETIME constants are explicitly outside bounded move."
+          ]
+        }
+      ],
+      "summary": "Seven findings covering eight selected records; narrow sharing claims supported, no observed source equivalence violation. Correct canonical-spelling interpretation in DR04; preserve read order, optional fields, transaction/backend and donor-oracle boundaries.",
+      "source_hash_index": [
+        {
+          "path": "packages/interfaces/src/envelope/prepared.ts",
+          "sha256": "b10355f3bf2f3490ba2b62380e8e8e73606e46b934170ece8cb55371ed429f97",
+          "lines": 145,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+          "lines": 567,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/interfaces/src/http/export.ts",
+          "sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+          "lines": 469,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/interfaces/src/mcp/prepared.ts",
+          "sha256": "229cbc7cfd1f2e136f5014d31041dbca6b3593a64a266f42275d08409ba3c760",
+          "lines": 202,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/interfaces/src/mcp/server.ts",
+          "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6",
+          "lines": 491,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/interfaces/src/uploads/routes.ts",
+          "sha256": "fff8e55fe8aed9cea083b5b3dcd9f8d1ff9cb1072539a2c429176d65132a0e59",
+          "lines": 405,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/state/src/receipt/join.ts",
+          "sha256": "1246a8fa0aac1f4b53512050d8e32c33cae98b843717e7de92fac3b71dc6471d",
+          "lines": 340,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+          "lines": 1406,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "sha256": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+          "lines": 1500,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/collections.ts",
+          "sha256": "c9568ffd924ba2ba842c776adb1cf75cbb5df7af73702d12fe3718d572bde3ab",
+          "lines": 1036,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/controls.ts",
+          "sha256": "ddf2dc4c1a098bcbf2f2beb92e2df551ffc09843b84bafd7ffdc4d9bbd56ccd8",
+          "lines": 1058,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/forms.ts",
+          "sha256": "8c4e1890c0d7a52bf6e91be83b26f2d40f675bed8bfab222797f19eaf4b67f71",
+          "lines": 2051,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/groups.ts",
+          "sha256": "a9c4b976518a73c5905480ab86352b02f794db161335c0129f47dde1b3ea5e0f",
+          "lines": 489,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/leaves.ts",
+          "sha256": "7b6adec794d80689be67a03993632d8ef9fa107b266ae613c3f8bc58d5051e4e",
+          "lines": 312,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/media.ts",
+          "sha256": "22de7f0408016471ec6d84ca62498a59c2ee7e6732a5ff866321008fa1f43a52",
+          "lines": 213,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/navigation.ts",
+          "sha256": "b361c673d0cef45297673394e08679f8f55d5458bbff2a0847f5f40ed244e869",
+          "lines": 709,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/overlays.ts",
+          "sha256": "125ddc7c0d491a9056b55db5e4fd8d14dbd69e156b995f5fb3d3d9769ade4b4c",
+          "lines": 460,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/panels.ts",
+          "sha256": "3d8bd4461930b48e326ec2f733f7d95acb5e01b52dc3a4fe8097e51fbdd7838e",
+          "lines": 414,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/review.ts",
+          "sha256": "b01e6fa2923dae76cbd4e743b9618d891cfd07dc79060e77bec2c04d381bcfea",
+          "lines": 116,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/ui/src/settings.ts",
+          "sha256": "f82458311f13871649ff392368efb17fc85c17250eede1153450b5f509b8136f",
+          "lines": 218,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/values/src/internal/schema-core.ts",
+          "sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+          "lines": 1978,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/values/src/internal/wire-core.ts",
+          "sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+          "lines": 1766,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/values/src/kinds.ts",
+          "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+          "lines": 347,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/values/src/temporal.ts",
+          "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+          "lines": 554,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+          "lines": 42,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/work-kernel/src/index.ts",
+          "sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+          "lines": 33,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/work-kernel/src/linkage.ts",
+          "sha256": "ecc6c6cee42a14e7b012ef47875553d51207902d2498b0adef935a8555a047d4",
+          "lines": 381,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/work-kernel/src/retry.ts",
+          "sha256": "2f95964c9e809ff62b628733e1c9c89c89d65df82ef5f633ca2f86b5896044e4",
+          "lines": 112,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/work-kernel/src/rows.ts",
+          "sha256": "5267d759fcb0f17cae6cd9ea864783cc16e793fe0ac6658f4e0d1dbf6d0e0c4d",
+          "lines": 1151,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        },
+        {
+          "path": "packages/work-kernel/tsconfig.json",
+          "sha256": "be538f73951bafb9b1a89fa55702abfbceab4adb06e2c5e8f869207d57e22bab",
+          "lines": 21,
+          "coverage": "bounded exact helper/dependency/caller review; no whole-workflow execution"
+        }
+      ],
+      "limits": [
+        "No builds/tests/runtime/install/source edits/Git mutations",
+        "Targeted callers and declared exports checked; absent external/dynamic/mounted callers not proven",
+        "No new public policy, contract, backend adoption or cleanup authorization selected",
+        "DR08 alias excluded as requested; retain counts/root normalization not re-audited"
+      ]
+    }
+  ],
+  "execution_authorized": false
+}

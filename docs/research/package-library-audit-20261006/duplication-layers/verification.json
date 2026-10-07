@@ -1,0 +1,27 @@
+{
+  "source_checkpoint": "4659b9477173e9ff423d2b4d8f1d1a19c8c2d007",
+  "checks": {
+    "external_inputs": 2,
+    "repository_inputs": 459,
+    "binary_inventory_inputs": 1,
+    "candidate_and_caller_ranges": 476,
+    "screen_ranges": 150
+  },
+  "candidate_count": 49,
+  "dispositions": {
+    "simplify": 11,
+    "consolidate": 17,
+    "retain": 18,
+    "delete": 3
+  },
+  "duplicate_seed_groups": 67,
+  "forwarding_syntax_seeds": 433,
+  "syntax_screen_reproduced": true,
+  "package_inputs_equal_current": true,
+  "non_package_input_drift": [],
+  "external_skipped": [],
+  "errors": [],
+  "product_execution": false,
+  "builds_tests_installs_runtime_probes": false,
+  "execution_authorized": false
+}

@@ -14,11 +14,16 @@ We should replace several standard parsing and encoding mechanisms with maintain
 The later planning audit records the [production baseline](production-baseline/README.md),
 [actual responsibilities/callers](responsibility-callers/README.md),
 [required-behavior authority](required-behavior/README.md),
-[library fit](library-fit/README.md), and [adapter branch dispositions](adapter-branches/README.md).
+[library fit](library-fit/README.md), [adapter branch dispositions](adapter-branches/README.md),
+and [duplicated mechanisms/layers](duplication-layers/README.md).
 The branch audit covers 480 groups across the selected 27 integration seams, with exact
 conditional change gates and independent source challenges. These later pinned records
 supersede historical unwired/source/qualification premises below where explicitly reconciled;
 they do not authorize new implementation or broaden finite acceptance.
+
+The duplication/layer step records 31 conditional change candidates and 18 retained
+boundaries with caller evidence. It distinguishes private shared mechanics from public
+assembly, authority checks and retained donor/oracle paths; implementation remains deferred.
 
 ## Coverage and evidence
 
