@@ -1,0 +1,46 @@
+{
+  "source_sha256": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+  "renderer_and_helpers_sha256": "3cfcde69e79dbe5cb517850d6149de58d9c69dfa180f7783c694353125edd57d",
+  "exact_extracted_harness_sha256": "6e5bf0d553cc91ec4e41d8c8884ff983c78215cae9c92b785d8a2af9531f55e7",
+  "checks": [
+    {
+      "case": "success",
+      "startup_stdout_bytes": 393216,
+      "startup_stderr_bytes": 393216,
+      "input_bytes": 262144,
+      "exit": 0,
+      "stdout_bytes": 393222,
+      "stdout_sha256": "889def413717bde1107a8a3ae3acd418474dcdccd01a3d4859d897c12b097d94",
+      "stderr_bytes": 0,
+      "stderr_tail": "",
+      "child_alive_after_return": false,
+      "seconds": 0.3422178749970044
+    },
+    {
+      "case": "nonzero",
+      "startup_stdout_bytes": 393216,
+      "startup_stderr_bytes": 393216,
+      "input_bytes": 262144,
+      "exit": 2,
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 2154,
+      "stderr_tail": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbEND-DETAIL\n",
+      "child_alive_after_return": false,
+      "seconds": 0.15846320900163846
+    },
+    {
+      "case": "closed-input-after-output",
+      "startup_stdout_bytes": 393216,
+      "startup_stderr_bytes": 393216,
+      "input_bytes": 262144,
+      "exit": 2,
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 197,
+      "stderr_tail": "rence model to '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-final-duplex-review-4rc0ivug/closed-input-after-output.py docs': Broken pipe (os error 32)\n",
+      "child_alive_after_return": false,
+      "seconds": 0.14856575000158045
+    }
+  ]
+}

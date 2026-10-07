@@ -1,0 +1,83 @@
+{
+  "source": "compiler/src/cli.rs",
+  "source_sha256": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+  "renderer_and_helpers_sha256": "3cfcde69e79dbe5cb517850d6149de58d9c69dfa180f7783c694353125edd57d",
+  "verdict": "pass for narrow handoff cleanup and finite duplex draining; broader FAIL-R05 remains unqualified",
+  "blocking_issues": [],
+  "method": "Read final source against Git HEAD, raw baseline/current receipts and actual consumer assertions; README not an oracle. Independently compile exact render_via_platform/read_renderer_pipe/stderr_tail and actual DispatchResult; execute only three new boundary cases. Run one new integrated regression.",
+  "independent_checks": [
+    {
+      "case": "success",
+      "startup_stdout_bytes": 393216,
+      "startup_stderr_bytes": 393216,
+      "input_bytes": 262144,
+      "exit": 0,
+      "stdout_bytes": 393222,
+      "stdout_sha256": "889def413717bde1107a8a3ae3acd418474dcdccd01a3d4859d897c12b097d94",
+      "stderr_bytes": 0,
+      "stderr_tail": "",
+      "child_alive_after_return": false,
+      "seconds": 0.3422178749970044
+    },
+    {
+      "case": "nonzero",
+      "startup_stdout_bytes": 393216,
+      "startup_stderr_bytes": 393216,
+      "input_bytes": 262144,
+      "exit": 2,
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 2154,
+      "stderr_tail": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbEND-DETAIL\n",
+      "child_alive_after_return": false,
+      "seconds": 0.15846320900163846
+    },
+    {
+      "case": "closed-input-after-output",
+      "startup_stdout_bytes": 393216,
+      "startup_stderr_bytes": 393216,
+      "input_bytes": 262144,
+      "exit": 2,
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 197,
+      "stderr_tail": "rence model to '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-final-duplex-review-4rc0ivug/closed-input-after-output.py docs': Broken pipe (os error 32)\n",
+      "child_alive_after_return": false,
+      "seconds": 0.14856575000158045
+    }
+  ],
+  "integrated_check": {
+    "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline --lib cli::tests::renderer_output_is_drained_while_its_input_is_written",
+    "exit": 0,
+    "passed": 1,
+    "failed": 0,
+    "filtered_out": 128,
+    "seconds": 0.03
+  },
+  "reviewed_parent_actual_cli_receipt": {
+    "file": "current.json",
+    "executed_binary_sha256": "c4a43347e5d821cb73f4bfd93c9f65778b03a2b0bfa0d8551c81a326cf5d8f8c",
+    "live_binary_sha256_at_review": "27d6e6a9485f59f3f8db67c9fe1b0d586139a45b786dd3fff812ceefcba52535",
+    "live_binary_matches_receipt": false,
+    "cases": 8,
+    "outcome": "Source-check, success, nonzero, signal, invalid UTF8, empty, exact duplex stdout, closed-input child absence retained. Parent-executed outcomes reviewed, not rerun by reviewer; live binary changed after receipt."
+  },
+  "reviewed_baseline_receipt": {
+    "file": "duplex-baseline.json",
+    "outcome": "Original binary finite startup stderr before model read timed out at supervised 3s; owned process group cleaned. Bounded observation only."
+  },
+  "source_findings": [
+    "stdout/stderr each transfer to a scoped reader before stdin write; concurrent draining breaks finite output-before-input pipe deadlock.",
+    "stdin drops before wait; write failure drops stdin then kills and waits owned child. Scope joins readers before returning original write E7004 without partial Markdown.",
+    "Normal child is waited before reader results construct Output. Reader errors propagate as E7004 wait failures; nonzero/status/UTF8/empty mappings remain unchanged.",
+    "Wait failure attempts kill and wait before scope joins. No dependency or production timeout/capture policy added."
+  ],
+  "historical_evidence": "independent-review-early-handoff.json retains the earlier source-pinned 16 probes and 17 CLI tests; these are historical, not replayed against final source.",
+  "limitations": [
+    "Local macOS native Rust/Python pipes and focused crate regression only; other hosts unqualified.",
+    "Capture remains unbounded; no output-size or wall-clock timeout policy selected.",
+    "Arbitrary blocked renderer behavior or descendants retaining pipe handles can prevent scope joins finishing; descendant process-tree termination not promised.",
+    "OS read/wait errors and thread creation/panic failures reviewed structurally, not fault-injected.",
+    "No complete FAIL-R05 closure, broad sink/resilience audit or performance claim."
+  ]
+}
