@@ -1,0 +1,18 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/lsp_frame_reader.rs (compiler/target/debug/deps/lsp_frame_reader-74f0e520c629f6c5)
+
+running 11 tests
+test clean_eof_and_torn_headers_and_bodies_remain_distinct ... ok
+test duplicates_are_accepted_only_when_all_declared_byte_counts_agree ... ok
+test partial_writes_emit_an_independently_expected_utf8_byte_count ... ok
+test legal_extension_headers_unicode_and_partial_reads_keep_exact_boundaries ... ok
+test declared_body_at_the_existing_cap_does_not_allocate_before_payload ... ok
+test transient_interruptions_retry_header_and_body_acquisition ... ok
+test refused_header_and_arrived_body_allocations_return_io_errors ... ok
+test arrived_body_storage_grows_proportionally_and_stops_at_the_declared_boundary ... ok
+test aggregate_header_budget_includes_the_separator_and_accepts_the_boundary ... ok
+test unterminated_lines_and_many_short_headers_have_the_same_finite_budget ... ok
+test one_byte_header_reads_do_not_allocate_for_every_byte ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

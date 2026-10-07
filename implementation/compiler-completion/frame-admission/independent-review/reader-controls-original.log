@@ -1,0 +1,8 @@
+one-byte exact 65536-byte header: consumed=65536, allocations=65515, sum-requested=2146140370, largest=65515, elapsed-us=20336
+one-byte separator exceeds cap: consumed=65536, allocations=65518, sum-requested=2146140457, largest=65515, elapsed-us=13742
+one-byte 65537-byte body: consumed=65562, allocations=27, sum-requested=180501, largest=65537, elapsed-us=3663
+non-EOF reader error: fail-at=0, consumed=0, fill-calls=1
+non-EOF reader error: fail-at=5, consumed=5, fill-calls=6
+non-EOF reader error: fail-at=25, consumed=25, fill-calls=26
+non-EOF reader error: fail-at=26, consumed=26, fill-calls=27
+non-EOF reader error: fail-at=125, consumed=125, fill-calls=126

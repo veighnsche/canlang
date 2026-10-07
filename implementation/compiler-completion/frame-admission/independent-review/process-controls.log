@@ -1,0 +1,7 @@
+separator crosses cap after shutdown 1 2
+exact cap bare LF unicode and pipelined shutdown 0 2
+incomplete code point complete frame then initialize 0 3
+invalid JSON complete frame then initialize 0 3
+shutdown then torn body EOF retains lifecycle 0 2
+shutdown then torn header EOF retains lifecycle 0 2
+non-EOF input OS error directory descriptor 1 0

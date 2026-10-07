@@ -1169,6 +1169,9 @@ pub fn uri_to_path(uri: &str) -> String {
 /// cannot install dependency-free — so SIGINT keeps its default
 /// terminate disposition; editors shutting down cleanly close stdin or
 /// send `exit`, both of which flush and exit below.
+/// Framing/admission or other input I/O failures flush prior output and exit
+/// with status 1; the stream has no supported resynchronization. Invalid
+/// UTF-8/JSON in a complete frame instead receives a parse error and continues.
 pub fn run_stdio() -> i32 {
     use std::io::{BufReader, BufWriter, Write};
 
@@ -1197,9 +1200,11 @@ pub fn run_stdio() -> i32 {
                 shutdown!()
             }
             Err(_) => {
-                // Framing errors carry no request id to answer; drop the
-                // connection state and keep serving further messages.
-                continue;
+                // Without a trustworthy body boundary, subsequent bytes
+                // cannot safely be interpreted as another frame. Flush
+                // prior responses and close with a transport failure.
+                let _ = writer.flush();
+                return 1;
             }
         };
         let responses = match std::str::from_utf8(&body) {

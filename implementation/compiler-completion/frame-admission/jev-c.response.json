@@ -1,0 +1,82 @@
+{
+  "request": {
+    "state": {
+      "verified_context": "FAIL-R03 for Can Rust compiler LSP transport. read_message currently read_until newline into unbounded header vectors, accepts ignored headers including a tested 2 MiB line and 8192 short headers, then vec![0; declared length] before reading body. Existing MAX_MESSAGE_BYTES=64 MiB enforced before allocation; accepted declared 64 MiB with no payload gives Read a 67,108,864-byte output buffer. Existing actual VS Code client writes one Content-Length CRLF header using UTF-8 byte count; server writer same. Reader tolerates case-insensitive Content-Length, bare LF, trimmed decimal lengths, unknown extension headers, and last duplicate length wins. run_stdio currently continues on framing errors in the same server state without proven resync, stops EOF/torn frames using existing lifecycle exit code, and emits JSON-RPC parse error for invalid JSON/UTF8 in correctly framed complete bodies. Ordinary request envelope/lifecycle has separate tested admission. Tests can use 64 KiB headers, declared-body/no-payload and observed reader buffers, finite stdio transcripts; no exhaustion experiments. User authorizes necessary support choices; scoped owner only framing/stdio closure/tests.",
+      "normative_context": "Microsoft primary LSP 3.17 and 3.18 specs define required Content-Length as content bytes, ASCII header fields separated by colon-space and CRLF, UTF-8 content; no numeric frame/header budgets, duplicate-length handling or malformed framing recovery recipe specified. 3.17 says header fields conform to HTTP semantic. Content-Type UTF-8 defaults and utf8 legacy are valid; transport ignores other headers (unchanged). Budgets are local supported admission choices, not language source limits or claimed normative LSP maxima.",
+      "outcomes": "Bound retained framing memory before validation; preserve ordinary client, legal extension headers and exact byte boundaries/partial reads; terminate untrusted framing without accidentally dispatching embedded payload as new messages; narrow ownership/simple implementation; avoid introducing generic framework/source restrictions. Larger headers have more compatibility room, smaller stricter budgets lower worst-case retained bytes; finite aggregate budget alone also bounds per-line/count without additional knobs. Geometric fallible body growth capped by accepted declared length gives no declared-size preallocation with no bytes and proportional growth when bytes actually arrive. No time deadline/slow-client policy requested."
+    },
+    "questions": {
+      "budget": {
+        "type": "choice",
+        "instructions": "For this dependency-free stdio owner, weigh finite header memory and arrived-byte body storage against expanding the transport layer.",
+        "criteria": {
+          "64k_incremental": "Set 64 KiB aggregate wire header budget including terminator; retain existing 64 MiB body ceiling; use bounded fill_buf acquisitions and fallible geometric Vec growth only once bytes arrive, capped by declared length. No separate line/count policy.",
+          "16k_incremental": "Set 16 KiB aggregate wire header budget including terminator with same existing body cap and arrived-byte growth. Stricter memory, less headroom for unknown extensions.",
+          "framework": "Adopt a broader LSP/JSON-RPC transport framework with its own resource/lifecycle policy; qualify ordinary peers and extension support before release. More machinery but potentially reusable policy and less handwritten code.",
+          "body_only": "Keep unbounded header parsing for compatibility, fix only premature body allocation. Preserves all current headers but leaves confirmed retained-header resource gap."
+        }
+      },
+      "duplicates": {
+        "type": "choice",
+        "instructions": "What should Can promise for repeated length fields so no conflicting declarations silently change body ownership?",
+        "criteria": {
+          "same_only": "Accept repeated Content-Length only when parsed decimal byte counts are equal, including case variations/leading zeros; reject disagreement, invalid value, or any oversized declaration. Preserves unambiguous duplicates while removing last-wins ambiguity.",
+          "single_only": "Reject every duplicate Content-Length, even equal values; simplest unique-declaration rule but removes unambiguous duplicate compatibility.",
+          "last_wins": "Preserve existing last-valid-length wins including disagreements; maximizes compatibility but inconsistent declarations can change the frame boundary."
+        }
+      },
+      "malformed_lifecycle": {
+        "type": "choice",
+        "instructions": "Evaluate continuing this stream versus terminating it after an invalid length, missing length, or header-budget refusal.",
+        "criteria": {
+          "close_failure": "Any non-EOF framing/I/O failure ends stdio with exit 1, no JSON-RPC reply because request/body unknown; flush prior outputs. EOF/torn frame retains current lifecycle exit behavior; correctly framed invalid JSON/UTF8 remains one parse-error response and subsequent frames continue.",
+          "close_lifecycle": "End stdio on every non-EOF framing/I/O error using current lifecycle exit code (often 0) and flush prior outputs. Complete-body JSON/UTF8 parse errors still reply and continue.",
+          "continue": "Keep serving the same stream/server after InvalidData, as today, treating subsequent bytes as fresh headers. Retains opportunistic recovery but body bytes may be reinterpreted and boundary/state reset is not assured.",
+          "resync": "Implement scanning or draining/resynchronization with documented budget and state-reset rules, then continue. Could preserve connections but requires a larger framing design and proof of boundary detection."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "budget": {
+        "type": "choice",
+        "choice": "64k_incremental",
+        "confidence": 0.95,
+        "probabilities": {
+          "16k_incremental": 0.02,
+          "body_only": 0.02,
+          "64k_incremental": 0.96,
+          "framework": 0.0
+        }
+      },
+      "duplicates": {
+        "type": "choice",
+        "choice": "same_only",
+        "confidence": 0.83,
+        "probabilities": {
+          "same_only": 0.89,
+          "single_only": 0.01,
+          "last_wins": 0.1
+        }
+      },
+      "malformed_lifecycle": {
+        "type": "choice",
+        "choice": "close_lifecycle",
+        "confidence": 0.21,
+        "probabilities": {
+          "resync": 0.01,
+          "continue": 0.18,
+          "close_lifecycle": 0.41,
+          "close_failure": 0.4
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1458,
+      "output_tokens": 164
+    }
+  }
+}

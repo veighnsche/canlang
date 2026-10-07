@@ -1,0 +1,55 @@
+{
+  "phase": "original frozen implementation",
+  "source_files": [
+    {
+      "path": "compiler/src/lsp/transport.rs",
+      "sha256": "b376ce60e19a1642bbc4acf79229a43fb005d4faffb585c26cbcda8ebf5018a5"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "sha256": "ebaac2788ac817f562f12d2e27cfcc2dc4f7bd7ff70edd8e039be6de053c168a"
+    },
+    {
+      "path": "compiler/tests/lsp_admission.rs",
+      "sha256": "b5a8d3f4fd35f421585c899e6f9f5720a2764a27c0469fe523442a3ba29f083e"
+    },
+    {
+      "path": "compiler/tests/lsp_frame_reader.rs",
+      "sha256": "c7d034ad5383ab572f64fffe2b1b45f60cc131a9ede0778fdc9f6b0d78de1331"
+    }
+  ],
+  "reused_receipts": {
+    "reader-process": "32 stdio + 10 reader tests passed",
+    "lsp-unit": "30 LSP unit tests passed",
+    "clippy": "author receipt exit101: four separately owned js.rs needless_borrow warnings; no claim of strict Clippy success",
+    "format": "author scoped source/test formatting passed"
+  },
+  "independent_commands": [
+    {
+      "command": "cargo build --manifest-path compiler/Cargo.toml --locked --bin can",
+      "exit": 0,
+      "log": "build.log"
+    },
+    {
+      "command": "rustc --edition 2024 -Awarnings implementation/compiler-completion/frame-admission/independent-review/reader-controls.rs -o /tmp/canlang-frame-independent-reader; /tmp/canlang-frame-independent-reader",
+      "exit": 0,
+      "log": "reader-controls-original.log"
+    },
+    {
+      "command": "python3 implementation/compiler-completion/frame-admission/independent-review/process-controls.py",
+      "exit": 0,
+      "log": "process-controls.log",
+      "transcripts": "process-controls.json"
+    }
+  ],
+  "fragment_recipe": "transport.rs prefix ending before Standard JSON-RPC error codes; remove JSON re-export (unused framing dependency); executable framing functions unmodified. Initial include! wrapper could not accept inner module docs; #[path] module wrapper fixed harness only.",
+  "external_context": {
+    "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/specification.md",
+    "checked": "2026-10-07",
+    "section_lines": "21-38",
+    "finding": "Primary framing text defines Content-Length bytes, CRLF, ASCII headers and UTF-8; no numeric header budget or malformed-stream recovery instruction there. Local duplicate/budget/exit policy labels are accurate."
+  },
+  "original_source_pins_verified_before_controls": true,
+  "all_original_pins_still_match_at_receipt_write": false,
+  "intervening_change": "Coordinator is revising transport header growth; final acceptance awaits revised pin and rerun."
+}

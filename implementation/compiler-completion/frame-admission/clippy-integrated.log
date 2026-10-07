@@ -1,0 +1,36 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+error: you seem to be trying to use `match` for an equality check. Consider using `if`
+   --> src/syntax/layout.rs:296:9
+    |
+296 | /         match head.kind {
+297 | |             TokenKind::Desc => {
+298 | |                 if brackets.is_empty() {
+299 | |                     flat.push(TreeLine {
+...   |
+312 | |             _ => {}
+313 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#single_match
+    = note: `-D clippy::single-match` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::single_match)]`
+help: try
+    |
+296 ~         if head.kind == TokenKind::Desc {
+297 +             if brackets.is_empty() {
+298 +                 flat.push(TreeLine {
+299 +                     indent: phys.indent,
+300 +                     tokens: vec![head.clone()],
+301 +                     children: Vec::new(),
+302 +                     first_line: phys.number,
+303 +                     is_desc: true,
+304 +                 });
+305 +             } else {
+306 +                 // Inside joined delimiters: inline (schema fields).
+307 +                 pending.push(head.clone());
+308 +             }
+309 +             continue;
+310 +         }
+    |
+
+error: could not compile `canlang-compiler` (lib) due to 1 previous error

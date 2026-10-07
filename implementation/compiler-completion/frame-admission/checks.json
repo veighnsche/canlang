@@ -1,0 +1,70 @@
+[
+  {
+    "name": "reader-process",
+    "command": [
+      "cargo",
+      "test",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--locked",
+      "--test",
+      "lsp_frame_reader",
+      "--test",
+      "lsp_admission"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 10.031,
+    "log": "reader-process.log"
+  },
+  {
+    "name": "lsp-unit",
+    "command": [
+      "cargo",
+      "test",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--locked",
+      "--lib",
+      "lsp::"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 5.884,
+    "log": "lsp-unit.log"
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--locked",
+      "--test",
+      "lsp_frame_reader",
+      "--test",
+      "lsp_admission",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 101,
+    "elapsed_seconds": 4.129,
+    "log": "clippy.log"
+  },
+  {
+    "name": "format",
+    "command": [
+      "rustfmt",
+      "--edition",
+      "2024",
+      "--check",
+      "compiler/src/lsp/transport.rs",
+      "compiler/src/lsp/server.rs",
+      "compiler/tests/lsp_admission.rs",
+      "compiler/tests/lsp_frame_reader.rs"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.056,
+    "log": "format.log"
+  }
+]

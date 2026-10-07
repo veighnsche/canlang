@@ -1,0 +1,36 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> src/codegen/js.rs:2047:40
+     |
+2047 |                     parenthesize_logic(&l, &left.expr, op),
+     |                                        ^^ help: change this to: `l`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_borrow
+     = note: `-D clippy::needless-borrow` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::needless_borrow)]`
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> src/codegen/js.rs:2048:40
+     |
+2048 |                     parenthesize_logic(&r, &right.expr, op)
+     |                                        ^^ help: change this to: `r`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_borrow
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> src/codegen/js.rs:2054:42
+     |
+2054 |                     parenthesize_operand(&l, &left.expr),
+     |                                          ^^ help: change this to: `l`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_borrow
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+    --> src/codegen/js.rs:2055:42
+     |
+2055 |                     parenthesize_operand(&r, &right.expr)
+     |                                          ^^ help: change this to: `r`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_borrow
+
+error: could not compile `canlang-compiler` (lib) due to 4 previous errors

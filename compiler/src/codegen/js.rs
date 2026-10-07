@@ -2067,15 +2067,15 @@ impl<'a> Emitter<'a> {
                 let js_op = if op == IrBinOp::And { "&&" } else { "||" };
                 format!(
                     "{} {js_op} {}",
-                    parenthesize_logic(&l, &left.expr, op),
-                    parenthesize_logic(&r, &right.expr, op)
+                    parenthesize_logic(l, &left.expr, op),
+                    parenthesize_logic(r, &right.expr, op)
                 )
             }
             IrBinOp::Coalesce => {
                 format!(
                     "{} ?? {}",
-                    parenthesize_operand(&l, &left.expr),
-                    parenthesize_operand(&r, &right.expr)
+                    parenthesize_operand(l, &left.expr),
+                    parenthesize_operand(r, &right.expr)
                 )
             }
             IrBinOp::In => {
