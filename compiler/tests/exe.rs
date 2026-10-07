@@ -210,8 +210,7 @@ fn docs_help_golden_names_flags_and_exits() {
 }
 
 fn docs_tmpdir(tag: &str) -> PathBuf {
-    let dir =
-        std::env::temp_dir().join(format!("can-docs-exe-{tag}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("can-docs-exe-{tag}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("tmpdir");
     dir
 }
@@ -273,7 +272,10 @@ fn docs_broken_source_exits_10_without_writing() {
         stdout_text(&output),
         stderr_text(&output)
     );
-    assert!(!out.exists(), "--out must not be written on analysis failure");
+    assert!(
+        !out.exists(),
+        "--out must not be written on analysis failure"
+    );
     assert!(
         !stdout_text(&output).is_empty(),
         "exit 10 still reports diagnostics on stdout"

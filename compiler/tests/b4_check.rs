@@ -809,7 +809,10 @@ fn t09_ordinary_array_create_omission_accepted() {
     let catalog = fixture();
     let src = "app T\nGiven\n M { title:text, tags:text[] }\n policy M read=members\nWhen\n scenario s(t:text) by=members\n  do\n   create M {title=t} as m\nThen\n";
     let diags = check(src, Some(&catalog));
-    assert!(diags.is_empty(), "ordinary array create omission: {diags:?}");
+    assert!(
+        diags.is_empty(),
+        "ordinary array create omission: {diags:?}"
+    );
 }
 
 /// (T09) Required arrays still require input in `create`: omitting
@@ -2674,7 +2677,9 @@ fn t14b_std_send_llm_cancel_missing_revision() {
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
     assert!(
-        diags[0].message.contains("missing required input 'revision'"),
+        diags[0]
+            .message
+            .contains("missing required input 'revision'"),
         "{}",
         diags[0].message
     );
@@ -2689,7 +2694,9 @@ fn t14b_std_send_images_inspect_graph_text() {
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
     assert!(
-        diags[0].message.contains("'graph': expected file, found text"),
+        diags[0]
+            .message
+            .contains("'graph': expected file, found text"),
         "{}",
         diags[0].message
     );
@@ -2703,7 +2710,9 @@ fn t14b_std_send_llm_cancel_revision_text() {
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
     assert!(
-        diags[0].message.contains("'revision': expected int, found text"),
+        diags[0]
+            .message
+            .contains("'revision': expected int, found text"),
         "{}",
         diags[0].message
     );
@@ -2847,7 +2856,9 @@ fn t14b_handbook_send_stays_e3019() {
     let diags = check(src, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
     assert!(
-        diags[0].message.contains("cannot verify send to 'Handbook.answer'"),
+        diags[0]
+            .message
+            .contains("cannot verify send to 'Handbook.answer'"),
         "{}",
         diags[0].message
     );

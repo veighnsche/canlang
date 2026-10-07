@@ -367,10 +367,7 @@ fn operations_descriptors_golden() {
     // is present with zero diagnostics (asserted above). Parameters never
     // carry the field-only `!`, so parameter arrays are always ordinary.
     let restock = op_by_name(ops, "Shop.restock");
-    assert_eq!(
-        restock.get("kind").and_then(Json::as_str),
-        Some("scenario")
-    );
+    assert_eq!(restock.get("kind").and_then(Json::as_str), Some("scenario"));
     assert_eq!(
         restock.get("description").and_then(Json::as_str),
         Some("Restock many gadgets at once."),

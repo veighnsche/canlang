@@ -1968,10 +1968,7 @@ impl<'a> Resolver<'a> {
                     } else {
                         diags.push(Diagnostic::error(
                             "E2004",
-                            format!(
-                                "import member '{}' is not declared in 'std'",
-                                member.name
-                            ),
+                            format!("import member '{}' is not declared in 'std'", member.name),
                             member.span,
                         ));
                     }
@@ -3609,10 +3606,9 @@ impl<'a> Resolver<'a> {
                         && let Some(ScopedName::External { provider, name }) =
                             self.lookup_prod(module, segments[0])
                     {
-                        self.tables.node_external_op.insert(
-                            NodeKey::of(child),
-                            format!("{provider}.{name}"),
-                        );
+                        self.tables
+                            .node_external_op
+                            .insert(NodeKey::of(child), format!("{provider}.{name}"));
                         continue;
                     }
                     if let Some(op) = self.resolve_op_path(module, &segments, child, text, diags) {

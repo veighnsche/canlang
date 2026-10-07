@@ -413,7 +413,11 @@ fn desc_hash_plus_compact_rejected() {
     let src = "app Shop\nGiven\n Gadget {\n  # Display title.\n  title:text desc=\"x\"\n }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
     let (tree, diags) = syntax::parse_source(file(), src);
     assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
-    assert!(diags[0].message.contains("duplicate"), "{}", diags[0].message);
+    assert!(
+        diags[0].message.contains("duplicate"),
+        "{}",
+        diags[0].message
+    );
     let (start, _) = span_of(src, "desc=", 1);
     assert_eq!(diags[0].primary.start, start);
     assert_eq!(diags[0].primary.end, start + "desc".len() as u32);
@@ -428,7 +432,11 @@ fn desc_hash_plus_legacy_rejected() {
     let src = "app Shop\nGiven\n Gadget {\n  # Display title.\n  title:text @{desc=\"x\"}\n }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
     let (tree, diags) = syntax::parse_source(file(), src);
     assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
-    assert!(diags[0].message.contains("duplicate"), "{}", diags[0].message);
+    assert!(
+        diags[0].message.contains("duplicate"),
+        "{}",
+        diags[0].message
+    );
     let (start, _) = span_of(src, "@{", 1);
     assert_eq!(diags[0].primary.start, start);
     assert_eq!(diags[0].primary.end, start + 1);
@@ -443,7 +451,11 @@ fn desc_compact_plus_legacy_rejected() {
     let src = desc_field_src("title:text desc=\"x\" @{desc=\"y\"}");
     let (tree, diags) = syntax::parse_source(file(), &src);
     assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
-    assert!(diags[0].message.contains("duplicate"), "{}", diags[0].message);
+    assert!(
+        diags[0].message.contains("duplicate"),
+        "{}",
+        diags[0].message
+    );
     let (start, _) = span_of(&src, "@{", 1);
     assert_eq!(diags[0].primary.start, start);
     assert_eq!(diags[0].primary.end, start + 1);

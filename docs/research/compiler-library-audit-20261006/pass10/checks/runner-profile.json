@@ -1,0 +1,13 @@
+{
+  "production_config_sha256": "2f908d0dfa6b20fb38ae182a66eeaf564da6007d4404299032dbf3fe5df2d2b4",
+  "temporary_config_sha256": "cc3f808daa5f54f72bd70953ff36b78c38c2437bd106a10e101868927cfd936f",
+  "temporary_config_path": "/private/tmp/canlang-pass10-runner/turbo.json",
+  "only_semantic_config_change": "append CARGO_BUILD_JOBS,CARGO_INCREMENTAL,CARGO_NET_OFFLINE,CAN_COMPLETION_REQUIRE_ENGINES to globalPassThroughEnv",
+  "env": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_NET_OFFLINE": "true",
+    "CAN_COMPLETION_REQUIRE_ENGINES": "1"
+  },
+  "tasks": "unchanged public native:compiler:build/test/lint commands; no package producer dependency"
+}
