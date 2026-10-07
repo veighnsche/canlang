@@ -1,0 +1,39 @@
+{
+  "checked_at_utc": "2026-10-07T02:52:33.628170+00:00",
+  "source": "packages/cloudflare/src/deploy/bundle.ts",
+  "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+  "checks": [
+    {
+      "command": "node node_modules/vitest/vitest.mjs run packages/cloudflare/test/deploy-bundle.test.ts -t assertWorkerdLoadable|assertLinksResolve --maxWorkers=1 --no-file-parallelism",
+      "cwd": "/private/tmp/canlang-rust-port-codex-step11-20261007T024618Z/source",
+      "exit_code": 0,
+      "result": "5 passed,24 unrelated skipped",
+      "log": "/private/tmp/canlang-rust-port-codex-step11-20261007T024618Z/loadability-link.log",
+      "negative_controls": "file-URL static/dynamic; bare require/module.exports/free exports; dangling relative/bare imports and brace/re-export forms; positives include wrapped CJS/quoted/comments/stdlib guard/resolved links"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit --tsBuildInfoFile ../cloudflare.tsbuildinfo -p packages/cloudflare/tsconfig.json",
+      "cwd": "/private/tmp/canlang-rust-port-codex-step11-20261007T024618Z/source",
+      "exit_code": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-step11-20261007T024618Z/typecheck.log"
+    },
+    {
+      "command": "git diff --check -- packages/cloudflare/src/deploy/bundle.ts",
+      "exit_code": 0
+    }
+  ],
+  "failed_setup_attempts": [
+    {
+      "kind": "source-equivalence reference",
+      "detail": "bcaa5db initial work helper pin differs from subsequently accepted assembly doc/rustfmt; corrected to5a4e827,32unchanged pins pass",
+      "not_product_failure": true
+    },
+    {
+      "kind": "TypeScript invocation",
+      "detail": "--incremental false refused for composite project(TS6379); rerun with owned private tsbuildinfo passed",
+      "not_product_failure": true
+    }
+  ],
+  "review": "Root bounded mechanical source/caller review; no separate agent claimed after capacity rejection",
+  "limits": "Focused source-tooling check with accepted unchanged private dependency/dists, not new installed/native/Wasm/global backend acceptance"
+}

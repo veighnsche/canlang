@@ -1,0 +1,239 @@
+{
+  "captured_at_utc": "2026-10-07T02:51:19.123321+00:00",
+  "checks": [
+    {
+      "path": "packages/identity/package.json",
+      "expected": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "actual": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "expected": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "actual": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "expected": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "actual": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "expected": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "actual": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "expected": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "actual": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-node.ts",
+      "expected": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "actual": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-worker.ts",
+      "expected": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "actual": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/identity/test/accounts.test.ts",
+      "expected": "f781848aec4423040a429cf5df26a9cf43c40e1aa6ab7669b7bbbd52a9de4fe4",
+      "actual": "f781848aec4423040a429cf5df26a9cf43c40e1aa6ab7669b7bbbd52a9de4fe4",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/identity/test/comparison.test.ts",
+      "expected": "384a94a493c83baabbd2b588dda973e8bb075b102e30bf8a670c9aad90add572",
+      "actual": "384a94a493c83baabbd2b588dda973e8bb075b102e30bf8a670c9aad90add572",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/identity/test/sessions.test.ts",
+      "expected": "2e8b9808c058a14a023e35cdd1bb6048dca3b0c4edaf8f190aac11aef9817b9c",
+      "actual": "2e8b9808c058a14a023e35cdd1bb6048dca3b0c4edaf8f190aac11aef9817b9c",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/ui/package.json",
+      "expected": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "actual": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "expected": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "actual": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "expected": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "actual": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/ui/test/csv-grammar.test.ts",
+      "expected": "3fa423003ac468e9ab812d62718acbcb2e9210c90c698555849eacea756956f3",
+      "actual": "3fa423003ac468e9ab812d62718acbcb2e9210c90c698555849eacea756956f3",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "expected": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "actual": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/interfaces/test/csv-grammar-join.test.ts",
+      "expected": "87c4017b36b806b58caa6f7264b5c497ba5f77930c0d133d2c7c0c4e2deda399",
+      "actual": "87c4017b36b806b58caa6f7264b5c497ba5f77930c0d133d2c7c0c4e2deda399",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/interfaces/test/csv-review.test.ts",
+      "expected": "6d76f7c35ad047ab04051614697e19b89b5cae588329e68d88f0f3c7311cce4c",
+      "actual": "6d76f7c35ad047ab04051614697e19b89b5cae588329e68d88f0f3c7311cce4c",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "expected": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "actual": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/services/test/http-lifecycle.test.ts",
+      "expected": "e572900ef6ba07c957a62646a015c20f255d231d340b3a63f5090ec0b2a4121c",
+      "actual": "e572900ef6ba07c957a62646a015c20f255d231d340b3a63f5090ec0b2a4121c",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "expected": "431b5fe24e151a90efe963420f03c74b6988a3211709b4494f966b64c8b76f3c",
+      "actual": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "equal": false,
+      "changed_here": true
+    },
+    {
+      "path": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "expected": "e3523e94de4052d6d908ff248be11ae2e2e7fc2805afcebfd7108686eb4bc9c5",
+      "actual": "e3523e94de4052d6d908ff248be11ae2e2e7fc2805afcebfd7108686eb4bc9c5",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/work-kernel/bindings/host-values.ts",
+      "expected": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+      "actual": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/work-kernel/conformance/host-values.test.ts",
+      "expected": "054d2a2aaee37e331abb940cb68473e4f612501065342c6105adfb4ad221018b",
+      "actual": "054d2a2aaee37e331abb940cb68473e4f612501065342c6105adfb4ad221018b",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "bun.lock",
+      "expected": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+      "actual": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+      "equal": true,
+      "changed_here": false
+    },
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "reference": "a34aa16",
+      "expected": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "actual": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "reference": "36df46e",
+      "expected": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "actual": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "equal": true
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "reference": "5a4e827",
+      "expected": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "actual": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "reference": "324d624",
+      "expected": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "actual": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "reference": "324d624",
+      "expected": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "actual": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "reference": "324d624",
+      "expected": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "actual": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "reference": "2552e7ba",
+      "expected": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "actual": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "reference": "5a9c768",
+      "expected": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "actual": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "equal": true
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "reference": "2552e7ba",
+      "expected": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "actual": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "equal": true
+    }
+  ],
+  "unchanged_pins": 32,
+  "only_changed_file": "packages/cloudflare/src/deploy/bundle.ts",
+  "claim": "Exact unchanged source/fixture scope only; changed bundler needs renewed focused checks"
+}

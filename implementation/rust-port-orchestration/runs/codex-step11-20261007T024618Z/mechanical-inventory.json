@@ -1,0 +1,139 @@
+{
+  "scope": "Selected accepted mechanics only; not exhaustive packages dead-code audit",
+  "source_base": "eb9f91b2dc2778662938b014135a13b0253bdc85",
+  "captured_at_utc": "2026-10-07T02:54:35.261986+00:00",
+  "records": [
+    {
+      "unit": "N02",
+      "mechanic": "Values finite number formatting",
+      "release": "a34aa16",
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "replacement": "ryu_js::Buffer::format_finite",
+      "real_callers": "Decimal/money/date text and codecs",
+      "evidence": "Native raw-bit corpus/131 callers/negative formatter controls from first-packet review; source identical",
+      "retain": "Can nonfinite/negative-zero spelling, carrier/domain/error checks",
+      "disposition": "already_removed"
+    },
+    {
+      "unit": "N03",
+      "mechanic": "Four work number formatter copies",
+      "release": "bcaa5db; assembly5a4e827",
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "replacement": "ryu_js::Buffer::format_finite",
+      "real_callers": "rows/linkage/receipt String+JSON, recovery String; json_token has real callers",
+      "evidence": "Leaf original JS bits/caller controls and actual registered assembly accepted step6; current registered helper bytes equal5a4e827",
+      "retain": "String versus JSON nonfinite policy, replay/order/UTF-16 decisions; allow(dead_code) is leaf-harness compatibility",
+      "disposition": "already_removed"
+    },
+    {
+      "unit": "N04",
+      "mechanic": "Values concrete Rust-str escape loop",
+      "release": "36df46e",
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "replacement": "serde_json::to_string",
+      "real_callers": "actual_wire, paths, missing/extra fields and money errors",
+      "evidence": "86 native tests; TS source corruption controls; checked private actual-helper Wasm/caller corpus; current source identical",
+      "retain": "UTF-16 truncation/unpaired-surrogate A04.5 remains partial; alias uses shared formatter",
+      "disposition": "already_removed"
+    },
+    {
+      "unit": "D02/D04",
+      "mechanic": "Regex import collection/rewrite/link scanning",
+      "release": "324d624",
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "replacement": "scanModuleImports/rewriteModuleImports via es-module-lexer+MagicString",
+      "real_callers": "Artifact/runtime/vendor rewrite; assertLinksResolve; file-URL admission",
+      "evidence": "Independent installed rewritten-throw coordinates and negative inputs step8; step10 accepted dependency closure",
+      "retain": "Trusted producer mapping, authored import policy, real CommonJS loadability scanner",
+      "disposition": "already_removed_except_mode"
+    },
+    {
+      "unit": "R02-cleanup",
+      "mechanic": "Unused keepStrings=true link scan mode",
+      "release": "eb9f91b",
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "replacement": "Link caller already scanModuleImports since324d624",
+      "real_callers": "Only remaining blankStringsAndComments caller passes one argument(default false)",
+      "evidence": "Renewed source-focused loadability/link5/5 plus strict typecheck0, exact private source pin",
+      "retain": "Active strings/comments blanking and CommonJS wrapper screening stay",
+      "disposition": "removed_this_step"
+    },
+    {
+      "unit": "D03",
+      "mechanic": "Manual VLQ numeric decoder",
+      "release": "d078e9f",
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "replacement": "sourcemap-codec decode",
+      "real_callers": "Runtime frame lookup/invoke sidecar and composed-map diagnostics",
+      "evidence": "409 affected cases step7; malformed/int32/source-order controls and real staged diagnostic proofs step8; unchanged source",
+      "retain": "Strict admission, signed32 restoration, encoded order, raw sources/lookup/error guards",
+      "disposition": "already_removed"
+    },
+    {
+      "unit": "I02",
+      "mechanic": "Bulk base64url and hex codec loops",
+      "release": "b9aafe90",
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "replacement": "@scure/base",
+      "real_callers": "Password persisted fields, opaque issuance/hash helpers",
+      "evidence": "Step10 independent frozen codec+installed Node/Worker controls; source hash identical",
+      "retain": "Final-sextet tail alias compatibility, exact bearer text hashing, strict malformed domain",
+      "disposition": "already_removed"
+    },
+    {
+      "unit": "I03",
+      "mechanic": "TS XOR comparison loops",
+      "release": "ace2c0e8",
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "replacement": "Node/workerd native comparison with host-specific entry",
+      "real_callers": "Password, CSRF, OAuth public token wrappers",
+      "evidence": "Independent timing-guarantee source review and actual supported Node22/24+Worker public handlers step10; unchanged pins",
+      "retain": "Length/domain/error order, host native availability, derivation boundaries",
+      "disposition": "already_removed"
+    },
+    {
+      "unit": "I04",
+      "mechanic": "Cookie header split/scan and serialization mechanics",
+      "release": "b9aafe90",
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "replacement": "cookie parseCookie/stringifySetCookie",
+      "real_callers": "Session cookie build/clear/parse",
+      "evidence": "Frozen cookie corpus and installed Node/Worker positive/malformed/Domain controls step10; unchanged pins",
+      "retain": "One parse, first target, once-only decoding, secure/default/attribute order policy",
+      "disposition": "already_removed"
+    },
+    {
+      "unit": "C02/C03",
+      "mechanic": "Two independent CSV parsing loops",
+      "release": "b9aafe90;694cd0c6",
+      "path": "packages/ui/src/csv/grammar.ts",
+      "replacement": "Shared csv-parse pure browser-sync grammar",
+      "real_callers": "UI advisory parse; authoritative interfaces review/commit",
+      "evidence": "Step10 grammar corpus, independent invalid-candidate repair, actual scripted candidate digest/invocation and installed hosts; unchanged pins",
+      "retain": "Raw text/counts/error policy, authoritative validity/consent/CSRF; C04 export escape/formula guards; deployed durable/browser mount still open",
+      "disposition": "already_removed"
+    },
+    {
+      "unit": "H01",
+      "mechanic": "Manual signal listener fan-in",
+      "release": "6686bc76",
+      "path": "packages/services/src/http/client.ts",
+      "replacement": "AbortSignal.any",
+      "real_callers": "Real fetch/redirect/body consumption client",
+      "evidence": "Independent H01/Node22/24/Worker consumer controls step10; unchanged source pin",
+      "retain": "Owned deadline timer, first winning reason, abort identity and cleanup",
+      "disposition": "already_removed"
+    },
+    {
+      "unit": "H02",
+      "mechanic": "Unbounded redirect arrayBuffer body bypass",
+      "release": "e2cdef83",
+      "path": "packages/services/src/http/client.ts",
+      "replacement": "Existing bounded byte reader",
+      "real_callers": "Redirect and final body reads",
+      "evidence": "Independent slow-cancel detected-quota-priority repair and actual host controls step10; unchanged pin",
+      "retain": "Quota bytes, same-origin/method/hop limits, cleanup/errors",
+      "disposition": "already_removed"
+    }
+  ]
+}
