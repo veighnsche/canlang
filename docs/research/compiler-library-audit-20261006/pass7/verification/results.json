@@ -1,0 +1,16 @@
+{
+  "native_full": {
+    "passed": 1034,
+    "failed": 0,
+    "ignored": 0,
+    "harnesses": 48
+  },
+  "editor_checks": 39,
+  "new_sessions": 3,
+  "new_output_frames": 61,
+  "responses": 43,
+  "diagnostic_notifications": 18,
+  "clippy_final": "pass",
+  "equivalent_test_polish": "chunks_exact(5) -> as_chunks::<5>().0.iter(); preceding remainder assertion retained",
+  "test_final_sha256": "9fa97cebcd822c5486afca9798ed494cd077ea9f00cecacd3474d13ed58c0fa3"
+}
