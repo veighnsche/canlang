@@ -1,0 +1,967 @@
+{
+  "schema": 1,
+  "review": "finite_independent_native_IMPORT_053_099_source_challenge",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "clean_room": false,
+  "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+  "input_audit": {
+    "path": "/private/tmp/canlang-adapter-branches-imports.json",
+    "sha256": "a01b933921ac1e4deec60175ad4ffcddedab96421f2dd253c453ab261dd3180c"
+  },
+  "scope": "47 written cohesive branch groups and 45 enclosing selected native function inventories, including the nested resolved helper inside IMPORT-063. This is not a full native job/package/adoption audit. Static source review only; saved tests are source witnesses. No product/library execution, tests, build, install, Git mutation, shared/repo edits, security/JEV repetition or design selection.",
+  "result": "No material disposition/HOLD/equivalence issue or missing selected control branch group. One factual wording correction requested.",
+  "branch_checks": [
+    {
+      "id": "IMPORT-053",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 91,
+      "end_line": 93,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-054",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 96,
+      "end_line": 125,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-055",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 128,
+      "end_line": 132,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-056",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 135,
+      "end_line": 139,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-057",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 141,
+      "end_line": 148,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-058",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 154,
+      "end_line": 165,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-059",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 167,
+      "end_line": 179,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-060",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 183,
+      "end_line": 209,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-061",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 213,
+      "end_line": 225,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-062",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 228,
+      "end_line": 258,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-063",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 262,
+      "end_line": 297,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-064",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 300,
+      "end_line": 309,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-065",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 311,
+      "end_line": 313,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-066",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 317,
+      "end_line": 332,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-067",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 348,
+      "end_line": 353,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-068",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 355,
+      "end_line": 357,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-069",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 361,
+      "end_line": 383,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-070",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 386,
+      "end_line": 416,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-071",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 419,
+      "end_line": 441,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-072",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 446,
+      "end_line": 461,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-073",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 466,
+      "end_line": 475,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-074",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 478,
+      "end_line": 493,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-075",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 500,
+      "end_line": 539,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-076",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 541,
+      "end_line": 546,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-077",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 552,
+      "end_line": 559,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-078",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 565,
+      "end_line": 592,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-079",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 593,
+      "end_line": 608,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-080",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 609,
+      "end_line": 648,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-081",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 652,
+      "end_line": 695,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-082",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 703,
+      "end_line": 731,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-083",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 733,
+      "end_line": 739,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-084",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 742,
+      "end_line": 752,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-085",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 755,
+      "end_line": 760,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-086",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 763,
+      "end_line": 776,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-087",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 779,
+      "end_line": 790,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "minor factual wording correction",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-088",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 794,
+      "end_line": 840,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-089",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 846,
+      "end_line": 865,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-090",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 871,
+      "end_line": 900,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-091",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 905,
+      "end_line": 908,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-092",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 917,
+      "end_line": 941,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-093",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 943,
+      "end_line": 945,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-094",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 948,
+      "end_line": 964,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-095",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 970,
+      "end_line": 998,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-096",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 1002,
+      "end_line": 1016,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-097",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 1020,
+      "end_line": 1037,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-098",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 1064,
+      "end_line": 1098,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    },
+    {
+      "id": "IMPORT-099",
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "start_line": 1102,
+      "end_line": 1146,
+      "range_verified": true,
+      "selected_conditions_checked_against_source": true,
+      "native_hold": true,
+      "current_ts_equivalence_claimed": false,
+      "result": "no material issue",
+      "missing_selected_control_group": false
+    }
+  ],
+  "corrections": [
+    {
+      "id": "NATIVE-REVIEW-001",
+      "branch_ids": [
+        "IMPORT-087"
+      ],
+      "severity": "minor_factual_wording",
+      "field": "mechanism_reason",
+      "original_fragment": "any name declaration qualifies",
+      "replacement": "any textual function require( declaration meeting the narrow <=9-unit prefix check qualifies; no binding or ownership provenance is established and calls to that bound name remain recognized as calls",
+      "why": "match_bare_require only targets require followed by optional whitespace and an opening parenthesis. is_stdlib_require_guard then tests the at-most-nine preceding units for eight literal function units followed by at least one whitespace. Thus exactly one whitespace unit fits the successful full prefix; other function names do not enter this call matcher. This does not change the existing conditional eliminate disposition or HOLD.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 742,
+          "end_line": 752,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Only require spellings enter the guard path"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 779,
+          "end_line": 790,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Saturating nine-unit window and literal eight-unit function suffix"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 808,
+          "end_line": 817,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Guard consulted only after a bare-require match"
+        },
+        {
+          "path": "packages/cloudflare/preparation/tests/modules.rs",
+          "start_line": 798,
+          "end_line": 826,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Saved function require declarations are historical source witnesses, not execution"
+        }
+      ]
+    }
+  ],
+  "confirmed_claims": [
+    {
+      "id": "NATIVE-REVIEW-C01",
+      "branch_ids": [
+        "IMPORT-060",
+        "IMPORT-066",
+        "IMPORT-090",
+        "IMPORT-098"
+      ],
+      "claim": "Repeated leading relative parent segments collapse in the held native normalizer and can defeat its lexical refusal/membership intent.",
+      "static_trace": {
+        "input": "../../x.js",
+        "steps": [
+          "absolute false; first .. pops empty stack, therefore pushes ..",
+          "second .. pops the previously pushed .., therefore does not push another parent",
+          "ordinary x.js pushed; nonempty stack joins to x.js",
+          "raw path nonempty/nonabsolute and normalized x.js neither .. nor ../ => assert_safe_relative_path returns Ok"
+        ],
+        "evaluated_runtime": false
+      },
+      "qualification": "This is direct reasoning from the held source, not an executed defect report. Pinned TS delegates to Node posix.normalize and applies the preserved-leading-parent refusal policy. No arbitrary platform/host corpus proof is claimed.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 181,
+          "end_line": 209,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Comment promises preserved leading parents; pop behavior contradicts it"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 315,
+          "end_line": 332,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Native refusal consumes incorrect normalization"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/modules.ts",
+          "start_line": 72,
+          "end_line": 77,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Selected TS guard uses Node posix normalization and parent prefix refusal"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "start_line": 525,
+          "end_line": 530,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Deploy-side guard uses the same containment condition"
+        },
+        {
+          "path": "packages/cloudflare/preparation/tests/modules.rs",
+          "start_line": 94,
+          "end_line": 174,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Single parent/deep parent historical cases do not exercise repeated leading parents"
+        }
+      ]
+    },
+    {
+      "id": "NATIVE-REVIEW-C02",
+      "branch_ids": [
+        "IMPORT-061",
+        "IMPORT-062",
+        "IMPORT-063",
+        "IMPORT-064"
+      ],
+      "claim": "Exact Node parity is appropriately qualified to finite map inputs. Empty later join parts add slash; relative resolves at artificial root; hidden-dot prefix behavior is shared with the TS wrapper.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 213,
+          "end_line": 225,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Empty later part still introduces slash when output nonempty"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 262,
+          "end_line": 297,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Nested resolved artificially prefixes slash, then segment diff"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 300,
+          "end_line": 309,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Starts with any dot returned as is"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "start_line": 430,
+          "end_line": 433,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "TS relative helper also prefixes only when not startsWith dot"
+        }
+      ]
+    },
+    {
+      "id": "NATIVE-REVIEW-C03",
+      "branch_ids": [
+        "IMPORT-069",
+        "IMPORT-070",
+        "IMPORT-071",
+        "IMPORT-072",
+        "IMPORT-075",
+        "IMPORT-078",
+        "IMPORT-079",
+        "IMPORT-080",
+        "IMPORT-081",
+        "IMPORT-082",
+        "IMPORT-088",
+        "IMPORT-090",
+        "IMPORT-098"
+      ],
+      "claim": "Native regex-shaped raw discovery, independent quote delimiters, masking and grouped CJS/file scans are correctly marked held profiles rather than lexical TS equivalence. LF-only line comment masking and string-unaware interpolation depth are shared source limitations.",
+      "static_witnesses": [
+        "// comment followed by CR, U+2028 or U+2029 and module.exports is masked until a later LF or EOF",
+        "In `${\"}\" + (module.exports = {})}`, the raw quoted } ends the interpolation depth early and the following template-text mask removes live code",
+        "A raw import text inside comment or quoted prose can match file:// discovery; escaped file URL literal identity is not decoded"
+      ],
+      "evaluated_runtime": false,
+      "evidence": [
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 361,
+          "end_line": 441,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Raw import matchers and independent quote classes"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 565,
+          "end_line": 648,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Comment/literal/template masking"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 652,
+          "end_line": 695,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Textual __commonJS exemption without provenance"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 703,
+          "end_line": 731,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Raw file URL prefix recognizer"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 794,
+          "end_line": 840,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "File-first then grouped CJS issue reporting"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "start_line": 732,
+          "end_line": 800,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Current TS CJS masker shares LF and naive interpolation behavior"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "start_line": 842,
+          "end_line": 864,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Current TS file recognition instead uses decoded lexer records and statement start"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "start_line": 115,
+          "end_line": 152,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Selected normalized decoded import records with original UTF16 spans"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "start_line": 154,
+          "end_line": 181,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Selected artifact phase/computed gates before membership"
+        },
+        {
+          "path": "packages/cloudflare/preparation/tests/modules.rs",
+          "start_line": 343,
+          "end_line": 351,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Historical mismatched-quote rewrite witness"
+        },
+        {
+          "path": "packages/cloudflare/preparation/tests/modules.rs",
+          "start_line": 910,
+          "end_line": 924,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Historical malformed wrapper passes witness"
+        }
+      ]
+    },
+    {
+      "id": "NATIVE-REVIEW-C04",
+      "branch_ids": [
+        "IMPORT-091",
+        "IMPORT-092",
+        "IMPORT-094",
+        "IMPORT-095",
+        "IMPORT-096",
+        "IMPORT-097",
+        "IMPORT-099"
+      ],
+      "claim": "Sequential rescanning/raw replacements, old package target maps, missing transform-map projection and fixed scalar text inventory justify current non-equivalence/HOLD statements. Thin required ordering/producer policy can be retained independently of these mechanisms.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 905,
+          "end_line": 908,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Loadability before links with error propagation"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 917,
+          "end_line": 941,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Rewrites each current edited result through next matcher"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 56,
+          "end_line": 75,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Held checkout spellings and four/five mapping constants"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 970,
+          "end_line": 1037,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Runtime/vendor maps and global nonempty split-join"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "start_line": 448,
+          "end_line": 523,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Selected package-export/generic state/additional vendor mappings"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "start_line": 183,
+          "end_line": 243,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Selected delimiter escaping, original coordinate edits and maps"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "start_line": 533,
+          "end_line": 567,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Selected staging composes maps and adds inline map view"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 1102,
+          "end_line": 1146,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Native staging lacks map inputs/results"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 16,
+          "end_line": 20,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Native module explicitly excludes mixed-asset support"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "start_line": 896,
+          "end_line": 918,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Selected link closure includes binaryKeys"
+        },
+        {
+          "path": "packages/cloudflare/preparation/tests/modules.rs",
+          "start_line": 413,
+          "end_line": 415,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Historical vendor contracts specifier remains bare"
+        }
+      ]
+    }
+  ],
+  "coverage_notes": {
+    "all47_selected_branch_ranges_verified": true,
+    "all_selected_control_conditions_and_advancement_reviewed": true,
+    "missing_selected_control_groups": [],
+    "scope_inventory_clarification": "Nested posix_relative::resolved263-278 is explicitly described by IMPORT-063 conditions and covered by its enclosing function range; optional separate inventory row would improve function-count clarity without adding a branch gap. No broader native inventory claim.",
+    "authority": "Native source comments claiming exact/pure port are not authority for current selected TS equivalence. Saved historical tests confirm old profile only. Required containment/import/loadability/ordering outcomes remain separate from temporary diagnostics/matchers.",
+    "native_hold": true,
+    "new_policy_or_algorithm_selected": false,
+    "runtime_equivalence_verified": false
+  },
+  "hash_index": [
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "51ddde6db165e5feeafdda2b9b8e7969b3e87506def82b734412107c3c205794",
+      "lines": 1301
+    },
+    {
+      "path": "packages/cloudflare/preparation/tests/modules.rs",
+      "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "dc4c32b06b80fdb16ce098a7094c488a67087f48dce340bee44bba7eafd3385c",
+      "lines": 1560
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "lines": 1424
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "lines": 243
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "lines": 144
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "lines": 400
+    }
+  ]
+}

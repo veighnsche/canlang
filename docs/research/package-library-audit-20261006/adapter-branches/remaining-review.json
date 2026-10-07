@@ -1,0 +1,568 @@
+{
+  "schema": "canlang-adapter-finite-independent-review-v1",
+  "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "review_type": "finite_independent_challenge_not_clean_room",
+  "scope": "All135 values and87 consumer proposal summaries/conditional reductions were considered; exact source challenge prioritized requested adapter seams. This is not a whole values semantic-engine audit or execution acceptance.",
+  "inputs": [
+    {
+      "path": "/private/tmp/canlang-adapter-branches-values.json",
+      "sha256": "7f4b29a57ba2838cc691013b64a257c17e3a4540aaaca669f67f15ab6c30b1fa"
+    },
+    {
+      "path": "/private/tmp/canlang-adapter-branches-consumers.json",
+      "sha256": "e735d1a32fd79c14081b016c33a9d57d530c3ec539f6c0a0ef5932d8fd87fa7e"
+    }
+  ],
+  "constraints": [
+    "planning/source-only",
+    "no product edits/install/build/test/runtime execution",
+    "no Git mutation",
+    "no shared-document changes",
+    "no new policy/design selection",
+    "no JEV repetition",
+    "no subdelegation"
+  ],
+  "corrections": [
+    {
+      "id": "REMAINING-R01",
+      "severity": "factual_wording",
+      "proposal_ids": [
+        "VAL-029"
+      ],
+      "claim": "dateFormatter rationale says h23 prevents midnight24 reconstruction",
+      "correction": "Remove h23/midnight-hour rationale from dateFormatter. It configures timeZone/year/month/day only. hourCycle:h23 belongs to instantFormatter (VAL-030). Keep the same conditional consolidate disposition and settings/lifetime prerequisite.",
+      "evidence": [
+        {
+          "path": "packages/values/src/timezone.ts",
+          "start_line": 70,
+          "end_line": 83,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Complete date-only formatter"
+        },
+        {
+          "path": "packages/values/src/timezone.ts",
+          "start_line": 85,
+          "end_line": 102,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Separate instant formatter sets hourCycle:h23 at98"
+        }
+      ],
+      "disposition_change": false,
+      "policy_choice_needed": false,
+      "status": "resolved_in_private_values_packet_by_parent_before_final",
+      "resolution": "Parent corrected VAL-029 rationale; no disposition change."
+    }
+  ],
+  "focused_checks": [
+    {
+      "topic": "numeric_String_vs_JSON",
+      "proposal_ids": [
+        "VAL-001",
+        "VAL-002",
+        "VAL-003"
+      ],
+      "evidence": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "start_line": 319,
+          "end_line": 334,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Protected finite formatter channel"
+        },
+        {
+          "path": "packages/work-kernel/decisions/numeric_text.rs",
+          "start_line": 5,
+          "end_line": 27,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "String channel nonfinite words; JSON channel null"
+        },
+        {
+          "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/buffer/mod.rs",
+          "start_line": 45,
+          "end_line": 85,
+          "source_pin": null,
+          "note": "format handles nonfinite; format_finite explicitly unspecified on nonfinite"
+        },
+        {
+          "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/pretty/mod.rs",
+          "start_line": 58,
+          "end_line": 72,
+          "source_pin": null,
+          "note": "Both signed zeros normalize to0"
+        }
+      ],
+      "result": "No correction: proposed guard removal explicitly requires Buffer::format, preserves JSON null distinction, persisted bytes and finite qualification."
+    },
+    {
+      "topic": "UTF16_vs_Rust_str",
+      "proposal_ids": [
+        "VAL-004",
+        "VAL-005",
+        "VAL-007",
+        "VAL-010",
+        "VAL-016",
+        "VAL-022",
+        "VAL-F02",
+        "VAL-F05"
+      ],
+      "evidence": [
+        {
+          "path": "packages/values/semantics/src/codecs/numeric.rs",
+          "start_line": 155,
+          "end_line": 179,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Valid Rust-str serialization and surrogate-safe diagnostic cut"
+        },
+        {
+          "path": "packages/values/src/internal/wire-core.ts",
+          "start_line": 177,
+          "end_line": 190,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "UTF16 slice after quote"
+        },
+        {
+          "path": "packages/values/src/internal/schema-core.ts",
+          "start_line": 289,
+          "end_line": 290,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Separate60-unit slice-before-quote profile"
+        }
+      ],
+      "result": "No correction: artifacts distinguish valid-str serde scope, lossless U16 bridges and diagnostic profile mismatches; no blanket serde replacement proposed."
+    },
+    {
+      "topic": "strict_URI_admission",
+      "proposal_ids": [
+        "VAL-014",
+        "VAL-020",
+        "VAL-026"
+      ],
+      "evidence": [
+        {
+          "path": "packages/work-kernel/decisions/rows.rs",
+          "start_line": 286,
+          "end_line": 333,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "ASCII nine-punctuation allowance, scalar UTF8 uppercase escapes, owning lone-surrogate URIError"
+        }
+      ],
+      "result": "No correction: percent-encoding candidate requires strict UTF16 conversion and exact set/error profile; no lossy decoder, form-plus or URL normalization adoption proposed."
+    },
+    {
+      "topic": "Intl_display_vs_semantics",
+      "proposal_ids": [
+        "VAL-064",
+        "VAL-066",
+        "VAL-067",
+        "VAL-068",
+        "VAL-069"
+      ],
+      "evidence": [
+        {
+          "path": "packages/values/src/icu.ts",
+          "start_line": 972,
+          "end_line": 1020,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "PluralRules Number admission separate from exact selector/display"
+        },
+        {
+          "path": "packages/values/src/icu.ts",
+          "start_line": 1047,
+          "end_line": 1132,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Current ASCII digits/symbol extraction/grouping and defensive scale0 route"
+        },
+        {
+          "path": "packages/values/src/icu.ts",
+          "start_line": 600,
+          "end_line": 606,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "integer style typed int usage gate"
+        },
+        {
+          "path": "packages/values/src/icu.ts",
+          "start_line": 822,
+          "end_line": 869,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Pound uses nonintegerOnly; number node uses validated style"
+        },
+        {
+          "path": "packages/values/test/icu.test.ts",
+          "start_line": 314,
+          "end_line": 378,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Saved exactness and scale display tests; not executed"
+        }
+      ],
+      "result": "No removal correction: exact-string NumberFormat replacement is conditional on actual supported host/data, scale0..18 and consumer differences; plural numeric widening remains separate. Current omission of localized digits/bidi/minimum-grouping is not blessed as permanent policy."
+    },
+    {
+      "topic": "stable_JSON_domains_preimages",
+      "proposal_ids": [
+        "CONSUMERS-010",
+        "CONSUMERS-011",
+        "CONSUMERS-012",
+        "CONSUMERS-033",
+        "CONSUMERS-034",
+        "CONSUMERS-035",
+        "CONSUMERS-036",
+        "CONSUMERS-037"
+      ],
+      "evidence": [
+        {
+          "path": "packages/state/src/invocation/replay.ts",
+          "start_line": 20,
+          "end_line": 71,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Rejecting scalar profile, legacy toJSON before array/symbol handling, indexed arrays, sorted reads and SHA256"
+        },
+        {
+          "path": "packages/services/src/media/mapping.ts",
+          "start_line": 48,
+          "end_line": 75,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Tolerant recursively sorted serializer with map sparse behavior and node digest"
+        },
+        {
+          "path": "packages/state/test/invocation/replay.test.ts",
+          "start_line": 12,
+          "end_line": 66,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Saved unsafe-value/toJSON/preimage tests; not executed"
+        }
+      ],
+      "result": "No correction: per-owner ordinary dense finite closed-JSON admission and historical bytes/read order are explicit prerequisites; strict replay serializer retained, no bulk rehash or unknown-input normalization proposed."
+    },
+    {
+      "topic": "CSV_LF_armor_sharedparser",
+      "proposal_ids": [
+        "CONSUMERS-002",
+        "CONSUMERS-003",
+        "CONSUMERS-004",
+        "CONSUMERS-005",
+        "CONSUMERS-025",
+        "CONSUMERS-026",
+        "CONSUMERS-027",
+        "CONSUMERS-028"
+      ],
+      "evidence": [
+        {
+          "path": "packages/ui/src/csv/grammar.ts",
+          "start_line": 30,
+          "end_line": 71,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Strict scalar UTF16 roundtrip precedes pinned CSV parse; full parse then row ceiling"
+        },
+        {
+          "path": "packages/interfaces/src/http/export.ts",
+          "start_line": 160,
+          "end_line": 167,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Whitespace-aware current formula armor and quote conditions"
+        },
+        {
+          "path": "packages/interfaces/src/http/export.ts",
+          "start_line": 238,
+          "end_line": 260,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Header escaping only; data armor-before-escaping; unconditional final LF"
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/api/index.js",
+          "start_line": 153,
+          "end_line": 225,
+          "source_pin": null,
+          "note": "Different first-character formula armor and configurable quoting"
+        },
+        {
+          "path": "packages/ui/test/csv-grammar.test.ts",
+          "start_line": 22,
+          "end_line": 67,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Saved admission correction/error-order tests; not executed"
+        },
+        {
+          "path": "packages/interfaces/test/export-print.test.ts",
+          "start_line": 171,
+          "end_line": 215,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Saved formula/refusal projection tests; not executed"
+        }
+      ],
+      "result": "No correction: no automatic writer adoption. Future candidate explicitly requires LF/eof/empty/bare-CR controls, projected string rows and separately preserved formula armor. Sharedparser caller advisory vs authoritative policies remain owned."
+    },
+    {
+      "topic": "HTTP_Ollama_stream_errors",
+      "proposal_ids": [
+        "CONSUMERS-059",
+        "CONSUMERS-060",
+        "CONSUMERS-066",
+        "CONSUMERS-067",
+        "CONSUMERS-068",
+        "CONSUMERS-069",
+        "CONSUMERS-070",
+        "CONSUMERS-071",
+        "CONSUMERS-079",
+        "CONSUMERS-080",
+        "CONSUMERS-083",
+        "CONSUMERS-085",
+        "CONSUMERS-086"
+      ],
+      "evidence": [
+        {
+          "path": "packages/services/src/http/client.ts",
+          "start_line": 99,
+          "end_line": 149,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Actual-byte quota then retained chunk merging and default lossy UTF8 decode"
+        },
+        {
+          "path": "packages/services/src/http/client.ts",
+          "start_line": 286,
+          "end_line": 399,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Text/binary decoding and finally ordering retained by prerequisite"
+        },
+        {
+          "path": "packages/services/src/http/client.ts",
+          "start_line": 425,
+          "end_line": 524,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Streaming quota, caught read winner, generator cancellation and final decode"
+        },
+        {
+          "path": "packages/services/src/models/ollama.ts",
+          "start_line": 374,
+          "end_line": 404,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "error wins done, strict content carrier; cancellation name gate"
+        },
+        {
+          "path": "packages/services/src/models/ollama.ts",
+          "start_line": 501,
+          "end_line": 615,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Malformed line settles immediately, first terminal closes iteration, incomplete EOF fails"
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/src/utils.ts",
+          "start_line": 299,
+          "end_line": 338,
+          "source_pin": null,
+          "note": "SDK logs raw malformed lines and continues; not equivalent"
+        },
+        {
+          "path": "packages/services/test/http-lifecycle.test.ts",
+          "start_line": 15,
+          "end_line": 124,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Saved winner/cancellation/quota witnesses; not executed"
+        },
+        {
+          "path": "packages/services/test/models-ollama.test.ts",
+          "start_line": 350,
+          "end_line": 412,
+          "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+          "note": "Saved incomplete/malformed/early-terminal witnesses; not executed"
+        }
+      ],
+      "result": "No correction: buffered helper consolidation excludes stream lifecycle and preserves decoding placement; read chunk stability is explicit prerequisite for eliminating resumming; SDK is not proposed as strict stream replacement. Default HTTP decoder is lossy, strict here means JSON/frame/final validation, not fatal UTF8. Deadline classification checks are error-path logic; no independent wall-clock preemption while generator suspended is newly established."
+    }
+  ],
+  "conclusions": [
+    "One concrete factual wording correction was found and resolved by parent in private values packet; no material missing prerequisite or unsafe unconditional removal was found in challenged reductions.",
+    "All proposed simplify/consolidate/eliminate steps remain proposals pending their declared qualification. Saved test sources and receipts do not constitute new executions.",
+    "This review did not infer historical installed receipt invalidity from dependency availability in current local roots."
+  ],
+  "gaps": [
+    "No current host exact-string Intl/data execution or package adoption proof produced.",
+    "No new stream runtime/race witness was executed; abort/deadline conclusions remain source-qualified.",
+    "No full semantic core, whole-package or arbitrary unknown-value equivalence claim."
+  ],
+  "related_correction": {
+    "artifact": "/private/tmp/canlang-adapter-branches-imports.json",
+    "proposal_id": "IMPORT-087",
+    "status": "applied_at_parent_request",
+    "change": "Textual function require( qualifies only under narrow at-most-9-unit prefix check; no arbitrary-name declaration or binding/provenance proof. No disposition change."
+  },
+  "frozen_source_hashes": [
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "sha256": "46f566043db6f6292d6a95ae125e0e51c19058cc455f9a68bd4ff56343479ca7"
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e"
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3"
+    },
+    {
+      "path": "packages/interfaces/test/export-print.test.ts",
+      "sha256": "d8d58be75556c910d0c0c099d66f1871caf4576c24c868e7df6f4bb98e3deb2f"
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034"
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "sha256": "507306b2f97b72ebe5aa4dce54fe0af2164bfd1dcf6604efea6d1b7ccd151da1"
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "sha256": "96c39834af0d132c64d164b0a8d4712fa75c203fb4fa8c4463e0ad8b5907df96"
+    },
+    {
+      "path": "packages/services/test/http-lifecycle.test.ts",
+      "sha256": "e572900ef6ba07c957a62646a015c20f255d231d340b3a63f5090ec0b2a4121c"
+    },
+    {
+      "path": "packages/services/test/models-ollama.test.ts",
+      "sha256": "640b4586d9595b4d58eb9f5a81a5eb1d85ef7b7535b6563ca953f0e734fe7122"
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6"
+    },
+    {
+      "path": "packages/state/src/invocation/replay.ts",
+      "sha256": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36"
+    },
+    {
+      "path": "packages/state/test/invocation/replay.test.ts",
+      "sha256": "bceeae15e994e5a4168d161db8d4f5049d467362383c517801941a7021931bc7"
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc"
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9"
+    },
+    {
+      "path": "packages/ui/test/csv-grammar.test.ts",
+      "sha256": "3fa423003ac468e9ab812d62718acbcb2e9210c90c698555849eacea756956f3"
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3"
+    },
+    {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "sha256": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c"
+    },
+    {
+      "path": "packages/values/bindings/carriers.ts",
+      "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0"
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "sha256": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139"
+    },
+    {
+      "path": "packages/values/bindings/plans.ts",
+      "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274"
+    },
+    {
+      "path": "packages/values/bindings/src/exact.rs",
+      "sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423"
+    },
+    {
+      "path": "packages/values/bindings/src/validation.rs",
+      "sha256": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff"
+    },
+    {
+      "path": "packages/values/bindings/validation.ts",
+      "sha256": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f"
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217"
+    },
+    {
+      "path": "packages/values/semantics/src/input.rs",
+      "sha256": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b"
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/decimal.rs",
+      "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c"
+    },
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+    },
+    {
+      "path": "packages/values/semantics/tests/numeric_text_contract.rs",
+      "sha256": "dba6878989028d5e0970fc62fb55ced2cf926c22bf50a956f2fb932b0c5f3459"
+    },
+    {
+      "path": "packages/values/src/decimal.ts",
+      "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "sha256": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e"
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792"
+    },
+    {
+      "path": "packages/values/src/internal/wire-core.ts",
+      "sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059"
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "sha256": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e"
+    },
+    {
+      "path": "packages/values/src/prepared/plan.ts",
+      "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4"
+    },
+    {
+      "path": "packages/values/src/prepared/validation.ts",
+      "sha256": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36"
+    },
+    {
+      "path": "packages/values/src/schema.ts",
+      "sha256": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "sha256": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d"
+    },
+    {
+      "path": "packages/values/test/icu.test.ts",
+      "sha256": "670d14e786085707967e23714707f18c5fb381b8175f058149b9b769adb26486"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "sha256": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c"
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "sha256": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "sha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13"
+    }
+  ]
+}

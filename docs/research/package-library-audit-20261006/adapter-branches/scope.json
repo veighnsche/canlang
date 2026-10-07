@@ -1,0 +1,5333 @@
+{
+  "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+  "integration_families": {
+    "imports": [
+      "delivery-imports",
+      "delivery-loadability"
+    ],
+    "maps": [
+      "delivery-maps"
+    ],
+    "identity": [
+      "identity-codecs",
+      "identity-native-comparison",
+      "session-cookie"
+    ],
+    "values": [
+      "numeric-text",
+      "string-quoting",
+      "uri-identity-encoding",
+      "calendar-zone",
+      "decimal-rounding",
+      "icu-parser",
+      "intl-exact-display",
+      "semantic-owner-core"
+    ],
+    "consumers": [
+      "csv-parse",
+      "csv-export-stringify",
+      "abort-fan-in",
+      "stable-json-identities",
+      "file-signature-catalog",
+      "ollama-protocol",
+      "state-work-retention"
+    ],
+    "delivery": [
+      "lossless-transport",
+      "delivery-toml",
+      "delivery-cli",
+      "delivery-protocol-build",
+      "delivery-crypto-files",
+      "delivery-small"
+    ]
+  },
+  "functions_and_explicit_slices": [
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "relativeSpecifier",
+      "start_line": 430,
+      "end_line": 433,
+      "branch_ids": [
+        "IMPORT-031"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "rewriteArtifactImports",
+      "start_line": 435,
+      "end_line": 441,
+      "branch_ids": [
+        "IMPORT-032"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "rewriteRuntimeImports",
+      "start_line": 458,
+      "end_line": 489,
+      "branch_ids": [
+        "IMPORT-033",
+        "IMPORT-034",
+        "IMPORT-035"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "rewriteVendorImports",
+      "start_line": 498,
+      "end_line": 523,
+      "branch_ids": [
+        "IMPORT-036",
+        "IMPORT-037",
+        "IMPORT-038",
+        "IMPORT-039"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "blankStringsAndComments",
+      "start_line": 732,
+      "end_line": 800,
+      "branch_ids": [
+        "IMPORT-040",
+        "IMPORT-041",
+        "IMPORT-042",
+        "IMPORT-043",
+        "IMPORT-044"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "blankCommonJsWrappers",
+      "start_line": 802,
+      "end_line": 836,
+      "branch_ids": [
+        "IMPORT-045",
+        "IMPORT-046",
+        "IMPORT-047"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "scanModuleIssues",
+      "start_line": 842,
+      "end_line": 864,
+      "branch_ids": [
+        "IMPORT-048",
+        "IMPORT-049"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "assertWorkerdLoadable",
+      "start_line": 871,
+      "end_line": 882,
+      "branch_ids": [
+        "IMPORT-050"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "collectLinkSpecifiers",
+      "start_line": 892,
+      "end_line": 894,
+      "branch_ids": [
+        "IMPORT-051"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "assertLinksResolve",
+      "start_line": 896,
+      "end_line": 918,
+      "branch_ids": [
+        "IMPORT-052"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "function": "isRelativeImportSpecifier",
+      "start_line": 68,
+      "end_line": 70,
+      "branch_ids": [
+        "IMPORT-001"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "function": "parseOriginalImports",
+      "start_line": 72,
+      "end_line": 113,
+      "branch_ids": [
+        "IMPORT-002",
+        "IMPORT-003",
+        "IMPORT-004",
+        "IMPORT-005",
+        "IMPORT-006"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "function": "normalizedImport",
+      "start_line": 115,
+      "end_line": 138,
+      "branch_ids": [
+        "IMPORT-007",
+        "IMPORT-008",
+        "IMPORT-009"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "function": "scanModuleImports",
+      "start_line": 141,
+      "end_line": 152,
+      "branch_ids": [
+        "IMPORT-010",
+        "IMPORT-011"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "function": "assertArtifactKind",
+      "start_line": 154,
+      "end_line": 161,
+      "branch_ids": [
+        "IMPORT-012",
+        "IMPORT-013"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "function": "validateArtifactModuleImports",
+      "start_line": 164,
+      "end_line": 181,
+      "branch_ids": [
+        "IMPORT-014"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "function": "escapeSpecifier",
+      "start_line": 183,
+      "end_line": 194,
+      "branch_ids": [
+        "IMPORT-015"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "function": "rewriteModuleImports",
+      "start_line": 197,
+      "end_line": 243,
+      "branch_ids": [
+        "IMPORT-016",
+        "IMPORT-017",
+        "IMPORT-018",
+        "IMPORT-019",
+        "IMPORT-020",
+        "IMPORT-021",
+        "IMPORT-022"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "function": "assertSafeRelativePath",
+      "start_line": 72,
+      "end_line": 77,
+      "branch_ids": [
+        "IMPORT-023"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "function": "uiModuleUrl",
+      "start_line": 79,
+      "end_line": 90,
+      "branch_ids": [
+        "IMPORT-024"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "function": "assembleModules",
+      "start_line": 92,
+      "end_line": 138,
+      "branch_ids": [
+        "IMPORT-025",
+        "IMPORT-026",
+        "IMPORT-027",
+        "IMPORT-028",
+        "IMPORT-029"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "function": "withSourceMappingURL",
+      "start_line": 141,
+      "end_line": 144,
+      "branch_ids": [
+        "IMPORT-030"
+      ],
+      "coverage": "Complete functions below, not whole bundle/package",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "is_word_unit",
+      "start_line": 91,
+      "end_line": 93,
+      "branch_ids": [
+        "IMPORT-053"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "is_space_unit",
+      "start_line": 96,
+      "end_line": 125,
+      "branch_ids": [
+        "IMPORT-054"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "is_boundary_before",
+      "start_line": 128,
+      "end_line": 132,
+      "branch_ids": [
+        "IMPORT-055"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "is_boundary_at",
+      "start_line": 135,
+      "end_line": 139,
+      "branch_ids": [
+        "IMPORT-056"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "literal_at",
+      "start_line": 141,
+      "end_line": 148,
+      "branch_ids": [
+        "IMPORT-057"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "split_segments",
+      "start_line": 154,
+      "end_line": 165,
+      "branch_ids": [
+        "IMPORT-058"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "join_segments",
+      "start_line": 167,
+      "end_line": 179,
+      "branch_ids": [
+        "IMPORT-059"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "posix_normalize",
+      "start_line": 183,
+      "end_line": 209,
+      "branch_ids": [
+        "IMPORT-060"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "posix_join",
+      "start_line": 213,
+      "end_line": 225,
+      "branch_ids": [
+        "IMPORT-061"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "posix_dirname",
+      "start_line": 228,
+      "end_line": 258,
+      "branch_ids": [
+        "IMPORT-062"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "posix_relative",
+      "start_line": 262,
+      "end_line": 297,
+      "branch_ids": [
+        "IMPORT-063"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "relative_specifier",
+      "start_line": 300,
+      "end_line": 309,
+      "branch_ids": [
+        "IMPORT-064"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "units_eq_ascii",
+      "start_line": 311,
+      "end_line": 313,
+      "branch_ids": [
+        "IMPORT-065"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "assert_safe_relative_path",
+      "start_line": 317,
+      "end_line": 332,
+      "branch_ids": [
+        "IMPORT-066"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "scan_spaces",
+      "start_line": 348,
+      "end_line": 353,
+      "branch_ids": [
+        "IMPORT-067"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "is_quote",
+      "start_line": 355,
+      "end_line": 357,
+      "branch_ids": [
+        "IMPORT-068"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "match_from",
+      "start_line": 361,
+      "end_line": 383,
+      "branch_ids": [
+        "IMPORT-069"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "match_dynamic_import",
+      "start_line": 386,
+      "end_line": 416,
+      "branch_ids": [
+        "IMPORT-070"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "match_side_effect_import",
+      "start_line": 419,
+      "end_line": 441,
+      "branch_ids": [
+        "IMPORT-071"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "collect_specifiers",
+      "start_line": 446,
+      "end_line": 461,
+      "branch_ids": [
+        "IMPORT-072"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "is_statement_start",
+      "start_line": 466,
+      "end_line": 475,
+      "branch_ids": [
+        "IMPORT-073"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "has_import_or_export_word",
+      "start_line": 478,
+      "end_line": 493,
+      "branch_ids": [
+        "IMPORT-074"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "collect_link_specifiers",
+      "start_line": 500,
+      "end_line": 539,
+      "branch_ids": [
+        "IMPORT-075"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "is_relative_specifier",
+      "start_line": 541,
+      "end_line": 546,
+      "branch_ids": [
+        "IMPORT-076"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "blank_region",
+      "start_line": 552,
+      "end_line": 559,
+      "branch_ids": [
+        "IMPORT-077"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "blank_strings_and_comments",
+      "start_line": 565,
+      "end_line": 648,
+      "branch_ids": [
+        "IMPORT-078",
+        "IMPORT-079",
+        "IMPORT-080"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "blank_commonjs_wrappers",
+      "start_line": 652,
+      "end_line": 695,
+      "branch_ids": [
+        "IMPORT-081"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "match_file_url_import",
+      "start_line": 703,
+      "end_line": 731,
+      "branch_ids": [
+        "IMPORT-082"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "lookbehind_ok",
+      "start_line": 733,
+      "end_line": 739,
+      "branch_ids": [
+        "IMPORT-083"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "match_bare_require",
+      "start_line": 742,
+      "end_line": 752,
+      "branch_ids": [
+        "IMPORT-084"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "match_module_exports",
+      "start_line": 755,
+      "end_line": 760,
+      "branch_ids": [
+        "IMPORT-085"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "match_free_exports",
+      "start_line": 763,
+      "end_line": 776,
+      "branch_ids": [
+        "IMPORT-086"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "is_stdlib_require_guard",
+      "start_line": 779,
+      "end_line": 790,
+      "branch_ids": [
+        "IMPORT-087"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "scan_module_issues",
+      "start_line": 794,
+      "end_line": 840,
+      "branch_ids": [
+        "IMPORT-088"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "assert_workerd_loadable",
+      "start_line": 846,
+      "end_line": 865,
+      "branch_ids": [
+        "IMPORT-089"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "assert_links_resolve",
+      "start_line": 871,
+      "end_line": 900,
+      "branch_ids": [
+        "IMPORT-090"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "assert_bundle_checks",
+      "start_line": 905,
+      "end_line": 908,
+      "branch_ids": [
+        "IMPORT-091"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "rewrite_with",
+      "start_line": 917,
+      "end_line": 941,
+      "branch_ids": [
+        "IMPORT-092"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "ascii_entry",
+      "start_line": 943,
+      "end_line": 945,
+      "branch_ids": [
+        "IMPORT-093"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "rewrite_artifact_imports",
+      "start_line": 948,
+      "end_line": 964,
+      "branch_ids": [
+        "IMPORT-094"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "rewrite_runtime_imports",
+      "start_line": 970,
+      "end_line": 998,
+      "branch_ids": [
+        "IMPORT-095"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "rewrite_vendor_imports",
+      "start_line": 1002,
+      "end_line": 1016,
+      "branch_ids": [
+        "IMPORT-096"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "split_join",
+      "start_line": 1020,
+      "end_line": 1037,
+      "branch_ids": [
+        "IMPORT-097"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "validate_artifact_imports",
+      "start_line": 1064,
+      "end_line": 1098,
+      "branch_ids": [
+        "IMPORT-098"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "function": "stage_artifact_modules",
+      "start_line": 1102,
+      "end_line": 1146,
+      "branch_ids": [
+        "IMPORT-099"
+      ],
+      "coverage": "Complete named UTF16 path/import/rewrite/loadability helpers only; native execution/adoption HUMAN HOLD; manual Rust inventory, no compiled/AST execution",
+      "family": "imports"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "function": "fail",
+      "start_line": 50,
+      "end_line": 52,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-001"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "function": "decodeSegment",
+      "start_line": 55,
+      "end_line": 68,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-002",
+        "MAP-003",
+        "MAP-004"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "function": "decodeMappings",
+      "start_line": 76,
+      "end_line": 124,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-005",
+        "MAP-006",
+        "MAP-007",
+        "MAP-008",
+        "MAP-009",
+        "MAP-010"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "function": "lookup",
+      "start_line": 134,
+      "end_line": 161,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-011",
+        "MAP-012",
+        "MAP-013",
+        "MAP-014"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "function": "rawEncode",
+      "start_line": 26,
+      "end_line": 44,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-015",
+        "MAP-016",
+        "MAP-017"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "function": "effectiveLine",
+      "start_line": 49,
+      "end_line": 61,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-018",
+        "MAP-019",
+        "MAP-020"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "function": "composeModuleMap",
+      "start_line": 71,
+      "end_line": 94,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-021",
+        "MAP-022",
+        "MAP-023",
+        "MAP-024",
+        "MAP-025",
+        "MAP-026",
+        "MAP-027",
+        "MAP-028",
+        "MAP-029"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "message",
+      "start_line": 117,
+      "end_line": 119,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-030"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "urlToPath",
+      "start_line": 135,
+      "end_line": 143,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-031"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "parseStackFrames",
+      "start_line": 152,
+      "end_line": 166,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-032"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "matchGeneratedModule",
+      "start_line": 169,
+      "end_line": 181,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-033"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "buildModuleMatchers",
+      "start_line": 183,
+      "end_line": 197,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-034"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "findAssembledFrame",
+      "start_line": 207,
+      "end_line": 217,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-035"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "findRemappedFrame",
+      "start_line": 226,
+      "end_line": 240,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-036"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "collectSources",
+      "start_line": 243,
+      "end_line": 254,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-037"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "mapThrownError",
+      "start_line": 266,
+      "end_line": 295,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-038",
+        "MAP-039",
+        "MAP-040"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "stageSourceMapCodec",
+      "start_line": 363,
+      "end_line": 381,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-042"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "relativeSpecifier",
+      "start_line": 430,
+      "end_line": 433,
+      "coverage": "whole eligible function",
+      "branch_ids": [
+        "MAP-043"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "invokeWith",
+      "start_line": 405,
+      "end_line": 413,
+      "coverage": "diagnostic outcome slice only",
+      "branch_ids": [
+        "MAP-041"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "rewriteRuntimeImports",
+      "start_line": 458,
+      "end_line": 460,
+      "coverage": "codec arm only; shared import engine reviewed through source invocation",
+      "branch_ids": [
+        "MAP-044"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "stageArtifactModules",
+      "start_line": 557,
+      "end_line": 566,
+      "coverage": "map delivery slice only",
+      "branch_ids": [
+        "MAP-045"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "function": "buildSessionCookie",
+      "start_line": 21,
+      "end_line": 32,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-001",
+        "IDENTITY-002",
+        "IDENTITY-003"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "function": "buildSessionClearCookie",
+      "start_line": 38,
+      "end_line": 40,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-004"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "function": "parseSessionCookie",
+      "start_line": 46,
+      "end_line": 64,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-005",
+        "IDENTITY-006",
+        "IDENTITY-007",
+        "IDENTITY-008",
+        "IDENTITY-009",
+        "IDENTITY-010",
+        "IDENTITY-011",
+        "IDENTITY-012",
+        "IDENTITY-013"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "function": "parseSessionCookie.decode callback",
+      "start_line": 51,
+      "end_line": 51,
+      "visibility": "callback",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-007"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "function": "serializeSessionCookie",
+      "start_line": 67,
+      "end_line": 103,
+      "visibility": "private",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-014",
+        "IDENTITY-015",
+        "IDENTITY-016",
+        "IDENTITY-017",
+        "IDENTITY-018",
+        "IDENTITY-019"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "function": "serializeSessionCookie.encode callback",
+      "start_line": 88,
+      "end_line": 88,
+      "visibility": "callback",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-016"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "function": "bytesToBase64Url",
+      "start_line": 21,
+      "end_line": 23,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-020"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "function": "base64UrlToBytes",
+      "start_line": 26,
+      "end_line": 41,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-021",
+        "IDENTITY-022",
+        "IDENTITY-023",
+        "IDENTITY-024"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "function": "bytesToHex",
+      "start_line": 43,
+      "end_line": 45,
+      "visibility": "private",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-025"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "function": "hexToBytes",
+      "start_line": 47,
+      "end_line": 54,
+      "visibility": "private",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-026",
+        "IDENTITY-027"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "function": "sha256HexBytes",
+      "start_line": 56,
+      "end_line": 60,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-028"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "function": "sha256HexText",
+      "start_line": 62,
+      "end_line": 64,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-029"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "function": "timingSafeEqualHex",
+      "start_line": 70,
+      "end_line": 75,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-030"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "function": "timingSafeEqualText",
+      "start_line": 78,
+      "end_line": 82,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-031"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "function": "createOpaqueToken",
+      "start_line": 89,
+      "end_line": 97,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-032"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "function": "timingSafeEqualBytes",
+      "start_line": 4,
+      "end_line": 7,
+      "visibility": "internal",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-033",
+        "IDENTITY-034"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-node.ts",
+      "function": "nativeCompare",
+      "start_line": 3,
+      "end_line": 5,
+      "visibility": "private-host-leaf",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-035"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-worker.ts",
+      "function": "nativeCompare",
+      "start_line": 5,
+      "end_line": 11,
+      "visibility": "private-host-leaf",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-036",
+        "IDENTITY-037"
+      ]
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "function": "checkPasswordPolicy",
+      "start_line": 25,
+      "end_line": 33,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-038"
+      ]
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "function": "deriveKey",
+      "start_line": 35,
+      "end_line": 54,
+      "visibility": "private",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-039",
+        "IDENTITY-040"
+      ]
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "function": "hashPassword",
+      "start_line": 56,
+      "end_line": 64,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-041"
+      ]
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "function": "parseEncoding",
+      "start_line": 72,
+      "end_line": 84,
+      "visibility": "private",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-042",
+        "IDENTITY-043",
+        "IDENTITY-044",
+        "IDENTITY-045",
+        "IDENTITY-046"
+      ]
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "function": "verifyPassword",
+      "start_line": 91,
+      "end_line": 104,
+      "visibility": "public",
+      "scope": "complete function; codec/admission plus owning crypto/issuance behavior included to distinguish policy from adapter mechanics",
+      "family": "identity",
+      "branch_ids": [
+        "IDENTITY-047",
+        "IDENTITY-048",
+        "IDENTITY-049"
+      ]
+    },
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "function": "format_js_number",
+      "start_line": 319,
+      "end_line": 334,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-001"
+      ],
+      "integration_ids": [
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "function": "string",
+      "start_line": 5,
+      "end_line": 19,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-002"
+      ],
+      "integration_ids": [
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "function": "json_token",
+      "start_line": 21,
+      "end_line": 27,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-003"
+      ],
+      "integration_ids": [
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "function": "json_stringify",
+      "start_line": 155,
+      "end_line": 157,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-004"
+      ],
+      "integration_ids": [
+        "string-quoting"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "function": "truncate",
+      "start_line": 164,
+      "end_line": 179,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-005"
+      ],
+      "integration_ids": [
+        "string-quoting"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "function": "actual_wire",
+      "start_line": 128,
+      "end_line": 150,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-006"
+      ],
+      "integration_ids": [
+        "numeric-text",
+        "string-quoting"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/internal/wire-core.ts",
+      "function": "truncate",
+      "start_line": 177,
+      "end_line": 179,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-007"
+      ],
+      "integration_ids": [
+        "string-quoting"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/internal/wire-core.ts",
+      "function": "actualWire",
+      "start_line": 182,
+      "end_line": 207,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-008"
+      ],
+      "integration_ids": [
+        "numeric-text",
+        "string-quoting"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "function": "enum_entries",
+      "start_line": 180,
+      "end_line": 193,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-009"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "function": "json_escape_into",
+      "start_line": 196,
+      "end_line": 232,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-010"
+      ],
+      "integration_ids": [
+        "string-quoting",
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "function": "js_num",
+      "start_line": 235,
+      "end_line": 237,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-011"
+      ],
+      "integration_ids": [
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "function": "js_json_num",
+      "start_line": 240,
+      "end_line": 242,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-012"
+      ],
+      "integration_ids": [
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "function": "js_stringify",
+      "start_line": 245,
+      "end_line": 281,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-013"
+      ],
+      "integration_ids": [
+        "numeric-text",
+        "string-quoting",
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "function": "encode_uri_component",
+      "start_line": 286,
+      "end_line": 333,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-014"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "function": "enum_entries",
+      "start_line": 157,
+      "end_line": 170,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-015"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "function": "json_escape_into",
+      "start_line": 173,
+      "end_line": 209,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-016"
+      ],
+      "integration_ids": [
+        "string-quoting",
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "function": "js_num",
+      "start_line": 212,
+      "end_line": 214,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-017"
+      ],
+      "integration_ids": [
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "function": "js_json_num",
+      "start_line": 217,
+      "end_line": 219,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-018"
+      ],
+      "integration_ids": [
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "function": "js_stringify",
+      "start_line": 222,
+      "end_line": 261,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-019"
+      ],
+      "integration_ids": [
+        "numeric-text",
+        "string-quoting",
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "function": "encode_uri_component",
+      "start_line": 265,
+      "end_line": 310,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-020"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "function": "enum_entries",
+      "start_line": 158,
+      "end_line": 171,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-021"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "function": "json_escape_into",
+      "start_line": 174,
+      "end_line": 210,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-022"
+      ],
+      "integration_ids": [
+        "string-quoting",
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "function": "js_num",
+      "start_line": 213,
+      "end_line": 215,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-023"
+      ],
+      "integration_ids": [
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "function": "js_json_num",
+      "start_line": 218,
+      "end_line": 220,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-024"
+      ],
+      "integration_ids": [
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "function": "js_stringify",
+      "start_line": 223,
+      "end_line": 259,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-025"
+      ],
+      "integration_ids": [
+        "numeric-text",
+        "string-quoting",
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "function": "encode_uri_component",
+      "start_line": 261,
+      "end_line": 308,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-026"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "isTimezone",
+      "start_line": 50,
+      "end_line": 60,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-027"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "assertTimezone",
+      "start_line": 63,
+      "end_line": 68,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-028"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "dateFormatter",
+      "start_line": 70,
+      "end_line": 83,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-029"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "instantFormatter",
+      "start_line": 85,
+      "end_line": 102,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-030"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "readPart",
+      "start_line": 104,
+      "end_line": 115,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-031"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "local_date",
+      "start_line": 122,
+      "end_line": 136,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-032"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "parseWallTime",
+      "start_line": 138,
+      "end_line": 153,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-033"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "renderWall",
+      "start_line": 164,
+      "end_line": 174,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-034"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "wallToEpochSeconds",
+      "start_line": 177,
+      "end_line": 183,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-035"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "offsetAtSeconds",
+      "start_line": 190,
+      "end_line": 194,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-036"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "function": "local_instant",
+      "start_line": 203,
+      "end_line": 241,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-037"
+      ],
+      "integration_ids": [
+        "calendar-zone"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/decimal.ts",
+      "function": "decimalToString",
+      "start_line": 396,
+      "end_line": 416,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-038"
+      ],
+      "integration_ids": [
+        "decimal-rounding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/decimal.rs",
+      "function": "decimal_to_string",
+      "start_line": 292,
+      "end_line": 320,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-039"
+      ],
+      "integration_ids": [
+        "decimal-rounding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/decimal.rs",
+      "function": "format_scale",
+      "start_line": 199,
+      "end_line": 201,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-040"
+      ],
+      "integration_ids": [
+        "decimal-rounding",
+        "numeric-text"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/decimal.rs",
+      "function": "round_rational_for_money",
+      "start_line": 323,
+      "end_line": 325,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-041"
+      ],
+      "integration_ids": [
+        "decimal-rounding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "canonicalTag",
+      "start_line": 78,
+      "end_line": 93,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-042"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "makeMessageDescriptor",
+      "start_line": 136,
+      "end_line": 193,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-043"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "freezeParamValue",
+      "start_line": 195,
+      "end_line": 203,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-044"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "failPattern",
+      "start_line": 250,
+      "end_line": 252,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-045"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "freezeNode",
+      "start_line": 257,
+      "end_line": 265,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-046"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "IcuParser.parseTop",
+      "start_line": 273,
+      "end_line": 280,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-047"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "normalizeExact",
+      "start_line": 536,
+      "end_line": 543,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-048"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "exactText",
+      "start_line": 545,
+      "end_line": 550,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-049"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "parseMessageFormat",
+      "start_line": 553,
+      "end_line": 558,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-050"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "validateMessagePattern",
+      "start_line": 642,
+      "end_line": 650,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-051"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "resolveParamValue",
+      "start_line": 677,
+      "end_line": 737,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-052"
+      ],
+      "integration_ids": [
+        "icu-parser",
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "resolveLocale",
+      "start_line": 754,
+      "end_line": 764,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-053"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "resolveTimeZone",
+      "start_line": 766,
+      "end_line": 777,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-054"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "renderMessage",
+      "start_line": 783,
+      "end_line": 820,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-055"
+      ],
+      "integration_ids": [
+        "icu-parser",
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "renderNodes",
+      "start_line": 822,
+      "end_line": 869,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-056"
+      ],
+      "integration_ids": [
+        "icu-parser"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "renderPlainParam",
+      "start_line": 871,
+      "end_line": 884,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-057"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "plainNumberText",
+      "start_line": 887,
+      "end_line": 895,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-058"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "renderMoneyText",
+      "start_line": 897,
+      "end_line": 909,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-059"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "dateText",
+      "start_line": 911,
+      "end_line": 916,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-060"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "dateValueToUtcMs",
+      "start_line": 918,
+      "end_line": 923,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-061"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "renderDateParam",
+      "start_line": 925,
+      "end_line": 936,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-062"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "renderTimeParam",
+      "start_line": 938,
+      "end_line": 944,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-063"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "pluralOperand",
+      "start_line": 972,
+      "end_line": 1013,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-064"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "pluralCategory",
+      "start_line": 1015,
+      "end_line": 1020,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-065"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "numberSymbols",
+      "start_line": 1047,
+      "end_line": 1078,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-066"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "groupIntegerDigits",
+      "start_line": 1080,
+      "end_line": 1095,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-067"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "roundHalfEvenToInt",
+      "start_line": 1097,
+      "end_line": 1109,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-068"
+      ],
+      "integration_ids": [
+        "decimal-rounding",
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "function": "formatNumberValue",
+      "start_line": 1117,
+      "end_line": 1132,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-069"
+      ],
+      "integration_ids": [
+        "intl-exact-display"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "function": "tsBackend",
+      "start_line": 44,
+      "end_line": 55,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-070"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "function": "throwFailure",
+      "start_line": 71,
+      "end_line": 82,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-071"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "function": "wasmBackend",
+      "start_line": 88,
+      "end_line": 113,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-072"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "function": "sameAsset",
+      "start_line": 36,
+      "end_line": 45,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-073"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "function": "bootstrapWasm",
+      "start_line": 52,
+      "end_line": 108,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-074"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/carriers.ts",
+      "function": "tagNumber",
+      "start_line": 39,
+      "end_line": 44,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-075"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/carriers.ts",
+      "function": "tag",
+      "start_line": 47,
+      "end_line": 85,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-076"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/carriers.ts",
+      "function": "untagNumber",
+      "start_line": 87,
+      "end_line": 95,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-077"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/carriers.ts",
+      "function": "reconstruct",
+      "start_line": 101,
+      "end_line": 136,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-078"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "function": "resolve",
+      "start_line": 57,
+      "end_line": 63,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-079"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "function": "parseOwnedJsonBody",
+      "start_line": 71,
+      "end_line": 91,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-080"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "function": "readOwnedJson",
+      "start_line": 97,
+      "end_line": 99,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-081"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "function": "ownedJsonText",
+      "start_line": 102,
+      "end_line": 104,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-082"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "function": "ownedJsonValue",
+      "start_line": 107,
+      "end_line": 109,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-083"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "function": "nominalCovered",
+      "start_line": 41,
+      "end_line": 46,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-084"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "function": "operationCovered",
+      "start_line": 48,
+      "end_line": 50,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-085"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "function": "isPlanCoveredType",
+      "start_line": 58,
+      "end_line": 90,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-086"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "function": "coveredPlanOrThrow",
+      "start_line": 92,
+      "end_line": 100,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-087"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "function": "decodePreparedValue",
+      "start_line": 112,
+      "end_line": 120,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-088"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "function": "encodePreparedValue",
+      "start_line": 128,
+      "end_line": 136,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-089"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/validation.ts",
+      "function": "validatePreparedValue",
+      "start_line": 434,
+      "end_line": 457,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-090"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/plan.ts",
+      "function": "ownerStateOf",
+      "start_line": 93,
+      "end_line": 102,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-091"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/plan.ts",
+      "function": "getValidationPlan",
+      "start_line": 528,
+      "end_line": 537,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-092"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/plan.ts",
+      "function": "resolvePlanDefault",
+      "start_line": 543,
+      "end_line": 553,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-093"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/prepared/plan.ts",
+      "function": "releaseValidationPlan",
+      "start_line": 556,
+      "end_line": 565,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-094"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/plans.ts",
+      "function": "NativePlanRegistry.adopt",
+      "start_line": 84,
+      "end_line": 110,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-095"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/plans.ts",
+      "function": "NativePlanRegistry.get",
+      "start_line": 116,
+      "end_line": 131,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-096"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/plans.ts",
+      "function": "NativePlanRegistry.release",
+      "start_line": 140,
+      "end_line": 150,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-097"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/plans.ts",
+      "function": "NativePlanRegistry.retireGeneration",
+      "start_line": 160,
+      "end_line": 168,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-098"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/validation.ts",
+      "function": "StructuralError.constructor",
+      "start_line": 22,
+      "end_line": 30,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-099"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/validation.ts",
+      "function": "validationBackend",
+      "start_line": 43,
+      "end_line": 68,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-100"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "function": "pushViolation",
+      "start_line": 266,
+      "end_line": 282,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-101"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "function": "actualWire",
+      "start_line": 284,
+      "end_line": 309,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-102"
+      ],
+      "integration_ids": [
+        "numeric-text",
+        "semantic-owner-core",
+        "string-quoting"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "function": "renderBound",
+      "start_line": 419,
+      "end_line": 421,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-103"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "function": "mergeLeafError",
+      "start_line": 515,
+      "end_line": 529,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-104"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "function": "validateLeaf",
+      "start_line": 531,
+      "end_line": 538,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-105"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/schema.ts",
+      "function": "validateValue implementation",
+      "start_line": 23,
+      "end_line": 27,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-106"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/src/schema.ts",
+      "function": "validateOperationInput",
+      "start_line": 30,
+      "end_line": 34,
+      "coverage": "complete function",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-107"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/src/exact.rs",
+      "function": "abi_version",
+      "start_line": 15,
+      "end_line": 17,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-108"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/src/exact.rs",
+      "function": "exact_call",
+      "start_line": 22,
+      "end_line": 24,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-109"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/src/validation.rs",
+      "function": "structural_abi_version",
+      "start_line": 22,
+      "end_line": 24,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-110"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/src/validation.rs",
+      "function": "validation_call",
+      "start_line": 28,
+      "end_line": 30,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-111"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "get_field",
+      "start_line": 44,
+      "end_line": 47,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-112"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "parse_bigint",
+      "start_line": 49,
+      "end_line": 52,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-113"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "json_to_f64",
+      "start_line": 54,
+      "end_line": 69,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-114"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "decode_input",
+      "start_line": 72,
+      "end_line": 182,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-115"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "encode_output",
+      "start_line": 185,
+      "end_line": 222,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-116"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "encode_wire",
+      "start_line": 224,
+      "end_line": 232,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-117"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "ok",
+      "start_line": 234,
+      "end_line": 236,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-118"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "ok_wire",
+      "start_line": 238,
+      "end_line": 240,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-119"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "err",
+      "start_line": 242,
+      "end_line": 248,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-120"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "int_result",
+      "start_line": 250,
+      "end_line": 255,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-121"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "cmp_result",
+      "start_line": 257,
+      "end_line": 262,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-122"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "bool_result",
+      "start_line": 264,
+      "end_line": 269,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-123"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "expect_args",
+      "start_line": 271,
+      "end_line": 283,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-124"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "dispatch codec result slices",
+      "start_line": 749,
+      "end_line": 807,
+      "coverage": "explicit codec dispatch slice; enclosing dispatch286-840 not wholly audited",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-125"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "function": "handle_line",
+      "start_line": 843,
+      "end_line": 883,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-126"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/input.rs",
+      "function": "json_admissible_tags",
+      "start_line": 126,
+      "end_line": 130,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-127"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/input.rs",
+      "function": "InputArena.build",
+      "start_line": 145,
+      "end_line": 246,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-128"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/input.rs",
+      "function": "InputArena.mint_tag",
+      "start_line": 271,
+      "end_line": 275,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-129"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/input.rs",
+      "function": "InputArena.check_id_length",
+      "start_line": 281,
+      "end_line": 286,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-130"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "function": "Plans.parse_sequence",
+      "start_line": 622,
+      "end_line": 628,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-131"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "function": "Plans.get",
+      "start_line": 632,
+      "end_line": 660,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-132"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "function": "Plans.resolve_default",
+      "start_line": 688,
+      "end_line": 700,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-133"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "function": "Plans.release",
+      "start_line": 704,
+      "end_line": 717,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-134"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "function": "Plans.retire_generation",
+      "start_line": 725,
+      "end_line": 729,
+      "coverage": "complete function",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-135"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "function": "encode_uri_component::unreserved",
+      "start_line": 287,
+      "end_line": 291,
+      "coverage": "complete nested function covered by enclosing cohesive URI group",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-014"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "function": "encode_uri_component::push_utf8_escaped",
+      "start_line": 292,
+      "end_line": 299,
+      "coverage": "complete nested function covered by enclosing cohesive URI group",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-014"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "function": "encode_uri_component::unreserved",
+      "start_line": 266,
+      "end_line": 270,
+      "coverage": "complete nested function covered by enclosing cohesive URI group",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-020"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "function": "encode_uri_component::push_utf8_escaped",
+      "start_line": 271,
+      "end_line": 278,
+      "coverage": "complete nested function covered by enclosing cohesive URI group",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-020"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "function": "encode_uri_component::unreserved",
+      "start_line": 262,
+      "end_line": 266,
+      "coverage": "complete nested function covered by enclosing cohesive URI group",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-026"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "function": "encode_uri_component::push_utf8_escaped",
+      "start_line": 267,
+      "end_line": 274,
+      "coverage": "complete nested function covered by enclosing cohesive URI group",
+      "language": "rust",
+      "branch_ids": [
+        "VAL-026"
+      ],
+      "integration_ids": [
+        "uri-identity-encoding"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "function": "tsBackend.call",
+      "start_line": 47,
+      "end_line": 53,
+      "coverage": "complete object method covered by enclosing cohesive backend group",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-070"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "function": "wasmBackend.call",
+      "start_line": 98,
+      "end_line": 111,
+      "coverage": "complete object method covered by enclosing cohesive backend group",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-072"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/values/bindings/validation.ts",
+      "function": "validationBackend.call",
+      "start_line": 49,
+      "end_line": 66,
+      "coverage": "complete object method covered by enclosing cohesive backend group",
+      "language": "typescript",
+      "branch_ids": [
+        "VAL-100"
+      ],
+      "integration_ids": [
+        "semantic-owner-core"
+      ],
+      "family": "values"
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "function": "parseCsvGrammar",
+      "start_line": 30,
+      "end_line": 71,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-002",
+        "CONSUMERS-003",
+        "CONSUMERS-004",
+        "CONSUMERS-005"
+      ]
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "function": "constructor",
+      "start_line": 10,
+      "end_line": 12,
+      "scope_kind": "complete_function",
+      "reason": "error carrier constructor; complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-001"
+      ]
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "function": "isRecord",
+      "start_line": 57,
+      "end_line": 59,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-006"
+      ]
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "function": "digestBusinessError",
+      "start_line": 66,
+      "end_line": 95,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-007"
+      ]
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "function": "parseCsvText",
+      "start_line": 114,
+      "end_line": 124,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-008"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "parseCsvText",
+      "start_line": 154,
+      "end_line": 163,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-009"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "canonicalJson",
+      "start_line": 166,
+      "end_line": 174,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-010"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "mapRowCells",
+      "start_line": 182,
+      "end_line": 213,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-013"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "requestPath",
+      "start_line": 303,
+      "end_line": 309,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-016"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "parseObjectBody",
+      "start_line": 311,
+      "end_line": 321,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-018"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "checkHeader",
+      "start_line": 323,
+      "end_line": 337,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-020"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "isCsvConsent",
+      "start_line": 339,
+      "end_line": 349,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-021"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "parseSelections",
+      "start_line": 351,
+      "end_line": 386,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-022"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "reviewCsvCandidates",
+      "start_line": 253,
+      "end_line": 265,
+      "scope_kind": "slice",
+      "reason": "slice: canonical row key and valid-only duplicate adapter boundary; full business evaluation excluded",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-014"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "function": "reviewCsvCandidates",
+      "start_line": 272,
+      "end_line": 274,
+      "scope_kind": "slice",
+      "reason": "slice: valid candidate preimage/hash/review id boundary only",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-015"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "canonicalJson",
+      "start_line": 120,
+      "end_line": 128,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-011"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "isExportFileValue",
+      "start_line": 131,
+      "end_line": 135,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-023"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "isExportSecretValue",
+      "start_line": 138,
+      "end_line": 141,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-023"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "projectExportCell",
+      "start_line": 148,
+      "end_line": 157,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-024"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "neutralizeFormula",
+      "start_line": 160,
+      "end_line": 162,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-025"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "escapeCsvCell",
+      "start_line": 165,
+      "end_line": 167,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-026"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "pageToCsv",
+      "start_line": 232,
+      "end_line": 261,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-027",
+        "CONSUMERS-028"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "requestPath",
+      "start_line": 276,
+      "end_line": 282,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-017"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "parseObjectBody",
+      "start_line": 284,
+      "end_line": 294,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-019"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "parseColumns",
+      "start_line": 296,
+      "end_line": 314,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-029"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "parseLimit",
+      "start_line": 316,
+      "end_line": 322,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-030"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "handleExportRequest",
+      "start_line": 428,
+      "end_line": 446,
+      "scope_kind": "slice",
+      "reason": "slice: truncation descriptor serialization identity only, full authority/download lifecycle excluded",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-031"
+      ]
+    },
+    {
+      "path": "packages/state/src/invocation/replay.ts",
+      "function": "failClosed",
+      "start_line": 11,
+      "end_line": 13,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-032"
+      ]
+    },
+    {
+      "path": "packages/state/src/invocation/replay.ts",
+      "function": "stableStringify",
+      "start_line": 20,
+      "end_line": 62,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-033",
+        "CONSUMERS-034",
+        "CONSUMERS-035",
+        "CONSUMERS-036"
+      ]
+    },
+    {
+      "path": "packages/state/src/invocation/replay.ts",
+      "function": "hashInputs",
+      "start_line": 65,
+      "end_line": 71,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-037"
+      ]
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "function": "admit",
+      "start_line": 312,
+      "end_line": 337,
+      "scope_kind": "slice",
+      "reason": "slice: revision-before-raw-hash-before-receipt comparison; remaining business admission/fences excluded",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-038"
+      ]
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "isRecord",
+      "start_line": 48,
+      "end_line": 50,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-039"
+      ]
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "stableStringify",
+      "start_line": 53,
+      "end_line": 66,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-012"
+      ]
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "sha256Hex",
+      "start_line": 69,
+      "end_line": 71,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-040"
+      ]
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "digestGraph",
+      "start_line": 74,
+      "end_line": 76,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-040"
+      ]
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "freezeValue",
+      "start_line": 85,
+      "end_line": 95,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-041"
+      ]
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "freezeGraph",
+      "start_line": 97,
+      "end_line": 100,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-041"
+      ]
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "substituteAndValidate",
+      "start_line": 125,
+      "end_line": 130,
+      "scope_kind": "slice",
+      "reason": "slice: reviewed graph digest before substitution",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-042"
+      ]
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "substituteAndValidate",
+      "start_line": 182,
+      "end_line": 182,
+      "scope_kind": "slice",
+      "reason": "slice: JSON clone before approved scalar substitution; remaining mapping business checks excluded",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-043"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "startsWith",
+      "start_line": 98,
+      "end_line": 108,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-044"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "isPlainText",
+      "start_line": 110,
+      "end_line": 125,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-045"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "detectContentType",
+      "start_line": 134,
+      "end_line": 148,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-046"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "checkContent",
+      "start_line": 155,
+      "end_line": 169,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-047"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "sha256Hex",
+      "start_line": 172,
+      "end_line": 174,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-048"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "stagingKeyForIntent",
+      "start_line": 177,
+      "end_line": 179,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-048"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "isCanonicalSize",
+      "start_line": 181,
+      "end_line": 183,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-048"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "unescapePointerToken",
+      "start_line": 185,
+      "end_line": 187,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-049"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "fileSlotAbsent",
+      "start_line": 195,
+      "end_line": 218,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-050"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "deepEqual",
+      "start_line": 220,
+      "end_line": 244,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-051"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "cloneArgs",
+      "start_line": 246,
+      "end_line": 252,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-052"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "createUploadIntent",
+      "start_line": 313,
+      "end_line": 353,
+      "scope_kind": "slice",
+      "reason": "slice: structural/provenance/size/url admission only; retry registry/state machine excluded",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-053"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "createUploadIntent",
+      "start_line": 364,
+      "end_line": 366,
+      "scope_kind": "slice",
+      "reason": "slice: clone admission outcome only",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-054"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "createUploadIntent",
+      "start_line": 378,
+      "end_line": 382,
+      "scope_kind": "slice",
+      "reason": "slice: destination URI escaping and time serialization only",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-055"
+      ]
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "completeUploadContent",
+      "start_line": 468,
+      "end_line": 503,
+      "scope_kind": "slice",
+      "reason": "slice: actual byte admission and digest outcome boundary; full prior ownership/state checks excluded but required",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-056"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "isRedirect",
+      "start_line": 27,
+      "end_line": 35,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-057"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "baseOriginOf",
+      "start_line": 71,
+      "end_line": 82,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-058"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "assertValidHttpConfig",
+      "start_line": 84,
+      "end_line": 92,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-058"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "readBoundedBytes",
+      "start_line": 94,
+      "end_line": 140,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-059",
+        "CONSUMERS-060"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "readBoundedBody",
+      "start_line": 142,
+      "end_line": 150,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-061"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "resolveRequestUrl",
+      "start_line": 152,
+      "end_line": 164,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-061"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "fetchWithRedirects",
+      "start_line": 178,
+      "end_line": 262,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-062",
+        "CONSUMERS-063",
+        "CONSUMERS-064",
+        "CONSUMERS-065"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "startDeadline",
+      "start_line": 264,
+      "end_line": 284,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-066"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "httpRequest",
+      "start_line": 286,
+      "end_line": 332,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-067"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "httpRequestBinary",
+      "start_line": 349,
+      "end_line": 399,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-068"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "httpStreamText",
+      "start_line": 421,
+      "end_line": 524,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-069",
+        "CONSUMERS-070",
+        "CONSUMERS-071"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "buildFrozenChatRequest",
+      "start_line": 136,
+      "end_line": 188,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-072"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "succeededChatCompletion",
+      "start_line": 190,
+      "end_line": 195,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-073"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "failedChatCompletion",
+      "start_line": 197,
+      "end_line": 202,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-073"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "unknownChatCompletion",
+      "start_line": 204,
+      "end_line": 209,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-073"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "readUsageCount",
+      "start_line": 211,
+      "end_line": 217,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-074"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "readFinalChatReply",
+      "start_line": 224,
+      "end_line": 264,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-075",
+        "CONSUMERS-076"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "mapChatResponse",
+      "start_line": 267,
+      "end_line": 313,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-077"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "mapChatError",
+      "start_line": 316,
+      "end_line": 356,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-078"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "classifyStreamLine",
+      "start_line": 370,
+      "end_line": 396,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-079"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "isAbortError",
+      "start_line": 398,
+      "end_line": 404,
+      "scope_kind": "complete_function",
+      "reason": "complete adapter function",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-080"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "run",
+      "start_line": 489,
+      "end_line": 615,
+      "scope_kind": "slice",
+      "reason": "slice: full NDJSON/protocol run body, calls existing terminal/snapshot methods; registry/terminal implementation not audited",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-081",
+        "CONSUMERS-083",
+        "CONSUMERS-084",
+        "CONSUMERS-085",
+        "CONSUMERS-086"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "run.handleLine",
+      "start_line": 501,
+      "end_line": 556,
+      "scope_kind": "slice",
+      "reason": "slice: inline NDJSON line callback",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-083",
+        "CONSUMERS-084"
+      ]
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "generate",
+      "start_line": 681,
+      "end_line": 707,
+      "scope_kind": "slice",
+      "reason": "slice: wire serialization and protocol invocation boundary; provider registry/configuration excluded",
+      "family": "consumers",
+      "branch_ids": [
+        "CONSUMERS-082",
+        "CONSUMERS-087"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "function": "tomlString",
+      "start_line": 22,
+      "end_line": 30,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-001"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "function": "renderWranglerToml",
+      "start_line": 33,
+      "end_line": 102,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-002"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "function": "renderPlanJson/renderDeployPlan",
+      "start_line": 105,
+      "end_line": 111,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-003"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "function": "parse",
+      "start_line": 118,
+      "end_line": 198,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-004"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "function": "artifactExists",
+      "start_line": 200,
+      "end_line": 207,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-005"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "function": "f64Bits/codeUnits",
+      "start_line": 42,
+      "end_line": 53,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-006"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "function": "encodeNode",
+      "start_line": 60,
+      "end_line": 117,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-007"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "function": "encodeAdmittedTree/encodeAdmittedTreeJson",
+      "start_line": 120,
+      "end_line": 127,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-008"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "function": "typed accessors/render_text",
+      "start_line": 75,
+      "end_line": 134,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-009"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "function": "json_quote",
+      "start_line": 140,
+      "end_line": 182,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-010"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "function": "js_string",
+      "start_line": 188,
+      "end_line": 198,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-011"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "function": "hex_u64",
+      "start_line": 223,
+      "end_line": 228,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-012"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "function": "decode_node",
+      "start_line": 230,
+      "end_line": 305,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-013"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "function": "check_bracket_nesting",
+      "start_line": 309,
+      "end_line": 344,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-014"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "function": "decode_tree",
+      "start_line": 347,
+      "end_line": 353,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-015"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "function": "encode_tree",
+      "start_line": 360,
+      "end_line": 382,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-016"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/render.rs",
+      "function": "toml_escape",
+      "start_line": 68,
+      "end_line": 99,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-017"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/render.rs",
+      "function": "json_stringify",
+      "start_line": 103,
+      "end_line": 135,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-018"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/render.rs",
+      "function": "json_stringify_indent2/render_plan_json",
+      "start_line": 139,
+      "end_line": 202,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-019"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "function": "encodeFrame/encodeJsonFrame",
+      "start_line": 43,
+      "end_line": 60,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-020"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "function": "FrameDecoder.push/trailing",
+      "start_line": 67,
+      "end_line": 96,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-021"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "function": "isNeedHost/isPrepared/isFailed",
+      "start_line": 99,
+      "end_line": 118,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-022"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "function": "driveSession",
+      "start_line": 127,
+      "end_line": 261,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-023"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/protocol.rs",
+      "function": "read_frame",
+      "start_line": 113,
+      "end_line": 144,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-024"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/protocol.rs",
+      "function": "write_frame/write_json",
+      "start_line": 147,
+      "end_line": 162,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-025"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "function": "buildMcpBundle/buildHttpOperationsBundle",
+      "start_line": 60,
+      "end_line": 169,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-026"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "function": "runMcpBunPhase",
+      "start_line": 178,
+      "end_line": 186,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-027"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "function": "runCatalogPhase",
+      "start_line": 195,
+      "end_line": 209,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-028"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "function": "buildBundleWithHostPhases",
+      "start_line": 216,
+      "end_line": 221,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-029"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "function": "isMutationKind/errorResponse/bearerToken",
+      "start_line": 69,
+      "end_line": 101,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-030"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "function": "resolveGrantIdentity",
+      "start_line": 109,
+      "end_line": 134,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-031"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "function": "errorResult/successResult",
+      "start_line": 158,
+      "end_line": 182,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-032"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "function": "createMcpHandler",
+      "start_line": 449,
+      "end_line": 491,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-033"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "sha256Hex/toBytes",
+      "start_line": 72,
+      "end_line": 80,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-034"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "validateRelativeKey",
+      "start_line": 99,
+      "end_line": 128,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-035"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "resolveStagingRoot",
+      "start_line": 131,
+      "end_line": 142,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-036"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "assertNoSymlinkEscape",
+      "start_line": 151,
+      "end_line": 180,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-037"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "writeStagedFile",
+      "start_line": 183,
+      "end_line": 186,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-038"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "PublicationSession lifecycle entry/assertLive",
+      "start_line": 200,
+      "end_line": 228,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-039"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "stage",
+      "start_line": 231,
+      "end_line": 248,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-040"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "verifyReviewed",
+      "start_line": 255,
+      "end_line": 272,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-041"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "publish",
+      "start_line": 281,
+      "end_line": 312,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-042"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "function": "dispose/readStagedBytes/withPublicationSession",
+      "start_line": 315,
+      "end_line": 341,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-043"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "bundleSha256",
+      "start_line": 920,
+      "end_line": 926,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-044"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "writeDeployBundle",
+      "start_line": 990,
+      "end_line": 1016,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-045"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "inventorizeAssets",
+      "start_line": 1041,
+      "end_line": 1071,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-046"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "assertMixedOutputLayout",
+      "start_line": 1088,
+      "end_line": 1111,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-047"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "snapshotBinaries",
+      "start_line": 1114,
+      "end_line": 1127,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-048"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "sha256Bytes/bundleMixedSha256",
+      "start_line": 1130,
+      "end_line": 1162,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-049"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "attachBinaries",
+      "start_line": 1171,
+      "end_line": 1184,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-050"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "function": "writeDeployBundleMixed",
+      "start_line": 1199,
+      "end_line": 1233,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-051"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "function": "isMissing",
+      "start_line": 24,
+      "end_line": 30,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-052"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "function": "FsBlobStore methods",
+      "start_line": 35,
+      "end_line": 76,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-053"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "function": "createFsBlobStore",
+      "start_line": 84,
+      "end_line": 90,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-054"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/ui/src/escape.ts",
+      "function": "assertString/escapeHtml/escapeAttr",
+      "start_line": 15,
+      "end_line": 34,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-055"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/ui/src/escape.ts",
+      "function": "isSafeUrl/safeHref",
+      "start_line": 42,
+      "end_line": 65,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-056"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/ui/src/escape.ts",
+      "function": "csvFormulaProtect",
+      "start_line": 73,
+      "end_line": 79,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-057"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/ui/src/escape.ts",
+      "function": "isolate",
+      "start_line": 86,
+      "end_line": 89,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-058"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/interfaces/src/projection/project.ts",
+      "function": "hasGrantedPath/hasOwn/isPlainObject",
+      "start_line": 35,
+      "end_line": 51,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-059"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/interfaces/src/projection/project.ts",
+      "function": "cloneValue",
+      "start_line": 60,
+      "end_line": 86,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-060"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/interfaces/src/projection/project.ts",
+      "function": "parseGrant/isPrefixGrant",
+      "start_line": 94,
+      "end_line": 111,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-061"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/interfaces/src/projection/project.ts",
+      "function": "projectOne",
+      "start_line": 114,
+      "end_line": 150,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-062"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/interfaces/src/projection/project.ts",
+      "function": "projectFields",
+      "start_line": 152,
+      "end_line": 175,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-063"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/testkit/src/assertions/equal.ts",
+      "function": "isRecord/diffReportValues/compareAtPath",
+      "start_line": 3,
+      "end_line": 64,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-064"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/state/src/internal/json.ts",
+      "function": "jsonClone/checkJsonSafe",
+      "start_line": 16,
+      "end_line": 35,
+      "coverage": "complete named function or explicit contiguous slice",
+      "branch_ids": [
+        "DEL-065"
+      ],
+      "family": "delivery"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "urlToPath",
+      "start_line": 134,
+      "end_line": 143,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "MAP-031"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "parseStackFrames",
+      "start_line": 131,
+      "end_line": 165,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "MAP-032"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "function": "matchGeneratedModule",
+      "start_line": 168,
+      "end_line": 181,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "MAP-033"
+      ],
+      "family": "maps"
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "function": "isExportFileValue / isExportSecretValue",
+      "start_line": 131,
+      "end_line": 141,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "CONSUMERS-023"
+      ],
+      "family": "consumers"
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "sha256Hex / digestGraph",
+      "start_line": 69,
+      "end_line": 76,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "CONSUMERS-040"
+      ],
+      "family": "consumers"
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "function": "freezeValue / freezeGraph",
+      "start_line": 85,
+      "end_line": 100,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "CONSUMERS-041"
+      ],
+      "family": "consumers"
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "function": "sha256Hex / stagingKeyForIntent / isCanonicalSize",
+      "start_line": 172,
+      "end_line": 183,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "CONSUMERS-048"
+      ],
+      "family": "consumers"
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "baseOriginOf / assertValidHttpConfig",
+      "start_line": 71,
+      "end_line": 92,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "CONSUMERS-058"
+      ],
+      "family": "consumers"
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "function": "readBoundedBody / resolveRequestUrl",
+      "start_line": 142,
+      "end_line": 164,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "CONSUMERS-061"
+      ],
+      "family": "consumers"
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "function": "completion carriers",
+      "start_line": 190,
+      "end_line": 209,
+      "coverage": "explicit contiguous branch slice; not whole enclosing function",
+      "branch_ids": [
+        "CONSUMERS-073"
+      ],
+      "family": "consumers"
+    }
+  ],
+  "interpretation": "Every branch group in the selected adapter closure; nonadapter Can algorithms and unrelated workflows explicitly excluded. A branch group may explain several nested syntax sites. Rust controls inspected manually; TS syntax is an aid, not semantic completeness proof."
+}

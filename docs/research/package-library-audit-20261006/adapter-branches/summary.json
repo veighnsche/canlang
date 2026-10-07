@@ -1,0 +1,22 @@
+{
+  "branch_groups": 480,
+  "scopes": 408,
+  "selected_ts_syntax_occurrences": 1649,
+  "integration_slices": 27,
+  "source_inputs": 179,
+  "dispositions": {
+    "retain": 322,
+    "eliminate": 49,
+    "simplify": 47,
+    "consolidate": 62
+  },
+  "classifications": {
+    "can_policy": 122,
+    "library_compensation": 35,
+    "public_contract": 95,
+    "temporary_compatibility": 77,
+    "transport_host_boundary": 101,
+    "redundant_mechanism": 25,
+    "unresolved": 25
+  }
+}
