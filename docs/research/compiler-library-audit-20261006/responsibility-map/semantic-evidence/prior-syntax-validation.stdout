@@ -1,0 +1,35 @@
+{
+  "scope": "Mechanical shared ledger, source/pin/range/view joins, raw command captures and native outcome arithmetic. Independent semantic review/actual execution separate.",
+  "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "observed_head": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "compiler_diff": "",
+  "families": 27,
+  "findings": 8,
+  "grammar_productions": 186,
+  "syntax_kinds": 119,
+  "node_details": 4,
+  "source_and_runtime_pin_references_checked": 806,
+  "anchor_bounds_checked": 1253,
+  "local_markdown_links_checked": 123,
+  "ledger_sha256": "bcae2974d9a0218424b4dd52b501d9c52b5bc39614504256eb0b9f76a1cb120d",
+  "previous_ledger_checks": "semantic-evidence/previous-ledger-validation.json",
+  "errors": [],
+  "case_results": {
+    "initial": {
+      "assertions": 94,
+      "passes": 81,
+      "mismatches": 13
+    },
+    "later": {
+      "assertions": 76,
+      "passes": 69,
+      "mismatches": 7
+    }
+  },
+  "limitations": [
+    "finite source mapping is not every cross-product/branch executed",
+    "intentional outcome mismatches remain demonstrated defects or policy-gated admission boundaries",
+    "corp output projection not retained full artifacts/JS, no corpus execution",
+    "345 selected native passes not full suite/other-host/application release acceptance"
+  ]
+}

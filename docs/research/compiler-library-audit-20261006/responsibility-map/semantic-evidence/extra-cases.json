@@ -1,0 +1,162 @@
+[
+  {
+    "id": "int-0",
+    "source": "app T\nGiven\n derive g():int = 9223372036854775807\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "DESIGN107 signed64 range"
+  },
+  {
+    "id": "int-1",
+    "source": "app T\nGiven\n derive g():int = 9223372036854775808\nWhen\nThen\n",
+    "accepted": false,
+    "authority": "DESIGN107 signed64 range"
+  },
+  {
+    "id": "int-2",
+    "source": "app T\nGiven\n derive g():int = -9223372036854775808\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "DESIGN107 signed64 range"
+  },
+  {
+    "id": "int-3",
+    "source": "app T\nGiven\n derive g():int = -9223372036854775809\nWhen\nThen\n",
+    "accepted": false,
+    "authority": "DESIGN107 signed64 range"
+  },
+  {
+    "id": "decimal-0",
+    "source": "app T\nGiven\n derive g():decimal = 1.2300\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "DESIGN107 38 significant digits/18fractional"
+  },
+  {
+    "id": "decimal-1",
+    "source": "app T\nGiven\n derive g():decimal = 99999999999999999999999999999999999999.0\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "DESIGN107 38 significant digits/18fractional"
+  },
+  {
+    "id": "decimal-2",
+    "source": "app T\nGiven\n derive g():decimal = 999999999999999999999999999999999999999.0\nWhen\nThen\n",
+    "accepted": false,
+    "authority": "DESIGN107 38 significant digits/18fractional"
+  },
+  {
+    "id": "decimal-3",
+    "source": "app T\nGiven\n derive g():decimal = 0.000000000000000001\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "DESIGN107 38 significant digits/18fractional"
+  },
+  {
+    "id": "decimal-4",
+    "source": "app T\nGiven\n derive g():decimal = 0.0000000000000000001\nWhen\nThen\n",
+    "accepted": false,
+    "authority": "DESIGN107 38 significant digits/18fractional"
+  },
+  {
+    "id": "date-0",
+    "source": "app T\nGiven\n derive g():date = date(\"2000-02-29\")\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "Accepted date constructor Gregorian 0001..9999 contract; DESIGN temporal checked constructor"
+  },
+  {
+    "id": "date-1",
+    "source": "app T\nGiven\n derive g():date = date(\"1900-02-29\")\nWhen\nThen\n",
+    "accepted": false,
+    "authority": "Accepted date constructor Gregorian 0001..9999 contract; DESIGN temporal checked constructor"
+  },
+  {
+    "id": "date-2",
+    "source": "app T\nGiven\n derive g():date = date(\"0001-01-01\")\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "Accepted date constructor Gregorian 0001..9999 contract; DESIGN temporal checked constructor"
+  },
+  {
+    "id": "date-3",
+    "source": "app T\nGiven\n derive g():date = date(\"0099-12-31\")\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "Accepted date constructor Gregorian 0001..9999 contract; DESIGN temporal checked constructor"
+  },
+  {
+    "id": "date-4",
+    "source": "app T\nGiven\n derive g():date = date(\"9999-12-31\")\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "Accepted date constructor Gregorian 0001..9999 contract; DESIGN temporal checked constructor"
+  },
+  {
+    "id": "datetime-0",
+    "source": "app T\nGiven\n derive g():datetime = datetime(\"2026-01-01T00:00:00Z\")\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "Accepted constructor profile: case-insensitive T/Z, nonzero subms rejection, Gregorian post-offset range"
+  },
+  {
+    "id": "datetime-1",
+    "source": "app T\nGiven\n derive g():datetime = datetime(\"2026-01-01t00:00:00z\")\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "Accepted constructor profile: case-insensitive T/Z, nonzero subms rejection, Gregorian post-offset range"
+  },
+  {
+    "id": "datetime-2",
+    "source": "app T\nGiven\n derive g():datetime = datetime(\"2026-01-01T00:00:00.123000Z\")\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "Accepted constructor profile: case-insensitive T/Z, nonzero subms rejection, Gregorian post-offset range"
+  },
+  {
+    "id": "datetime-3",
+    "source": "app T\nGiven\n derive g():datetime = datetime(\"2026-01-01T00:00:00.123001Z\")\nWhen\nThen\n",
+    "accepted": false,
+    "authority": "Accepted constructor profile: case-insensitive T/Z, nonzero subms rejection, Gregorian post-offset range"
+  },
+  {
+    "id": "datetime-4",
+    "source": "app T\nGiven\n derive g():datetime = datetime(\"2026-01-01T00:00:60Z\")\nWhen\nThen\n",
+    "accepted": false,
+    "authority": "Accepted constructor profile: case-insensitive T/Z, nonzero subms rejection, Gregorian post-offset range"
+  },
+  {
+    "id": "datetime-5",
+    "source": "app T\nGiven\n derive g():datetime = datetime(\"2026-01-01T00:00:00+23:59\")\nWhen\nThen\n",
+    "accepted": true,
+    "authority": "Accepted constructor profile: case-insensitive T/Z, nonzero subms rejection, Gregorian post-offset range"
+  },
+  {
+    "id": "datetime-6",
+    "source": "app T\nGiven\n derive g():datetime = datetime(\"0001-01-01T00:00:00+00:01\")\nWhen\nThen\n",
+    "accepted": false,
+    "authority": "Accepted constructor profile: case-insensitive T/Z, nonzero subms rejection, Gregorian post-offset range"
+  },
+  {
+    "id": "datetime-7",
+    "source": "app T\nGiven\n derive g():datetime = datetime(\"9999-12-31T23:59:59-00:01\")\nWhen\nThen\n",
+    "accepted": false,
+    "authority": "Accepted constructor profile: case-insensitive T/Z, nonzero subms rejection, Gregorian post-offset range"
+  },
+  {
+    "id": "format-message-positional",
+    "source": "app T\nGiven\n message m=\"Hi\"@{}\n derive g():text = format(m,locale=null)\nWhen\nThen\n",
+    "accepted": true,
+    "emit_clean": true,
+    "authority": "Actual producer format descriptor/template overloads and named/positional equivalence"
+  },
+  {
+    "id": "format-message-named",
+    "source": "app T\nGiven\n message m=\"Hi\"@{}\n derive g():text = format(descriptor=m,locale=null)\nWhen\nThen\n",
+    "accepted": true,
+    "emit_clean": true,
+    "authority": "Actual producer format descriptor/template overloads and named/positional equivalence"
+  },
+  {
+    "id": "format-plain-positional",
+    "source": "app T\nGiven\n message m=\"Hi\"@{}\n derive g():text = format(\"Hi {n}\",{n=\"Bo\"})\nWhen\nThen\n",
+    "accepted": true,
+    "emit_clean": true,
+    "authority": "Actual producer format descriptor/template overloads and named/positional equivalence"
+  },
+  {
+    "id": "format-plain-named",
+    "source": "app T\nGiven\n message m=\"Hi\"@{}\n derive g():text = format(template=\"Hi {n}\",values={n=\"Bo\"})\nWhen\nThen\n",
+    "accepted": true,
+    "emit_clean": true,
+    "authority": "Actual producer format descriptor/template overloads and named/positional equivalence"
+  }
+]

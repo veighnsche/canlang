@@ -1,0 +1,19 @@
+{
+  "integration_records": 22,
+  "integration_input_files": 49,
+  "integration_verdicts": {
+    "retain": 15,
+    "defer": 6,
+    "simplify": 1
+  },
+  "integration_closure_union": {
+    "source_units": 383,
+    "files": 25,
+    "physical_union": 15841,
+    "nonblank_union": 15726
+  },
+  "compiler_production_lines": 69255,
+  "whole_compiler_net_increase": 136,
+  "errors": [],
+  "ledger_sha256": "bcae2974d9a0218424b4dd52b501d9c52b5bc39614504256eb0b9f76a1cb120d"
+}

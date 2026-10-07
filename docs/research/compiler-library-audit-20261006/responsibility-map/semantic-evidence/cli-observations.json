@@ -1,0 +1,82 @@
+[
+  {
+    "case": "array-fixed-first",
+    "command": "check",
+    "exit": 0,
+    "source_sha256": "ef96e527fd0d17ec522b8c96b8bb1b37561af8e5b50b320365284d716fcae1e3",
+    "raw": "cli-check-array-fixed-first.stdout",
+    "codes": [],
+    "has_modules": false
+  },
+  {
+    "case": "array-fixed-first",
+    "command": "compile",
+    "exit": 0,
+    "source_sha256": "ef96e527fd0d17ec522b8c96b8bb1b37561af8e5b50b320365284d716fcae1e3",
+    "raw": "cli-compile-array-fixed-first.stdout",
+    "codes": [],
+    "has_modules": true
+  },
+  {
+    "case": "array-nullable-first",
+    "command": "check",
+    "exit": 10,
+    "source_sha256": "42eeb9f0d04f62e643584974abc4322b41206c3d5110d03626b7e765a8ee43a0",
+    "raw": "cli-check-array-nullable-first.stdout",
+    "codes": [
+      "E3001"
+    ],
+    "has_modules": false
+  },
+  {
+    "case": "array-nullable-first",
+    "command": "compile",
+    "exit": 10,
+    "source_sha256": "42eeb9f0d04f62e643584974abc4322b41206c3d5110d03626b7e765a8ee43a0",
+    "raw": "cli-compile-array-nullable-first.stdout",
+    "codes": [
+      "E3001"
+    ],
+    "has_modules": false
+  },
+  {
+    "case": "scope-derived",
+    "command": "check",
+    "exit": 0,
+    "source_sha256": "e5214f7968b64698aeba23d1c7a73355ed782c23f50cd18727e2ff93e77cff6e",
+    "raw": "cli-check-scope-derived.stdout",
+    "codes": [],
+    "has_modules": false
+  },
+  {
+    "case": "scope-derived",
+    "command": "compile",
+    "exit": 10,
+    "source_sha256": "e5214f7968b64698aeba23d1c7a73355ed782c23f50cd18727e2ff93e77cff6e",
+    "raw": "cli-compile-scope-derived.stdout",
+    "codes": [
+      "E6008"
+    ],
+    "has_modules": false
+  },
+  {
+    "case": "format-message-named",
+    "command": "check",
+    "exit": 0,
+    "source_sha256": "ec61ebfcfebc35ae2bf58026c41a1491b0dd0adefeb911a4eb0dbf976a3a3b62",
+    "raw": "cli-check-format-message-named.stdout",
+    "codes": [],
+    "has_modules": false
+  },
+  {
+    "case": "format-message-named",
+    "command": "compile",
+    "exit": 10,
+    "source_sha256": "ec61ebfcfebc35ae2bf58026c41a1491b0dd0adefeb911a4eb0dbf976a3a3b62",
+    "raw": "cli-compile-format-message-named.stdout",
+    "codes": [
+      "E6008"
+    ],
+    "has_modules": false
+  }
+]

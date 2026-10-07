@@ -1,0 +1,170 @@
+[
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: a -> b -> a",
+      "primary": {
+        "end": 142,
+        "file": 0,
+        "start": 141
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: a -> b -> a",
+      "primary": {
+        "end": 142,
+        "file": 0,
+        "start": 141
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: a -> b -> a",
+      "primary": {
+        "end": 142,
+        "file": 0,
+        "start": 141
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: a -> b -> a",
+      "primary": {
+        "end": 142,
+        "file": 0,
+        "start": 141
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: a -> b -> a",
+      "primary": {
+        "end": 142,
+        "file": 0,
+        "start": 141
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: a -> b -> a",
+      "primary": {
+        "end": 142,
+        "file": 0,
+        "start": 141
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: b -> a -> b",
+      "primary": {
+        "end": 99,
+        "file": 0,
+        "start": 98
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: a -> b -> a",
+      "primary": {
+        "end": 142,
+        "file": 0,
+        "start": 141
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: b -> a -> b",
+      "primary": {
+        "end": 99,
+        "file": 0,
+        "start": 98
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: b -> a -> b",
+      "primary": {
+        "end": 99,
+        "file": 0,
+        "start": 98
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: a -> b -> a",
+      "primary": {
+        "end": 142,
+        "file": 0,
+        "start": 141
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ],
+  [
+    {
+      "code": "E3005",
+      "message": "call cycle: a -> b -> a",
+      "primary": {
+        "end": 142,
+        "file": 0,
+        "start": 141
+      },
+      "related": [],
+      "severity": "error",
+      "tags": []
+    }
+  ]
+]

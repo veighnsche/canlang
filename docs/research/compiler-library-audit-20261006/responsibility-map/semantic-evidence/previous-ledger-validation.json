@@ -1,0 +1,352 @@
+{
+  "scope": "Mechanical Step6 source/closure/pin/count integrity with retained Steps1\u20135 linkage. Not new compiler execution, every semantic branch, workload cost or replacement qualification.",
+  "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "observed_head": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "compiler_diff_from_source_baseline": "",
+  "paths": 107,
+  "unique_paths": 107,
+  "source_files": 41,
+  "source_slices": 327,
+  "all_path_slices": 544,
+  "large_test_files": 7,
+  "large_test_slices": 94,
+  "api_source_visibility": {
+    "external": 612,
+    "crate/restricted": 22,
+    "module-private": 14
+  },
+  "explicit_test_declarations": 929,
+  "external_input_pins": 31,
+  "errors": [],
+  "checks": [
+    "git ls-files compiler exactly reconciled to one path row each",
+    "all107 compiler SHA256/physical lines compared to Step1 inventory",
+    "every path sliced with contiguous inclusive complete span",
+    "all retained slice/API/interface anchors checked against current source text",
+    "every test pointer exists",
+    "31 external interface SHA256 pins matched",
+    "tracked compiler diff to source baseline empty",
+    "unique workflow IDs and exact current source anchor bounds",
+    "workflow source input SHA256 pins",
+    "valid workflow responsibility-slice joins and execution receipt paths",
+    "83 unique requirements and26 prior claim groups with valid crosswalk links",
+    "all16 original core packets and18 workflows accounted for",
+    "compatibility owner/consumer anchor bounds and82 pinned input files",
+    "per-path compatibility navigation joins",
+    "35 unique representation slices,8 selected carrier groups,18 workflow joins",
+    "representation owner/consumer bounds, carrier range bounds and37 input pins",
+    "saved public-API probe8 cases and108 compiler/catalog input pins; raw fixture/artifact/receipt integrity",
+    "all seven direct dependencies mapped to22 unique integration result rows",
+    "all current production range bounds and exact inline-test exclusions",
+    "linked shared closure union metrics independently recomputed; no summing nested/shared callers",
+    "49 source/support input hashes and shared decision prefix checked",
+    "current69255/3529 compiler counts replayed; whole original/current delta arithmetic2067/2203/+136 reconciled",
+    "published replay tool source parses as Python; no execution/compiler qualification inferred"
+  ],
+  "limitations": [
+    "source linkage does not prove branch coverage or API preconditions",
+    "execution receipts retain host, body-skip, source/dist, synthetic/mocked and installed-product limits",
+    "Step2 independent inventory receipt kept separately; this validates current extended ledger",
+    "every semantic branch/API not qualified; known compatibility families only",
+    "classifications preserve current public/migration support; Step4 classification/review made no policy change or execution; Step5 root build/API probes are separately captured",
+    "deliberate mixed public-input probes distinct from normal CLI and immutable append control",
+    "source reconstruction/parallel models do not establish measured cost or redundant semantics",
+    "fresh locked offline library build + probe execution only; no JS/application/GUI/fullsuite/other-host qualification",
+    "integration slice/context counts not library overhead or removable code",
+    "same-owner reverse call graphs are lexical and independently source challenged; Rust trait/derive routing explicit but not compiler callgraph proof",
+    "arbitrary external Rust users and full downstream package workflows unresolved; public orphans not deletion authority",
+    "conditional retirement thresholds include replacement/fallback/public compatibility code; no Step6 production deletion or candidate equivalence/build/release/performance trial"
+  ],
+  "ledger_sha256": "bcae2974d9a0218424b4dd52b501d9c52b5bc39614504256eb0b9f76a1cb120d",
+  "workflows": 18,
+  "workflow_ids": [
+    "CHECK",
+    "CLI_SURFACES",
+    "COMPILE",
+    "DOCS_REFERENCE",
+    "EDITOR_LSP",
+    "EXPLAIN",
+    "FORMAT",
+    "FORWARD_ACTIVATE",
+    "FORWARD_BUILD",
+    "FORWARD_DEPLOY",
+    "FORWARD_RUN",
+    "FORWARD_TEST",
+    "GENERATED_BDD",
+    "LINT_FIX",
+    "LINT_FIX_IDE_JOIN",
+    "POLICY",
+    "PUBLIC_LIBRARY_BOUNDARIES",
+    "PUBLIC_SHARED_BOUNDARIES"
+  ],
+  "workflow_source_anchors": 322,
+  "workflow_input_pins": 85,
+  "compatibility_requirements": 83,
+  "prior_claim_groups": 26,
+  "compatibility_input_files": 82,
+  "compatibility_classes": {
+    "required_semantic": 43,
+    "migration_guard": 18,
+    "required_bytes": 7,
+    "incidental_representation": 3,
+    "test_only": 2,
+    "unresolved": 9,
+    "invalid_behavior": 1
+  },
+  "core_packets": 16,
+  "representations": 35,
+  "selected_carrier_groups": 8,
+  "representation_workflow_joins": 18,
+  "representation_input_files": 37,
+  "probe_input_pins": 108,
+  "probe_passed_emission_cases": 8,
+  "evidence_files": [
+    {
+      "path": "representation-evidence/provenance/attempt1.probe.rs",
+      "bytes": 5528,
+      "sha256": "5651be925bf66b3f534f9b3890baf5746bd8d641205a43029eedaf22fbfafce9"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.probe.stderr",
+      "bytes": 1588,
+      "sha256": "3acda921aa6984d8317d6c56be0696697508e58f3eed65b8839ec93886c5d1c5"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.probe.stdout",
+      "bytes": 1924,
+      "sha256": "64d0bf297101b841d9e80e6eff38ca3afcc2dcfdc19e7eae0f536d04b4b9ab3b"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.receipt.json",
+      "bytes": 1023,
+      "sha256": "bf9231b55e0e2517ead35ffae0be2caee74b6f33a3c0b50365737f4434496666"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.rustc.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.rustc.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/before-inputs.json",
+      "bytes": 16683,
+      "sha256": "8fc4842d20a0aa1db713a0c1660f4932b0ac9731d9965a2279f395bc149aec32"
+    },
+    {
+      "path": "representation-evidence/provenance/build-verify.stderr",
+      "bytes": 72,
+      "sha256": "f0788aa36d1c86b6ccdfb7f4042a5574102d82061c046422a2d42e008a1e4710"
+    },
+    {
+      "path": "representation-evidence/provenance/build-verify.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/build.log",
+      "bytes": 167,
+      "sha256": "0c708ae9da7cfdd92c8fa55721a102bb4247c197ec28bd2bf9a04e20b4ec89f7"
+    },
+    {
+      "path": "representation-evidence/provenance/cargo.version.txt",
+      "bytes": 36,
+      "sha256": "1f88eaf7fe1aaec83184752cf4c944cd22f00184136ff36a3e4c318cc60ef566"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-control.artifact.json",
+      "bytes": 1852,
+      "sha256": "02d47e0d45301e03ae78602fe515b9870436ba72c2a71500679dddad3c942fc3"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-control.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-major-mismatch.artifact.json",
+      "bytes": 1858,
+      "sha256": "33b7fdb7eea57dc7a62846e40e41a8d5764913625adda60e869804667a8ac2bf"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-major-mismatch.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-major-mismatch.json",
+      "bytes": 22313,
+      "sha256": "dee692a27c963af435ad60db2c0bbe0848b5e9a22ca221cdb042a78d8f25cb48"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-same-version-content-change.artifact.json",
+      "bytes": 1858,
+      "sha256": "33b7fdb7eea57dc7a62846e40e41a8d5764913625adda60e869804667a8ac2bf"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-same-version-content-change.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-same-version-content-change.json",
+      "bytes": 22320,
+      "sha256": "3498d2f584a855fd51159a180531e67716a480afe6b78ed97199998f34ad520d"
+    },
+    {
+      "path": "representation-evidence/provenance/coherent-control.artifact.json",
+      "bytes": 1188,
+      "sha256": "3914c137725b48e9500db9462355099f66fd7944752b94718844db28920774ba"
+    },
+    {
+      "path": "representation-evidence/provenance/coherent-control.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/foreign-db-same-id-and-spans.artifact.json",
+      "bytes": 1188,
+      "sha256": "dc607fa2298dbbbc3127227fdf1ca0412027ffe63680fd239aa5e54ea8b7919f"
+    },
+    {
+      "path": "representation-evidence/provenance/foreign-db-same-id-and-spans.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/foreign-db-swapped-files.artifact.json",
+      "bytes": 2018,
+      "sha256": "ee62a460d372b8b4267de98fe0f70055fb2d08a8af12a1309713cc6a2ba0de14"
+    },
+    {
+      "path": "representation-evidence/provenance/foreign-db-swapped-files.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/probe.rs",
+      "bytes": 5524,
+      "sha256": "495d9ad8cb1e31c8b045bcce60dd26168c67eab68258085ce952a6db61022e1e"
+    },
+    {
+      "path": "representation-evidence/provenance/probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/probe.stdout",
+      "bytes": 2621,
+      "sha256": "7cb2e2195c126eed5fbe07b99692502ae9af2a5ca13fee496c7b4da480bd2b39"
+    },
+    {
+      "path": "representation-evidence/provenance/receipt.json",
+      "bytes": 2537,
+      "sha256": "f3e3a98e966e7b476931b0896d608fc70b872ba6e05298e58935f0cf6aa6249b"
+    },
+    {
+      "path": "representation-evidence/provenance/rustc.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/rustc.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/rustc.version.txt",
+      "bytes": 192,
+      "sha256": "352d6857968e80a6357a926ac685b9b07f77c479aaafde33e73a53945e802909"
+    },
+    {
+      "path": "representation-evidence/provenance/same-db-append-is-immutable-control.artifact.json",
+      "bytes": 1359,
+      "sha256": "c4f09afdc7f68f52992c83872cccd41481e845098eed1abaca553ef8514cfd99"
+    },
+    {
+      "path": "representation-evidence/provenance/same-db-append-is-immutable-control.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/two-file-control.artifact.json",
+      "bytes": 2018,
+      "sha256": "04b6dfd440d5307ff1887ef86d2d8ba49983930cf3e4e0919c2e0ee66f8d7b4c"
+    },
+    {
+      "path": "representation-evidence/provenance/two-file-control.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+  ],
+  "integration_records": 22,
+  "direct_dependencies": 7,
+  "integration_graphs": 2,
+  "integration_input_files": 49,
+  "integration_verdicts": {
+    "retain": 15,
+    "defer": 6,
+    "simplify": 1
+  },
+  "integration_closure_union": {
+    "source_units": 383,
+    "files": 25,
+    "physical_union": 15841,
+    "nonblank_union": 15726
+  },
+  "compiler_production_lines": 69255,
+  "compiler_inline_test_lines": 3529,
+  "whole_compiler_gross_removed": 2067,
+  "whole_compiler_gross_added": 2203,
+  "whole_compiler_net_increase": 136,
+  "integration_evidence_files": [
+    {
+      "path": "integration-evidence/count.py",
+      "bytes": 3417,
+      "sha256": "9d3ea91b27f750c6b4bfe74b7f6dcfd13271eeb9e90367ea9a81fe431b9ed95a"
+    },
+    {
+      "path": "integration-evidence/delta-attempt1.py",
+      "bytes": 2877,
+      "sha256": "35a95e4814df9f25c3fff334b6e95ce531b850d5e87a544a78b58a93c630d728"
+    },
+    {
+      "path": "integration-evidence/delta-attempt1.stderr",
+      "bytes": 406,
+      "sha256": "fc5880cb6ef6a7f195b2453b15e51deb2134f455c2b977dc625c1ac0aa81a405"
+    },
+    {
+      "path": "integration-evidence/delta.py",
+      "bytes": 3113,
+      "sha256": "b1437d4101aa15985d2e45e8019ce6161ca7e7d27e8e5858abf7e2f2c71a1a54"
+    },
+    {
+      "path": "integration-evidence/inventory.json",
+      "bytes": 13291,
+      "sha256": "ec9ce7455fd413468eff2fbb633d48d416d254707d369a9ecbbc06fdc4a6cdbc"
+    },
+    {
+      "path": "integration-evidence/items.py",
+      "bytes": 3661,
+      "sha256": "fb9c31ecf08271a90cac8ff4f18794cc801f3088ebd60e6ab472e4532d2b2474"
+    },
+    {
+      "path": "integration-evidence/production-delta.json",
+      "bytes": 16532,
+      "sha256": "944b8fd2ab3db5bbaba26cea69520010bc042517430c1948254cabd6b559533b"
+    },
+    {
+      "path": "integration-evidence/tool-replay.json",
+      "bytes": 2869,
+      "sha256": "57d76f4a42ba1adb99803788aa9b61c58a6fb91ce80281b636a2c4797e3fbef5"
+    },
+    {
+      "path": "integration-evidence/validate.py",
+      "bytes": 16907,
+      "sha256": "87aba3a3a48b74f8d536c80efc4356b80d79ebf7e1f66a3ad830253b51f17336"
+    }
+  ]
+}

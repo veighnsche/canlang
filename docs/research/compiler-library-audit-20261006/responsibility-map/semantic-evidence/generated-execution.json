@@ -1,0 +1,19 @@
+{
+  "commands": [
+    {
+      "name": "generated-format",
+      "argv": [
+        "node",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-generated-9m1xotrz/generated-format.mjs",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence"
+      ],
+      "cwd": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-generated-9m1xotrz",
+      "exit": 0,
+      "elapsed_seconds": 3.674,
+      "stdout": "generated-format.stdout",
+      "stderr": "generated-format.stderr",
+      "stdout_sha256": "3b81669b4cc5c279d1bbd4efa38bb680f38879fa4d8e9fac9e3315478d790efc",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

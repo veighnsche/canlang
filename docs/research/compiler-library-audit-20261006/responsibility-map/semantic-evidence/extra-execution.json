@@ -1,0 +1,459 @@
+{
+  "commands": [
+    {
+      "name": "extra-compile-probe",
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/probe.rs",
+        "--extern",
+        "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+        "--extern",
+        "serde_json=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "-o",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 2.796,
+      "stdout": "extra-compile-probe.stdout",
+      "stderr": "extra-compile-probe.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-int-0",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/int-0.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.219,
+      "stdout": "extra-int-0.stdout",
+      "stderr": "extra-int-0.stderr",
+      "stdout_sha256": "b8c5b98e903d054d8900981ab08ab0ee1c10bce9f72d9c146bd6f0068496e104",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-int-1",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/int-1.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.008,
+      "stdout": "extra-int-1.stdout",
+      "stderr": "extra-int-1.stderr",
+      "stdout_sha256": "a0c5b4134219662f02f2f7c6d60d5f8e68b0f8b9363e2c3324b0b57b37502744",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-int-2",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/int-2.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.007,
+      "stdout": "extra-int-2.stdout",
+      "stderr": "extra-int-2.stderr",
+      "stdout_sha256": "e1af93fb62a3ef8005c06d78196604788fefba41d0e984ec3d52121812473ca6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-int-3",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/int-3.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.006,
+      "stdout": "extra-int-3.stdout",
+      "stderr": "extra-int-3.stderr",
+      "stdout_sha256": "9b2a8cf8d8804f00741846681beebd9e98bf4bf35b8b7164c9885a45a0add9c8",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-decimal-0",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/decimal-0.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.005,
+      "stdout": "extra-decimal-0.stdout",
+      "stderr": "extra-decimal-0.stderr",
+      "stdout_sha256": "3840db347a918fd9b25efc77d5f2d4029255b291d3a81ed0fa142ba96733f9ea",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-decimal-1",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/decimal-1.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.005,
+      "stdout": "extra-decimal-1.stdout",
+      "stderr": "extra-decimal-1.stderr",
+      "stdout_sha256": "9a940a47f60b292b0775a46c83eda447391fee0d6fc7cc067cd955d9231f6bb9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-decimal-2",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/decimal-2.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.005,
+      "stdout": "extra-decimal-2.stdout",
+      "stderr": "extra-decimal-2.stderr",
+      "stdout_sha256": "a3072ad133e4c0de79b7c20bbfa46b487ee8856fe8b3561c7f20bc5d29669112",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-decimal-3",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/decimal-3.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.005,
+      "stdout": "extra-decimal-3.stdout",
+      "stderr": "extra-decimal-3.stderr",
+      "stdout_sha256": "20229425eef02517d3182468b1fb9586ec8aa5645daad2af5cb0e8639906cdd0",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-decimal-4",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/decimal-4.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.005,
+      "stdout": "extra-decimal-4.stdout",
+      "stderr": "extra-decimal-4.stderr",
+      "stdout_sha256": "3eab772777e8f41e400ae00d3b73123e77c57ab5b0607ef56617d0e04093fe28",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-date-0",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/date-0.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.005,
+      "stdout": "extra-date-0.stdout",
+      "stderr": "extra-date-0.stderr",
+      "stdout_sha256": "a87335dd0f78f99e57b969e755877ff5f6d3756710158bf6b55aebec4a6c1561",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-date-1",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/date-1.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-date-1.stdout",
+      "stderr": "extra-date-1.stderr",
+      "stdout_sha256": "8ce382095eddbe85bbd3d16d992222b50b25b8d10c82aa31201757ae804c6ef4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-date-2",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/date-2.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.005,
+      "stdout": "extra-date-2.stdout",
+      "stderr": "extra-date-2.stderr",
+      "stdout_sha256": "b49715b3f103f319585f611484cb00183a51eb4e1bf85354a446c6134ad4d770",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-date-3",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/date-3.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-date-3.stdout",
+      "stderr": "extra-date-3.stderr",
+      "stdout_sha256": "6b22d25c3eadbc207ae12f7863c51c5d64c676c4ce35829ad8883552d183608f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-date-4",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/date-4.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-date-4.stdout",
+      "stderr": "extra-date-4.stderr",
+      "stdout_sha256": "11498087f8b89f4a43bbaf237a3a863c10a1402331dd81349453468fae453c60",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-datetime-0",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/datetime-0.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-datetime-0.stdout",
+      "stderr": "extra-datetime-0.stderr",
+      "stdout_sha256": "274c8ed77ee9259279c5124856fa2f3d49b1cfb719abb160405d7b5979731b01",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-datetime-1",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/datetime-1.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-datetime-1.stdout",
+      "stderr": "extra-datetime-1.stderr",
+      "stdout_sha256": "fb872c4a47b010f90277fb445f2ce8ad7ff52f6b1d4b69e0285efd1a9a032542",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-datetime-2",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/datetime-2.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-datetime-2.stdout",
+      "stderr": "extra-datetime-2.stderr",
+      "stdout_sha256": "ae4da1cad8b3c10f071842c8b84d9178d22d996551267b064ac183d09ca26f15",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-datetime-3",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/datetime-3.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-datetime-3.stdout",
+      "stderr": "extra-datetime-3.stderr",
+      "stdout_sha256": "ec4004ea8c479cdfc8c619e0f3cc1ddd86ce99c701b0e71dae115a812682160f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-datetime-4",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/datetime-4.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-datetime-4.stdout",
+      "stderr": "extra-datetime-4.stderr",
+      "stdout_sha256": "ed978b69278e7bf7a8d6a12af9a5b3ead4532ad9027f825f0409669e7ae80d58",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-datetime-5",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/datetime-5.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-datetime-5.stdout",
+      "stderr": "extra-datetime-5.stderr",
+      "stdout_sha256": "4e19e063bb7d09207453e9d871247e920d2d41a1ab63808f27fcd9e089b066e3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-datetime-6",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/datetime-6.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-datetime-6.stdout",
+      "stderr": "extra-datetime-6.stderr",
+      "stdout_sha256": "9192445aafa1cc5b11d6ff689d3c4a59cc4b39e202f8a8f75806d07f36c5081c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-datetime-7",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/datetime-7.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-datetime-7.stdout",
+      "stderr": "extra-datetime-7.stderr",
+      "stdout_sha256": "060fc8dcf639a04822c305d799853e47ac02a64beaeb1d566432dce922fd1742",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-format-message-positional",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/format-message-positional.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-format-message-positional.stdout",
+      "stderr": "extra-format-message-positional.stderr",
+      "stdout_sha256": "4835c68dbf1c47e0639be3f59ff3808f2c6bfff183e417b8b9b23229573c28b6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-format-message-named",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/format-message-named.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-format-message-named.stdout",
+      "stderr": "extra-format-message-named.stderr",
+      "stdout_sha256": "94660820f096c931f9764de9735cc1b22871907ce11c9c26f2e29df85d97b0f3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-format-plain-positional",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/format-plain-positional.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-format-plain-positional.stdout",
+      "stderr": "extra-format-plain-positional.stderr",
+      "stdout_sha256": "26e56a395bf4dd1c13373fbeec921bb4c4c58327dc2a6d651b642f36496ee232",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "extra-format-plain-named",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/probe",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/format-plain-named.can",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "extra-format-plain-named.stdout",
+      "stderr": "extra-format-plain-named.stderr",
+      "stdout_sha256": "5d5f68a5866bcd6a7c9d0514412515ae12ab27f863512cb39de4dc83b5237947",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "owner-public-exports",
+      "argv": [
+        "node",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-extra-d9noe_4x/owner.mjs"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 5.556,
+      "stdout": "owner-public-exports.stdout",
+      "stderr": "owner-public-exports.stderr",
+      "stdout_sha256": "7fca4898b1255fa2245c1ab45ee562c5711439569e2f9c1e50b3df6f6e145951",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "fresh_library_receipt": "execution.json",
+  "libraries_rechecked": true
+}

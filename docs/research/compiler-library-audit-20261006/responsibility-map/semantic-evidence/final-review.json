@@ -1,0 +1,320 @@
+{
+  "schema": "step8-final-substantive-review-v1",
+  "status": "accepted bounded planning artifact; SEM-R03 owner-contract clarification verified",
+  "scope": "Current main semantic report/ledger plus primary source, independent language/owner contracts, raw root receipts and review outcomes; no production/test/package/Git edits or compiler execution.",
+  "source_ref": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "pins": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantics.md",
+      "sha256": "7271c103c6e6b31571b1f8c8f822fa13fa7adda4f9762331cc644f4f5f9d58a7"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
+      "sha256": "bcae2974d9a0218424b4dd52b501d9c52b5bc39614504256eb0b9f76a1cb120d"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/resolution.json",
+      "sha256": "062b346eb64c12027bad16df70d4f5f30c59fb9cfb3c8c32f2407902fc1c45d1"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/authority.json",
+      "sha256": "7ba4b983a59b4043ba6e81c05bd77b0ed4032ca19709c67c3a0e51b9f320aa69"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/values.json",
+      "sha256": "dd65ae5359bdafbabd54a8cdea0b988ced14f4cbaf383bbe79561ad5f5469760"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/review-resolution.json",
+      "sha256": "f9c193332c4f5fe00cd66f730225248fd5d3fb37bff34445716157ab8a51d9f1"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/review-authority.json",
+      "sha256": "843ea40f6bb5e77a2a0bb030b49756fb3396768963aa8cb9f528e8dbf9517ec9"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/review-values.json",
+      "sha256": "4a78ba85b5ca7f77a795d221e202aefc14a198477f9ff839323de3b4cca683bb"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/receipt-review.json",
+      "sha256": "c52fce8f150f32bc0a3446f4c4f56c9273aaa403f51c2b26f267e4cf9517cde0"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/outcome-verification.json",
+      "sha256": "7f8ed7677e8d615e27208bba28ca2d78f8fafd750b0c1cacbc26b66b948097b7"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/cases.json",
+      "sha256": "77348e24ced88fe905c17ac5c9726a144d3c2f44caeda2aaa688e37c786c7572"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/extra-cases.json",
+      "sha256": "45e8babf7c193294aaaa294fa6c017e89d3b92b4d728a951d6bde01a1c0cacd2"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/execution.json",
+      "sha256": "26b0b095b3e5e9002e14721c7d7735539cbfa1fe2badf4fb33f6b61b1b71bb8b"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/extra-execution.json",
+      "sha256": "20c64ccb15b7207541a48de4bcd1f7b3c062df56fafae0b0422bab7b68f66916"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/generated-format.mjs",
+      "sha256": "2ef152807b604e73123f328967a01f362544679ac799b1039511fbcb8773cff8"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/generated-format.stdout",
+      "sha256": "3b81669b4cc5c279d1bbd4efa38bb680f38879fa4d8e9fac9e3315478d790efc"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/generated-execution.json",
+      "sha256": "6da77893a79cc93a8fbe8564d317e4500713373e73592152eafb89286870e860"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/generated-observations.json",
+      "sha256": "359dffe551aadaadd3a8d047f2ef19256ef3b0f450b274efc787b1f88ad4ed10"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/cli-observations.json",
+      "sha256": "5aa6ec33416987f776fc71d9b8421522f8f3be1863e77f9fa1f1daded3d9ff4c"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/owner-observations.json",
+      "sha256": "d997850719215742aabb41bdc000736bd761b4ebc496a17ab54cb0d052e687e4"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/inputs.json",
+      "sha256": "7c98eaf05eada069a699d57b49b8f0c03696102eb88f1010a99821117e2a366c"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/extra-format-message-positional.stdout",
+      "sha256": "4835c68dbf1c47e0639be3f59ff3808f2c6bfff183e417b8b9b23229573c28b6"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/extra-format-message-named.stdout",
+      "sha256": "94660820f096c931f9764de9735cc1b22871907ce11c9c26f2e29df85d97b0f3"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/extra-format-plain-positional.stdout",
+      "sha256": "26e56a395bf4dd1c13373fbeec921bb4c4c58327dc2a6d651b642f36496ee232"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/extra-format-plain-named.stdout",
+      "sha256": "5d5f68a5866bcd6a7c9d0514412515ae12ab27f863512cb39de4dc83b5237947"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-array-fixed-first.stdout",
+      "sha256": "07c89c476a28df6bfdd47e471435d157ada835bfb2391c8bc33a656d6bde6c4e"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-array-nullable-first.stdout",
+      "sha256": "657297e8fa6eb9f7df889c079df4141c5bb54ee1926680fea6c13038ac1b06e2"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-scope-direct.stdout",
+      "sha256": "1a6a567a83f7179bc734ac9530eb81a3dfc8ec9131c99e640f70890852cfdf33"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-scope-derived.stdout",
+      "sha256": "ca48405e5a573834a485e8ccea4dfa70609e260f8a3b445d401ae92380ef714e"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-scope-scenario.stdout",
+      "sha256": "dc95edd4ff3d74a74801bd468cf88e5dd98219715ff9cdb5497c9d8a071d65c4"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "sha256": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "sha256": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f"
+    },
+    {
+      "path": "compiler/src/analysis/check.rs",
+      "sha256": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "sha256": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005"
+    },
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "sha256": "1f1ef2bec0a008566ed800d746fc65feb90b9cc4683e9803940f83dac4b1eab8"
+    },
+    {
+      "path": "docs/specification/DESIGN.md",
+      "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9"
+    },
+    {
+      "path": "docs/specification/GRAMMAR.md",
+      "sha256": "ace09efbe7df6326fb3fa35090b76befeb8d554dab3e3a3123b7ddf285590c36"
+    },
+    {
+      "path": "packages/stdlib/package.json",
+      "sha256": "1f5dda9a1bc0390590943772e7665e357e1337e705bb15c825c40eb2fcf5883b"
+    },
+    {
+      "path": "packages/stdlib/dist/src/index.js",
+      "sha256": "7b3c6ca1193bd3a12a72dcd5a25e1baeafae28d5ca7013d8716e2a6b975c577c"
+    },
+    {
+      "path": "packages/values/dist/src/stdlib-pure.js",
+      "sha256": "73ef39b37549767cc6d7662fc559198674500bbd5d8f7a12deffb7216889a73b"
+    },
+    {
+      "path": "packages/ui/dist/src/messages.js",
+      "sha256": "f4f5b553a1462a4993c7471cda392d944e7b306c87542f83c62f9ad3bba9e5d8"
+    },
+    {
+      "path": "packages/values/dist/catalog.json",
+      "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/integrate.py",
+      "sha256": "aa9f9e55eb72e676fffcdcba97330d0c06a4a210a149c2a2c693972adf0231cd"
+    },
+    {
+      "path": "docs/specification/DECISIONS.md",
+      "sha256": "80fdfe77c75d5b868dfe51a0c3642cbac87fd104b195bc81fbbbe0a715c1a32b"
+    }
+  ],
+  "counts_verified": {
+    "ledger": {
+      "semantic_duty": 44,
+      "semantic_finding": 8,
+      "semantic_registry": 1,
+      "semantic_inputs": 1,
+      "semantic_execution": 1
+    },
+    "unique_duties": 44,
+    "initial": 47,
+    "added": 26,
+    "owner": 70,
+    "cli": 8,
+    "selected_harnesses": 8,
+    "selected_passes": 440,
+    "outcome_checks": 188,
+    "outcome_pass": 179,
+    "outcome_fail": 9
+  },
+  "scope_coverage": [
+    {
+      "required": "scopes/context/imports",
+      "duties": "SEM-RES-01..06; SEM-AUTH-A06",
+      "acceptance": "finite source duties and named gaps, not full runtime/cross-product acceptance"
+    },
+    {
+      "required": "overloads/argument binding/inference",
+      "duties": "SEM-RES-07..09; SEM-GENERATED-BOUNDARY",
+      "acceptance": "finite source duties and named gaps, not full runtime/cross-product acceptance"
+    },
+    {
+      "required": "nullability",
+      "duties": "SEM-RES-09..10; SEM-R01",
+      "acceptance": "finite source duties and named gaps, not full runtime/cross-product acceptance"
+    },
+    {
+      "required": "effects/permissions/authority",
+      "duties": "SEM-AUTH-A01..12; scalar/default provenance remains SEM-R08",
+      "acceptance": "finite source duties and named gaps, not full runtime/cross-product acceptance"
+    },
+    {
+      "required": "value-owner conformance/unavailable capabilities",
+      "duties": "SEM-VALUE 15 slices; SEM-RES-11; SEM-R04..06/R08",
+      "acceptance": "finite source duties and named gaps, not full runtime/cross-product acceptance"
+    },
+    {
+      "required": "graphs/upstream/witness multiplicity",
+      "duties": "SEM-AUTH-A13; SEM-R07; retained Pass9 scope and historical limits",
+      "acceptance": "finite source duties and named gaps, not full runtime/cross-product acceptance"
+    },
+    {
+      "required": "diagnostic dedup/join",
+      "duties": "SEM-AUTH-A15; SEM-RES-12; SEM-ORCHESTRATION",
+      "acceptance": "finite source duties and named gaps, not full runtime/cross-product acceptance"
+    }
+  ],
+  "dispositions": [
+    {
+      "id": "FR01",
+      "verdict": "confirmed",
+      "subject": "Array order defect and repair obligation",
+      "evidence": "types12346\u201312430; DESIGN139/GRAMMAR189/197; raw paired input receipts; real CLI compile0/10",
+      "limit": "Require rejection of unsupported nullable elements using existing subset; no runtime crash/disclosure claim; anchor choice/multi-finding expectation needs independent repair tests."
+    },
+    {
+      "id": "FR02",
+      "verdict": "confirmed",
+      "subject": "Derived recurring scope defect and repair obligation",
+      "evidence": "effects2387\u20132390/3055\u20133059/4052\u20134102/5059\u20135142; DESIGN314/526; direct and scenario controls E4051, derive clean",
+      "limit": "Compile E6008 blocks this fixture; no permission bypass. Initializer/default transitivity remains separate unsettled witness."
+    },
+    {
+      "id": "FR03",
+      "verdict": "confirmed; owner-contract clarification verified and accepted",
+      "subject": "Real format cases and generated facade seam",
+      "evidence": "IR2771\u20132782/2932\u20132966 ignores all-named descriptor and second ordinary values; named paired inputs E6008; JS1717 format(c,...); stdlib public reexport; values facade format(first,second)303\u2013319; two actual emitted g({}) failures and public Hi Bo control",
+      "limit": "DESIGN1085 desired context convention versus installed two-argument facade retained explicitly. Report, ledger/integrator and DECISIONS choose no API change, name IR/JS/stdlib/values ownership and retain package/release gates. Named/plain-value loss remains direct IR duty. No isolated JS culpability or package implementation authorization inferred."
+    },
+    {
+      "id": "FR04",
+      "verdict": "accepted bounded package-owner gates",
+      "subject": "Values/profile findings",
+      "evidence": "Primary values view, public-owner receipts and independent review-values dispositions; false generated URL inference rejected",
+      "limit": "Email floor/data staging remain policy gates; UI decimal/year/carrier cases distinct; temporal/Decimal full generated runtime unexecuted; package changes not authorized."
+    },
+    {
+      "id": "FR05",
+      "verdict": "counts and provenance claims accepted at declared bounds",
+      "subject": "Ledger/report arithmetic and source/runtime qualification",
+      "evidence": "44 duties+8 findings+3 registry/input/execution rows; fresh suite totals37+279+25+11+6+37+44+1=440; 188 outcome assertions179 pass9 fail",
+      "limit": "Eight packets are not eight new demonstrated compiler defects; assertions differ from unique bugs. Controlled lower copies and non-semver emission remain synthetic; initial/input historical references not unique-file coverage."
+    },
+    {
+      "id": "FR06",
+      "verdict": "no new consequential policy selected; repair architecture remains proposed",
+      "subject": "Priority/retirement",
+      "evidence": "SEM-R01..03 high supported by broad type and source/generated workflow impact; remaining findings gated; source count unchanged and no code edits",
+      "limit": "High is repair priority, not exploit severity. Consume binding once/retire reconstruction is implementation direction requiring equivalent outcomes before retirement; existing graph/email/ICU/temporal/JEV gates unchanged."
+    }
+  ],
+  "remaining_limits": [
+    "Full aliases/binder/narrowing cross-products not executed",
+    "Authority-derived scalar provenance and omitted initializer dependencies not qualified",
+    "Unavailable externals are catalog/opaque admission facts, not installed provider authority",
+    "Standalone graph multiplicity and fixture seed order retained historical evidence, not newly complete execution",
+    "No full compiler suite/activation/browser/deployed app/other-host or source-dist rebuild acceptance"
+  ],
+  "policy_changes_selected": [],
+  "delta_review": {
+    "verdict": "accepted",
+    "request": "SEM-R03 installed-owner seam ownership and desired-output stage clarification",
+    "documents": [
+      "docs/research/compiler-library-audit-20261006/responsibility-map/semantics.md",
+      "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
+      "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/integrate.py",
+      "docs/specification/DECISIONS.md"
+    ],
+    "verified": [
+      "Main report distinguishes direct IR named/plain-value loss from installed facade signature mismatch",
+      "Ledger/integrator classify binding defect and installed-owner seam mismatch, name IR/JS/stdlib/values writers and explicitly choose no API change",
+      "DECISIONS labels follow-up proposed and retains ownership/JEV/package gates"
+    ],
+    "no_implementation_authorization": true,
+    "prior_pin_changes": [
+      {
+        "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantics.md",
+        "previous_sha256": "5a6bafde57960d1c9c5ea1364ea3ac0a9789c588aaf6e5920c92894ac9b8f8d8",
+        "current_sha256": "7271c103c6e6b31571b1f8c8f822fa13fa7adda4f9762331cc644f4f5f9d58a7"
+      },
+      {
+        "path": "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
+        "previous_sha256": "fba2fb2bc0cad915f7bfcf459fe787a853a20397e4c4cbef0e35384fc42f970a",
+        "current_sha256": "bcae2974d9a0218424b4dd52b501d9c52b5bc39614504256eb0b9f76a1cb120d"
+      }
+    ]
+  }
+}
