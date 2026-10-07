@@ -160,3 +160,5 @@ UI internal/business-errors.ts shares exact private digest mechanics for export 
 Values internal/violations.ts owns only the exact schema/wire append leaf. Collector types, path aliases and traversal remain local; source/declaration reduction and actual public-caller controls are accepted without broad validation/backend qualification or complete checkpoint advance.
 
 Interfaces internal/prepared-binding.ts owns shared private entry/deferral mechanics, with public prepared types still at HTTP owner and construction/framing local to HTTP/MCP. Narrow reduction is accepted without SDK/handle or parent qualification; complete checkpoint unchanged.
+
+Interfaces internal/input-admission.ts owns only shared object-body and Bearer lexical mechanics; local authorization, error/status and uploads availability remain with handlers. Source/declaration reduction is accepted with test maintenance separately charged. Security/installed joins and complete checkpoint reconciliation remain open.
