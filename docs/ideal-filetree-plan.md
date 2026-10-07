@@ -209,3 +209,5 @@ State engine-local typed secrecy and canonical own-data fact normalization retai
 Cloudflare defining deployment preflight retains its current owner and now ends line comments at every ECMAScript line terminator. Independently accepted lexical correctness preserves offsets/error order; broader syntax/binding/namespace and installed/native map duties remain open. No new layer, merge or complete checkpoint advance.
 
 Testkit retains the defining table/RowScope lifetime owner; unexpected execution now attempts disposal once and preserves first failure. Independent narrow exception/caller acceptance leaves real isolation, source-loader and installed/native/evidence cleanup open. No new layer, merge or complete checkpoint advance.
+
+Identity remains the S256 digest-domain owner; mounted Interfaces consumes the same43-symbol issuance rule. Independent finite source/memory/mounted qualification preserves verifier and one-use semantics; browser/current-authority/persisted/installed gates stay open. No owner migration, merge or complete checkpoint advance.

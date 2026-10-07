@@ -1,0 +1,101 @@
+{
+  "packet": "TECH-I02 S25643 issuance",
+  "disposition": "PASS finite selected issuance-domain correction",
+  "baseline": "33f12d62",
+  "baselineOAuthSha256": "21f5596c877a6f7c5ccf1f1b379d24f0d5fd33ef744c0845867d336a7b1efa33",
+  "startAndEndSourcePins": {
+    "packages/identity/src/authentication/oauth.ts": "fcc1b864bd44993bf707ec558d9c3b3bd5b7cc0dbf33e08ac6dd0e4164e9e1be",
+    "packages/identity/test/pkce-s256-profile.test.ts": "d423ae05977e28d28ca2fe871c21016ee7f659f5f1d9b5ef721a00134b1a7e15",
+    "packages/interfaces/test/oauth.test.ts": "96ead524b9bac68a88c7f5a9eec0400c6be77609493e965c2cce2f0960e61daa"
+  },
+  "productionProof": "Exact inverse of three lexical changes restores baseline bytes; no imports, helpers, ports, public signatures or other production statements changed. Interfaces existing test prefix unchanged; additions only.",
+  "freshRun": {
+    "pid": 168,
+    "start": 1791409193.244736,
+    "deadline": 1791409253.244736,
+    "exit": 0
+  },
+  "results": {
+    "currentRegisteredTests": "41/41 pass",
+    "baselineRegisteredTests": "37/41 pass; four intended 44/128 refusal tests fail",
+    "freshControls": "exit0; both snapshots: boundaries42/43/44/128/129 and exact createAuthCode effects; client/redirect first errors; WebCrypto independently generated distinct ASCII/NUL/astral+combining UTF8 digest issue/exchange; invalid43 alphabet zero effects; noncanonical43 retained; mounted register\u2192GET authorize\u2192POST authorize\u2192token exact profile",
+    "strict": "four owner/snapshot noEmit checks exit0; four emit checks exit0",
+    "declarations": {
+      "identicalFiles": 40,
+      "files": [
+        "identity/dist/src/accounts/passwords.d.ts",
+        "identity/dist/src/accounts/recovery.d.ts",
+        "identity/dist/src/accounts/registration.d.ts",
+        "identity/dist/src/authentication/audience.d.ts",
+        "identity/dist/src/authentication/context.d.ts",
+        "identity/dist/src/authentication/grants.d.ts",
+        "identity/dist/src/authentication/oauth.d.ts",
+        "identity/dist/src/authentication/revocation.d.ts",
+        "identity/dist/src/authentication/t16b-context.test.d.ts",
+        "identity/dist/src/authentication/t32b-revocation.test.d.ts",
+        "identity/dist/src/distribution.d.ts",
+        "identity/dist/src/index.d.ts",
+        "identity/dist/src/ports.d.ts",
+        "identity/dist/src/sessions/comparison-node.d.ts",
+        "identity/dist/src/sessions/comparison-worker.d.ts",
+        "identity/dist/src/sessions/comparison.d.ts",
+        "identity/dist/src/sessions/cookies.d.ts",
+        "identity/dist/src/sessions/csrf.d.ts",
+        "identity/dist/src/sessions/presession.d.ts",
+        "identity/dist/src/sessions/tokens.d.ts",
+        "identity/dist/src/storage/d1.d.ts",
+        "identity/dist/src/teams/invitations.d.ts",
+        "identity/dist/src/teams/membership.d.ts",
+        "identity/dist/src/teams/roles.d.ts",
+        "identity/dist/src/teams/selection.d.ts",
+        "identity/dist/src/testing.d.ts",
+        "interfaces/dist/src/errors/envelope.d.ts",
+        "interfaces/dist/src/errors/logging.d.ts",
+        "interfaces/dist/src/errors/redact.d.ts",
+        "interfaces/dist/src/errors/safe.d.ts",
+        "interfaces/dist/src/http/context.d.ts",
+        "interfaces/dist/src/http/fragments.d.ts",
+        "interfaces/dist/src/http/limits.d.ts",
+        "interfaces/dist/src/http/pages.d.ts",
+        "interfaces/dist/src/http/presentation.d.ts",
+        "interfaces/dist/src/http/routes.d.ts",
+        "interfaces/dist/src/oauth/metadata.d.ts",
+        "interfaces/dist/src/oauth/routes.d.ts",
+        "interfaces/dist/src/ports.d.ts",
+        "interfaces/dist/src/testing.d.ts"
+      ]
+    }
+  },
+  "counts": {
+    "before": {
+      "production": 199,
+      "maintainedDeclaration": 45,
+      "bytes": 9390,
+      "dtsBytes": 3935
+    },
+    "current": {
+      "production": 199,
+      "maintainedDeclaration": 45,
+      "bytes": 9383,
+      "dtsBytes": 3935
+    }
+  },
+  "accounting": "Correctness budget; readable production199\u2192199, owner maintained declaration45\u219245; all40 emitted source declarations byte identical. No reduction claim and no generated/test savings.",
+  "dependencies": "Existing @scure/base dependency and comparison import profile unchanged; no new dependency. Private Interface identity link resolves matching private snapshot.",
+  "limits": [
+    "43 length follows 32-byte SHA256 unpadded base64url inference for this S256-only digest domain; not a universal RFC ABNF restriction.",
+    "Noncanonical43 unused-bit profile retained; verifier matching UTF8 legacy domain remains; no new verifier grammar policy.",
+    "Consume/revocation/browserOrigin logic is byte unchanged; existing tests scope only, no expanded persistence/security contract acceptance.",
+    "Memory store and actual mounted in-process handlers only; no native/installed/default/whole-auth qualification."
+  ],
+  "defects": [],
+  "release": "All three exact read leases and commands released; no live processes; no production/Git/docs/state/shared output writes.",
+  "rootDisposition": "accepted finite selected correctness only; parent residual retained",
+  "sourcePins": {
+    "packages/identity/src/authentication/oauth.ts": "fcc1b864bd44993bf707ec558d9c3b3bd5b7cc0dbf33e08ac6dd0e4164e9e1be",
+    "packages/identity/test/pkce-s256-profile.test.ts": "d423ae05977e28d28ca2fe871c21016ee7f659f5f1d9b5ef721a00134b1a7e15",
+    "packages/interfaces/test/oauth.test.ts": "96ead524b9bac68a88c7f5a9eec0400c6be77609493e965c2cce2f0960e61daa"
+  },
+  "fullPrivateEvidence": "/private/tmp/canlang-repair-go-20261007/pkce-production/independent-review.json",
+  "fullPrivateEvidenceSHA256": "c8722d46401b7656bd41e366de0c732a05913a7d12cc2863f0163a202f2442c5"
+}

@@ -530,7 +530,7 @@
     },
     "TECH-I02": {
       "planning_status": "blocked",
-      "state": "S256 issuance length correction released; different-author review pending",
+      "state": "independently accepted finite pkce correction; scoped commit prepared",
       "files": [
         "packages/identity/src/authentication/oauth.ts",
         "packages/identity/src/sessions/presession.ts",
@@ -554,7 +554,17 @@
       "agent": "/root/row_scope_cleanup",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "receipt": "/private/tmp/canlang-repair-go-20261007/pkce-production/repair-receipt.md"
+      "receipt": "/private/tmp/canlang-repair-go-20261007/pkce-production/repair-receipt.md",
+      "review": "pkce-issuance-independent-review.json",
+      "source_pins": {
+        "packages/identity/src/authentication/oauth.ts": "fcc1b864bd44993bf707ec558d9c3b3bd5b7cc0dbf33e08ac6dd0e4164e9e1be",
+        "packages/identity/test/pkce-s256-profile.test.ts": "d423ae05977e28d28ca2fe871c21016ee7f659f5f1d9b5ef721a00134b1a7e15",
+        "packages/interfaces/test/oauth.test.ts": "96ead524b9bac68a88c7f5a9eec0400c6be77609493e965c2cce2f0960e61daa"
+      },
+      "review_read_released": true,
+      "root_read_released": true,
+      "commit_pending": true,
+      "parent_limit": "Verifier grammar, browser origins, persisted/native/installed/current-authority and whole auth remain open"
     },
     "TECH-F01": {
       "planning_status": "blocked",
@@ -896,7 +906,7 @@
     },
     "DEL-E02": {
       "planning_status": "blocked",
-      "state": "independently accepted finite table correction; scoped commit prepared",
+      "state": "independently accepted finite table disposal; committed24b1d92a",
       "files": [
         "packages/testkit/src/runner/table.ts",
         "packages/testkit/src/assertions/equal.ts",
@@ -922,7 +932,8 @@
       "writer_released": true,
       "review_read_released": true,
       "root_read_released": true,
-      "commit_pending": true
+      "commit_pending": false,
+      "commit": "24b1d92a"
     },
     "REPLAY-IP07": {
       "planning_status": "ready",
@@ -1178,7 +1189,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T21:45:27.908112+00:00",
+  "updated_utc": "2026-10-07T21:46:07.005672+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
