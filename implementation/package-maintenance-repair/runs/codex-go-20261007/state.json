@@ -166,19 +166,19 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "TECH-V03 factory/default prerequisite",
-      "agent": "/root/review_ui_appearance",
-      "state": "exact frozen reads ACK; genuine public source paths only"
+      "id": "TECH-V03 genuine owner/default contract",
+      "agent": "/root/prepared_owner_contract",
+      "state": "finite read-only cross-file contract evidence; no product or network writes"
     },
     {
-      "id": "TECH-F01 completion correction",
-      "agent": "/root/row_scope_cleanup",
-      "state": "2source/test scope plus specific crash-test branch release; actual joint qualification"
-    },
-    {
-      "id": "DEL-B01 real-DOM prerequisite",
+      "id": "DEL-B01 synchronous owned cleanup",
       "agent": "/root/review_fanout_freshness",
-      "state": "private visibility/acquisition/teardown witnesses, current producer/installed evidence"
+      "state": "exact three-file source repair active"
+    },
+    {
+      "id": "TECH-V04 selected actual native/Wasm carrier",
+      "agent": "/root/row_scope_cleanup",
+      "state": "private source-only prerequisite; active Wasm handle retained"
     }
   ],
   "packet_state": {
@@ -268,7 +268,7 @@
     },
     "TECH-V03": {
       "planning_status": "blocked",
-      "state": "Independently accepted stable-owned-content correction; scoped commit prepared; genuine factory/default joins open",
+      "state": "Independently accepted owned JSON correction committed d4b041fb; genuine factory/default joins open",
       "files": [
         "packages/values/bindings/owned-input.ts",
         "packages/values/src/prepared/plan.ts",
@@ -298,20 +298,23 @@
         "packages/values/bindings/owned-input.ts": "edbd86ee44cf2a235411f426d0e6d6801e452c66423516aa91c18c4a6f2919d6",
         "packages/values/test/owned-input.test.ts": "d3d31cc346bd85eb625a491f582f583d97aa550bbc74ce63d009c8d85000085b"
       },
-      "commit_pending": true,
+      "commit_pending": false,
       "review_read_released": true,
       "parent_limit": "No observed production caller/prepared plan/default success/security/installed qualification; factory provenance source tracing active",
       "factory_prerequisite": {
-        "state": "ACKed private-only genuine public factory/current-source tracing",
-        "agent": "/root/review_ui_appearance",
+        "state": "Factual source-only factory trace complete; genuine trusted owner/default contract prerequisites under finite review",
+        "agent": "/root/prepared_owner_contract",
         "model": "gpt-6.1-sol",
-        "effort": "medium",
-        "outputs": "/private/tmp/canlang-repair-go-20261007/prepared-factory-current"
-      }
+        "effort": "high",
+        "outputs": "/private/tmp/canlang-repair-go-20261007/prepared-owner-contract",
+        "factual_result": "/private/tmp/canlang-repair-go-20261007/prepared-factory-current/result.json",
+        "factual_result_sha256": "3b5583e8b2ab23eb844f9189febd900bf600f42e7314dc080c8944ed8d60c8d0"
+      },
+      "commit": "d4b041fb"
     },
     "TECH-V04": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "ACKed private current-source tuple/error/carrier prerequisite; actual private native build complete and Wasm build active",
       "files": [
         "packages/values/semantics/src/transport/exact.rs",
         "packages/values/semantics/src/codecs/numeric.rs",
@@ -322,7 +325,23 @@
         "packages/values/bindings/carriers.ts",
         "packages/values/bindings/plans.ts",
         "packages/values/bindings/bootstrap.ts"
-      ]
+      ],
+      "agent": "/root/row_scope_cleanup",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "outputs": "/private/tmp/canlang-repair-go-20261007/values-carrier-current",
+      "read_files": [
+        "packages/values/semantics/src/transport/exact.rs",
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "packages/values/semantics/src/input.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/bindings/plans.ts",
+        "packages/values/bindings/bootstrap.ts"
+      ],
+      "limits": "No canned glue, forged provenance, new tuple/resource policy, installed/default adoption or source changes"
     },
     "TECH-V05": {
       "planning_status": "blocked",
@@ -603,7 +622,7 @@
     },
     "TECH-F01": {
       "planning_status": "blocked",
-      "state": "Accepted immutable-size guard committedd450130f; actual completion size correction/joint profile active",
+      "state": "Independently accepted finite joined completion/finalization size correction; completion commit prepared; broader lifecycle open",
       "files": [
         "packages/files/src/ports.ts",
         "packages/files/src/upload/index.ts",
@@ -615,36 +634,44 @@
       ],
       "outputs": "/private/tmp/canlang-repair-go-20261007/file-size-production",
       "read_released": true,
-      "active_files": [
-        "packages/files/src/finalize/index.ts",
-        "packages/files/test/finalize-byte-count.test.ts"
-      ],
+      "active_files": [],
       "agent": "/root/review_ui_appearance",
       "model": "gpt-6.1-sol",
       "effort": "medium",
       "writer_released": true,
       "reviewer": "/root/row_scope_cleanup",
       "review_outputs": "/private/tmp/canlang-repair-go-20261007/file-size-independent",
-      "review": "finalized-size-independent-review.json",
+      "review": "completion-size-independent-review.json",
       "source_pins": {
         "packages/files/src/finalize/index.ts": "36464397b99f8cc7392c7ac6d3564ccd78f9982b98577a4982b63b37467390e6",
         "packages/files/test/finalize-byte-count.test.ts": "643f9392362fa99400b09b268dc0e4d586355b17b9edfefa7242001812624539"
       },
       "commit_pending": false,
       "review_read_released": true,
-      "parent_limit": "Completion/append count/retry and finalization recovery/durablebinding stay open",
+      "parent_limit": "Append identity/retry, crash recovery, phases/atomicity, lifetime and real durable/provider/mounted binding remain open",
       "completion_correction": {
-        "state": "Third exact finalization-test branch handoff ACKed afterd450130f; joint32-case profile pending",
+        "state": "Writer and independent reads released; joined 42/42 tests plus actual FS journey 3/3 and fresh 22 controls pass",
         "files": [
           "packages/files/src/upload/index.ts",
-          "packages/files/test/completion-byte-count.test.ts"
+          "packages/files/test/completion-byte-count.test.ts",
+          "packages/files/test/finalize-byte-count.test.ts"
         ],
-        "third_file_pending": "packages/files/test/finalize-byte-count.test.ts",
+        "third_file_pending": null,
         "agent": "/root/row_scope_cleanup",
         "model": "gpt-6.1-sol",
         "effort": "medium",
         "contract": "existing actual oversize rejection/cleanup, shortreadpartial, first-error/missing staging preserved; no metadata healing/newphase/API",
-        "private_outputs": "/private/tmp/canlang-repair-go-20261007/completion-size-production"
+        "private_outputs": "/private/tmp/canlang-repair-go-20261007/completion-size-production",
+        "source_pins": {
+          "packages/files/src/upload/index.ts": "853834815fb7393b4386a91738026957a785da0ba97d8941ef47d0d40abe1dc1",
+          "packages/files/test/completion-byte-count.test.ts": "75cc3d4546b24dc770cd04357335fa40341d47ee0c2be74e2c976b2f7cbb134b",
+          "packages/files/test/finalize-byte-count.test.ts": "bbdbad8a3991acb2c8f331d54d756f8e1235f8e74f933e21039457334bfc46c5",
+          "packages/files/src/finalize/index.ts": "36464397b99f8cc7392c7ac6d3564ccd78f9982b98577a4982b63b37467390e6"
+        },
+        "reviewer": "/root/review_ui_appearance",
+        "review": "completion-size-independent-review.json",
+        "commit_pending": true,
+        "review_read_released": true
       },
       "commit": "d450130f"
     },
@@ -849,7 +876,7 @@
     },
     "DEL-B01": {
       "planning_status": "blocked",
-      "state": "ACKed private real-DOM prerequisite; concrete visibility/acquisition/teardown witnesses, no product repair yet",
+      "state": "ACKed finite synchronous owned browser-resource cleanup source repair active; visibility/producers remain separate prerequisites",
       "files": [
         "packages/ui/src/browser/polling.ts",
         "packages/ui/src/browser/bootstrap.ts",
@@ -860,7 +887,13 @@
       "agent": "/root/review_fanout_freshness",
       "model": "gpt-6.1-sol",
       "effort": "high",
-      "outputs": "/private/tmp/canlang-repair-go-20261007/browser-polling"
+      "outputs": "/private/tmp/canlang-repair-go-20261007/browser-lifecycle-production",
+      "active_files": [
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/src/browser/polling.ts",
+        "packages/ui/test/browser-lifecycle-cleanup.test.ts"
+      ],
+      "contract": "Synchronous acquisition failure and explicit stop exhaust supported owned cleanup; preserve exact original/first throw and LIVE ownership; no async/API/visibility/markup change"
     },
     "DEL-B02": {
       "planning_status": "blocked",
@@ -1267,7 +1300,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T22:05:01.605975+00:00",
+  "updated_utc": "2026-10-07T22:13:57.959649+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",

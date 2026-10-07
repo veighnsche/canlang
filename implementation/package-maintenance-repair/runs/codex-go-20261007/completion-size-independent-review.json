@@ -1,0 +1,74 @@
+{
+  "packet": "TECH-F01 joined completion/finalization independent review",
+  "disposition": "PASS finite existing actual-size enforcement; wider lifecycle gates remain open",
+  "base": "d450130f",
+  "reviewHead": "c718517a5aae8481a8b548a7eb299b8c5377dee6",
+  "startEndPins": {
+    "packages/files/src/upload/index.ts": "853834815fb7393b4386a91738026957a785da0ba97d8941ef47d0d40abe1dc1",
+    "packages/files/test/completion-byte-count.test.ts": "75cc3d4546b24dc770cd04357335fa40341d47ee0c2be74e2c976b2f7cbb134b",
+    "packages/files/test/finalize-byte-count.test.ts": "bbdbad8a3991acb2c8f331d54d756f8e1235f8e74f933e21039457334bfc46c5",
+    "packages/files/src/finalize/index.ts": "36464397b99f8cc7392c7ac6d3564ccd78f9982b98577a4982b63b37467390e6"
+  },
+  "sourceProof": "Only ten added readable completion lines. Removing exact insertion restores baseline bytes. Finalizer source unchanged. First ten finalization controls and persisted fixture prefix byte identical; only final FS crash case now expects earlier completion rejection.",
+  "historicalFalseCompletionProof": {
+    "path": "/private/tmp/canlang-repair-go-20261007/file-size-production/result.json",
+    "sha256": "afeb8076ae9c56e2dff0057dada4c94ef7a0cadac659ec78a1b66dbb2391776f",
+    "scope": "Frozen baseline accepted actual mismatch and finalizer guard fixed creation; prior actual FS fixture proof retained, not altered by joined test correction."
+  },
+  "sourceAndDeclaration": {
+    "counts": {
+      "before": {
+        "readableProduction": 431,
+        "maintainedDeclaration": 56,
+        "productionBytes": 17208,
+        "declarationBytes": 4971
+      },
+      "current": {
+        "readableProduction": 441,
+        "maintainedDeclaration": 56,
+        "productionBytes": 17613,
+        "declarationBytes": 4971
+      }
+    },
+    "allByteIdenticalSourceDts": 11,
+    "files": [
+      "dist/src/bridge.d.ts",
+      "dist/src/catalog.d.ts",
+      "dist/src/distribution.d.ts",
+      "dist/src/finalize/index.d.ts",
+      "dist/src/index.d.ts",
+      "dist/src/ports.d.ts",
+      "dist/src/provenance/index.d.ts",
+      "dist/src/retention/index.d.ts",
+      "dist/src/scenarios.d.ts",
+      "dist/src/upload/fs-blob-store.d.ts",
+      "dist/src/upload/index.d.ts"
+    ],
+    "joinedClosure": "Upload431\u2192441 plus unchanged finalizer564 =995\u21921005 readable implementation; maintained owner declarations56+94=150\u2192150; no imports/helpers/dependencies/API additions. Correctness growth, no reduction credit.",
+    "strict": "Both snapshot emit and noEmit0 under package strict options; private test subset only. Additional actual journey emit0 both."
+  },
+  "behaviorProof": [
+    "Real FS byte append persists \u00e9 before Symbol crash, copy-returning V8 Map metadata remains0, fresh blobstore+deserialization reopen/retry reaches4actual vs2count/declared. Baseline completed digest of4 then committed finalizer conflict zero mint; current oversized read\u2192remove\u2192put clears staging/count, record rejected, no digest/type publication and later finalize partial zero mint.",
+    "Actual short staging returns partial with no writes/removal/count healing in current; baseline false completion is explicit.",
+    "Original owner/expiry/state/count/policy branches precede bytes read; missing counted staging retains malformed read\u2192put handling. Equal valid MIME/digest, equal malformed/excluded cleanup and size-before-MIME controls pass.",
+    "Scalar undefined/Symbol thrown from metadata get/blob read/remove/metadata put preserves exact identity and stops subsequent effects on both snapshots (shared rejection fixture)."
+  ],
+  "harnessCorrection": "Initial cleanup-error fresh fixture used validABC so baseline completed without remove; not a product defect. Original failed script/log/PID retained; corrected malformed3byte fixture makes both snapshots call existing cleanup. No product changes.",
+  "defects": [],
+  "limits": [
+    "Actual local FS storage plus explicit private copy-returning persisted metadata fixture; no live production/durable metadata binding or installed/provider acceptance.",
+    "Append chunk identity, retry/progress repair, completion/finalization crash recovery and transactional phases remain open. Short mismatch intentionally does not heal metadata or promise resumability after a crash.",
+    "Existing oversized cleanup remove/put failures can leave partially persisted resources; exact first thrown identity retained, no atomicity/cleanup-success claim on errors.",
+    "No new API/error/threshold/journal/chunk identity/policy or global mutator."
+  ],
+  "release": "All exact source/test read leases and command handles RELEASED. Sessions39462/64463/90183 completed; recorded PIDs exited, no live processes. No source/Git/docs/state/shared outputs or provider writes.",
+  "actualTests": {
+    "current": "42/42:21 completion+11 finalize-size+10 existing finalization",
+    "baseline": "30/42;12 intended size/refusal/crash-stage failures",
+    "existingJourney": "3/3 before and current, actual FS finalization/read, duplicate grant and short completion/resume",
+    "fresh": "22 distinct controls before/current: actual UTF8 FS crash/reopen/retry+joined finalization, exact undefined/Symbol get/read/remove/put throws, short count unchanged, foreign before expiry/mismatch; exit0"
+  },
+  "rootDisposition": "accepted finite joined completion and finalization size enforcement; no broader lifecycle/atomicity/durable binding closure",
+  "fullPrivateEvidence": "/private/tmp/canlang-repair-go-20261007/completion-size-independent/independent-review.json",
+  "fullPrivateEvidenceSHA256": "0b4ff9c8894cf3121a1738265c17272a94241e749ee5312f02c9e0142d66e6ca"
+}

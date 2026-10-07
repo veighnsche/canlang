@@ -482,6 +482,16 @@ export function completeUploadContent(
     const check = checkContent(deps.policy, record.claimedType, bytes);
     return { status: 'failed', reason: 'malformed', check };
   }
+  if (bytes.byteLength > record.declaredSize || bytes.byteLength > deps.policy.maxBytes) {
+    record.state = 'rejected';
+    record.receivedBytes = 0;
+    deps.blobs.remove(stagingKeyForIntent(record.intentId));
+    deps.intents.put(record);
+    return { status: 'failed', reason: 'oversized' };
+  }
+  if (bytes.byteLength < record.declaredSize) {
+    return { status: 'failed', reason: 'partial' };
+  }
   const check = checkContent(deps.policy, record.claimedType, bytes);
   if (check.verdict === 'rejected') {
     record.state = 'rejected';

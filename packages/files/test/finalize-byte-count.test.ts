@@ -107,7 +107,7 @@ function persistedIntents(path: string): IntentStorePort {
   };
 }
 
-test('actual FS append crash, reopen and retry cannot finalize accepted count/byte disagreement', () => {
+test('actual FS append crash, reopen and retry rejects completion before finalization', () => {
   const dir = mkdtempSync(join(tmpdir(), 'can-file-size-'));
   try {
     const blobs = createFsBlobStore(join(dir, 'blobs'));
@@ -125,19 +125,25 @@ test('actual FS append crash, reopen and retry cannot finalize accepted count/by
     assert.equal(intents.get(created.intentId)?.receivedBytes, 0);
     const reopened = { ...upload, blobs: createFsBlobStore(join(dir, 'blobs')), intents: persistedIntents(intentsPath) };
     assert.equal(appendUploadContent(reopened, created.intentId, RECEIVER, BYTES).status, 'appended');
-    assert.equal(completeUploadContent(reopened, created.intentId, RECEIVER).status, 'completed');
+    assert.equal(reopened.intents.get(created.intentId)?.receivedBytes, 1);
+    assert.equal(reopened.blobs.read(stagingKeyForIntent(created.intentId))?.byteLength, 2);
+    assert.deepEqual(completeUploadContent(reopened, created.intentId, RECEIVER), { status: 'failed', reason: 'oversized' });
     const record = reopened.intents.get(created.intentId);
     assert.ok(record);
-    assert.equal(record.receivedBytes, 1);
+    assert.equal(record.state, 'rejected');
+    assert.equal(record.receivedBytes, 0);
     assert.equal(record.declaredSize, 1);
-    assert.equal(reopened.blobs.read(stagingKeyForIntent(created.intentId))?.byteLength, 2);
+    assert.equal(record.bytesDigest, null);
+    assert.equal(record.detectedType, null);
+    assert.equal(reopened.blobs.read(stagingKeyForIntent(created.intentId)), null);
     const o = observed({ ...h.finalize, blobs: reopened.blobs, intents: reopened.intents });
-    assert.deepEqual(finalizeUpload(o.deps, { intentId: created.intentId, retryId: request.upload_id, bytesDigest: record.bytesDigest!, caller: RECEIVER }), { status: 'failed', reason: 'conflict' });
+    assert.deepEqual(finalizeUpload(o.deps, { intentId: created.intentId, retryId: request.upload_id, bytesDigest: sha256Hex(new TextEncoder().encode('AA')), caller: RECEIVER }), { status: 'failed', reason: 'partial' });
     assert.deepEqual(o.writes, []);
+    assert.equal(o.readCount(), 0);
     assert.equal(h.files.listAll().length, 0);
-    assert.equal(reopened.intents.get(created.intentId)?.state, 'complete');
+    assert.equal(reopened.intents.get(created.intentId)?.state, 'rejected');
     assert.equal(readdirSync(join(dir, 'blobs')).filter(name => name.startsWith('f_')).length, 0);
-    assert.equal(reopened.blobs.read(stagingKeyForIntent(created.intentId))?.byteLength, 2);
+    assert.equal(reopened.blobs.read(stagingKeyForIntent(created.intentId)), null);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
