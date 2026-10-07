@@ -1,0 +1,6 @@
+   Compiling canlang-compiler v0.1.0 (/private/tmp/canlang-pass10-profile/sources/baseline/compiler)
+    Finished `release` profile [optimized] target(s) in 22.31s
+real 22.35
+user 21.29
+sys 0.54
+exit=0

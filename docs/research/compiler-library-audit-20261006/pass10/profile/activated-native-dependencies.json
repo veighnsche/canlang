@@ -1,0 +1,697 @@
+[
+  {
+    "name": "base64-simd",
+    "version": "0.8.0",
+    "license": "MIT",
+    "rust_version": "1.63",
+    "features": [
+      "alloc",
+      "default",
+      "detect",
+      "std"
+    ]
+  },
+  {
+    "name": "bitflags",
+    "version": "1.3.2",
+    "license": "MIT/Apache-2.0",
+    "rust_version": null,
+    "features": [
+      "default"
+    ]
+  },
+  {
+    "name": "bitflags",
+    "version": "2.13.2",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.56.0",
+    "features": [
+      "std"
+    ]
+  },
+  {
+    "name": "bitvec",
+    "version": "1.1.1",
+    "license": "MIT",
+    "rust_version": "1.56",
+    "features": [
+      "alloc",
+      "atomic",
+      "default",
+      "std"
+    ]
+  },
+  {
+    "name": "block-buffer",
+    "version": "0.10.4",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "canlang-compiler",
+    "version": "0.1.0",
+    "license": "MIT",
+    "rust_version": "1.99",
+    "features": []
+  },
+  {
+    "name": "cfg-if",
+    "version": "1.0.5",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.32",
+    "features": []
+  },
+  {
+    "name": "cpufeatures",
+    "version": "0.2.17",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "crypto-common",
+    "version": "0.1.7",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "data-encoding",
+    "version": "2.11.1",
+    "license": "MIT",
+    "rust_version": "1.48",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ]
+  },
+  {
+    "name": "debugid",
+    "version": "0.8.0",
+    "license": "Apache-2.0",
+    "rust_version": null,
+    "features": [
+      "serde"
+    ]
+  },
+  {
+    "name": "digest",
+    "version": "0.10.7",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "features": [
+      "block-buffer",
+      "core-api",
+      "default"
+    ]
+  },
+  {
+    "name": "displaydoc",
+    "version": "0.2.7",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.71.0",
+    "features": []
+  },
+  {
+    "name": "errno",
+    "version": "0.3.14",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.56",
+    "features": [
+      "std"
+    ]
+  },
+  {
+    "name": "fastrand",
+    "version": "2.5.0",
+    "license": "Apache-2.0 OR MIT",
+    "rust_version": "1.63",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ]
+  },
+  {
+    "name": "fluent-uri",
+    "version": "0.1.4",
+    "license": "MIT",
+    "rust_version": null,
+    "features": [
+      "default",
+      "std"
+    ]
+  },
+  {
+    "name": "form_urlencoded",
+    "version": "1.2.2",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.51",
+    "features": [
+      "alloc",
+      "std"
+    ]
+  },
+  {
+    "name": "funty",
+    "version": "2.0.0",
+    "license": "MIT",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "generic-array",
+    "version": "0.14.7",
+    "license": "MIT",
+    "rust_version": null,
+    "features": [
+      "more_lengths"
+    ]
+  },
+  {
+    "name": "getrandom",
+    "version": "0.4.3",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.85",
+    "features": []
+  },
+  {
+    "name": "icu_collections",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "rust_version": "1.88",
+    "features": []
+  },
+  {
+    "name": "icu_locale_core",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "rust_version": "1.88",
+    "features": [
+      "zerovec"
+    ]
+  },
+  {
+    "name": "icu_normalizer",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "rust_version": "1.88",
+    "features": [
+      "compiled_data"
+    ]
+  },
+  {
+    "name": "icu_normalizer_data",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "rust_version": "1.88",
+    "features": []
+  },
+  {
+    "name": "icu_properties",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "rust_version": "1.88",
+    "features": [
+      "compiled_data"
+    ]
+  },
+  {
+    "name": "icu_properties_data",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "rust_version": "1.88",
+    "features": []
+  },
+  {
+    "name": "icu_provider",
+    "version": "2.3.1",
+    "license": "Unicode-3.0",
+    "rust_version": "1.88",
+    "features": [
+      "baked"
+    ]
+  },
+  {
+    "name": "idna",
+    "version": "1.1.0",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.57",
+    "features": [
+      "alloc",
+      "compiled_data",
+      "std"
+    ]
+  },
+  {
+    "name": "idna_adapter",
+    "version": "1.2.2",
+    "license": "Apache-2.0 OR MIT",
+    "rust_version": "1.86",
+    "features": [
+      "compiled_data"
+    ]
+  },
+  {
+    "name": "if_chain",
+    "version": "1.0.3",
+    "license": "MIT/Apache-2.0",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "itoa",
+    "version": "1.0.18",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.68",
+    "features": []
+  },
+  {
+    "name": "libc",
+    "version": "0.2.190",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.65",
+    "features": [
+      "std"
+    ]
+  },
+  {
+    "name": "litemap",
+    "version": "0.8.3",
+    "license": "Unicode-3.0",
+    "rust_version": "1.82",
+    "features": []
+  },
+  {
+    "name": "lsp-types",
+    "version": "0.97.0",
+    "license": "MIT",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "memchr",
+    "version": "2.8.3",
+    "license": "Unlicense OR MIT",
+    "rust_version": "1.61",
+    "features": [
+      "alloc",
+      "std"
+    ]
+  },
+  {
+    "name": "once_cell",
+    "version": "1.21.4",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.65",
+    "features": [
+      "alloc",
+      "race",
+      "std"
+    ]
+  },
+  {
+    "name": "outref",
+    "version": "0.5.2",
+    "license": "MIT",
+    "rust_version": "1.63.0",
+    "features": []
+  },
+  {
+    "name": "percent-encoding",
+    "version": "2.3.2",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.51",
+    "features": [
+      "alloc",
+      "std"
+    ]
+  },
+  {
+    "name": "potential_utf",
+    "version": "0.1.6",
+    "license": "Unicode-3.0",
+    "rust_version": "1.82",
+    "features": [
+      "zerovec"
+    ]
+  },
+  {
+    "name": "proc-macro2",
+    "version": "1.0.107",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.71",
+    "features": [
+      "default",
+      "proc-macro"
+    ]
+  },
+  {
+    "name": "quote",
+    "version": "1.0.47",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.71",
+    "features": [
+      "default",
+      "proc-macro"
+    ]
+  },
+  {
+    "name": "radium",
+    "version": "0.7.0",
+    "license": "MIT",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "rustc-hash",
+    "version": "2.1.3",
+    "license": "Apache-2.0 OR MIT",
+    "rust_version": "1.77",
+    "features": [
+      "default",
+      "std"
+    ]
+  },
+  {
+    "name": "rustix",
+    "version": "1.1.5",
+    "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "rust_version": "1.65",
+    "features": [
+      "alloc",
+      "default",
+      "fs",
+      "std"
+    ]
+  },
+  {
+    "name": "serde",
+    "version": "1.0.229",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.56",
+    "features": [
+      "default",
+      "derive",
+      "serde_derive",
+      "std"
+    ]
+  },
+  {
+    "name": "serde_core",
+    "version": "1.0.229",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.56",
+    "features": [
+      "result",
+      "std"
+    ]
+  },
+  {
+    "name": "serde_derive",
+    "version": "1.0.229",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.71",
+    "features": [
+      "default"
+    ]
+  },
+  {
+    "name": "serde_json",
+    "version": "1.0.151",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.71",
+    "features": [
+      "default",
+      "raw_value",
+      "std"
+    ]
+  },
+  {
+    "name": "serde_repr",
+    "version": "0.1.21",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.71",
+    "features": []
+  },
+  {
+    "name": "sha2",
+    "version": "0.10.9",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "smallvec",
+    "version": "1.16.2",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "features": [
+      "const_generics"
+    ]
+  },
+  {
+    "name": "sourcemap",
+    "version": "9.3.2",
+    "license": "BSD-3-Clause",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "stable_deref_trait",
+    "version": "1.2.1",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "syn",
+    "version": "2.0.119",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.71",
+    "features": [
+      "clone-impls",
+      "default",
+      "derive",
+      "extra-traits",
+      "fold",
+      "parsing",
+      "printing",
+      "proc-macro",
+      "visit"
+    ]
+  },
+  {
+    "name": "syn",
+    "version": "3.0.6",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.71",
+    "features": [
+      "clone-impls",
+      "default",
+      "derive",
+      "extra-traits",
+      "fold",
+      "full",
+      "parsing",
+      "printing",
+      "proc-macro",
+      "visit",
+      "visit-mut"
+    ]
+  },
+  {
+    "name": "synstructure",
+    "version": "0.13.2",
+    "license": "MIT",
+    "rust_version": null,
+    "features": [
+      "default",
+      "proc-macro"
+    ]
+  },
+  {
+    "name": "synstructure",
+    "version": "0.14.0",
+    "license": "MIT",
+    "rust_version": "1.71",
+    "features": [
+      "default",
+      "proc-macro"
+    ]
+  },
+  {
+    "name": "tap",
+    "version": "1.0.1",
+    "license": "MIT",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "tempfile",
+    "version": "3.27.0",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.63",
+    "features": [
+      "getrandom"
+    ]
+  },
+  {
+    "name": "tinystr",
+    "version": "0.8.4",
+    "license": "Unicode-3.0",
+    "rust_version": "1.82",
+    "features": [
+      "zerovec"
+    ]
+  },
+  {
+    "name": "typenum",
+    "version": "1.20.1",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.41.0",
+    "features": []
+  },
+  {
+    "name": "unicode-id-start",
+    "version": "1.5.0",
+    "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+    "rust_version": "1.31",
+    "features": []
+  },
+  {
+    "name": "unicode-ident",
+    "version": "1.0.26",
+    "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+    "rust_version": "1.71",
+    "features": []
+  },
+  {
+    "name": "url",
+    "version": "2.5.8",
+    "license": "MIT OR Apache-2.0",
+    "rust_version": "1.63",
+    "features": [
+      "default",
+      "std"
+    ]
+  },
+  {
+    "name": "utf8_iter",
+    "version": "1.0.4",
+    "license": "Apache-2.0 OR MIT",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "uuid",
+    "version": "1.27.0",
+    "license": "Apache-2.0 OR MIT",
+    "rust_version": "1.89.0",
+    "features": [
+      "default",
+      "std"
+    ]
+  },
+  {
+    "name": "version_check",
+    "version": "0.9.5",
+    "license": "MIT/Apache-2.0",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "vsimd",
+    "version": "0.8.0",
+    "license": "MIT",
+    "rust_version": "1.63",
+    "features": [
+      "alloc",
+      "detect",
+      "std"
+    ]
+  },
+  {
+    "name": "writeable",
+    "version": "0.6.4",
+    "license": "Unicode-3.0",
+    "rust_version": "1.82",
+    "features": []
+  },
+  {
+    "name": "wyz",
+    "version": "0.5.1",
+    "license": "MIT",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "yoke",
+    "version": "0.8.3",
+    "license": "Unicode-3.0",
+    "rust_version": "1.82",
+    "features": [
+      "derive",
+      "zerofrom"
+    ]
+  },
+  {
+    "name": "yoke-derive",
+    "version": "0.8.2",
+    "license": "Unicode-3.0",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "zerofrom",
+    "version": "0.1.8",
+    "license": "Unicode-3.0",
+    "rust_version": "1.71.1",
+    "features": [
+      "derive"
+    ]
+  },
+  {
+    "name": "zerofrom-derive",
+    "version": "0.1.8",
+    "license": "Unicode-3.0",
+    "rust_version": "1.71.1",
+    "features": []
+  },
+  {
+    "name": "zerotrie",
+    "version": "0.2.5",
+    "license": "Unicode-3.0",
+    "rust_version": "1.82",
+    "features": [
+      "yoke",
+      "zerofrom"
+    ]
+  },
+  {
+    "name": "zerovec",
+    "version": "0.11.8",
+    "license": "Unicode-3.0",
+    "rust_version": "1.83",
+    "features": [
+      "derive",
+      "yoke"
+    ]
+  },
+  {
+    "name": "zerovec-derive",
+    "version": "0.11.6",
+    "license": "Unicode-3.0",
+    "rust_version": null,
+    "features": []
+  },
+  {
+    "name": "zmij",
+    "version": "1.0.23",
+    "license": "MIT",
+    "rust_version": "1.71",
+    "features": []
+  }
+]

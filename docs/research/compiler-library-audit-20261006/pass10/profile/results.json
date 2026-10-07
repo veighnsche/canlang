@@ -1,0 +1,121 @@
+{
+  "profile": {
+    "opt_level": "z",
+    "strip": true,
+    "lto": true,
+    "codegen_units": 1,
+    "panic": "unwind (default, not overridden)",
+    "same_profile_baseline_final": true
+  },
+  "pins": {
+    "baseline_git": "309644a6881909d8dba32560bc6711f67e00a7ab",
+    "final_source_snapshot_git": "db495c649880f0eae72f6a42ef60fcc9e904796f",
+    "production_source_git_at_build": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+    "source_snapshot_git_metadata": "absent; both snapshots report commit unknown",
+    "compiler_input_parity": "source-parity.json",
+    "catalog_current_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "catalog_baseline": "not present in git archive (ignored generated dist artifact); it is not an input to release builds"
+  },
+  "tools": {
+    "native_rustc": "rustc 1.99.0 (2026-09-28)",
+    "native_cargo": "cargo 1.99.0",
+    "linux_rustc": "1.99.0 (b940084d7 2026-09-28, LLVM 23.1.1)",
+    "linux_cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "linux_host": "x86_64-unknown-linux-gnu",
+    "linux_image": "rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+    "linux_platform": "linux/amd64"
+  },
+  "cargo": {
+    "flags": [
+      "--offline",
+      "--locked"
+    ],
+    "CARGO_BUILD_JOBS": 1,
+    "CARGO_INCREMENTAL": 0,
+    "native_target_dir": "/private/tmp/canlang-pass5-profile/current-native-target",
+    "linux_target_dir": "/private/tmp/canlang-pass5-profile/current-linux-target",
+    "cargo_home": "/private/tmp/canlang-pass5-profile/cargo-home",
+    "linux_pull": "never",
+    "linux_network": "none",
+    "Cargo_toml_sha256": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "Cargo_lock_sha256": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "Cargo_files_byte_identical_to_pass8": true
+  },
+  "build_elapsed_seconds": {
+    "native_baseline": 22.435,
+    "native_final_snapshot": 26.449,
+    "production_checkout": 27.4,
+    "linux_baseline_cargo": 31.07,
+    "linux_final_snapshot_cargo": 36.11
+  },
+  "artifacts": {
+    "native_baseline": {
+      "path": "/private/tmp/canlang-pass10-profile/artifacts/native/baseline-can",
+      "bytes": 1918224,
+      "sha256": "c887eb9b69f19ada40ce71b9c427cf9e4046a8a777badf471c98974b812a9cbe",
+      "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+      "help_exit": 0,
+      "cargo_exit": 0,
+      "build_elapsed_seconds": 22.4351118329796,
+      "version_exit": 0
+    },
+    "native_final": {
+      "path": "/private/tmp/canlang-pass10-profile/artifacts/native/final-can",
+      "bytes": 2250544,
+      "sha256": "f650268539b8ef10781ca31af9d60fd7d93c778cade238fa9e88e1d3f3480ffe",
+      "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+      "help_exit": 0,
+      "cargo_exit": 0,
+      "build_elapsed_seconds": 26.44903920800425,
+      "version_exit": 0
+    },
+    "linux_baseline": {
+      "path": "/private/tmp/canlang-pass10-profile/artifacts/linux/baseline-can",
+      "bytes": 2685944,
+      "sha256": "d0f3c8809342fb12474cf6729badb7e21c3d5d35c46a2491e52c7d9f20d9d7cb",
+      "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+      "version_and_help_exit": 0,
+      "help_exit": 0,
+      "cargo_exit": 0,
+      "container_exit": 0,
+      "build_elapsed_seconds": 31.07,
+      "version_exit": 0
+    },
+    "linux_final": {
+      "path": "/private/tmp/canlang-pass10-profile/artifacts/linux/final-can",
+      "bytes": 3079312,
+      "sha256": "11593b11553fc090c4bbcdc37882df644d21a517b7c80f262b71ebd74b470472",
+      "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+      "version_and_help_exit": 0,
+      "help_exit": 0,
+      "cargo_exit": 0,
+      "container_exit": 0,
+      "build_elapsed_seconds": 36.11,
+      "version_exit": 0
+    },
+    "production_checkout": {
+      "path": "/private/tmp/canlang-pass10-profile/release/can",
+      "bytes": 2250544,
+      "sha256": "6405484cb6156faf26f3efc3a32e57cb193b662581c61995842d78f41baa3c4f",
+      "version": "can 0.1.0 (commit aca27c2d; language 1.0; schema 1)",
+      "help_exit": 0,
+      "cargo_exit": 0,
+      "build_elapsed_seconds": 27.4,
+      "version_exit": 0
+    }
+  },
+  "footprint": {
+    "native_delta_bytes": 332320,
+    "native_delta_percent": 17.32,
+    "linux_delta_bytes": 393368,
+    "linux_delta_percent": 14.65
+  },
+  "limits": {
+    "timing": "Cache-warm shared-target measurements only; no clean-build speed claim. Native values are Python perf_counter elapsed; Linux cargo values come from Cargo Finished lines. Docker wrapper wall durations are separately in linux-release-retry-results.json.",
+    "cli": "Fixed basic --version and --help checks only.",
+    "linux_runtime": "No full Linux runtime or Node/package-consumer claim; earlier focused host qualification remains separate.",
+    "licenses_and_features": "Pass8 dependency/checksum/license closure and activated feature reports are copied; Cargo lock/manifest are byte-identical.",
+    "native_metadata": "Full native offline cargo metadata unavailable due missing cached futures-task 0.3.34; see cargo-metadata-errors.log. Linux-filtered metadata and both cargo tree target reports exist.",
+    "temp_footprint": "Whole repo archives were extracted only under task temp (baseline about 146 MiB, final about 167 MiB) because the archive command materialized entire tracked trees. Committed source manifest pins compiler files only; no targets/node_modules copied."
+  }
+}

@@ -2,9 +2,29 @@
 
 The compiler should use focused libraries for standardized infrastructure: JSON, URL and locale parsing, SHA-256, temporary-file ownership, LSP wire types and source-map encoding. Can should continue to own its grammar, semantic rules, authorization analysis and lowering. Several handwritten utilities already cause observable errors; replacing them is more valuable than a broad compiler-framework migration.
 
-These are **proposals**, ordered by correctness and migration scope. Research date: October 6, 2026. Baseline: `309644a6881909d8dba32560bc6711f67e00a7ab`. The [inventory](evidence/baseline.json) pins all 81 tracked compiler files, including 39 source files and 71,473 source lines. Line counts describe scope, not removable code. [Cargo.toml](../../../compiler/Cargo.toml) declares no dependencies and [Cargo.lock](../../../compiler/Cargo.lock) contains only the compiler. The [README](../../../compiler/README.md) describes this as dependency-free; no inspected governing requirement prohibits libraries.
+The detailed audit below preserves the **original proposals and observations** from October 6, 2026. It is historical baseline evidence; its source line numbers and reproduced old failures do not describe the final compiler. Baseline: `309644a6881909d8dba32560bc6711f67e00a7ab`. The [inventory](evidence/baseline.json) pins all 81 tracked compiler files, including 39 source files and 71,473 source lines. Line counts describe scope, not removable code. At that frozen baseline Cargo declared no dependencies and the compiler README described it as dependency-free; no inspected governing requirement prohibited libraries. Current manifests and compiler documentation describe the selected pinned library adapters.
 
-## Recommended replacements
+## Implementation and qualification status
+
+The [Pass10 final receipt](pass10/README.md) integrates selected core substitutions and their actual consumer/release scope. Each accepted change has its own contracts, permanent outcome regressions and independent review; remaining conditional work does not become an implied framework migration.
+
+| Pass | Declared outcome / reference |
+| --- | --- |
+|0 |[Released contracts and witnesses](pass0/README.md) |
+|1 |[Lexer-owned decoded strings](pass1/README.md); secondary IR/analysis decoders retired |
+|2 |[Strict LSP bytes/envelopes](pass2/README.md); IDs/lifecycle explicitly admitted |
+|3 |[Qualified URL adapter](pass3/README.md); locale candidate failed, known locale/identity replacement remains gated |
+|4 |[sha2 and owned tempfile adapters](pass4/README.md); handwritten hash/temp allocation retired |
+|5 |[Typed JSON output families](pass5/README.md); exact Can scalar/ordering/layout policy remains |
+|6 |[Bounded library JSON grammar](pass6/README.md); ordered/raw caller view remains |
+|7 |[Typed LSP output and URI projection](pass7/README.md); current transport retained |
+|8 |[Library source-map codec](pass8/README.md); actual original byte-column consumers qualified |
+|9 |[Separate candidate retain/defer results](pass9/README.md); finite correctness/policy queue, no blanket adoption |
+|10 |[Final checks, retired-path review and release closure](pass10/README.md); product-parent gaps stay explicit |
+
+These pass labels remain local programme references. T15/T37, FP.QUALIFY and FP.INSTALLED-RELEASE keep their original owner/acceptance contracts; utility qualification is not complete product or installed-host acceptance. No merge/living-plan checkpoint advancement follows from this receipt.
+
+## Original recommended replacements
 
 | Priority | Handwritten mechanism and defining code | Proposed replacement | Scope that remains Can-owned |
 | --- | --- | --- | --- |
@@ -91,7 +111,7 @@ The native [values core](../../../packages/values/semantics/src/lib.rs) now cont
 
 ## Proposed follow-through
 
-The [detailed sequence of implementation passes](implementation-passes.md) expands these packets into contracts, exact scope, deliverables, acceptance checks, dependency joins and parallel writer ownership. It remains a proposal; pass labels are not canonical task IDs or implementation releases.
+The [detailed sequence of implementation passes](implementation-passes.md) expands these packets into contracts, exact scope, deliverables, acceptance checks, dependency joins and parallel writer ownership. Its original planning text is preserved alongside the completion receipts above; pass labels are not canonical task IDs or releases to package workers.
 
 [Pass 0 contracts and outcome witnesses](pass0/README.md), prepared 2026-10-07, pin fresh compiler and owning package inputs, exact packet writers, byte/semantic compatibility and scoped unresolved gates. This preparation implements no compiler repair or candidate dependency.
 
@@ -106,13 +126,13 @@ The [detailed sequence of implementation passes](implementation-passes.md) expan
 | Source maps | `codegen/sourcemap.rs` and consumers/tests | Decide original column contract, qualify independently decoded maps and real consumers, preserve artifact fields/order |
 | Optional infrastructure | CLI metadata, ICU parse-core, temporal reuse, graph and position consolidation | Separate bounded comparison; preserve policy and owner boundaries before selecting dependencies |
 
-Parallel implementation would need one shared manifest/lock writer and exclusive writers for `types.rs`, `cli.rs` and serializer families. These packets are planning output; no implementation was launched.
+Parallel implementation would need one shared manifest/lock writer and exclusive writers for `types.rs`, `cli.rs` and serializer families. Those original packets were planning output; their implemented/admitted scope is now recorded in the completion table and receipts above.
 
-## Review and verification
+## Original audit review and verification
 
 Three focused Rust reviews covered protocol/CLI/foundation, codegen/output utilities and syntax/analysis/IDE. An independent challenge rechecked codegen coordinates/string ownership, runtime URL/locale policy, ICU/temporal limits and framework substitutions. It changed the string recommendation to consume the existing token payload first, qualified the source-map claim and rejected a blind `lsp-server` swap. This is targeted responsibility review, not proof that every semantic branch in 71,473 lines was audited or a complete repository/file-tree refresh.
 
-Executed baseline checks passed: **89 library tests**, and **45 integration tests** across `foundation`, `authoring` and `exe`. The additional 17 LSP unit tests reported by the protocol reviewer overlap the 89 and are not counted again. Saved probes establish the uncovered string, URL, locale, LSP and file-mode behavior. Candidate crates were researched through primary documentation/source; none was integrated, benchmarked or cross-platform qualified. Compiler/build/test sources and manifests remain unchanged. The living plan checkpoint is unchanged; no merge occurred.
+At the original audit stage, executed baseline checks passed: **89 library tests**, and **45 integration tests** across `foundation`, `authoring` and `exe`. The additional 17 LSP unit tests reported by the protocol reviewer overlap the 89 and are not counted again. Saved probes establish the uncovered string, URL, locale, LSP and file-mode behavior. Candidate crates were researched through primary documentation/source; none was integrated, benchmarked or cross-platform qualified. At that audit stage compiler/build/test sources and manifests were unchanged. The living plan checkpoint is unchanged; no merge occurred.
 
 The detailed pass sequence received a separate independent scheduling review. Its [planning-only verification](evidence/pass-sequence-verification.json) checks preserved compiler hashes, local links and documentation whitespace; it reruns no product tests and qualifies no candidate dependency.
 

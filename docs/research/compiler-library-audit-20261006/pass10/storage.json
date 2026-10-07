@@ -1,0 +1,88 @@
+{
+  "observed_utc": "2026-10-07T03:11:02.554808+00:00",
+  "ps_exit": 0,
+  "compiler_processes": [],
+  "target_open_file_checks": [
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target",
+      "argv": [
+        "lsof",
+        "-t",
+        "+D",
+        "/Users/vince/Projects/canlang/compiler/target"
+      ],
+      "exit": 1,
+      "pids": [],
+      "stderr": ""
+    },
+    {
+      "path": "/private/tmp/canlang-pass5-profile/current-native-target",
+      "argv": [
+        "lsof",
+        "-t",
+        "+D",
+        "/private/tmp/canlang-pass5-profile/current-native-target"
+      ],
+      "exit": 1,
+      "pids": [],
+      "stderr": ""
+    },
+    {
+      "path": "/private/tmp/canlang-pass5-profile/current-linux-target",
+      "argv": [
+        "lsof",
+        "-t",
+        "+D",
+        "/private/tmp/canlang-pass5-profile/current-linux-target"
+      ],
+      "exit": 1,
+      "pids": [
+        "86010"
+      ],
+      "stderr": ""
+    }
+  ],
+  "footprints": [
+    {
+      "path": "compiler/target",
+      "exit": 0,
+      "kib": 8507448,
+      "stderr": ""
+    },
+    {
+      "path": "/private/tmp/canlang-pass5-profile/current-native-target",
+      "exit": 0,
+      "kib": 513288,
+      "stderr": ""
+    },
+    {
+      "path": "/private/tmp/canlang-pass5-profile/current-linux-target",
+      "exit": 0,
+      "kib": 4855420,
+      "stderr": ""
+    },
+    {
+      "path": "/private/tmp/canlang-pass10-profile",
+      "exit": 0,
+      "kib": 347128,
+      "stderr": ""
+    },
+    {
+      "path": "/private/tmp/canlang-pass10-consumers",
+      "exit": 0,
+      "kib": 1957716,
+      "stderr": ""
+    }
+  ],
+  "disk_free_bytes": 26518429696,
+  "disk_free_gib": 24.7,
+  "cleanup": "none; unique baseline/final/production artifacts, installed proof, sources/Git and shared caches retained; existing target paths reused, no new target tree",
+  "open_pid_identity": [
+    {
+      "pid": "86010",
+      "ps_exit": 0,
+      "identity": "86010 /System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+      "stderr": ""
+    }
+  ]
+}

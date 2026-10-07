@@ -1,0 +1,24 @@
+rustc 1.99.0 (b940084d7 2026-09-28)
+binary: rustc
+commit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4
+commit-date: 2026-09-28
+host: x86_64-unknown-linux-gnu
+release: 1.99.0
+LLVM version: 23.1.1
+cargo 1.99.0 (5f94df478 2026-08-27)
+Linux 9d242be083ab 7.0.14-linuxkit #1 SMP PREEMPT Sun Sep 20 16:14:09 UTC 2026 x86_64 GNU/Linux
+baseline-start=2026-10-07T02:57:45Z
+   Compiling canlang-compiler v0.1.0 (/src/baseline/compiler)
+    Finished `release` profile [optimized] target(s) in 43.75s
+baseline-elapsed-seconds=44
+can 0.1.0 (commit unknown; language 1.0; schema 1)
+final-start=2026-10-07T02:58:29Z
+   Compiling canlang-compiler v0.1.0 (/src/final/compiler)
+    Finished `release` profile [optimized] target(s) in 39.02s
+final-elapsed-seconds=40
+can 0.1.0 (commit unknown; language 1.0; schema 1)
+d0f3c8809342fb12474cf6729badb7e21c3d5d35c46a2491e52c7d9f20d9d7cb  /artifacts/baseline-can
+11593b11553fc090c4bbcdc37882df644d21a517b7c80f262b71ebd74b470472  /artifacts/final-can
+2685944 /artifacts/baseline-can
+3079312 /artifacts/final-can
+5765256 total

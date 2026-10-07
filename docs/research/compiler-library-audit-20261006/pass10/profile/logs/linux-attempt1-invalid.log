@@ -1,0 +1,18 @@
+rustc 1.99.0 (b940084d7 2026-09-28)
+binary: rustc
+commit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4
+commit-date: 2026-09-28
+host: x86_64-unknown-linux-gnu
+release: 1.99.0
+LLVM version: 23.1.1
+cargo 1.99.0 (5f94df478 2026-08-27)
+Linux a0d2c154fee1 7.0.14-linuxkit #1 SMP PREEMPT Sun Sep 20 16:14:09 UTC 2026 x86_64 GNU/Linux
+sh: 1: /usr/bin/time: not found
+can 0.1.0 (commit unknown; language 1.0; schema 1)
+sh: 1: /usr/bin/time: not found
+can 0.1.0 (commit unknown; language 1.0; schema 1)
+aa12c4a6a2328292bb5dd7b86dc2794ed1b1e24d463ac281c25a52d9b5269fe6  /artifacts/baseline-can
+aa12c4a6a2328292bb5dd7b86dc2794ed1b1e24d463ac281c25a52d9b5269fe6  /artifacts/final-can
+3077520 /artifacts/baseline-can
+3077520 /artifacts/final-can
+6155040 total

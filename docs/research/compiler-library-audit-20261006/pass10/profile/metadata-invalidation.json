@@ -1,0 +1,8 @@
+{
+  "action": "refresh build.rs mtime only to invalidate cached snapshot build-script Git observation",
+  "path": "compiler/build.rs",
+  "sha256_before_after": "e2dc104fdaf25d3d1edf5097171ee3766f5ecc21261b0d8fd0452adad715b577",
+  "mtime_ns_before": 1791170054563802717,
+  "mtime_ns_after": 1791341768448375000,
+  "content_change": false
+}

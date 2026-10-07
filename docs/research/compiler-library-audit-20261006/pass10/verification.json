@@ -1,0 +1,30 @@
+{
+  "required_checks": "passed",
+  "full_test_count": 1048,
+  "full_harnesses": 50,
+  "selected_runtime_tests": 6,
+  "selected_runtime_harnesses": 5,
+  "selected_runtime_skip_markers": 0,
+  "release_artifacts_verified": 5,
+  "release_hosts": [
+    "native macOS arm64",
+    "local pinned offline Linux x86_64"
+  ],
+  "final_input_hashes_verified": 114,
+  "release_source_parity_count": 47,
+  "consumer_pre_post_pin_count": 18,
+  "independent_review": "accepted at selected-core declared compiler scope; no blocking correctness/retirement findings",
+  "obsolete_core_removals": "none newly demonstrated; retired predecessors accounted, live compatibility/policy/test adapters retained",
+  "unresolved": [
+    "locale candidate owner profile failure",
+    "finite ICU syntax correction proposals",
+    "specific JEV approval for graph origins and outside-plural pound",
+    "broader path identity policy",
+    "T37/FP.QUALIFY/FP.INSTALLED-RELEASE original acceptance"
+  ],
+  "package_edits": "none by compiler packet; concurrent owner work preserved",
+  "merge_or_living_checkpoint_advancement": false,
+  "evidence_scope": "Final raw receipts/replay scripts, no broad test rerun after documentation-only edits",
+  "documentation_check": "134 local Markdown links/anchors resolve; Pass1..10 economic reminders preserved",
+  "storage": "24.70GiB free; no cleanup; shared Linux VM target open is preserved"
+}
