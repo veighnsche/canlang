@@ -1,0 +1,5633 @@
+{
+  "schema_version": 1,
+  "audit": "boundary-work",
+  "source_pin": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "status": "planning-only/source-only",
+  "fresh_verification": "Read git-pinned sources and compute SHA256; no builds/tests/install/runtime probes or repository/Git mutations. Historical receipts reported at declared finite scope only.",
+  "boundary_records": [
+    {
+      "id": "BW-01",
+      "kind": "current_supported_boundary",
+      "summary": "Live work/state TS ownership plus finite namespaced Rust decision candidates. No TS semantic kernel export, producer join, JS-Wasm ABI, bootstrap/selection, installed native or deployed consumer route. The native callable surface is Rust crate-level; observed callers are finite conformance witnesses, not real product reuse. Current work/state semantic owners remain TS.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/Cargo.toml",
+          "line": 9,
+          "needle": "path = \"rust/lib.rs\""
+        },
+        {
+          "path": "packages/work-kernel/rust/lib.rs",
+          "line": 5,
+          "needle": "pub mod decisions;"
+        },
+        {
+          "path": "packages/work-kernel/decisions/lib.rs",
+          "line": 14,
+          "needle": "pub mod rows;"
+        },
+        {
+          "path": "packages/work-kernel/src/index.ts",
+          "line": 8,
+          "needle": "DECISION_PROFILES,"
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "line": 17,
+          "needle": "\"./distribution\""
+        }
+      ],
+      "gates": [
+        "W02.5",
+        "W03.3",
+        "W03.4",
+        "W04.4",
+        "W05",
+        "W06",
+        "W07",
+        "W08"
+      ]
+    },
+    {
+      "id": "BW-02",
+      "kind": "registered_completed_native_algorithms_at_finite_profile",
+      "summary": "Seven registered families contain decision implementations and embedded finite witnesses. Root comments supersede stale leaf comments claiming unregistered standalone files. Cargo registration is partial W04.4 progress, not original all-prerequisite completion or ABI/adoption. Leaf U16/Value/Error/Row types intentionally remain namespaced; only crate-private numeric_text is shared.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/decisions/lib.rs",
+          "line": 3,
+          "needle": "Leaf-local UTF-16"
+        },
+        {
+          "path": "packages/work-kernel/decisions/lib.rs",
+          "line": 16,
+          "needle": "pub(crate) mod numeric_text;"
+        },
+        {
+          "path": "packages/work-kernel/conformance/registered-native.rs",
+          "line": 16,
+          "needle": "crate::decisions::numeric_text::string(n)"
+        }
+      ],
+      "gate": "W04.4 remains unclosed in original task ledger; native-conformance tracked candidate evidence does not waive W03.4"
+    },
+    {
+      "id": "BW-03",
+      "kind": "minimal_proposed_boundary",
+      "summary": "Preserve owning public TS shells; select only a qualified small pure decision family operating on inert, lossless, already-demanded facts. Reuse existing producer seam and one startup-selected synchronous adapter only after real caller benefit, instead of generic bridge/interface or whole-kernel protocol. First candidates are scalar policy/time predicates or closed lifecycle/fanout planning facts; no authorization verdict, JS callback, arbitrary payload, storage or scheduler ownership crosses. No default switch or TS retirement.",
+      "status": "proposal; no implementation or new accepted semantic decision",
+      "gates": [
+        "W02.5",
+        "W03.3",
+        "W03.4",
+        "W05.1",
+        "W05.3",
+        "W05.4",
+        "W06",
+        "W07",
+        "W08.1",
+        "W08.2"
+      ]
+    },
+    {
+      "id": "BW-04",
+      "kind": "required_ts_ownership",
+      "summary": "TS owns arbitrary-object/getter/proxy demand and original thrown value; demand-ordered random/evidence/supplier/derivation calls, clock/claim minting, optional availability, auth/grants/content reads, hash identity, live membership/checkpoints, observed revisions and one conditional commit. Current candidates with Fn/RandomPort need a host split before JS-Wasm export; do not eagerly pre-collect facts or rerun side effects in shadow/fallback.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/decisions/retry.rs",
+          "line": 191,
+          "needle": "input.random.next_unit()"
+        },
+        {
+          "path": "packages/work-kernel/decisions/every.rs",
+          "line": 223,
+          "needle": "derive_id(&input.app"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 613,
+          "needle": "pub evidence:"
+        },
+        {
+          "path": "packages/work/src/dispatch/index.ts",
+          "line": 174,
+          "needle": "export function attemptDispatch"
+        },
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "line": 104,
+          "needle": "createHash('sha256')"
+        },
+        {
+          "path": "packages/state/src/ports/system.ts",
+          "line": 158,
+          "needle": "const revision = await deps.store.readRevision();"
+        }
+      ]
+    },
+    {
+      "id": "BW-05",
+      "kind": "carrier_profile_guard",
+      "summary": "Do not blanket merge Value/U16/row/error preludes: work safety traversal, state clone-only and passthrough provider data have distinct observable domains. Native owned trees do not represent all JS cycles/proxies/getters; lifecycle Map/Set, receipt Undef/Func tags and rows Rc alias tracking differ. A shared helper is justified only with exact finite domain/profile equivalence; namespace registration performs no structural conversion.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/src/rows.ts",
+          "line": 13,
+          "needle": "'state' direction: StateError"
+        },
+        {
+          "path": "packages/work-kernel/decisions/rows.rs",
+          "line": 34,
+          "needle": "true reference cycles"
+        },
+        {
+          "path": "packages/work-kernel/decisions/lifecycle.rs",
+          "line": 53,
+          "needle": "Map(Rc"
+        },
+        {
+          "path": "packages/work-kernel/decisions/receipt.rs",
+          "line": 111,
+          "needle": "    Undef,"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 262,
+          "needle": "export function withFanoutRowData"
+        }
+      ],
+      "prior_contract_ids": [
+        "SW-064",
+        "SW-085"
+      ]
+    },
+    {
+      "id": "BW-06",
+      "kind": "operation_routing_authority_separation",
+      "summary": "Commands stage via reader-only load/query context; state registry owns readRevision/staging/output checks and single store commit; join assertions own structural batch eligibility, storage owns fenced revision/version and actual serialized bytes. Cloudflare driver orchestrates providers, fresh fences and act-time evidence rereads. Rust outputs can only propose decisions/batches, never claim current authority or commit.",
+      "anchors": [
+        {
+          "path": "packages/state/src/ports/system.ts",
+          "line": 163,
+          "needle": "load: (model, id) => deps.store.load"
+        },
+        {
+          "path": "packages/state/src/ports/system.ts",
+          "line": 174,
+          "needle": "committed = await deps.store.commit({"
+        },
+        {
+          "path": "packages/state/src/ports/transact.ts",
+          "line": 274,
+          "needle": "assertDispatchJoin(batch);"
+        },
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "line": 684,
+          "needle": "await checkWriteVersions(db, batch);"
+        },
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "line": 721,
+          "needle": "JSON.stringify(write.row.data)"
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "line": 84,
+          "needle": "return storage.transactionSync(fn);"
+        }
+      ]
+    },
+    {
+      "id": "BW-07",
+      "kind": "consumer_qualification",
+      "summary": "State fanout shape/lifecycle/membership/progress calls run through real producer-load source seams in Cloudflare F7; they are TS source consumers, not kernel consumers or default installed scheduler proof. Work classifier/planner/commands are injected structurally and concrete donor bindings are observed in tests. Named wait API absent; held/awaiting states are not successful wait completion.",
+      "anchors": [
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 4854,
+          "needle": "retryClass = opts.classifyFailure"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 5162,
+          "needle": "opts.planRecoveryScan({"
+        },
+        {
+          "path": "packages/cloudflare/src/worker/assembly.ts",
+          "line": 1473,
+          "needle": "readonly workCommands:"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 6159,
+          "needle": "producers.join.assertFanoutChildJoin(batch);"
+        }
+      ],
+      "limits": "Memory winner tests and Miniflare D1/workerd DO harnesses remain tests; installed/deployed/native qualifications need own evidence."
+    },
+    {
+      "id": "BW-08",
+      "kind": "receipt_consumer_drift",
+      "summary": "Original W01 state receipt work-loader path was replaced by public @canlang/work/receipt loadWorkReceiptFns. Exact absent observer-module-only fallback is real conditional Node/source consumption; broken observer remains loud. VENDOR_TREES has state/values but no work or work-kernel, so this fallback is not proven packaged Worker closure. Historical excluded state loader keys are stale after relocation; do not label all current receipt consumption test-only.",
+      "anchors": [
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 2965,
+          "needle": "const WORK_RECEIPT_SPECIFIER"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 3326,
+          "needle": "if (!isObserverModuleAbsent(error)) throw error;"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 3336,
+          "needle": "const { observeSelectedReceipt } = await loadWorkReceiptFns()"
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 412,
+          "needle": "export async function loadWorkReceiptFns"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 175,
+          "needle": "const VENDOR_TREES:"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 190,
+          "needle": "vendor/state/receipt/work-loader.js"
+        }
+      ],
+      "prior_ids": [
+        "W-observe",
+        "S-receipt-read",
+        "DD-009"
+      ]
+    },
+    {
+      "id": "BW-09",
+      "kind": "native_wasm_and_release_gates",
+      "summary": "cdylib plus build:wasm command is compile intent, not callable Wasm semantic ABI. No wasm_bindgen/no_mangle/extern C/JS generated glue/backend selector exists in work-kernel sources; host-values is TS test-only lifetime scaffolding, not adapter. Distribution modules descriptor publishes TS directory only; generic package asset tooling elsewhere does not establish Work-specific binary bootstrap.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/Cargo.toml",
+          "line": 8,
+          "needle": "crate-type = [\"cdylib\", \"rlib\"]"
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "line": 25,
+          "needle": "\"build:wasm\""
+        },
+        {
+          "path": "packages/work-kernel/src/distribution.ts",
+          "line": 3,
+          "needle": "modules: new URL"
+        },
+        {
+          "path": "packages/work-kernel/bindings/host-values.ts",
+          "line": 64,
+          "needle": "export class CallScope"
+        }
+      ],
+      "open": [
+        "W05.1 pinned semantic adapter/bootstrap",
+        "W05.2 actual vendor/release request",
+        "W05.3 actual staged workerd binary + failure tests",
+        "W05.4 outside-checkout install/release",
+        "W06 real TS producer/driver/native joins"
+      ]
+    },
+    {
+      "id": "BW-10",
+      "kind": "required_behavior_and_negative_witnesses",
+      "summary": "Preserve authored Can authority/outcomes and deliberate refusal/callback/clone witnesses; distinguish API compatibility observations from independently adopted language rules. SW-062 duplicate/demand and SW-064 alias/clone remain owning questions, not silently revised by port or frozen forever as language semantics. Proposed migration must preserve present compatible API domain until explicit domain change is evaluated. No material new semantic choice made here, so no new JEV consultation.",
+      "prior_ids": [
+        "SW-062",
+        "SW-064",
+        "SW-085",
+        "DR10",
+        "DV11",
+        "DC-05",
+        "DC-07"
+      ],
+      "witnesses": [
+        "lone-surrogate URI refusal and UTF16 order",
+        "f64 -0/nonfinite/exponent counts before u32 narrowing",
+        "work shared-alias reject versus state clone-only admit",
+        "getter/proxy throws retain original and halt later demand",
+        "exhausted backoff consumes zero random samples",
+        "uncertain-only evidence in input order; duplicate last wins then sorted output",
+        "succeeded result identity and omitted/undefined/null",
+        "guard false avoids authority/claim; unavailable-before-guard actual injection qualification",
+        "valid linkage then stale versions precede cyclic serialization; zero writes on failure",
+        "cursor-only maintenance plain port; no eager whole-batch serialization",
+        "stale/cross-call refs, bound refusal and finally disposal",
+        "terminal receipts remain terminal; held/unknown/awaiting never fabricated success"
+      ]
+    }
+  ],
+  "operation_groups": [
+    {
+      "id": "work-row-read",
+      "family": "rows",
+      "functions": [
+        "read_dispatch_row",
+        "read_occurrence_row",
+        "read_schedule_row",
+        "read_every_slot_row",
+        "read_supersession_row",
+        "schedule_row_scope"
+      ],
+      "behavior": "work table shape/state/count/time/presence reads",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "work-row-write",
+      "family": "rows",
+      "functions": [
+        "with_row_data",
+        "new_dispatch_row",
+        "new_occurrence_row",
+        "new_schedule_row",
+        "new_every_slot_row",
+        "new_supersession_row"
+      ],
+      "behavior": "work JSON-safety-before-clone row creation/replacement and metadata",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "work-query-id",
+      "family": "rows",
+      "functions": [
+        "every_slot_row_id",
+        "dispatch_by_origin_query",
+        "dispatch_by_state_query",
+        "schedule_by_key_query"
+      ],
+      "behavior": "work query literals and URI identity",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "fanout-identity",
+      "family": "rows",
+      "functions": [
+        "check_fanout_identity_set",
+        "fanout_intent_row_id",
+        "fanout_checkpoint_row_id",
+        "fanout_child_row_id"
+      ],
+      "behavior": "ordered deduplicated fanout identities, explicit work/state failure direction",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "fanout-row-read",
+      "family": "rows",
+      "functions": [
+        "read_fanout_intent_row",
+        "read_fanout_checkpoint_row",
+        "read_fanout_child_row",
+        "fanout_child_id_of"
+      ],
+      "behavior": "fanout row/cause identity readers with explicit producer direction",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "fanout-row-write",
+      "family": "rows",
+      "functions": [
+        "new_fanout_intent_row",
+        "new_fanout_checkpoint_row",
+        "next_fanout_checkpoint_data",
+        "new_fanout_child_row",
+        "with_fanout_row_data"
+      ],
+      "behavior": "fanout constructors/checkpoint advance/replacement; producer-specific clone semantics",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "fanout-page",
+      "family": "rows",
+      "functions": [
+        "fanout_child_page_query",
+        "fanout_child_page_result"
+      ],
+      "behavior": "bounded deterministic child-page query/result",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "retry-policy",
+      "family": "retry",
+      "functions": [
+        "default_retry_policy",
+        "classify_failure",
+        "assert_policy"
+      ],
+      "behavior": "retry defaults, finite failure classifier and policy validation",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "backoff",
+      "family": "retry",
+      "functions": [
+        "compute_backoff"
+      ],
+      "behavior": "attempt/horizon exhaustion then exactly demanded jitter sample",
+      "host_callback_demand_in_current_candidate": true
+    },
+    {
+      "id": "every-slot",
+      "family": "every",
+      "functions": [
+        "every_scope_key",
+        "compute_every_slot"
+      ],
+      "behavior": "recurrence scope key and fractional-time slot calculation",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "every-admission",
+      "family": "every",
+      "functions": [
+        "admit_every_tick"
+      ],
+      "behavior": "scope validation/coalescing/sorted admission, demand host-derived occurrence id",
+      "host_callback_demand_in_current_candidate": true
+    },
+    {
+      "id": "lifecycle-policy",
+      "family": "lifecycle",
+      "functions": [
+        "default_retry_policy",
+        "classify_failure",
+        "assert_policy"
+      ],
+      "behavior": "namespaced duplicated retry vocabulary used by lifecycle",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "outcome",
+      "family": "lifecycle",
+      "functions": [
+        "record_outcome",
+        "reconcile_uncertain"
+      ],
+      "behavior": "provider delivered/failed/uncertain result and reconciliation transitions",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "receipt-verdict",
+      "family": "receipt",
+      "functions": [
+        "list_dead_letter",
+        "is_consistent_completion",
+        "is_stored_receipt_payload",
+        "is_terminal_receipt_status",
+        "to_receipt_observation"
+      ],
+      "behavior": "closed completion/pending/terminal verdict and receipt/dead-letter projection",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "receipt-row-read",
+      "family": "receipt",
+      "functions": [
+        "association_row_id",
+        "read_association_row",
+        "read_receipt_row"
+      ],
+      "behavior": "association identity and durable receipt decoding",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "receipt-row-write",
+      "family": "receipt",
+      "functions": [
+        "new_association_row",
+        "new_receipt_row",
+        "with_association_row_data",
+        "with_receipt_row_data"
+      ],
+      "behavior": "receipt row construction/revision replacement with JSON-safety-before-clone",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "recovery-vocabulary",
+      "family": "recovery",
+      "functions": [
+        "default_retry_policy",
+        "classify_failure",
+        "assert_retry_policy",
+        "is_terminal_receipt_status",
+        "assert_known_progress_relation"
+      ],
+      "behavior": "local retry/status/relation vocabulary; owner-prefix errors",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "inventory",
+      "family": "recovery",
+      "functions": [
+        "build_inventory",
+        "build_work_inventory"
+      ],
+      "behavior": "inventory counts/mapping; callbacks for commit time/handler contract only when demanded",
+      "host_callback_demand_in_current_candidate": true
+    },
+    {
+      "id": "due-scan",
+      "family": "recovery",
+      "functions": [
+        "scan_due_batch",
+        "drain_due_scan"
+      ],
+      "behavior": "supplier-driven bounded pages, honest cursor and capped-drain completion",
+      "host_callback_demand_in_current_candidate": true
+    },
+    {
+      "id": "stale-release",
+      "family": "recovery",
+      "functions": [
+        "is_claim_stale",
+        "find_stale_claims",
+        "release_stale_claims"
+      ],
+      "behavior": "inclusive age stale calculation, ordered release with last duplicate claim winner",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "staging-failure",
+      "family": "recovery",
+      "functions": [
+        "record_staging_failure"
+      ],
+      "behavior": "staging failure classification/retry/dead transition",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "recovery-plan",
+      "family": "recovery",
+      "functions": [
+        "plan_recovery_scan"
+      ],
+      "behavior": "input-order uncertain evidence demand then sorted decision lists",
+      "host_callback_demand_in_current_candidate": true
+    },
+    {
+      "id": "fanout-recovery",
+      "family": "recovery",
+      "functions": [
+        "is_fanout_claim_stale",
+        "is_fanout_child_exhausted",
+        "plan_fanout_recovery_scan"
+      ],
+      "behavior": "fanout stale/exhausted/admit/terminal/checkpoint plan over supplied closed row/lifecycle facts",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "related-resume",
+      "family": "recovery",
+      "functions": [
+        "plan_related_progress_resume"
+      ],
+      "behavior": "related receipt/progress identity/revision/relation planning",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "linkage-fanout-read",
+      "family": "linkage",
+      "functions": [
+        "check_fanout_identity_set",
+        "fanout_intent_row_id",
+        "fanout_child_row_id",
+        "read_fanout_intent_row",
+        "read_fanout_checkpoint_row",
+        "read_fanout_child_row"
+      ],
+      "behavior": "local state-direction helper duplication; no cross-carrier conversion implied",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "linkage-receipt-read",
+      "family": "linkage",
+      "functions": [
+        "rt_is_stored_receipt_payload",
+        "rt_association_row_id",
+        "rt_read_association_row",
+        "rt_read_receipt_row"
+      ],
+      "behavior": "local receipt reader adaptation preserving ReceiptTableError-before-StateError wrapping",
+      "host_callback_demand_in_current_candidate": false
+    },
+    {
+      "id": "batch-join",
+      "family": "linkage",
+      "functions": [
+        "assert_dispatch_join",
+        "assert_fanout_child_join",
+        "assert_receipt_join"
+      ],
+      "behavior": "structural co-commit assertions before store; guard-false inserts/cursor-only plain path stay distinct",
+      "host_callback_demand_in_current_candidate": false
+    }
+  ],
+  "operation_ownership_map": [
+    {
+      "family": "rows",
+      "native_function": "read_dispatch_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 701
+      },
+      "group": "work-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 357,
+        "symbol": "readDispatchRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 277,
+          "symbol": "readDispatchRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "read_occurrence_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 767
+      },
+      "group": "work-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 395,
+        "symbol": "readOccurrenceRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 314,
+          "symbol": "readOccurrenceRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "read_schedule_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 794
+      },
+      "group": "work-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 415,
+        "symbol": "readScheduleRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 333,
+          "symbol": "readScheduleRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "schedule_row_scope",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 827
+      },
+      "group": "work-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 437,
+        "symbol": "scheduleRowScope"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 354,
+          "symbol": "scheduleRowScope"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "read_every_slot_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 843
+      },
+      "group": "work-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 446,
+        "symbol": "readEverySlotRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 363,
+          "symbol": "readEverySlotRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "read_supersession_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 869
+      },
+      "group": "work-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 466,
+        "symbol": "readSupersessionRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 382,
+          "symbol": "readSupersessionRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "with_row_data",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 902
+      },
+      "group": "work-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 490,
+        "symbol": "withRowData"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 429,
+          "symbol": "withRowData"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "new_dispatch_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 934
+      },
+      "group": "work-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 510,
+        "symbol": "newDispatchRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 453,
+          "symbol": "newDispatchRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "new_occurrence_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 985
+      },
+      "group": "work-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 535,
+        "symbol": "newOccurrenceRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 478,
+          "symbol": "newOccurrenceRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "new_schedule_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1019
+      },
+      "group": "work-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 549,
+        "symbol": "newScheduleRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 491,
+          "symbol": "newScheduleRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "every_slot_row_id",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1064
+      },
+      "group": "work-query-id",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 567,
+        "symbol": "everySlotRowId"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 509,
+          "symbol": "everySlotRowId"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "new_every_slot_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1082
+      },
+      "group": "work-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 577,
+        "symbol": "newEverySlotRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 519,
+          "symbol": "newEverySlotRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "new_supersession_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1102
+      },
+      "group": "work-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 591,
+        "symbol": "newSupersessionRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 532,
+          "symbol": "newSupersessionRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "dispatch_by_origin_query",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1139
+      },
+      "group": "work-query-id",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 608,
+        "symbol": "dispatchByOriginQuery"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 548,
+          "symbol": "dispatchByOriginQuery"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "dispatch_by_state_query",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1157
+      },
+      "group": "work-query-id",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 617,
+        "symbol": "dispatchByStateQuery"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 557,
+          "symbol": "dispatchByStateQuery"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "schedule_by_key_query",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1175
+      },
+      "group": "work-query-id",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 629,
+        "symbol": "scheduleByKeyQuery"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 570,
+          "symbol": "scheduleByKeyQuery"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "check_fanout_identity_set",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1265
+      },
+      "group": "fanout-identity",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 746,
+        "symbol": "checkFanoutIdentitySet"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 170,
+          "symbol": "checkFanoutIdentitySet"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "fanout_intent_row_id",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1306
+      },
+      "group": "fanout-identity",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 773,
+        "symbol": "fanoutIntentRowId"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 743,
+          "symbol": "fanoutIntentRowId"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 200,
+          "symbol": "fanoutIntentRowId"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "fanout_checkpoint_row_id",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1325
+      },
+      "group": "fanout-identity",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 786,
+        "symbol": "fanoutCheckpointRowId"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 755,
+          "symbol": "fanoutCheckpointRowId"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 212,
+          "symbol": "fanoutCheckpointRowId"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "fanout_child_row_id",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1330
+      },
+      "group": "fanout-identity",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 797,
+        "symbol": "fanoutChildRowId"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 766,
+          "symbol": "fanoutChildRowId"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 223,
+          "symbol": "fanoutChildRowId"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "new_fanout_intent_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1358
+      },
+      "group": "fanout-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 810,
+        "symbol": "newFanoutIntentRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 778,
+          "symbol": "newFanoutIntentRow"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 278,
+          "symbol": "newFanoutIntentRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "new_fanout_checkpoint_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1402
+      },
+      "group": "fanout-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 834,
+        "symbol": "newFanoutCheckpointRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 801,
+          "symbol": "newFanoutCheckpointRow"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 301,
+          "symbol": "newFanoutCheckpointRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "next_fanout_checkpoint_data",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1437
+      },
+      "group": "fanout-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 869,
+        "symbol": "nextFanoutCheckpointData"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 836,
+          "symbol": "nextFanoutCheckpointData"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 331,
+          "symbol": "nextFanoutCheckpointData"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "new_fanout_child_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1551
+      },
+      "group": "fanout-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 920,
+        "symbol": "newFanoutChildRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 895,
+          "symbol": "newFanoutChildRow"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 395,
+          "symbol": "newFanoutChildRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "read_fanout_intent_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1619
+      },
+      "group": "fanout-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 961,
+        "symbol": "readFanoutIntentRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 935,
+          "symbol": "readFanoutIntentRow"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 438,
+          "symbol": "readFanoutIntentRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "read_fanout_checkpoint_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1666
+      },
+      "group": "fanout-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 982,
+        "symbol": "readFanoutCheckpointRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 958,
+          "symbol": "readFanoutCheckpointRow"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 465,
+          "symbol": "readFanoutCheckpointRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "read_fanout_child_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1699
+      },
+      "group": "fanout-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 997,
+        "symbol": "readFanoutChildRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 973,
+          "symbol": "readFanoutChildRow"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 480,
+          "symbol": "readFanoutChildRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "with_fanout_row_data",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1775
+      },
+      "group": "fanout-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 1039,
+        "symbol": "withFanoutRowData"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 429,
+          "symbol": "withRowData"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 262,
+          "symbol": "withFanoutRowData"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "fanout_child_id_of",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1796
+      },
+      "group": "fanout-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 1055,
+        "symbol": "fanoutChildIdOf"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 1013,
+          "symbol": "fanoutChildIdOf"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "fanout_child_page_query",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1818
+      },
+      "group": "fanout-page",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 1069,
+        "symbol": "fanoutChildPageQuery"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 1034,
+          "symbol": "fanoutChildPageQuery"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 531,
+          "symbol": "fanoutChildPageQuery"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "rows",
+      "native_function": "fanout_child_page_result",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1899
+      },
+      "group": "fanout-page",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 1123,
+        "symbol": "fanoutChildPageResult"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 1085,
+          "symbol": "fanoutChildPageResult"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 575,
+          "symbol": "fanoutChildPageResult"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "retry",
+      "native_function": "default_retry_policy",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 70
+      },
+      "group": "retry-policy",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/retry.ts",
+        "line": 11,
+        "symbol": "DEFAULT_RETRY_POLICY"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 29,
+          "symbol": "DEFAULT_RETRY_POLICY"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "retry",
+      "native_function": "classify_failure",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 97
+      },
+      "group": "retry-policy",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/retry.ts",
+        "line": 45,
+        "symbol": "classifyFailure"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 54,
+          "symbol": "classifyFailure"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "retry",
+      "native_function": "assert_policy",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 105
+      },
+      "group": "retry-policy",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/retry.ts",
+        "line": 50,
+        "symbol": "assertPolicy"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 84,
+          "symbol": "assertPolicy"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "retry",
+      "native_function": "compute_backoff",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 154
+      },
+      "group": "backoff",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/retry.ts",
+        "line": 90,
+        "symbol": "computeBackoff"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 268,
+          "symbol": "computeBackoff"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "every",
+      "native_function": "every_scope_key",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 116
+      },
+      "group": "every-slot",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/every.ts",
+        "line": 75,
+        "symbol": "everyScopeKey"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "line": 70,
+          "symbol": "everyScopeKey"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "every",
+      "native_function": "compute_every_slot",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 130
+      },
+      "group": "every-slot",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/every.ts",
+        "line": 85,
+        "symbol": "computeEverySlot"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "line": 80,
+          "symbol": "computeEverySlot"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "every",
+      "native_function": "admit_every_tick",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 178
+      },
+      "group": "every-admission",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/every.ts",
+        "line": 115,
+        "symbol": "admitEveryTick"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "line": 129,
+          "symbol": "admitEveryTick"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "lifecycle",
+      "native_function": "default_retry_policy",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 97
+      },
+      "group": "lifecycle-policy",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/retry.ts",
+        "line": 11,
+        "symbol": "DEFAULT_RETRY_POLICY"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 29,
+          "symbol": "DEFAULT_RETRY_POLICY"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "lifecycle",
+      "native_function": "classify_failure",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 112
+      },
+      "group": "lifecycle-policy",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/retry.ts",
+        "line": 45,
+        "symbol": "classifyFailure"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 54,
+          "symbol": "classifyFailure"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "lifecycle",
+      "native_function": "assert_policy",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 120
+      },
+      "group": "lifecycle-policy",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/retry.ts",
+        "line": 50,
+        "symbol": "assertPolicy"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 84,
+          "symbol": "assertPolicy"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "lifecycle",
+      "native_function": "record_outcome",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 206
+      },
+      "group": "outcome",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/lifecycle.ts",
+        "line": 59,
+        "symbol": "recordOutcome"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 108,
+          "symbol": "recordOutcome"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "lifecycle",
+      "native_function": "reconcile_uncertain",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 338
+      },
+      "group": "outcome",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/lifecycle.ts",
+        "line": 155,
+        "symbol": "reconcileUncertain"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 204,
+          "symbol": "reconcileUncertain"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "list_dead_letter",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 351
+      },
+      "group": "receipt-verdict",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 33,
+        "symbol": "listDeadLetter"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 296,
+          "symbol": "listDeadLetter"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "is_consistent_completion",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 394
+      },
+      "group": "receipt-verdict",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 60,
+        "symbol": "isConsistentCompletion"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 326,
+          "symbol": "isConsistentCompletion"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "is_stored_receipt_payload",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 420
+      },
+      "group": "receipt-verdict",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 306,
+        "symbol": "isStoredReceiptPayload"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 238,
+          "symbol": "isStoredReceiptPayload"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "is_terminal_receipt_status",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 445
+      },
+      "group": "receipt-verdict",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 101,
+        "symbol": "isTerminalReceiptStatus"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 369,
+          "symbol": "isTerminalReceiptStatus"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "to_receipt_observation",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 475
+      },
+      "group": "receipt-verdict",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 111,
+        "symbol": "toReceiptObservation"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 378,
+          "symbol": "toReceiptObservation"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "association_row_id",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 553
+      },
+      "group": "receipt-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 191,
+        "symbol": "associationRowId"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 106,
+          "symbol": "associationRowId"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "read_association_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 697
+      },
+      "group": "receipt-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 332,
+        "symbol": "readAssociationRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 264,
+          "symbol": "readAssociationRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "read_receipt_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 751
+      },
+      "group": "receipt-row-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 356,
+        "symbol": "readReceiptRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 288,
+          "symbol": "readReceiptRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "new_association_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 941
+      },
+      "group": "receipt-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 449,
+        "symbol": "newAssociationRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 388,
+          "symbol": "newAssociationRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "new_receipt_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 958
+      },
+      "group": "receipt-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 463,
+        "symbol": "newReceiptRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 402,
+          "symbol": "newReceiptRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "with_association_row_data",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 973
+      },
+      "group": "receipt-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 475,
+        "symbol": "withAssociationRowData"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 414,
+          "symbol": "withAssociationRowData"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "receipt",
+      "native_function": "with_receipt_row_data",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 990
+      },
+      "group": "receipt-row-write",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 492,
+        "symbol": "withReceiptRowData"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 431,
+          "symbol": "withReceiptRowData"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "default_retry_policy",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 136
+      },
+      "group": "recovery-vocabulary",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/retry.ts",
+        "line": 11,
+        "symbol": "DEFAULT_RETRY_POLICY"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 29,
+          "symbol": "DEFAULT_RETRY_POLICY"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "classify_failure",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 152
+      },
+      "group": "recovery-vocabulary",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/retry.ts",
+        "line": 45,
+        "symbol": "classifyFailure"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 54,
+          "symbol": "classifyFailure"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "assert_retry_policy",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 160
+      },
+      "group": "recovery-vocabulary",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 692,
+        "symbol": "assertFanoutRetryPolicy"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 710,
+          "symbol": "assertFanoutRetryPolicy"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "is_terminal_receipt_status",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 196
+      },
+      "group": "recovery-vocabulary",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 101,
+        "symbol": "isTerminalReceiptStatus"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 369,
+          "symbol": "isTerminalReceiptStatus"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "build_inventory",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 218
+      },
+      "group": "inventory",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 46,
+        "symbol": "buildInventory"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 53,
+          "symbol": "buildInventory"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "build_work_inventory",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 274
+      },
+      "group": "inventory",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 112,
+        "symbol": "buildWorkInventory"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 120,
+          "symbol": "buildWorkInventory"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "scan_due_batch",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 346
+      },
+      "group": "due-scan",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 180,
+        "symbol": "scanDueBatch"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 188,
+          "symbol": "scanDueBatch"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "drain_due_scan",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 386
+      },
+      "group": "due-scan",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 218,
+        "symbol": "drainDueScan"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 226,
+          "symbol": "drainDueScan"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "is_claim_stale",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 425
+      },
+      "group": "stale-release",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 240,
+        "symbol": "isClaimStale"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 248,
+          "symbol": "isClaimStale"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "find_stale_claims",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 444
+      },
+      "group": "stale-release",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 255,
+        "symbol": "findStaleClaims"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 263,
+          "symbol": "findStaleClaims"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "release_stale_claims",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 472
+      },
+      "group": "stale-release",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 283,
+        "symbol": "releaseStaleClaims"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 290,
+          "symbol": "releaseStaleClaims"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "record_staging_failure",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 527
+      },
+      "group": "staging-failure",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 336,
+        "symbol": "recordStagingFailure"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 345,
+          "symbol": "recordStagingFailure"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "plan_recovery_scan",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 642
+      },
+      "group": "recovery-plan",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 458,
+        "symbol": "planRecoveryScan"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 466,
+          "symbol": "planRecoveryScan"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "is_fanout_claim_stale",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 834
+      },
+      "group": "fanout-recovery",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 648,
+        "symbol": "isFanoutClaimStale"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 664,
+          "symbol": "isFanoutClaimStale"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "is_fanout_child_exhausted",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 862
+      },
+      "group": "fanout-recovery",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 670,
+        "symbol": "isFanoutChildExhausted"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 688,
+          "symbol": "isFanoutChildExhausted"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "plan_fanout_recovery_scan",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 894
+      },
+      "group": "fanout-recovery",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 741,
+        "symbol": "planFanoutRecoveryScan"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 764,
+          "symbol": "planFanoutRecoveryScan"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "assert_known_progress_relation",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 1128
+      },
+      "group": "recovery-vocabulary",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 943,
+        "symbol": "assertKnownProgressRelation"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/observation/association.ts",
+          "line": 376,
+          "symbol": "assertKnownProgressRelation"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "recovery",
+      "native_function": "plan_related_progress_resume",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 1196
+      },
+      "group": "related-resume",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "line": 975,
+        "symbol": "planRelatedProgressResume"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "line": 954,
+          "symbol": "planRelatedProgressResume"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "check_fanout_identity_set",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 430
+      },
+      "group": "linkage-fanout-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 746,
+        "symbol": "checkFanoutIdentitySet"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 170,
+          "symbol": "checkFanoutIdentitySet"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "fanout_intent_row_id",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 461
+      },
+      "group": "linkage-fanout-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 773,
+        "symbol": "fanoutIntentRowId"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 200,
+          "symbol": "fanoutIntentRowId"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "fanout_child_row_id",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 478
+      },
+      "group": "linkage-fanout-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 797,
+        "symbol": "fanoutChildRowId"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 223,
+          "symbol": "fanoutChildRowId"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "read_fanout_intent_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 546
+      },
+      "group": "linkage-fanout-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 961,
+        "symbol": "readFanoutIntentRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 438,
+          "symbol": "readFanoutIntentRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "read_fanout_checkpoint_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 582
+      },
+      "group": "linkage-fanout-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 982,
+        "symbol": "readFanoutCheckpointRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 465,
+          "symbol": "readFanoutCheckpointRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "read_fanout_child_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 608
+      },
+      "group": "linkage-fanout-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/rows.ts",
+        "line": 997,
+        "symbol": "readFanoutChildRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 480,
+          "symbol": "readFanoutChildRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "rt_is_stored_receipt_payload",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 718
+      },
+      "group": "linkage-receipt-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 306,
+        "symbol": "isStoredReceiptPayload"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 238,
+          "symbol": "isStoredReceiptPayload"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "rt_association_row_id",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 749
+      },
+      "group": "linkage-receipt-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 191,
+        "symbol": "associationRowId"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 106,
+          "symbol": "associationRowId"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "rt_read_association_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 843
+      },
+      "group": "linkage-receipt-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 332,
+        "symbol": "readAssociationRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 264,
+          "symbol": "readAssociationRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "rt_read_receipt_row",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 891
+      },
+      "group": "linkage-receipt-read",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "line": 356,
+        "symbol": "readReceiptRow"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 288,
+          "symbol": "readReceiptRow"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "assert_dispatch_join",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 1016
+      },
+      "group": "batch-join",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/linkage.ts",
+        "line": 83,
+        "symbol": "assertDispatchJoin"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/ports/transact.ts",
+          "line": 206,
+          "symbol": "assertDispatchJoin"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "assert_fanout_child_join",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 1095
+      },
+      "group": "batch-join",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/linkage.ts",
+        "line": 173,
+        "symbol": "assertFanoutChildJoin"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/ports/transact.ts",
+          "line": 328,
+          "symbol": "assertFanoutChildJoin"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    },
+    {
+      "family": "linkage",
+      "native_function": "assert_receipt_join",
+      "native_anchor": {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 1287
+      },
+      "group": "batch-join",
+      "extracted_ts": {
+        "path": "packages/work-kernel/src/linkage.ts",
+        "line": 335,
+        "symbol": "assertReceiptJoin"
+      },
+      "live_ts_owners": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "line": 510,
+          "symbol": "assertReceiptJoin"
+        }
+      ],
+      "registered": true,
+      "production_route": "live donor TS (conditional/injected consumers qualified separately); no kernel adoption",
+      "native_wasm_abi": false
+    }
+  ],
+  "operation_counts": {
+    "rows": 31,
+    "retry": 4,
+    "every": 3,
+    "lifecycle": 5,
+    "receipt": 12,
+    "recovery": 18,
+    "linkage": 13
+  },
+  "profiles": [
+    {
+      "id": "work-rows",
+      "ts_owner": "packages/work/src/kernel/tables.ts",
+      "native": "packages/work-kernel/decisions/rows.rs",
+      "value": "Rc array/object ordered member vectors, f64 bits, U16; owned DAGs cannot represent true cycles/function/symbol inputs",
+      "clone": "JSON-safety traversal first; never-pruned seen rejects repeated identity; native clone is leaf model not general structuredClone",
+      "order": "integer-index keys ascending then insertion; UTF16 sort; URI lone-surrogate refusal",
+      "errors": "KernelTableError; URIError (engine-variable text)"
+    },
+    {
+      "id": "state-fanout",
+      "ts_owner": "packages/state/src/fanout/tables.ts",
+      "native": "packages/work-kernel/decisions/rows.rs",
+      "value": "same rows model with explicit Direction::State, not a general clone carrier",
+      "clone": "state clone-only replacements admit cycles/aliases supported by structuredClone; unknown arbitrary-object path stays TS",
+      "order": "shared identities/row shape order but profile-specific prefix and errors",
+      "errors": "StateError code validation; URIError"
+    },
+    {
+      "id": "retry",
+      "ts_owner": "packages/work/src/receipt/index.ts",
+      "native": "packages/work-kernel/decisions/retry.rs",
+      "value": "f64 attempts/instants/policy/jitter, U16 fixed cause vocabulary",
+      "clone": "no payload clone",
+      "order": "validate/exhaust before random sample; never consume sample on exhausted path",
+      "errors": "PolicyError envelope represents RangeError"
+    },
+    {
+      "id": "every",
+      "ts_owner": "packages/work/src/schedule/every.ts",
+      "native": "packages/work-kernel/decisions/every.rs",
+      "value": "f64 time/slot, U16 scope/owner/ids, supplied Fn derivation",
+      "clone": "no payload clone",
+      "order": "root refusal, validation, coalescing/sorted admission; host Node SHA256 identity remains owner",
+      "errors": "EveryError name/message plus optional scope, RangeError and RootRecurrenceNotSupportedError"
+    },
+    {
+      "id": "lifecycle",
+      "ts_owner": "packages/work/src/receipt/index.ts",
+      "native": "packages/work-kernel/decisions/lifecycle.rs",
+      "value": "owned Vec array/object and Rc Map/Set passthrough model; f64 exact bits/U16",
+      "clone": "provider result passes through host identity in TS; native model structurally cloned value is not whole host identity proof",
+      "order": "state/time/policy validation, closed cause, first-attempt horizon; reconcile supplied evidence",
+      "errors": "LifecycleError envelope represents RangeError"
+    },
+    {
+      "id": "receipt",
+      "ts_owner": [
+        "packages/work/src/receipt/index.ts",
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "native": "packages/work-kernel/decisions/receipt.rs",
+      "value": "Rc ordered object/array plus Undef/Func corpus tags; U16/f64; receipt passthrough and row paths distinct",
+      "clone": "TS completion result retained; stored receipt writes JSON-safety-before-clone; native tagged corpus not arbitrary getter/proxy execution",
+      "order": "closed own error fields; omitted/undefined versus null; association/revision and decode first-failure order",
+      "errors": "ReceiptFailure name/message for RangeError/ReceiptTableError/URIError"
+    },
+    {
+      "id": "recovery",
+      "ts_owner": "packages/work/src/recovery/index.ts",
+      "native": "packages/work-kernel/decisions/recovery.rs",
+      "value": "owned Vec arrays/objects, U16, f64; resolver/supplier/evidence Fn interfaces",
+      "clone": "native data pass-through structurally compared; TS callbacks/payload identity remain host",
+      "order": "input demand order before sorted output; last duplicate claim wins; bounded pages and explicit done=false",
+      "errors": "RecoveryError name/message Error or RangeError; relation identity failures"
+    },
+    {
+      "id": "linkage",
+      "ts_owner": [
+        "packages/state/src/ports/transact.ts",
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "native": "packages/work-kernel/decisions/linkage.rs",
+      "value": "own Rc ordered value/row model and local state/receipt readers; U16/f64",
+      "clone": "assertion data inspection only; no eager whole-batch JSON serialization",
+      "order": "join assertion before storage version/revision checks then serialization; cursor-only maintenance plain port",
+      "errors": "LinkageError name/code/message; ReceiptTableError caught locally and wrapped StateError validation, URIError"
+    }
+  ],
+  "family_callers": {
+    "rows": [
+      {
+        "path": "packages/work/src/kernel/commands.ts",
+        "line": 164,
+        "needle": "data: readDispatchRow(row)"
+      },
+      {
+        "path": "packages/work/src/dispatch/index.ts",
+        "line": 375,
+        "needle": "fanoutChildOutcomeFromRow(readFanoutChildRow(row))"
+      },
+      {
+        "path": "packages/state/src/fanout/membership.ts",
+        "line": 249,
+        "needle": "admitted.add(readFanoutChildRow(row).recordId)"
+      },
+      {
+        "path": "packages/state/src/fanout/outcome.ts",
+        "line": 143,
+        "needle": "const data = readFanoutChildRow(input.row)"
+      },
+      {
+        "path": "packages/state/src/fanout/progress.ts",
+        "line": 89,
+        "needle": "const child = readFanoutChildRow(row)"
+      },
+      {
+        "path": "packages/cloudflare/src/runtime/invoke.ts",
+        "line": 6138,
+        "needle": "row: producers.tables.newFanoutChildRow("
+      }
+    ],
+    "retry": [
+      {
+        "path": "packages/cloudflare/src/runtime/invoke.ts",
+        "line": 4854,
+        "needle": "retryClass = opts.classifyFailure(providerOutcome.cause)"
+      }
+    ],
+    "every": [
+      {
+        "path": "packages/work/src/schedule/every.ts",
+        "line": 136,
+        "needle": "computeEverySlot(input.nowMs, input.periodMs)"
+      },
+      {
+        "path": "packages/testkit/conformance/ports/observations.mjs",
+        "line": 260,
+        "needle": "computeEverySlot(3600000, 60000)"
+      }
+    ],
+    "lifecycle": [
+      {
+        "path": "packages/testkit/conformance/ports/observations.mjs",
+        "line": 276,
+        "needle": "reconcileUncertain(uncertain,"
+      }
+    ],
+    "receipt": [
+      {
+        "path": "packages/state/src/receipt/join.ts",
+        "line": 301,
+        "needle": "readReceiptRow("
+      },
+      {
+        "path": "packages/work/src/observation/association.ts",
+        "line": 308,
+        "needle": "isConsistentCompletion(status, result, error)"
+      },
+      {
+        "path": "packages/cloudflare/src/runtime/invoke.ts",
+        "line": 3336,
+        "needle": "const { observeSelectedReceipt } = await loadWorkReceiptFns()"
+      }
+    ],
+    "recovery": [
+      {
+        "path": "packages/cloudflare/src/runtime/invoke.ts",
+        "line": 5162,
+        "needle": "opts.planRecoveryScan({"
+      },
+      {
+        "path": "packages/cloudflare/src/deploy/activate.ts",
+        "line": 245,
+        "needle": "gates.buildWorkInventory("
+      }
+    ],
+    "linkage": [
+      {
+        "path": "packages/state/src/ports/transact.ts",
+        "line": 274,
+        "needle": "assertDispatchJoin(batch);"
+      },
+      {
+        "path": "packages/state/src/ports/transact.ts",
+        "line": 456,
+        "needle": "assertFanoutChildJoin(batch);"
+      },
+      {
+        "path": "packages/state/src/receipt/tables.ts",
+        "line": 575,
+        "needle": "assertReceiptJoin(batch);"
+      },
+      {
+        "path": "packages/cloudflare/src/runtime/invoke.ts",
+        "line": 6159,
+        "needle": "producers.join.assertFanoutChildJoin(batch);"
+      }
+    ]
+  },
+  "prior_responsibility_records": [
+    {
+      "id": "S-child-join",
+      "owner": "state",
+      "responsibility": "Fanout child/outbox/checkpoint lineage assertion and optional atomic commit wrapper",
+      "caller_status": "test-only-observed-call",
+      "callers": [
+        {
+          "kind": "test call/construction",
+          "line": 465,
+          "path": "packages/work/test/state-fanout/t34-f5-child-join.test.ts",
+          "symbol": "assertFanoutChildJoin",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 651,
+          "path": "packages/work/test/state-fanout/t34-f5-child-join.test.ts",
+          "symbol": "createFanoutChildJoinPort",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 148,
+          "path": "packages/work/test/state-fanout/t34-f5-progress.test.ts",
+          "symbol": "createFanoutChildJoinPort",
+          "test_path": true
+        }
+      ],
+      "limits": [
+        "Only recipient-test factory usage observed"
+      ]
+    },
+    {
+      "id": "S-fanout-shape",
+      "owner": "state",
+      "responsibility": "Cohort/cutoff/child identities, intent/checkpoint/child structural row codecs and bounded child pages",
+      "caller_status": "conditional-production",
+      "callers": [
+        {
+          "kind": "call",
+          "line": 6032,
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "symbol": "producers.cohort.checkCutoffSpec",
+          "test_path": false
+        }
+      ],
+      "limits": [
+        "Exported fanout harness source; default production fetch work adoption unproved"
+      ]
+    },
+    {
+      "id": "S-receipt-probe",
+      "owner": "state",
+      "responsibility": "Probe exact intentionally absent observer module and expose URL for absent-only fallback",
+      "caller_status": "production-observed-source",
+      "callers": [
+        {
+          "kind": "call",
+          "line": 3324,
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "symbol": "loadReceiptObserver",
+          "test_path": false
+        },
+        {
+          "kind": "installed regression assertion",
+          "line": 120,
+          "path": "scripts/verify-installed-worker.mjs",
+          "symbol": "receipt.loadReceiptObserver",
+          "test_path": false
+        }
+      ],
+      "limits": [
+        "Probe is real execution behavior; absent observer is not an implemented observer"
+      ]
+    },
+    {
+      "id": "S-receipt-read",
+      "owner": "state",
+      "responsibility": "Fence owner row then delivery schema/grant authorization, stored associations/receipt decode, content availability and selected observation",
+      "caller_status": "conditional-production",
+      "callers": [
+        {
+          "kind": "call",
+          "line": 3422,
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "symbol": "observeSelectedReceiptJoin",
+          "test_path": false
+        }
+      ],
+      "limits": [
+        "Default work observer fallback source exists but bundled work receipt import is not rewritten/staged",
+        "Cloudflare comment calls fallback TEST-ONLY (runtime/invoke.ts:3284), but owning work/receipt loader is a public real API (receipt/index.ts:412); existing Node fallback integration is conditional, default installed Worker binding unresolved."
+      ]
+    },
+    {
+      "id": "S-receipt-write",
+      "owner": "state",
+      "responsibility": "Association/receipt row construction and optional atomic outbox/completion consistency join",
+      "caller_status": "test-only-observed-call",
+      "callers": [
+        {
+          "kind": "test call/construction",
+          "line": 211,
+          "path": "packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
+          "symbol": "newAssociationRow",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 226,
+          "path": "packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
+          "symbol": "newReceiptRow",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 248,
+          "path": "packages/cloudflare/src/runtime/d3b-join-assembly.test.ts",
+          "symbol": "newAssociationRow",
+          "test_path": true
+        }
+      ],
+      "limits": [
+        "Read codecs run conditionally; write wrapper production caller not observed"
+      ]
+    },
+    {
+      "id": "W-dispatch",
+      "owner": "work",
+      "responsibility": "Ordered commit/supersession/state/availability/guard/fresh-authority claim decision plus fanout claim/outcome/progress",
+      "caller_status": "conditional-production",
+      "callers": [],
+      "limits": [
+        "Work-owned kernel binding in recipient tests; exported Cloudflare structural harness has no default fetch work loop"
+      ]
+    },
+    {
+      "id": "W-dispatch-commands",
+      "owner": "work",
+      "responsibility": "Fenced state-system bodies for dispatch stage/claim/record/requeue/release/supersede/recover and occurrence receipt",
+      "caller_status": "conditional-production",
+      "callers": [],
+      "limits": [
+        "Assembly injects arrays; observed real registrations are recipient tests"
+      ]
+    },
+    {
+      "id": "W-event",
+      "owner": "work",
+      "responsibility": "Occurrence dedup/replay and committed-change handler gate",
+      "caller_status": "test-only-observed-call",
+      "callers": [
+        {
+          "kind": "test call/construction",
+          "line": 23,
+          "path": "packages/work/test/event.test.ts",
+          "symbol": "admitOccurrence",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 112,
+          "path": "packages/work/test/event.test.ts",
+          "symbol": "admitCommittedChange",
+          "test_path": true
+        }
+      ],
+      "limits": [
+        "Production receiver binding unobserved"
+      ]
+    },
+    {
+      "id": "W-every",
+      "owner": "work",
+      "responsibility": "Recurring scope/slot arithmetic, coalescing and occurrence IDs with root recurrence refusal",
+      "caller_status": "test-only-observed-call",
+      "callers": [
+        {
+          "kind": "test call/construction",
+          "line": 260,
+          "path": "packages/testkit/conformance/ports/observations.mjs",
+          "symbol": "computeEverySlot",
+          "test_path": false
+        },
+        {
+          "kind": "test call/construction",
+          "line": 263,
+          "path": "packages/testkit/conformance/ports/observations.mjs",
+          "symbol": "deriveRecurringOccurrenceId",
+          "test_path": false
+        }
+      ],
+      "limits": [
+        "Separate durable advance command does not prove periodic tick binding; original T08 adoption unproved"
+      ]
+    },
+    {
+      "id": "W-intent",
+      "owner": "work",
+      "responsibility": "Stable outbox identity/frozen requests, staged versus committed gate/origin, dispatch staging plan and fanout lineage",
+      "caller_status": "test-only-observed-call",
+      "callers": [
+        {
+          "kind": "test call/construction",
+          "line": 24,
+          "path": "packages/work/src/dispatch/t32b-fence.test.ts",
+          "symbol": "stageOutboxIntent",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 31,
+          "path": "packages/work/src/dispatch/t32b-fence.test.ts",
+          "symbol": "commitOutboxIntent",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 41,
+          "path": "packages/work/test/dispatch-unavailable.test.ts",
+          "symbol": "stageOutboxIntent",
+          "test_path": true
+        }
+      ],
+      "limits": [
+        "Cloudflare structural staging mirror is not a call to this producer"
+      ]
+    },
+    {
+      "id": "W-observe",
+      "owner": "work",
+      "responsibility": "Authorized selected receipt observation, locator consistency, leaf projection and fresh-fence decisions; resolve real owner receipt functions",
+      "caller_status": "conditional-production",
+      "callers": [
+        {
+          "kind": "call",
+          "line": 3336,
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "symbol": "loadWorkReceiptFns",
+          "test_path": false
+        }
+      ],
+      "limits": [
+        "Fallback is real source caller; work package missing from state-only vendor rewrite, installed serving unproved",
+        "Cloudflare comment calls fallback TEST-ONLY (runtime/invoke.ts:3284), but owning work/receipt loader is a public real API (receipt/index.ts:412); existing Node fallback integration is conditional, default installed Worker binding unresolved."
+      ]
+    },
+    {
+      "id": "W-port-types",
+      "owner": "work",
+      "responsibility": "Clock/random/claim/outbox/schedule/occurrence/supersession and observation grant/content contracts",
+      "caller_status": "type-contract",
+      "callers": [],
+      "limits": []
+    },
+    {
+      "id": "W-progress",
+      "owner": "work",
+      "responsibility": "Identity-matched progress apply, related terminal/retry/cancel transitions and relation allowlist/resume plan",
+      "caller_status": "test-only-observed-call",
+      "callers": [
+        {
+          "kind": "test call/construction",
+          "line": 65,
+          "path": "packages/work/src/observation/t25a-progress.test.ts",
+          "symbol": "applyReceiptProgress",
+          "test_path": true
+        }
+      ],
+      "limits": [
+        "Historical T26 live/installed apply/cancel/resume joins remain unproved; selected read is not progression"
+      ]
+    },
+    {
+      "id": "W-recovery",
+      "owner": "work",
+      "responsibility": "Inventory, bounded due cursor scans, stale claims, staging failure and dispatch/fanout recovery decision plans",
+      "caller_status": "conditional-production",
+      "callers": [
+        {
+          "kind": "injected call",
+          "line": 5162,
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "symbol": "opts.planRecoveryScan",
+          "test_path": false
+        },
+        {
+          "kind": "injected call",
+          "line": 245,
+          "path": "packages/cloudflare/src/deploy/activate.ts",
+          "symbol": "gates.buildWorkInventory",
+          "test_path": false
+        }
+      ],
+      "limits": [
+        "CLI full inventory gate incomplete; recipient injection does not prove runtime producer import; T26 resume not adopted"
+      ]
+    },
+    {
+      "id": "W-retry-lifecycle",
+      "owner": "work",
+      "responsibility": "Provider delivered/failed/uncertain recording; retry class/backoff/horizon/dead-letter; reconcile and consistency",
+      "caller_status": "conditional-production",
+      "callers": [
+        {
+          "kind": "injected call",
+          "line": 4854,
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "symbol": "opts.classifyFailure",
+          "test_path": false
+        }
+      ],
+      "limits": [
+        "Concrete donor classifier injection observed only in recipient tests; structural call is not donor binding"
+      ]
+    },
+    {
+      "id": "W-rows",
+      "owner": "work",
+      "responsibility": "Dispatch/occurrence/schedule/every/supersession and fanout row IDs/codecs/query shapes/metadata validation",
+      "caller_status": "conditional-production",
+      "callers": [],
+      "limits": [
+        "Execution requires work command injection; no production default adoption established"
+      ]
+    },
+    {
+      "id": "W-schedule",
+      "owner": "work",
+      "responsibility": "Synchronous keyed schedule put/replace/cancel and supersession port helper",
+      "caller_status": "test-only-observed-call",
+      "callers": [
+        {
+          "kind": "test call/construction",
+          "line": 63,
+          "path": "packages/work/test/schedule.test.ts",
+          "symbol": "putSchedule",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 110,
+          "path": "packages/work/test/schedule.test.ts",
+          "symbol": "replaceSchedule",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 193,
+          "path": "packages/work/test/schedule.test.ts",
+          "symbol": "cancelSchedule",
+          "test_path": true
+        }
+      ],
+      "limits": [
+        "Production port binding unobserved; retain historical original T08 scheduling limitation"
+      ]
+    },
+    {
+      "id": "W-schedule-commands",
+      "owner": "work",
+      "responsibility": "Fenced keyed schedule put/cancel with supersession and durable every slot advance",
+      "caller_status": "conditional-production",
+      "callers": [],
+      "limits": [
+        "Command exports are useful public APIs; no production periodic caller established"
+      ]
+    },
+    {
+      "id": "W-surface",
+      "owner": "work",
+      "responsibility": "Catalog/distribution and API export assembly",
+      "caller_status": "type-contract",
+      "callers": [],
+      "limits": []
+    },
+    {
+      "id": "W-test-doubles",
+      "owner": "work",
+      "responsibility": "Explicit non-atomic/non-durable unbounded in-memory work and grants/content doubles",
+      "caller_status": "test-only-observed-call",
+      "callers": [
+        {
+          "kind": "test call/construction",
+          "line": 36,
+          "path": "packages/work/src/dispatch/t32b-fence.test.ts",
+          "symbol": "TestOnlyManualClock",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 37,
+          "path": "packages/work/src/dispatch/t32b-fence.test.ts",
+          "symbol": "TestOnlyCounterClaimIds",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 38,
+          "path": "packages/work/src/dispatch/t32b-fence.test.ts",
+          "symbol": "TestOnlyMemorySupersession",
+          "test_path": true
+        }
+      ],
+      "limits": [
+        "Baseline candidate file inclusion must not make runtime test doubles production"
+      ]
+    },
+    {
+      "id": "K-facts",
+      "owner": "work-kernel",
+      "responsibility": "Version/profile/count/presence/provenance/payload references/rejection transport facts and validation",
+      "caller_status": "prototype-unadopted",
+      "callers": [],
+      "limits": [
+        "Prepared types/validators do not implement backend transport"
+      ]
+    },
+    {
+      "id": "K-host",
+      "owner": "work-kernel",
+      "responsibility": "Call-scoped payload ownership/ref generations, retention/clone/mutation, cancellation and cleanup",
+      "caller_status": "prototype-unadopted",
+      "callers": [
+        {
+          "kind": "test call/construction",
+          "line": 25,
+          "path": "packages/work-kernel/conformance/host-values.test.ts",
+          "symbol": "CallScope",
+          "test_path": true
+        },
+        {
+          "kind": "test call/construction",
+          "line": 81,
+          "path": "packages/work-kernel/conformance/host-values.test.ts",
+          "symbol": "runInScope",
+          "test_path": true
+        }
+      ],
+      "limits": [
+        "No real production ABI/backend consumer"
+      ]
+    },
+    {
+      "id": "K-native",
+      "owner": "work-kernel",
+      "responsibility": "Registered namespaced Rust rows/retry/every/lifecycle/receipt/recovery/linkage decision candidates and JS numeric-text conversion",
+      "caller_status": "prototype-unadopted",
+      "callers": [],
+      "limits": [
+        "Inline cfg(test) sections excluded from production claims; no wasm ABI/glue/backend/producer/installed joins"
+      ]
+    },
+    {
+      "id": "K-surface",
+      "owner": "work-kernel",
+      "responsibility": "Version, neutral API exports and distribution descriptor",
+      "caller_status": "type-contract",
+      "callers": [],
+      "limits": [
+        "Staged source is not executed installed owner adoption"
+      ]
+    },
+    {
+      "id": "K-ts-every",
+      "owner": "work-kernel",
+      "responsibility": "Recurring scope/slot/coalescing with injected ID derivation extracted mechanism; live donors retain callers",
+      "caller_status": "prototype-unadopted",
+      "callers": [],
+      "limits": [
+        "Conformance demonstrates candidate equivalence, not adoption"
+      ]
+    },
+    {
+      "id": "K-ts-lifecycle",
+      "owner": "work-kernel",
+      "responsibility": "Provider uncertainty and lifecycle reconciliation extracted mechanism; live donors retain callers",
+      "caller_status": "prototype-unadopted",
+      "callers": [],
+      "limits": [
+        "Conformance demonstrates candidate equivalence, not adoption"
+      ]
+    },
+    {
+      "id": "K-ts-linkage",
+      "owner": "work-kernel",
+      "responsibility": "Dispatch/fanout/receipt batch assertions extracted mechanism; live donors retain callers",
+      "caller_status": "prototype-unadopted",
+      "callers": [],
+      "limits": [
+        "Conformance demonstrates candidate equivalence, not adoption"
+      ]
+    },
+    {
+      "id": "K-ts-receipt",
+      "owner": "work-kernel",
+      "responsibility": "Receipt observation/consistency/association and receipt row codecs extracted mechanism; live donors retain callers",
+      "caller_status": "prototype-unadopted",
+      "callers": [],
+      "limits": [
+        "Conformance demonstrates candidate equivalence, not adoption"
+      ]
+    },
+    {
+      "id": "K-ts-recovery",
+      "owner": "work-kernel",
+      "responsibility": "Inventory/scans/stale/retry/fanout/related progress planning extracted mechanism; live donors retain callers",
+      "caller_status": "prototype-unadopted",
+      "callers": [],
+      "limits": [
+        "Conformance demonstrates candidate equivalence, not adoption"
+      ]
+    },
+    {
+      "id": "K-ts-retry",
+      "owner": "work-kernel",
+      "responsibility": "Retry defaults/classification/backoff extracted mechanism; live donors retain callers",
+      "caller_status": "prototype-unadopted",
+      "callers": [],
+      "limits": [
+        "Conformance demonstrates candidate equivalence, not adoption"
+      ]
+    },
+    {
+      "id": "K-ts-rows",
+      "owner": "work-kernel",
+      "responsibility": "Ordered identities/rows/set and state/work profile errors/JSON cloning extracted mechanism; live donors retain callers",
+      "caller_status": "prototype-unadopted",
+      "callers": [],
+      "limits": [
+        "Conformance demonstrates candidate equivalence, not adoption"
+      ]
+    }
+  ],
+  "prior_required_behavior": [
+    {
+      "id": "SW-051",
+      "owner": "work",
+      "rule": "Work outbox identity is obx_ plus SHA-256 of UTF-8 can-work/outbox-id/v1 NUL operationId NUL source NUL JS index text; changing spelling, encoding or namespace requires explicit stored/provider identity migration.",
+      "classification": "persisted_protocol",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-intent",
+        "W-rows",
+        "W-dispatch-commands"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-052",
+      "owner": "work",
+      "rule": "Staged work is dispatchable only after its owning state fence commits marker and intent atomically; freezing/cloning requests prevents caller mutation, and pure commitOutboxIntent is a model marker helper, not a durable commit.",
+      "classification": "deliberate_security_policy",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-intent",
+        "W-port-types",
+        "W-dispatch",
+        "S-effects",
+        "S-d1-work"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-053",
+      "owner": "work",
+      "rule": "Each trusted committed-change handler has stable runtime occurrence identity, loads current record authority on first execution, and duplicates replay recorded completion without loading/handling again. Transient thrown execution leaves no completion receipt.",
+      "classification": "persisted_protocol",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-event",
+        "W-dispatch-commands"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-054",
+      "owner": "work",
+      "rule": "Schedule key belongs to app/owner/package independently of operation; replace/cancel affects pending predecessor and its undispatched intents atomically with business changes. Already admitted/provider-accepted work may complete.",
+      "classification": "product_requirement",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-schedule",
+        "W-schedule-commands",
+        "W-port-types",
+        "S-system",
+        "S-d1-work"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-055",
+      "owner": "work",
+      "rule": "Recurring every ticks align UTC epoch slots, coalesce missed slots once per compatible app/handler/scope/owner, new scopes begin next slot and removed scopes stop. Root recurrence refuses until authoritative coverage exists.",
+      "classification": "product_requirement",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-every",
+        "W-schedule-commands",
+        "K-ts-every",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-056",
+      "owner": "work",
+      "rule": "Recurring occurrence ID is evr_ SHA-256 UTF-8 can-work/every-id/v1 NUL app/handler/scope/owner/slot; durable every row IDs use percent-encoded every/v1 components. Compatible releases preserve identities.",
+      "classification": "persisted_protocol",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-every",
+        "W-rows",
+        "W-schedule-commands",
+        "K-ts-every",
+        "K-ts-rows",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-057",
+      "owner": "work",
+      "rule": "Dispatch checks committed/supersession/pending/availability/current guard/live authority before minting claim/provider call; fresh transitive scope excludes inherited authority and unknown target/guard cannot become unconditional permission.",
+      "classification": "deliberate_security_policy",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-dispatch",
+        "W-dispatch-commands",
+        "W-port-types"
+      ],
+      "uncertainty": [
+        "Exact helper callback order is scoped source API behavior; command-stage and runtime provider flows use distinct orders. Preserve required no-effect early failures without inventing one universal sequence."
+      ]
+    },
+    {
+      "id": "SW-058",
+      "owner": "work",
+      "rule": "Claim IDs are opaque equality tokens: one fenced pending-to-claimed winner, same presented claim replays, competing claim held; release/recover must not acknowledge uncertain or completed provider work.",
+      "classification": "persisted_protocol",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-dispatch",
+        "W-dispatch-commands",
+        "W-rows",
+        "W-port-types",
+        "W-recovery"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-059",
+      "owner": "work",
+      "rule": "Provider delivered, definite failed and uncertain are distinct; uncertainty cannot trigger duplicate logical payment or claim success until evidence reconciles. Retries reuse original identity; permanent/business require failures are terminal.",
+      "classification": "deliberate_security_policy",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-retry-lifecycle",
+        "W-recovery",
+        "W-dispatch-commands",
+        "K-ts-lifecycle",
+        "K-ts-retry",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-060",
+      "owner": "work",
+      "rule": "Default provider retry policy is eight attempts within 24 hours, exponential jitter; invalid/exhausted backoff consumes no RNG, eligible call consumes one. Exact 1s/1h nominal bounds and fractional/random clamp choices are current mechanism policy with no separate product authority.",
+      "classification": "public_contract",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-retry-lifecycle",
+        "K-ts-retry",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Keep current API compatibility pending owning revised retry policy; exact delay constants can change deliberately without replacing saved provider IDs. Port plans cannot mandate all IEEE numeric edge behavior forever."
+      ]
+    },
+    {
+      "id": "SW-061",
+      "owner": "work",
+      "rule": "Recovery inventories actual retained contracts, scans due pages with honest continuation, and resumes stale claims only with absent completion/evidence. Uncertain evidence reads occur only when demanded and must be reread at action time before authoritative writes.",
+      "classification": "public_contract",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-recovery",
+        "S-d1-work",
+        "S-migration-plan",
+        "W-port-types",
+        "K-ts-recovery",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Injected Cloudflare planRecoveryScan is not evidence of owning work donor production binding; actual scheduler/recovery mount remains open."
+      ]
+    },
+    {
+      "id": "SW-062",
+      "owner": "work",
+      "rule": "Recovery input-order callback traces, last duplicate claim wins and JS lexical sorted output lists are observed seam behavior; exact duplicate resolution and hostile-object traversal are unresolved requirements beyond safe pure caller domain.",
+      "classification": "unresolved_assumption",
+      "disposition": "do not promote parity observation to product mandate; owning decision remains open",
+      "responsibility_ids": [
+        "W-recovery",
+        "K-ts-recovery",
+        "K-native"
+      ],
+      "uncertainty": [
+        "No accepted application rule for duplicate claim lists/getters found. Preserve unknown API until owner evaluates actual callers; no eager evidence loading or invented exception swallowing."
+      ]
+    },
+    {
+      "id": "SW-063",
+      "owner": "work",
+      "rule": "Dispatch/occurrence/schedule/supersession/every/fanout stored row models and codecs carry identity/metadata/status/retry lineage; malformed stored data fails loudly and row ID must agree with derived logical identity where specified.",
+      "classification": "persisted_protocol",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-rows",
+        "W-dispatch-commands",
+        "W-schedule-commands",
+        "K-ts-rows",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-064",
+      "owner": "work",
+      "rule": "Work row safety traversal rejects repeated object identity as cyclic; state row replacement instead clone-only at its own profile. Shared alias rejection and exact clone identity are not established language requirements.",
+      "classification": "unresolved_assumption",
+      "disposition": "do not promote parity observation to product mandate; owning decision remains open",
+      "responsibility_ids": [
+        "W-rows",
+        "K-ts-rows",
+        "K-native",
+        "S-fanout-shape"
+      ],
+      "uncertainty": [
+        "Comment says cyclic but shared alias is rejected too; no independently adopted non-aliasing source rule found. Do not label behavior accident solely from absence; owner can revise with finite caller/stored-data evidence."
+      ]
+    },
+    {
+      "id": "SW-067",
+      "owner": "work",
+      "rule": "Selected receipt observation requires grant for every unique selected leaf before association presence disclosure. Denied is withheld, authorized null association is null, parent grants do not imply ID/siblings, and content/result/error checks remain independent.",
+      "classification": "deliberate_security_policy",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-observe",
+        "S-receipt-read",
+        "S-authority",
+        "K-ts-receipt",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-068",
+      "owner": "work",
+      "rule": "Mutable status/result/error/progress observation enrolls current receipt revision in owner fence without domain version churn; immutable ID-only read and authorized null need no mutable receipt fence.",
+      "classification": "deliberate_security_policy",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-observe",
+        "S-receipt-read",
+        "S-fence",
+        "W-progress",
+        "K-ts-receipt",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-069",
+      "owner": "work",
+      "rule": "Safe summary may outlive result/error/provider/file content; unavailable authorized content yields null but never triggers reconstruct/redelivery/callback replay. Read-time withholding differs from invalid incoming completion.",
+      "classification": "deliberate_security_policy",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-observe",
+        "W-retry-lifecycle",
+        "S-receipt-read",
+        "K-ts-receipt"
+      ],
+      "uncertainty": [
+        "Actual physical pruning and retained summary horizon need owning runtime proof; observation code alone does not implement complete retention lifecycle."
+      ]
+    },
+    {
+      "id": "SW-070",
+      "owner": "work",
+      "rule": "Stored receipt consistency allows pending only with null result/error; succeeded has no error, failed closed code/message and no result, unknown no result/optional safe diagnostic, skipped no payload. Incoming nonpending completion uses its distinct profile.",
+      "classification": "persisted_protocol",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-retry-lifecycle",
+        "W-observe",
+        "S-receipt-read",
+        "S-receipt-write",
+        "K-ts-receipt",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-071",
+      "owner": "work",
+      "rule": "Completion/progress correlates original association deliveryId, verified source, bound declared relation and monotone revision; stale/cross-source/cross-relation messages cannot overwrite current or terminal attempt.",
+      "classification": "deliberate_security_policy",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-progress",
+        "W-observe",
+        "W-recovery",
+        "K-ts-receipt",
+        "K-ts-recovery",
+        "K-native"
+      ],
+      "uncertainty": [
+        "Work helper validates correlation subset; verified binding/owner/team and immutable request digest remain owning service/catalog ingress obligations. Pure relation helper is not complete authenticated backend join."
+      ]
+    },
+    {
+      "id": "SW-072",
+      "owner": "work",
+      "rule": "Progress and durable notification/recovery commit atomically, coalescing/current rereads preserve idempotence; transport success is not business job success, cancellation cannot erase accepted provider evidence or author domain approval.",
+      "classification": "product_requirement",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-progress",
+        "W-recovery",
+        "S-receipt-write"
+      ],
+      "uncertainty": [
+        "Historical T26 durable/backend/default installed apply/cancel/resume joins remain unqualified. Do not equate generic pending skip helper with payments cancel or full provider progress semantics."
+      ]
+    },
+    {
+      "id": "SW-073",
+      "owner": "work",
+      "rule": "T26 relation allowlist is current hardcoded owning standard target universe; no arbitrary string relation may claim original-operation authority. Adding/removing catalog relations must coordinate schemas/producer callbacks and retained work.",
+      "classification": "public_contract",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-progress",
+        "W-recovery",
+        "W-observe",
+        "K-ts-receipt",
+        "K-ts-recovery"
+      ],
+      "uncertainty": [
+        "Exact list is finite current seam, not all future valid operations; actual catalog relation ownership/adoption must precede expansion."
+      ]
+    },
+    {
+      "id": "SW-081",
+      "owner": "work",
+      "rule": "Independent filtered fanout source events retain coverage; no automatic older-sweep supersession without adopted coverage-preserving successor proof. Duplicate replay is distinct from semantic suppression.",
+      "classification": "product_requirement",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-recovery",
+        "W-dispatch",
+        "W-intent",
+        "S-fanout-freeze"
+      ],
+      "uncertainty": [
+        "Accepted default confidence medium and revisable by explicit authored re-trigger requirement. No new skipping/suppression syntax is authorized."
+      ]
+    },
+    {
+      "id": "SW-082",
+      "owner": "work",
+      "rule": "Fanout limits each transaction/page/claim/retry/turn with fair resumable progress, exact done/next cursor, explicit resource admission before success and pending/attention afterward; no fixed 500 cohort quota follows from witness sizes.",
+      "classification": "product_requirement",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-recovery",
+        "W-rows",
+        "W-dispatch",
+        "S-fanout-freeze",
+        "S-fanout-progress",
+        "K-ts-recovery"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-083",
+      "owner": "work-kernel",
+      "rule": "Candidate neutral facts are version/profile tagged ordered producer-owned facts; validate counts before narrowing, retain missing/undefined/null distinction and lossless UTF-16/IEEE values. Unknown versions/profiles fail before evaluation.",
+      "classification": "public_contract",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "K-facts",
+        "K-surface",
+        "K-native",
+        "K-ts-rows"
+      ],
+      "uncertainty": [
+        "Type/validator prototype public leaf exists, but no production ABI/transport/backend/installed consumer adoption. Exact v0 tags are candidate source API only, not persisted application format."
+      ]
+    },
+    {
+      "id": "SW-084",
+      "owner": "work-kernel",
+      "rule": "Opaque payload references stay call-local, retain identity or clone only at owning profile demand point, dispose on all exits including cancellation/load rejection, bound live slots and reject foreign/stale refs; references are never authority tokens or stored IDs.",
+      "classification": "public_contract",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "K-host",
+        "K-facts",
+        "K-ts-rows",
+        "K-ts-receipt"
+      ],
+      "uncertainty": [
+        "Proposed initial port safety goal with current documented prototype API, prototype implementation only. No real production generation/token issuer, ABI consumer or load rejection path binding established; same-token scopes could alias unless caller supplies unique token."
+      ]
+    },
+    {
+      "id": "SW-085",
+      "owner": "work-kernel",
+      "rule": "Current TS neutral row/retry/every/lifecycle/receipt/recovery/linkage and Rust namespaced candidates do not authorize backend substitution. Preserve donor required outcomes while keeping unknown host demand in TS; pure calculation cannot decide fresh authority.",
+      "classification": "unresolved_assumption",
+      "disposition": "retain candidates/proofs at declared scope; no production backend or complete parity claim",
+      "responsibility_ids": [
+        "K-native",
+        "K-ts-every",
+        "K-ts-lifecycle",
+        "K-ts-linkage",
+        "K-ts-receipt",
+        "K-ts-recovery",
+        "K-ts-retry",
+        "K-ts-rows"
+      ],
+      "uncertainty": [
+        "Conformance candidates witness mechanisms, not required behavior or adoption. W04.4 actual ABI assembly, producer imports, installed join, resource measurements and rollback still required."
+      ]
+    },
+    {
+      "id": "SW-086",
+      "owner": "work-kernel",
+      "rule": "JS numeric-text and percent-encoding profiles differ: URI identities retain encodeURIComponent escaping/lone-surrogate refusal, digest identities use JS Number text and UTF-8 replacement. Shared conversion may replace mechanisms only after same persisted bytes prove compatible.",
+      "classification": "persisted_protocol",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "K-native",
+        "K-ts-rows",
+        "K-ts-every",
+        "W-rows",
+        "W-every",
+        "W-intent",
+        "S-fanout-shape",
+        "S-receipt-write"
+      ],
+      "uncertainty": [
+        "Native candidate not adopted; finite JS-to-native number/surrogate compatibility tests remain gates, not host execution proof."
+      ]
+    },
+    {
+      "id": "SW-087",
+      "owner": "work",
+      "rule": "Durable production ports need atomic claim/receipt put-if-absent/commit/supersession semantics. Explicit TestOnly memory stores/grants/clocks are nondurable/non-atomic and cannot establish production implementation or retained authorization.",
+      "classification": "public_contract",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-port-types",
+        "W-test-doubles",
+        "W-dispatch",
+        "S-memory"
+      ],
+      "uncertainty": [
+        "Source inspection only; runtime and installed qualification were not run."
+      ]
+    },
+    {
+      "id": "SW-092",
+      "owner": "work",
+      "rule": "Current customer-bound payment consent is checked by collect at actual dispatch; generic work guard/receipt machinery cannot certify future payment consent or cancel provider-accepted uncertain money. Payment request digest and per-attempt revisions remain owning interface/provider identity.",
+      "classification": "deliberate_security_policy",
+      "disposition": "retain outcome; mechanisms replaceable after scoped compatibility proof",
+      "responsibility_ids": [
+        "W-dispatch",
+        "W-retry-lifecycle",
+        "W-progress",
+        "W-recovery"
+      ],
+      "uncertainty": [
+        "Explicit authority belongs services payment contract/provider dispatcher; no work-only positive claim of live consent enforcement. Coordinate services owner for exact stored consent/digest format and migration."
+      ]
+    }
+  ],
+  "original_task_gate_crosswalk": [
+    {
+      "id": "W01.1",
+      "title": "Pin production/test-only caller, wait and delivery-schema coverage",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "C01.ready"
+      ]
+    },
+    {
+      "id": "W01.2",
+      "title": "Choose the pure leaf graph and assign single writers",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "C01.ready"
+      ]
+    },
+    {
+      "id": "W01.3",
+      "title": "Capture unchanged behavior, clone and persisted-byte baseline",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "C05.ready"
+      ]
+    },
+    {
+      "id": "W01.4",
+      "title": "Ratify workload, budget and supported-profile ledger",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W01.1",
+        "W01.2",
+        "W01.3",
+        "C05.ready"
+      ]
+    },
+    {
+      "id": "W02.1",
+      "title": "Create publishable package-local manifests and build roots",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W01.2",
+        "C02.ready"
+      ]
+    },
+    {
+      "id": "W02.2",
+      "title": "Extract ordered row, identity and set TS mechanisms",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W01.1",
+        "W01.3",
+        "W02.1"
+      ]
+    },
+    {
+      "id": "W02.3",
+      "title": "Extract retry, recurrence and lifecycle TS decisions",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W01.1",
+        "W01.3",
+        "W02.1"
+      ]
+    },
+    {
+      "id": "W02.4",
+      "title": "Extract receipt, recovery and linkage TS decisions",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W01.1",
+        "W01.3",
+        "W02.1"
+      ]
+    },
+    {
+      "id": "W02.5",
+      "title": "Compose package TS façade and legacy row wrappers",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W02.2",
+        "W02.3",
+        "W02.4",
+        "C04.graph"
+      ]
+    },
+    {
+      "id": "W03.1",
+      "title": "Freeze ordered facts and policy-specific ABI types",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W01.1",
+        "W01.2",
+        "W02.1",
+        "C03.ready"
+      ]
+    },
+    {
+      "id": "W03.2",
+      "title": "Implement call-local opaque reference lifecycle",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W03.1"
+      ]
+    },
+    {
+      "id": "W03.3",
+      "title": "Extract demand-ordered legacy host shells and trace tests",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W02.5",
+        "W03.1",
+        "W03.2"
+      ]
+    },
+    {
+      "id": "W03.4",
+      "title": "Verify closed-fact provenance and prepared-vs-legacy traces",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W03.3",
+        "W03.2",
+        "W02.5"
+      ]
+    },
+    {
+      "id": "W04.1",
+      "title": "Port native ordered rows and identity sets",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W02.2",
+        "W03.1",
+        "C03.ready"
+      ]
+    },
+    {
+      "id": "W04.2",
+      "title": "Port native retry, recurrence and lifecycle decisions",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W02.3",
+        "W03.1",
+        "C03.ready"
+      ]
+    },
+    {
+      "id": "W04.3",
+      "title": "Port native receipt, recovery and linkage decisions",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W02.4",
+        "W03.1",
+        "C03.ready"
+      ]
+    },
+    {
+      "id": "W04.4",
+      "title": "Register native modules and run shared conformance",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W04.1",
+        "W04.2",
+        "W04.3",
+        "W03.4"
+      ]
+    },
+    {
+      "id": "W05.1",
+      "title": "Build pinned package-specific Wasm adapter and bootstrap",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W04.4",
+        "W03.2",
+        "C04.ready",
+        "C04.graph"
+      ]
+    },
+    {
+      "id": "W05.2",
+      "title": "Submit package-specific vendor/build/release integration request",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W05.1"
+      ]
+    },
+    {
+      "id": "W05.3",
+      "title": "Verify actual staged workerd binary and loader failures",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W05.4",
+        "C04.ready"
+      ]
+    },
+    {
+      "id": "W06.1",
+      "title": "Join state staging and assertions to the selected pure kernel",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W05.3",
+        "W02.5",
+        "W03.4"
+      ]
+    },
+    {
+      "id": "W06.2",
+      "title": "Join canonical Cloudflare runtime through existing producer seams",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W06.1"
+      ]
+    },
+    {
+      "id": "W06.runtimehandoff",
+      "title": "Release canonical runtime file to validation owner",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W06.2"
+      ]
+    },
+    {
+      "id": "W06.3",
+      "title": "Prove D1/DO race, crash and restart pilot with actual binary",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W06.runtimehandoff",
+        "W05.3",
+        "V09.1"
+      ]
+    },
+    {
+      "id": "W07.1",
+      "title": "Verify persisted bytes, backend swaps and mixed-failure precedence",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W06.3",
+        "W03.4",
+        "C05.ready"
+      ]
+    },
+    {
+      "id": "W07.2",
+      "title": "Implement reproducible complete-call measurement runner",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W01.4",
+        "W03.4",
+        "C05.ready"
+      ]
+    },
+    {
+      "id": "W07.3",
+      "title": "Run final parity, resource and complete-flow measurements",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W07.1",
+        "W07.2",
+        "W06.3",
+        "C05.ready"
+      ]
+    },
+    {
+      "id": "W08.1",
+      "title": "Make explicit native-reuse or prepared-TS benefit decision",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W07"
+      ]
+    },
+    {
+      "id": "W08.2",
+      "title": "Rehearse release selection, disposal and rollback",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W08.1",
+        "W05.3"
+      ]
+    },
+    {
+      "id": "W08.3",
+      "title": "Close source checks and implementation completion ledger",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W08.2",
+        "W08.1"
+      ]
+    },
+    {
+      "id": "W09.1",
+      "title": "Specify separate request/resume scheduler contract and consultation",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W08"
+      ]
+    },
+    {
+      "id": "W09.2",
+      "title": "Prototype scheduler only against a real continuation consumer",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W09.1"
+      ]
+    },
+    {
+      "id": "W09.3",
+      "title": "Record separate scheduler go/no-go and rollout requirements",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W09.2"
+      ]
+    },
+    {
+      "id": "W01",
+      "title": "Capture consumer contracts and behavioral traces — completion gate",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W01.1",
+        "W01.2",
+        "W01.3",
+        "W01.4"
+      ]
+    },
+    {
+      "id": "W02",
+      "title": "Consolidate matching TypeScript mechanics first — completion gate",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W02.1",
+        "W02.foundation",
+        "W02.2",
+        "W02.3",
+        "W02.4",
+        "W02.5"
+      ]
+    },
+    {
+      "id": "W03",
+      "title": "Prepare closed batch facts and host references — completion gate",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W03.1",
+        "W03.2",
+        "W03.3",
+        "W03.4"
+      ]
+    },
+    {
+      "id": "W04",
+      "title": "Implement data-only Rust kernel and native conformance — completion gate",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W04.1",
+        "W04.2",
+        "W04.3",
+        "W04.4"
+      ]
+    },
+    {
+      "id": "W05",
+      "title": "Deliver and initialize the actual Wasm consumer — completion gate",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W05.1",
+        "W05.2",
+        "W05.3",
+        "W05.4"
+      ]
+    },
+    {
+      "id": "W06",
+      "title": "Pilot state staging through actual Cloudflare durable paths — completion gate",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W06.1",
+        "W06.2",
+        "W06.runtimehandoff",
+        "W06.3"
+      ]
+    },
+    {
+      "id": "W07",
+      "title": "Differential, persisted-byte and resource gates — completion gate",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W07.1",
+        "W07.2",
+        "W07.3"
+      ]
+    },
+    {
+      "id": "W08",
+      "title": "Decide adoption, rollout and rollback — completion gate",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W08.1",
+        "W08.2",
+        "W08.3"
+      ]
+    },
+    {
+      "id": "W09",
+      "title": "Deferred request/resume scheduler contract, separate go/no-go — completion gate",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W09.1",
+        "W09.2",
+        "W09.3"
+      ]
+    },
+    {
+      "id": "W02.foundation",
+      "title": "Release minimal pure package foundation to shared graph owner",
+      "recorded_status": "evidence-complete",
+      "dependencies": [
+        "W02.1"
+      ]
+    },
+    {
+      "id": "W05.4",
+      "title": "Verify fulfilled assets in outside-checkout install and release",
+      "recorded_status": "unclosed",
+      "dependencies": [
+        "W05.2",
+        "C04.work-assets"
+      ]
+    }
+  ],
+  "retained_native_evidence": {
+    "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json",
+    "scope": "actual Cargo registration and finite native/shared conformance candidate; no original W04.4 completion",
+    "recorded_status": "implemented-checked-candidate-awaiting-root-independent-review",
+    "registered_modules": [
+      "rows",
+      "retry",
+      "every",
+      "lifecycle",
+      "receipt",
+      "recovery",
+      "linkage"
+    ],
+    "historical_registration_test": {
+      "pass": 315,
+      "failed": 0,
+      "ignored": 1,
+      "ignored_reason": "dynamic observer requires exact private original inputs and runs separately",
+      "numbers": 10213,
+      "numeric_callers": 72
+    },
+    "historical_ts_execution": {
+      "tests": 445,
+      "original_seven_suites": 371,
+      "numeric": 74,
+      "engine": {
+        "node": "v24.21.0",
+        "v8": "13.6.233.17-node.53",
+        "platform": "darwin",
+        "arch": "arm64"
+      },
+      "typecheck_scope": "full actual package strict tsc privately; no transpile exception in final proof",
+      "type_only_fix": "as const negative-control tuple and declaration for existing observeNumber API; frozen runtime assertions unchanged"
+    },
+    "shared_differential_cases": 93,
+    "negative_controls": [
+      "foreign key",
+      "fault code presence",
+      "materialization/random demand"
+    ],
+    "negative_control_scope": "comparator observation-corruption controls; not injected production backend/transport tests",
+    "adoption_claim": false,
+    "fresh_execution": false
+  },
+  "abi_search_matches": [],
+  "source_sha256": {
+    "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+    "docs/research/package-library-audit-20261006/responsibility-callers/responsibilities.jsonl": "3c53a04dad77773000a65b5ebe928f4932889622551698ed685bae90567253ba",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json": "560c250bf7b45cc6f38b5302037695090ef98d395248b3a117784db60efde230",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json": "f73f82460d08600a54a9a5a2f480aa59e72e6d9eab8b82bc46d5ddf824a501c5",
+    "packages/cloudflare/src/deploy/activate.ts": "1f39bfea83761034d1f93665c4f2fc80f444d0706148670637f8b1f7eae8db2c",
+    "packages/cloudflare/src/deploy/bundle.ts": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+    "packages/cloudflare/src/runtime/invoke.ts": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+    "packages/cloudflare/src/worker/assembly.ts": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+    "packages/state/src/fanout/membership.ts": "2b92b84a6e9bb37b27df64278b6c62985145d3589b9af150852cb2ab2a8e50f8",
+    "packages/state/src/fanout/outcome.ts": "cc319f783b6621ccfe2079eb41ec94b436e1e64c9330afd36b7f0df1f7b457af",
+    "packages/state/src/fanout/progress.ts": "a63bd42cd0d882b864b79124fb16aeca895cde234d6faff579ddb0aa92cd51a6",
+    "packages/state/src/fanout/tables.ts": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae",
+    "packages/state/src/ports/system.ts": "85a496859cf838ed2fb24439d1679e799f6e898dfad13d8e59577626418428f7",
+    "packages/state/src/ports/transact.ts": "20ebcc4792bc145d60d16210d19dfec45bb6a1d0961b86973d3bea6b6a01a902",
+    "packages/state/src/receipt/join.ts": "1246a8fa0aac1f4b53512050d8e32c33cae98b843717e7de92fac3b71dc6471d",
+    "packages/state/src/receipt/observer-loader.ts": "add53ef3e6b23068e20a8b51d39c8150a1d0cd78d782cbcd3b2d2816159e1523",
+    "packages/state/src/receipt/tables.ts": "d9d6ec727d3ee80bc7b2036c934ad75df6a58afabeb6fa9e428b21705136230d",
+    "packages/state/src/storage/d1.ts": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+    "packages/state/src/storage/durable-object.ts": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+    "packages/testkit/conformance/ports/observations.mjs": "8b8449cfdda125f9ec74d381894fabf199c1a1bcc6851f273a4ea451e2e56d4b",
+    "packages/work-kernel/Cargo.lock": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+    "packages/work-kernel/Cargo.toml": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+    "packages/work-kernel/bindings/host-values.ts": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+    "packages/work-kernel/conformance/every.test.ts": "188a7da54e3f833f1d3674ab5e23605260d0cc74f024096415b43cb69d4891c1",
+    "packages/work-kernel/conformance/host-values.test.ts": "054d2a2aaee37e331abb940cb68473e4f612501065342c6105adfb4ad221018b",
+    "packages/work-kernel/conformance/lifecycle.test.ts": "2df829ad83761aedd8e054c9d0519137a96dff8bf080fa242c58928ccb6ce510",
+    "packages/work-kernel/conformance/linkage.test.ts": "afa1a902d9d19d1ef23dcdb0b97b2a6f49b7edc4d39e4e7cb96e1ffe6d23ede6",
+    "packages/work-kernel/conformance/receipt.test.ts": "94a16fb8ae8bd92baf7a5fe2f47b0f66ac3bb0f1749f6f810001592e1e87c408",
+    "packages/work-kernel/conformance/recovery.test.ts": "d8feedab3089ed89128739610fc6c5762f731293bea9fabf47b92979f69bb168",
+    "packages/work-kernel/conformance/registered-differential.mjs": "bdbb31eff01512d79d0ed3f4e7a41e7928e7867035d75cc06da71b8ca41574f9",
+    "packages/work-kernel/conformance/registered-native.rs": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a",
+    "packages/work-kernel/conformance/retry.test.ts": "543dc8f2670dc438772ad0a37dfd34e15f93ca897f0dbecfc1cd42fd7aa4b86a",
+    "packages/work-kernel/conformance/rows.test.ts": "46d2eab38d12a615da2e532fbb83c879f86f588cd6ec362a9711105597410ce8",
+    "packages/work-kernel/decisions/every.rs": "9d25cc9b22d28fe2e8c6cd31b18d5605649d15f4c1b70d46ab6860caf79def23",
+    "packages/work-kernel/decisions/lib.rs": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+    "packages/work-kernel/decisions/lifecycle.rs": "70af017dd928e49f0528a6a2a88df913c6ff3f3c8dcb47294b2781953c9f1342",
+    "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+    "packages/work-kernel/decisions/numeric_text.rs": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+    "packages/work-kernel/decisions/receipt.rs": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+    "packages/work-kernel/decisions/recovery.rs": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+    "packages/work-kernel/decisions/retry.rs": "f2d2ee809e2fa112a67de4c699361e214b49885a9b24a02849df80c1903c11cb",
+    "packages/work-kernel/decisions/rows.rs": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+    "packages/work-kernel/package.json": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+    "packages/work-kernel/rust/lib.rs": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+    "packages/work-kernel/src/distribution.ts": "b80bc671dc80c3fbaa1c86dcd920f2347620603d4a18ad012aff5a8d19aae1ee",
+    "packages/work-kernel/src/every.ts": "1996c7e3e1ca693024df3a07033f7248b0cb8afdeb0b17e4826c3b45589ee3dd",
+    "packages/work-kernel/src/index.ts": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+    "packages/work-kernel/src/lifecycle.ts": "9262f69b01c7c0b4d00b7968439bc25dd4c05426008e9362836161d13c82d71c",
+    "packages/work-kernel/src/linkage.ts": "ecc6c6cee42a14e7b012ef47875553d51207902d2498b0adef935a8555a047d4",
+    "packages/work-kernel/src/receipt.ts": "3442bd7a14dab43caa296e03c3575e777856d5003f8365a1cd1c9fe0eb027a4f",
+    "packages/work-kernel/src/recovery.ts": "c65cda6a6898cbfff2f0df57f2e1a67c312da6f4123b4c364a482b5f417d0cf6",
+    "packages/work-kernel/src/retry.ts": "2f95964c9e809ff62b628733e1c9c89c89d65df82ef5f633ca2f86b5896044e4",
+    "packages/work-kernel/src/rows.ts": "5267d759fcb0f17cae6cd9ea864783cc16e793fe0ac6658f4e0d1dbf6d0e0c4d",
+    "packages/work-kernel/tsconfig.json": "be538f73951bafb9b1a89fa55702abfbceab4adb06e2c5e8f869207d57e22bab",
+    "packages/work/package.json": "c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906",
+    "packages/work/src/dispatch/index.ts": "aca8c5b3b72dfca2c7b7085bbb7d0d8d8fd6e3836b88813d1ea76e730b94bfb7",
+    "packages/work/src/index.ts": "fae16a63bb36b3a55f0272518d139077751b819f68e6c36043c258594e6248e3",
+    "packages/work/src/kernel/commands.ts": "3638d31b51317dd3b3fdd2a2935e21044c82ef1a9b63afd6dbfdebe65b3b3c7c",
+    "packages/work/src/kernel/tables.ts": "10bde1f6281574b277fa6b795157c72c40471a12e46c32490b4774e1aea220e7",
+    "packages/work/src/observation/association.ts": "1f655e8417cbe636764e01dd01f85b122560cb4cad867c6d0658486224fca67f",
+    "packages/work/src/receipt/index.ts": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816",
+    "packages/work/src/recovery/index.ts": "870fed2d65118b4b77ce42df4bf0ef655d93ab9a062eff25761bb4df07e3e67f",
+    "packages/work/src/schedule/every.ts": "1f9757d565c93384b12757e86fce184e603062aba8c8e6be0c940219fd700b30"
+  },
+  "working_tree_different_from_pin": [],
+  "gaps": [
+    "no selected real whole-call TS-Wasm consumer",
+    "no work-specific semantic ABI/generated glue/backend bootstrap/selection",
+    "no demand-shell closed-provenance qualification",
+    "no full native/TS persisted-byte/durable race/restart parity",
+    "no installed Work-specific binary workerd failure/rollback evidence",
+    "no complete-call benefit evidence over prepared TS",
+    "original W01 owner reviews and completion parents remain unclosed"
+  ],
+  "native_support_surface": {
+    "classification": "Namespaced carrier constructors/types/constants and callback traits; support declarations, not separate semantic operation families or Wasm exports. No structural conversion is authorized between profiles.",
+    "declarations": [
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 47,
+        "declaration": "pub struct U16(pub Vec<u16>);"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 50,
+        "declaration": "pub fn from_utf8(s: &str) -> U16 {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 53,
+        "declaration": "pub fn from_vec(v: Vec<u16>) -> U16 {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 56,
+        "declaration": "pub fn is_empty(&self) -> bool {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 60,
+        "declaration": "pub fn eq_ascii(&self, s: &str) -> bool {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 66,
+        "declaration": "pub fn array_index(&self) -> Option<u64> {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 115,
+        "declaration": "pub enum Value {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 146,
+        "declaration": "pub fn deep_clone(&self) -> Value {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 160,
+        "declaration": "pub fn shared_clone(&self) -> Value {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 337,
+        "declaration": "pub enum Direction {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 345,
+        "declaration": "pub struct RowsError {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 617,
+        "declaration": "pub const WORK_DISPATCH_MODEL: &str = \"work.dispatch\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 618,
+        "declaration": "pub const WORK_OCCURRENCE_MODEL: &str = \"work.occurrence\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 619,
+        "declaration": "pub const WORK_SCHEDULE_MODEL: &str = \"work.schedule\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 620,
+        "declaration": "pub const WORK_EVERY_SLOT_MODEL: &str = \"work.every_slot\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 621,
+        "declaration": "pub const WORK_SUPERSESSION_MODEL: &str = \"work.supersession\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 624,
+        "declaration": "pub struct DispatchRowData {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 644,
+        "declaration": "pub struct OccurrenceRowData {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 654,
+        "declaration": "pub struct ScheduleRowData {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 668,
+        "declaration": "pub struct EverySlotRowData {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 678,
+        "declaration": "pub struct SupersessionRowData {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 836,
+        "declaration": "pub struct Scope3 {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 880,
+        "declaration": "pub struct NewRowMeta {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 886,
+        "declaration": "pub struct StoredRow {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 925,
+        "declaration": "pub struct NewDispatchInput {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1205,
+        "declaration": "pub const WORK_FANOUT_INTENT_MODEL: &str = \"work.fanout_intent\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1206,
+        "declaration": "pub const WORK_FANOUT_CHECKPOINT_MODEL: &str = \"work.fanout_checkpoint\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1207,
+        "declaration": "pub const WORK_FANOUT_CHILD_MODEL: &str = \"work.fanout_child\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1208,
+        "declaration": "pub const FANOUT_INTENT_MODEL: &str = \"work.fanout_intent\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1209,
+        "declaration": "pub const FANOUT_CHECKPOINT_MODEL: &str = \"work.fanout_checkpoint\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1210,
+        "declaration": "pub const FANOUT_CHILD_MODEL: &str = \"work.fanout_child\";"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1213,
+        "declaration": "pub struct FanoutIntentRowData {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1223,
+        "declaration": "pub struct FanoutCheckpointRowData {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1230,
+        "declaration": "pub struct FanoutChildRowData {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1349,
+        "declaration": "pub struct NewIntentInput {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1394,
+        "declaration": "pub struct NewCheckpointInput {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1539,
+        "declaration": "pub struct NewChildInput {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1805,
+        "declaration": "pub struct ChildId3 {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1812,
+        "declaration": "pub struct PageOpts {"
+      },
+      {
+        "family": "rows",
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "line": 1892,
+        "declaration": "pub struct FanoutChildPage {"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 15,
+        "declaration": "pub struct U16(pub Vec<u16>);"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 18,
+        "declaration": "pub fn from_utf8(s: &str) -> U16 {"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 21,
+        "declaration": "pub fn is_empty(&self) -> bool {"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 24,
+        "declaration": "pub fn eq_ascii(&self, s: &str) -> bool {"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 41,
+        "declaration": "pub struct PolicyError {"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 55,
+        "declaration": "pub struct RetryPolicy {"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 61,
+        "declaration": "pub const DEFAULT_MAX_ATTEMPTS: f64 = 8.0;"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 62,
+        "declaration": "pub const DEFAULT_HORIZON_MS: f64 = 86_400_000.0;"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 65,
+        "declaration": "pub const BACKOFF_BASE_DELAY_MS: f64 = 1000.0;"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 68,
+        "declaration": "pub const BACKOFF_MAX_DELAY_MS: f64 = 3_600_000.0;"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 81,
+        "declaration": "pub trait RandomPort {"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 87,
+        "declaration": "pub enum FailureCause {"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 119,
+        "declaration": "pub struct BackoffInput<R> {"
+      },
+      {
+        "family": "retry",
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "line": 129,
+        "declaration": "pub struct BackoffDecision {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 16,
+        "declaration": "pub struct U16(pub Vec<u16>);"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 19,
+        "declaration": "pub fn from_utf8(s: &str) -> U16 {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 22,
+        "declaration": "pub fn is_empty(&self) -> bool {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 25,
+        "declaration": "pub fn eq_ascii(&self, s: &str) -> bool {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 42,
+        "declaration": "pub struct EveryError {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 62,
+        "declaration": "pub type DeriveId = dyn Fn(&U16, &U16, &U16, &U16, f64) -> U16;"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 66,
+        "declaration": "pub struct EveryScopeInput {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 72,
+        "declaration": "pub struct EveryTickInput {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 90,
+        "declaration": "pub enum PrevSlot {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 96,
+        "declaration": "pub struct RecurringOccurrence {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 106,
+        "declaration": "pub struct EveryTickResult {"
+      },
+      {
+        "family": "every",
+        "path": "packages/work-kernel/decisions/every.rs",
+        "line": 124,
+        "declaration": "pub struct EverySlot {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 15,
+        "declaration": "pub struct U16(pub Vec<u16>);"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 18,
+        "declaration": "pub fn from_utf8(s: &str) -> U16 {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 21,
+        "declaration": "pub fn is_empty(&self) -> bool {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 24,
+        "declaration": "pub fn eq_ascii(&self, s: &str) -> bool {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 46,
+        "declaration": "pub enum Value {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 75,
+        "declaration": "pub struct LifecycleError {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 89,
+        "declaration": "pub struct RetryPolicy {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 94,
+        "declaration": "pub const DEFAULT_MAX_ATTEMPTS: f64 = 8.0;"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 95,
+        "declaration": "pub const DEFAULT_HORIZON_MS: f64 = 86_400_000.0;"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 106,
+        "declaration": "pub enum FailureCause {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 136,
+        "declaration": "pub struct OutboxItem {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 149,
+        "declaration": "pub enum ProviderOutcome {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 160,
+        "declaration": "pub struct RecordOutcomeInput {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 170,
+        "declaration": "pub struct ReceiptError {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 176,
+        "declaration": "pub struct RecordedOutcome {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 317,
+        "declaration": "pub enum ReconcileEvidence {"
+      },
+      {
+        "family": "lifecycle",
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "line": 324,
+        "declaration": "pub struct ReconcileResult {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 21,
+        "declaration": "pub struct U16(pub Vec<u16>);"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 24,
+        "declaration": "pub fn from_utf8(s: &str) -> U16 {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 27,
+        "declaration": "pub fn is_empty(&self) -> bool {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 30,
+        "declaration": "pub fn eq_ascii(&self, s: &str) -> bool {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 35,
+        "declaration": "pub fn array_index(&self) -> Option<u64> {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 104,
+        "declaration": "pub enum Value {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 133,
+        "declaration": "pub fn deep_clone(&self) -> Value {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 315,
+        "declaration": "pub struct ReceiptFailure {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 336,
+        "declaration": "pub struct OutboxItem {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 451,
+        "declaration": "pub struct ReceiptError {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 456,
+        "declaration": "pub struct RecordedReceiptFields {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 463,
+        "declaration": "pub struct ReceiptObservation {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 502,
+        "declaration": "pub const RECEIPT_ASSOCIATION_MODEL: &str = \"work.receipt_association\";"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 505,
+        "declaration": "pub const RECEIPT_MODEL: &str = \"work.receipt\";"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 508,
+        "declaration": "pub struct AssociationRowData {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 521,
+        "declaration": "pub struct ReceiptRowData {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 531,
+        "declaration": "pub struct NewRowMeta {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 537,
+        "declaration": "pub struct StoredRow {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 720,
+        "declaration": "pub struct ReceiptLocator {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 726,
+        "declaration": "pub struct ReceiptAssociation {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 734,
+        "declaration": "pub struct AssociatedReceipt {"
+      },
+      {
+        "family": "receipt",
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "line": 744,
+        "declaration": "pub struct StoredReceiptRow {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 20,
+        "declaration": "pub struct U16(pub Vec<u16>);"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 23,
+        "declaration": "pub fn from_utf8(s: &str) -> U16 {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 26,
+        "declaration": "pub fn is_empty(&self) -> bool {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 29,
+        "declaration": "pub fn eq_ascii(&self, s: &str) -> bool {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 46,
+        "declaration": "pub enum Value {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 107,
+        "declaration": "pub struct RecoveryError {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 128,
+        "declaration": "pub struct RetryPolicy {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 133,
+        "declaration": "pub const DEFAULT_MAX_ATTEMPTS: f64 = 8.0;"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 134,
+        "declaration": "pub const DEFAULT_HORIZON_MS: f64 = 86_400_000.0;"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 145,
+        "declaration": "pub enum FailureCause {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 176,
+        "declaration": "pub struct OutboxItem {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 189,
+        "declaration": "pub enum ReconcileEvidence {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 200,
+        "declaration": "pub struct InventoryInput<'a> {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 208,
+        "declaration": "pub struct PendingWorkInventory {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 253,
+        "declaration": "pub struct WorkInventoryItem {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 259,
+        "declaration": "pub struct WorkInventoryInput<'a> {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 328,
+        "declaration": "pub struct DueScanPage<T> {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 334,
+        "declaration": "pub struct DueScanResult<T> {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 374,
+        "declaration": "pub struct DrainDueScanResult<T> {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 418,
+        "declaration": "pub struct DispatchClaim {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 460,
+        "declaration": "pub struct ReleaseStaleResult {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 508,
+        "declaration": "pub type StagingDisposition = U16;"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 510,
+        "declaration": "pub struct RecordStagingFailureInput {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 520,
+        "declaration": "pub struct RecordedStagingFailure {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 595,
+        "declaration": "pub struct RecoverableRow {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 605,
+        "declaration": "pub struct RecoveryScanInput<'a> {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 624,
+        "declaration": "pub struct RecoveryPlan {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 728,
+        "declaration": "pub struct FanoutChildLifecycle {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 735,
+        "declaration": "pub struct FanoutChildRowData {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 745,
+        "declaration": "pub struct FanoutIntentRowData {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 752,
+        "declaration": "pub struct FanoutCheckpointRowData {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 759,
+        "declaration": "pub struct FanoutRecoverableRow {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 778,
+        "declaration": "pub struct FanoutRecoveryScanInput {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 792,
+        "declaration": "pub struct FanoutSkippedAction {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 799,
+        "declaration": "pub struct FanoutFailedAction {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 809,
+        "declaration": "pub struct FanoutRecoveryPlan {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 1104,
+        "declaration": "pub const T26_KNOWN_RELATION_TARGETS: [&str; 16] = ["
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 1151,
+        "declaration": "pub struct ResumeAssociation {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 1158,
+        "declaration": "pub struct ResumeReceipt {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 1165,
+        "declaration": "pub struct RelatedProgressRowView {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 1172,
+        "declaration": "pub struct RelatedProgressResumeInput {"
+      },
+      {
+        "family": "recovery",
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "line": 1183,
+        "declaration": "pub struct RelatedProgressResumePlan {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 23,
+        "declaration": "pub struct LinkageError {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 42,
+        "declaration": "pub const RECEIPT_ASSOCIATION_MODEL: &str = \"work.receipt_association\";"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 45,
+        "declaration": "pub const RECEIPT_MODEL: &str = \"work.receipt\";"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 49,
+        "declaration": "pub struct U16(pub Vec<u16>);"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 52,
+        "declaration": "pub fn from_utf8(s: &str) -> U16 {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 55,
+        "declaration": "pub fn from_vec(v: Vec<u16>) -> U16 {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 58,
+        "declaration": "pub fn is_empty(&self) -> bool {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 62,
+        "declaration": "pub fn eq_ascii(&self, s: &str) -> bool {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 68,
+        "declaration": "pub fn array_index(&self) -> Option<u64> {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 117,
+        "declaration": "pub enum Value {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 360,
+        "declaration": "pub struct StoredRow {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 372,
+        "declaration": "pub const WORK_FANOUT_INTENT_MODEL: &str = \"work.fanout_intent\";"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 373,
+        "declaration": "pub const WORK_FANOUT_CHECKPOINT_MODEL: &str = \"work.fanout_checkpoint\";"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 374,
+        "declaration": "pub const WORK_FANOUT_CHILD_MODEL: &str = \"work.fanout_child\";"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 375,
+        "declaration": "pub const FANOUT_INTENT_MODEL: &str = \"work.fanout_intent\";"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 376,
+        "declaration": "pub const FANOUT_CHECKPOINT_MODEL: &str = \"work.fanout_checkpoint\";"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 377,
+        "declaration": "pub const FANOUT_CHILD_MODEL: &str = \"work.fanout_child\";"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 380,
+        "declaration": "pub struct FanoutIntentRowData {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 390,
+        "declaration": "pub struct FanoutCheckpointRowData {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 397,
+        "declaration": "pub struct FanoutChildRowData {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 744,
+        "declaration": "pub struct ReceiptError {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 865,
+        "declaration": "pub struct ReceiptLocator {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 870,
+        "declaration": "pub struct ReceiptAssociation {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 877,
+        "declaration": "pub struct AssociatedReceipt {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 885,
+        "declaration": "pub struct StoredReceiptRow {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 940,
+        "declaration": "pub const DISPATCH_JOIN_MODEL: &str = \"work.dispatch\";"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 944,
+        "declaration": "pub struct OutboxIntent {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 949,
+        "declaration": "pub enum WriteKind {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 957,
+        "declaration": "pub struct DomainWrite {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 965,
+        "declaration": "pub struct CommitBatch {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 974,
+        "declaration": "pub struct DispatchJoinRow {"
+      },
+      {
+        "family": "linkage",
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "line": 1084,
+        "declaration": "pub struct FanoutChildJoinOutcome {"
+      }
+    ],
+    "crate_private_shared_numeric_text": [
+      {
+        "path": "packages/work-kernel/decisions/numeric_text.rs",
+        "line": 5,
+        "function": "string(f64) -> String"
+      },
+      {
+        "path": "packages/work-kernel/decisions/numeric_text.rs",
+        "line": 21,
+        "function": "json_token(f64) -> String"
+      }
+    ]
+  },
+  "native_semantic_functions_count": 86,
+  "root_review_reconciliation": {
+    "work-independent-review": "Already-demanded plan facts cannot replace later live evidence/authority checks; native Fn/RandomPort signatures do not prove JS-Wasm callbacks/exceptions."
+  }
+}

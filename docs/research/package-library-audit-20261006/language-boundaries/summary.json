@@ -1,0 +1,27 @@
+{
+  "responsibilities": 316,
+  "inventory_files": 395,
+  "owners": {
+    "cloudflare": 55,
+    "contracts": 30,
+    "files": 14,
+    "identity": 22,
+    "interfaces": 26,
+    "services": 13,
+    "state": 39,
+    "stdlib": 3,
+    "testkit": 9,
+    "ui": 22,
+    "values": 57,
+    "work": 15,
+    "work-kernel": 11
+  },
+  "values_exact_native_operations": 69,
+  "values_common_host_operations": 6,
+  "validation_structural_scaffold_operations": 6,
+  "work_registered_public_native_functions": 86,
+  "work_operation_groups": 27,
+  "detailed_boundary_records": 30,
+  "new_runtime_acceptance": false,
+  "execution_authorized": false
+}

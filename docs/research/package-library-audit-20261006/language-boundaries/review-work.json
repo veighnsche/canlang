@@ -1,0 +1,920 @@
+{
+  "schema_version": 1,
+  "review": "finite_independent_work_boundary_source_challenge",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "clean_room": false,
+  "source_pin": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "source_pin_verification": "Supplied frozen pin; all Git operations prohibited for reviewer. Compared filesystem source SHA256 with packet, not independent Git verification. Root verifies pin.",
+  "input_packet": {
+    "path": "/private/tmp/canlang-boundary-work.json",
+    "sha256": "438bda3efef9b117176454386f75708714613396a36a6ccae3a5feaee9996700"
+  },
+  "scope": "Mechanical challenge of86 native semantic declaration/anchor mappings and27 groups plus sampled high-risk callback/receipt/fanout/carrier/authority source seams. Not full implementation correctness or every control-flow audit.",
+  "methods": [
+    "read-only source inspection",
+    "static declaration/group matching",
+    "source SHA256 comparisons"
+  ],
+  "no_build_test_install_runtime_network_or_repo_git_write": true,
+  "mechanical": {
+    "semantic_counts": {
+      "rows": 31,
+      "retry": 4,
+      "every": 3,
+      "lifecycle": 5,
+      "receipt": 12,
+      "recovery": 18,
+      "linkage": 13
+    },
+    "total": 86,
+    "mapped_unique": 86,
+    "groups": 27,
+    "group_pair_count": 86,
+    "group_duplicates": [],
+    "functions_missing_from_map": [],
+    "map_extras": [],
+    "native_anchor_mismatches": [],
+    "group_membership_mismatches": [],
+    "all_packet_hashes_equal": true,
+    "source_hash_comparisons": [
+      {
+        "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+        "packet_sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+        "review_sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+        "equal": true
+      },
+      {
+        "path": "docs/research/package-library-audit-20261006/responsibility-callers/responsibilities.jsonl",
+        "packet_sha256": "3c53a04dad77773000a65b5ebe928f4932889622551698ed685bae90567253ba",
+        "review_sha256": "3c53a04dad77773000a65b5ebe928f4932889622551698ed685bae90567253ba",
+        "equal": true
+      },
+      {
+        "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json",
+        "packet_sha256": "560c250bf7b45cc6f38b5302037695090ef98d395248b3a117784db60efde230",
+        "review_sha256": "560c250bf7b45cc6f38b5302037695090ef98d395248b3a117784db60efde230",
+        "equal": true
+      },
+      {
+        "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
+        "packet_sha256": "f73f82460d08600a54a9a5a2f480aa59e72e6d9eab8b82bc46d5ddf824a501c5",
+        "review_sha256": "f73f82460d08600a54a9a5a2f480aa59e72e6d9eab8b82bc46d5ddf824a501c5",
+        "equal": true
+      },
+      {
+        "path": "packages/cloudflare/src/deploy/activate.ts",
+        "packet_sha256": "1f39bfea83761034d1f93665c4f2fc80f444d0706148670637f8b1f7eae8db2c",
+        "review_sha256": "1f39bfea83761034d1f93665c4f2fc80f444d0706148670637f8b1f7eae8db2c",
+        "equal": true
+      },
+      {
+        "path": "packages/cloudflare/src/deploy/bundle.ts",
+        "packet_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+        "review_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+        "equal": true
+      },
+      {
+        "path": "packages/cloudflare/src/runtime/invoke.ts",
+        "packet_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+        "review_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+        "equal": true
+      },
+      {
+        "path": "packages/cloudflare/src/worker/assembly.ts",
+        "packet_sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+        "review_sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/fanout/membership.ts",
+        "packet_sha256": "2b92b84a6e9bb37b27df64278b6c62985145d3589b9af150852cb2ab2a8e50f8",
+        "review_sha256": "2b92b84a6e9bb37b27df64278b6c62985145d3589b9af150852cb2ab2a8e50f8",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/fanout/outcome.ts",
+        "packet_sha256": "cc319f783b6621ccfe2079eb41ec94b436e1e64c9330afd36b7f0df1f7b457af",
+        "review_sha256": "cc319f783b6621ccfe2079eb41ec94b436e1e64c9330afd36b7f0df1f7b457af",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/fanout/progress.ts",
+        "packet_sha256": "a63bd42cd0d882b864b79124fb16aeca895cde234d6faff579ddb0aa92cd51a6",
+        "review_sha256": "a63bd42cd0d882b864b79124fb16aeca895cde234d6faff579ddb0aa92cd51a6",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/fanout/tables.ts",
+        "packet_sha256": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae",
+        "review_sha256": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/ports/system.ts",
+        "packet_sha256": "85a496859cf838ed2fb24439d1679e799f6e898dfad13d8e59577626418428f7",
+        "review_sha256": "85a496859cf838ed2fb24439d1679e799f6e898dfad13d8e59577626418428f7",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/ports/transact.ts",
+        "packet_sha256": "20ebcc4792bc145d60d16210d19dfec45bb6a1d0961b86973d3bea6b6a01a902",
+        "review_sha256": "20ebcc4792bc145d60d16210d19dfec45bb6a1d0961b86973d3bea6b6a01a902",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/receipt/join.ts",
+        "packet_sha256": "1246a8fa0aac1f4b53512050d8e32c33cae98b843717e7de92fac3b71dc6471d",
+        "review_sha256": "1246a8fa0aac1f4b53512050d8e32c33cae98b843717e7de92fac3b71dc6471d",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/receipt/observer-loader.ts",
+        "packet_sha256": "add53ef3e6b23068e20a8b51d39c8150a1d0cd78d782cbcd3b2d2816159e1523",
+        "review_sha256": "add53ef3e6b23068e20a8b51d39c8150a1d0cd78d782cbcd3b2d2816159e1523",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/receipt/tables.ts",
+        "packet_sha256": "d9d6ec727d3ee80bc7b2036c934ad75df6a58afabeb6fa9e428b21705136230d",
+        "review_sha256": "d9d6ec727d3ee80bc7b2036c934ad75df6a58afabeb6fa9e428b21705136230d",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/storage/d1.ts",
+        "packet_sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+        "review_sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+        "equal": true
+      },
+      {
+        "path": "packages/state/src/storage/durable-object.ts",
+        "packet_sha256": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+        "review_sha256": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+        "equal": true
+      },
+      {
+        "path": "packages/testkit/conformance/ports/observations.mjs",
+        "packet_sha256": "8b8449cfdda125f9ec74d381894fabf199c1a1bcc6851f273a4ea451e2e56d4b",
+        "review_sha256": "8b8449cfdda125f9ec74d381894fabf199c1a1bcc6851f273a4ea451e2e56d4b",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/Cargo.lock",
+        "packet_sha256": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+        "review_sha256": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/Cargo.toml",
+        "packet_sha256": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+        "review_sha256": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/bindings/host-values.ts",
+        "packet_sha256": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+        "review_sha256": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/every.test.ts",
+        "packet_sha256": "188a7da54e3f833f1d3674ab5e23605260d0cc74f024096415b43cb69d4891c1",
+        "review_sha256": "188a7da54e3f833f1d3674ab5e23605260d0cc74f024096415b43cb69d4891c1",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/host-values.test.ts",
+        "packet_sha256": "054d2a2aaee37e331abb940cb68473e4f612501065342c6105adfb4ad221018b",
+        "review_sha256": "054d2a2aaee37e331abb940cb68473e4f612501065342c6105adfb4ad221018b",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/lifecycle.test.ts",
+        "packet_sha256": "2df829ad83761aedd8e054c9d0519137a96dff8bf080fa242c58928ccb6ce510",
+        "review_sha256": "2df829ad83761aedd8e054c9d0519137a96dff8bf080fa242c58928ccb6ce510",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/linkage.test.ts",
+        "packet_sha256": "afa1a902d9d19d1ef23dcdb0b97b2a6f49b7edc4d39e4e7cb96e1ffe6d23ede6",
+        "review_sha256": "afa1a902d9d19d1ef23dcdb0b97b2a6f49b7edc4d39e4e7cb96e1ffe6d23ede6",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/receipt.test.ts",
+        "packet_sha256": "94a16fb8ae8bd92baf7a5fe2f47b0f66ac3bb0f1749f6f810001592e1e87c408",
+        "review_sha256": "94a16fb8ae8bd92baf7a5fe2f47b0f66ac3bb0f1749f6f810001592e1e87c408",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/recovery.test.ts",
+        "packet_sha256": "d8feedab3089ed89128739610fc6c5762f731293bea9fabf47b92979f69bb168",
+        "review_sha256": "d8feedab3089ed89128739610fc6c5762f731293bea9fabf47b92979f69bb168",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/registered-differential.mjs",
+        "packet_sha256": "bdbb31eff01512d79d0ed3f4e7a41e7928e7867035d75cc06da71b8ca41574f9",
+        "review_sha256": "bdbb31eff01512d79d0ed3f4e7a41e7928e7867035d75cc06da71b8ca41574f9",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/registered-native.rs",
+        "packet_sha256": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a",
+        "review_sha256": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/retry.test.ts",
+        "packet_sha256": "543dc8f2670dc438772ad0a37dfd34e15f93ca897f0dbecfc1cd42fd7aa4b86a",
+        "review_sha256": "543dc8f2670dc438772ad0a37dfd34e15f93ca897f0dbecfc1cd42fd7aa4b86a",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/conformance/rows.test.ts",
+        "packet_sha256": "46d2eab38d12a615da2e532fbb83c879f86f588cd6ec362a9711105597410ce8",
+        "review_sha256": "46d2eab38d12a615da2e532fbb83c879f86f588cd6ec362a9711105597410ce8",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/decisions/every.rs",
+        "packet_sha256": "9d25cc9b22d28fe2e8c6cd31b18d5605649d15f4c1b70d46ab6860caf79def23",
+        "review_sha256": "9d25cc9b22d28fe2e8c6cd31b18d5605649d15f4c1b70d46ab6860caf79def23",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/decisions/lib.rs",
+        "packet_sha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+        "review_sha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/decisions/lifecycle.rs",
+        "packet_sha256": "70af017dd928e49f0528a6a2a88df913c6ff3f3c8dcb47294b2781953c9f1342",
+        "review_sha256": "70af017dd928e49f0528a6a2a88df913c6ff3f3c8dcb47294b2781953c9f1342",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/decisions/linkage.rs",
+        "packet_sha256": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+        "review_sha256": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/decisions/numeric_text.rs",
+        "packet_sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+        "review_sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/decisions/receipt.rs",
+        "packet_sha256": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+        "review_sha256": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/decisions/recovery.rs",
+        "packet_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+        "review_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/decisions/retry.rs",
+        "packet_sha256": "f2d2ee809e2fa112a67de4c699361e214b49885a9b24a02849df80c1903c11cb",
+        "review_sha256": "f2d2ee809e2fa112a67de4c699361e214b49885a9b24a02849df80c1903c11cb",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/decisions/rows.rs",
+        "packet_sha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+        "review_sha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/package.json",
+        "packet_sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+        "review_sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/rust/lib.rs",
+        "packet_sha256": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+        "review_sha256": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/src/distribution.ts",
+        "packet_sha256": "b80bc671dc80c3fbaa1c86dcd920f2347620603d4a18ad012aff5a8d19aae1ee",
+        "review_sha256": "b80bc671dc80c3fbaa1c86dcd920f2347620603d4a18ad012aff5a8d19aae1ee",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/src/every.ts",
+        "packet_sha256": "1996c7e3e1ca693024df3a07033f7248b0cb8afdeb0b17e4826c3b45589ee3dd",
+        "review_sha256": "1996c7e3e1ca693024df3a07033f7248b0cb8afdeb0b17e4826c3b45589ee3dd",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/src/index.ts",
+        "packet_sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+        "review_sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/src/lifecycle.ts",
+        "packet_sha256": "9262f69b01c7c0b4d00b7968439bc25dd4c05426008e9362836161d13c82d71c",
+        "review_sha256": "9262f69b01c7c0b4d00b7968439bc25dd4c05426008e9362836161d13c82d71c",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/src/linkage.ts",
+        "packet_sha256": "ecc6c6cee42a14e7b012ef47875553d51207902d2498b0adef935a8555a047d4",
+        "review_sha256": "ecc6c6cee42a14e7b012ef47875553d51207902d2498b0adef935a8555a047d4",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/src/receipt.ts",
+        "packet_sha256": "3442bd7a14dab43caa296e03c3575e777856d5003f8365a1cd1c9fe0eb027a4f",
+        "review_sha256": "3442bd7a14dab43caa296e03c3575e777856d5003f8365a1cd1c9fe0eb027a4f",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/src/recovery.ts",
+        "packet_sha256": "c65cda6a6898cbfff2f0df57f2e1a67c312da6f4123b4c364a482b5f417d0cf6",
+        "review_sha256": "c65cda6a6898cbfff2f0df57f2e1a67c312da6f4123b4c364a482b5f417d0cf6",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/src/retry.ts",
+        "packet_sha256": "2f95964c9e809ff62b628733e1c9c89c89d65df82ef5f633ca2f86b5896044e4",
+        "review_sha256": "2f95964c9e809ff62b628733e1c9c89c89d65df82ef5f633ca2f86b5896044e4",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/src/rows.ts",
+        "packet_sha256": "5267d759fcb0f17cae6cd9ea864783cc16e793fe0ac6658f4e0d1dbf6d0e0c4d",
+        "review_sha256": "5267d759fcb0f17cae6cd9ea864783cc16e793fe0ac6658f4e0d1dbf6d0e0c4d",
+        "equal": true
+      },
+      {
+        "path": "packages/work-kernel/tsconfig.json",
+        "packet_sha256": "be538f73951bafb9b1a89fa55702abfbceab4adb06e2c5e8f869207d57e22bab",
+        "review_sha256": "be538f73951bafb9b1a89fa55702abfbceab4adb06e2c5e8f869207d57e22bab",
+        "equal": true
+      },
+      {
+        "path": "packages/work/package.json",
+        "packet_sha256": "c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906",
+        "review_sha256": "c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906",
+        "equal": true
+      },
+      {
+        "path": "packages/work/src/dispatch/index.ts",
+        "packet_sha256": "aca8c5b3b72dfca2c7b7085bbb7d0d8d8fd6e3836b88813d1ea76e730b94bfb7",
+        "review_sha256": "aca8c5b3b72dfca2c7b7085bbb7d0d8d8fd6e3836b88813d1ea76e730b94bfb7",
+        "equal": true
+      },
+      {
+        "path": "packages/work/src/index.ts",
+        "packet_sha256": "fae16a63bb36b3a55f0272518d139077751b819f68e6c36043c258594e6248e3",
+        "review_sha256": "fae16a63bb36b3a55f0272518d139077751b819f68e6c36043c258594e6248e3",
+        "equal": true
+      },
+      {
+        "path": "packages/work/src/kernel/commands.ts",
+        "packet_sha256": "3638d31b51317dd3b3fdd2a2935e21044c82ef1a9b63afd6dbfdebe65b3b3c7c",
+        "review_sha256": "3638d31b51317dd3b3fdd2a2935e21044c82ef1a9b63afd6dbfdebe65b3b3c7c",
+        "equal": true
+      },
+      {
+        "path": "packages/work/src/kernel/tables.ts",
+        "packet_sha256": "10bde1f6281574b277fa6b795157c72c40471a12e46c32490b4774e1aea220e7",
+        "review_sha256": "10bde1f6281574b277fa6b795157c72c40471a12e46c32490b4774e1aea220e7",
+        "equal": true
+      },
+      {
+        "path": "packages/work/src/observation/association.ts",
+        "packet_sha256": "1f655e8417cbe636764e01dd01f85b122560cb4cad867c6d0658486224fca67f",
+        "review_sha256": "1f655e8417cbe636764e01dd01f85b122560cb4cad867c6d0658486224fca67f",
+        "equal": true
+      },
+      {
+        "path": "packages/work/src/receipt/index.ts",
+        "packet_sha256": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816",
+        "review_sha256": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816",
+        "equal": true
+      },
+      {
+        "path": "packages/work/src/recovery/index.ts",
+        "packet_sha256": "870fed2d65118b4b77ce42df4bf0ef655d93ab9a062eff25761bb4df07e3e67f",
+        "review_sha256": "870fed2d65118b4b77ce42df4bf0ef655d93ab9a062eff25761bb4df07e3e67f",
+        "equal": true
+      },
+      {
+        "path": "packages/work/src/schedule/every.ts",
+        "packet_sha256": "1f9757d565c93384b12757e86fce184e603062aba8c8e6be0c940219fd700b30",
+        "review_sha256": "1f9757d565c93384b12757e86fce184e603062aba8c8e6be0c940219fd700b30",
+        "equal": true
+      }
+    ],
+    "source_ABI_matches": [],
+    "ts_mapped_anchor_count": 185,
+    "ts_mapped_anchor_mismatches": []
+  },
+  "checks": [
+    {
+      "id": "BWR-01",
+      "result": "consistent",
+      "detail": "All86 distinct namespaced top-level semantic pub fn declarations across seven registered families exactly match packet map and all86 native anchors inspected by declaration match. All27 groups partition the86 function/family pairs without missing or duplicate assignments. Public carrier/type constructors remain separately inventoried support, not JS/Wasm ABI exports.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/Cargo.toml",
+          "line": 9,
+          "source_line": "path = \"rust/lib.rs\"",
+          "note": "actual Cargo root rust/lib.rs",
+          "source_sha256": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5"
+        },
+        {
+          "path": "packages/work-kernel/rust/lib.rs",
+          "line": 5,
+          "source_line": "pub mod decisions;",
+          "note": "registered decisions module",
+          "source_sha256": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d"
+        },
+        {
+          "path": "packages/work-kernel/decisions/lib.rs",
+          "line": 8,
+          "source_line": "pub mod every;",
+          "note": "seven public namespaced modules",
+          "source_sha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509"
+        }
+      ],
+      "limits": [
+        "Static declaration/registration mapping only; function names/groups do not prove full semantic equivalence or original W04.4 completion."
+      ]
+    },
+    {
+      "id": "BWR-02",
+      "result": "consistent",
+      "detail": "Public TS main exports version/facts validation only; file-level semantic implementations remain accessible through relative conformance imports and package compiled directory, but do not become main-exported or real producer-adopted semantics. cdylib/build:wasm is compile intent; static source search has no semantic ABI exports/generated glue/bootstrap/selection. Host-values implements JS CallScope lifetime scaffold rather than an actual native adapter.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/src/index.ts",
+          "line": 7,
+          "source_line": "export {",
+          "note": "facts-only value exports",
+          "source_sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49"
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "line": 12,
+          "source_line": "  \"exports\": {",
+          "note": "public export map",
+          "source_sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07"
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "line": 25,
+          "source_line": "    \"build:wasm\": \"cargo build --locked --manifest-path Cargo.toml --target wasm32-unknown-unknown --release\",",
+          "note": "explicit build:wasm command",
+          "source_sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07"
+        },
+        {
+          "path": "packages/work-kernel/conformance/retry.test.ts",
+          "line": 19,
+          "source_line": "import * as retry from '../src/retry.js';",
+          "note": "relative file conformance access",
+          "source_sha256": "543dc8f2670dc438772ad0a37dfd34e15f93ca897f0dbecfc1cd42fd7aa4b86a"
+        },
+        {
+          "path": "packages/work-kernel/bindings/host-values.ts",
+          "line": 64,
+          "source_line": "export class CallScope {",
+          "note": "TS opaque handle scope",
+          "source_sha256": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26"
+        }
+      ],
+      "limits": [
+        "Source registration versus native/Wasm/installed/default consumer stages remain separate."
+      ]
+    },
+    {
+      "id": "BWR-03",
+      "result": "consistent",
+      "detail": "Exhaustion/validation precedes jitter sample; native random call is exactly on surviving path. Every admission validates and coalesces sequentially, skips missing/current previous slots, derives each eligible id in input order, then sorts outputs. Current Rust traits/Fn are native callbacks rather than JS ABI. BW03/BW04 already require host split and prohibit eager fact collection.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/decisions/retry.rs",
+          "line": 174,
+          "source_line": "    if input.attempt >= policy.max_attempts",
+          "note": "exhaustion avoids random",
+          "source_sha256": "f2d2ee809e2fa112a67de4c699361e214b49885a9b24a02849df80c1903c11cb"
+        },
+        {
+          "path": "packages/work-kernel/decisions/retry.rs",
+          "line": 191,
+          "source_line": "    let delay_ms = nominal / 2.0 + clamp_unit(input.random.next_unit()) * (nominal / 2.0);",
+          "note": "only surviving random demand",
+          "source_sha256": "f2d2ee809e2fa112a67de4c699361e214b49885a9b24a02849df80c1903c11cb"
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 288,
+          "source_line": "  const delayMs = nominal / 2 + clampUnit(input.random.nextUnit()) * (nominal / 2);",
+          "note": "TS random demand position",
+          "source_sha256": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816"
+        },
+        {
+          "path": "packages/work-kernel/decisions/every.rs",
+          "line": 196,
+          "source_line": "    for scope_input in input.scopes.iter() {",
+          "note": "input scope demand order",
+          "source_sha256": "9d25cc9b22d28fe2e8c6cd31b18d5605649d15f4c1b70d46ab6860caf79def23"
+        },
+        {
+          "path": "packages/work-kernel/decisions/every.rs",
+          "line": 223,
+          "source_line": "            occurrence_id: derive_id(&input.app, &input.handler, &scope, &scope_input.owner, slot),",
+          "note": "derive id only after eligibility",
+          "source_sha256": "9d25cc9b22d28fe2e8c6cd31b18d5605649d15f4c1b70d46ab6860caf79def23"
+        },
+        {
+          "path": "packages/work-kernel/decisions/every.rs",
+          "line": 231,
+          "source_line": "    admitted.sort_by(|a, b| a.scope.cmp(&b.scope).then(a.owner.cmp(&b.owner)));",
+          "note": "output sort after demand",
+          "source_sha256": "9d25cc9b22d28fe2e8c6cd31b18d5605649d15f4c1b70d46ab6860caf79def23"
+        },
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "line": 146,
+          "source_line": "    const previous = input.previousSlots[key];",
+          "note": "current JS previous slot property demand",
+          "source_sha256": "1f9757d565c93384b12757e86fce184e603062aba8c8e6be0c940219fd700b30"
+        },
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "line": 160,
+          "source_line": "      occurrenceId: deriveRecurringOccurrenceId(",
+          "note": "current host hash derivation demand",
+          "source_sha256": "1f9757d565c93384b12757e86fce184e603062aba8c8e6be0c940219fd700b30"
+        }
+      ],
+      "limits": [
+        "No whole arbitrary input/getter/proxy/callback thrown-value equivalence proof; typed Rust callback return types do not express arbitrary JS exceptions."
+      ]
+    },
+    {
+      "id": "BWR-04",
+      "result": "consistent_with_qualification",
+      "detail": "Inventory, page supplier and recovery evidence callbacks are branch-dependent and sequential. Committed time is demanded only for uncertain items; handler mapping after terminal filter and unknown-state refusal; supplier limit validates before call, each returned cursor drives next page; evidence only uncertain rows before output sorting. A smallest closed-fact seam must receive already-demanded inert facts at the exact phase, retaining TS demand shells and stop-on-original-exception behavior, never eagerly materialize all potential callbacks.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 231,
+          "source_line": "            if let Some(committed) = (input.committed_at_ms)(&item.id) {",
+          "note": "uncertain-only committed time callback",
+          "source_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 280,
+          "source_line": "        if item.state.eq_ascii(\"delivered\")",
+          "note": "terminal states skip handler callback",
+          "source_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 299,
+          "source_line": "        match (input.handler_contract_for)(item) {",
+          "note": "mapped live state callback",
+          "source_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 356,
+          "source_line": "    let page = supplier(cursor, limit);",
+          "note": "validated bounded supplier call",
+          "source_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 401,
+          "source_line": "        let page = scan_due_batch(supplier, cursor.as_ref(), limit)?;",
+          "note": "sequential cursor-driven supplier",
+          "source_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 655,
+          "source_line": "    let mut by_outbox: HashMap<&U16, &DispatchClaim> = HashMap::new();",
+          "note": "last duplicate claim wins",
+          "source_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 694,
+          "source_line": "            match (input.evidence)(&item.id) {",
+          "note": "uncertain evidence input-order demand",
+          "source_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 701,
+          "source_line": "    resume.sort();",
+          "note": "sort after evidence demand",
+          "source_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+        }
+      ],
+      "limits": [
+        "Not a new semantic design decision. Closure of owned Rust facts is not closure of JS domain/lifecycle and cannot certify eagerly gathered whole-call facts."
+      ]
+    },
+    {
+      "id": "BWR-05",
+      "result": "consistent",
+      "detail": "Receipt source has three distinct routes: supplied observer direct bypass; default state receipt producer then observer loader; exact absent observer.js only permits public Work receipt fallback. Broken/missing nested dependencies or unexpected error shapes remain loud. Work loader returns real owning observation functions. This is conditional source consumption, not all-test-only or packaged Worker/native closure. Current bundle vendor list has no work/work-kernel tree.",
+      "anchors": [
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 3315,
+          "source_line": "  if (injected !== undefined) return injected.observeSelectedReceipt;",
+          "note": "injected observer avoids module loading",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 3320,
+          "source_line": "  const receiptMod = await loadProducerModule(STATE_RECEIPT_OBSERVER_SPECIFIER, \"state receipt producer\");",
+          "note": "default state observer producer",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 3326,
+          "source_line": "    if (!isObserverModuleAbsent(error)) throw error;",
+          "note": "exact absence guard",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 3336,
+          "source_line": "    const { observeSelectedReceipt } = await loadWorkReceiptFns();",
+          "note": "real public Work receipt loader",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "line": 412,
+          "source_line": "export async function loadWorkReceiptFns(): Promise<WorkReceiptFns> {",
+          "note": "owning receipt loader",
+          "source_sha256": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 175,
+          "source_line": "const VENDOR_TREES: readonly VendorTree[] = [",
+          "note": "vendor trees have no Work native adoption",
+          "source_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741"
+        }
+      ],
+      "limits": [
+        "No actual installed receipt route probe repeated; historical tests retain exact source/input/host scope."
+      ]
+    },
+    {
+      "id": "BWR-06",
+      "result": "consistent",
+      "detail": "Actual fanout default loader/source seam resolves state tables/cohort/membership/outcome/lifecycle/progress/staging/join/invoke/storage classes. Optional producer injection stays distinct. Dispatch classifier/recovery planner remain injected source APIs; donor bindings tested separately. These source consumers do not imply use of work-kernel. Current live recovery also re-reads uncertain evidence at act time; precomputed planning facts cannot authorize later requeue/reconcile.",
+      "anchors": [
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 5651,
+          "source_line": "export async function loadFanoutStateProducers(): Promise<FanoutStateProducers> {",
+          "note": "real default producer loader",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 5704,
+          "source_line": "      freezeFanoutMembership: fn(membershipMod, \"freezeFanoutMembership\", \"state fanout membership producer\") as unknown as FanoutMembershipProducer[\"freezeFanoutMembership\"],",
+          "note": "membership binding",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 5716,
+          "source_line": "      classifyFanoutChildLifecycle: fn(lifecycleMod, \"classifyFanoutChildLifecycle\", \"state fanout lifecycle producer\") as unknown as FanoutLifecycleProducer[\"classifyFanoutChildLifecycle\"],",
+          "note": "lifecycle binding",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 5719,
+          "source_line": "      readFanoutProgress: fn(progressMod, \"readFanoutProgress\", \"state fanout progress producer\") as unknown as FanoutProgressProducer[\"readFanoutProgress\"],",
+          "note": "progress binding",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 6031,
+          "source_line": "  const producers = opts.producers ?? (await loadFanoutStateProducers());",
+          "note": "injected versus default producer",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 4854,
+          "source_line": "    retryClass = opts.classifyFailure(providerOutcome.cause);",
+          "note": "injected classifier",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 5162,
+          "source_line": "    opts.planRecoveryScan({",
+          "note": "injected recovery planner",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 5211,
+          "source_line": "      const current = evidence(intentId);",
+          "note": "act-time current uncertain evidence",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        }
+      ],
+      "limits": [
+        "Actual default route is source-observed; tests/Miniflare harnesses are not default installed/deployed scheduler/native proof."
+      ]
+    },
+    {
+      "id": "BWR-07",
+      "result": "consistent",
+      "detail": "Namespaced Rust Value/Error/row carriers correctly remain noninterchangeable. Work safety traversal before clone differs from state structuredClone-only replacement; repeated aliases in work are rejected by persistent seen set. Lifecycle Map/Set passthrough and receipt Undef/Func corpus tags do not implement arbitrary JS object identity, cycles, getters/proxies or original thrown values. Root registration adds no profile conversion.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/decisions/lib.rs",
+          "line": 3,
+          "source_line": "//! Leaf-local UTF-16, value, error, and row types retain their original",
+          "note": "profile preservation instruction",
+          "source_sha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509"
+        },
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "line": 258,
+          "source_line": "        if (seen.has(node)) {",
+          "note": "never-pruned alias seen set",
+          "source_sha256": "10bde1f6281574b277fa6b795157c72c40471a12e46c32490b4774e1aea220e7"
+        },
+        {
+          "path": "packages/work-kernel/decisions/rows.rs",
+          "line": 910,
+          "source_line": "    check_json_safe(data, &format!(\"{what} data\"))?;",
+          "note": "work safety-before-clone",
+          "source_sha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "line": 273,
+          "source_line": "    data: structuredClone(data),",
+          "note": "state clone-only replacement",
+          "source_sha256": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae"
+        },
+        {
+          "path": "packages/work-kernel/decisions/lifecycle.rs",
+          "line": 53,
+          "source_line": "    Map(Rc<Vec<(Value, Value)>>),",
+          "note": "Map Rc carrier",
+          "source_sha256": "70af017dd928e49f0528a6a2a88df913c6ff3f3c8dcb47294b2781953c9f1342"
+        },
+        {
+          "path": "packages/work-kernel/decisions/receipt.rs",
+          "line": 111,
+          "source_line": "    Undef,",
+          "note": "undefined/function corpus tags",
+          "source_sha256": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d"
+        }
+      ],
+      "limits": [
+        "Packet correctly retains SW062/SW064/SW085 uncertainty and present API compatibility domains; no language-rule ratification inferred."
+      ]
+    },
+    {
+      "id": "BWR-08",
+      "result": "consistent",
+      "detail": "Pure planning/batch assertions cannot own live authority, fences or durable commit. attemptDispatch refuses uncommitted/inherited/superseded/state/unavailable before guard; false guard bypasses authority and claim-id/clock demand; revocation precedes claim mint. State registry reads revision then stages through load/query reader shell and commits once. Storage version check precedes JSON bytes. Native planner outputs remain proposals until host fresh authority/revision/commit checks succeed.",
+      "anchors": [
+        {
+          "path": "packages/work/src/dispatch/index.ts",
+          "line": 200,
+          "source_line": "  if (deps.availability !== undefined && !deps.availability.isTargetAvailable(item.source)) {",
+          "note": "unavailable before guards",
+          "source_sha256": "aca8c5b3b72dfca2c7b7085bbb7d0d8d8fd6e3836b88813d1ea76e730b94bfb7"
+        },
+        {
+          "path": "packages/work/src/dispatch/index.ts",
+          "line": 205,
+          "source_line": "    const result = deps.evaluateGuard(predicate, attempt.frozenInputs, attempt.stateSnapshot);",
+          "note": "guard demand",
+          "source_sha256": "aca8c5b3b72dfca2c7b7085bbb7d0d8d8fd6e3836b88813d1ea76e730b94bfb7"
+        },
+        {
+          "path": "packages/work/src/dispatch/index.ts",
+          "line": 213,
+          "source_line": "  if (fence?.revalidateAuthority !== undefined && fence.revalidateAuthority() !== true) {",
+          "note": "authority only after passing guard",
+          "source_sha256": "aca8c5b3b72dfca2c7b7085bbb7d0d8d8fd6e3836b88813d1ea76e730b94bfb7"
+        },
+        {
+          "path": "packages/work/src/dispatch/index.ts",
+          "line": 220,
+          "source_line": "      claimId: deps.claimIds.nextClaimId(),",
+          "note": "claim id before clock only surviving claim",
+          "source_sha256": "aca8c5b3b72dfca2c7b7085bbb7d0d8d8fd6e3836b88813d1ea76e730b94bfb7"
+        },
+        {
+          "path": "packages/state/src/ports/system.ts",
+          "line": 158,
+          "source_line": "      const revision = await deps.store.readRevision();",
+          "note": "observed revision",
+          "source_sha256": "85a496859cf838ed2fb24439d1679e799f6e898dfad13d8e59577626418428f7"
+        },
+        {
+          "path": "packages/state/src/ports/system.ts",
+          "line": 163,
+          "source_line": "        load: (model, id) => deps.store.load(model, id),",
+          "note": "reader-only context",
+          "source_sha256": "85a496859cf838ed2fb24439d1679e799f6e898dfad13d8e59577626418428f7"
+        },
+        {
+          "path": "packages/state/src/ports/system.ts",
+          "line": 174,
+          "source_line": "        committed = await deps.store.commit({",
+          "note": "single conditional commit",
+          "source_sha256": "85a496859cf838ed2fb24439d1679e799f6e898dfad13d8e59577626418428f7"
+        },
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "line": 684,
+          "source_line": "      await checkWriteVersions(db, batch);",
+          "note": "write versions before serialization",
+          "source_sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45"
+        },
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "line": 721,
+          "source_line": "                JSON.stringify(write.row.data),",
+          "note": "actual serialized storage bytes",
+          "source_sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45"
+        }
+      ],
+      "limits": [
+        "No tests as full authority/race/restart/persisted-byte proof."
+      ]
+    }
+  ],
+  "material_findings": [],
+  "bounded_clarifications": [
+    {
+      "id": "BWR-Q01",
+      "applies_to": [
+        "BW-03",
+        "BW-04"
+      ],
+      "detail": "Already-demanded planning facts never substitute later act-time evidence/authority reads; exact callback demand phases, error identity and stop order stay in TS host shell. Current Rust Fn/RandomPort signatures demonstrate native demand only and are not a JS transport proof.",
+      "anchors": [
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 5211,
+          "source_line": "      const current = evidence(intentId);",
+          "note": "live act-time re-attestation",
+          "source_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "line": 613,
+          "source_line": "    pub evidence: &'a dyn Fn(&U16) -> Option<ReconcileEvidence>,",
+          "note": "native callback support not ABI",
+          "source_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+        }
+      ],
+      "new_semantic_decision": false
+    }
+  ],
+  "result": "No material defect in finite packet claims/coverage sampled; consistency qualified by original consumer/ABI/demand/lifecycle/installed/durable/resource gates. Clarification makes already stated host-demand ownership explicit.",
+  "original_gates_preserved": [
+    "W02.5",
+    "W03.3",
+    "W03.4",
+    "W04.4",
+    "W05",
+    "W06",
+    "W07",
+    "W08"
+  ],
+  "fresh_execution_or_acceptance_claim": false,
+  "TS_backend_retired": false,
+  "default_adoption": false,
+  "execution_authorized": false
+}

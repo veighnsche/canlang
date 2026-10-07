@@ -1,0 +1,1111 @@
+{
+  "schema_version": 1,
+  "audit": "independent_cross_family_boundary_challenge",
+  "source_pin_supplied": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "independence": "Values/preparation reports and conclusions visible; independent source/evidence challenge, not cleanroom. Own Work report excluded from independent qualification.",
+  "scope": [
+    "values exact ABI/shared host registry/error/carrier/profile",
+    "values structural scaffold/plan authority",
+    "native preparation real branch/public host/callers",
+    "current values source/asset/historical installed+host proof"
+  ],
+  "no_new_execution_or_acceptance": true,
+  "no_git_or_repo_mutation": true,
+  "checks_performed": [
+    "Read source and retained committed historical receipts",
+    "Hash challenged source/binary bytes only; compare with reported frozen source pins",
+    "Textual finite registry/caller searches",
+    "Search docs/ports AND implementation orchestration for exact current/old Wasm digest",
+    "Compare 61 current values implementation/build files with embedded exact historical source pins",
+    "Read Step12 static source/corpus/inventory verification script implementations and their saved results; do not run them"
+  ],
+  "checks_not_performed": [
+    "build",
+    "test",
+    "install",
+    "WebAssembly.Module/compile/instantiate",
+    "runtime probe",
+    "network",
+    "Git",
+    "repo edit",
+    "new JEV",
+    "new semantic decision or default selection"
+  ],
+  "findings": [
+    {
+      "id": "IR-01",
+      "title": "Six common operation names do not define matched admitted domains",
+      "disposition": "narrow wording",
+      "challenged_claim": "BV01/registry_parity/smallest_current_boundary: shared six-op vocabulary",
+      "source_result": "Native dispatch has 69 names, direct TS smoke table has six. TS resolves own op before spreading args and calls owning TS functions without arity gate. Wasm tags every argument before invoking exact_call; native expect_args rejects surplus/missing args. Source-only counterexamples: negate-int([1n,2n]) TS ignores second arg while native rejects transport arity; an unsupported-op or bad first operand with later exotic argument has different host-demand/error order. No execution performed.",
+      "required_report_correction_or_retention": "Keep six shared names as registry intersection only. Qualify exact arities and plain owned admitted input cases separately; do not imply same arbitrary-input failure/effect surface. Current host adapter has no enforced ownership-token admission, so finite-profile restriction is proof scope, not built-in gate.",
+      "evidence": [
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "line": 31,
+          "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+          "source_line": "const TS_OPS: Record<string, SmokeFn> = {"
+        },
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "line": 48,
+          "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+          "source_line": "const fn = Object.hasOwn(TS_OPS, op) ? TS_OPS[op] : undefined;"
+        },
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "line": 99,
+          "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+          "source_line": "const request = JSON.stringify({ v: 1, op, args: args.map(tag) });"
+        },
+        {
+          "path": "packages/values/semantics/src/transport/exact.rs",
+          "line": 271,
+          "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+          "source_line": "fn expect_args<'a>("
+        },
+        {
+          "path": "packages/values/semantics/src/transport/exact.rs",
+          "line": 317,
+          "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+          "source_line": "\"negate-int\" => {"
+        }
+      ],
+      "uncertainty": []
+    },
+    {
+      "id": "IR-02",
+      "title": "Domain error envelopes are separate from runtime and projection failures",
+      "disposition": "confirmed limitation",
+      "challenged_claim": "BV01/BV03/BV09: native failures projected through ValueError",
+      "source_result": "Expected core failures return JSON envelopes and host maps code/message, but no catch surrounds tag, exact_call, JSON.parse or reconstruct in wasmBackend. violations becomes generic invalid-construction and loses path/code/message contents; validationBackend only projects declared stage/code/check envelopes. Rust binding comments infallible/never trap do not establish Wasm allocator/runtime trap guarantees.",
+      "required_report_correction_or_retention": "Retain current BV09 unwrapped-error and BV03 violation-loss limitations. Advertise domain-envelope projection only; no broad throws-ValueError guarantee. No retry/fallback occurs after selection.",
+      "evidence": [
+        {
+          "path": "packages/values/bindings/src/exact.rs",
+          "line": 22,
+          "sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+          "source_line": "pub fn exact_call(request_json: &str) -> String {"
+        },
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "line": 71,
+          "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+          "source_line": "function throwFailure(op: string, response: FailureResponse): never {"
+        },
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "line": 76,
+          "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+          "source_line": "throw new ValueError(\"invalid-construction\", `native decode violations on ${op}`);"
+        },
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "line": 100,
+          "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+          "source_line": "const raw = glue.exact_call(request);"
+        },
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "line": 101,
+          "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+          "source_line": "const response = JSON.parse(raw) as {"
+        },
+        {
+          "path": "packages/values/bindings/validation.ts",
+          "line": 51,
+          "sha256": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+          "source_line": "const response = JSON.parse(glue.validation_call(request)) as {"
+        }
+      ],
+      "uncertainty": []
+    },
+    {
+      "id": "IR-03",
+      "title": "Exact JSON is distinct from structural lossless representation",
+      "disposition": "confirmed limitation",
+      "challenged_claim": "BV02/BV05: exact transport and scaffold representations",
+      "source_result": "Exact input JSON uses Rust String and normal JSON numbers; host JSON.stringify erases numeric -0 and rejects/normalizes outside-profile structure through tagging. Rust record decoder accepts duplicate tuple keys despite hygiene comment; native lookup-first and JS Object.fromEntries-last differ for direct arbitrary transport. Structural frame separately carries UTF16 units/f64 bits, rejects NaN bits at arena boundary, and currently only digests input.",
+      "required_report_correction_or_retention": "Keep separate domains. Lossless structural scaffold availability cannot repair exact JSON semantics by implication. Retain lone-surrogate, -0, own-key/order, duplicate-entry and identity exclusions and require exact admitted producer profile.",
+      "evidence": [
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "line": 39,
+          "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+          "source_line": "function tagNumber(value: number): Tagged {"
+        },
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "line": 60,
+          "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+          "source_line": "if (Object.is(value.scale, -0)) {"
+        },
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "line": 81,
+          "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+          "source_line": "const entries: Array<[string, Tagged]> = Object.entries(value).map(([k, v]) => [k, tag(v)]);"
+        },
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "line": 134,
+          "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+          "source_line": "return Object.fromEntries(tagged.entries.map(([k, v]) => [k, reconstruct(v)]));"
+        },
+        {
+          "path": "packages/values/semantics/src/transport/exact.rs",
+          "line": 168,
+          "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+          "source_line": "out.push((key.to_string(), decode_input(&pair[1])?));"
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 79,
+          "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+          "source_line": "fn parse_units(value: &Value) -> Result<Vec<u16>, Value> {"
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 457,
+          "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+          "source_line": "fn op_input_digest(&self, args: &Value) -> Value {"
+        }
+      ],
+      "uncertainty": []
+    },
+    {
+      "id": "IR-04",
+      "title": "Owned-input and plan scaffolds do not constitute native validation authority",
+      "disposition": "confirmed limitation",
+      "challenged_claim": "BV04/BV06/BV07: ownership/plan/native registration composition",
+      "source_result": "OwnedJsonToken lineage proves local parser issuance; structural requests accept caller-authored frame/schema/provenance strings and their own native owner handles. NativePlanRegistry stores/returns the same PreparedValidationPlan in TS; no Wasm call. Native ProfileHost has exactly input.digest/owner.create/plan.register/plan.get/plan.release/owner.retire, no validator/default/disclosure/output execution route.",
+      "required_report_correction_or_retention": "Retain incomplete-cross-boundary-assembly classification. Owner/plan IDs and metadata shape alone must not transfer factory lineage/security authority. Proposed validation cut remains separate completion project; avoid generic protocol because scaffold names exist.",
+      "evidence": [
+        {
+          "path": "packages/values/bindings/owned-input.ts",
+          "line": 55,
+          "sha256": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+          "source_line": "const lineage = new WeakMap<OwnedJsonToken, OwnedJsonRecord>();"
+        },
+        {
+          "path": "packages/values/bindings/plans.ts",
+          "line": 85,
+          "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+          "source_line": "const plan = getValidationPlan(owner, id);"
+        },
+        {
+          "path": "packages/values/bindings/plans.ts",
+          "line": 130,
+          "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+          "source_line": "return entry.plan;"
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 563,
+          "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+          "source_line": "factory: factory.to_string(),"
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 646,
+          "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+          "source_line": "\"input.digest\" => self.op_input_digest(args),"
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 651,
+          "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+          "source_line": "\"owner.retire\" => self.op_owner_retire(args),"
+        }
+      ],
+      "uncertainty": []
+    },
+    {
+      "id": "IR-05",
+      "title": "BUILD inventory proves bytes; historical source-to-current-asset chain exists outside it",
+      "disposition": "correct overbroad unproven statement",
+      "challenged_claim": "BV08/G12/G14 and historical_host_qualification: current source/asset host qualification unproven",
+      "source_result": "BUILD.json records bindings filenames without source digests and independently proves four-file integrity only. However corrected Step9 pinned-source build/reproducibility/installed/workerd records name exact current f5870905...653133-byte Wasm and BUILD9b8f.... All 61 current values implementation/build files checked against embedded Step9 non-generated source pins match. Step12 independent review explicitly resolved older bridge mismatches to refreshed Step9 assets. This is positive historical exact-source/current-asset correspondence at declared finite scope, not a new build or acceptance.",
+      "required_report_correction_or_retention": "G14 must separate old bootstrap-current(b0d44...622216) from corrected Step9/12 f587 current-asset qualification. Preserve historical six-op installed plain-carrier Node/Bun/workerd startup and finite numeric-corpus credit. BUILD source-digest design gap remains, but do not label current binary/source correspondence globally unproven when recorded build/source pin chain matches.",
+      "evidence": [
+        {
+          "path": "packages/values/scripts/build-semantics.mjs",
+          "line": 77,
+          "sha256": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71",
+          "source_line": "sources: sourceFiles,"
+        },
+        {
+          "path": "packages/values/bindings/generated/BUILD.json",
+          "line": 25,
+          "sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+          "source_line": "\"sha256\": \"f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81\","
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+          "line": 8,
+          "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
+          "source_line": "\"exact_used_non_generated_source_copy\": {"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+          "line": 241,
+          "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
+          "source_line": "\"fresh_binary_sha256\": \"f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81\","
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
+          "line": 22,
+          "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7",
+          "source_line": "\"independent_prefix_sha256\": \"f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81\","
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
+          "line": 35,
+          "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555",
+          "source_line": "\"all_executed_non_generated_sources_equal_current\": true,"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
+          "line": 11,
+          "sha256": "af21f9082890ed45c0564ff19e22d3336885b23c22d49aa3003837309afd0a02",
+          "source_line": "A separate 80-entry bridge checked the prior reviewed sources against current bytes. The only initial differences were the old values `BUILD.json` and Wasm asset, whose source-pin record preceded the explicit corrected asset refresh. Current `BUILD.json` and Wasm match the corrected fresh Step9 hashes, respectively `9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161` and `f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81`. All four current generated inventory entries match their bytes and SHA-256. This resolves those two historical differences rather than treating the earlier stale asset as current evidence. Bridge details: `sol/source-bridge.json`."
+        }
+      ],
+      "uncertainty": [
+        "Step9 raw /private/tmp source-pin/log/runtime files are no longer present in this environment; retained committed receipts and prior independent raw-review/source manifests are read only. No replay or full-69-op/domain/validation/default benefit acceptance follows. Same toolchain/platform two-prefix reproducibility is finite, not universal."
+      ]
+    },
+    {
+      "id": "IR-06",
+      "title": "Current-asset consumer proof remains finite and explicit",
+      "disposition": "retain exact historical credit",
+      "challenged_claim": "BV13/G13 historical installed/host claims",
+      "source_result": "Step9 independent installed receipt names current Wasm/glue and six fixed outcomes plus three error pairs and ten raw numeric witnesses. Workerd receipt names exact source hashes, current Wasm/glue, actual owning local-run, startup negatives and two fresh isolates. Step12 prior independent reviewer checked raw originals/packet copies and exact current source/artifact bridge. This is real finite installed host evidence, broader than loader-only staging but narrower than generated application or durable validator/work use.",
+      "required_report_correction_or_retention": "Credit those historical selected consumers and current hashes. Keep installed producer graph/archive/runtime resolution claims scoped to recorded snapshot and hosts; no new current-runtime qualification, default switch, full core-validation, arbitrary getter or persisted/in-flight rollback credit.",
+      "evidence": [
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+          "line": 2,
+          "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
+          "source_line": "\"scope\": \"Root independent six-operation opt-in installed values profile only\","
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+          "line": 55,
+          "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
+          "source_line": "\"wasm\": {"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+          "line": 18,
+          "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
+          "source_line": "\"valuesWasm\": \"f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81\","
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+          "line": 12,
+          "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
+          "source_line": "\"source_sha256\": {"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+          "line": 77,
+          "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
+          "source_line": "\"freshIsolates\": 2,"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
+          "line": 20,
+          "sha256": "af21f9082890ed45c0564ff19e22d3336885b23c22d49aa3003837309afd0a02",
+          "source_line": "| Values opt-in adapter | Backend registry preserves TS selection, uses own-name lookup, sends the actual JSON operation transport through glue, and has no semantic retry. Bootstrap copies native byte storage, pins the asset, checks ABI/required exports/memory/table, and refuses external prior glue initialization. Raw independent installed controls record six own-name refusals, six zero-argument-effect checks, six fixed operation outcomes, ten raw numeric transport witnesses, explicit TS rollback, and pinned-asset-change refusal. Raw Node/workerd controls show missing/corrupt startup refusal and two successful fresh isolates. | Six-op installed scaffold and admitted plain carriers only. Wider operation/profile adoption, arbitrary getter effect parity, negative-zero scale equivalence, persisted/in-flight rollback, and default adoption remain unproved. Raw legacy getter traces differ; the receipt's explicit out-of-profile limit must remain. Whole-call measurement is not a speedup claim: retained Node warm median Wasm/TS ratio is about 26.4. |"
+        }
+      ],
+      "uncertainty": [
+        "No raw Step9 runtime files reread this pass; historical independent reviews are evidence, not premises of full product acceptance."
+      ]
+    },
+    {
+      "id": "IR-07",
+      "title": "Preparation real branch exists but public TS driver reaches scaffold",
+      "disposition": "confirmed correction in preparation report",
+      "challenged_claim": "BP01/BP02/BP03: native preparation artifact_path flow",
+      "source_result": "Rust Begin.artifact_path dispatches real accepted-tree artifact/lockstep/compatibility stages. TS driveSession sends only {begin:{mode}}, and runNativeJob exposes no artifact_path/env/preview/yes carrier; absent artifact_path selects fixed probe scaffold. Normal CLI calls TS runPreparedBuild/runPreparedDeploy. Rust source implementation should receive credit, but does not establish end-to-end product native preparation.",
+      "required_report_correction_or_retention": "Retain both halves: actual implemented Rust artifact_path branch versus current public TS Begin-mode scaffold and TS CLI default. Smallest native seam is source-supported pure library/prototype branch, not integrated completed build/deploy.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 163,
+          "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61",
+          "source_line": "match begin.artifact_path.clone() {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 165,
+          "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61",
+          "source_line": "Some(artifact_path) => run_real_stages(reader, writer, &begin, &artifact_path),"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 469,
+          "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61",
+          "source_line": "let validated = match validate_artifact(&artifact_tree, artifact_path) {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/protocol.ts",
+          "line": 225,
+          "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8",
+          "source_line": "stdin.write(encodeJsonFrame({ begin: { mode } }));"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 548,
+          "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+          "source_line": "export async function runNativeJob("
+        },
+        {
+          "path": "packages/cloudflare/src/cli/platform.ts",
+          "line": 394,
+          "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+          "source_line": "await runPreparedBuild(artifactPath);"
+        }
+      ],
+      "uncertainty": []
+    },
+    {
+      "id": "IR-08",
+      "title": "Preparation registrations are not job consumers",
+      "disposition": "confirmed correction in preparation report",
+      "challenged_claim": "BP04/BP05: native modules/plan/render/review registration versus execution",
+      "source_result": "Native lib registers artifact/compat/modules/plan/release/render/review. job imports and invokes artifact validation, compatibility and lockstep; no module staging/rewrite/plan/render/review or compiled-identity consumer. Current TS host calculates bundle->plan->previous-plan->diff/render before compiler refusal; native deploy finishes a compatibility/activation summary without these stages. TS real module callers use es-module-lexer/MagicString/remapping source leaves; old Rust scanner is separate port source.",
+      "required_report_correction_or_retention": "Retain corrected callers. Avoid claiming complete plan/module preparation from job.rs491 or Cargo module registration. Proposed minimal boundary can keep JS parse/rewrite/map host stage together and pass existing derived facts only after actual benefit/domain proof; no new parallel generic scanner.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/preparation/src/lib.rs",
+          "line": 10,
+          "sha256": "ed81bd6505722b5f559479423f3a6cf243c9b276c6aec4be8a3f806c60ae7ee2",
+          "source_line": "pub mod modules;"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 11,
+          "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61",
+          "source_line": "use crate::artifact::validate_artifact;"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 23,
+          "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61",
+          "source_line": "use crate::release::{assert_lockstep, LockstepInputs, RELEASE_VERSION};"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 362,
+          "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+          "source_line": "const bundle = buildBundleWithHostPhases(loaded.artifact, { verdict });"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 381,
+          "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+          "source_line": "plan = buildDeployPlan(descriptor, environment, {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 394,
+          "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+          "source_line": "previous = loadPreviousPlan(planPath);"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 399,
+          "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+          "source_line": "const rendered = renderDeployPlan(plan);"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "line": 197,
+          "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+          "source_line": "export function rewriteModuleImports("
+        }
+      ],
+      "uncertainty": []
+    },
+    {
+      "id": "IR-09",
+      "title": "Executable integrity checker is unjoined to native resolution",
+      "disposition": "confirmed correction in preparation report",
+      "challenged_claim": "BP07: integrity-checked resolver",
+      "source_result": "resolvePreparationBinary chooses executable env/packaged/dev file through isExecutableFile; it never calls separately exported verifyExecutableManifest. Native release manifest functions are library source; only assert_lockstep is a job consumer. CLI has no backend selection/native job call. Native HUMAN HOLD remains; packaging scripts and bin labels do not establish installed resolution/launch integrity.",
+      "required_report_correction_or_retention": "Retain narrowed wording and original P08/P09 gates. A proposed native boundary must join selected exact installed binary integrity/protocol before execution and preserve current explicit TS default; no execution authorized here.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/src/preparation/executable.ts",
+          "line": 93,
+          "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3",
+          "source_line": "if (await isExecutableFile(explicit)) return { path: explicit, source: \"env\" };"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/executable.ts",
+          "line": 98,
+          "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3",
+          "source_line": "if (await isExecutableFile(packaged)) return { path: packaged, source: \"packaged\" };"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/executable-manifest.ts",
+          "line": 94,
+          "sha256": "d479c648351dc2b13116d4f96bb83817f80fefbd472a95f24d77bf17048a442e",
+          "source_line": "export async function verifyExecutableManifest("
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 530,
+          "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61",
+          "source_line": "if let Err(message) = assert_lockstep(&lockstep) {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 510,
+          "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+          "source_line": "export async function selectBackend(request: BackendRequest): Promise<BackendSelection> {"
+        }
+      ],
+      "uncertainty": []
+    },
+    {
+      "id": "IR-10",
+      "title": "Asset gather/stage capability does not imply selected semantics or source correspondence",
+      "disposition": "retain bounded claim",
+      "challenged_claim": "BP08 and actual selected package asset consumers",
+      "source_result": "verifiedFiles checks finite manifest asset paths/hash/length and gatherValuesWasmAssets stages owning bindings+raw Wasm. Installed-worker source explicitly initializes owning generated glue and calls add-int in separate opt-in Node/workerd probes. Normal TS CLI uses plain bundle/write; no implicit native/default adoption. Manifest check alone verifies asset integrity, not semantic source inputs.",
+      "required_report_correction_or_retention": "Preserve real byte delivery/consumer proof and owning package bootstrap separately. Current source-correspondence historical credit comes from Step9/12 outside BUILD, not from collection. No whole-schema native validation or default switch follows.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/src/deploy/package-assets.ts",
+          "line": 78,
+          "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+          "source_line": "function verifiedFiles("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/package-assets.ts",
+          "line": 112,
+          "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+          "source_line": "export function gatherValuesWasmAssets("
+        },
+        {
+          "path": "scripts/verify-installed-worker.mjs",
+          "line": 118,
+          "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443",
+          "source_line": "assert.equal(wasmBackend(glue).call('add-int', [1n, 2n]), 3n);"
+        },
+        {
+          "path": "scripts/verify-installed-worker.mjs",
+          "line": 151,
+          "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443",
+          "source_line": "'const backend = wasmBackend(glue);',"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 429,
+          "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+          "source_line": "const written = writeDeployBundle(deployBundle, join(dir, `${stem}${DEPLOY_DIR_SUFFIX}`));"
+        }
+      ],
+      "uncertainty": []
+    }
+  ],
+  "static_registry_census": {
+    "native_operations": 69,
+    "native_unique": 69,
+    "ts_backend_names": [
+      "add-int",
+      "negate-int",
+      "add-decimal",
+      "negate-decimal",
+      "date-to-epoch-days",
+      "add-money"
+    ],
+    "ts_reference_names": 69,
+    "reference_set_equal_to_native": true,
+    "scope": "names/dispatch only; no new behavior/domain proof"
+  },
+  "source_checks": [
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
+      "sha256": "af21f9082890ed45c0564ff19e22d3336885b23c22d49aa3003837309afd0a02",
+      "matches_report_pin": null
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
+      "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555",
+      "matches_report_pin": true
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+      "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
+      "matches_report_pin": true
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+      "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
+      "matches_report_pin": true
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
+      "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7",
+      "matches_report_pin": true
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+      "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/job.rs",
+      "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/lib.rs",
+      "sha256": "ed81bd6505722b5f559479423f3a6cf243c9b276c6aec4be8a3f806c60ae7ee2",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/package-assets.ts",
+      "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "sha256": "d479c648351dc2b13116d4f96bb83817f80fefbd472a95f24d77bf17048a442e",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable.ts",
+      "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/bindings/carriers.ts",
+      "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/bindings/generated/BUILD.json",
+      "sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "sha256": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/bindings/plans.ts",
+      "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/bindings/src/exact.rs",
+      "sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/bindings/validation.ts",
+      "sha256": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/scripts/build-semantics.mjs",
+      "sha256": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/semantics/src/profiles.rs",
+      "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+      "matches_report_pin": true
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+      "matches_report_pin": true
+    },
+    {
+      "path": "scripts/verify-installed-worker.mjs",
+      "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443",
+      "matches_report_pin": true
+    }
+  ],
+  "challenged_source_report_mismatches": [],
+  "historical_current_source_bridge": {
+    "scope": "61 values implementation/build inputs embedded in exact_used_non_generated_source_copy; current static equality only",
+    "checks": [
+      {
+        "path": "packages/values/Cargo.lock",
+        "historical_sha256": "653260b64e40898068cfed2728bb348d26284fe5af983ab3bf38d9d2aa57ebbe",
+        "current_sha256": "653260b64e40898068cfed2728bb348d26284fe5af983ab3bf38d9d2aa57ebbe",
+        "equal": true
+      },
+      {
+        "path": "packages/values/Cargo.toml",
+        "historical_sha256": "083c91d33d9cf5c36b0c61e0e8f86b80bf1208bcf3202d681a77a52939e6efee",
+        "current_sha256": "083c91d33d9cf5c36b0c61e0e8f86b80bf1208bcf3202d681a77a52939e6efee",
+        "equal": true
+      },
+      {
+        "path": "packages/values/bindings/Cargo.toml",
+        "historical_sha256": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450",
+        "current_sha256": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450",
+        "equal": true
+      },
+      {
+        "path": "packages/values/bindings/src/exact.rs",
+        "historical_sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+        "current_sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+        "equal": true
+      },
+      {
+        "path": "packages/values/bindings/src/lib.rs",
+        "historical_sha256": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+        "current_sha256": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+        "equal": true
+      },
+      {
+        "path": "packages/values/bindings/src/validation.rs",
+        "historical_sha256": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+        "current_sha256": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+        "equal": true
+      },
+      {
+        "path": "packages/values/package.json",
+        "historical_sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+        "current_sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+        "equal": true
+      },
+      {
+        "path": "packages/values/scripts/build-semantics.mjs",
+        "historical_sha256": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71",
+        "current_sha256": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71",
+        "equal": true
+      },
+      {
+        "path": "packages/values/scripts/stage-semantics.mjs",
+        "historical_sha256": "7103d8d25dd579eef418420a427d1acb8ab444aceeaf24cc4f0a1d3f41c486a8",
+        "current_sha256": "7103d8d25dd579eef418420a427d1acb8ab444aceeaf24cc4f0a1d3f41c486a8",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/Cargo.toml",
+        "historical_sha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+        "current_sha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/aggregates/decimal.rs",
+        "historical_sha256": "5bb363c93fd640aa16b64ab83520169dee7d2e4d548275f54b0d8fc03c717313",
+        "current_sha256": "5bb363c93fd640aa16b64ab83520169dee7d2e4d548275f54b0d8fc03c717313",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/aggregates/integer.rs",
+        "historical_sha256": "fd7feb03a1148a4912dcf40e049b7428aaa3a828e072a2d3564485b1834c148c",
+        "current_sha256": "fd7feb03a1148a4912dcf40e049b7428aaa3a828e072a2d3564485b1834c148c",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/aggregates/mod.rs",
+        "historical_sha256": "561bee0d2993130b272568ea1b51e41700d8f99a08745c2ec0049c2fde169c9c",
+        "current_sha256": "561bee0d2993130b272568ea1b51e41700d8f99a08745c2ec0049c2fde169c9c",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/aggregates/money.rs",
+        "historical_sha256": "60736655950fabdc910bb145118ca4e185880074ddf2b18dec0525400532cb0e",
+        "current_sha256": "60736655950fabdc910bb145118ca4e185880074ddf2b18dec0525400532cb0e",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/aggregates/numeric.rs",
+        "historical_sha256": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4",
+        "current_sha256": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/codecs/mod.rs",
+        "historical_sha256": "4c8b202d2524e440fc9979aa01245da7adbdfbabc24506e8ed75a84e1ceacf20",
+        "current_sha256": "4c8b202d2524e440fc9979aa01245da7adbdfbabc24506e8ed75a84e1ceacf20",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/codecs/numeric.rs",
+        "historical_sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+        "current_sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/currency_facts.rs",
+        "historical_sha256": "48e84ddf56c44e698e5d382e68736877b32c3773c56b8421ebe3b8893ed40c3f",
+        "current_sha256": "48e84ddf56c44e698e5d382e68736877b32c3773c56b8421ebe3b8893ed40c3f",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/failures.rs",
+        "historical_sha256": "28dca38a0670f354a25e5a9ab6e531c216f161c929413adc9c7276cddb51fc07",
+        "current_sha256": "28dca38a0670f354a25e5a9ab6e531c216f161c929413adc9c7276cddb51fc07",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/input.rs",
+        "historical_sha256": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+        "current_sha256": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/lib.rs",
+        "historical_sha256": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+        "current_sha256": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/numeric/decimal.rs",
+        "historical_sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6",
+        "current_sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/numeric/integer.rs",
+        "historical_sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae",
+        "current_sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/numeric/mod.rs",
+        "historical_sha256": "93ea4c83e9d8abae1d96bb4e4b2c93930f81c542893152705b9933845e0cae92",
+        "current_sha256": "93ea4c83e9d8abae1d96bb4e4b2c93930f81c542893152705b9933845e0cae92",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/numeric/money.rs",
+        "historical_sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad",
+        "current_sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/numeric/rounding.rs",
+        "historical_sha256": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd",
+        "current_sha256": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/plans.rs",
+        "historical_sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+        "current_sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "historical_sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+        "current_sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/representations/mod.rs",
+        "historical_sha256": "fce7ed1dc892ccd4c8377b6c69fdfb19d6901793709da60a833cc27b6314b830",
+        "current_sha256": "fce7ed1dc892ccd4c8377b6c69fdfb19d6901793709da60a833cc27b6314b830",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/representations/numeric.rs",
+        "historical_sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+        "current_sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/temporal/civil.rs",
+        "historical_sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d",
+        "current_sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/temporal/duration.rs",
+        "historical_sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39",
+        "current_sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/temporal/instant.rs",
+        "historical_sha256": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c",
+        "current_sha256": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/temporal/mod.rs",
+        "historical_sha256": "08df69e5fb8c6a9a9d3c6a2d655648da3d3d9ad1e5a72bbf74a9c81f4c6ead28",
+        "current_sha256": "08df69e5fb8c6a9a9d3c6a2d655648da3d3d9ad1e5a72bbf74a9c81f4c6ead28",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "historical_sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+        "current_sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+        "equal": true
+      },
+      {
+        "path": "packages/values/semantics/src/transport/mod.rs",
+        "historical_sha256": "fb7a358c36dd919ccba66c2a290c1e7ea6af0e50dbfe64353daae13cde3c10f6",
+        "current_sha256": "fb7a358c36dd919ccba66c2a290c1e7ea6af0e50dbfe64353daae13cde3c10f6",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/array.ts",
+        "historical_sha256": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4",
+        "current_sha256": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/catalog.ts",
+        "historical_sha256": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+        "current_sha256": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/currency-data.ts",
+        "historical_sha256": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
+        "current_sha256": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/decimal.ts",
+        "historical_sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+        "current_sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/distribution.ts",
+        "historical_sha256": "d42f490fe465f366cef6be65adc2514bcf6e7a0e3ff6c5a3bc85cb03cdae94fb",
+        "current_sha256": "d42f490fe465f366cef6be65adc2514bcf6e7a0e3ff6c5a3bc85cb03cdae94fb",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/equality.ts",
+        "historical_sha256": "3903807b4dc38bc5777e7a2758bc351041820d20bd500bb0100dfe411943fafb",
+        "current_sha256": "3903807b4dc38bc5777e7a2758bc351041820d20bd500bb0100dfe411943fafb",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/errors.ts",
+        "historical_sha256": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8",
+        "current_sha256": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/icu.ts",
+        "historical_sha256": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+        "current_sha256": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/index.ts",
+        "historical_sha256": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+        "current_sha256": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/int.ts",
+        "historical_sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
+        "current_sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/internal/schema-core.ts",
+        "historical_sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+        "current_sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/internal/wire-core.ts",
+        "historical_sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+        "current_sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/kinds.ts",
+        "historical_sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+        "current_sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/locale.ts",
+        "historical_sha256": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e",
+        "current_sha256": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/money.ts",
+        "historical_sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824",
+        "current_sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/prepared/codec.ts",
+        "historical_sha256": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+        "current_sha256": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/prepared/plan.ts",
+        "historical_sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+        "current_sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/prepared/validation.ts",
+        "historical_sha256": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+        "current_sha256": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/schema.ts",
+        "historical_sha256": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+        "current_sha256": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/stdlib-pure.ts",
+        "historical_sha256": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+        "current_sha256": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/temporal.ts",
+        "historical_sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+        "current_sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/text.ts",
+        "historical_sha256": "64e39e7522af1b301c964337addbb61cf199192b1aa340c3a0ce308c322510e1",
+        "current_sha256": "64e39e7522af1b301c964337addbb61cf199192b1aa340c3a0ce308c322510e1",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/timezone.ts",
+        "historical_sha256": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+        "current_sha256": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/types.ts",
+        "historical_sha256": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+        "current_sha256": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+        "equal": true
+      },
+      {
+        "path": "packages/values/src/wire.ts",
+        "historical_sha256": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+        "current_sha256": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+        "equal": true
+      }
+    ],
+    "all_equal": true
+  },
+  "historical_workerd_source_bridge": [
+    {
+      "path": "packages/values/test/exact-bootstrap.workerd.mjs",
+      "historical_sha256": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1",
+      "current_sha256": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "historical_sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+      "current_sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+      "equal": true
+    }
+  ],
+  "generated_assets": {
+    "values_semantics.d.ts": {
+      "actual": {
+        "path": "packages/values/bindings/generated/values_semantics.d.ts",
+        "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+        "bytes": 2184
+      },
+      "matches_BUILD_hash_and_length": true
+    },
+    "values_semantics.js": {
+      "actual": {
+        "path": "packages/values/bindings/generated/values_semantics.js",
+        "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+        "bytes": 7869
+      },
+      "matches_BUILD_hash_and_length": true
+    },
+    "values_semantics_bg.wasm": {
+      "actual": {
+        "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+        "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+        "bytes": 653133
+      },
+      "matches_BUILD_hash_and_length": true
+    },
+    "values_semantics_bg.wasm.d.ts": {
+      "actual": {
+        "path": "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts",
+        "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+        "bytes": 643
+      },
+      "matches_BUILD_hash_and_length": true
+    }
+  },
+  "old_bootstrap_wasm": {
+    "sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+    "bytes": 622216
+  },
+  "current_wasm": {
+    "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+    "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+    "bytes": 653133
+  },
+  "historical_credit_retained": {
+    "current_asset_source_correspondence": "Positive historical Step9 pinned-source regenerated/two-private-prefix equality and root asset refresh; current exact source/assets match. BUILD alone is not that proof.",
+    "installed": "Step9 finite six-op opt-in Node/Bun selected plain carrier profile and original error pairs/current asset; narrower than all69/native-default",
+    "workerd": "Step9 handwritten exact-values fixture through installed owning local-run; current source hashes equal; startup negatives and two fresh isolates; no generated application/durable validator/work claim",
+    "numeric_corpus": "Step12 independent retained actual transport corpus rows10301 (10213 numbers+88 scalar strings), current exact sources/asset bridge; finite-domain evidence only",
+    "old_receipt": "bootstrap-current.json retains old b0d44...622216 asset scope; do not credit current f587 from that old receipt",
+    "fresh_acceptance": false
+  },
+  "historical_raw_paths_currently_absent": [
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-independent-corrected.json",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-workerd-corrected.log",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source-pins-final.json",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/native-frozen-witness.json",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/fresh-frozen-witness.json"
+  ],
+  "minimization_review": "Current valid six-op scalar/plain-carrier exact route is smallest retained host proof; preparation native pure/source prototype is unjoined to actual TS CLI. Proposed owner-local single selected numeric core or closed accepted-tree seam is justified only by real consumer simplification and domain/whole-call evidence. Structural/native validator/scheduler/generic bridge expansion remains separate; no new selected architecture accepted.",
+  "bounded_search_limit": "Exact digest search restricted to docs/research/package-subsystem-ports-20261006, implementation/rust-port-orchestration and named package inventory; not a global absence claim.",
+  "disposition": "Reports largely accurate at source/proposal stage. Correct current-asset blanket unproven qualification and narrow shared-six-op input contract. Other outlined gates retained; no adoption or original parent closure."
+}

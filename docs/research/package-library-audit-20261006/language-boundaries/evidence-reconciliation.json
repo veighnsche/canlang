@@ -1,0 +1,354 @@
+{
+  "schema": 1,
+  "pin": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "supersedes": "Earlier blanket unproven current-asset host qualification / no matching receipt claim in values report G12–G14",
+  "reason": "Initial bounded receipt search missed matching-current-digest implementation/rust-port-orchestration STEP9 saved acceptance/host/source/reproducibility evidence.",
+  "previous_report_sha256": "b36ca8550436167bc1da943a40f507a235c21970cdeb350cc609410f4d42e79e",
+  "retained_scope": {
+    "stage": "retained accepted finite qualification; reviewed saved receipts and compared source/digest pins, no fresh execution",
+    "asset_sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+    "asset_bytes": 653133,
+    "BUILD_sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+    "source_comparison_to_frozen_pin": {
+      "full_non_generated": {
+        "compared": 158,
+        "matching": 158,
+        "mismatches": [],
+        "absent_from_pin": [
+          "packages/contracts/.turbo/turbo-build.log",
+          "packages/values/.turbo/turbo-build.log"
+        ]
+      },
+      "acceptance_pins": {
+        "compared": 10,
+        "matching": 10,
+        "mismatches": [],
+        "absent_from_pin": []
+      }
+    },
+    "accepted_profiles": [
+      {
+        "profile": "Values explicit six-operation exact backend",
+        "hosts": [
+          "Node 24.21.0",
+          "Bun",
+          "workerd 1.20260730.1 via owning installed local-run"
+        ],
+        "native_tests": 87,
+        "runtime_tests": {
+          "pass": 887,
+          "skip": 1,
+          "excluded": "Emitted string-escape contract test requires absent dist/conformance fixture; original-source oracle passed and original failed stage is retained"
+        },
+        "frozen_actual_native_and_installed_Wasm_cases": 10301,
+        "original_and_seeded_differential_cases": 3309,
+        "installed_files_byte_equal": 298,
+        "fresh_Worker_isolates": 2,
+        "scope": "Opt-in scaffold operations, exact original errors, own-string-op refusal before args, pinned asset and startup controls; no full registry or production handler claim"
+      },
+      {
+        "profile": "Validation structural transport scaffold",
+        "scope": "Finite ABI/arena/owner/plan handle and structural transport controls only; no protected HTTP/MCP/state producer qualification"
+      }
+    ],
+    "independent_installed": {
+      "anchor": {
+        "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+        "line": 2,
+        "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217"
+      },
+      "node": "v24.21.0",
+      "loaded_wasm": {
+        "path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/consumer/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+        "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81"
+      },
+      "checks": {
+        "own_name_refusal": 6,
+        "zero_argument_effects": 6,
+        "fixed_expected_operation_outcomes": 6,
+        "error_byte_pairs": [
+          {
+            "op": "add-int",
+            "error": {
+              "name": "ValueError",
+              "code": "overflow",
+              "message": "int64 out of range: 9223372036854775808"
+            }
+          },
+          {
+            "op": "negate-int",
+            "error": {
+              "name": "ValueError",
+              "code": "overflow",
+              "message": "int64 out of range: 9223372036854775808"
+            }
+          },
+          {
+            "op": "add-money",
+            "error": {
+              "name": "ValueError",
+              "code": "currency-mismatch",
+              "message": "money addition needs matching currencies"
+            }
+          }
+        ],
+        "raw_transport_numeric_witnesses": 10,
+        "pinned_asset_change_refusal": true,
+        "explicit_ts_after_failed_bootstrap": true
+      },
+      "limits": [
+        "No full A07.3 registry",
+        "No negative-zero scale equivalence claim",
+        "No V validation profile producer or durable work consumer",
+        "Measurement/default decision not certified",
+        "Explicit independent TS use after failed startup is not persisted/profile swap or in-flight drainage rollback"
+      ]
+    },
+    "workerd": {
+      "anchor": {
+        "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+        "line": 2,
+        "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc"
+      },
+      "scope": "Fresh source-regenerated opt-in exact-values scaffold through installed emitted host and real owning startLocalDev/workerd module map",
+      "host_versions": {
+        "node": "24.21.0",
+        "miniflare": "4.20260730.0",
+        "workerd": "1.20260730.1"
+      },
+      "source_sha256": {
+        "packages/values/test/exact-bootstrap.workerd.mjs": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1",
+        "packages/cloudflare/src/dev/local-run.ts": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a"
+      },
+      "installed_sha256": {
+        "localRun": "3408bb34ddc38c7166fc451cc0582611bd0fc41f94e450285f8dc28c7823edb9",
+        "valuesWasm": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+        "valuesGlue": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0"
+      },
+      "checks": [
+        {
+          "hostCase": "compiled",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "abi",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "missing-exports",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "missing-transport-exports",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "caller-methods",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "first-asset-mutation",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "caller-methods-first",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "externally-initialized",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "workerdStartup": "missing",
+          "status": "rejected"
+        },
+        {
+          "workerdStartup": "corrupt",
+          "status": "rejected"
+        },
+        {
+          "workerd": "passed",
+          "freshIsolates": 2,
+          "localRun": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/node_modules/@canlang/cloudflare/dist/dev/local-run.js",
+          "moduleCount": 13
+        }
+      ],
+      "source_reuse": "Actual local-run source equals accepted324d624; owning installed Cloudflare fresh emission from step8 retained. Other installed Can deps remain step8 byte-verified dist snapshot scope, not whole-source rebuild. New values source/glue/binary emitted and freshly installed independently.",
+      "limits": [
+        "Handwritten finite module fixture, not full generated .can application/durable validation/work qualification",
+        "Exact scaffold ops only; A07.3/V profiles/resources open",
+        "No default selection or TS deletion",
+        "Workerd latest-date support not claimed"
+      ]
+    },
+    "acceptance": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json",
+      "line": 10,
+      "sha256": "bb93c8cf44154eefcf90e92c477a27af9134c5526a2a493436755b32d5e49afd"
+    },
+    "qualification": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+      "line": 241,
+      "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75"
+    },
+    "root_asset_refresh": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
+      "line": 34,
+      "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555"
+    },
+    "reproducibility": {
+      "anchor": {
+        "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
+        "line": 20,
+        "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7"
+      },
+      "record": {
+        "BUILD.json": {
+          "first_sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+          "independent_prefix_sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+          "byte_equal": true,
+          "bytes": [
+            985,
+            985
+          ]
+        },
+        "values_semantics.js": {
+          "first_sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+          "independent_prefix_sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+          "byte_equal": true,
+          "bytes": [
+            7869,
+            7869
+          ]
+        },
+        "values_semantics_bg.wasm": {
+          "first_sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+          "independent_prefix_sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+          "byte_equal": true,
+          "bytes": [
+            653133,
+            653133
+          ]
+        },
+        "values_semantics.d.ts": {
+          "first_sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+          "independent_prefix_sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+          "byte_equal": true,
+          "bytes": [
+            2184,
+            2184
+          ]
+        },
+        "values_semantics_bg.wasm.d.ts": {
+          "first_sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+          "independent_prefix_sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+          "byte_equal": true,
+          "bytes": [
+            643,
+            643
+          ]
+        }
+      },
+      "limit": "Byte-identical at two private source/target prefixes under same lock/rustc/wasm-bindgen/local platform; no universal platform/toolchain claim. BUILD alone lacks semantics pins, supplied here."
+    },
+    "scaffold_scope": {
+      "bits_UTF16_overflow_budgets_owner_plan_lifecycle": "passes existing tests + qualification.mjs",
+      "production_protected_authority": false,
+      "JSON_provenance_strings_are_not_production_admission": true
+    },
+    "remaining": [
+      "A07.3 full registry/admitted profiles; A08 public routing",
+      "V02.6 protected PH2/PH4, canonical DefaultRef/Decimal and lifetime bridge",
+      "V06 validation profiles, V07 complete resource/lifetime policy, V08 actual owning handler join",
+      "Full exact UTF16/unpaired and astral-cut residual; decimal negative-zero scale exclusion; arbitrary getter/proxy/array observability",
+      "Original full complete-call/adoption/resource budgets; no production/durable/MCP/default switch",
+      "Existing emitted source-only string fixture path gap"
+    ],
+    "retained_evidence_limit": "Committed acceptance/qualification/independent-installed/workerd/reproducibility receipts establish their stated finite historical credit. Underlying private installs/logs were not reopened and no execution repeated; this does not negate saved narrow acceptance."
+  },
+  "step12_reconciliation": {
+    "acceptance": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
+      "line": 4,
+      "sha256": "d61e2fc7e89cf46295ca2122308027db6bdb4e3fd54a198477d230479cf02091"
+    },
+    "scope": "Only actual released finite step4-11 package numeric/scaffold/import-map/identity/CSV/services/work-carrier profiles",
+    "source_equivalence": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
+      "line": 4,
+      "sha256": "9f90272eab38c1a0f9cebd99c981fe4804610967fe975249b9792e34282ad514"
+    },
+    "checked_sources": 37,
+    "all_equal": true,
+    "critical_review": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/ASTRA-CRITICAL.md",
+      "line": 11,
+      "sha256": "f301710a547bf3fdd209546cf9ea7c942c5d9614f17cfbe7499e45a8f661c4d0"
+    },
+    "sol_stale_asset_expectations": {
+      "anchor": {
+        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/source-bridge.json",
+        "line": 565,
+        "sha256": "f7822f7beb1166990d202235cbae83ecba95e6591173b91308c246eb1e4ba42a"
+      },
+      "mismatches": [
+        {
+          "path": "packages/values/bindings/generated/BUILD.json",
+          "prior": "step9 corrected actual values source",
+          "expected": "528bd710b2cd8fedaf95486baf94f03635b92efa0567e0e05e9c1e39558d75eb",
+          "current": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+          "equal": false
+        },
+        {
+          "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+          "prior": "step9 corrected actual values source",
+          "expected": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+          "current": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+          "equal": false
+        }
+      ],
+      "resolution": "Expected old BUILD/Wasm digests came from stale baseline pins; STEP9 corrected acceptance/root refresh/independent receipts explicitly pin current digests. Not unresolved current source or current-asset qualification absence."
+    },
+    "joined_gate_limit": [
+      "No deployment/publication",
+      "Only fresh current Cloudflare emitter plus copied exact qualified sibling installed outputs",
+      "No whole compiler/app/durable/backend adoption claim",
+      "Native preparation and native release HUMAN HOLD"
+    ],
+    "no_scope_expansion": "STEP12 is selected released finite package scope; original programme completeness/native release/default adoption/TS retirement remain false or held."
+  },
+  "corrected_gates": [
+    {
+      "id": "G12",
+      "title": "Source and asset provenance",
+      "gate": "BUILD inventory alone contains binding filenames and asset integrity, not semantics source pins. Retain saved STEP9 independent source pins/158 tracked-source comparison, five-asset refresh and two-prefix same-toolchain reproducibility for current f587 asset; no universal platform/toolchain correspondence or future asset transfer without matching pins."
+    },
+    {
+      "id": "G13",
+      "title": "Installed and host qualification",
+      "gate": "Current f587 asset retains STEP9 finite six-operation installed Node24.21/Bun/workerd1.20260730.1 qualification, startup/ABI/export/mutation/missing/corrupt controls and finite structural scaffold credit. Do not extend this to full69-op admitted domains, actual generated .can durable/validation handlers, current installation outside saved runs, browser startup, new host versions or default adoption."
+    },
+    {
+      "id": "G14",
+      "title": "Receipt/version scope reconciliation",
+      "gate": "Old bootstrap-current b0d44d9…/622216 mismatch is historical, superseded for current finite asset credit by matching f5870905…/653133 STEP9 acceptance/independent-installed/workerd/reproducibility/root-asset-refresh. STEP12 released-source review preserves six-op scaffold credit. Keep old/narrow/current receipts separately versioned; no full-registry or production adoption inferred."
+    }
+  ],
+  "still_open": [
+    "A07.3 full registry/admitted profiles; A08 public routing",
+    "V02.6 protected PH2/PH4, canonical DefaultRef/Decimal and lifetime bridge",
+    "V06 validation profiles, V07 complete resource/lifetime policy, V08 actual owning handler join",
+    "Full exact UTF16/unpaired and astral-cut residual; decimal negative-zero scale exclusion; arbitrary getter/proxy/array observability",
+    "Original full complete-call/adoption/resource budgets; no production/durable/MCP/default switch",
+    "Existing emitted source-only string fixture path gap"
+  ],
+  "no_execution_or_repo_edits": true
+}

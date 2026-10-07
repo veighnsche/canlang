@@ -1,0 +1,28 @@
+{
+  "source_checkpoint": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "checks": {
+    "frozen_inputs": 515,
+    "source_anchors": 1208
+  },
+  "responsibilities": 316,
+  "inventory_files": 395,
+  "owners": 13,
+  "values_native_ops": 69,
+  "values_reference_ops": 69,
+  "values_common_host_names": 6,
+  "validation_scaffold_ops": 6,
+  "work_public_native_functions": 86,
+  "work_groups": 27,
+  "historical_matching_source_pins": 158,
+  "absent_generated_cache_pins": [
+    "packages/contracts/.turbo/turbo-build.log",
+    "packages/values/.turbo/turbo-build.log"
+  ],
+  "static_binary_metadata_reproduced": true,
+  "new_runtime_acceptance": false,
+  "package_inputs_equal_current": true,
+  "non_package_drift": [],
+  "errors": [],
+  "product_execution": false,
+  "execution_authorized": false
+}

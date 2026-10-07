@@ -16,6 +16,11 @@ The later planning audit records the [production baseline](production-baseline/R
 [required-behavior authority](required-behavior/README.md),
 [library fit](library-fit/README.md), [adapter branch dispositions](adapter-branches/README.md),
 and [duplicated mechanisms/layers](duplication-layers/README.md).
+The [TS/Rust/Wasm ownership audit](language-boundaries/README.md) then maps
+the defining implementations, finite native surfaces and unfinished consumers.
+It distinguishes actual exact Wasm functions, validation scaffolds, registered
+Work candidates and held preparation prefixes; it also reconciles current values
+asset receipts and narrows earlier preparation caller claims.
 The branch audit covers 480 groups across the selected 27 integration seams, with exact
 conditional change gates and independent source challenges. These later pinned records
 supersede historical unwired/source/qualification premises below where explicitly reconciled;
