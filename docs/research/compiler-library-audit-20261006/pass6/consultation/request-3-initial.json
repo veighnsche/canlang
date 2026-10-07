@@ -1,0 +1,30 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "scope": "C06 input-engine replacement only, catalog and LSP caller contracts verified; output/JS/coordinates unchanged",
+    "requirements": "ordered Vec<(String,Json)> including decoded duplicates; get-first lookup. Raw arbitrary legal numbers including -0/E+000/hugeexponents, no float; as_i64 lexical nofraction/exponent inrange separately from exact LSP mathematical i32 IDs. Strict Unicode keys/values/lonesurrogate rejection, onefullJSONdocument. Rootvalue depth0<=64, emptyterminal container atdepth64 allowed; budgets enforced beforeunboundedtree. Current LSP 64MiB framebodyinclusive checkedbeforeallocation. Reserved envelope duplicates rejected, unknown/nested duplicatesretainexistingpolicies. Strict byte admission precedes &str parsing.",
+    "verified_candidate": "serde1.0.229 and serde_json1.0.151 alreadylocked with std/derive and std/raw_value defaultsdisabled. Prototype A bounded DeserializeSeed/Visitor+borrowedCell/stdioRead cursor, explicit Root/Object/Array sourceorigin chooses numeric-only IgnoredAny to delegate grammar and copy exact sourcelexeme. Strings/keys deserializeasRustString; orderedpair mapvisitor. No fullgrammar scanner/arbitraryprecision/sentinelhandling/newfeature. About90 compatibilityadapter lines replacesabout280 handwrittenparser/UTF8 lines. Pinnedcachedsource confirms IoRead reader.bytes()+onebytepeek; ObjectMap next_value_seed consumescolon beforeseed withoutnexttokenpeek; Array next_element_seed peeks nexttokenbeforeseed. Last successfulnumericchar is digit, else final1byte delimiterpeek excluded. 297 independent numeric/context expectations,25negativegrammar/Unicode,3sentinel/decodeddupe,28historicaldepthcomparisons pass. 20,001byte depth10k doc stopsafter66bytes. Scratchmixed360KB x30 about98ms vsold50ms, approx2x slowdown (~100MB/s); not productionlatency claim.",
+    "alternatives_limits": "Library Value/arbitrary_precision alone confuses synthetic numbermarker withauthored object keys or losesorder/duplicates/rawspellings. WholeRawValue first scan doesnot enforce64 depth/strictUnicode. Alternative B two-pass bounded typed validation + bounded raw reconstruction mayrequirearbitrary_precision forlarge legalnumbers andmore reparsing/adapterwork; it is not yet fullyqualified. C current proven bounded grammarparser hasno observednewdefect/no privatecoupling andfasterprototype baseline, butdoesnotretiregrammar implementation.",
+    "error_callers": "ParseError public {offset:usize,message:&static str}, Display invalid JSON at byteN: reason, publicjson/reexportbyLSP transport. No repo production fieldreader/structconstructor beyonddefinition. Catalog DisplayintoE6003 withsameorigin/caller primaryspan; LSP discards detailandemitsfixed -32700/null invalid JSON. Inspectedtests donot freezeexactoldtext/positions. Compilercratepublish=false, externalRustsource consumers notqualified. LibraryError supportsclassify/line/column publicly; its detailedreason is ownedDisplaystring. Need explicitbyteanchoring andtext classification, no leakedstrings or recreategrammar to recoveroldreasons."
+  },
+  "questions": {
+    "engine_policy": {
+      "type": "choice",
+      "instructions": "Compare these three paths against identical wire fidelity, strict Unicode/grammar, parse-time depth protection, simplicity and qualification outcomes; choose the soundest current release policy.",
+      "criteria": {
+        "pinned_cursor": "Accept qualified single-pass A: small source-origin/cursor adapter delegates allgrammar/Unicode to library, preservesrepresentations andparse-time budget, no newfeatures. Explicitly document/requalify pinnedprivatebehavior and measured~2x prototype cost; exercise actualcatalog/LSP beforeproductioncommit.",
+        "two_pass": "Prefer B bounded validatingvisitor thenraw reconstruction, qualify exactdepth/markers/large numbers andextra feature first. Avoid singlepass cursorcoupling wherepossible, but retain greaterimplementation/reparsing cost anddo not call it qualified yet.",
+        "retain_bounded": "Keep proven bounded parser now, comparing testedbenefit/complexity/cost ratherthanretiringforitsown sake. Record retirementgoal deferred, no observednewinputdefect. No new grammar clone as adapter."
+      }
+    },
+    "error_policy": {
+      "type": "choice",
+      "instructions": "Choose an error adaptation approach for the verified Display-only catalog consumer and detail-discarding LSP consumer, weighing the static public shape against precise explanations; do not require unknown consumers as established contracts.",
+      "criteria": {
+        "static_categories": "Keep public &static str field/Displayprefix; map public Error::classify tocoarse static syntax/EOF/IO categories, explicit depthreason andaccurate byteoffset. Strong source API preservation butlessspecific catalogreason; freeze intentionalwording/offsetdifferences.",
+        "owned_native_reason": "Change only ParseError.message toownedString, retainoffset/prefix andactualE6003/span/fixedLSPmapping; reuse librarynative reason removing redundant line/column suffix. No currentfieldconsumer/constructor affected; recordpublicRusttypechange andnativewording/positiondifferences. Moreactionablewithoutlarge mapping table.",
+        "mapped_static_details": "Keepstaticfield andbuildpinned nativeDisplayprefix->staticreason mapping foractionable errors, fallbackcategories andexplicitoffsets. More string-coupling/maintenance thanclassify butavoids sourcefieldtypechange; it doesnotguarantee exactlegacymessages."
+      }
+    }
+  }
+}

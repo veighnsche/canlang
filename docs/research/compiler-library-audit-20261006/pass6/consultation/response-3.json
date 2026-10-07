@@ -1,0 +1,55 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "We must decide how to retire handwritten JSON grammar for the compiler while preserving verified catalog and LSP contracts. Objects are ordered lists, duplicates remain visible after key decoding, and access chooses the earliest key. Number storage is textual for all legal magnitudes and spellings, including negative zero and padded exponents. Two integer contracts remain distinct: lexical range-checked i64 lookup and mathematically integral signed-i32 LSP IDs with exact reply spelling. Parsing accepts exactly one JSON document, rejects malformed Unicode escapes in both names and values, and receives strict UTF-8 from its callers. The original budget checks value entry at root depth 0 through depth 64; an empty terminal container at that last depth is valid. Protection must occur as parsing proceeds. The unchanged framing allocation cap is 64 MiB inclusive. Server reserved top-level duplicate policy and permissive unknown/nested members are already defined by their owners.\nThe lockfile supplies serde=1.0.229 with std/derive and serde_json=1.0.151 with std/raw_value, defaults off. Tested approach A replaces roughly 280 lines of manual syntax/UTF-8 processing with roughly 90 lines of bounded seed/visitor and tracked reader glue. For actual numeric tokens only, library IgnoredAny validates syntax before the original slice becomes the numeric value; this avoids floating arithmetic and private marker confusion. Normal visitors decode strings and retain map pair order. Root, array and object origins deliberately account for the pinned reader's single-byte lookahead and the different seed invocation positions after array peeking or map-colon consumption, verified in cached library code. No dependency feature, full scanner or whole-value ignored scan is added. The scratch checks succeeded for 297 prescribed number/context combinations, 25 malformed grammar/Unicode examples, 3 actual sentinel-key/decoded-duplicate objects and 28 existing depth outcomes. A 10,000-deep input of 20,001 bytes terminated after reading 66 bytes. Mixed 360 KB input parsed 30 times took about 98 ms compared with 50 ms historically, an approximately 2x microbenchmark penalty. Production catalog and framed-server runs still need qualification.\nApproach B uses bounded strict validation followed by raw representation rebuilding. It could avoid the single-pass cursor coupling but may need arbitrary_precision and additional rescans; it is currently unqualified. Value alone cannot meet the ordered/duplicate/textual-number requirements. Arbitrary-precision synthetic objects and native numeric normalization are hazards, and a whole RawValue pass alone lacks required Unicode and depth enforcement. Approach C leaves the current bounded parser intact, preserving known speed/behavior without library-internal assumptions, and records retirement as incomplete. No new defect was found in that proven parser.\nErrors expose a public usize offset and static message today, with an invalid JSON at byte prefix. Verified in-repository consumers use only Display for anchored catalog E6003; the server instead emits its unchanged -32700/null invalid JSON response. There are no other production struct builders or field reads, nor tests requiring old exact error text/position. The crate is not published, but external Rust source compatibility is not established. Serde publicly supplies classification and line/column, while its detailed reason is owned Display text. Choose a transparent error policy that keeps caller code/span mapping and meaningful byte anchoring, documents deliberate text/API drift and does not manufacture a parallel grammar or leak allocations.",
+    "questions": {
+      "engine_policy": {
+        "type": "choice",
+        "instructions": "Which course should we adopt for this input-engine packet, accounting fairly for tested guarantees, coupling, complexity and performance?",
+        "criteria": {
+          "pinned_cursor": "Select the tested bounded cursor adapter, make pinned internals and slower prototype throughput explicit, and condition implementation acceptance on catalog/server witnesses.",
+          "two_pass": "Invest in independently qualifying strict bounded validation and raw-value reconstruction, including larger-number and depth details and its added traversal cost.",
+          "retain_bounded": "Retain the existing bounded syntax implementation, leaving retirement unfinished because the tested replacement has costs without an observed corrective necessity."
+        }
+      },
+      "error_policy": {
+        "type": "choice",
+        "instructions": "Which error contract makes the best trade-off between the present public field type and actionable anchored failures?",
+        "criteria": {
+          "static_categories": "Maintain the static-string field with coarse library error categories, a dedicated depth message and accurate bytes; declare the loss of detailed legacy reasons.",
+          "owned_native_reason": "Own the native reason string, retain the byte/display/caller envelope, and classify the public Rust field change alongside native message/location differences.",
+          "mapped_static_details": "Build a maintained native-reason-to-static-message adapter with category fallback; source shape stays stable but error-string coupling and translation code increase."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "engine_policy": {
+        "type": "choice",
+        "choice": "pinned_cursor",
+        "confidence": 0.65,
+        "probabilities": {
+          "two_pass": 0.0,
+          "pinned_cursor": 0.76,
+          "retain_bounded": 0.24
+        }
+      },
+      "error_policy": {
+        "type": "choice",
+        "choice": "owned_native_reason",
+        "confidence": 0.49,
+        "probabilities": {
+          "owned_native_reason": 0.66,
+          "mapped_static_details": 0.01,
+          "static_categories": 0.33
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1319,
+      "output_tokens": 92
+    }
+  }
+}

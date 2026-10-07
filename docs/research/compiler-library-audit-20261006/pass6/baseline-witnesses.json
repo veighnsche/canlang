@@ -1,0 +1,290 @@
+{
+  "source": "compiler/src/json.rs",
+  "source_sha256": "755334d67d38e0a24cf7ac1a2050c599c7dadd31f6dc3749554e9db249520183",
+  "method": "Copied unchanged input parser/accessors into isolated rustc harness; renderer string stub used only for these simple escapes. Not a serializer qualification. Expected admission/representation reviewed against grammar independently; legacy error snapshots are not future normative oracle.",
+  "cases": [
+    {
+      "name": "duplicate",
+      "input": "{\"x\":1,\"x\":2}",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "{\"x\":1,\"x\":2}",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "Some(Num(\"1\"))"
+    },
+    {
+      "name": "decoded_duplicate",
+      "input": "{\"id\":1,\"\\u0069d\":2}",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "{\"id\":1,\"id\":2}",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None"
+    },
+    {
+      "name": "spoof_number",
+      "input": "{\"$serde_json::private::Number\":\"123\"}",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "{\"$serde_json::private::Number\":\"123\"}",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None"
+    },
+    {
+      "name": "spoof_raw",
+      "input": "{\"$serde_json::private::RawValue\":\"[1]\"}",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "{\"$serde_json::private::RawValue\":\"[1]\"}",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None"
+    },
+    {
+      "name": "huge",
+      "input": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None"
+    },
+    {
+      "name": "exponent",
+      "input": "1e999999999999999999999",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "1e999999999999999999999",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None"
+    },
+    {
+      "name": "negative_zero",
+      "input": "-0",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "-0",
+      "as_i64_snapshot": "Some(0)",
+      "first_x_snapshot": "None"
+    },
+    {
+      "name": "fraction_zero",
+      "input": "-0.0",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "-0.0",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None"
+    },
+    {
+      "name": "unicode",
+      "input": "\"éあ😀\\uD83D\\uDE00\"",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "\"éあ😀😀\"",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None",
+      "expected_decoded_string": "éあ😀😀"
+    },
+    {
+      "name": "unicode_newline_trailing",
+      "input": "\"é\"\n x",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 6,
+        "message": "trailing bytes",
+        "display": "invalid JSON at byte 6: trailing bytes"
+      }
+    },
+    {
+      "name": "unicode_newline_control",
+      "input": "\"é\n\"",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 3,
+        "message": "unescaped control character",
+        "display": "invalid JSON at byte 3: unescaped control character"
+      }
+    },
+    {
+      "name": "leading_zero",
+      "input": "01",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 1,
+        "message": "trailing bytes",
+        "display": "invalid JSON at byte 1: trailing bytes"
+      }
+    },
+    {
+      "name": "plus",
+      "input": "+1",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 0,
+        "message": "unexpected character",
+        "display": "invalid JSON at byte 0: unexpected character"
+      }
+    },
+    {
+      "name": "short_exponent",
+      "input": "1e+",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 3,
+        "message": "invalid number",
+        "display": "invalid JSON at byte 3: invalid number"
+      }
+    },
+    {
+      "name": "lone_high",
+      "input": "\"\\uD800\"",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 7,
+        "message": "missing low surrogate",
+        "display": "invalid JSON at byte 7: missing low surrogate"
+      }
+    },
+    {
+      "name": "lone_low",
+      "input": "\"\\uDC00\"",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 7,
+        "message": "lone low surrogate",
+        "display": "invalid JSON at byte 7: lone low surrogate"
+      }
+    },
+    {
+      "name": "bad_hex",
+      "input": "\"\\u00xz\"",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 3,
+        "message": "invalid \\u escape",
+        "display": "invalid JSON at byte 3: invalid \\u escape"
+      }
+    },
+    {
+      "name": "trailing",
+      "input": "true false",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 5,
+        "message": "trailing bytes",
+        "display": "invalid JSON at byte 5: trailing bytes"
+      }
+    },
+    {
+      "name": "arrays_64_scalar",
+      "input": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None",
+      "depth_definition": "N outer arrays around indicated terminal; empty terminal adds one container, entered at depth N"
+    },
+    {
+      "name": "arrays_64_empty_array",
+      "input": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None",
+      "depth_definition": "N outer arrays around indicated terminal; empty terminal adds one container, entered at depth N"
+    },
+    {
+      "name": "arrays_64_empty_object",
+      "input": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[{}]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "expected_admission": true,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "expected_compact_representation": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[{}]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "as_i64_snapshot": "None",
+      "first_x_snapshot": "None",
+      "depth_definition": "N outer arrays around indicated terminal; empty terminal adds one container, entered at depth N"
+    },
+    {
+      "name": "arrays_65_scalar",
+      "input": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 65,
+        "message": "nesting too deep",
+        "display": "invalid JSON at byte 65: nesting too deep"
+      },
+      "depth_definition": "N outer arrays around indicated terminal; empty terminal adds one container, entered at depth N"
+    },
+    {
+      "name": "arrays_65_empty_array",
+      "input": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 65,
+        "message": "nesting too deep",
+        "display": "invalid JSON at byte 65: nesting too deep"
+      },
+      "depth_definition": "N outer arrays around indicated terminal; empty terminal adds one container, entered at depth N"
+    },
+    {
+      "name": "arrays_65_empty_object",
+      "input": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[{}]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 65,
+        "message": "nesting too deep",
+        "display": "invalid JSON at byte 65: nesting too deep"
+      },
+      "depth_definition": "N outer arrays around indicated terminal; empty terminal adds one container, entered at depth N"
+    },
+    {
+      "name": "arrays_66_scalar",
+      "input": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 65,
+        "message": "nesting too deep",
+        "display": "invalid JSON at byte 65: nesting too deep"
+      },
+      "depth_definition": "N outer arrays around indicated terminal; empty terminal adds one container, entered at depth N"
+    },
+    {
+      "name": "arrays_66_empty_array",
+      "input": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 65,
+        "message": "nesting too deep",
+        "display": "invalid JSON at byte 65: nesting too deep"
+      },
+      "depth_definition": "N outer arrays around indicated terminal; empty terminal adds one container, entered at depth N"
+    },
+    {
+      "name": "arrays_66_empty_object",
+      "input": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[{}]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "expected_admission": false,
+      "classification": "independent grammar/representation expectation; depth and duplicates are established compatibility to freeze explicitly",
+      "legacy_error_snapshot": {
+        "offset": 65,
+        "message": "nesting too deep",
+        "display": "invalid JSON at byte 65: nesting too deep"
+      },
+      "depth_definition": "N outer arrays around indicated terminal; empty terminal adds one container, entered at depth N"
+    }
+  ]
+}
