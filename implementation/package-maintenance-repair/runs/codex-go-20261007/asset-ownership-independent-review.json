@@ -1,0 +1,122 @@
+{
+  "verdict": "accept finite byte-ownership correction; no new counterexample in defining-owner scope",
+  "sourceSHA": "67a6d569fd20ea2bb930ef854a1c3f2ae0812b2f4c8a3da0e1626bfdad37453d",
+  "testSHA": "a0a9e3b5334e8074ceda7d0e9203ae08ade144cf3b6318a6ee9b0eafeeaa436d",
+  "strictBefore": "pass",
+  "strictCurrent": "pass",
+  "before": {
+    "tests": 35,
+    "pass": 21,
+    "fail": 14
+  },
+  "current": {
+    "tests": 35,
+    "pass": 35,
+    "fail": 0
+  },
+  "freshIndependentTests": 14,
+  "publicSignatureDifferences": 0,
+  "declarationClosure": [
+    {
+      "file": "src/errors/envelope.d.ts",
+      "beforeSHA": "bf870873e0ff278a7d554a27945a677e0995f0f05c793f5d74158dfc861bad37",
+      "currentSHA": "bf870873e0ff278a7d554a27945a677e0995f0f05c793f5d74158dfc861bad37",
+      "publicSignaturesIdentical": true,
+      "byteIdentical": true
+    },
+    {
+      "file": "src/errors/safe.d.ts",
+      "beforeSHA": "d380483dae2fdff13b866f335ba99d3685f240daa7b6ab5ca64cbb7cfae4dac0",
+      "currentSHA": "d380483dae2fdff13b866f335ba99d3685f240daa7b6ab5ca64cbb7cfae4dac0",
+      "publicSignaturesIdentical": true,
+      "byteIdentical": true
+    },
+    {
+      "file": "src/http/assets.d.ts",
+      "beforeSHA": "f04d72976bd56b1fa47322eb3bca21ae55a436a8e309d3c101ede48adc9671ff",
+      "currentSHA": "573044b84e6cb1a9f43c7b58c5dd028e83ba2ef403f3069dfcb2b6277407f672",
+      "publicSignaturesIdentical": true,
+      "byteIdentical": false
+    },
+    {
+      "file": "src/http/context.d.ts",
+      "beforeSHA": "0fe7823c92d52e8827bd4ca1b1ca30d8ad99ae6bade35dd09a0e9078d35015c8",
+      "currentSHA": "0fe7823c92d52e8827bd4ca1b1ca30d8ad99ae6bade35dd09a0e9078d35015c8",
+      "publicSignaturesIdentical": true,
+      "byteIdentical": true
+    },
+    {
+      "file": "src/ports.d.ts",
+      "beforeSHA": "25577db9ecb6fb9235e1b3bb185c1f999c885998b4d9accd35c5f64cbf51a1fb",
+      "currentSHA": "25577db9ecb6fb9235e1b3bb185c1f999c885998b4d9accd35c5f64cbf51a1fb",
+      "publicSignaturesIdentical": true,
+      "byteIdentical": true
+    }
+  ],
+  "closureGrowth": {
+    "readableSource": {
+      "before": {
+        "files": 5,
+        "bytes": 35813,
+        "lines": 906
+      },
+      "current": {
+        "files": 5,
+        "bytes": 36037,
+        "lines": 908
+      }
+    },
+    "emittedJS": {
+      "before": {
+        "files": 5,
+        "bytes": 16144,
+        "lines": 367
+      },
+      "current": {
+        "files": 5,
+        "bytes": 16374,
+        "lines": 369
+      }
+    },
+    "declarations": {
+      "before": {
+        "files": 5,
+        "bytes": 22146,
+        "lines": 543
+      },
+      "current": {
+        "files": 5,
+        "bytes": 22249,
+        "lines": 544
+      }
+    }
+  },
+  "handlerBodySHA": "ee08ab68060a2d6ada42bd844094a0930ed247fe70d2c92488d4d648ec56c637",
+  "unchangedHelpersAndHandlerSHA": "1d81c178783d37d2a4b2a2afa4d8335627ae77d4d59e1b4cfed18fa97ebe5b36",
+  "unchangedPrerequisiteCount": 18,
+  "networkRequests": 0,
+  "productWrites": 0,
+  "allCommandsReleased": true,
+  "allReadsReleased": true,
+  "independentCounterexamples": [
+    {
+      "scope": "unchanged local Request normalization",
+      "input": "/assets/a/%2e%2e/b",
+      "normalized": "/assets/b",
+      "result": "existing exact admitted b can serve; both before/current pass; no byte ownership regression"
+    }
+  ],
+  "limits": [
+    "constructor/direct local Request Response only; production caller/mount missing",
+    "ETag absent; no policy synthesized",
+    "dynamic providers remain mutable and structurally supported",
+    "no generalized monkeypatch security, installed runtime authorization, browser or deployment qualification",
+    "source snapshots freeze direct asset import closure; external contracts/identity local dist imports copied and pinned as dependency support, not source-correctness-certified"
+  ],
+  "prerequisiteReuseLimit": "18 of 20 current pins match. Asset owner intentionally corrected; cloudflare bundle.ts has changed to SHA613905f8035259e8e99e6ed97f7b125c917eba16fd845d1f68d6f5a176114b4b, so prerequisite bundle/attach behavior proof is not reused as current acceptance.",
+  "packet": "DEL-B02 immutable table owner correction",
+  "rootDisposition": "Accepted only finite defining constructor/direct-handler ownership contract; parent remains partial",
+  "baselineSourceSHA256": "9d42a8d50079e812714c21198d9b73b50d0bbbbfe5d8e8058e1816551ee9c862",
+  "fullPrivateEvidence": "/private/tmp/canlang-repair-go-20261007/asset-ownership-independent/review.json",
+  "fullPrivateEvidenceSHA256": "f8b46597deb608e66b282a20237cd7651ec7e1f11f5b6fa36a2ab1c2d621743b"
+}
