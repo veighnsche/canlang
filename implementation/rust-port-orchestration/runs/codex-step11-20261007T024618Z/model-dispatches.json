@@ -1,0 +1,36 @@
+{
+  "selected_at_utc": "2026-10-07T02:52:33.628170+00:00",
+  "policy": "Least expensive reliable supported model/effort rechecked per finite task; no API pricing claims about subscription usage",
+  "primary_sources": [
+    {
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+      "checked_date": "2026-10-07",
+      "use": "Efficient scoped tasks; low/medium supported. Task-fit remains local inference."
+    }
+  ],
+  "dispatches": [
+    {
+      "task": "bounded read-only E01/R02 caller/remnant inventory",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "reason": "Defined accepted slices and explicit files; evidence extraction and caller indexing, no unfrozen seam",
+      "attempt_result": "Agent thread limit reached; no worker started",
+      "fallback": "Root performs finite extraction; no external CLI export or new permanent worker"
+    },
+    {
+      "task": "remove proven unused internal string-preserving scan mode",
+      "preferred_model": "gpt-6-sol",
+      "effort": "low",
+      "reason": "One private mode, real caller removed in accepted D04; active default unchanged",
+      "execution": "Root after dispatcher capacity failure; static diff review plus actual source consumer controls",
+      "substantive_retirement": false
+    },
+    {
+      "task": "E01 retain-now disposition records",
+      "preferred_model": "gpt-6-luna",
+      "effort": "low",
+      "reason": "Existing source-evidenced candidates, no new semantic selection or prototype",
+      "execution": "Root; substantive future decisions retain Sol high/JEV requirements"
+    }
+  ]
+}

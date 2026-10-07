@@ -1,0 +1,22 @@
+{
+  "task_id": "step11:R02-import-scan-mode",
+  "owner": "Originating Codex",
+  "base": "2552e7ba7636fb9d0c0c97c17922b195b868ebad",
+  "owned_files": [
+    "packages/cloudflare/src/deploy/bundle.ts"
+  ],
+  "input_releases": [
+    "step8 D04/324d624 independent installed/source diagnostic acceptance",
+    "step10/ace2c0e8 accepted actual bundle dependency closure"
+  ],
+  "exact_change": "Remove unused keepStrings=true branch/parameter/comments formerly used by collectLinkSpecifiers. The only current caller supplies one argument and always blanks strings. Preserve CommonJS loadability policy.",
+  "acceptance": [
+    "Actual unchanged-link caller switched to scanModuleImports in324d624",
+    "Current source-focused assertWorkerdLoadable and assertLinksResolve positives/negative controls",
+    "Private cloudflare strict noEmit and exact candidate snapshot hash",
+    "No API, parser, authority, TS backend, manifest, native/Wasm, oracle or other worker edits"
+  ],
+  "future_scope_authorized": false,
+  "private_outputs": "/private/tmp/canlang-rust-port-codex-step11-20261007T024618Z",
+  "writer_release": "Root exclusive finite edit finished; ready for checked exact-file commit"
+}

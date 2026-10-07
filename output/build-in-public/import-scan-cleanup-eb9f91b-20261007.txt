@@ -1,0 +1,1 @@
+The script checks before shipping an app got one small cleanup: the import parser had replaced a scan mode, but its unused switch remained. Deleted that switch; kept the separate executable-code guard. Five focused tests and strict typechecking passed.

@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 /private/tmp/canlang-rust-port-codex-step11-20261007T024618Z/source
+
+ ✓ packages/cloudflare/test/deploy-bundle.test.ts (29 tests | 24 skipped) 14ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed | 24 skipped (29)
+   Start at  04:51:19
+   Duration  1.07s (transform 410ms, setup 0ms, collect 855ms, tests 14ms, environment 0ms, prepare 52ms)
+
