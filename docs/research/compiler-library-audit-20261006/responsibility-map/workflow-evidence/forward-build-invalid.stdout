@@ -1,0 +1,1 @@
+{"ok":false,"command":"build","code":"missing-producer","detail":"no L1 CompileArtifact emission to package yet","producer":"lane-01","contract":"can compile emission (CompileArtifact)"}

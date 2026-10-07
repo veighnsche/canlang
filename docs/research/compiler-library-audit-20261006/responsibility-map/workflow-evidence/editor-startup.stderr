@@ -1,0 +1,2 @@
+$ bun run compile && node test/server-startup.cjs
+$ tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots ./.empty-typeroot --outDir out --rootDir src src/extension.ts src/client.ts

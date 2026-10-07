@@ -1,0 +1,1 @@
+{"ok":false,"command":"test","code":"missing-producer","detail":"no L1 CompileArtifact emission to execute yet","producer":"lane-01","contract":"can compile emission + ArtifactTestModule loader (§13 exampleFixtures)"}

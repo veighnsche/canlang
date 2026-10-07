@@ -1,0 +1,1 @@
+{"ok":false,"command":"run","code":"invalid-artifact","detail":"artifact /var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/invalid.artifact.json: unsupported artifact_version undefined (want 1)"}

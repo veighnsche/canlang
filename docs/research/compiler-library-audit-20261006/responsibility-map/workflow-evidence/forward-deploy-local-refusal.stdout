@@ -1,0 +1,1 @@
+{"ok":false,"command":"deploy","code":"confirm-required","detail":"refusing to deploy without --yes: pass --preview to review, --yes to confirm (nothing was written)"}

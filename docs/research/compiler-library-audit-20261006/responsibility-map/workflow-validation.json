@@ -1,0 +1,62 @@
+{
+  "scope": "Mechanical current inventory/workflow/source/evidence linkage. Independent source review and process receipts separate; not semantic completeness.",
+  "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "observed_head": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+  "compiler_diff_from_source_baseline": "",
+  "paths": 107,
+  "unique_paths": 107,
+  "source_files": 41,
+  "source_slices": 327,
+  "all_path_slices": 544,
+  "large_test_files": 7,
+  "large_test_slices": 94,
+  "api_source_visibility": {
+    "external": 612,
+    "crate/restricted": 22,
+    "module-private": 14
+  },
+  "explicit_test_declarations": 929,
+  "external_input_pins": 31,
+  "errors": [],
+  "checks": [
+    "git ls-files compiler exactly reconciled to one path row each",
+    "all107 compiler SHA256/physical lines compared to Step1 inventory",
+    "every path sliced with contiguous inclusive complete span",
+    "all retained slice/API/interface anchors checked against current source text",
+    "every test pointer exists",
+    "31 external interface SHA256 pins matched",
+    "tracked compiler diff to source baseline empty",
+    "unique workflow IDs and exact current source anchor bounds",
+    "workflow source input SHA256 pins",
+    "valid workflow responsibility-slice joins and execution receipt paths"
+  ],
+  "limitations": [
+    "source linkage does not prove branch coverage or API preconditions",
+    "execution receipts retain host, body-skip, source/dist, synthetic/mocked and installed-product limits",
+    "Step2 independent inventory receipt kept separately; this validates current extended ledger"
+  ],
+  "ledger_sha256": "85c0c45c7b8a6b7cec24c93353a73516a4d9219659af3f2b0f7ccbaa0df449f5",
+  "workflows": 18,
+  "workflow_ids": [
+    "CHECK",
+    "CLI_SURFACES",
+    "COMPILE",
+    "DOCS_REFERENCE",
+    "EDITOR_LSP",
+    "EXPLAIN",
+    "FORMAT",
+    "FORWARD_ACTIVATE",
+    "FORWARD_BUILD",
+    "FORWARD_DEPLOY",
+    "FORWARD_RUN",
+    "FORWARD_TEST",
+    "GENERATED_BDD",
+    "LINT_FIX",
+    "LINT_FIX_IDE_JOIN",
+    "POLICY",
+    "PUBLIC_LIBRARY_BOUNDARIES",
+    "PUBLIC_SHARED_BOUNDARIES"
+  ],
+  "workflow_source_anchors": 322,
+  "workflow_input_pins": 85
+}

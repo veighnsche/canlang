@@ -1,0 +1,33 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.38s
+     Running tests/authoring.rs (compiler/target/debug/deps/authoring-07f3190c8bc321d9)
+     Running tests/b3_authoring_join.rs (compiler/target/debug/deps/b3_authoring_join-f092b9742c6c04fa)
+     Running tests/b3_s4.rs (compiler/target/debug/deps/b3_s4-4e0744755068ded1)
+     Running tests/check.rs (compiler/target/debug/deps/check-8f71fff4dc2519a7)
+     Running tests/completion_contract.rs (compiler/target/debug/deps/completion_contract-825c95cac3f096f3)
+     Running tests/docs.rs (compiler/target/debug/deps/docs-dbf927852fe0e397)
+     Running tests/exe.rs (compiler/target/debug/deps/exe-9c770787db8c639f)
+     Running tests/file_ownership.rs (compiler/target/debug/deps/file_ownership-b558f578f2630acd)
+SKIP mode 4750: this host did not retain the requested fixture bits
+     Running tests/format.rs (compiler/target/debug/deps/format-c69c77d92b1741c7)
+     Running tests/lint.rs (compiler/target/debug/deps/lint-822ccf0fc50f45b2)
+     Running tests/lsp_admission.rs (compiler/target/debug/deps/lsp_admission-ec82d31837046378)
+strict JSON process case: leading zero
+strict JSON process case: missing integer
+strict JSON process case: missing fraction
+strict JSON process case: missing exponent
+strict JSON process case: leading plus
+strict JSON process case: lone high surrogate value
+strict JSON process case: lone low surrogate value
+strict JSON process case: lone high surrogate key
+strict JSON process case: lone low surrogate key
+strict JSON process case: invalid Unicode escape
+strict JSON process case: unescaped control value
+strict JSON process case: unescaped control key
+     Running tests/lsp_typed_output.rs (compiler/target/debug/deps/lsp_typed_output-81aa3553cd56a342)
+     Running tests/typed_artifact_consumer.rs (compiler/target/debug/deps/typed_artifact_consumer-eb17d6e188ed03b5)
+{"consumer":"actual Cloudflare parseArtifactText + loadArtifactFile","models":1,"operations":4,"sourceHash":"14afa30baf8e05569f07c56bb8c9650d3e8b1d0e5ed7eace22e60cd8eb43817c","decimalType":"decimal","decimalScaleGate":"production decimal literal E6008; separate typed artifact fixture covers scale","maps":1}
+     Running tests/typed_fixes_cli.rs (compiler/target/debug/deps/typed_fixes_cli-ada8990c5dfc5a48)
+     Running tests/typed_reference_policy_consumers.rs (compiler/target/debug/deps/typed_reference_policy_consumers-1bd55e8227a4f5b9)
+PASS typed policy: fresh CLI through actual policyDumpSections and policyPage escaping
+PASS typed reference: fresh docs CLI and extracted JSON through public Markdown renderer

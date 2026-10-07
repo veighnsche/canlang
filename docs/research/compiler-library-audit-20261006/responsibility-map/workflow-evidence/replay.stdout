@@ -1,0 +1,391 @@
+
+running 30 tests
+test cli_fmt_missing_file_is_tool_failure ... ok
+test cli_every_subcommand_answers_help ... ok
+test cli_check_rejects_missing_operand_and_unreadable_file ... ok
+test cli_compile_with_stub_reports_e7001 ... ok
+test cli_format_flag_rejected_where_it_does_nothing ... ok
+test cli_help_and_version ... ok
+test cli_lint_operand_errors_are_tool_failures ... ok
+test cli_check_like_commands_emit_envelope_json ... ok
+test cli_explain_json_shape_and_unknown_code ... ok
+test cli_check_like_commands_exit_10_on_errors ... ok
+test cli_fmt_check_clean_and_drift ... ok
+test cli_lsp_returns_stdio_flag ... ok
+test cli_fmt_parse_failure_reports_envelope_and_writes_nothing ... ok
+test cli_thin_entries_report_missing_producer ... ok
+test cli_fmt_rewrites_files_in_place ... ok
+test cli_unknown_command_and_flags_are_tool_failures ... ok
+test cli_unknown_command_with_help_is_still_a_tool_failure ... ok
+test server_publishes_nothing_after_close ... ok
+test server_ignores_incremental_only_changes ... ok
+test server_publishes_only_current_versions ... ok
+test server_reports_method_not_found ... ok
+test transport_framing_round_trip_with_split_reads ... ok
+test transport_json_values_round_trip ... ok
+test cli_lint_analysis_errors_exit_10_without_findings ... ok
+test cli_lint_clean_file_reports_empty_envelope ... ok
+test explain_e1xxx_valid_examples_parse_clean ... ok
+test cli_lint_reports_findings_and_exits_zero ... ok
+test cli_compile_teamtasks_reports_emission_diagnostics ... ok
+test cli_thin_entries_passthrough_args_and_exit_codes ... ok
+test explain_round_trips_every_emitted_code ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+
+running 3 tests
+test fixture_parses_clean_in_process ... ok
+test authoring_join_demo_empty_catalog ... ok
+test authoring_join_demo ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+
+running 4 tests
+test stale_reapply_reports_both_hashes_as_json ... ok
+test lint_without_fix_has_no_fixes_key ... ok
+test lsp_driver_code_action_roundtrip_through_real_binary ... ok
+test fix_json_is_deterministic_across_reruns ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 37 tests
+test error_code_vocabulary_is_closed ... ok
+test dedup_keeps_first_across_passes ... ok
+test e5001_create_header_skips_derived_fields ... ok
+test disabled_crud_operation_rejects_examples ... ok
+test example_tables_carry_all_families ... ok
+test e5001_create_header_still_requires_writable_fields ... ok
+test broken_import_caller_and_crud_head_stay_quiet ... ok
+test delivery_recipe_selectors ... ok
+test icu_number_style_and_source_anchor ... ok
+test expected_error_codes ... ok
+test fixture_overrides ... ok
+test message_signatures ... ok
+test missing_required_input ... ok
+test icu_profile_violations ... ok
+test imported_wrong_kind_names_fire ... ok
+test icu_numeric_type_matrix ... ok
+test readiness_gate ... ok
+test icu_selector_types ... ok
+test observation_roots ... ok
+test parent_selectors ... ok
+test sequence_caller_names_known_wrong_kinds ... ok
+test sort_matches_check_program_key ... ok
+test seed_rejects_catalog_names ... ok
+test overlapping_selectors ... ok
+test request_selectors ... ok
+test trusted_handlers_take_no_as ... ok
+test sequences_call_their_enclosing_scenario ... ok
+test sequence_bindings_and_results ... ok
+test unresolved_imports_stay_quiet ... ok
+test warnings_never_block ... ok
+test sequence_callers_arguments_and_envelopes ... ok
+test unknown_selectors ... ok
+test table_callers ... ok
+test sequence_call_targets ... ok
+test unknown_binding_and_seed_shape ... ok
+test shipped_examples_are_e5xxx_clean ... ok
+test shipped_examples_are_e5xxx_clean_through_check_program ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 2 tests
+test embedded_scripts_match_and_fish_declares_lint_fix ... ok
+test actual_completion_engines ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.34s
+
+
+running 30 tests
+test available_shape_conforms_when_constructed ... ok
+test app_default_locale_follows_the_single_app_module ... ok
+test extracts_user_operations_without_authorization ... ok
+test extracts_owners_declarations_and_fields ... ok
+test app_default_locale_prefers_the_checked_default_over_source ... ok
+test dotted_message_references_stay_unresolved ... ok
+test app_default_locale_falls_back_to_first_module ... ok
+test declaration_descriptions_attach_from_hash_sets ... ok
+test missing_relative_roots_preserve_external_leading_parents ... ok
+test message_reference_descriptions_resolve ... ok
+test imported_bare_message_wording_resolves ... ok
+test availability_is_unknown_and_catalog_version_nullable ... ok
+test mixed_table_and_sequence_examples_merge_in_source_order ... ok
+test field_and_param_descriptions_use_checked_seam ... ok
+test field_type_nullability_requiredness_defaults_constraints ... ok
+test moved_checkout_identity_covers_every_spelling ... ok
+test relative_symlink_spellings_match_their_target ... ok
+test required_array_spelling_is_preserved ... ok
+test external_inputs_are_marked_and_stable ... ok
+test same_external_file_agrees_through_relative_and_absolute ... ok
+test operation_sequences_become_authored_source_examples ... ok
+test fixtures_become_labeled_declaration_examples ... ok
+test sequence_fixture_checks_fully_clean ... ok
+test unavailable_requested_locale_falls_back_through_default_to_source ... ok
+test operation_tables_become_labeled_row_examples ... ok
+test v1_json_conforms_to_reference_ts ... ok
+test relative_vs_absolute_spellings_are_identical ... ok
+test output_is_deterministic ... ok
+test moved_checkout_equivalence ... ok
+test all_spellings_of_one_input_are_identical ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 11 tests
+test docs_broken_source_exits_10_without_writing ... ok
+test forced_internal_error_is_e7005_exit_2_without_trace ... ok
+test docs_help_golden_names_flags_and_exits ... ok
+test docs_out_refuses_can_sources_before_any_work ... ok
+test lsp_eof_and_shutdown_exit_cleanly ... ok
+test help_golden_documents_everything ... ok
+test version_golden_has_versions_and_commit ... ok
+test exit_codes_are_stable ... ok
+test completions_snapshot_matches_shipped_scripts ... ok
+test help_alias_matches_flag_form ... ok
+test compile_twice_is_byte_identical ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+
+running 9 tests
+test fmt_missing_input_is_e7002_and_does_not_create_output ... ok
+test fmt_changed_symlink_replaces_entry_and_keeps_target_private_and_unchanged ... ok
+test fmt_repeated_operands_and_already_formatted_alias_are_noops ... ok
+test fmt_changed_hardlink_replaces_only_requested_entry ... ok
+test fmt_noop_preserves_inode_links_and_mode ... ok
+test fmt_preserves_modes_including_private_readonly_and_special_bits ... ok
+test docs_write_failure_keeps_directory_and_removes_staging ... ok
+test docs_new_output_obeys_umask_and_existing_output_keeps_mode ... ok
+test docs_symlink_outputs_replace_entry_and_keep_targets ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+
+running 20 tests
+test empty_input_stays_empty ... ok
+test already_formatted_files_report_unchanged ... ok
+test crlf_becomes_lf_and_counts_as_changed ... ok
+test descriptions_comments_and_i18n_survive ... ok
+test definition_heads_stay_loose ... ok
+test control_flow_suites_keep_their_newlines ... ok
+test calls_suffixes_and_nested_commas_stay_tight ... ok
+test intra_line_spacing_is_canonical ... ok
+test arrows_and_example_rows_keep_order ... ok
+test invalid_sources_yield_diagnostics_and_no_output ... ok
+test missing_final_newline_is_added ... ok
+test corpus_gallery_catalog_slot_and_edit_format ... ok
+test invocation_and_group_heads_format ... ok
+test judgment_items_format ... ok
+test query_tails_routes_and_suffixes_format ... ok
+test operation_parens_and_message_calls_stay_tight ... ok
+test operators_bind_tightly_and_groups_keep_space ... ok
+test sloppy_continuation_indent_is_repaired ... ok
+test semicolons_and_do_shapes_are_preserved ... ok
+corpus format table (54 files):
+    ERROR  ../draft/CanShift.can (expected E1203,E1203)
+    ERROR  ../draft/CanVolunteer.can (expected E1203,E1203)
+  changed  ../draft/CanChat.can
+  changed  ../draft/CanCreative.can
+  changed  ../draft/CanDecide.can
+  changed  ../draft/CanDiscover.can
+  changed  ../draft/CanEnrich.can
+  changed  ../draft/CanEvent.can
+  changed  ../draft/CanInvoice.can
+  changed  ../draft/CanLoyalty.can
+  changed  ../draft/CanMail.can
+  changed  ../draft/CanMember.can
+  changed  ../draft/CanPurchase.can
+  changed  ../draft/CanRent.can
+  changed  ../draft/CanSync.can
+  changed  ../draft/CanTime.can
+  changed  ../draft/CanWorkbench.can
+  changed  ../draft/shared/Locations.can
+  changed  ../examples/ExpenseFlow.can
+unchanged  ../draft/CanAffiliate.can
+unchanged  ../draft/CanApprove.can
+unchanged  ../draft/CanBoard.can
+unchanged  ../draft/CanBook.can
+unchanged  ../draft/CanCRM.can
+unchanged  ../draft/CanCatch.can
+unchanged  ../draft/CanCheck.can
+unchanged  ../draft/CanContract.can
+unchanged  ../draft/CanCustomer.can
+unchanged  ../draft/CanDesk.can
+unchanged  ../draft/CanDo.can
+unchanged  ../draft/CanExpense.can
+unchanged  ../draft/CanFeedback.can
+unchanged  ../draft/CanField.can
+unchanged  ../draft/CanGallery.can
+unchanged  ../draft/CanGrant.can
+unchanged  ../draft/CanHire.can
+unchanged  ../draft/CanInbox.can
+unchanged  ../draft/CanKnowledge.can
+unchanged  ../draft/CanLearn.can
+unchanged  ../draft/CanLeave.can
+unchanged  ../draft/CanMaintain.can
+unchanged  ../draft/CanOnboard.can
+unchanged  ../draft/CanPropose.can
+unchanged  ../draft/CanReception.can
+unchanged  ../draft/CanRefer.can
+unchanged  ../draft/CanReport.can
+unchanged  ../draft/CanStats.can
+unchanged  ../draft/CanStock.can
+unchanged  ../draft/CanSuccess.can
+unchanged  ../draft/CanTable.can
+unchanged  ../draft/CanTrade.can
+unchanged  ../draft/shared/Employees.can
+unchanged  ../draft/shared/Suppliers.can
+unchanged  ../examples/TeamTasks.can
+test corpus_formats_cleanly_and_is_idempotent ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+
+
+running 29 tests
+test default_config_is_recommended_without_fixes_or_catalog ... ok
+test empty_description_invalid ... ok
+test fix_refuses_stale_and_invalid ... ok
+test fix_flag_off_offers_nothing ... ok
+test duplicate_description_invalid ... ok
+test deprecated_ignores_shadowed_and_nonbuiltin ... ok
+test deprecated_warns_on_deprecated_call ... ok
+test deprecated_silent_without_catalog_data ... ok
+test fix_narrows_redundant_safe_access ... ok
+test description_valid_cases ... ok
+test redundant_null_invalid ... ok
+test rule_codes_resolve_in_explain_catalog ... ok
+test rule_table_is_consistent ... ok
+test fix_removes_unreachable_statement ... ok
+test redundant_null_valid_nullable_receiver ... ok
+test fixes_apply_as_batch ... ok
+test shadow_warns_with_opt_in_only ... ok
+test unreachable_after_return_is_analysis_error_not_lint ... ok
+test unreachable_require_false_semicolon_sequence_has_no_fix ... ok
+test unreachable_warns_after_require_false ... ok
+test unused_alias_invalid ... ok
+test unused_let_invalid ... ok
+test unused_let_suppressed_by_shadowing ... ok
+test shadow_valid_cases ... ok
+test unused_alias_collection_descendant_scope ... ok
+test unreachable_valid_cases ... ok
+test unused_alias_valid ... ok
+test unused_let_valid_reads ... ok
+corpus lint counts (informational; corpus need not be clean):
+  draft/CanAffiliate.can: total=0 {}
+  draft/CanApprove.can: total=0 {}
+  draft/CanBoard.can: total=0 {}
+  draft/CanBook.can: total=0 {}
+  draft/CanCRM.can: total=0 {}
+  draft/CanCatch.can: total=0 {}
+  draft/CanChat.can: total=0 {}
+  draft/CanCheck.can: total=0 {}
+  draft/CanContract.can: total=0 {}
+  draft/CanCreative.can: total=0 {}
+  draft/CanCustomer.can: total=0 {}
+  draft/CanDecide.can: total=0 {}
+  draft/CanDesk.can: total=0 {}
+  draft/CanDiscover.can: total=0 {}
+  draft/CanDo.can: total=0 {}
+  draft/CanEnrich.can: total=0 {}
+  draft/CanEvent.can: total=0 {}
+  draft/CanExpense.can: total=0 {}
+  draft/CanFeedback.can: total=0 {}
+  draft/CanField.can: total=0 {}
+  draft/CanGallery.can: total=0 {}
+  draft/CanGrant.can: total=0 {}
+  draft/CanHire.can: total=0 {}
+  draft/CanInbox.can: total=1 {"I1001": 1}
+  draft/CanInvoice.can: total=2 {"I1001": 2}
+  draft/CanKnowledge.can: total=0 {}
+  draft/CanLearn.can: total=0 {}
+  draft/CanLeave.can: total=0 {}
+  draft/CanLoyalty.can: total=0 {}
+  draft/CanMail.can: total=1 {"I1001": 1}
+  draft/CanMaintain.can: total=0 {}
+  draft/CanMember.can: total=1 {"I1001": 1}
+  draft/CanOnboard.can: total=0 {}
+  draft/CanPropose.can: total=0 {}
+  draft/CanPurchase.can: total=0 {}
+  draft/CanReception.can: total=0 {}
+  draft/CanRefer.can: total=0 {}
+  draft/CanRent.can: total=5 {"I1001": 5}
+  draft/CanReport.can: total=0 {}
+  draft/CanShift.can: total=0 {}
+  draft/CanStats.can: total=0 {}
+  draft/CanStock.can: total=0 {}
+  draft/CanSuccess.can: total=0 {}
+  draft/CanSync.can: total=0 {}
+  draft/CanTable.can: total=0 {}
+  draft/CanTime.can: total=0 {}
+  draft/CanTrade.can: total=0 {}
+  draft/CanVolunteer.can: total=0 {}
+  draft/CanWorkbench.can: total=2 {"I1001": 2}
+  examples/ExpenseFlow.can: total=0 {}
+  examples/TeamTasks.can: total=0 {}
+test corpus_noise_assessment ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.86s
+
+
+running 26 tests
+test eof_keeps_the_existing_clean_disconnect_exit ... ok
+test initialize_admits_unknown_capabilities_and_extensions ... ok
+test exit_before_shutdown_has_exit_code_one ... ok
+test invalid_shutdown_and_exit_params_do_not_change_lifecycle ... ok
+test lifecycle_precedence_is_envelope_then_lifecycle_then_method_then_params ... ok
+test known_method_field_errors_reply_to_requests_and_leave_notifications_silent ... ok
+test malformed_did_open_is_silent_and_does_not_create_a_document ... ok
+test malformed_json_is_a_null_parse_error_and_consumes_the_frame ... ok
+test notifications_outside_ready_cannot_open_documents_or_publish ... ok
+test ignored_capabilities_keep_the_value_entry_depth_budget ... ok
+test malformed_did_change_does_not_mutate_or_publish_a_new_version ... ok
+test primitive_shutdown_and_exit_params_are_envelope_errors ... ok
+test shutdown_then_exit_is_clean ... ok
+test decoded_reserved_duplicate_keys_are_rejected_before_dispatch ... ok
+test ordinary_private_marker_keys_remain_objects_in_initialize_params ... ok
+test valid_notification_envelopes_are_silent_without_initializing ... ok
+test valid_unicode_string_id_keeps_its_semantic_value ... ok
+test invalid_initialize_fields_do_not_initialize ... ok
+test torn_headers_and_body_keep_the_existing_clean_disconnect_exit ... ok
+test shutdown_and_exit_accept_absent_null_and_empty_object_params ... ok
+test valid_required_contexts_and_maximum_position_are_admitted ... ok
+test malformed_utf8_is_one_parse_error_and_does_not_initialize ... ok
+test illegal_ids_are_null_correlated_and_never_initialize ... ok
+test accepted_integral_ids_preserve_the_original_number_lexeme ... ok
+test malformed_envelopes_correlate_only_a_unique_legal_id ... ok
+test strict_json_grammar_and_unknown_unicode_recover_through_shutdown_exit ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 4 tests
+test real_version_increment_requeries_current_source_and_edits ... ok
+test real_all_output_families_crlf_and_supplementary_utf16 ... ok
+test real_diagnostics_keep_valid_siblings_after_a_parse_error ... ok
+test real_opaque_uri_identities_keep_notifications_locations_and_edit_routing ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 1 test
+test fresh_cli_artifact_loads_through_cloudflare ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.13s
+
+
+running 1 test
+test lint_fix_flag_controls_presence_order_and_single_newline ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test fresh_policy_cli_enters_actual_policy_sections_and_html_page ... ok
+test fresh_docs_cli_and_extracted_typed_json_enter_public_markdown_renderer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.92s
+

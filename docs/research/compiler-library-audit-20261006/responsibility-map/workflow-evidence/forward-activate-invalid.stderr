@@ -1,0 +1,1 @@
+Usage: can-platform <run|test|build|deploy|activate|docs> [--artifact <path>] [--env <name>] [--preview|--yes] [--locale <tag>]

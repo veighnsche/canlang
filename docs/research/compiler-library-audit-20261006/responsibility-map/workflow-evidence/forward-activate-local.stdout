@@ -1,0 +1,1 @@
+{"ok":true,"command":"activate","active":false,"reasons":[{"code":"activation-incomplete","detail":"outstanding-work inventory gate unchecked (missing inventory, gates (@canlang/state + @canlang/work producer join))"}]}
