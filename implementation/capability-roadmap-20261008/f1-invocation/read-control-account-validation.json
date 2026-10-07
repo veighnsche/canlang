@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "expectedCurrentReferenceFromActualAccountCreate": {
+    "id": "01a1188c-cac1-78f6-8f40-3a8d3e546b1c",
+    "version": "1"
+  },
+  "actualReadReference": {
+    "id": "01a1188c-cac1-78f6-8f40-3a8d3e546b1c",
+    "version": "1"
+  },
+  "readRawSha256": "fbf6e2ff4473679dfc74fdc570a50abcb6be8ee3955154815e230fdfef858ca7",
+  "method": "Read-only receipt verification against independently located actual canonical account-create operation identity, without row-derived expected reference."
+}

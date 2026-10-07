@@ -1,0 +1,28 @@
+{
+  "status": "failed_before_repair",
+  "checks": 37,
+  "failed": [
+    {
+      "name": "actual bounded creation committed with scalar/machine defaults",
+      "passed": false,
+      "detail": {}
+    },
+    {
+      "name": "actual bounded omitted nullable reference becomes null",
+      "passed": false,
+      "detail": {
+        "fields": null
+      }
+    },
+    {
+      "name": "matching retry replays stable result without rows/history/version duplication",
+      "passed": false
+    },
+    {
+      "name": "explicit null commits",
+      "passed": false
+    }
+  ],
+  "vectors": 32
+}
+

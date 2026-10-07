@@ -1,0 +1,53 @@
+{
+  "evidence": "Read-only excerpt from immutable frozen before raw packet; no new execution",
+  "beforePacketOperation": "two actual ordered machine transitions",
+  "envelope": {
+    "operation": "Bounded.advance",
+    "operation_id": "01a1188c-cac1-743a-8590-cd1d7a8edd53",
+    "inputs": {
+      "job": {
+        "id": "01a1188c-cac1-7e48-864f-9d67d0015a2f",
+        "version": "1"
+      }
+    }
+  },
+  "outcome": {
+    "result": {
+      "status": "committed",
+      "operation_id": "01a1188c-cac1-743a-8590-cd1d7a8edd53",
+      "deliveries": []
+    }
+  },
+  "storedReceipt": {
+    "app": "Bounded",
+    "owner": "703154a2-e879-42d5-8f13-e5ec660e64fa",
+    "principal": "07843a82-f9d5-406a-b8ad-a702a36bddcb",
+    "operation": "Bounded.advance",
+    "operation_id": "01a1188c-cac1-743a-8590-cd1d7a8edd53",
+    "input_hash": "9633c8fad1193ab4409e184d0b8425869d2dccff08d3dd64c12271a6dcf18acf",
+    "resolved_defaults": "{}",
+    "outcome": "{\"status\":\"committed\",\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a1188c-cac1-7e48-864f-9d67d0015a2f\",\"version\":2}]}",
+    "committed_revision": 4,
+    "created_at": 1791413242561
+  },
+  "matchingFrozenBeforeReplay": {
+    "name": "matching transition retry stale submitted ref replays first",
+    "envelope": {
+      "operation": "Bounded.advance",
+      "operation_id": "01a1188c-cac1-743a-8590-cd1d7a8edd53",
+      "inputs": {
+        "job": {
+          "id": "01a1188c-cac1-7e48-864f-9d67d0015a2f",
+          "version": "1"
+        }
+      }
+    },
+    "outcome": {
+      "result": {
+        "status": "replayed",
+        "operation_id": "01a1188c-cac1-743a-8590-cd1d7a8edd53",
+        "result": null
+      }
+    }
+  }
+}

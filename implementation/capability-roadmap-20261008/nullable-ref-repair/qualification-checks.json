@@ -1,0 +1,707 @@
+{
+  "checks": [
+    {
+      "name": "fresh private persisted D1",
+      "passed": true
+    },
+    {
+      "name": "scalar account commits",
+      "passed": true
+    },
+    {
+      "name": "omitted nullable Job create persists source-owned null at version 1",
+      "passed": true,
+      "detail": {
+        "row": {
+          "model": "Bounded.Job",
+          "id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+          "version": 1,
+          "created": 1791414706258,
+          "updated": 1791414706258,
+          "created_by": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "updated_by": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "archived_at": null,
+          "owner": "",
+          "parent_model": null,
+          "parent_id": null,
+          "data": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"account\":null,\"status\":\"idle\"}"
+        },
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+          "result": {
+            "id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+            "version": 1,
+            "created": 1791414706258,
+            "updated": 1791414706258,
+            "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+            "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+            "archivedAt": null,
+            "parent": null,
+            "data": {
+              "title": "test",
+              "count": "1",
+              "enabled": true,
+              "account": null,
+              "status": "idle"
+            }
+          },
+          "deliveries": []
+        }
+      }
+    },
+    {
+      "name": "omitted nullable Job create exact scalar/machine defaults and representation",
+      "passed": true,
+      "detail": {
+        "persisted": {
+          "title": "test",
+          "count": "1",
+          "enabled": true,
+          "account": null,
+          "status": "idle"
+        },
+        "runtimeTypes": {
+          "title": "string",
+          "count": "string",
+          "enabled": "boolean",
+          "account": "null",
+          "status": "string"
+        }
+      }
+    },
+    {
+      "name": "omitted nullable Job create creation receipt stores exact null-fill ownership",
+      "passed": true,
+      "detail": {
+        "receipt": {
+          "app": "Bounded",
+          "owner": "df5f82fc-6588-4657-9280-0444ea24c0e5",
+          "principal": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "operation": "Bounded.Job.create",
+          "operation_id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+          "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"account\":null,\"status\":\"idle\"}",
+          "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118a3-2052-70a6-8107-b551dfe17fdf\",\"version\":1,\"created\":1791414706258,\"updated\":1791414706258,\"createdBy\":\"5751d4fb-e039-43fe-a393-ebbccbfb98a8\",\"updatedBy\":\"5751d4fb-e039-43fe-a393-ebbccbfb98a8\",\"archivedAt\":null,\"parent\":null,\"data\":{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"account\":null,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a118a3-2052-70a6-8107-b551dfe17fdf\",\"version\":1}]}",
+          "committed_revision": 2,
+          "created_at": 1791414706258
+        },
+        "defaults": {
+          "title": "test",
+          "count": "1",
+          "enabled": true,
+          "account": null,
+          "status": "idle"
+        }
+      }
+    },
+    {
+      "name": "omitted nullable Job create retry unchanged",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "result": {
+            "status": "replayed",
+            "operation_id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+            "result": {
+              "id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+              "version": 1,
+              "created": 1791414706258,
+              "updated": 1791414706258,
+              "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "archivedAt": null,
+              "parent": null,
+              "data": {
+                "title": "test",
+                "count": "1",
+                "enabled": true,
+                "account": null,
+                "status": "idle"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "explicit null Job create persists source-owned null at version 1",
+      "passed": true,
+      "detail": {
+        "row": {
+          "model": "Bounded.Job",
+          "id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+          "version": 1,
+          "created": 1791414706258,
+          "updated": 1791414706258,
+          "created_by": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "updated_by": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "archived_at": null,
+          "owner": "",
+          "parent_model": null,
+          "parent_id": null,
+          "data": "{\"account\":null,\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+        },
+        "result": {
+          "status": "committed",
+          "operation_id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+          "result": {
+            "id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+            "version": 1,
+            "created": 1791414706258,
+            "updated": 1791414706258,
+            "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+            "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+            "archivedAt": null,
+            "parent": null,
+            "data": {
+              "account": null,
+              "title": "test",
+              "count": "1",
+              "enabled": true,
+              "status": "idle"
+            }
+          },
+          "deliveries": []
+        }
+      }
+    },
+    {
+      "name": "explicit null Job create exact scalar/machine defaults and representation",
+      "passed": true,
+      "detail": {
+        "persisted": {
+          "account": null,
+          "title": "test",
+          "count": "1",
+          "enabled": true,
+          "status": "idle"
+        },
+        "runtimeTypes": {
+          "account": "null",
+          "title": "string",
+          "count": "string",
+          "enabled": "boolean",
+          "status": "string"
+        }
+      }
+    },
+    {
+      "name": "explicit null Job create creation receipt stores exact null-fill ownership",
+      "passed": true,
+      "detail": {
+        "receipt": {
+          "app": "Bounded",
+          "owner": "df5f82fc-6588-4657-9280-0444ea24c0e5",
+          "principal": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "operation": "Bounded.Job.create",
+          "operation_id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+          "input_hash": "6ab73760739ecbd1d4816192ed3dab826c62151597a19da60fb551ff2eae0cb2",
+          "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+          "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a118a3-2052-7bed-81f1-59c09ac49f55\",\"version\":1,\"created\":1791414706258,\"updated\":1791414706258,\"createdBy\":\"5751d4fb-e039-43fe-a393-ebbccbfb98a8\",\"updatedBy\":\"5751d4fb-e039-43fe-a393-ebbccbfb98a8\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":null,\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a118a3-2052-7bed-81f1-59c09ac49f55\",\"version\":1}]}",
+          "committed_revision": 3,
+          "created_at": 1791414706258
+        },
+        "defaults": {
+          "title": "test",
+          "count": "1",
+          "enabled": true,
+          "status": "idle"
+        }
+      }
+    },
+    {
+      "name": "explicit null Job create retry unchanged",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "result": {
+            "status": "replayed",
+            "operation_id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+            "result": {
+              "id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+              "version": 1,
+              "created": 1791414706258,
+              "updated": 1791414706258,
+              "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "archivedAt": null,
+              "parent": null,
+              "data": {
+                "account": null,
+                "title": "test",
+                "count": "1",
+                "enabled": true,
+                "status": "idle"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "current ref create commits",
+      "passed": true
+    },
+    {
+      "name": "update omission keeps current account ref",
+      "passed": true
+    },
+    {
+      "name": "clear commits null with exactly one net version",
+      "passed": true,
+      "detail": {
+        "row": {
+          "model": "Bounded.Job",
+          "id": "01a118a3-2052-76a7-8b3e-d5d12c0d7b8b",
+          "version": 3,
+          "created": 1791414706258,
+          "updated": 1791414706258,
+          "created_by": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "updated_by": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "archived_at": null,
+          "owner": "",
+          "parent_model": null,
+          "parent_id": null,
+          "data": "{\"account\":null,\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+        }
+      }
+    },
+    {
+      "name": "clear retry precedes stale ref and preserves result/hash/state",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "result": {
+            "status": "replayed",
+            "operation_id": "01a118a3-2052-7591-8cb9-a0d633b98440",
+            "result": {
+              "id": "01a118a3-2052-76a7-8b3e-d5d12c0d7b8b",
+              "version": 3,
+              "created": 1791414706258,
+              "updated": 1791414706258,
+              "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "archivedAt": null,
+              "parent": null,
+              "data": {
+                "account": null,
+                "title": "test",
+                "count": "1",
+                "enabled": true,
+                "status": "idle"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "changed same-id payload conflicts without effects",
+      "passed": true
+    },
+    {
+      "name": "fresh stale ref still conflicts unchanged",
+      "passed": true
+    },
+    {
+      "name": "missing nullable target refuses before effects",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "not_found",
+            "message": "Record not found.",
+            "operation_id": "01a118a3-2052-719f-87af-a9393b30c261",
+            "retryable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "wrong model typed ref refuses before effects",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "not_found",
+            "message": "Record not found.",
+            "operation_id": "01a118a3-2052-74cb-8059-423de9d36766",
+            "retryable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "missing version nonnull refuses before effects",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "validation",
+            "message": "Invalid operation inputs.",
+            "operation_id": "01a118a3-2052-7303-8a35-8b9ccaa26047",
+            "retryable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "malformed version nonnull refuses before effects",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "validation",
+            "message": "Invalid operation inputs.",
+            "operation_id": "01a118a3-2052-75f3-8180-ea299895ec21",
+            "retryable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "ref array remains invalid refuses before effects",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "validation",
+            "message": "Invalid operation inputs.",
+            "operation_id": "01a118a3-2052-7b11-8ba8-c2dab6f09df8",
+            "retryable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "nonnull malformed shape remains invalid refuses before effects",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "validation",
+            "message": "Invalid operation inputs.",
+            "operation_id": "01a118a3-2052-7440-88d5-d2f02f576881",
+            "retryable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "required record explicit null remains invalid refuses before effects",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "validation",
+            "message": "Invalid operation inputs.",
+            "operation_id": "01a118a3-2052-755d-89dc-6f479a39628f",
+            "retryable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "two ordered edges retain null account and one version",
+      "passed": true,
+      "detail": {
+        "row": {
+          "model": "Bounded.Job",
+          "id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+          "version": 2,
+          "created": 1791414706258,
+          "updated": 1791414706258,
+          "created_by": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "updated_by": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+          "archived_at": null,
+          "owner": "",
+          "parent_model": null,
+          "parent_id": null,
+          "data": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"account\":null,\"status\":\"ready\"}"
+        },
+        "history": [
+          {
+            "seq": 7,
+            "model": "Bounded.Job",
+            "record_id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a118a3-2052-7d84-8649-20195355b55a",
+            "actor": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+            "at": 1791414706258,
+            "change": "update",
+            "before": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"account\":null,\"status\":\"idle\"}",
+            "after": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"account\":null,\"status\":\"queued\"}"
+          },
+          {
+            "seq": 8,
+            "model": "Bounded.Job",
+            "record_id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a118a3-2052-7d84-8649-20195355b55a",
+            "actor": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+            "at": 1791414706258,
+            "change": "update",
+            "before": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"account\":null,\"status\":\"queued\"}",
+            "after": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"account\":null,\"status\":\"ready\"}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same private D1 persist directory reopens exact state",
+      "passed": true
+    },
+    {
+      "name": "reopened omitted nullable Job create matching replay",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "result": {
+            "status": "replayed",
+            "operation_id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+            "result": {
+              "id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+              "version": 1,
+              "created": 1791414706258,
+              "updated": 1791414706258,
+              "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "archivedAt": null,
+              "parent": null,
+              "data": {
+                "title": "test",
+                "count": "1",
+                "enabled": true,
+                "account": null,
+                "status": "idle"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "reopened explicit null Job create matching replay",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "result": {
+            "status": "replayed",
+            "operation_id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+            "result": {
+              "id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+              "version": 1,
+              "created": 1791414706258,
+              "updated": 1791414706258,
+              "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "archivedAt": null,
+              "parent": null,
+              "data": {
+                "account": null,
+                "title": "test",
+                "count": "1",
+                "enabled": true,
+                "status": "idle"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "reopened current ref cleared to null matching replay",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "result": {
+            "status": "replayed",
+            "operation_id": "01a118a3-2052-7591-8cb9-a0d633b98440",
+            "result": {
+              "id": "01a118a3-2052-76a7-8b3e-d5d12c0d7b8b",
+              "version": 3,
+              "created": 1791414706258,
+              "updated": 1791414706258,
+              "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+              "archivedAt": null,
+              "parent": null,
+              "data": {
+                "account": null,
+                "title": "test",
+                "count": "1",
+                "enabled": true,
+                "status": "idle"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "reopened void scenario replay preserves domain state/history/hash",
+      "passed": true
+    },
+    {
+      "name": "void scenario replay preserves exact runtime result representation",
+      "passed": false,
+      "detail": {
+        "committedType": "undefined",
+        "replayedType": "object",
+        "committed": {
+          "result": {
+            "status": "committed",
+            "operation_id": "01a118a3-2052-7d84-8649-20195355b55a",
+            "deliveries": []
+          }
+        },
+        "replayed": {
+          "result": {
+            "status": "replayed",
+            "operation_id": "01a118a3-2052-7d84-8649-20195355b55a",
+            "result": null
+          }
+        }
+      }
+    },
+    {
+      "name": "public read returns exact three known null-account projections unchanged",
+      "passed": true,
+      "detail": {
+        "expected": [
+          {
+            "id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+            "version": 2,
+            "data": {
+              "title": "test",
+              "count": "1",
+              "enabled": true,
+              "account": null,
+              "status": "ready"
+            }
+          },
+          {
+            "id": "01a118a3-2052-76a7-8b3e-d5d12c0d7b8b",
+            "version": 3,
+            "data": {
+              "account": null,
+              "title": "test",
+              "count": "1",
+              "enabled": true,
+              "status": "idle"
+            }
+          },
+          {
+            "id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+            "version": 1,
+            "data": {
+              "account": null,
+              "title": "test",
+              "count": "1",
+              "enabled": true,
+              "status": "idle"
+            }
+          }
+        ],
+        "actual": [
+          {
+            "id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+            "version": 2,
+            "data": {
+              "title": "test",
+              "count": "1",
+              "enabled": true,
+              "account": null,
+              "status": "ready"
+            }
+          },
+          {
+            "id": "01a118a3-2052-76a7-8b3e-d5d12c0d7b8b",
+            "version": 3,
+            "data": {
+              "title": "test",
+              "count": "1",
+              "enabled": true,
+              "account": null,
+              "status": "idle"
+            }
+          },
+          {
+            "id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+            "version": 1,
+            "data": {
+              "title": "test",
+              "count": "1",
+              "enabled": true,
+              "account": null,
+              "status": "idle"
+            }
+          }
+        ],
+        "read": {
+          "result": {
+            "records": [
+              {
+                "id": "01a118a3-2052-70a6-8107-b551dfe17fdf",
+                "version": 2,
+                "created": 1791414706258,
+                "updated": 1791414706258,
+                "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+                "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "title": "test",
+                  "count": "1",
+                  "enabled": true,
+                  "account": null,
+                  "status": "ready"
+                }
+              },
+              {
+                "id": "01a118a3-2052-76a7-8b3e-d5d12c0d7b8b",
+                "version": 3,
+                "created": 1791414706258,
+                "updated": 1791414706258,
+                "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+                "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "title": "test",
+                  "count": "1",
+                  "enabled": true,
+                  "account": null,
+                  "status": "idle"
+                }
+              },
+              {
+                "id": "01a118a3-2052-7bed-81f1-59c09ac49f55",
+                "version": 1,
+                "created": 1791414706258,
+                "updated": 1791414706258,
+                "createdBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+                "updatedBy": "5751d4fb-e039-43fe-a393-ebbccbfb98a8",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "title": "test",
+                  "count": "1",
+                  "enabled": true,
+                  "account": null,
+                  "status": "idle"
+                }
+              }
+            ],
+            "revision": 7
+          }
+        }
+      }
+    }
+  ],
+  "passed": 30,
+  "failed": 1
+}

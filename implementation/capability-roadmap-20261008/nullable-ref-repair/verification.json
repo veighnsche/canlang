@@ -1,0 +1,23 @@
+{
+  "status": "candidate_frozen_for_independent_post_patch_review",
+  "writer_and_commands": "released",
+  "source_lease": "nullable-ref-write-lease.json",
+  "owning_regressions": {
+    "tests": 97,
+    "passed": 97,
+    "failed": 0
+  },
+  "actual_unchanged_bounded_d1": {
+    "checks": 31,
+    "passed": 30,
+    "failed": 1,
+    "open_exact_result_failure": "void scenario committed undefined -> replay null",
+    "nullable_creation_clearing_replays": "qualified at bounded after-route scope"
+  },
+  "frozen_before_pins": {
+    "checked": 3383,
+    "status": "passed"
+  },
+  "scope": "No SEQ-008/SEQ-009/F1 completion; no public stdlib/numeric/whole-app/generated hook-lock-invariant qualification",
+  "evidence": "REPORT.md, runtime-results.json, qualification-checks.json, initial-runtime-preserved/, owning-regressions-final.log"
+}

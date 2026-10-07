@@ -1,0 +1,54 @@
+{
+  "name": "TypeError",
+  "message": "Cannot read properties of undefined (reading 'id')",
+  "stack": "TypeError: Cannot read properties of undefined (reading 'id')\n    at file:///Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-invocation/run.mjs:84:102",
+  "checks": [
+    {
+      "name": "fresh private D1 run has no previous receipt",
+      "passed": true,
+      "detail": {
+        "count": 0
+      }
+    },
+    {
+      "name": "actual bounded account default persisted",
+      "passed": true
+    },
+    {
+      "name": "actual bounded creation committed with scalar/machine defaults",
+      "passed": false,
+      "detail": {}
+    },
+    {
+      "name": "actual bounded omitted nullable reference becomes null",
+      "passed": false,
+      "detail": {
+        "fields": null
+      }
+    },
+    {
+      "name": "matching retry replays stable result without rows/history/version duplication",
+      "passed": false
+    },
+    {
+      "name": "changed payload reuse conflicts without write",
+      "passed": true
+    },
+    {
+      "name": "explicit null commits",
+      "passed": false
+    },
+    {
+      "name": "current versioned reference supplied commits",
+      "passed": true
+    },
+    {
+      "name": "wrong model id refuses via descriptor-owned model",
+      "passed": true
+    },
+    {
+      "name": "missing reference refuses",
+      "passed": true
+    }
+  ]
+}

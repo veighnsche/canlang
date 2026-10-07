@@ -1,0 +1,9 @@
+{
+  "checks": 31,
+  "passed": 30,
+  "failed": [
+    "void scenario replay preserves exact runtime result representation"
+  ],
+  "privateRoot": "/private/tmp/canlang-nullable-ref-after-d1-final"
+}
+

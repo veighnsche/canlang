@@ -64,7 +64,7 @@ const CANONICAL_VERSION_RE = /^[1-9][0-9]{0,14}$/;
  */
 export interface PreparedInputRule {
   readonly name: string;
-  readonly ref: { readonly model: ModelName; readonly versioned: boolean } | null;
+  readonly ref: { readonly model: ModelName; readonly versioned: boolean; readonly nullable?: true } | null;
   readonly required: boolean;
   /** Fill `[]` when an optional input is omitted (non-required marker). */
   readonly arrayFill: boolean;
@@ -96,6 +96,7 @@ export type PreparedInputArrays = Readonly<
 export function prepareDescriptorInputs(
   descriptor: CanonicalOperationDescriptor,
   inputArrays: PreparedInputArrays,
+  inputNullableRefs: Readonly<Record<string, true>> = {},
 ): PreparedOperationPlan {
   const rules: PreparedInputRule[] = descriptor.inputs.map((input) => {
     const marker = inputArrays[input.name];
@@ -103,7 +104,9 @@ export function prepareDescriptorInputs(
       name: input.name,
       ref:
         input.kind === 'ref'
-          ? { model: input.model, versioned: input.versioned }
+          ? { model: input.model, versioned: input.versioned,
+              ...(Object.hasOwn(inputNullableRefs, input.name) && inputNullableRefs[input.name] === true &&
+                !Object.hasOwn(inputArrays, input.name) ? { nullable: true as const } : {}) }
           : null,
       required: input.required,
       arrayFill: marker !== undefined && !marker.required,
@@ -137,7 +140,7 @@ export function prepareOperationInputs(
     );
   }
   const generated = def as GeneratedOperationDef;
-  return prepareDescriptorInputs(generated.descriptor, generated.inputArrays);
+  return prepareDescriptorInputs(generated.descriptor, generated.inputArrays, generated.inputNullableRefs);
 }
 
 /**
@@ -188,6 +191,9 @@ export function validatePreparedInputs(
       continue;
     }
     const value = inputs[param] as Record<string, unknown> | null;
+    if (value === null && Object.hasOwn(rule.ref, 'nullable') && rule.ref.nullable === true) {
+      continue;
+    }
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       fields.push({
         path: `/${param}`,

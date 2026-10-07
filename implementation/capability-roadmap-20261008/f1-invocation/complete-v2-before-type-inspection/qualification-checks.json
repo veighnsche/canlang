@@ -1,0 +1,936 @@
+{
+  "status": "failed_before_repair",
+  "checks": [
+    {
+      "name": "fresh private D1 run has no previous receipt",
+      "passed": true,
+      "detail": {
+        "count": 0
+      }
+    },
+    {
+      "name": "actual bounded account default persisted",
+      "passed": true
+    },
+    {
+      "name": "actual bounded creation committed with scalar/machine defaults",
+      "passed": false,
+      "detail": {}
+    },
+    {
+      "name": "actual bounded omitted nullable reference becomes null",
+      "passed": false,
+      "detail": {
+        "fields": null
+      }
+    },
+    {
+      "name": "matching retry replays stable result without rows/history/version duplication",
+      "passed": false
+    },
+    {
+      "name": "changed payload reuse conflicts without write",
+      "passed": true
+    },
+    {
+      "name": "explicit null commits",
+      "passed": false
+    },
+    {
+      "name": "current versioned reference supplied commits",
+      "passed": true
+    },
+    {
+      "name": "supported current-ref scalar/machine defaults persisted",
+      "passed": true
+    },
+    {
+      "name": "supported current-reference create replays result without duplicate effects",
+      "passed": true
+    },
+    {
+      "name": "wrong model id refuses via descriptor-owned model",
+      "passed": true
+    },
+    {
+      "name": "missing reference refuses",
+      "passed": true
+    },
+    {
+      "name": "missing version refuses",
+      "passed": true
+    },
+    {
+      "name": "two transitions commit one net record version",
+      "passed": true,
+      "detail": {
+        "row": {
+          "model": "Bounded.Job",
+          "id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+          "version": 2,
+          "created": 1791413051231,
+          "updated": 1791413051231,
+          "created_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+          "updated_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+          "archived_at": null,
+          "owner": "",
+          "parent_model": null,
+          "parent_id": null,
+          "data": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"ready\"}"
+        },
+        "history": [
+          {
+            "seq": 3,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "update",
+            "before": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"queued\"}"
+          },
+          {
+            "seq": 4,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "update",
+            "before": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"queued\"}",
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"ready\"}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "two transitions preserve ordered history at net version",
+      "passed": true,
+      "detail": {
+        "history": [
+          {
+            "seq": 3,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "update",
+            "before": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"queued\"}"
+          },
+          {
+            "seq": 4,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "update",
+            "before": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"queued\"}",
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"ready\"}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "matching transition replay precedes stale-reference admission",
+      "passed": true
+    },
+    {
+      "name": "fresh stale reference conflicts",
+      "passed": true
+    },
+    {
+      "name": "direct CRUD managed create bypass refuses",
+      "passed": true
+    },
+    {
+      "name": "direct CRUD managed update bypass refuses",
+      "passed": true
+    },
+    {
+      "name": "live member generated CRUD create commits",
+      "passed": true
+    },
+    {
+      "name": "anonymous control denies",
+      "passed": true
+    },
+    {
+      "name": "active owner admission commits",
+      "passed": true
+    },
+    {
+      "name": "member lacking owner authority denies",
+      "passed": true
+    },
+    {
+      "name": "other team member owner-gate scope denies",
+      "passed": true
+    },
+    {
+      "name": "controlled late failure rolls back staged row/history while persisting rejection receipt",
+      "passed": true
+    },
+    {
+      "name": "late failure matching retry unchanged error/hash/history",
+      "passed": true
+    },
+    {
+      "name": "fresh held identity observes current revocation",
+      "passed": true
+    },
+    {
+      "name": "receipt replay current authorization posture captured",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "result": {
+            "status": "replayed",
+            "operation_id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+            "result": {
+              "id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+              "version": 1,
+              "created": 1791413051231,
+              "updated": 1791413051231,
+              "createdBy": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+              "updatedBy": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+              "archivedAt": null,
+              "parent": null,
+              "data": {
+                "account": {
+                  "id": "01a11889-df5f-7e3b-8c36-2f104d4d5039",
+                  "version": "1"
+                },
+                "title": "test",
+                "count": "1",
+                "enabled": true,
+                "status": "idle"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "fresh denial retry consistent while revoked",
+      "passed": true
+    },
+    {
+      "name": "fresh admission denial had no receipt and readmits after restoration",
+      "passed": true
+    },
+    {
+      "name": "public direct transition requires canonical scope",
+      "passed": true
+    },
+    {
+      "name": "D1 stop/reopen same private persisted directory retains all rows/history/receipt/fence",
+      "passed": true
+    },
+    {
+      "name": "persisted restart replay saved result no duplicate effects",
+      "passed": true
+    },
+    {
+      "name": "persisted restart rejection replay same stable business error",
+      "passed": true
+    },
+    {
+      "name": "unchanged bounded artifact",
+      "passed": true
+    },
+    {
+      "name": "unchanged member artifact",
+      "passed": true
+    }
+  ],
+  "persistedRestart": {
+    "beforeRestart": {
+      "revision": 9,
+      "tables": {
+        "records": [
+          {
+            "model": "Bounded.Account",
+            "id": "01a11889-df5f-722b-8eb2-8a7773a314f8",
+            "version": 1,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "updated_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"name\":\"account\"}"
+          },
+          {
+            "model": "Bounded.Job",
+            "id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "updated_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"ready\"}"
+          },
+          {
+            "model": "MemberControl.Account",
+            "id": "01a11889-df5f-7e3b-8c36-2f104d4d5039",
+            "version": 1,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "updated_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"name\":\"account\"}"
+          },
+          {
+            "model": "MemberControl.Job",
+            "id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+            "version": 1,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "updated_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          },
+          {
+            "model": "MemberControl.Job",
+            "id": "01a11889-df5f-7645-86b0-3d04946d3cc9",
+            "version": 1,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "updated_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          }
+        ],
+        "history": [
+          {
+            "seq": 1,
+            "model": "Bounded.Account",
+            "record_id": "01a11889-df5f-722b-8eb2-8a7773a314f8",
+            "version": 1,
+            "operation": "Bounded.Account.create",
+            "operation_id": "01a11889-df5f-722b-8eb2-8a7773a314f8",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"name\":\"account\"}"
+          },
+          {
+            "seq": 2,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 1,
+            "operation": "Bounded.Job.create",
+            "operation_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          },
+          {
+            "seq": 3,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "update",
+            "before": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"queued\"}"
+          },
+          {
+            "seq": 4,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "update",
+            "before": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"queued\"}",
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"ready\"}"
+          },
+          {
+            "seq": 5,
+            "model": "MemberControl.Account",
+            "record_id": "01a11889-df5f-7e3b-8c36-2f104d4d5039",
+            "version": 1,
+            "operation": "MemberControl.Account.create",
+            "operation_id": "01a11889-df5f-7e3b-8c36-2f104d4d5039",
+            "actor": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"name\":\"account\"}"
+          },
+          {
+            "seq": 6,
+            "model": "MemberControl.Job",
+            "record_id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+            "version": 1,
+            "operation": "MemberControl.Job.create",
+            "operation_id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+            "actor": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          },
+          {
+            "seq": 7,
+            "model": "MemberControl.Job",
+            "record_id": "01a11889-df5f-7645-86b0-3d04946d3cc9",
+            "version": 1,
+            "operation": "MemberControl.Job.create",
+            "operation_id": "01a11889-df5f-7645-86b0-3d04946d3cc9",
+            "actor": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          }
+        ],
+        "receipts": [
+          {
+            "app": "Bounded",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "Bounded.Account.create",
+            "operation_id": "01a11889-df5f-722b-8eb2-8a7773a314f8",
+            "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolved_defaults": "{\"name\":\"account\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"9270fd35-a1bd-429c-baeb-37c1057eb547\",\"updatedBy\":\"9270fd35-a1bd-429c-baeb-37c1057eb547\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":1}]}",
+            "committed_revision": 1,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "Bounded",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "Bounded.Job.create",
+            "operation_id": "01a11889-df5f-7caf-8ece-c700e3de6ca7",
+            "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolved_defaults": "{}",
+            "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+            "committed_revision": 2,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "Bounded",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "Bounded.Job.create",
+            "operation_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "input_hash": "7f48d9b6b99fefaacceeb2e843deaa2d6ea4b55ffe6c69c3f16ffd1775720f62",
+            "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-76c1-8d34-e91aee05529b\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"9270fd35-a1bd-429c-baeb-37c1057eb547\",\"updatedBy\":\"9270fd35-a1bd-429c-baeb-37c1057eb547\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a11889-df5f-76c1-8d34-e91aee05529b\",\"version\":1}]}",
+            "committed_revision": 3,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "Bounded",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "input_hash": "a66e382de2e93196fed92438ce020fc107e81f25357257ede5ca80c43acff406",
+            "resolved_defaults": "{}",
+            "outcome": "{\"status\":\"committed\",\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a11889-df5f-76c1-8d34-e91aee05529b\",\"version\":2}]}",
+            "committed_revision": 4,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "operation": "MemberControl.Account.create",
+            "operation_id": "01a11889-df5f-7e3b-8c36-2f104d4d5039",
+            "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolved_defaults": "{\"name\":\"account\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"updatedBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"MemberControl.Account\",\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":1}]}",
+            "committed_revision": 5,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "operation": "MemberControl.Job.create",
+            "operation_id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+            "input_hash": "3aabbff131bbcf20465f479f656400c2718fd05af55668e49506010ef2a658ad",
+            "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-70f9-8c47-fd08f7835957\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"updatedBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"MemberControl.Job\",\"id\":\"01a11889-df5f-70f9-8c47-fd08f7835957\",\"version\":1}]}",
+            "committed_revision": 6,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "MemberControl.ownerGate",
+            "operation_id": "01a11889-df5f-7146-8875-0e53c719ddfb",
+            "input_hash": "08372e57e9010dd6c2d4c8778253dc60472597d4f65cdfcc22795b23d2938b16",
+            "resolved_defaults": "{}",
+            "outcome": "{\"status\":\"committed\",\"recordVersions\":[]}",
+            "committed_revision": 7,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "operation": "MemberControl.lateFail",
+            "operation_id": "01a11889-df5f-7417-840d-081815612929",
+            "input_hash": "bf6c85592ff1455c8611010119483e845f4f92327ea4e7516ce6d2213c493006",
+            "resolved_defaults": "{}",
+            "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"forbidden\"}",
+            "committed_revision": 8,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "operation": "MemberControl.Job.create",
+            "operation_id": "01a11889-df5f-7645-86b0-3d04946d3cc9",
+            "input_hash": "3aabbff131bbcf20465f479f656400c2718fd05af55668e49506010ef2a658ad",
+            "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-7645-86b0-3d04946d3cc9\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"updatedBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"MemberControl.Job\",\"id\":\"01a11889-df5f-7645-86b0-3d04946d3cc9\",\"version\":1}]}",
+            "committed_revision": 9,
+            "created_at": 1791413051231
+          }
+        ],
+        "outbox": [],
+        "schedules": [],
+        "fence": [
+          {
+            "id": 1,
+            "revision": 9
+          }
+        ],
+        "fence_log": [
+          {
+            "revision": 1,
+            "at": 1791413051231,
+            "operation": "Bounded.Account.create"
+          },
+          {
+            "revision": 2,
+            "at": 1791413051231,
+            "operation": "Bounded.Job.create"
+          },
+          {
+            "revision": 3,
+            "at": 1791413051231,
+            "operation": "Bounded.Job.create"
+          },
+          {
+            "revision": 4,
+            "at": 1791413051231,
+            "operation": "Bounded.advance"
+          },
+          {
+            "revision": 5,
+            "at": 1791413051231,
+            "operation": "MemberControl.Account.create"
+          },
+          {
+            "revision": 6,
+            "at": 1791413051231,
+            "operation": "MemberControl.Job.create"
+          },
+          {
+            "revision": 7,
+            "at": 1791413051231,
+            "operation": "MemberControl.ownerGate"
+          },
+          {
+            "revision": 8,
+            "at": 1791413051231,
+            "operation": "MemberControl.lateFail"
+          },
+          {
+            "revision": 9,
+            "at": 1791413051231,
+            "operation": "MemberControl.Job.create"
+          }
+        ]
+      }
+    },
+    "afterRestart": {
+      "revision": 9,
+      "tables": {
+        "records": [
+          {
+            "model": "Bounded.Account",
+            "id": "01a11889-df5f-722b-8eb2-8a7773a314f8",
+            "version": 1,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "updated_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"name\":\"account\"}"
+          },
+          {
+            "model": "Bounded.Job",
+            "id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "updated_by": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"ready\"}"
+          },
+          {
+            "model": "MemberControl.Account",
+            "id": "01a11889-df5f-7e3b-8c36-2f104d4d5039",
+            "version": 1,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "updated_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"name\":\"account\"}"
+          },
+          {
+            "model": "MemberControl.Job",
+            "id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+            "version": 1,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "updated_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          },
+          {
+            "model": "MemberControl.Job",
+            "id": "01a11889-df5f-7645-86b0-3d04946d3cc9",
+            "version": 1,
+            "created": 1791413051231,
+            "updated": 1791413051231,
+            "created_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "updated_by": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "archived_at": null,
+            "owner": "",
+            "parent_model": null,
+            "parent_id": null,
+            "data": "{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          }
+        ],
+        "history": [
+          {
+            "seq": 1,
+            "model": "Bounded.Account",
+            "record_id": "01a11889-df5f-722b-8eb2-8a7773a314f8",
+            "version": 1,
+            "operation": "Bounded.Account.create",
+            "operation_id": "01a11889-df5f-722b-8eb2-8a7773a314f8",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"name\":\"account\"}"
+          },
+          {
+            "seq": 2,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 1,
+            "operation": "Bounded.Job.create",
+            "operation_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          },
+          {
+            "seq": 3,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "update",
+            "before": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"queued\"}"
+          },
+          {
+            "seq": 4,
+            "model": "Bounded.Job",
+            "record_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "version": 2,
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "actor": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "at": 1791413051231,
+            "change": "update",
+            "before": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"queued\"}",
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"ready\"}"
+          },
+          {
+            "seq": 5,
+            "model": "MemberControl.Account",
+            "record_id": "01a11889-df5f-7e3b-8c36-2f104d4d5039",
+            "version": 1,
+            "operation": "MemberControl.Account.create",
+            "operation_id": "01a11889-df5f-7e3b-8c36-2f104d4d5039",
+            "actor": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"name\":\"account\"}"
+          },
+          {
+            "seq": 6,
+            "model": "MemberControl.Job",
+            "record_id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+            "version": 1,
+            "operation": "MemberControl.Job.create",
+            "operation_id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+            "actor": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          },
+          {
+            "seq": 7,
+            "model": "MemberControl.Job",
+            "record_id": "01a11889-df5f-7645-86b0-3d04946d3cc9",
+            "version": 1,
+            "operation": "MemberControl.Job.create",
+            "operation_id": "01a11889-df5f-7645-86b0-3d04946d3cc9",
+            "actor": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "at": 1791413051231,
+            "change": "create",
+            "before": null,
+            "after": "{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+          }
+        ],
+        "receipts": [
+          {
+            "app": "Bounded",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "Bounded.Account.create",
+            "operation_id": "01a11889-df5f-722b-8eb2-8a7773a314f8",
+            "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolved_defaults": "{\"name\":\"account\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"9270fd35-a1bd-429c-baeb-37c1057eb547\",\"updatedBy\":\"9270fd35-a1bd-429c-baeb-37c1057eb547\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":1}]}",
+            "committed_revision": 1,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "Bounded",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "Bounded.Job.create",
+            "operation_id": "01a11889-df5f-7caf-8ece-c700e3de6ca7",
+            "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolved_defaults": "{}",
+            "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+            "committed_revision": 2,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "Bounded",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "Bounded.Job.create",
+            "operation_id": "01a11889-df5f-76c1-8d34-e91aee05529b",
+            "input_hash": "7f48d9b6b99fefaacceeb2e843deaa2d6ea4b55ffe6c69c3f16ffd1775720f62",
+            "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-76c1-8d34-e91aee05529b\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"9270fd35-a1bd-429c-baeb-37c1057eb547\",\"updatedBy\":\"9270fd35-a1bd-429c-baeb-37c1057eb547\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-df5f-722b-8eb2-8a7773a314f8\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a11889-df5f-76c1-8d34-e91aee05529b\",\"version\":1}]}",
+            "committed_revision": 3,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "Bounded",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "Bounded.advance",
+            "operation_id": "01a11889-df5f-7dd4-8526-68cd15926212",
+            "input_hash": "a66e382de2e93196fed92438ce020fc107e81f25357257ede5ca80c43acff406",
+            "resolved_defaults": "{}",
+            "outcome": "{\"status\":\"committed\",\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a11889-df5f-76c1-8d34-e91aee05529b\",\"version\":2}]}",
+            "committed_revision": 4,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "operation": "MemberControl.Account.create",
+            "operation_id": "01a11889-df5f-7e3b-8c36-2f104d4d5039",
+            "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolved_defaults": "{\"name\":\"account\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"updatedBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"MemberControl.Account\",\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":1}]}",
+            "committed_revision": 5,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "operation": "MemberControl.Job.create",
+            "operation_id": "01a11889-df5f-70f9-8c47-fd08f7835957",
+            "input_hash": "3aabbff131bbcf20465f479f656400c2718fd05af55668e49506010ef2a658ad",
+            "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-70f9-8c47-fd08f7835957\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"updatedBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"MemberControl.Job\",\"id\":\"01a11889-df5f-70f9-8c47-fd08f7835957\",\"version\":1}]}",
+            "committed_revision": 6,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "9270fd35-a1bd-429c-baeb-37c1057eb547",
+            "operation": "MemberControl.ownerGate",
+            "operation_id": "01a11889-df5f-7146-8875-0e53c719ddfb",
+            "input_hash": "08372e57e9010dd6c2d4c8778253dc60472597d4f65cdfcc22795b23d2938b16",
+            "resolved_defaults": "{}",
+            "outcome": "{\"status\":\"committed\",\"recordVersions\":[]}",
+            "committed_revision": 7,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "operation": "MemberControl.lateFail",
+            "operation_id": "01a11889-df5f-7417-840d-081815612929",
+            "input_hash": "bf6c85592ff1455c8611010119483e845f4f92327ea4e7516ce6d2213c493006",
+            "resolved_defaults": "{}",
+            "outcome": "{\"status\":\"rejected\",\"code\":\"rule_failed\",\"message\":\"forbidden\"}",
+            "committed_revision": 8,
+            "created_at": 1791413051231
+          },
+          {
+            "app": "MemberControl",
+            "owner": "8faffc75-9b65-4143-99af-1edb308aed5e",
+            "principal": "0ecc5f24-3e9c-4536-88f9-09444e5a87ef",
+            "operation": "MemberControl.Job.create",
+            "operation_id": "01a11889-df5f-7645-86b0-3d04946d3cc9",
+            "input_hash": "3aabbff131bbcf20465f479f656400c2718fd05af55668e49506010ef2a658ad",
+            "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+            "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-df5f-7645-86b0-3d04946d3cc9\",\"version\":1,\"created\":1791413051231,\"updated\":1791413051231,\"createdBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"updatedBy\":\"0ecc5f24-3e9c-4536-88f9-09444e5a87ef\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-df5f-7e3b-8c36-2f104d4d5039\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"MemberControl.Job\",\"id\":\"01a11889-df5f-7645-86b0-3d04946d3cc9\",\"version\":1}]}",
+            "committed_revision": 9,
+            "created_at": 1791413051231
+          }
+        ],
+        "outbox": [],
+        "schedules": [],
+        "fence": [
+          {
+            "id": 1,
+            "revision": 9
+          }
+        ],
+        "fence_log": [
+          {
+            "revision": 1,
+            "at": 1791413051231,
+            "operation": "Bounded.Account.create"
+          },
+          {
+            "revision": 2,
+            "at": 1791413051231,
+            "operation": "Bounded.Job.create"
+          },
+          {
+            "revision": 3,
+            "at": 1791413051231,
+            "operation": "Bounded.Job.create"
+          },
+          {
+            "revision": 4,
+            "at": 1791413051231,
+            "operation": "Bounded.advance"
+          },
+          {
+            "revision": 5,
+            "at": 1791413051231,
+            "operation": "MemberControl.Account.create"
+          },
+          {
+            "revision": 6,
+            "at": 1791413051231,
+            "operation": "MemberControl.Job.create"
+          },
+          {
+            "revision": 7,
+            "at": 1791413051231,
+            "operation": "MemberControl.ownerGate"
+          },
+          {
+            "revision": 8,
+            "at": 1791413051231,
+            "operation": "MemberControl.lateFail"
+          },
+          {
+            "revision": 9,
+            "at": 1791413051231,
+            "operation": "MemberControl.Job.create"
+          }
+        ]
+      }
+    }
+  },
+  "limitations": [
+    "Member control is separate authored complete source, not the original bounded source.",
+    "Identity uses actual resolver/live membership test memory store; state uses production D1 adapter on persisted local Miniflare.",
+    "Selected StoragePort binding is caller supplied; no deployed owner-storage routing or all-app qualification asserted.",
+    "Canonical generated model table does not join hooks/invariants/locks; no full-generated-hook qualification."
+  ]
+}

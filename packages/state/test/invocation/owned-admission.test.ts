@@ -495,3 +495,92 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
     );
   });
 });
+
+// Narrow nullable-ref repair controls: artifact-produced defs remain the oracle.
+describe('checked nullable singular-ref admission', () => {
+  function artifactDef(extra: Record<string, unknown> = {}, name = 'expense'): GeneratedOperationDef {
+    const artifact = {
+      artifact_version: 1,
+      models: [{ name: MODEL, fields: [], deleteMode: 'archive' }],
+      operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [
+        { name, field: { kind: 'ref', model: MODEL, requireVersion: true }, required: false, ...extra },
+      ] } }],
+    };
+    const loaded = loadArtifactDescriptors(artifact as Parameters<typeof loadArtifactDescriptors>[0], { by: 'members' });
+    const def = loaded.registry.get(OP);
+    assert.ok(def !== undefined && isGeneratedOperationDef(def));
+    return def;
+  }
+  function parity(def: GeneratedOperationDef, inputs: ClosedInputs) {
+    const plan = prepareOperationInputs(def);
+    try {
+      const current = validateCallInputs(def, inputs);
+      assert.deepEqual(validatePreparedInputs(plan, inputs), current);
+      return current;
+    } catch (error) {
+      assert.ok(error instanceof StateError);
+      assert.deepEqual(captureFields(() => validatePreparedInputs(plan, inputs)), error.fields);
+      throw error;
+    }
+  }
+  it('retains explicit null without a pending ref, and leaves omission absent', () => {
+    const def = artifactDef({ nullable: true });
+    assert.deepEqual(parity(def, { expense: null }), { normalized: { expense: null }, refs: [] });
+    assert.deepEqual(parity(def, {}), { normalized: {}, refs: [] });
+    assert.ok(Object.isFrozen(def.inputNullableRefs));
+    assert.ok(Object.isFrozen(def.preparedInputs?.rules[0]?.ref));
+    assert.equal(def.preparedInputs?.profile, 'state-generated/v1');
+    assert.equal(Object.hasOwn(def.descriptor.inputs[0]!, 'nullable'), false);
+  });
+  it('keeps non-null reference/version checks and aggregate error order', () => {
+    const def = artifactDef({ nullable: true });
+    assert.equal(parity(def, { expense: { id: 'e', version: '1', extra: true } }).refs.length, 1);
+    for (const value of [undefined, {}, [], { id: 'e' }, { id: 'e', version: '01' }, { id: 'e', version: '1000000000000000' }]) {
+      assert.throws(() => parity(def, { unknown: 1, expense: value }), StateError);
+      const fields = captureFields(() => validateCallInputs(def, { unknown: 1, expense: value }));
+      assert.equal(fields[0]?.code, 'unknown_input');
+      assert.equal(fields[1]?.path, '/expense');
+    }
+  });
+  it('does not infer nullability from optional, false/non-true, inherited, or array metadata', () => {
+    for (const extra of [{}, { nullable: false }, { nullable: 'true' }, { nullable: true, array: { required: false } }]) {
+      assert.throws(() => parity(artifactDef(extra), { expense: null }), StateError);
+    }
+    const input = Object.assign(Object.create({ nullable: true }) as Record<string, unknown>, {
+      name: 'expense', field: { kind: 'ref', model: MODEL, requireVersion: true }, required: false,
+    });
+    const slice = { artifact_version: 1, models: [{ name: MODEL, fields: [], deleteMode: 'archive' }],
+      operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [input] } }] };
+    const def = loadArtifactDescriptors(slice as Parameters<typeof loadArtifactDescriptors>[0], { by: 'members' }).registry.get(OP);
+    assert.ok(def !== undefined && isGeneratedOperationDef(def));
+    assert.throws(() => parity(def, { expense: null }), StateError);
+  });
+  it('preserves own proof for special input names without prototype array markers', () => {
+    for (const name of ['constructor', 'toString', '__proto__']) {
+      const def = artifactDef({ nullable: true }, name);
+      assert.equal(Object.hasOwn(def.inputNullableRefs!, name), true);
+      const inputs = JSON.parse(`{"${name}":null}`) as ClosedInputs;
+      assert.deepEqual(parity(def, inputs), { normalized: inputs, refs: [] });
+    }
+  });
+  it('copies intake-direct proof and rejects bad associations as whole-set errors', () => {
+    const descriptor: CanonicalOperationDescriptor = { name: OP, kind: 'scenario', inputs: [versionedRef('expense', false), scalar('note', false)] };
+    const set = { contractVersion: 1 as const, operations: [descriptor], models: [{ name: MODEL, fields: {}, deleteMode: 'archive' as const }] };
+    const markers: Record<string, true> = { expense: true };
+    const loaded = loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { [OP]: markers } });
+    const def = loaded.registry.get(OP);
+    assert.ok(def !== undefined && isGeneratedOperationDef(def));
+    delete markers['expense'];
+    assert.deepEqual(parity(def, { expense: null }), { normalized: { expense: null }, refs: [] });
+    for (const proof of [{ missing: true }, { note: true }, { expense: false }]) {
+      assert.throws(() => loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { [OP]: proof } as unknown as Record<string, Record<string, true>> }));
+    }
+    assert.throws(() => loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { [OP]: undefined } as unknown as Record<string, Record<string, true>> }));
+    assert.throws(() => loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { missing: { expense: true } } }));
+    assert.throws(() => loadExecutionDescriptorSet(set, { by: 'members', inputArrays: { [OP]: { expense: { required: false } } }, inputNullableRefs: { [OP]: { expense: true } } }));
+    const inherited = Object.create({ expense: true }) as Record<string, true>;
+    const legacy = loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { [OP]: inherited } }).registry.get(OP);
+    assert.ok(legacy !== undefined && isGeneratedOperationDef(legacy));
+    assert.throws(() => parity(legacy, { expense: null }), StateError);
+  });
+});

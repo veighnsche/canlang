@@ -1,0 +1,1641 @@
+{
+  "qualification": "Actual unchanged emitted artifacts, production assembler/canonical invoker/state D1 adapter; Miniflare persisted local D1. Identity resolver/live memberships use test memory store (no installed identity claim).",
+  "sourcePin": "db57c3794d386fcd27f17f54b199272d58106a81",
+  "runtimeMode": "cloudflare-runtime",
+  "runtimePath": "/private/tmp/canlang-roadmap-f1-db57c379/packages/cloudflare/dist/runtime/stdlib.js",
+  "now": 1791413010201,
+  "artifactHashes": {
+    "bounded": "9f39ab8caf73621ab825eeb1db0507282d38932884d1316c9029a7be5060b343",
+    "member": "66dd41cdf07e8e0ee94489625a363a4a5e7091da85cabdbeb06a3e12acadb00b"
+  },
+  "privateRoot": "/private/tmp/canlang-f1-invocation-cloudflare-runtime",
+  "receipts": [
+    {
+      "sequence": 1,
+      "name": "bounded scalar account create defaults",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Account.create",
+        "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+        "inputs": {}
+      },
+      "outcome": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+          "result": {
+            "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+            "version": 1,
+            "created": 1791413010201,
+            "updated": 1791413010201,
+            "createdBy": "25f67d4f-919c-4829-9239-77aa62e4a917",
+            "updatedBy": "25f67d4f-919c-4829-9239-77aa62e4a917",
+            "archivedAt": null,
+            "parent": null,
+            "data": {
+              "name": "account"
+            }
+          },
+          "deliveries": []
+        }
+      },
+      "before": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      },
+      "after": {
+        "revision": 1,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 1
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "name": "bounded scalar/default/null create",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Job.create",
+        "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+        "inputs": {}
+      },
+      "outcome": {
+        "error": {
+          "code": "validation",
+          "message": "Invalid reference in field \"account\".",
+          "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 1,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 1
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "name": "matching create retry same raw inputs",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Job.create",
+        "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+        "inputs": {}
+      },
+      "outcome": {
+        "error": {
+          "code": "validation",
+          "message": "Invalid reference in field \"account\".",
+          "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "name": "changed payload same operation identity",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Job.create",
+        "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+        "inputs": {
+          "title": "changed"
+        }
+      },
+      "outcome": {
+        "error": {
+          "code": "conflict",
+          "message": "Conflicting reuse of this operation identity.",
+          "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 5,
+      "name": "explicit nullable reference null",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Job.create",
+        "operation_id": "01a11889-3f19-7344-8afe-76ba6d70acdd",
+        "inputs": {
+          "account": null
+        }
+      },
+      "outcome": {
+        "error": {
+          "code": "validation",
+          "message": "Invalid operation inputs.",
+          "operation_id": "01a11889-3f19-7344-8afe-76ba6d70acdd",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 6,
+      "name": "current versioned nullable reference supplied",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Job.create",
+        "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+        "inputs": {
+          "account": {
+            "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+            "version": "1"
+          }
+        }
+      },
+      "outcome": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+          "result": {
+            "id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+            "version": 1,
+            "created": 1791413010201,
+            "updated": 1791413010201,
+            "createdBy": "25f67d4f-919c-4829-9239-77aa62e4a917",
+            "updatedBy": "25f67d4f-919c-4829-9239-77aa62e4a917",
+            "archivedAt": null,
+            "parent": null,
+            "data": {
+              "account": {
+                "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+                "version": "1"
+              },
+              "title": "test",
+              "count": "1",
+              "enabled": true,
+              "status": "idle"
+            }
+          },
+          "deliveries": []
+        }
+      },
+      "before": {
+        "revision": 2,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 2
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 3,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            },
+            {
+              "model": "Bounded.Job",
+              "id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            },
+            {
+              "seq": 2,
+              "model": "Bounded.Job",
+              "record_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "input_hash": "c0abde8fdb7605f917752c09f08ef8e059afd98e48469de9f5dff49ac501e5c1",
+              "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1}]}",
+              "committed_revision": 3,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 3
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            },
+            {
+              "revision": 3,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 7,
+      "name": "wrong model id supplied to typed Job parameter",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.advance",
+        "operation_id": "01a11889-3f19-7235-8e77-f9adccb61084",
+        "inputs": {
+          "job": {
+            "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+            "version": "1"
+          }
+        }
+      },
+      "outcome": {
+        "error": {
+          "code": "not_found",
+          "message": "Record not found.",
+          "operation_id": "01a11889-3f19-7235-8e77-f9adccb61084",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 3,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            },
+            {
+              "model": "Bounded.Job",
+              "id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            },
+            {
+              "seq": 2,
+              "model": "Bounded.Job",
+              "record_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "input_hash": "c0abde8fdb7605f917752c09f08ef8e059afd98e48469de9f5dff49ac501e5c1",
+              "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1}]}",
+              "committed_revision": 3,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 3
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            },
+            {
+              "revision": 3,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 3,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            },
+            {
+              "model": "Bounded.Job",
+              "id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            },
+            {
+              "seq": 2,
+              "model": "Bounded.Job",
+              "record_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "input_hash": "c0abde8fdb7605f917752c09f08ef8e059afd98e48469de9f5dff49ac501e5c1",
+              "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1}]}",
+              "committed_revision": 3,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 3
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            },
+            {
+              "revision": 3,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 8,
+      "name": "missing Job reference",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.advance",
+        "operation_id": "01a11889-3f19-7219-8168-a7a6559ecabd",
+        "inputs": {
+          "job": {
+            "id": "missing-job-id",
+            "version": "1"
+          }
+        }
+      },
+      "outcome": {
+        "error": {
+          "code": "not_found",
+          "message": "Record not found.",
+          "operation_id": "01a11889-3f19-7219-8168-a7a6559ecabd",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 3,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            },
+            {
+              "model": "Bounded.Job",
+              "id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            },
+            {
+              "seq": 2,
+              "model": "Bounded.Job",
+              "record_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "input_hash": "c0abde8fdb7605f917752c09f08ef8e059afd98e48469de9f5dff49ac501e5c1",
+              "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1}]}",
+              "committed_revision": 3,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 3
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            },
+            {
+              "revision": 3,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      },
+      "after": {
+        "revision": 3,
+        "tables": {
+          "records": [
+            {
+              "model": "Bounded.Account",
+              "id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"name\":\"account\"}"
+            },
+            {
+              "model": "Bounded.Job",
+              "id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "created": 1791413010201,
+              "updated": 1791413010201,
+              "created_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "updated_by": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "archived_at": null,
+              "owner": "",
+              "parent_model": null,
+              "parent_id": null,
+              "data": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "history": [
+            {
+              "seq": 1,
+              "model": "Bounded.Account",
+              "record_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "version": 1,
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"name\":\"account\"}"
+            },
+            {
+              "seq": 2,
+              "model": "Bounded.Job",
+              "record_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "version": 1,
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "actor": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "at": 1791413010201,
+              "change": "create",
+              "before": null,
+              "after": "{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}"
+            }
+          ],
+          "receipts": [
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Account.create",
+              "operation_id": "01a11889-3f19-7d79-8182-8e69cb737d57",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{\"name\":\"account\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"name\":\"account\"}},\"recordVersions\":[{\"model\":\"Bounded.Account\",\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":1}]}",
+              "committed_revision": 1,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7321-8c99-2487370fc66f",
+              "input_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+              "resolved_defaults": "{}",
+              "outcome": "{\"status\":\"rejected\",\"code\":\"validation\",\"message\":\"Invalid reference in field \\\"account\\\".\"}",
+              "committed_revision": 2,
+              "created_at": 1791413010201
+            },
+            {
+              "app": "Bounded",
+              "owner": "bd170e18-992b-42b7-ab0f-44b1a33d2370",
+              "principal": "25f67d4f-919c-4829-9239-77aa62e4a917",
+              "operation": "Bounded.Job.create",
+              "operation_id": "01a11889-3f19-7667-80fb-52c14173cb6f",
+              "input_hash": "c0abde8fdb7605f917752c09f08ef8e059afd98e48469de9f5dff49ac501e5c1",
+              "resolved_defaults": "{\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}",
+              "outcome": "{\"status\":\"committed\",\"result\":{\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1,\"created\":1791413010201,\"updated\":1791413010201,\"createdBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"updatedBy\":\"25f67d4f-919c-4829-9239-77aa62e4a917\",\"archivedAt\":null,\"parent\":null,\"data\":{\"account\":{\"id\":\"01a11889-3f19-7d79-8182-8e69cb737d57\",\"version\":\"1\"},\"title\":\"test\",\"count\":\"1\",\"enabled\":true,\"status\":\"idle\"}},\"recordVersions\":[{\"model\":\"Bounded.Job\",\"id\":\"01a11889-3f19-7667-80fb-52c14173cb6f\",\"version\":1}]}",
+              "committed_revision": 3,
+              "created_at": 1791413010201
+            }
+          ],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 3
+            }
+          ],
+          "fence_log": [
+            {
+              "revision": 1,
+              "at": 1791413010201,
+              "operation": "Bounded.Account.create"
+            },
+            {
+              "revision": 2,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            },
+            {
+              "revision": 3,
+              "at": 1791413010201,
+              "operation": "Bounded.Job.create"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

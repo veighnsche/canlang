@@ -1,0 +1,65 @@
+{
+  "status": "accepted_for_exact_scoped_integration",
+  "captured_utc": "2026-10-07T23:33:30.560148+00:00",
+  "head_before": "0134ebb01b978831e07e6428bd15512de75e610a",
+  "origin": "Human-authorized coordination with capability roadmap source chat; exact released writer/reviewer handoff",
+  "manifest": "implementation/capability-roadmap-20261008/nullable-ref-integration-request.json",
+  "manifest_sha256": "b3b7fc6c7851051e10afcd89ba73bd1a3fe0991c7d3e18cf88374cb1e1ec84c6",
+  "verified_file_count": 109,
+  "verified_bytes": 6487901,
+  "product_and_tests": {
+    "packages/state/src/invocation/registry.ts": {
+      "sha256": "c8557fa35ea588779dbd307cf61183f1d1bae6733a763d7761fa7ccaa9ca8e85",
+      "bytes": 53491
+    },
+    "packages/state/src/invocation/admission.ts": {
+      "sha256": "a94cca5818076a8418c8b7c19d6a39511560c04c577a47a1449b1d42b09b2efe",
+      "bytes": 28457
+    },
+    "packages/state/src/invocation/prepared-inputs.ts": {
+      "sha256": "08a82756f557e136c48fd7da062a68f7c5e97365568e01d688601a00bea0e4b7",
+      "bytes": 9237
+    },
+    "packages/state/src/mutation/pipeline.ts": {
+      "sha256": "2946e626501bf5eab778164bea90f7aa09f2b1ba40e7893abc3f84eda3bfaa7d",
+      "bytes": 59503
+    },
+    "packages/state/test/invocation/owned-admission.test.ts": {
+      "sha256": "b07c14e6c3bd846f703cb35e21a8ce89bac0b79826d9a15949c3080e9b5c4e75",
+      "bytes": 24155
+    },
+    "packages/state/src/mutation/nullable-ref.test.ts": {
+      "sha256": "4357e9551b299d2fadd704d77de5133c75794b518971218110a5d6e78a666c74",
+      "bytes": 7400
+    }
+  },
+  "root_review": "Inspected four-source association/admission/prepared/pipeline diff, both owning tests, checked source contract and different-author actual-artifact/local-D1 review; exact hashes verified for all109 declared paths; no new build needed for unchanged already-qualified candidate.",
+  "acceptance": "Bounded checked nullable singular refs; own explicit metadata, immutable engine-local association, prepared/current parity, null create/clear/restore/replay and local persisted D1 reopen.",
+  "evidence": {
+    "author_tests": 97,
+    "independent_focused_tests": 29,
+    "independent_metadata_observations": 21,
+    "independent_actual_d1_observations": 17
+  },
+  "retained_failure": "Preexisting void result initially undefined versus persisted replay null independently reproduced; not broadened into this fix.",
+  "not_accepted": [
+    "full task9/F1",
+    "typed integer/default hydration",
+    "reference arrays/nested nullability",
+    "source selector/secrecy",
+    "deployed identity/owner storage routing",
+    "whole host crash/restart",
+    "installed/native release",
+    "maintenance packet parent closure"
+  ],
+  "maintenance_accounting": "Required correctness adds source and tests; no replacement-only reduction or foreign evidence production savings claimed.",
+  "writer_and_commands": "Released before exact Git integration",
+  "git": "Root exact manifest only; no push, checkout switch, unrelated compiler/State evidence or other writers staged.",
+  "filetree": "Existing State responsibility retained; new owning nullable-ref test; no merge or complete checkpoint advance.",
+  "commit_pending": true,
+  "whitespace": {
+    "full_staged_check": 2,
+    "findings": "Only preserved raw command stdout/log EOF blank lines and unified-diff context whitespace; no product source defect. Exact manifest bytes preserved rather than rewriting evidence.",
+    "required_scope": "Product/test files and root-owned records/docs checked separately before commit."
+  }
+}

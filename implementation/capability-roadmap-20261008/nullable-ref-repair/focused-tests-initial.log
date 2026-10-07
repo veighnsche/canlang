@@ -1,0 +1,116 @@
+▶ T16a generated CRUD: creates
+  ✔ creates flat rows with id=operationId, defaults, and omit-to-empty arrays (16.3415ms)
+  ✔ rejects missing required, unknown members, and required arrays (4.572917ms)
+  ✔ validates ref fields: missing, stale, and archived targets fail (1.846208ms)
+✔ T16a generated CRUD: creates (23.805834ms)
+▶ T16a generated CRUD: canonical model table
+  ✔ preserves server-only enforcement at the model layer (1.020083ms)
+✔ T16a generated CRUD: canonical model table (1.152833ms)
+▶ T16a generated CRUD: updates, deletes, whens
+  ✔ updates partially (omission unchanged), versions fence, archives delete (3.013458ms)
+  ✔ honors deleteMode none/remove and the disposal scan (2.259542ms)
+  ✔ enforces engine-local when preconditions with rejected receipts (1.244584ms)
+✔ T16a generated CRUD: updates, deletes, whens (6.838ms)
+▶ T16a generated CRUD: canonical projection
+  ✔ reads observe committed state through the viewer query port (1.074042ms)
+✔ T16a generated CRUD: canonical projection (1.154834ms)
+▶ nullable singular refs through loaded generated CRUD
+  ✔ fills omitted null, accepts explicit null and replays creation without another commit (16.068875ms)
+  ✔ clears a current ref with one version bump; preserves update omission and stale refusal (2.157042ms)
+✔ nullable singular refs through loaded generated CRUD (19.515291ms)
+▶ direct pipeline null boundaries (hand-built controls)
+  ✖ requires an own top-level nullable singular field; leaves other refusals unchanged (0.456916ms)
+✖ direct pipeline null boundaries (hand-built controls) (0.560542ms)
+▶ T18 fixture genuineness + loader channels
+  ✔ binds the embedded artifact to its source and carries init tokens (0.946125ms)
+  ✔ synthesizes the parent input on child creates only (0.130875ms)
+  ✔ rejects computed server inits whole-set (hand-mutated copy) (0.470292ms)
+  ✔ rejects unknown init tokens (hand-mutated copy) (0.158958ms)
+  ✔ tolerates bare server defaults: unspecified inits resolve nothing (11.174958ms)
+✔ T18 fixture genuineness + loader channels (13.561125ms)
+▶ T18 creation evaluation order
+  ✔ minimal create resolves literal/parent/null/array/server fills in order (1.549292ms)
+  ✔ caller values win over every fill; nothing is filled over (1.136167ms)
+  ✔ explicit null fails required and never triggers a fill (2.075875ms)
+  ✔ required-array omission rejects; ordinary arrays omit to empty (0.533625ms)
+✔ T18 creation evaluation order (5.586875ms)
+▶ T18 parent evaluation order
+  ✔ child create links the parent and resolves parent-path defaults (1.251166ms)
+  ✔ caller buddy wins over the parent-path default (0.894209ms)
+  ✔ parent linkage failures reject: missing, unknown, archived (1.094958ms)
+✔ T18 parent evaluation order (3.393417ms)
+▶ T18 update omission + protected fields
+  ✔ omission means unchanged: no fills, no re-evaluation on update (0.946209ms)
+  ✔ empty patch commits unchanged data; explicit null stores on nullable (1.520459ms)
+  ✔ ordinary path rejects server-owned fields on create and update (1.083084ms)
+✔ T18 update omission + protected fields (3.649083ms)
+▶ T18 replay-once
+  ✔ identical envelope replays the committed server values (0.587084ms)
+  ✔ fresh identities mint fresh secrets (0.590875ms)
+✔ T18 replay-once (1.25125ms)
+▶ T18/R27 adopted rule: hooks adjust, callers never
+  ✔ hooks observe resolved server values and may adjust them (0.609417ms)
+✔ T18/R27 adopted rule: hooks adjust, callers never (0.684542ms)
+▶ T18 model validation branches
+  ✔ rejects unknown server inits, server+default doubles, bad nullable (0.285291ms)
+✔ T18 model validation branches (0.319667ms)
+▶ V02.4 owned admission: prepared-inputs leaf
+  ✔ prepares a data-only plan carrying the state-generated/v1 profile tag (0.757125ms)
+  ✔ accepts presence-only scalars of every kind without value checks (0.522791ms)
+  ✔ admits positive versions up to 15 digits with safe-number conversion (0.309ms)
+  ✔ rejects non-canonical versions with invalid_version (0.331708ms)
+  ✔ requires versions on versioned refs but tolerates them on unversioned refs (0.122084ms)
+  ✔ ignores extra members on record refs (extra-ref permissiveness) (0.073583ms)
+  ✔ rejects malformed refs with invalid_ref (0.12525ms)
+  ✔ fills omitted optional ordinary arrays with a fresh array per call (0.087375ms)
+  ✔ returns a fresh unfrozen shallow copy and never mutates the caller inputs (0.077958ms)
+  ✔ enforces array shape only for present non-null array-marked values (0.386792ms)
+  ✔ does not fill omissions for required array markers (0.180458ms)
+  ✔ never fills operation defaults: defaults stay host-owned (0.146833ms)
+  ✔ aggregates unknown, required, array, ref, and version errors in current order (0.180375ms)
+  ✔ refuses interim defs: hand-built descriptors carry no proven provenance (0.439167ms)
+  ✔ leaves interim input identity unchanged through the shared oracle (2.342708ms)
+  ✔ copies plan metadata: post-registration source mutation cannot alter the plan (0.121375ms)
+  ✔ builds fresh plans per registry load: no hashless cache by operation name (0.441709ms)
+  ✔ attaches prepared plans through the artifact join with frozen rules (0.393416ms)
+  ✔ matches the current-TS oracle exactly across a valid/invalid matrix (1.056458ms)
+  ✔ prepares directly from a descriptor plus array markers (0.050208ms)
+  ✔ registers nothing on whole-set rejection: no partial prepared plan escapes (0.078708ms)
+✔ V02.4 owned admission: prepared-inputs leaf (9.740291ms)
+▶ checked nullable singular-ref admission
+  ✔ retains explicit null without a pending ref, and leaves omission absent (0.700166ms)
+  ✔ keeps non-null reference/version checks and aggregate error order (1.101ms)
+  ✔ does not infer nullability from optional, false/non-true, inherited, or array metadata (0.915667ms)
+  ✔ preserves own proof for special input names without prototype array markers (0.190917ms)
+  ✔ copies intake-direct proof and rejects bad associations as whole-set errors (0.985416ms)
+✔ checked nullable singular-ref admission (7.70875ms)
+ℹ tests 56
+ℹ suites 15
+ℹ pass 55
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 94.054208
+
+✖ failing tests:
+
+test at ../../../../private/tmp/canlang-nullable-ref-after-db57c379/packages/state/dist/src/mutation/nullable-ref.test.js:77:5
+✖ requires an own top-level nullable singular field; leaves other refusals unchanged (0.456916ms)
+  Error [StateError]: Mutation writes need a non-empty string record id.
+      at runMutationWrites (file:///private/tmp/canlang-nullable-ref-after-db57c379/packages/state/dist/src/mutation/pipeline.js:634:19)
+      at run (file:///private/tmp/canlang-nullable-ref-after-db57c379/packages/state/dist/src/mutation/nullable-ref.test.js:87:20)
+      at TestContext.<anonymous> (file:///private/tmp/canlang-nullable-ref-after-db57c379/packages/state/dist/src/mutation/nullable-ref.test.js:90:32)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at node:internal/test_runner/test:1903:71
+      at node:internal/per_context/primordials:504:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:478:3) {
+    code: 'validation',
+    details: null,
+    retryable: undefined,
+    fields: undefined,
+    conflict: undefined
+  }

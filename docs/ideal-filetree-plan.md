@@ -237,3 +237,6 @@ Root bounded maintenance reconciliation: DEL-D03 text output preflight now reuse
 
 
 Root bounded maintenance reconciliation: DEL-D03 mixed physical preflight reuses its defining bundle.ts guard; actual47maintained/38pairedFS/declaration evidence accepts only physical refusal before output. Planned-prefix partial effects remain a separate required repair; runtime+206bytes/two lines is correctness cost. Source-current private Wasm conformance25rawframes/sevenbootstrap controls remains separate from production decode/installed/adoption; locale/cache policy and real browser resource mount remain open. Exact released invalid privateCargo target cleanup preserved all receipts/currentWasm outputs. No merge, inherited allocation review or complete checkpoint advance.
+
+
+Root bounded capability integration: State retains checked artifact nullable-reference association and the current/prepared admission plus mutation owners. Exact six-source/test candidate is independently accepted for singular explicit null and actual local persisted D1 reopening; src/mutation/nullable-ref.test.ts is its owning pipeline proof. Typed carriers, void-result replay, installed identity/owner routing and full task9/F1 remain open. This is required correctness, not production-reduction credit, an actual merge or a complete checkpoint advance. See nullable-ref-root-integration.json.

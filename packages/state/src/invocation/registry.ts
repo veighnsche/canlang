@@ -98,6 +98,8 @@ export interface GeneratedOperationDef {
   readonly by: ByPredicate;
   readonly when?: QueryPredicate;
   readonly inputArrays: Readonly<Record<string, { readonly required: boolean }>>;
+  /** Checked explicit nullable singular-ref inputs; absent carries no proof. */
+  readonly inputNullableRefs?: Readonly<Record<string, true>>;
   /**
    * V02.4 prepared-inputs plan (`state-generated/v1`): copied data-only
    * input metadata for this def, built fresh at load. Present on every
@@ -183,6 +185,8 @@ export interface LoadDescriptorSetOptions {
   readonly inputArrays?: Readonly<
     Record<string, Readonly<Record<string, { readonly required: boolean }>>>
   >;
+  /** Intake-direct checked nullable singular-ref association, keyed by operation/input. */
+  readonly inputNullableRefs?: Readonly<Record<string, Readonly<Record<string, true>>>>;
 }
 
 /** A loaded set: the admission-ready registry plus validated model intake. */
@@ -224,6 +228,7 @@ export interface ConvertedArtifactDescriptors {
   readonly inputArrays: Readonly<
     Record<string, Readonly<Record<string, { readonly required: boolean }>>>
   >;
+  readonly inputNullableRefs: Readonly<Record<string, Readonly<Record<string, true>>>>;
   readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
   readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
   /** Typed-secret field names, independent of caller-input serverOnly restrictions. */
@@ -728,6 +733,26 @@ export function loadExecutionDescriptorSet(
         arrayMarkers[inputName] = { required: marker['required'] as boolean };
       }
     }
+    // Null proof belongs to this exact checked singular-ref input. Use own
+    // keys throughout: prototype slots are neither array markers nor proof.
+    const nullableRefs: Record<string, true> = Object.create(null) as Record<string, true>;
+    const hasNullableRefs = opts.inputNullableRefs !== undefined && Object.hasOwn(opts.inputNullableRefs, opName);
+    const opNullableRefs = hasNullableRefs ? opts.inputNullableRefs![opName] : undefined;
+    if (hasNullableRefs) {
+      if (!isRecord(opNullableRefs)) {
+        fail('malformed_descriptor', `Invalid nullable ref markers for operation ${JSON.stringify(opName)}.`);
+      }
+      for (const [inputName, marker] of Object.entries(opNullableRefs)) {
+        const input = descriptor.inputs.find((entry) => entry.name === inputName);
+        if (input === undefined) {
+          fail('dangling_reference', `Invalid nullable ref marker ${JSON.stringify(inputName)} on operation ${JSON.stringify(opName)}: no such input.`);
+        }
+        if (marker !== true || input.kind !== 'ref' || Object.hasOwn(arrayMarkers, inputName)) {
+          fail('malformed_descriptor', `Invalid nullable ref marker ${JSON.stringify(inputName)} on operation ${JSON.stringify(opName)}: only true singular-ref markers are supported.`);
+        }
+        nullableRefs[inputName] = true;
+      }
+    }
     const def: GeneratedOperationDef = {
       generated: true,
       name: opName as OperationName,
@@ -736,11 +761,12 @@ export function loadExecutionDescriptorSet(
       by: frozenBy,
       ...(when !== undefined ? { when: deepFreezeLoaded(when) } : {}),
       inputArrays: deepFreezeLoaded(arrayMarkers),
+      inputNullableRefs: deepFreezeLoaded(nullableRefs),
       // V02.4: fresh prepared-inputs plan per def per load — never a
       // cached lookup by operation name. Built from the validated
       // descriptor, so whole-set rejection below/above leaves no
       // partial plan behind (the def is only registered on success).
-      preparedInputs: deepFreezeLoaded(prepareDescriptorInputs(descriptor, arrayMarkers)),
+      preparedInputs: deepFreezeLoaded(prepareDescriptorInputs(descriptor, arrayMarkers, nullableRefs)),
     };
     registry.set(opName, Object.freeze(def));
   }
@@ -752,6 +778,13 @@ export function loadExecutionDescriptorSet(
           `Invalid input array markers for operation ${JSON.stringify(opKey)}: ` +
             'no such operation in this set.',
         );
+      }
+    }
+  }
+  if (opts.inputNullableRefs !== undefined) {
+    for (const opKey of Object.keys(opts.inputNullableRefs)) {
+      if (!seenOps.has(opKey)) {
+        fail('dangling_reference', `Invalid nullable ref markers for operation ${JSON.stringify(opKey)}: no such operation in this set.`);
       }
     }
   }
@@ -1029,6 +1062,7 @@ export function artifactToDescriptorSet(
   }
   const operations: CanonicalOperationDescriptor[] = [];
   const inputArrays: Record<string, Record<string, { readonly required: boolean }>> = {};
+  const inputNullableRefs: Record<string, Record<string, true>> = Object.create(null) as Record<string, Record<string, true>>;
   for (const operation of rawOperations as ArtifactOperation[]) {
     if (typeof operation.name !== 'string' || operation.name === '') {
       fail('malformed_descriptor', 'Invalid artifact operation: operations need non-empty names.');
@@ -1050,6 +1084,7 @@ export function artifactToDescriptorSet(
     const inputs: CanonicalInputDef[] = [];
     const seenInputs = new Set<string>();
     const opArrays: Record<string, { readonly required: boolean }> = {};
+    const opNullableRefs: Record<string, true> = Object.create(null) as Record<string, true>;
     for (const input of rawInputs['fields'] as ArtifactOperation['inputs']['fields']) {
       if (typeof input.name !== 'string' || input.name === '') {
         fail(
@@ -1134,6 +1169,9 @@ export function artifactToDescriptorSet(
           ...(fallback !== undefined ? { default: fallback } : {}),
         });
       }
+      if (inputKind === 'ref' && Object.hasOwn(input, 'nullable') && input.nullable === true && input.array === undefined) {
+        opNullableRefs[input.name] = true;
+      }
       // T15a input array markers ride the engine-local channel (the frozen
       // intake has no slot); T16 honors them, T04b formalizes them.
       if (input.array !== undefined) {
@@ -1148,6 +1186,9 @@ export function artifactToDescriptorSet(
       kind: operation.kind as CanonicalOperationDescriptor['kind'],
       inputs,
     });
+    if (Object.keys(opNullableRefs).length > 0) {
+      inputNullableRefs[operation.name] = opNullableRefs;
+    }
     if (Object.keys(opArrays).length > 0) {
       inputArrays[operation.name] = opArrays;
     }
@@ -1165,7 +1206,7 @@ export function artifactToDescriptorSet(
   // them). `createDeliverySchema` is the shared builder: its
   // validation doubles as this conversion's whole-set guard.
   const deliveryFields = createDeliverySchema(deliveryEntries);
-  return { set, refs, inputArrays, serverInits, nullableFields, secretFields, containment, deliveryFields };
+  return { set, refs, inputArrays, inputNullableRefs, serverInits, nullableFields, secretFields, containment, deliveryFields };
 }
 
 /**
@@ -1176,13 +1217,14 @@ export function artifactToDescriptorSet(
  */
 export function loadArtifactDescriptors(
   artifact: ArtifactDescriptorSlice,
-  opts: Omit<LoadDescriptorSetOptions, 'inputArrays'>,
+  opts: Omit<LoadDescriptorSetOptions, 'inputArrays' | 'inputNullableRefs'>,
 ): LoadedArtifactDescriptors {
   const converted = artifactToDescriptorSet(artifact);
   const loaded = loadExecutionDescriptorSet(converted.set, {
     by: opts.by,
     ...(opts.when !== undefined ? { when: opts.when } : {}),
     inputArrays: converted.inputArrays,
+    inputNullableRefs: converted.inputNullableRefs,
   });
   const refs: Map<ModelName, ReadonlyArray<InterimRefDef>> = new Map();
   for (const [model, modelRefs] of converted.refs) {
