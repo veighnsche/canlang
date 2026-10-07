@@ -165,8 +165,9 @@
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
-    "TECH-V03:registration-publication-independent-review",
-    "DEL-D03:text-output-containment-independent-review"
+    "TECH-V05:current-host-data-cache-prerequisite",
+    "TECH-V04:changed-conformance-Wasm-target-qualification",
+    "DEL-E02:released-invalid-target-inventory"
   ],
   "packet_state": {
     "TECH-V01-values": {
@@ -302,7 +303,7 @@
       },
       "commit": "d4b041fb",
       "registration_atomic_correction": {
-        "state": "Producer released candidate and51/51 gates; different-author finite independent review active",
+        "state": "Different-author review passes13fresh and51maintained, scoped commit prepared; private hook only",
         "agent": "/root/prepared_registration_atomic",
         "model": "gpt-6.1-sol",
         "effort": "medium",
@@ -320,7 +321,10 @@
         "source_pins": {
           "packages/values/src/prepared/plan.ts": "3e8a556376e7fa80bec2889589ea64a20a720b262f7dea744a58e717c9d24fc3",
           "packages/values/test/prepared-registration-atomic.test.ts": "358628da08541606e0a42504ddc9d9493a26b4f9c94cacecfbe987581b77b234"
-        }
+        },
+        "review": "prepared-registration-independent-review.json",
+        "review_read_released": true,
+        "commit_pending": true
       }
     },
     "TECH-V04": {
@@ -961,7 +965,7 @@
     },
     "DEL-B02": {
       "planning_status": "blocked",
-      "state": "Independently accepted immutable finite asset byte-ownership correction; commit prepared, parent mounted/browser/export/print gates open",
+      "state": "Independently accepted immutable asset-table correction committed61e49955; parent mounted/browser/export/print gates open",
       "files": [
         "packages/ui/src/client.ts",
         "packages/ui/src/browser/export.ts",
@@ -990,7 +994,8 @@
       "parent_limit": "No identified production mount/ETag; original browser/files/export/print/installed/security qualification open",
       "review": "asset-ownership-independent-review.json",
       "review_read_released": true,
-      "commit_pending": true
+      "commit_pending": false,
+      "commit": "61e49955"
     },
     "DEL-D03": {
       "planning_status": "blocked",
