@@ -738,6 +738,11 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       if (before !== null && refValuesEqual(getDataPath(before.data, ref.field), value)) {
         continue;
       }
+      if (value === null && !ref.field.includes('.') && Object.hasOwn(def.fields, ref.field) &&
+        Object.hasOwn(def.fields[ref.field]!, 'nullable') &&
+        def.fields[ref.field]?.nullable === true && def.fields[ref.field]?.array === undefined) {
+        continue;
+      }
       if (typeof value !== 'object' || value === null || Array.isArray(value)) {
         throw new StateError('validation', `Invalid reference in field ${JSON.stringify(ref.field)}.`);
       }

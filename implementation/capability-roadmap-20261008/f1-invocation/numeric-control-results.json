@@ -1,0 +1,96 @@
+{
+  "status": "failed_before_numeric_execution",
+  "compiledUnchanged": true,
+  "scenario": "NumericControl.increment(job:Job) -> int: return job.count+1",
+  "emitted": "return int64(job.count + 1n)",
+  "expectedNumericResult": 2,
+  "results": [
+    {
+      "mode": "cloudflare-runtime",
+      "runtimePath": "/private/tmp/canlang-roadmap-f1-db57c379/packages/cloudflare/dist/runtime/stdlib.js",
+      "createEnvelope": {
+        "operation": "NumericControl.Job.create",
+        "operation_id": "01a1188e-ec89-73b8-8b69-f97db819de4c",
+        "inputs": {}
+      },
+      "create": {
+        "error": {
+          "code": "rule_failed",
+          "message": "t16b: operation \"NumericControl.Job.create\" module \"$can$m$4e756d65726963436f6e74726f6c.mjs\" failed to import (The requested module 'file:///private/tmp/canlang-roadmap-f1-db57c379/packages/cloudflare/dist/runtime/stdlib.js' does not provide an export named 'int64')",
+          "operation_id": "01a1188e-ec89-73b8-8b69-f97db819de4c",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 0,
+        "records": [],
+        "history": [],
+        "receipts": []
+      },
+      "after": {
+        "revision": 0,
+        "records": [],
+        "history": [],
+        "receipts": []
+      },
+      "numericResult": {
+        "expected": 2,
+        "expectedRuntimeType": "bigint",
+        "status": "blocked_before_actual_default_row",
+        "cause": {
+          "code": "rule_failed",
+          "message": "t16b: operation \"NumericControl.Job.create\" module \"$can$m$4e756d65726963436f6e74726f6c.mjs\" failed to import (The requested module 'file:///private/tmp/canlang-roadmap-f1-db57c379/packages/cloudflare/dist/runtime/stdlib.js' does not provide an export named 'int64')",
+          "operation_id": "01a1188e-ec89-73b8-8b69-f97db819de4c",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "mode": "public-facade",
+      "runtimePath": "/private/tmp/canlang-roadmap-f1-db57c379/packages/stdlib/dist/src/index.js",
+      "createEnvelope": {
+        "operation": "NumericControl.Job.create",
+        "operation_id": "01a1188e-ec89-70cd-8e63-a5fe002db305",
+        "inputs": {}
+      },
+      "create": {
+        "error": {
+          "code": "rule_failed",
+          "message": "t16b: operation \"NumericControl.Job.create\" module \"$can$m$4e756d65726963436f6e74726f6c.mjs\" failed to import (The requested module 'file:///private/tmp/canlang-roadmap-f1-db57c379/packages/stdlib/dist/src/index.js' does not provide an export named 'create')",
+          "operation_id": "01a1188e-ec89-70cd-8e63-a5fe002db305",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 0,
+        "records": [],
+        "history": [],
+        "receipts": []
+      },
+      "after": {
+        "revision": 0,
+        "records": [],
+        "history": [],
+        "receipts": []
+      },
+      "numericResult": {
+        "expected": 2,
+        "expectedRuntimeType": "bigint",
+        "status": "blocked_before_actual_default_row",
+        "cause": {
+          "code": "rule_failed",
+          "message": "t16b: operation \"NumericControl.Job.create\" module \"$can$m$4e756d65726963436f6e74726f6c.mjs\" failed to import (The requested module 'file:///private/tmp/canlang-roadmap-f1-db57c379/packages/stdlib/dist/src/index.js' does not provide an export named 'create')",
+          "operation_id": "01a1188e-ec89-70cd-8e63-a5fe002db305",
+          "retryable": false
+        }
+      }
+    }
+  ],
+  "hydrationSourceFacts": {
+    "path": "/private/tmp/canlang-roadmap-f1-db57c379/packages/cloudflare/src/runtime/invoke.ts",
+    "function": "scenarioParameters",
+    "fieldGetter": "staged.has(key) ? staged.get(key)?.data[field] : admitted[field]",
+    "recordVersion": "BigInt(row.version)",
+    "claim": "Field data is forwarded without a scalar decoder on this source path; this is static evidence, not an executed arithmetic outcome."
+  }
+}

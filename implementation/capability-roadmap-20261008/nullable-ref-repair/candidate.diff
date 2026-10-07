@@ -1,0 +1,436 @@
+--- before/packages/state/src/invocation/registry.ts
++++ after/packages/state/src/invocation/registry.ts
+@@ -98,6 +98,8 @@
+   readonly by: ByPredicate;
+   readonly when?: QueryPredicate;
+   readonly inputArrays: Readonly<Record<string, { readonly required: boolean }>>;
++  /** Checked explicit nullable singular-ref inputs; absent carries no proof. */
++  readonly inputNullableRefs?: Readonly<Record<string, true>>;
+   /**
+    * V02.4 prepared-inputs plan (`state-generated/v1`): copied data-only
+    * input metadata for this def, built fresh at load. Present on every
+@@ -183,6 +185,8 @@
+   readonly inputArrays?: Readonly<
+     Record<string, Readonly<Record<string, { readonly required: boolean }>>>
+   >;
++  /** Intake-direct checked nullable singular-ref association, keyed by operation/input. */
++  readonly inputNullableRefs?: Readonly<Record<string, Readonly<Record<string, true>>>>;
+ }
+ 
+ /** A loaded set: the admission-ready registry plus validated model intake. */
+@@ -224,6 +228,7 @@
+   readonly inputArrays: Readonly<
+     Record<string, Readonly<Record<string, { readonly required: boolean }>>>
+   >;
++  readonly inputNullableRefs: Readonly<Record<string, Readonly<Record<string, true>>>>;
+   readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
+   readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
+   /** Typed-secret field names, independent of caller-input serverOnly restrictions. */
+@@ -728,6 +733,26 @@
+         arrayMarkers[inputName] = { required: marker['required'] as boolean };
+       }
+     }
++    // Null proof belongs to this exact checked singular-ref input. Use own
++    // keys throughout: prototype slots are neither array markers nor proof.
++    const nullableRefs: Record<string, true> = Object.create(null) as Record<string, true>;
++    const hasNullableRefs = opts.inputNullableRefs !== undefined && Object.hasOwn(opts.inputNullableRefs, opName);
++    const opNullableRefs = hasNullableRefs ? opts.inputNullableRefs![opName] : undefined;
++    if (hasNullableRefs) {
++      if (!isRecord(opNullableRefs)) {
++        fail('malformed_descriptor', `Invalid nullable ref markers for operation ${JSON.stringify(opName)}.`);
++      }
++      for (const [inputName, marker] of Object.entries(opNullableRefs)) {
++        const input = descriptor.inputs.find((entry) => entry.name === inputName);
++        if (input === undefined) {
++          fail('dangling_reference', `Invalid nullable ref marker ${JSON.stringify(inputName)} on operation ${JSON.stringify(opName)}: no such input.`);
++        }
++        if (marker !== true || input.kind !== 'ref' || Object.hasOwn(arrayMarkers, inputName)) {
++          fail('malformed_descriptor', `Invalid nullable ref marker ${JSON.stringify(inputName)} on operation ${JSON.stringify(opName)}: only true singular-ref markers are supported.`);
++        }
++        nullableRefs[inputName] = true;
++      }
++    }
+     const def: GeneratedOperationDef = {
+       generated: true,
+       name: opName as OperationName,
+@@ -736,11 +761,12 @@
+       by: frozenBy,
+       ...(when !== undefined ? { when: deepFreezeLoaded(when) } : {}),
+       inputArrays: deepFreezeLoaded(arrayMarkers),
++      inputNullableRefs: deepFreezeLoaded(nullableRefs),
+       // V02.4: fresh prepared-inputs plan per def per load — never a
+       // cached lookup by operation name. Built from the validated
+       // descriptor, so whole-set rejection below/above leaves no
+       // partial plan behind (the def is only registered on success).
+-      preparedInputs: deepFreezeLoaded(prepareDescriptorInputs(descriptor, arrayMarkers)),
++      preparedInputs: deepFreezeLoaded(prepareDescriptorInputs(descriptor, arrayMarkers, nullableRefs)),
+     };
+     registry.set(opName, Object.freeze(def));
+   }
+@@ -752,6 +778,13 @@
+           `Invalid input array markers for operation ${JSON.stringify(opKey)}: ` +
+             'no such operation in this set.',
+         );
++      }
++    }
++  }
++  if (opts.inputNullableRefs !== undefined) {
++    for (const opKey of Object.keys(opts.inputNullableRefs)) {
++      if (!seenOps.has(opKey)) {
++        fail('dangling_reference', `Invalid nullable ref markers for operation ${JSON.stringify(opKey)}: no such operation in this set.`);
+       }
+     }
+   }
+@@ -1029,6 +1062,7 @@
+   }
+   const operations: CanonicalOperationDescriptor[] = [];
+   const inputArrays: Record<string, Record<string, { readonly required: boolean }>> = {};
++  const inputNullableRefs: Record<string, Record<string, true>> = Object.create(null) as Record<string, Record<string, true>>;
+   for (const operation of rawOperations as ArtifactOperation[]) {
+     if (typeof operation.name !== 'string' || operation.name === '') {
+       fail('malformed_descriptor', 'Invalid artifact operation: operations need non-empty names.');
+@@ -1050,6 +1084,7 @@
+     const inputs: CanonicalInputDef[] = [];
+     const seenInputs = new Set<string>();
+     const opArrays: Record<string, { readonly required: boolean }> = {};
++    const opNullableRefs: Record<string, true> = Object.create(null) as Record<string, true>;
+     for (const input of rawInputs['fields'] as ArtifactOperation['inputs']['fields']) {
+       if (typeof input.name !== 'string' || input.name === '') {
+         fail(
+@@ -1134,6 +1169,9 @@
+           ...(fallback !== undefined ? { default: fallback } : {}),
+         });
+       }
++      if (inputKind === 'ref' && Object.hasOwn(input, 'nullable') && input.nullable === true && input.array === undefined) {
++        opNullableRefs[input.name] = true;
++      }
+       // T15a input array markers ride the engine-local channel (the frozen
+       // intake has no slot); T16 honors them, T04b formalizes them.
+       if (input.array !== undefined) {
+@@ -1148,6 +1186,9 @@
+       kind: operation.kind as CanonicalOperationDescriptor['kind'],
+       inputs,
+     });
++    if (Object.keys(opNullableRefs).length > 0) {
++      inputNullableRefs[operation.name] = opNullableRefs;
++    }
+     if (Object.keys(opArrays).length > 0) {
+       inputArrays[operation.name] = opArrays;
+     }
+@@ -1165,7 +1206,7 @@
+   // them). `createDeliverySchema` is the shared builder: its
+   // validation doubles as this conversion's whole-set guard.
+   const deliveryFields = createDeliverySchema(deliveryEntries);
+-  return { set, refs, inputArrays, serverInits, nullableFields, secretFields, containment, deliveryFields };
++  return { set, refs, inputArrays, inputNullableRefs, serverInits, nullableFields, secretFields, containment, deliveryFields };
+ }
+ 
+ /**
+@@ -1176,13 +1217,14 @@
+  */
+ export function loadArtifactDescriptors(
+   artifact: ArtifactDescriptorSlice,
+-  opts: Omit<LoadDescriptorSetOptions, 'inputArrays'>,
++  opts: Omit<LoadDescriptorSetOptions, 'inputArrays' | 'inputNullableRefs'>,
+ ): LoadedArtifactDescriptors {
+   const converted = artifactToDescriptorSet(artifact);
+   const loaded = loadExecutionDescriptorSet(converted.set, {
+     by: opts.by,
+     ...(opts.when !== undefined ? { when: opts.when } : {}),
+     inputArrays: converted.inputArrays,
++    inputNullableRefs: converted.inputNullableRefs,
+   });
+   const refs: Map<ModelName, ReadonlyArray<InterimRefDef>> = new Map();
+   for (const [model, modelRefs] of converted.refs) {
+--- before/packages/state/src/invocation/admission.ts
++++ after/packages/state/src/invocation/admission.ts
+@@ -217,6 +217,11 @@
+       continue;
+     }
+     const value = inputs[param] as Record<string, unknown> | null;
++    if (value === null && def.inputNullableRefs !== undefined &&
++      Object.hasOwn(def.inputNullableRefs, param) && def.inputNullableRefs[param] === true &&
++      !Object.hasOwn(def.inputArrays, param)) {
++      continue;
++    }
+     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+       fields.push({
+         path: `/${param}`,
+--- before/packages/state/src/invocation/prepared-inputs.ts
++++ after/packages/state/src/invocation/prepared-inputs.ts
+@@ -64,7 +64,7 @@
+  */
+ export interface PreparedInputRule {
+   readonly name: string;
+-  readonly ref: { readonly model: ModelName; readonly versioned: boolean } | null;
++  readonly ref: { readonly model: ModelName; readonly versioned: boolean; readonly nullable?: true } | null;
+   readonly required: boolean;
+   /** Fill `[]` when an optional input is omitted (non-required marker). */
+   readonly arrayFill: boolean;
+@@ -96,6 +96,7 @@
+ export function prepareDescriptorInputs(
+   descriptor: CanonicalOperationDescriptor,
+   inputArrays: PreparedInputArrays,
++  inputNullableRefs: Readonly<Record<string, true>> = {},
+ ): PreparedOperationPlan {
+   const rules: PreparedInputRule[] = descriptor.inputs.map((input) => {
+     const marker = inputArrays[input.name];
+@@ -103,7 +104,9 @@
+       name: input.name,
+       ref:
+         input.kind === 'ref'
+-          ? { model: input.model, versioned: input.versioned }
++          ? { model: input.model, versioned: input.versioned,
++              ...(Object.hasOwn(inputNullableRefs, input.name) && inputNullableRefs[input.name] === true &&
++                !Object.hasOwn(inputArrays, input.name) ? { nullable: true as const } : {}) }
+           : null,
+       required: input.required,
+       arrayFill: marker !== undefined && !marker.required,
+@@ -137,7 +140,7 @@
+     );
+   }
+   const generated = def as GeneratedOperationDef;
+-  return prepareDescriptorInputs(generated.descriptor, generated.inputArrays);
++  return prepareDescriptorInputs(generated.descriptor, generated.inputArrays, generated.inputNullableRefs);
+ }
+ 
+ /**
+@@ -188,6 +191,9 @@
+       continue;
+     }
+     const value = inputs[param] as Record<string, unknown> | null;
++    if (value === null && Object.hasOwn(rule.ref, 'nullable') && rule.ref.nullable === true) {
++      continue;
++    }
+     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+       fields.push({
+         path: `/${param}`,
+--- before/packages/state/src/mutation/pipeline.ts
++++ after/packages/state/src/mutation/pipeline.ts
+@@ -738,6 +738,11 @@
+       if (before !== null && refValuesEqual(getDataPath(before.data, ref.field), value)) {
+         continue;
+       }
++      if (value === null && !ref.field.includes('.') && Object.hasOwn(def.fields, ref.field) &&
++        Object.hasOwn(def.fields[ref.field]!, 'nullable') &&
++        def.fields[ref.field]?.nullable === true && def.fields[ref.field]?.array === undefined) {
++        continue;
++      }
+       if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+         throw new StateError('validation', `Invalid reference in field ${JSON.stringify(ref.field)}.`);
+       }
+--- before/packages/state/test/invocation/owned-admission.test.ts
++++ after/packages/state/test/invocation/owned-admission.test.ts
+@@ -495,3 +495,92 @@
+     );
+   });
+ });
++
++// Narrow nullable-ref repair controls: artifact-produced defs remain the oracle.
++describe('checked nullable singular-ref admission', () => {
++  function artifactDef(extra: Record<string, unknown> = {}, name = 'expense'): GeneratedOperationDef {
++    const artifact = {
++      artifact_version: 1,
++      models: [{ name: MODEL, fields: [], deleteMode: 'archive' }],
++      operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [
++        { name, field: { kind: 'ref', model: MODEL, requireVersion: true }, required: false, ...extra },
++      ] } }],
++    };
++    const loaded = loadArtifactDescriptors(artifact as Parameters<typeof loadArtifactDescriptors>[0], { by: 'members' });
++    const def = loaded.registry.get(OP);
++    assert.ok(def !== undefined && isGeneratedOperationDef(def));
++    return def;
++  }
++  function parity(def: GeneratedOperationDef, inputs: ClosedInputs) {
++    const plan = prepareOperationInputs(def);
++    try {
++      const current = validateCallInputs(def, inputs);
++      assert.deepEqual(validatePreparedInputs(plan, inputs), current);
++      return current;
++    } catch (error) {
++      assert.ok(error instanceof StateError);
++      assert.deepEqual(captureFields(() => validatePreparedInputs(plan, inputs)), error.fields);
++      throw error;
++    }
++  }
++  it('retains explicit null without a pending ref, and leaves omission absent', () => {
++    const def = artifactDef({ nullable: true });
++    assert.deepEqual(parity(def, { expense: null }), { normalized: { expense: null }, refs: [] });
++    assert.deepEqual(parity(def, {}), { normalized: {}, refs: [] });
++    assert.ok(Object.isFrozen(def.inputNullableRefs));
++    assert.ok(Object.isFrozen(def.preparedInputs?.rules[0]?.ref));
++    assert.equal(def.preparedInputs?.profile, 'state-generated/v1');
++    assert.equal(Object.hasOwn(def.descriptor.inputs[0]!, 'nullable'), false);
++  });
++  it('keeps non-null reference/version checks and aggregate error order', () => {
++    const def = artifactDef({ nullable: true });
++    assert.equal(parity(def, { expense: { id: 'e', version: '1', extra: true } }).refs.length, 1);
++    for (const value of [undefined, {}, [], { id: 'e' }, { id: 'e', version: '01' }, { id: 'e', version: '1000000000000000' }]) {
++      assert.throws(() => parity(def, { unknown: 1, expense: value }), StateError);
++      const fields = captureFields(() => validateCallInputs(def, { unknown: 1, expense: value }));
++      assert.equal(fields[0]?.code, 'unknown_input');
++      assert.equal(fields[1]?.path, '/expense');
++    }
++  });
++  it('does not infer nullability from optional, false/non-true, inherited, or array metadata', () => {
++    for (const extra of [{}, { nullable: false }, { nullable: 'true' }, { nullable: true, array: { required: false } }]) {
++      assert.throws(() => parity(artifactDef(extra), { expense: null }), StateError);
++    }
++    const input = Object.assign(Object.create({ nullable: true }) as Record<string, unknown>, {
++      name: 'expense', field: { kind: 'ref', model: MODEL, requireVersion: true }, required: false,
++    });
++    const slice = { artifact_version: 1, models: [{ name: MODEL, fields: [], deleteMode: 'archive' }],
++      operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [input] } }] };
++    const def = loadArtifactDescriptors(slice as Parameters<typeof loadArtifactDescriptors>[0], { by: 'members' }).registry.get(OP);
++    assert.ok(def !== undefined && isGeneratedOperationDef(def));
++    assert.throws(() => parity(def, { expense: null }), StateError);
++  });
++  it('preserves own proof for special input names without prototype array markers', () => {
++    for (const name of ['constructor', 'toString', '__proto__']) {
++      const def = artifactDef({ nullable: true }, name);
++      assert.equal(Object.hasOwn(def.inputNullableRefs!, name), true);
++      const inputs = JSON.parse(`{"${name}":null}`) as ClosedInputs;
++      assert.deepEqual(parity(def, inputs), { normalized: inputs, refs: [] });
++    }
++  });
++  it('copies intake-direct proof and rejects bad associations as whole-set errors', () => {
++    const descriptor: CanonicalOperationDescriptor = { name: OP, kind: 'scenario', inputs: [versionedRef('expense', false), scalar('note', false)] };
++    const set = { contractVersion: 1 as const, operations: [descriptor], models: [{ name: MODEL, fields: {}, deleteMode: 'archive' as const }] };
++    const markers: Record<string, true> = { expense: true };
++    const loaded = loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { [OP]: markers } });
++    const def = loaded.registry.get(OP);
++    assert.ok(def !== undefined && isGeneratedOperationDef(def));
++    delete markers['expense'];
++    assert.deepEqual(parity(def, { expense: null }), { normalized: { expense: null }, refs: [] });
++    for (const proof of [{ missing: true }, { note: true }, { expense: false }]) {
++      assert.throws(() => loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { [OP]: proof } as unknown as Record<string, Record<string, true>> }));
++    }
++    assert.throws(() => loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { [OP]: undefined } as unknown as Record<string, Record<string, true>> }));
++    assert.throws(() => loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { missing: { expense: true } } }));
++    assert.throws(() => loadExecutionDescriptorSet(set, { by: 'members', inputArrays: { [OP]: { expense: { required: false } } }, inputNullableRefs: { [OP]: { expense: true } } }));
++    const inherited = Object.create({ expense: true }) as Record<string, true>;
++    const legacy = loadExecutionDescriptorSet(set, { by: 'members', inputNullableRefs: { [OP]: inherited } }).registry.get(OP);
++    assert.ok(legacy !== undefined && isGeneratedOperationDef(legacy));
++    assert.throws(() => parity(legacy, { expense: null }), StateError);
++  });
++});
+--- before/packages/state/src/mutation/nullable-ref.test.ts
++++ after/packages/state/src/mutation/nullable-ref.test.ts
+@@ -0,0 +1,117 @@
++/** Narrow checked singular-ref null controls; hand-built pipeline cases are labeled. */
++import { describe, it } from 'node:test';
++import assert from 'node:assert/strict';
++import type { StoredRow } from '@canlang/contracts';
++import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../invocation/registry.js';
++import { buildModelTable, buildModelTableFromCanonical, type InterimFieldDef } from './models.js';
++import { generatedCrudExecute } from './crud.js';
++import { runMutationWrites } from './pipeline.js';
++import { invoke } from '../invocation/invoke.js';
++import { buildContext } from '../invocation/context.js';
++import { createTestMemoryStorage } from '../storage/memory.js';
++import { FIXED_NOW, asId, asModel, asOperation, captureStateError, createMemoryIdentityStore,
++  makeEnvelope, makeIdentity, seedMember, uuidv7 } from '../../test/invocation/fixtures.js';
++import { modelDef } from '../../test/mutation/fixtures.js';
++
++const ACCOUNT = 'Null.Account', JOB = 'Null.Job';
++let sequence = 9000;
++const nextId = () => uuidv7(FIXED_NOW, ++sequence);
++function slice(): ArtifactDescriptorSlice {
++  const account = { name: 'account', field: { kind: 'ref' as const, model: ACCOUNT, requireVersion: true }, required: false, nullable: true };
++  return { artifact_version: 1, models: [
++    { name: ACCOUNT, fields: [], deleteMode: 'archive' },
++    { name: JOB, fields: [{ name: 'account', field: { kind: 'ref', model: ACCOUNT }, required: false, serverOnly: false, nullable: true }], deleteMode: 'archive' },
++  ], operations: [
++    { name: `${ACCOUNT}.create`, kind: 'create', description: '', inputs: { fields: [] } },
++    { name: `${JOB}.create`, kind: 'create', description: '', inputs: { fields: [account] } },
++    { name: `${JOB}.update`, kind: 'update', description: '', inputs: { fields: [
++      { name: 'record', field: { kind: 'ref', model: JOB, requireVersion: true }, required: true }, account,
++    ] } },
++  ] };
++}
++async function setup() {
++  const { store } = createTestMemoryStorage();
++  const memberships = createMemoryIdentityStore();
++  const member = await seedMember(memberships, { isOwner: false });
++  const identity = makeIdentity({ membership: member.membership });
++  const loaded = loadArtifactDescriptors(slice(), { by: 'members' });
++  const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs, nullableFields: loaded.nullableFields });
++  const args = { app: 'nullable-test', source: 'test', store, memberships, identity,
++    clock: { nowMs: () => FIXED_NOW }, registry: loaded.registry, execute: generatedCrudExecute({ table, store }) };
++  const call = (operation: string, inputs: Record<string, unknown>, id = nextId()) =>
++    invoke({ ...args, envelope: makeEnvelope(operation, id, inputs) });
++  return { store, identity, call };
++}
++const ref = (row: StoredRow) => ({ id: row.id, version: String(row.version) });
++
++describe('nullable singular refs through loaded generated CRUD', () => {
++  it('fills omitted null, accepts explicit null and replays creation without another commit', async () => {
++    const world = await setup();
++    for (const inputs of [{}, { account: null }]) {
++      const id = nextId();
++      const result = await world.call(`${JOB}.create`, inputs, id);
++      assert.equal(result.status, 'committed');
++      const row = result.result as StoredRow;
++      assert.deepEqual(row.data, { account: null });
++      assert.equal(row.version, 1);
++      assert.deepEqual((await world.store.load(asModel(JOB), row.id))?.data, { account: null });
++      const revision = await world.store.readRevision();
++      const replay = await world.call(`${JOB}.create`, inputs, id);
++      assert.equal(replay.status, 'replayed');
++      assert.deepEqual(replay.result, result.result);
++      assert.equal(await world.store.readRevision(), revision);
++    }
++  });
++  it('clears a current ref with one version bump; preserves update omission and stale refusal', async () => {
++    const world = await setup();
++    const account = (await world.call(`${ACCOUNT}.create`, {})).result as StoredRow;
++    const job = (await world.call(`${JOB}.create`, { account: ref(account) })).result as StoredRow;
++    const omitted = (await world.call(`${JOB}.update`, { record: ref(job) })).result as StoredRow;
++    assert.deepEqual(omitted.data.account, ref(account));
++    const cleared = (await world.call(`${JOB}.update`, { record: ref(omitted), account: null })).result as StoredRow;
++    assert.equal(cleared.data.account, null);
++    assert.equal(cleared.version, omitted.version + 1);
++    const stale = await captureStateError(world.call(`${JOB}.update`, { record: ref(omitted), account: null }));
++    assert.equal(stale.code, 'conflict');
++    assert.deepEqual(await world.store.load(asModel(JOB), job.id), cleared);
++    const restored = (await world.call(`${JOB}.update`, { record: ref(cleared), account: ref(account) })).result as StoredRow;
++    assert.deepEqual(restored.data.account, ref(account));
++    assert.equal(restored.version, cleared.version + 1);
++    const missing = await captureStateError(world.call(`${JOB}.create`, { account: { id: 'absent', version: '1' } }));
++    assert.equal(missing.code, 'not_found');
++  });
++});
++
++describe('direct pipeline null boundaries (hand-built controls)', () => {
++  it('requires an own top-level nullable singular field; leaves other refusals unchanged', async () => {
++    const { store } = createTestMemoryStorage();
++    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
++      operationId: nextId(), app: 'nullable-test', source: 'test', now: FIXED_NOW });
++    const run = (field: InterimFieldDef | undefined, path = 'account', fields?: Record<string, InterimFieldDef>) => {
++      const table = buildModelTable([
++        modelDef(ACCOUNT),
++        modelDef(JOB, { fields: fields ?? (field === undefined ? {} : { account: field }), refs: [{ field: path, model: asModel(ACCOUNT) }] }),
++      ]);
++      const data = path.includes('.') ? { account: { nested: null } } : { account: null };
++      return runMutationWrites({ table, store, context, writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data }] });
++    };
++    const optional = { required: false, serverOnly: false };
++    const accepted = await run({ ...optional, nullable: true });
++    assert.equal(accepted.writes.length, 1);
++    for (const field of [optional, Object.assign(Object.create({ nullable: true }) as InterimFieldDef, optional), { ...optional, nullable: false }, { ...optional, nullable: true, array: { required: false } }]) {
++      const error = await captureStateError(run(field));
++      assert.equal(error.code, 'validation');
++      assert.match(error.message, /Invalid reference/);
++    }
++    const unknown = await captureStateError(run(undefined));
++    assert.match(unknown.message, /Unknown field/);
++    const nested = await captureStateError(run({ ...optional, nullable: true }, 'account.nested'));
++    assert.match(nested.message, /Invalid reference/);
++    const required = await captureStateError(run({ ...optional, nullable: true, required: true }));
++    assert.equal(required.code, 'validation');
++    assert.doesNotMatch(required.message, /Invalid reference/);
++    const protectedField = await captureStateError(run({ ...optional, nullable: true, serverOnly: true }));
++    assert.match(protectedField.message, /server-only/);
++    assert.equal(await store.readRevision(), 0);
++  });
++});

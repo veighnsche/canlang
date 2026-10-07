@@ -1,0 +1,276 @@
+{
+  "qualification": "Actual unchanged emitted artifacts, production assembler/canonical invoker/state D1 adapter; Miniflare persisted local D1. Identity resolver/live memberships use test memory store (no installed identity claim).",
+  "sourcePin": "db57c3794d386fcd27f17f54b199272d58106a81",
+  "now": 1791412956256,
+  "artifactHashes": {
+    "bounded": "9f39ab8caf73621ab825eeb1db0507282d38932884d1316c9029a7be5060b343",
+    "member": "66dd41cdf07e8e0ee94489625a363a4a5e7091da85cabdbeb06a3e12acadb00b"
+  },
+  "privateRoot": "/private/tmp/canlang-f1-invocation",
+  "receipts": [
+    {
+      "sequence": 1,
+      "name": "bounded scalar account create defaults",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Account.create",
+        "operation_id": "01a11888-6c60-7181-8407-688e1171439e",
+        "inputs": {}
+      },
+      "outcome": {
+        "error": {
+          "code": "rule_failed",
+          "message": "t16b: operation \"Bounded.Account.create\" module \"$can$m$426f756e646564.mjs\" failed to import (The requested module 'file:///private/tmp/canlang-roadmap-f1-db57c379/packages/stdlib/dist/src/index.js' does not provide an export named 'create')",
+          "operation_id": "01a11888-6c60-7181-8407-688e1171439e",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      },
+      "after": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "name": "bounded scalar/default/null create",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Job.create",
+        "operation_id": "01a11888-6c60-798d-88a4-d4f4c4f43287",
+        "inputs": {}
+      },
+      "outcome": {
+        "error": {
+          "code": "rule_failed",
+          "message": "t16b: operation \"Bounded.Account.create\" module \"$can$m$426f756e646564.mjs\" failed to import (The requested module 'file:///private/tmp/canlang-roadmap-f1-db57c379/packages/stdlib/dist/src/index.js' does not provide an export named 'create')",
+          "operation_id": "01a11888-6c60-798d-88a4-d4f4c4f43287",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      },
+      "after": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "name": "matching create retry same raw inputs",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Job.create",
+        "operation_id": "01a11888-6c60-798d-88a4-d4f4c4f43287",
+        "inputs": {}
+      },
+      "outcome": {
+        "error": {
+          "code": "rule_failed",
+          "message": "t16b: operation \"Bounded.Account.create\" module \"$can$m$426f756e646564.mjs\" failed to import (The requested module 'file:///private/tmp/canlang-roadmap-f1-db57c379/packages/stdlib/dist/src/index.js' does not provide an export named 'create')",
+          "operation_id": "01a11888-6c60-798d-88a4-d4f4c4f43287",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      },
+      "after": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "name": "changed payload same operation identity",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Job.create",
+        "operation_id": "01a11888-6c60-798d-88a4-d4f4c4f43287",
+        "inputs": {
+          "title": "changed"
+        }
+      },
+      "outcome": {
+        "error": {
+          "code": "rule_failed",
+          "message": "t16b: operation \"Bounded.Account.create\" module \"$can$m$426f756e646564.mjs\" failed to import (The requested module 'file:///private/tmp/canlang-roadmap-f1-db57c379/packages/stdlib/dist/src/index.js' does not provide an export named 'create')",
+          "operation_id": "01a11888-6c60-798d-88a4-d4f4c4f43287",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      },
+      "after": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      }
+    },
+    {
+      "sequence": 5,
+      "name": "explicit nullable reference null",
+      "key": "bounded",
+      "envelope": {
+        "operation": "Bounded.Job.create",
+        "operation_id": "01a11888-6c60-7630-8211-425481b83b99",
+        "inputs": {
+          "account": null
+        }
+      },
+      "outcome": {
+        "error": {
+          "code": "rule_failed",
+          "message": "t16b: operation \"Bounded.Account.create\" module \"$can$m$426f756e646564.mjs\" failed to import (The requested module 'file:///private/tmp/canlang-roadmap-f1-db57c379/packages/stdlib/dist/src/index.js' does not provide an export named 'create')",
+          "operation_id": "01a11888-6c60-7630-8211-425481b83b99",
+          "retryable": false
+        }
+      },
+      "before": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      },
+      "after": {
+        "revision": 0,
+        "tables": {
+          "records": [],
+          "history": [],
+          "receipts": [],
+          "outbox": [],
+          "schedules": [],
+          "fence": [
+            {
+              "id": 1,
+              "revision": 0
+            }
+          ],
+          "fence_log": []
+        }
+      }
+    }
+  ]
+}

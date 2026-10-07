@@ -217,6 +217,11 @@ function validateGeneratedInputs(
       continue;
     }
     const value = inputs[param] as Record<string, unknown> | null;
+    if (value === null && def.inputNullableRefs !== undefined &&
+      Object.hasOwn(def.inputNullableRefs, param) && def.inputNullableRefs[param] === true &&
+      !Object.hasOwn(def.inputArrays, param)) {
+      continue;
+    }
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       fields.push({
         path: `/${param}`,

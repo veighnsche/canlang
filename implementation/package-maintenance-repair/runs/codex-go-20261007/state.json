@@ -165,9 +165,9 @@
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
-    "DEL-D03:independent-mixed-writer-review",
-    "TECH-V05:root-material-private-cache-policy-and-3unsent-JEV-requests",
-    "DEL-R01:source-current-owning-build-and-real-public/mount-consumer-blockers"
+    "DEL-D03:planned-file-ancestor-collision-authoring-and-independent-review",
+    "TECH-V05:exact-timezone-JEV-payload-human-approval-pending",
+    "DEL-R01:actual-selected-page-producer-refresh-and-resource-mount-contract"
   ],
   "packet_state": {
     "TECH-V01-values": {
@@ -1491,7 +1491,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T23:23:56.752703+00:00",
+  "updated_utc": "2026-10-07T23:33:30.560148+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1632,17 +1632,18 @@
       "file": "packages/cloudflare/src/runtime/stdlib.ts",
       "start_pin": "12505068df2bbe3b6cdf74d52d1e7f2533283c3649bb22333bd77516d437e272",
       "limit": "Only int64,datetime,compareInstant directValuesexports; context/persistence/backend/wholehost gate separate; rootGit/docs retained"
+    },
+    "nullable_ref_integration": {
+      "status": "source_and_independent_review_released_exact_manifest_verified",
+      "manifest_sha256": "b3b7fc6c7851051e10afcd89ba73bd1a3fe0991c7d3e18cf88374cb1e1ec84c6",
+      "root_git": "integration_in_progress",
+      "source_test_count": 6,
+      "broad_closure": false
     }
   },
   "previous_goal_turn_classification": {
-    "class": "progress",
-    "evidence": [
-      "a1f3c67a accepted registration correction",
-      "41a7b05b accepted text-output correction",
-      "665releasedinvalidCargo files102029729bytes removed",
-      "58source-current native/Wasm files+25rawbyteidenticalframes+7bootstrap controls",
-      "Exact installed pre-correction asset/source mismatch and missing mount demonstrated"
-    ],
-    "not_full_completion": true
-  }
+    "classification": "progress",
+    "evidence": "Verified actual planned trailing-slash conflict and acknowledged finite source correction; status counts did not create completion credit."
+  },
+  "foreign_nullable_integration": "implementation/package-maintenance-repair/runs/codex-go-20261007/nullable-ref-root-integration.json"
 }
