@@ -4727,11 +4727,7 @@ impl<'a> Cx<'a> {
                     let Some(key) = unique.where_predicate.as_ref() else {
                         continue;
                     };
-                    let span = Span::new(
-                        unique.node.file,
-                        unique.node.start,
-                        unique.node.end,
-                    );
+                    let span = Span::new(unique.node.file, unique.node.start, unique.node.end);
                     invariants.push(IrRuleFn {
                         id: format!("{}.unique.{}", symbol.name, index + 1),
                         pred: self.decode_anchored(
@@ -6024,10 +6020,7 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        if !children
-            .iter()
-            .any(|c| ui_slot_name(c) == Some("content"))
-        {
+        if !children.iter().any(|c| ui_slot_name(c) == Some("content")) {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower chat_bubble: chat_bubble needs a content slot".to_string(),
@@ -7151,7 +7144,13 @@ impl<'a> Cx<'a> {
         let canonical = self.canonical(op);
         let model_canonical = self.canonical(model);
         let name = self.local_name(model);
-        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), node.span);
+        let text = |value: String| {
+            TypedExpr::new(
+                IrExpr::Text(value),
+                ResolvedType::Scalar(Scalar::Text),
+                node.span,
+            )
+        };
         props.push(("operation".to_string(), text(canonical.clone())));
         props.push((
             "record".to_string(),
@@ -7183,10 +7182,7 @@ impl<'a> Cx<'a> {
             )),
             None => props.push(("itemLabel".to_string(), text(name.clone()))),
         }
-        props.push((
-            "confirm".to_string(),
-            text(format!("Archive this {name}?")),
-        ));
+        props.push(("confirm".to_string(), text(format!("Archive this {name}?"))));
         props.push((
             "idPrefix".to_string(),
             text(format!("delete-{}", model_canonical.replace('.', "-"))),
@@ -8376,7 +8372,7 @@ impl<'a> Cx<'a> {
                 let id = match target {
                     IrCallTarget::Builtin { id, .. } => id.as_str(),
                     IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => {
-                        return ResolvedType::Unknown
+                        return ResolvedType::Unknown;
                     }
                 };
                 match id {

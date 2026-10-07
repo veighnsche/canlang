@@ -134,7 +134,8 @@ fn b7_canapp_policy_with_public_provenance() {
     );
     // The manifest is shared, not forked: appDefinition carries it too.
     assert!(
-        js.contains("export const appDefinition=") && js.matches("public:[\"Spot.read.1\"]").count() == 2,
+        js.contains("export const appDefinition=")
+            && js.matches("public:[\"Spot.read.1\"]").count() == 2,
         "one builder, two carriers:\n{js}"
     );
 }

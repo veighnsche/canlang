@@ -1629,9 +1629,7 @@ impl<'a> Typer<'a> {
             // External members have no local schemas, so `call`
             // checks cover the local targets only (the provider
             // package is absent by definition).
-            ResolvedType::Action {
-                targets, bound, ..
-            } => {
+            ResolvedType::Action { targets, bound, .. } => {
                 self.call_action(cx, node, target, &targets, bound.as_deref(), object);
             }
             ResolvedType::Invocation { targets } => {
@@ -3442,8 +3440,7 @@ impl<'a> Typer<'a> {
             return None;
         }
         let head = self.prod_or_imported(module, segments[0])?;
-        let SymbolKind::Capability { ops, .. } = &self.tables.symbols[head.0 as usize].kind
-        else {
+        let SymbolKind::Capability { ops, .. } = &self.tables.symbols[head.0 as usize].kind else {
             return None;
         };
         let op = ops

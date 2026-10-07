@@ -800,7 +800,9 @@ fn t02_preferences_invariant_guarded_actor_accepted() {
 #[test]
 fn t02_derive_state_read_builtin_rejected() {
     let Some(catalog) = real_catalog() else {
-        eprintln!("SKIP t02_derive_state_read_builtin_rejected: no packages/values/dist/catalog.json");
+        eprintln!(
+            "SKIP t02_derive_state_read_builtin_rejected: no packages/values/dist/catalog.json"
+        );
         return;
     };
     const SRC: &str = "app Probe\nGiven\n derive staff(person:user):bool = active_member(person,team)\nWhen\nThen\n";
