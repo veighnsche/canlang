@@ -1,0 +1,141 @@
+{
+  "freeze": "780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9",
+  "passed": true,
+  "checks": [
+    {
+      "check": "27 families and 49 subsidiary IDs covered once, DR08 remains alias",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "exact five-choice vocabulary, finite rationale and retirement",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "no selected behavior change, policy or implementation acceptance",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "future reductions unknown and unaccepted",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "requested Sol high for all substantive dispositions",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "count/choice/source checkpoint and planning scope reconcile",
+      "passed": true,
+      "detail": {
+        "library-family": {
+          "simplify-wrapper": 1,
+          "retain-thin-integration": 7,
+          "select-better-fitting-mechanism": 1,
+          "retain-existing-implementation": 17,
+          "consolidate-ownership": 1
+        },
+        "duplication-review": {
+          "simplify-wrapper": 6,
+          "consolidate-ownership": 16,
+          "retain-existing-implementation": 23,
+          "retain-thin-integration": 4
+        }
+      }
+    },
+    {
+      "check": "all saved audit input hashes match",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "129 baseline source pins and all extra decisive file pins match",
+      "passed": true,
+      "detail": {
+        "distinct_files": 151,
+        "errors": []
+      }
+    },
+    {
+      "check": "263 assessment slices plus 10 prior opposing-envelope anchors match current source",
+      "passed": true,
+      "detail": {
+        "ranges": 273,
+        "errors": []
+      }
+    },
+    {
+      "check": "additional analyst ranges bounded, copied EOF corrections explicit",
+      "passed": true,
+      "detail": {
+        "ranges": 243,
+        "errors": [],
+        "corrections": [
+          {
+            "path": "packages/work-kernel/Cargo.toml",
+            "requested": [
+              1,
+              18
+            ],
+            "verified": [
+              1,
+              15
+            ],
+            "reason": "Requested range exceeded actual file EOF; re-read complete current file. No omitted source inferred."
+          },
+          {
+            "path": "packages/work-kernel/decisions/lib.rs",
+            "requested": [
+              1,
+              17
+            ],
+            "verified": [
+              1,
+              16
+            ],
+            "reason": "Requested range exceeded actual file EOF; re-read complete current file. No omitted source inferred."
+          }
+        ]
+      }
+    },
+    {
+      "check": "tracked package/root source still equals exact checkpoint",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "oversized compensated seams not labeled thin",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "eight opposing findings reconciled without product repair claim",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "three exact JEV request/response pairs preserved",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "independently rewritten equivalent question/context/criteria prose",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "JEV advice split/uncertainty retained without vote threshold",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local document links exist",
+      "passed": true,
+      "detail": []
+    }
+  ],
+  "limits": "Audit metadata/source/coverage/proposal and advisory provenance only; no product execution, future reduction, library adoption, installed/security or programme acceptance."
+}

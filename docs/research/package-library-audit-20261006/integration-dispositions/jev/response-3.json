@@ -1,0 +1,80 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "source_ref": "780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9",
+      "source_hashes": {
+        "packages/work-kernel/decisions/rows.rs": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+        "packages/work-kernel/decisions/receipt.rs": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+        "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+        "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+        "packages/work-kernel/Cargo.toml": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+        "docs/research/package-library-audit-20261006/maintenance-benefit/acceptance-gate.json": "49e54afef9ca91fdb6f052a5b7122125f099f6d2740a9e7bc0311357fa4120b3",
+        "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be"
+      },
+      "source_refs": [
+        "work-kernel/decisions/rows.rs:286-333",
+        "work-kernel/decisions/receipt.rs:265-310",
+        "work-kernel/decisions/linkage.rs:261-308",
+        "values/src/icu.ts:1044-1133"
+      ],
+      "primary_refs": [
+        "https://docs.rs/percent-encoding/2.3.2/percent_encoding/",
+        "https://402.ecma-international.org/12.0/#sec-tointlmathematicalvalue"
+      ],
+      "consultation_scope": "Planning disposition only. No code/library execution, policy adoption, migration, new implementation goal or retirement authorized by the response.",
+      "decision_stage": "Source-audited proposals; independent execution evidence and original port/runtime retirement gates remain open. The user wants less owned mechanism, not more adapter layers.",
+      "encoding_facts": "Current native Work modules duplicate the conversion of UTF16 ID components to URI-escaped UTF8. Root bytes already form persisted keys, so punctuation preservation, uppercase percent octets, and malformed-surrogate refusal cannot change unnoticed. The exact unescaped set is A-Z a-z 0-9 -_.!~*'(); no plus encoding is allowed. Local result carriers and error families differ and must remain separate at their boundaries. Version2.3.2 of percent-encoding supplies byte escaping with configurable ASCII policy, no dependent crates, optional alloc and no_std support; standard strict UTF16 conversion supplies refusal. It could become one private Work encoding mechanic. No actual added-crate build/installed ABI/whole-call footprint/net source reduction has been measured. A shared private copy of current mechanics avoids dependency qualification but leaves custom encoding owned by Can; leaving all copies avoids edits but retains duplicate maintenance. No proposed option deletes the TS reference route.",
+      "formatting_facts": "The present Values locale formatter keeps BigInt coefficient/scale text exact, then reconstructs output using ASCII digits and Intl-derived separators/group lengths/sign. Public output currently omits some locale digit and bidi behavior and minimum grouping rules. Product intent requires exact typed locale display; current baseline bytes still need an owning consumer decision before alteration. ECMA40212 exact string numeric formatting is a plausible lower-mechanism replacement. It needs host feature/data determinism qualification and fraction-digit scale options, preserving Can value/type errors and the separate safe plural domain. New output glyphs/control marks/group thresholds are a contract change even when improving locale fidelity. Current callers and release data have not been completely qualified. One could retain the current assembler until those inputs are known, propose the exact-string platform profile with gated migration, or pursue one bundled engine/data owner instead; the last adds dependencies/capability cost and has no chosen qualifying candidate."
+    },
+    "questions": {
+      "uri_strategy": {
+        "type": "choice",
+        "instructions": "Pick the most defensible next disposition for these three identical-domain URI leaf mechanics, preserving identifier meaning and evaluating total maintenance. Which alternative merits selection now as planning only?",
+        "criteria": {
+          "library_candidate_gate": "Plan a sole private strict UTF16-to-string/percent-encoding2.3.2 mechanism; preserve the escape set, hex case, surrogate failures and module-owned result types. Do not land it until target, independent byte witness and total production/declaration reduction checks pass; failed candidate means keep current, not add a second backend.",
+          "shared_existing_gate": "Plan one private native copy of the current loop and route equal-domain callers through their retained local shells. Custom encoding is still maintained, but no dependency is added; prove full caller parity and lower readable source before deleting copies.",
+          "retain_copies_now": "Choose to keep three native copies at present and defer consolidation to native consumer qualification. Retains compatibility with no change now while recording the duplicated algorithm and conditional retirement."
+        }
+      },
+      "locale_strategy": {
+        "type": "choice",
+        "instructions": "What disposition best handles this locale rendering mismatch without smuggling a public behavior change or new unsupported engine into a simplification? Compare these same-outcome goals and evidence limits.",
+        "criteria": {
+          "retain_current_profile": "Select current assembler retention at this checkpoint until caller/presentation policy and host/data facts are released. A future decision may revise observed ASCII/bidi/grouping behavior; no permanent quirk guarantee is inferred.",
+          "platform_profile_gate": "Select a separately recorded proposed platform exact-string output profile, openly changing locale glyph/bidi/group-threshold behavior while preserving coefficient/scale, errors and plural separation. Keep current code until explicit contract, target-data and actual caller/refusal proofs and net reduction authorize retirement.",
+          "bundled_engine_gate": "Select further evidence gathering for one pinned locale-data engine rather than a host API switch. Current code remains; added dependency, format domain, asset and data-release cost require their own justification and qualification before adoption."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "uri_strategy": {
+        "type": "choice",
+        "choice": "library_candidate_gate",
+        "confidence": 0.88,
+        "probabilities": {
+          "retain_copies_now": 0.03,
+          "shared_existing_gate": 0.05,
+          "library_candidate_gate": 0.92
+        }
+      },
+      "locale_strategy": {
+        "type": "choice",
+        "choice": "retain_current_profile",
+        "confidence": 0.41,
+        "probabilities": {
+          "bundled_engine_gate": 0.0,
+          "retain_current_profile": 0.61,
+          "platform_profile_gate": 0.39
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1958,
+      "output_tokens": 95
+    }
+  }
+}

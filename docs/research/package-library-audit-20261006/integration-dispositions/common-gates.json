@@ -1,0 +1,53 @@
+{
+  "stage": "planning-only",
+  "implementation_deferred": true,
+  "source_ref": "780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9",
+  "scope_limits": [
+    "Source/API and existing scoped receipt review only; no product build/test/library execution or installation in this round.",
+    "27 audited integration families and 49 existing subsidiary duplication records; DR08 aliases DC-01. 480 adapter branch groups are crosswalk coverage, not measured execution or 480 tasks.",
+    "Retain thin describes the selected mechanics/policy boundary, not a measured small whole package or full shipped/native acceptance. Compensated import/map closures are retained existing implementations.",
+    "Historical/native/Node/Worker/helper/installed evidence retains its own original scope and source; no aggregate programme acceptance or TS retirement.",
+    "Compiler, canonical task statuses, active plans, held preparation, living checkpoint, native default and remote publication unchanged.",
+    "Independent critical Astra security review remains pending under its existing approval record; no new egress request or security acceptance claimed."
+  ],
+  "replacement_acceptance": [
+    "Preserve separately released owning contract and admitted caller domain, including errors, evaluation order, persisted preimages, security and lifecycle refusals.",
+    "Show strict readable production implementation reduction AND strict implementation plus maintained-declaration reduction across the complete actual owner/caller closure. Add helpers/imports/types/error adapters, configuration and all retained routes.",
+    "Count moves/compression/generated output/test-oracle deletion as zero production savings. Gross duplicates/overlapping records cannot be added.",
+    "Compare algorithms, compatibility branches, representations, lifecycle states, dependencies and upgrade work; explain any increase explicitly.",
+    "Verify independent decisive negatives and actual supported consumer/host/installed closure at the scope claimed before retiring replaced mechanics.",
+    "Separate correctness/capability growth into finite explicit budgets. No new permanent compatibility backend or silent semantic fallback to make a candidate pass."
+  ],
+  "ownership_and_retirement": [
+    "Prefer one private equal-domain mechanism, with public owner-specific error/policy surfaces retained. Do not create universal serialization/parser/lifecycle owners.",
+    "Keep TS reference/backend and public/deep-dist exports until their own original adoption/rollback/retirement gates or explicit contract transition passes.",
+    "Native preparation remains human-held. Marked conditional/deferred routes stay distinct.",
+    "Policy/bytes/identity/domain/error/host changes need an explicit owning contract decision and affected writer release before implementation; difficult choices need verified-context JEV advice."
+  ],
+  "economical_delegation": [
+    {
+      "group": "values",
+      "records": 23,
+      "raw_sha256": "681c6644cf11e3f769d906a8cc8142a4c20d7298f40bfb62c5d1ae061cb8c370",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "User selected Sol high for substantive cross-file integration dispositions; pinned contract/caller and ownership choices require material judgment."
+    },
+    {
+      "group": "delivery",
+      "records": 24,
+      "raw_sha256": "14b9ff23d88b30b84532f486144f552e4377f0fea7b5963411c298943c0e3aee",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "User selected Sol high for substantive cross-file integration dispositions; pinned contract/caller and ownership choices require material judgment."
+    },
+    {
+      "group": "adapters",
+      "records": 29,
+      "raw_sha256": "e0cdaf4c434e2d64632cf80d591cc67ae8c5f4177d7f59b87762a4805f120c1e",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "User selected Sol high for substantive cross-file integration dispositions; pinned contract/caller and ownership choices require material judgment."
+    }
+  ]
+}
