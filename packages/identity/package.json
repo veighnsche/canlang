@@ -45,5 +45,11 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "imports": {
+    "#identity-byte-compare": {
+      "node": "./dist/src/sessions/comparison-node.js",
+      "default": "./dist/src/sessions/comparison-worker.js"
+    }
   }
 }

@@ -4,6 +4,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import { syncBuiltinESMExports } from 'node:module';
 import { IdentityError } from '../src/ports.js';
 import {
   createFrozenClock,
@@ -53,12 +55,37 @@ test('password hashing round-trips and rejects malformed encodings', async () =>
   }
   await assertIdentityError(() => hashPassword('short'), 'validation');
   // The login-miss dummy encoding parses with exact salt/key lengths, so the
-  // dummy verification always pays the full PBKDF2 cost (no timing oracle).
+  // dummy verification reaches PBKDF2 rather than a malformed-record exit.
   const parts = DUMMY_PASSWORD_ENCODING.split('$');
   assert.equal(parts[0], 'pbkdf2-sha256');
   assert.equal(base64UrlToBytes(parts[2] ?? '')?.length, 16);
   assert.equal(base64UrlToBytes(parts[3] ?? '')?.length, 32);
   assert.equal(await verifyPassword('anything-at-all', DUMMY_PASSWORD_ENCODING), false);
+});
+
+test('password derivation failures are false while native comparison faults reject', async (t) => {
+  const encoded = DUMMY_PASSWORD_ENCODING;
+  const failure = new Error('synthetic derivation failure');
+  const derivation = t.mock.method(globalThis.crypto.subtle, 'deriveBits', async () => {
+    throw failure;
+  });
+  try {
+    assert.equal(await verifyPassword('synthetic-password', encoded), false);
+  } finally {
+    derivation.mock.restore();
+  }
+  const comparisonFault = new Error('synthetic native comparison fault');
+  const primitive = t.mock.method(crypto, 'timingSafeEqual', () => { throw comparisonFault; });
+  syncBuiltinESMExports();
+  try {
+    const verification = verifyPassword('synthetic-password', encoded);
+    assert.ok(verification instanceof Promise);
+    await assert.rejects(verification, (error) => error === comparisonFault);
+    assert.equal(await verifyPassword('synthetic-password', 'malformed'), false);
+  } finally {
+    primitive.mock.restore();
+    syncBuiltinESMExports();
+  }
 });
 
 test('registration creates an unverified user and mails a token link', async () => {

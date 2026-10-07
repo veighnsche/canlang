@@ -13,6 +13,7 @@
 import { IdentityError, webRandom } from '../ports.js';
 import type { RandomSource } from '../ports.js';
 import { base64UrlToBytes, bytesToBase64Url } from '../sessions/tokens.js';
+import { timingSafeEqualBytes } from '../sessions/comparison.js';
 
 export const PBKDF2_ITERATIONS = 600000;
 export const PBKDF2_SALT_BYTES = 16;
@@ -84,8 +85,8 @@ function parseEncoding(encoded: string): ParsedEncoding | null {
 
 /**
  * Verify a password against a stored encoding. Returns false for wrong
- * passwords AND for malformed encodings; never throws on attacker input.
- * The byte comparison is constant-time.
+ * passwords, malformed encodings, and derivation failures. Native comparison
+ * faults propagate; parsing and derivation have no constant-time guarantee.
  */
 export async function verifyPassword(
   password: string,
@@ -99,10 +100,5 @@ export async function verifyPassword(
   } catch {
     return false;
   }
-  if (derived.length !== parsed.key.length) return false;
-  let diff = 0;
-  for (let i = 0; i < derived.length; i++) {
-    diff |= (derived[i] ?? 0) ^ (parsed.key[i] ?? 0);
-  }
-  return diff === 0;
+  return timingSafeEqualBytes(derived, parsed.key);
 }
