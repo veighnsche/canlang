@@ -2815,10 +2815,7 @@ impl<'a> Emitter<'a> {
                 // (`await` on a plain array is harmless).
                 let awaited = match &domain.expr {
                     IrExpr::Query(query)
-                        if matches!(
-                            query.domain,
-                            crate::codegen::ir::IrQueryDomain::Model(_)
-                        ) =>
+                        if matches!(query.domain, crate::codegen::ir::IrQueryDomain::Model(_)) =>
                     {
                         domain_text.clone()
                     }
@@ -3166,8 +3163,7 @@ impl<'a> Emitter<'a> {
                     if let Some(main) = kids.next() {
                         props.push(format!("main:[{}]", self.lower_ui_ctx(main, ctx)));
                     }
-                    let rest: Vec<String> =
-                        kids.map(|c| self.lower_ui_ctx(c, ctx)).collect();
+                    let rest: Vec<String> = kids.map(|c| self.lower_ui_ctx(c, ctx)).collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
                 } else if node.factory == "chatBubble" {
                     // Slot children group by slot name in
@@ -3185,9 +3181,11 @@ impl<'a> Emitter<'a> {
                         // Slots dissolve: F takes the grouped
                         // children, not `slot()` wrappers.
                         let mut group: Vec<String> = Vec::new();
-                        for child in node.children.iter().filter(|c| {
-                            crate::codegen::ir::ui_slot_name(c) == Some(name)
-                        }) {
+                        for child in node
+                            .children
+                            .iter()
+                            .filter(|c| crate::codegen::ir::ui_slot_name(c) == Some(name))
+                        {
                             for grand in &child.children {
                                 group.push(self.lower_ui_ctx(grand, ctx));
                             }
@@ -4600,9 +4598,7 @@ impl<'a> Emitter<'a> {
                             Some((field, is_array)) => inputs.push(JsOperationField {
                                 name: param.name.clone(),
                                 field,
-                                required: default.is_none()
-                                    && !nullable
-                                    && !is_array,
+                                required: default.is_none() && !nullable && !is_array,
                                 nullable,
                                 array_required: is_array.then_some(false),
                                 default: js_field_default(default.as_ref(), None),
@@ -4843,11 +4839,7 @@ impl<'a> Emitter<'a> {
     /// taking local deliveries omit, fail-closed) alongside the
     /// model-tag twin [`Emitter::model_field_tag`]. T04b ratifies the
     /// delivery shape.
-    fn mcp_field_for_type(
-        &self,
-        ty: &IrType,
-        require_version: bool,
-    ) -> Option<(JsMcpField, bool)> {
+    fn mcp_field_for_type(&self, ty: &IrType, require_version: bool) -> Option<(JsMcpField, bool)> {
         let resolved = match ty {
             IrType::Known(resolved) => resolved,
             IrType::Unknown => return None,
@@ -4936,10 +4928,7 @@ impl<'a> Emitter<'a> {
     pub fn collect_models(&self) -> Vec<JsModel> {
         let mut models = Vec::new();
         for item in &self.ir.items {
-            let IrItemKind::Model {
-                fields, owner, ..
-            } = &item.kind
-            else {
+            let IrItemKind::Model { fields, owner, .. } = &item.kind else {
                 continue;
             };
             // Stored fields in listed order plus this model's derived
@@ -5007,10 +4996,7 @@ impl<'a> Emitter<'a> {
     /// operation's declared mode (`archive` default, `remove`), or
     /// `none` when the model has no enabled delete operation (disabled
     /// or no `crud` declaration at all).
-    fn model_delete_mode(
-        &self,
-        model: crate::analysis::resolve::SymbolId,
-    ) -> String {
+    fn model_delete_mode(&self, model: crate::analysis::resolve::SymbolId) -> String {
         for row in &self.ir.items {
             if let IrItemKind::CrudOp {
                 model: target,
@@ -5044,13 +5030,7 @@ impl<'a> Emitter<'a> {
                 description: None,
             };
         }
-        let (
-            ty,
-            required_array,
-            default,
-            server,
-            description,
-        ) = match &field_item.kind {
+        let (ty, required_array, default, server, description) = match &field_item.kind {
             IrItemKind::Field {
                 ty,
                 required_array,
@@ -5751,11 +5731,7 @@ impl<'a> Emitter<'a> {
                     // (`emit_derive_fns`); the registry holds a
                     // shorthand reference so the `[name]` member path
                     // still resolves to the named function.
-                    out.push(
-                        item.span,
-                        Some(item.canonical.clone()),
-                        &format!("{name},"),
-                    );
+                    out.push(item.span, Some(item.canonical.clone()), &format!("{name},"));
                 }
                 IrItemKind::DeriveField { .. } => {}
                 _ => {}

@@ -2064,10 +2064,7 @@ impl<'a> Parser<'a> {
     /// zero-parameter message path. Dynamic values, call arguments and
     /// record-query tails are rejected here; whether a path names a
     /// static message is a semantic check.
-    fn parse_description_value(
-        &mut self,
-        cursor: &mut Cursor<'a>,
-    ) -> Result<SyntaxNode, Fail> {
+    fn parse_description_value(&mut self, cursor: &mut Cursor<'a>) -> Result<SyntaxNode, Fail> {
         let mut kids = Vec::new();
         let word = cursor.expect_name_is("desc")?;
         self.builder.leaf(&mut kids, &word);
@@ -2111,8 +2108,10 @@ impl<'a> Parser<'a> {
                 path
             }
             _ => {
-                return cursor
-                    .err("E1214", "desc= requires a string literal or static message path");
+                return cursor.err(
+                    "E1214",
+                    "desc= requires a string literal or static message path",
+                );
             }
         };
         self.builder.push_inner(&mut kids, value);

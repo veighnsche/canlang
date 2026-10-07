@@ -1351,7 +1351,10 @@ pub const STD_PAYMENTS_V1: StdCapability = StdCapability {
             ("amount", "money"),
             ("status", "enum(pending,unknown,succeeded,failed)"),
             ("checkout_url", "url?"),
-            ("failure", "enum(transient,action_required,permanent,cancelled)?"),
+            (
+                "failure",
+                "enum(transient,action_required,permanent,cancelled)?",
+            ),
         ],
     }],
 };
@@ -2033,7 +2036,10 @@ mod t13b_tests {
         assert_eq!(STD_TEXT_GENERATION_V1_VERSION, 1);
         assert_eq!(STD_IMAGES_V1_VERSION, 1);
         assert_eq!(STD_MAILBOX_V1_VERSION, 1);
-        assert_eq!(STD_TEXT_GENERATION_V1.version, STD_TEXT_GENERATION_V1_VERSION);
+        assert_eq!(
+            STD_TEXT_GENERATION_V1.version,
+            STD_TEXT_GENERATION_V1_VERSION
+        );
         assert_eq!(STD_IMAGES_V1.version, STD_IMAGES_V1_VERSION);
         assert_eq!(STD_MAILBOX_V1.version, STD_MAILBOX_V1_VERSION);
         // The T13b producer slice adds no contract-version bump.
@@ -2059,8 +2065,7 @@ mod t13b_tests {
         let cap = std_capability("TextGenerationV1").expect("TextGenerationV1 schema");
         let ops: Vec<&str> = cap.operations.iter().map(|op| op.name).collect();
         assert_eq!(ops, vec!["generate", "cancel", "reconcile"]);
-        let generate =
-            std_operation("std.TextGenerationV1", "generate").expect("generate schema");
+        let generate = std_operation("std.TextGenerationV1", "generate").expect("generate schema");
         assert_eq!(generate.inputs, &[("value", "TextRequest")]);
         assert_eq!(generate.result, "TextRun");
         for op in ["cancel", "reconcile"] {
@@ -2152,7 +2157,11 @@ mod t13b_tests {
                 .target
                 .rsplit_once('.')
                 .expect("qualified target");
-            assert!(std_operation(cap, op).is_some(), "target {}", observable.target);
+            assert!(
+                std_operation(cap, op).is_some(),
+                "target {}",
+                observable.target
+            );
             assert!(
                 delivery_observable(observable.target).is_some(),
                 "target {}",
@@ -2321,7 +2330,11 @@ mod t13a_tests {
                 .target
                 .rsplit_once('.')
                 .expect("qualified target");
-            assert!(std_operation(cap, op).is_some(), "target {}", observable.target);
+            assert!(
+                std_operation(cap, op).is_some(),
+                "target {}",
+                observable.target
+            );
         }
     }
 
@@ -2417,7 +2430,9 @@ mod t13c_tests {
     fn t13a_common_leaves_are_exact() {
         // `DeliveryResult` (services.ts:26; `DeliveryStatus` services.ts:32).
         assert_eq!(
-            nominal_schema("DeliveryResult").expect("DeliveryResult schema").fields,
+            nominal_schema("DeliveryResult")
+                .expect("DeliveryResult schema")
+                .fields,
             &[
                 ("id", "text"),
                 ("status", "enum(pending,succeeded,failed,unknown,skipped)"),
@@ -2425,12 +2440,16 @@ mod t13c_tests {
         );
         // `DeliveryError` (services.ts:44).
         assert_eq!(
-            nominal_schema("DeliveryError").expect("DeliveryError schema").fields,
+            nominal_schema("DeliveryError")
+                .expect("DeliveryError schema")
+                .fields,
             &[("code", "text"), ("message", "text")]
         );
         // `OperationOutcome` (services.ts:189).
         assert_eq!(
-            nominal_schema("OperationOutcome").expect("OperationOutcome schema").fields,
+            nominal_schema("OperationOutcome")
+                .expect("OperationOutcome schema")
+                .fields,
             &[
                 ("source", "text"),
                 ("revision", "int"),
@@ -2476,12 +2495,16 @@ mod t13c_tests {
     fn t13a_acceptance_leaves_are_exact() {
         // `EmailAccepted` (services.ts:184).
         assert_eq!(
-            nominal_schema("EmailAccepted").expect("EmailAccepted schema").fields,
+            nominal_schema("EmailAccepted")
+                .expect("EmailAccepted schema")
+                .fields,
             &[("reference", "text")]
         );
         // `ErrorAccepted` (services.ts:262).
         assert_eq!(
-            nominal_schema("ErrorAccepted").expect("ErrorAccepted schema").fields,
+            nominal_schema("ErrorAccepted")
+                .expect("ErrorAccepted schema")
+                .fields,
             &[("reference", "text")]
         );
     }
@@ -2490,7 +2513,9 @@ mod t13c_tests {
     fn t13b_text_leaves_are_exact() {
         // `TextMessage` (services.ts:754; `TextMessageRole` services.ts:747).
         assert_eq!(
-            nominal_schema("TextMessage").expect("TextMessage schema").fields,
+            nominal_schema("TextMessage")
+                .expect("TextMessage schema")
+                .fields,
             &[
                 ("role", "enum(system,user,assistant)"),
                 ("content", "text"),
@@ -2499,7 +2524,9 @@ mod t13c_tests {
         );
         // `TextRequest` (services.ts:768).
         assert_eq!(
-            nominal_schema("TextRequest").expect("TextRequest schema").fields,
+            nominal_schema("TextRequest")
+                .expect("TextRequest schema")
+                .fields,
             &[
                 ("source", "text"),
                 ("revision", "int"),
@@ -2533,12 +2560,16 @@ mod t13c_tests {
     fn t13b_workflow_and_image_leaves_are_exact() {
         // `WorkflowInput` (services.ts:821).
         assert_eq!(
-            nominal_schema("WorkflowInput").expect("WorkflowInput schema").fields,
+            nominal_schema("WorkflowInput")
+                .expect("WorkflowInput schema")
+                .fields,
             &[("node", "text"), ("key", "text")]
         );
         // `WorkflowDefinition` (services.ts:831).
         assert_eq!(
-            nominal_schema("WorkflowDefinition").expect("WorkflowDefinition schema").fields,
+            nominal_schema("WorkflowDefinition")
+                .expect("WorkflowDefinition schema")
+                .fields,
             &[
                 ("graph", "file"),
                 ("prompt", "WorkflowInput"),
@@ -2549,17 +2580,23 @@ mod t13c_tests {
         );
         // `WorkflowInspection` (services.ts:857).
         assert_eq!(
-            nominal_schema("WorkflowInspection").expect("WorkflowInspection schema").fields,
+            nominal_schema("WorkflowInspection")
+                .expect("WorkflowInspection schema")
+                .fields,
             &[("fields", "WorkflowField[]")]
         );
         // `WorkflowValidation` (services.ts:867).
         assert_eq!(
-            nominal_schema("WorkflowValidation").expect("WorkflowValidation schema").fields,
+            nominal_schema("WorkflowValidation")
+                .expect("WorkflowValidation schema")
+                .fields,
             &[("valid", "bool"), ("digest", "text?"), ("detail", "text?"),]
         );
         // `ImageRequest` (services.ts:881).
         assert_eq!(
-            nominal_schema("ImageRequest").expect("ImageRequest schema").fields,
+            nominal_schema("ImageRequest")
+                .expect("ImageRequest schema")
+                .fields,
             &[
                 ("source", "text"),
                 ("revision", "int"),
@@ -2591,7 +2628,9 @@ mod t13c_tests {
         );
         // Source `GeneratedImage` = TS `ImageFileOutput` (services.ts:902).
         assert_eq!(
-            nominal_schema("GeneratedImage").expect("GeneratedImage schema").fields,
+            nominal_schema("GeneratedImage")
+                .expect("GeneratedImage schema")
+                .fields,
             &[("position", "int"), ("image", "file")]
         );
     }
@@ -2600,7 +2639,9 @@ mod t13c_tests {
     fn t13b_mailbox_judgment_knowledge_leaves_are_exact() {
         // `IncomingEmail` (services.ts:938).
         assert_eq!(
-            nominal_schema("IncomingEmail").expect("IncomingEmail schema").fields,
+            nominal_schema("IncomingEmail")
+                .expect("IncomingEmail schema")
+                .fields,
             &[
                 ("mailbox", "text"),
                 ("source", "text"),
@@ -2618,7 +2659,9 @@ mod t13c_tests {
         );
         // `MailReply` (services.ts:961).
         assert_eq!(
-            nominal_schema("MailReply").expect("MailReply schema").fields,
+            nominal_schema("MailReply")
+                .expect("MailReply schema")
+                .fields,
             &[
                 ("source", "text"),
                 ("mailbox", "text"),
@@ -2632,7 +2675,9 @@ mod t13c_tests {
         // `MailReplyOutcome` (services.ts:987; `MailReplyState`
         // services.ts:978).
         assert_eq!(
-            nominal_schema("MailReplyOutcome").expect("MailReplyOutcome schema").fields,
+            nominal_schema("MailReplyOutcome")
+                .expect("MailReplyOutcome schema")
+                .fields,
             &[
                 ("source", "text"),
                 ("state", "enum(accepted,not_sent,unknown)"),
@@ -2642,12 +2687,16 @@ mod t13c_tests {
         );
         // `JudgmentSpec` (services.ts:1005).
         assert_eq!(
-            nominal_schema("JudgmentSpec").expect("JudgmentSpec schema").fields,
+            nominal_schema("JudgmentSpec")
+                .expect("JudgmentSpec schema")
+                .fields,
             &[("revision", "int")]
         );
         // `KnowledgeRequest` (services.ts:1017).
         assert_eq!(
-            nominal_schema("KnowledgeRequest").expect("KnowledgeRequest schema").fields,
+            nominal_schema("KnowledgeRequest")
+                .expect("KnowledgeRequest schema")
+                .fields,
             &[
                 ("source", "text"),
                 ("revision", "int"),
@@ -2661,7 +2710,9 @@ mod t13c_tests {
         );
         // `IndexState` (services.ts:1039).
         assert_eq!(
-            nominal_schema("IndexState").expect("IndexState schema").fields,
+            nominal_schema("IndexState")
+                .expect("IndexState schema")
+                .fields,
             &[
                 ("state", "text"),
                 ("checked", "DatetimeValue?"),
