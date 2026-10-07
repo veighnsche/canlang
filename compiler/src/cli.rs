@@ -1023,25 +1023,46 @@ fn render_via_platform(
             ));
         }
     };
-    if let Some(mut stdin) = child.stdin.take() {
-        use std::io::Write;
-        if let Err(err) = stdin.write_all(payload.as_bytes()) {
-            return Err(DispatchResult::tool_error(
-                "E7004",
-                format!("failed to pipe the reference model to '{bin} docs': {err}"),
-            ));
+    // Drain both output pipes while writing input: a finite startup message
+    // must not fill an output pipe and prevent the renderer reading its model.
+    let stdout = child.stdout.take().expect("piped renderer stdout");
+    let stderr = child.stderr.take().expect("piped renderer stderr");
+    let output = std::thread::scope(|scope| {
+        let stdout = scope.spawn(move || read_renderer_pipe(stdout));
+        let stderr = scope.spawn(move || read_renderer_pipe(stderr));
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write;
+            if let Err(err) = stdin.write_all(payload.as_bytes()) {
+                // Child::drop does not terminate or reap a failed renderer.
+                drop(stdin);
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(DispatchResult::tool_error(
+                    "E7004",
+                    format!("failed to pipe the reference model to '{bin} docs': {err}"),
+                ));
+            }
+            // Drop stdin before waiting so the renderer sees EOF.
         }
-        // `stdin` drops here, closing the pipe so the renderer sees EOF.
-    }
-    let output = match child.wait_with_output() {
-        Ok(output) => output,
-        Err(err) => {
-            return Err(DispatchResult::tool_error(
-                "E7004",
-                format!("failed waiting for '{bin} docs': {err}"),
-            ));
-        }
-    };
+        let waited = (|| {
+            let status = match child.wait() {
+                Ok(status) => status,
+                Err(err) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(err);
+                }
+            };
+            Ok(std::process::Output {
+                status,
+                stdout: stdout.join().expect("renderer stdout reader")?,
+                stderr: stderr.join().expect("renderer stderr reader")?,
+            })
+        })();
+        waited.map_err(|err| {
+            DispatchResult::tool_error("E7004", format!("failed waiting for '{bin} docs': {err}"))
+        })
+    })?;
     if !output.status.success() {
         let detail = stderr_tail(&output.stderr);
         let status = match output.status.code() {
@@ -1069,6 +1090,12 @@ fn render_via_platform(
         ));
     }
     Ok(markdown)
+}
+
+fn read_renderer_pipe(mut pipe: impl std::io::Read) -> std::io::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    pipe.read_to_end(&mut bytes)?;
+    Ok(bytes)
 }
 
 /// Last 2000 chars of child stderr (lossy, char-boundary safe) for
@@ -2246,6 +2273,65 @@ mod tests {
             result.stderr.contains("renderer boom detail"),
             "{}",
             result.stderr
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn renderer_output_is_drained_while_its_input_is_written() {
+        let scratch = Scratch::new("renderer-duplex");
+        let bin = stub_binary(
+            &scratch,
+            "platform-duplex",
+            "head -c 262144 /dev/zero\nhead -c 262144 /dev/zero >&2\ncat > /dev/null\nprintf '# Ref\\n'\n",
+        );
+        let output = super::render_via_platform(&bin, None, &"x".repeat(262_144))
+            .unwrap_or_else(|failure| panic!("{}", failure.stderr));
+        assert_eq!(output.len(), 262_144 + "# Ref\n".len());
+        assert!(output.as_bytes()[..262_144].iter().all(|byte| *byte == 0));
+        assert!(output.ends_with("# Ref\n"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failed_renderer_input_terminates_and_reaps_the_child() {
+        let scratch = Scratch::new("closed-render-input");
+        let pid_path = scratch.dir.join("renderer.pid");
+        let bin = stub_binary(
+            &scratch,
+            "platform-closed-input",
+            &format!(
+                "printf '%s' $$ > '{}'\nexec 0<&-\nexec sleep 5\n",
+                pid_path.display()
+            ),
+        );
+        // More than a pipe buffer ensures closing stdin fails the write even
+        // if the writer starts before the renderer closes its read endpoint.
+        let result = super::render_via_platform(&bin, None, &"x".repeat(262_144));
+        let failure = result.expect_err("closed input must fail the handoff");
+        assert_eq!(failure.code, crate::exit::TOOL_FAILURE);
+        assert!(failure.stdout.is_empty());
+        assert!(failure.stderr.contains("E7004"));
+        assert!(
+            failure
+                .stderr
+                .contains("failed to pipe the reference model")
+        );
+        let pid = std::fs::read_to_string(pid_path).unwrap();
+        let alive = std::process::Command::new("kill")
+            .args(["-0", pid.trim()])
+            .output()
+            .unwrap()
+            .status
+            .success();
+        if alive {
+            let _ = std::process::Command::new("kill")
+                .args(["-KILL", pid.trim()])
+                .output();
+        }
+        assert!(
+            !alive,
+            "renderer must be terminated and reaped before return"
         );
     }
 
