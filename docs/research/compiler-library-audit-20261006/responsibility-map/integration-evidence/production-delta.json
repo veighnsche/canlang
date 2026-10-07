@@ -1,0 +1,423 @@
+{
+  "scope": "Whole compiler/src physical production code; source1fd differs from original by utility programme plus prior correctness/other-owner changes, not solely library adapters. No Step6 implementation change. File-change counts do not attribute mixed file duties to integrations.",
+  "baseline_git": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "source_git": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "method": "stdlib difflib.SequenceMatcher autojunk=false on full physical lines; count removed/added lines only if production at respective snapshot; exact cfg(test) item spans masked. Same-text aligned lines changing production/test classification count as addition/removal; moves count as remove/add, not simplification. Comments and blanks retained.",
+  "before_production_lines": 69119,
+  "after_production_lines": 69255,
+  "gross_removed": 2067,
+  "gross_added": 2203,
+  "records": [
+    {
+      "path": "compiler/src/analysis/catalog.rs",
+      "before_production_lines": 2028,
+      "after_production_lines": 2031,
+      "gross_removed": 1,
+      "gross_added": 4,
+      "net": 3,
+      "sha256_before": "ce23e264abc3a89b21d3d2e29be01ee8a9b04e2522ed0b2fd77310bc714901c5",
+      "sha256_after": "af4aa22270db711cd251c3e0df433004b33f1b4f7f6367775ffa0668c488306c"
+    },
+    {
+      "path": "compiler/src/analysis/check.rs",
+      "before_production_lines": 142,
+      "after_production_lines": 142,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+      "sha256_after": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "before_production_lines": 5272,
+      "after_production_lines": 5272,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f",
+      "sha256_after": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "before_production_lines": 3306,
+      "after_production_lines": 3318,
+      "gross_removed": 2,
+      "gross_added": 14,
+      "net": 12,
+      "sha256_before": "ead013a4b4691ef582c79eed63b5993345b919b0a5ea1579b4c9a09b6bd1b1ec",
+      "sha256_after": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5"
+    },
+    {
+      "path": "compiler/src/analysis/migrate_check.rs",
+      "before_production_lines": 509,
+      "after_production_lines": 509,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb",
+      "sha256_after": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb"
+    },
+    {
+      "path": "compiler/src/analysis/mod.rs",
+      "before_production_lines": 233,
+      "after_production_lines": 233,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "4debfe707daf81d33d5f67e10b3a0da3d1f0bd0e465c62204ae8ace19fef99ec",
+      "sha256_after": "4debfe707daf81d33d5f67e10b3a0da3d1f0bd0e465c62204ae8ace19fef99ec"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "before_production_lines": 5435,
+      "after_production_lines": 5431,
+      "gross_removed": 11,
+      "gross_added": 7,
+      "net": -4,
+      "sha256_before": "c1dc6a79b65a8e9fad2a1c63e5c550315012ca4b4849c39330f9527394810e50",
+      "sha256_after": "11a20d031e8c038ee9ba70fb5a55c6d5d6eafe508910e76f9bc9bdeae712c63d"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "before_production_lines": 15807,
+      "after_production_lines": 15706,
+      "gross_removed": 180,
+      "gross_added": 79,
+      "net": -101,
+      "sha256_before": "a17f555df55b8a9ffd88fe7164a28419a9b3e6fc0bef5beabeda9a205b74d1c1",
+      "sha256_after": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "before_production_lines": 1523,
+      "after_production_lines": 1621,
+      "gross_removed": 34,
+      "gross_added": 132,
+      "net": 98,
+      "sha256_before": "b45e3a78b1db32dd09f96c68d3aec3928f629c8545091f41e6064509d726dc88",
+      "sha256_after": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679"
+    },
+    {
+      "path": "compiler/src/codegen/artifact.rs",
+      "before_production_lines": 638,
+      "after_production_lines": 663,
+      "gross_removed": 146,
+      "gross_added": 171,
+      "net": 25,
+      "sha256_before": "a6668e5409ba9cff20f7260511ca6456908c51e31d780412beedddc74a94cba4",
+      "sha256_after": "5ee76bea1b84bb36985e99277292e688f02ae9097257ecafbb5571774c2c5d61"
+    },
+    {
+      "path": "compiler/src/codegen/bdd.rs",
+      "before_production_lines": 448,
+      "after_production_lines": 434,
+      "gross_removed": 17,
+      "gross_added": 3,
+      "net": -14,
+      "sha256_before": "4daae9fefa7148859cac4533d6cb9ce04bab67ea3f87010e1c0fd94b181d21e5",
+      "sha256_after": "35f1f801d858e822e60c37351264c7b4a9d0155253b5d0140a00ec8f9e26d3db"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "before_production_lines": 8844,
+      "after_production_lines": 8809,
+      "gross_removed": 62,
+      "gross_added": 27,
+      "net": -35,
+      "sha256_before": "b2880eda9aa126eed4ba362cec0173d155cb12392233638ca4fd8ad5c057abeb",
+      "sha256_after": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005"
+    },
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "before_production_lines": 5788,
+      "after_production_lines": 5842,
+      "gross_removed": 293,
+      "gross_added": 347,
+      "net": 54,
+      "sha256_before": "0d2ffcb6fc749b79454f70358e17fd0a26736507d0169322e97399936ee306d0",
+      "sha256_after": "1f1ef2bec0a008566ed800d746fc65feb90b9cc4683e9803940f83dac4b1eab8"
+    },
+    {
+      "path": "compiler/src/codegen/mod.rs",
+      "before_production_lines": 223,
+      "after_production_lines": 223,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "b8c4a5a8faa39500193afedb7053d49ad023dc74dca0c7a4e7969bf61fa658e3",
+      "sha256_after": "b8c4a5a8faa39500193afedb7053d49ad023dc74dca0c7a4e7969bf61fa658e3"
+    },
+    {
+      "path": "compiler/src/codegen/sourcemap.rs",
+      "before_production_lines": 242,
+      "after_production_lines": 233,
+      "gross_removed": 126,
+      "gross_added": 117,
+      "net": -9,
+      "sha256_before": "eefeb9d2b8bebd6f6c70cf121415daa7918177f5c17b71adfc6b6990024782d3",
+      "sha256_after": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a"
+    },
+    {
+      "path": "compiler/src/diagnostic.rs",
+      "before_production_lines": 297,
+      "after_production_lines": 326,
+      "gross_removed": 75,
+      "gross_added": 104,
+      "net": 29,
+      "sha256_before": "f3fcd6af3d5b7b4668503c54e860b9854f4aab2b1fb3a50c4359a7e84bcb7691",
+      "sha256_after": "9fd7f517cb57423c45eb11f8cae995746181d678966b6d9d379334a93d4c99de"
+    },
+    {
+      "path": "compiler/src/docs.rs",
+      "before_production_lines": 1392,
+      "after_production_lines": 1223,
+      "gross_removed": 231,
+      "gross_added": 62,
+      "net": -169,
+      "sha256_before": "0253b7b28b306bd775e1ba683df3726fca0fc03b3f2e858d306efad6ba6c4b43",
+      "sha256_after": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70"
+    },
+    {
+      "path": "compiler/src/explain.rs",
+      "before_production_lines": 1030,
+      "after_production_lines": 1034,
+      "gross_removed": 15,
+      "gross_added": 19,
+      "net": 4,
+      "sha256_before": "5f35a5511e8d9a2cd1dd59655c446f0d24066d8f31e9dfd6376c1d6f7f0b85a6",
+      "sha256_after": "c021111e7c042d0becc1d1be6c36966b7442eec2f5ea4b12923765734388c593"
+    },
+    {
+      "path": "compiler/src/format.rs",
+      "before_production_lines": 714,
+      "after_production_lines": 714,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "13897d9c121f7f4941d5ce5af65b0f23f3b56aca30460fe134613e580b900c03",
+      "sha256_after": "13897d9c121f7f4941d5ce5af65b0f23f3b56aca30460fe134613e580b900c03"
+    },
+    {
+      "path": "compiler/src/ide/fixes.rs",
+      "before_production_lines": 165,
+      "after_production_lines": 165,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "dec86317bd2bd2bc22f66c27643d5afc70d4997abacd174058031fd35402399d",
+      "sha256_after": "dec86317bd2bd2bc22f66c27643d5afc70d4997abacd174058031fd35402399d"
+    },
+    {
+      "path": "compiler/src/ide/mod.rs",
+      "before_production_lines": 12,
+      "after_production_lines": 12,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "cadad2e06e0c21495f96fddaa04c3ec898e16779e4055e7092fc77a916a8a542",
+      "sha256_after": "cadad2e06e0c21495f96fddaa04c3ec898e16779e4055e7092fc77a916a8a542"
+    },
+    {
+      "path": "compiler/src/ide/queries.rs",
+      "before_production_lines": 1440,
+      "after_production_lines": 1442,
+      "gross_removed": 1,
+      "gross_added": 3,
+      "net": 2,
+      "sha256_before": "c76ea4e3748ea0928d129f02001771970c7b84467421786b4c07e01dafe5060a",
+      "sha256_after": "070e6a13702a5da87bd1da5b1ec92ee27361d682cf31849c37502076556215d8"
+    },
+    {
+      "path": "compiler/src/ide/tokens.rs",
+      "before_production_lines": 445,
+      "after_production_lines": 445,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "08907dd10a6d7b44ef3e5e28ba8a55e02b0c05e98ccfd534363cd8eebc2bd96c",
+      "sha256_after": "08907dd10a6d7b44ef3e5e28ba8a55e02b0c05e98ccfd534363cd8eebc2bd96c"
+    },
+    {
+      "path": "compiler/src/json.rs",
+      "before_production_lines": 425,
+      "after_production_lines": 373,
+      "gross_removed": 277,
+      "gross_added": 225,
+      "net": -52,
+      "sha256_before": "5d4f2283206fff41501b00eab13221f4255e97836a810b46d4766ea23968cdc1",
+      "sha256_after": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244"
+    },
+    {
+      "path": "compiler/src/lib.rs",
+      "before_production_lines": 38,
+      "after_production_lines": 38,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+      "sha256_after": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971"
+    },
+    {
+      "path": "compiler/src/lint/driver.rs",
+      "before_production_lines": 518,
+      "after_production_lines": 544,
+      "gross_removed": 55,
+      "gross_added": 81,
+      "net": 26,
+      "sha256_before": "a13aab791a40561a025fc51a7dbde052e4e14e9b784da1449e04f8d80772ba03",
+      "sha256_after": "c16c9473a594066de41ebf88e1409584bd8fbb9375a94f110a964a19307a17dc"
+    },
+    {
+      "path": "compiler/src/lint/mod.rs",
+      "before_production_lines": 27,
+      "after_production_lines": 27,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "fd8590276ed4362722b252398936d519e4964a70fee4cef30faa854d1cd4dc0d",
+      "sha256_after": "fd8590276ed4362722b252398936d519e4964a70fee4cef30faa854d1cd4dc0d"
+    },
+    {
+      "path": "compiler/src/lint/rules.rs",
+      "before_production_lines": 1264,
+      "after_production_lines": 1264,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "05998b3045048f6b1b64f319422be2178ec530297bfa2e4141f0bf5eb9c5983e",
+      "sha256_after": "05998b3045048f6b1b64f319422be2178ec530297bfa2e4141f0bf5eb9c5983e"
+    },
+    {
+      "path": "compiler/src/lsp/mod.rs",
+      "before_production_lines": 7,
+      "after_production_lines": 9,
+      "gross_removed": 0,
+      "gross_added": 2,
+      "net": 2,
+      "sha256_before": "ba384f9a242e1824bcfff573d658b297d4a157207ae2a30c4c7b25826ad053b3",
+      "sha256_after": "722f436d11ac0cfdbf0a04ed958f7c75c86e31d98118adcdb6b0fba6fe11421e"
+    },
+    {
+      "path": "compiler/src/lsp/output.rs",
+      "before_production_lines": 0,
+      "after_production_lines": 184,
+      "gross_removed": 0,
+      "gross_added": 184,
+      "net": 184,
+      "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256_after": "8b9a350c847dcc326007ca08108fc8a986cb5f0089b2438a22a8b04f33ee0a0b"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "before_production_lines": 1269,
+      "after_production_lines": 1211,
+      "gross_removed": 331,
+      "gross_added": 273,
+      "net": -58,
+      "sha256_before": "789cfcad607502368bac6c1a7d2a36ce53945fb606c91e3b6f7194f309b9fff0",
+      "sha256_after": "79c53edb9ba35b411e48d7d0064776dfbb4b8b622f748dbb13d3958cb9f78743"
+    },
+    {
+      "path": "compiler/src/lsp/transport.rs",
+      "before_production_lines": 150,
+      "after_production_lines": 251,
+      "gross_removed": 11,
+      "gross_added": 112,
+      "net": 101,
+      "sha256_before": "43172ab05dde0d95fcb99b540cdb726860d69159ccdf0d1f6eae60cd41296a2c",
+      "sha256_after": "27b0a48d691a9e7f497023d0bf6541226c666aefb045d64ed7d15a42fdc42862"
+    },
+    {
+      "path": "compiler/src/lsp/uri.rs",
+      "before_production_lines": 0,
+      "after_production_lines": 52,
+      "gross_removed": 0,
+      "gross_added": 52,
+      "net": 52,
+      "sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256_after": "3e7cf29690c1a257085d35f04b6dc50d0fb3255911ac6c5fdaf37e471245a08f"
+    },
+    {
+      "path": "compiler/src/main.rs",
+      "before_production_lines": 43,
+      "after_production_lines": 43,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "5e8cd0e926e46ea407ced9032706d07a3d608d1a5720f44d3f21eb0ccf688bdd",
+      "sha256_after": "5e8cd0e926e46ea407ced9032706d07a3d608d1a5720f44d3f21eb0ccf688bdd"
+    },
+    {
+      "path": "compiler/src/policy.rs",
+      "before_production_lines": 686,
+      "after_production_lines": 733,
+      "gross_removed": 123,
+      "gross_added": 170,
+      "net": 47,
+      "sha256_before": "0af28353ed2c490656595dc0aec57962f44ef3e0b68380827fda957e5b446e8a",
+      "sha256_after": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "before_production_lines": 257,
+      "after_production_lines": 191,
+      "gross_removed": 69,
+      "gross_added": 3,
+      "net": -66,
+      "sha256_before": "a4e493db5a26e679db8e2cf7b40e48320fb55e2b81b88b01e05c77c300296be7",
+      "sha256_after": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a"
+    },
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "before_production_lines": 415,
+      "after_production_lines": 415,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6",
+      "sha256_after": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "before_production_lines": 752,
+      "after_production_lines": 752,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "3f8cda7a4ba1f18c98af49a6c78f518c89b699e7ccc92ea72679129e6d338a87",
+      "sha256_after": "3f8cda7a4ba1f18c98af49a6c78f518c89b699e7ccc92ea72679129e6d338a87"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "before_production_lines": 814,
+      "after_production_lines": 814,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0",
+      "sha256_after": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0"
+    },
+    {
+      "path": "compiler/src/syntax/mod.rs",
+      "before_production_lines": 103,
+      "after_production_lines": 103,
+      "gross_removed": 0,
+      "gross_added": 0,
+      "net": 0,
+      "sha256_before": "2a1517f81512614a7761082b3b03700023f51e6444175f69c8d865dca318b04d",
+      "sha256_after": "2a1517f81512614a7761082b3b03700023f51e6444175f69c8d865dca318b04d"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "before_production_lines": 6418,
+      "after_production_lines": 6423,
+      "gross_removed": 7,
+      "gross_added": 12,
+      "net": 5,
+      "sha256_before": "b9eabdacca842a94ff7764de2369af6058378ec31de7b82feeecbdedb793890b",
+      "sha256_after": "1b70f50c11b20fa23ab7f938d872f02b373b89129c2af3235b47ba0c5f0febf1"
+    }
+  ],
+  "net": 136
+}

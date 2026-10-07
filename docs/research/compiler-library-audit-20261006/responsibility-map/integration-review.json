@@ -1,0 +1,777 @@
+{
+  "scope": "Independent source/closure/count review, not compiler behavior execution",
+  "family_reviews": {
+    "root": {
+      "scope": "Read-only independent source inspection of root URL/SHA2/tempfile packet, inverse local owner graph and metric recomputation; no new test/build/Git/JEV.",
+      "packet_sha256": "28e93eaa30789e34c73ed6ae01b5068da7c1145e3b1101482b56aace1e21ca8a",
+      "accepted": [
+        {
+          "id": "INT-SHA2",
+          "finding": "Five actual direct sha256_hex callers accounted: SourceDb.add/docs.source_revision/IR build_migrations/LSP diagnostic_fix_to_action/IDE apply_fix. apply_fix no internal production caller; public support remains. Adapter5LOC delegates exact bytes+lowerhex; source/revision/canonical/staleness duties retain own owners. retain/zero target justified."
+        },
+        {
+          "id": "INT-TEMPFILE",
+          "finding": "One destination-local owned tempfile creation+open-handle writer; wrapper captures entry and regular-target metadata, rechecks expectedbytes before/after staging, preserves modes after writing, existing persist vs absent noclobber race distinction. Five functions+one struct6decl99LOC accurately counted; policy checks not second allocator. Retain zero target justified, no CAS/ACL/owner/durability promise."
+        },
+        {
+          "id": "INT-URL-VALUE",
+          "finding": "valid_url7LOC only WHATWG parse + HTTP(S) guard and distinct failure outcomes; authoredvalue never rewritten. Literal strict-check and overload validated inhabitation feed one validated_shape caller. Retain zero adapter-deletion target justified; local Typer inverse graph checked independently below."
+        }
+      ],
+      "corrections": [
+        {
+          "id": "ROOT-REVIEW-01",
+          "applies_to": [
+            "INT-SHA2",
+            "INT-URL-VALUE"
+          ],
+          "severity": "closure omission",
+          "finding": "Both docs chains omit cli::run_docs between dispatch_with and run_docs_with_platform.",
+          "evidence": [
+            {
+              "path": "compiler/src/cli.rs",
+              "symbol": "run_docs",
+              "start_line": 879,
+              "end_line": 888,
+              "call_line": 887
+            },
+            {
+              "path": "compiler/src/cli.rs",
+              "symbol": "dispatch_with docs match arm",
+              "start_line": 324,
+              "end_line": 333
+            }
+          ],
+          "required_fix": "Add run_docs routing unit to SHA2 and URL-value and recompute their closure metrics; tempfile already includes it."
+        },
+        {
+          "id": "ROOT-REVIEW-02",
+          "applies_to": [
+            "INT-URL-VALUE"
+          ],
+          "severity": "closure omission",
+          "finding": "URL LSP diagnostics and hover/completion routes omit Server::pump and Server::with_pos. run_stdio directly calls pump; handle_request supplies hover/completion callbacks through with_pos.",
+          "evidence": [
+            {
+              "path": "compiler/src/lsp/server.rs",
+              "symbol": "pump",
+              "start_line": 603,
+              "end_line": 614,
+              "call_line": 610
+            },
+            {
+              "path": "compiler/src/lsp/server.rs",
+              "symbol": "with_pos",
+              "start_line": 793,
+              "end_line": 807,
+              "call_line": 800
+            },
+            {
+              "path": "compiler/src/lsp/server.rs",
+              "symbol": "run_stdio pump call",
+              "start_line": 1201,
+              "end_line": 1205
+            },
+            {
+              "path": "compiler/src/lsp/server.rs",
+              "symbol": "handle_request hover/completion callback sites",
+              "start_line": 665,
+              "end_line": 688
+            }
+          ],
+          "required_fix": "Add pump and with_pos routing units; include notification-driven diagnostics route through pump in caller prose. No output serialization/helper LOC attribution to URL parsing."
+        },
+        {
+          "id": "ROOT-REVIEW-03",
+          "applies_to": [
+            "INT-TEMPFILE"
+          ],
+          "severity": "known prose error",
+          "finding": "Observations say six functions and one struct but supplied6decl comprise five functions and one struct.",
+          "required_fix": "Correct prose; existing declaration/LOC metric remains valid."
+        },
+        {
+          "id": "ROOT-REVIEW-04",
+          "applies_to": [
+            "INT-URL-VALUE"
+          ],
+          "severity": "consumer-scope wording",
+          "finding": "URI projection described as identity/display/filesystem contract; actual LSP uri_to_path serves SourceDb display metadata only and does not drive document identity/FS reads/imports.",
+          "evidence": [
+            {
+              "path": "compiler/src/lsp/server.rs",
+              "symbol": "uri_to_path",
+              "start_line": 1141,
+              "end_line": 1143
+            },
+            {
+              "path": "compiler/src/lsp/server.rs",
+              "symbol": "didOpen/didChange calls",
+              "start_line": 853,
+              "end_line": 905
+            },
+            {
+              "path": "compiler/src/lsp/uri.rs",
+              "symbol": "native_file_path",
+              "start_line": 7,
+              "end_line": 45
+            }
+          ],
+          "required_fix": "Say separate authored identity/native display projection policy; no FS/import loading claim."
+        }
+      ],
+      "gaps": [
+        {
+          "id": "ROOT-GAP-01",
+          "finding": "Root packet has no explicit failure-path listing per integration, though policies/source describe them. For complete requirement negative-path coverage include URL parser failure/nonHTTP, stale fix returns/error, temp metadata/I/O/symlink/no-op/race branches with caller-specific E7002/E7003 mappings. Existing source ranges enough to add owner-preserving prose; no changes authorized."
+        },
+        {
+          "id": "ROOT-GAP-02",
+          "finding": "No new runtime/host/library-upgrade qualification; retained evidence profiles only. Public sha256_hex/SourceDb/analysis/IDE APIs could have external Rust callers; zero-internal apply_fix remains public support question."
+        }
+      ],
+      "lexical_url_owner_check": {
+        "independent_uniquely_named_functions": 354,
+        "independent_inverse_closure_functions": 86,
+        "packet_local_functions": 86,
+        "missing_functions": [],
+        "extra_functions": [],
+        "missing_edges": [],
+        "extra_edges": [],
+        "independent_local_edges": 177,
+        "limits": "Lexical uniquely named local-owner function calls, not semantic reachability proof. Methods/trait callback/public routing separately inspected."
+      },
+      "metric_checks": [
+        {
+          "id": "INT-SHA2",
+          "independently_recomputed": {
+            "adapter_units": {
+              "declarations": 1,
+              "files": 1,
+              "physical_union": 5,
+              "nonblank_union": 4
+            },
+            "direct_caller_units": {
+              "declarations": 5,
+              "files": 5,
+              "physical_union": 125,
+              "nonblank_union": 125
+            },
+            "routing_units": {
+              "declarations": 20,
+              "files": 6,
+              "physical_union": 1299,
+              "nonblank_union": 1296
+            },
+            "complete_scoped_union": {
+              "declarations": 26,
+              "files": 8,
+              "physical_union": 1429,
+              "nonblank_union": 1425
+            }
+          },
+          "packet_matches": true
+        },
+        {
+          "id": "INT-TEMPFILE",
+          "independently_recomputed": {
+            "adapter_units": {
+              "declarations": 6,
+              "files": 1,
+              "physical_union": 99,
+              "nonblank_union": 99
+            },
+            "direct_caller_units": {
+              "declarations": 2,
+              "files": 1,
+              "physical_union": 192,
+              "nonblank_union": 192
+            },
+            "routing_units": {
+              "declarations": 6,
+              "files": 2,
+              "physical_union": 199,
+              "nonblank_union": 199
+            },
+            "complete_scoped_union": {
+              "declarations": 14,
+              "files": 2,
+              "physical_union": 490,
+              "nonblank_union": 490
+            }
+          },
+          "packet_matches": true
+        },
+        {
+          "id": "INT-URL-VALUE",
+          "independently_recomputed": {
+            "adapter_units": {
+              "declarations": 1,
+              "files": 1,
+              "physical_union": 7,
+              "nonblank_union": 7
+            },
+            "direct_caller_units": {
+              "declarations": 1,
+              "files": 1,
+              "physical_union": 10,
+              "nonblank_union": 10
+            },
+            "routing_units": {
+              "declarations": 111,
+              "files": 6,
+              "physical_union": 7189,
+              "nonblank_union": 7186
+            },
+            "complete_scoped_union": {
+              "declarations": 112,
+              "files": 6,
+              "physical_union": 7196,
+              "nonblank_union": 7193
+            }
+          },
+          "packet_matches": true
+        }
+      ],
+      "range_anchor_gaps": [],
+      "verdict": "accept thin retain/zero targets and local inverse graph subject to recorded routing/prose corrections; supplied metrics self-consistent but recompute after adding missing routes."
+    },
+    "json": {
+      "schema": "canlang-step6-independent-json-review/v1",
+      "scope": "Complete supplied JSON family packet independently checked against current compiler adapters, caller/typed callback seams, saved compatibility/representation contracts and selected consumer evidence. Duty assessment completed from source before reading recommendation conclusions. No new builds/tests/Git/JEV or repository edits.",
+      "packet_sha256": "969291b9c9ed03d527cde1d3041fcafe127094469f36739c7b9bb8204378199d",
+      "accepted": [
+        {
+          "families": [
+            "JSON-OUTPUT-ENGINE",
+            "JSON-DIAGNOSTIC",
+            "JSON-EXPLAIN",
+            "JSON-FIXES",
+            "JSON-JS-STRINGS",
+            "JSON-JS-DESCRIPTORS",
+            "JSON-ARTIFACT"
+          ],
+          "finding": "Domain borrowed/typed DTOs encode Can schemas, omissions/null/order/source IDs/exact wire values; no demonstrated copied serde type models or hidden second input grammar. Standard serde owns value output and strings except2explicit shared escape overrides. Manual Json structural renderer and JsServerInit token helper correctly remain identified separately; no blanket claim all output grammar code disappeared."
+        },
+        {
+          "families": [
+            "JSON-INPUT-ENGINE",
+            "JSON-VIEWS-RENDER"
+          ],
+          "finding": "Pinned IoRead cursor/peek and error-unwind behavior is actual private implementation coupling; depth64 is value-entry budget before materialization, not ordinary library recursion default. Raw numeric/source ordered duplicate view is richer than serde_json::Value; arbitrary public Json::Num grammar precondition unresolved. Defer replacing coupling/renderer without qualifying exact profile or accepted owner narrowing."
+        },
+        {
+          "families": [
+            "JSON-CATALOG"
+          ],
+          "finding": "Source directly confirms3get-first accessor projection units,1full JSON parse,3kind vocabulary branches+error,3availability vocabulary+error,4discovery candidates(first-readable invalidUTF8/schema stops; unreadable skips), component/default signature admission genuine Can owner duties. Retain direct shape projections; no derived duplicate-field rejection substituted."
+        },
+        {
+          "families": [
+            "JSON-DOCS",
+            "JSON-JS-DEFAULTS"
+          ],
+          "finding": "Docs13exported ordered-Json helpers share1serialize\u2192parse site and no internal production callers; CLI directstring serializer has no roundtrip. Literal defaults use exact literal typedtree\u2192compact fragment\u2192RawValue parse on each serialization;eligibility/overflow and public encodedLiteral invalid-input errors cannot be eliminated by pretending all IR is literal."
+        },
+        {
+          "families": [
+            "JSON-POLICY",
+            "JSON-BDD"
+          ],
+          "finding": "Actual duplication is1key-aware JSONlayout engine (11callbacks,2stackvariants,3statefields) and2identical private3line closed quote wrappers. Conditional numeric net targets120/3 respectively are declared qualification gates only; retirement now0 and public/byte-policy gates remain. BDD16lower_expr joins+2import_lines joins expose existing shared JS emission route, not generic JSON DTO input."
+        },
+        {
+          "families": [
+            "JSON-JS-STRINGS",
+            "JSON-BDD"
+          ],
+          "finding": "Independent quote ownership closure exactly matches JS65functions173edges37direct functions and BDD8functions12edges7direct functions. JS122use sites include121parenthesized calls plus1higher-order .map(js_string) callback; BDD21 quote uses plus16sharedlower_expr calls qualify143direct quote use sites. No graph/unit correction required."
+        }
+      ],
+      "corrections": [
+        {
+          "id": "JSON-REVIEW-01",
+          "family": "JSON-ARTIFACT",
+          "severity": "mechanism wording",
+          "finding": "current_mechanisms_and_counts.SourceMap_RawValue_join names a mechanism that no longer exists. ModuleWire.map borrows &SourceMap and invokes typed Serialize; no raw/pre-rendered map fragment is embedded.",
+          "evidence": [
+            {
+              "path": "compiler/src/codegen/artifact.rs",
+              "symbol": "ModuleWire.map",
+              "lines": [
+                595,
+                599
+              ]
+            },
+            {
+              "path": "compiler/src/codegen/sourcemap.rs",
+              "symbol": "SourceMap::serialize",
+              "lines": [
+                104,
+                127
+              ]
+            }
+          ],
+          "required_fix": "Rename to SourceMap_typed_borrowed_join; explicitly count map RawValue joins0. Keep sourceMap builder serialization\u2192EncodedMappings projection separately in map owner packet."
+        },
+        {
+          "id": "JSON-REVIEW-02",
+          "families": [
+            "JSON-CATALOG",
+            "JSON-DIAGNOSTIC"
+          ],
+          "severity": "routing omission",
+          "finding": "Their enumerated docs command routes omit run_docs wrapper between dispatch_with and run_docs_with_platform; JSON-DOCS record includes it, but per-family closure list must include/reference it.",
+          "evidence": [
+            {
+              "path": "compiler/src/cli.rs",
+              "symbol": "run_docs",
+              "lines": [
+                879,
+                888
+              ]
+            }
+          ],
+          "required_fix": "Add exact run_docs unit to catalog CLI and diagnostic emitted-error route, or explicitly link shared JSON-DOCS routing unit by ID. Shared unions must de-duplicate it."
+        }
+      ],
+      "gaps": [
+        {
+          "id": "JSON-GAP-01",
+          "family": "JSON-POLICY",
+          "finding": "Headline simplify is audit advice conditional on an unresolved owning whitespace/readability/newline revision. Keep defer-now explicit when composing final headlines; current public deterministic pretty guard cannot be replaced today. Conditions already preserve it, so no unilateral behavior change is authorized."
+        },
+        {
+          "id": "JSON-GAP-02",
+          "family": "JSON-JS-DESCRIPTORS",
+          "finding": "direct_production_caller_units lists11unused publicfragment helpers among private descriptor_json call sites. These calls exist in production-compiled function bodies, but observed internal execution is absent. Existing public_no_internal lists repair interpretation; name counts as direct production-compiled call sites, not all live internal routes."
+        },
+        {
+          "id": "JSON-GAP-03",
+          "finding": "Broad blocks (e.g. docs114\u2013345, policy33\u2013123, descriptor697\u2013907) include DTO context/impls/blank lines and are not individual exact declaration-count metric records. Report labels generally distinguish them; root normalized exact-declaration ledger must not infer adapter-owned LOC/counts by treating whole contextual blocks as single types/functions or summing nested spans."
+        },
+        {
+          "id": "JSON-GAP-04",
+          "finding": "Future net gates are acceptance thresholds, not measured candidate reductions. No fallback/API compatibility wrappers exempted from accounting. Docs44gross/net requires approved disappearance of13public methods+5line helper; input40net cannot follow automatically from57named coupling lines because replacement and remaining plumbing count; BDD3net requires subtracting all shared-owner/import/visibility additions."
+        }
+      ],
+      "independent_quote_graph_checks": [
+        {
+          "graph": "js_string_closure_graph",
+          "own_closure_functions": 65,
+          "own_edges": 173,
+          "own_direct_functions": 37,
+          "missing_units": [],
+          "extra_units": [],
+          "missing_edges": [],
+          "extra_edges": [],
+          "limits": "Lexical inverse uniquely named function/method owner graph; actual callback/public/cross-file joins source inspected separately.",
+          "own_parenthesized_direct_call_sites": 121,
+          "own_callback_function_reference_sites": 1,
+          "own_direct_use_sites_including_callbacks": 122,
+          "callback_evidence": {
+            "path": "compiler/src/codegen/js.rs",
+            "symbol": "Emitter::lower_message .map(js_string)",
+            "lines": [
+              2507,
+              2510
+            ]
+          }
+        },
+        {
+          "graph": "bdd_string_closure_graph",
+          "own_closure_functions": 8,
+          "own_edges": 12,
+          "own_direct_functions": 7,
+          "own_direct_use_sites": 21,
+          "missing_units": [],
+          "extra_units": [],
+          "missing_edges": [],
+          "extra_edges": [],
+          "limits": "Lexical inverse uniquely named function/method owner graph; actual callback/public/cross-file joins source inspected separately."
+        }
+      ],
+      "independent_direct_compact_sites": [
+        {
+          "path": "compiler/src/docs.rs",
+          "line": 1118
+        },
+        {
+          "path": "compiler/src/docs.rs",
+          "line": 1128
+        },
+        {
+          "path": "compiler/src/explain.rs",
+          "line": 71
+        },
+        {
+          "path": "compiler/src/diagnostic.rs",
+          "line": 268
+        },
+        {
+          "path": "compiler/src/diagnostic.rs",
+          "line": 324
+        },
+        {
+          "path": "compiler/src/cli.rs",
+          "line": 1698
+        },
+        {
+          "path": "compiler/src/lint/driver.rs",
+          "line": 420
+        },
+        {
+          "path": "compiler/src/lint/driver.rs",
+          "line": 427
+        },
+        {
+          "path": "compiler/src/lint/driver.rs",
+          "line": 439
+        },
+        {
+          "path": "compiler/src/lsp/output.rs",
+          "line": 41
+        },
+        {
+          "path": "compiler/src/codegen/js.rs",
+          "line": 41
+        },
+        {
+          "path": "compiler/src/codegen/js.rs",
+          "line": 1081
+        },
+        {
+          "path": "compiler/src/codegen/artifact.rs",
+          "line": 569
+        },
+        {
+          "path": "compiler/src/codegen/sourcemap.rs",
+          "line": 131
+        },
+        {
+          "path": "compiler/src/codegen/bdd.rs",
+          "line": 432
+        }
+      ],
+      "packet_direct_compact_function_units": 15,
+      "range_bound_checks": {
+        "examined_span_records": 396,
+        "errors": []
+      },
+      "conditional_span_checks": [
+        {
+          "record": "JSON-DOCS",
+          "current_named_gross_union_lines": 44,
+          "future_minimum_net_target": 44,
+          "current_deletion_achieved": 0
+        },
+        {
+          "record": "JSON-BDD",
+          "current_named_gross_union_lines": 3,
+          "future_minimum_net_target": 3,
+          "current_deletion_achieved": 0
+        }
+      ],
+      "verdict": "accept duty classification/private coupling/roundtrip analysis and gated targets subject to recorded map wording and route corrections; quote graphs independently qualified by source lexical scan; external Rust/API/host/runtime support remains unresolved."
+    },
+    "protocol": {
+      "schema": "canlang-step6-independent-review/v1",
+      "reviewer": "integration_cross_review (different author)",
+      "reviewed_worker": "/private/tmp/canlang-step6-protocol-maps.json",
+      "source_pin": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+      "scope": "Read-only repository/cached dependency/source/previous saved evidence assessment; no Git/build/test/runtime/JEV or repository mutation. Mechanical Python inspected saved JSON, line unions, anchor bounds, and25 source hashes. This is bounded integration review, not behavior qualification or entire downstream package audit.",
+      "verdict": "accept with exact-span/closure corrections and explicit conditional-target limits",
+      "independent_source_assessment": [
+        {
+          "id": "INT-LSP-TYPES",
+          "decision": "retain current library and String wrappers; defer public type substitution",
+          "anchors": [
+            "compiler/src/lsp/output.rs:11-24",
+            "compiler/src/lsp/output.rs:54-183",
+            "compiler/src/lsp/server.rs:32-164",
+            "compiler/src/lsp/server.rs:616-807",
+            "compiler/src/lsp/server.rs:932-995",
+            "editors/vscode/src/extension.ts:115-162",
+            "editors/vscode/src/client.ts:839-891"
+          ],
+          "finding": "Library owns ranges, positions, diagnostic payloads, capability/completion/hover/action fields. Six composite URI-envelope DTOs preserve authored String identity, one semantic DTO preserves raw vector, two generic envelopes retain ID/output shape. Seven public callback types are domain projections with support obligations. Actual editor projects named fields, parses URI through VSCode, and ignores diagnostic/document-edit versions; this narrower consumer minimum does not waive compiler public promises. Direct lsp Uri substitution cannot preserve all current raw URI strings."
+        },
+        {
+          "id": "INT-LSP-INPUT-JSON-FRAMING",
+          "decision": "retain admission/framing; defer render-envelope and ID roundtrip retirement",
+          "anchors": [
+            "compiler/src/lsp/transport.rs:8-71",
+            "compiler/src/lsp/transport.rs:94-250",
+            "compiler/src/lsp/server.rs:997-1134",
+            "compiler/src/lsp/server.rs:1155-1210",
+            "compiler/src/json.rs:150-334",
+            "compiler/src/lsp/output.rs:18"
+          ],
+          "finding": "JSON parser is shared via actual reexports, not copied. LSP domain validates exact i32 equivalents, reserved duplicates, safe correlation, omission/null and narrow method schemas. Framing owns bytes, body cap and IO behavior independently. Two live legacy render builders plus one exported/test-only builder remain. Typed response renders/revalidates admitted ID once without payload parse roundtrip. Public handbuilt Json grammar remains unresolved. Shared parser relies on pinned serde cursor behavior, so integration entirety must join shared JSON cost/coupling inventory."
+        },
+        {
+          "id": "INT-LSP-URI-URL",
+          "decision": "retain all3 functions47 declaration-union LOC",
+          "anchors": [
+            "compiler/src/lsp/uri.rs:7-51",
+            "compiler/src/lsp/server.rs:853",
+            "compiler/src/lsp/server.rs:905",
+            "compiler/src/lsp/server.rs:1141-1143"
+          ],
+          "finding": "URL library parses explicitly authored file:// display paths; protocol document identity stays original String. Parse/path/UTF8/NUL failures and unsupported schemes/targets return raw identity. Caller repetition serves distinct source registrations, not two codecs. Windows and other target runtime parity remains unverified."
+        },
+        {
+          "id": "INT-SOURCEMAP",
+          "decision": "retain domain map/serializer and current dependency; defer incidental projection and public decoder retirement",
+          "anchors": [
+            "compiler/src/codegen/sourcemap.rs:14-232",
+            "compiler/src/codegen/artifact.rs:221-324",
+            "compiler/src/codegen/artifact.rs:492-608",
+            "compiler/src/codegen/mod.rs:108-179",
+            "packages/cloudflare/src/runtime/sourcemap.ts:55-161",
+            "packages/cloudflare/src/deploy/module-maps.ts:12-94"
+          ],
+          "finding": "Library owns numeric encoding. SourceDb byte conversion/snapshot ids/source contents, names and borrowed outer DTO serializer are necessary domain projection. Source registration uses opaque keys/set_source with private builder-state assumption. One library-map serialization/parse extraction is incidental. Public decoder has no repository production callers and separate malformed/signed/order/i64 compatibility contract. Actual cloudflare32bit decoder is distinct, composition preserves raw accepted semantics through opaque IDs, threshold projection and large-coordinate carriers; these are package seam costs, not compiler adapter LOC. Artifact parser checks map version only. Testkit location formatting helpers have no established runtime-report join."
+        }
+      ],
+      "corrections": [
+        {
+          "id": "SPAN-01",
+          "file": "editors/vscode/src/client.ts",
+          "symbol": "constructor",
+          "worker": {
+            "start": 482,
+            "end": 487,
+            "loc": 1
+          },
+          "corrected": {
+            "start": 482,
+            "end": 487,
+            "loc": 6
+          },
+          "impact": "Per-declaration LOC field wrong; spans already imply6, so span union does not change."
+        },
+        {
+          "id": "SPAN-02",
+          "file": "packages/cloudflare/src/dev/zero-config.ts",
+          "symbol": "resolveLocalDefaults",
+          "worker": {
+            "start": 92,
+            "end": 92,
+            "loc": 1
+          },
+          "corrected": {
+            "start": 92,
+            "end": 106,
+            "loc": 15
+          },
+          "impact": "Worker range contains only declaration line, omits live loadArtifactFile call96. Consumer union increases14."
+        },
+        {
+          "id": "SPAN-03",
+          "file": "packages/cloudflare/src/preparation/host.ts",
+          "symbol": "fail",
+          "worker": {
+            "start": 70,
+            "end": 74,
+            "loc": 5
+          },
+          "corrected": {
+            "start": 70,
+            "end": 81,
+            "loc": 12
+          },
+          "impact": "Worker range stops inside multiline signature. Consumer union increases7. emit66-68 is called by fail and should be identified as terminal diagnostic output duty if this failure helper is in closure."
+        },
+        {
+          "id": "COUNT-01",
+          "finding": "Compiler sourcemap193, URL47 and output145/direct server282 declaration-union LOC agree with supplied spans. Raw adapter ranges LSP output+direct server union427; LSP input/framing union319. SourceMap consumer supplied span union1414 becomes1435 afterSPAN02/03, before adding missing helper/type ranges. LSP consumer supplied span union890 is unchanged bySPAN01. These count declaration physical lines/comments and nesting de-duplicates; they are not library-induced/removable costs."
+        },
+        {
+          "id": "TARGET-01",
+          "anchors": [
+            "compiler/src/codegen/sourcemap.rs:79-94",
+            "compiler/src/codegen/sourcemap.rs:83-94"
+          ],
+          "finding": "16LOC extraction target includes4 comment lines79-82; executable/derive block is83-94 (12LOC). Keep16 as explicitly inclusive physical gross target or use12 for executable block. Neither is an achieved deletion. Supported replacement, added wrappers/dependencies and API/array/byte parity must fit before net>=1 can be accepted."
+        }
+      ],
+      "closure_additions_required": [
+        {
+          "id": "CLOSURE-MAP-STACK",
+          "reason": "mapThrownError currently depends on production helpers omitted from consumer_ranges; these are domain frame/url identity duties and cannot be charged entirely to library glue. Include their anchors and costs or explicit joined duty row.",
+          "ranges": [
+            {
+              "file": "packages/cloudflare/src/runtime/invoke.ts",
+              "symbol": "urlToPath",
+              "start": 135,
+              "end": 143,
+              "loc": 9
+            },
+            {
+              "file": "packages/cloudflare/src/runtime/invoke.ts",
+              "symbol": "ParsedFrame",
+              "start": 145,
+              "end": 149,
+              "loc": 5
+            },
+            {
+              "file": "packages/cloudflare/src/runtime/invoke.ts",
+              "symbol": "parseStackFrames",
+              "start": 152,
+              "end": 166,
+              "loc": 15
+            },
+            {
+              "file": "packages/cloudflare/src/runtime/invoke.ts",
+              "symbol": "matchGeneratedModule",
+              "start": 169,
+              "end": 181,
+              "loc": 13
+            },
+            {
+              "file": "packages/cloudflare/src/runtime/invoke.ts",
+              "symbol": "buildModuleMatchers",
+              "start": 183,
+              "end": 197,
+              "loc": 15
+            }
+          ]
+        },
+        {
+          "id": "CLOSURE-TESTKIT",
+          "reason": "Worker caller_edges mention location formatter helpers without consumer_ranges/source pin. Add exact ranges and source hash. withFailureLocation is repository-production-orphan public helper; no product report integration claimed.",
+          "ranges": [
+            {
+              "file": "packages/testkit/src/reporting/report.ts",
+              "symbol": "FailureLocation",
+              "start": 20,
+              "end": 26,
+              "loc": 7
+            },
+            {
+              "file": "packages/testkit/src/reporting/report.ts",
+              "symbol": "formatFailureLocation",
+              "start": 29,
+              "end": 31,
+              "loc": 3
+            },
+            {
+              "file": "packages/testkit/src/reporting/report.ts",
+              "symbol": "FailureEntry",
+              "start": 34,
+              "end": 34,
+              "loc": 1
+            },
+            {
+              "file": "packages/testkit/src/reporting/report.ts",
+              "symbol": "withFailureLocation",
+              "start": 42,
+              "end": 49,
+              "loc": 8
+            }
+          ]
+        },
+        {
+          "id": "CLOSURE-SHARED-JSON",
+          "reason": "No compiler/src/json.rs range or source pin in this worker. Whole integration requires explicit joined shared parser/formatter/render inventory with one-byte reader, number lexeme extraction and cursor error/depth coupling. Avoid duplicate LOC across dependency rows.",
+          "anchors": [
+            "compiler/src/lsp/transport.rs:8",
+            "compiler/src/json.rs:150-184",
+            "compiler/src/json.rs:187-334",
+            "compiler/src/json.rs:336-372"
+          ]
+        },
+        {
+          "id": "CLOSURE-BOUNDARY",
+          "reason": "Full closure can end at explicitly named exported API/CLI/editor/output boundary with external users unresolved, but does not mean every downstream work-kernel path certified. Worker limitation is honest; retain it and do not headline entire package production closure. Source-map JsLine-to-physical-line alignment remains Step5 gap (embedded newline pushes).",
+          "anchors": [
+            "docs/research/compiler-library-audit-20261006/responsibility-map/representations.md:generated coordinates/maps row",
+            "packages/cloudflare/src/runtime/invoke.ts:444-479",
+            "packages/cloudflare/src/runtime/executors.ts:241-295"
+          ]
+        }
+      ],
+      "accepted": [
+        "25 worker source hashes match current file bytes; no pin mismatch found. Compiler sourcepin reused from task context, not reverified by Git.",
+        "Output18 declarations=9fn+9DTO,145 unionLOC;6 URI composite DTOs+1rawsemantic+2generic envelopes;7 public server callback types,25known completion mappings+1unknown omission arm. They must be classified domain/custom compatibility rather than blanket copied library cost.",
+        "Sourcemap10 declarations=6fn+4type,193 unionLOC; build71, serializer/helper37, publicdecoder85 partition is arithmetically coherent.3 artifact builder call sites;1temporaryprojectionDTO,1fullmapwrite pass,1parseprojection pass,1temporaryVec,2expect sites;1source registry-key mechanism backed by cached builder add_source97-109/set_source112-115 behavior. Public calls do not erase private implementation coupling.",
+        "URI3functions47LOC retained and zero achieved retirement. No current lsp_types::Uri parse branch or dual normal/exceptional output fallback exists.",
+        "Map to_json and decode_mappings have zero internal production callers; transport notification is public/test-only while response_ok and response_err are live. Export status/API uncertainty must accompany any retirement recommendation.",
+        "Legacy builder29LOC and TextPos/LspRange+adapter18LOC are conditional maxima, not net production savings; output wrappers needed for String/rawvector parity remain.",
+        "Public decoder85LOC conditional retirement means removing production-compiled support or moving it test-only after API decision. Test oracle replacement is necessary and its code is counted separately; repository total physical deletion85 is not guaranteed by moving it under cfg(test).",
+        "Map composition3functions56LOC plus2viewprotocoltypes7LOC accurately covers named functions/types. Five named mechanisms describe current package behavior; this is not all package owned LOC (Segment type/import/generated stage DTOs are additional dependencies).",
+        "Private encoder::serialize_mappings is not a supported selected alternative; direct library-map adoption has no current qualification for byte/array/order/duplicate obligations. No achieved simplification or selected replacement asserted."
+      ],
+      "gaps": [
+        "No fresh behavioral qualification, Windows/other target execution, source resource measurement, directAPI replacement feasibility or external Cargo path/git user support finding.",
+        "Token if/match/? counts are lexical counts, not semantic branches/failure paths. Proposed mechanism deletion must use named mechanism counts and full replacement budget.",
+        "No current CPU/memory/time or actual net production cost reduction measured; declaration physical union cannot be reported as dependency overhead.",
+        "Headline defer for sourcemap should remain subpacket-specific: retained domain ownership and unknown public support coexist with incidental extraction worth future supported-API investigation."
+      ]
+    },
+    "counts": {
+      "record": "Step6 independent count and mask review",
+      "delta_file": "/private/tmp/canlang-step6-production-delta.json",
+      "count_script": "/private/tmp/canlang-step6-delta.py",
+      "count_method_helper": "/private/tmp/canlang-step6-count.py",
+      "catalogue": "/private/tmp/canlang-step6-items.json",
+      "independent_replay": {
+        "before_commit": "309644a6881909d8dba32560bc6711f67e00a7ab",
+        "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+        "files": 41,
+        "before_production_lines": 69119,
+        "after_production_lines": 69255,
+        "gross_removed": 2067,
+        "gross_added": 2203,
+        "net": 136,
+        "arithmetic": "passed: per-file sums and 2203-2067=69255-69119=136",
+        "mask": "independent source counts at both commits matched exactly after correcting \\u{...}, \\xNN and raw-string mask offsets"
+      },
+      "catalogue_spotchecks": [
+        {
+          "path": "compiler/src/source.rs",
+          "name": "sha256_hex",
+          "range": [
+            186,
+            190
+          ],
+          "body_braces_balanced": true
+        },
+        {
+          "path": "compiler/src/codegen/sourcemap.rs",
+          "name": "build",
+          "range": [
+            32,
+            102
+          ],
+          "body_braces_balanced": true
+        }
+      ],
+      "limitations": [
+        "Change count covers whole compiler/src production code. Changes include utility programme and other-owner correctness work; they are not wholly library-owned.",
+        "Gross removed and added lines count moves/rewording as remove/add and cannot alone imply reduction or complexity change.",
+        "No target attainment or promise is established by LOC arithmetic.",
+        "Catalogue is parser-free lexical range evidence, not Rust AST or call graph; declarations can be method/private details and macros may elude it."
+      ],
+      "selftest": {
+        "cases": [
+          "Rust unicode escape char literal \\u{7b}",
+          "Rust hex escape char literal \\x7b",
+          "escaped quote char literal \\'",
+          "ordinary scalar brace char literal {",
+          "braces inside ordinary string",
+          "lifetime 'a is not treated as char"
+        ],
+        "result": "passed; all current source exact cfg(test) spans scanned successfully"
+      }
+    }
+  },
+  "incorporation": {
+    "root": "missing docs/pump/position routes, five functions+one tempfile type and negative paths applied",
+    "json": "typed SourceMap borrowing RawValue0, docs routes, policy defer-now and contextual metric scope applied",
+    "protocol": "external body spans, stack/frame helper and testkit boundary added; private/public target limits applied",
+    "counts": "delta equal-pair classification correction independently replayed"
+  },
+  "final_integrated_review": "pending"
+}
