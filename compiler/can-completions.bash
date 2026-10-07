@@ -17,6 +17,30 @@ _can_complete() {
         return 0
     fi
 
+    # Thin commands pass every tail token to the platform, including flags.
+    case "$cmd" in
+        run|test|build|deploy|activate)
+            COMPREPLY=($(compgen -f -- "$cur"))
+            return 0
+            ;;
+    esac
+
+    # Scan completed tokens: a separator used as an option value is data.
+    local i takes_value=0
+    for (( i=2; i<COMP_CWORD; i++ )); do
+        if (( takes_value )); then
+            takes_value=0
+            continue
+        fi
+        case "${COMP_WORDS[i]}" in
+            --)
+                COMPREPLY=($(compgen -f -- "$cur"))
+                return 0
+                ;;
+            --format|--catalog|--out|--locale) takes_value=1 ;;
+        esac
+    done
+
     case "$prev" in
         --format)
             COMPREPLY=($(compgen -W "json text" -- "$cur"))
@@ -40,7 +64,10 @@ _can_complete() {
     esac
 
     case "$cmd" in
-        check|compile|lint|policy)
+        lint)
+            COMPREPLY=($(compgen -W "--fix --format --format=json --format=text --catalog --help" -f -- "$cur"))
+            ;;
+        check|compile|policy)
             COMPREPLY=($(compgen -W "--format --format=json --format=text --catalog --help" -f -- "$cur"))
             ;;
         fmt)
@@ -60,11 +87,6 @@ _can_complete() {
             ;;
         help)
             COMPREPLY=($(compgen -W "$commands" -- "$cur"))
-            ;;
-        run|test|build|deploy|activate)
-            # Thin lane-7 passthrough: complete local files only; flags
-            # belong to can-platform.
-            COMPREPLY=($(compgen -f -- "$cur"))
             ;;
         *)
             COMPREPLY=($(compgen -W "$commands --help --version" -- "$cur"))

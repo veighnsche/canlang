@@ -30,6 +30,8 @@ for cmd in check compile lint policy
     complete -c can -f -n "__fish_seen_subcommand_from $cmd" -s h -l help -d 'Show help'
 end
 
+complete -c can -f -n '__fish_seen_subcommand_from lint' -l fix -d 'Apply safe lint fixes'
+
 # docs: locale, out, format, catalog, .can operands.
 complete -c can -f -n '__fish_seen_subcommand_from docs' -l locale -x -d 'Reference locale'
 complete -c can -f -n '__fish_seen_subcommand_from docs' -l out -r -d 'Write the reference to PATH instead of stdout'
