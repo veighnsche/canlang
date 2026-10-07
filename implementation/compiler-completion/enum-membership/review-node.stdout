@@ -1,0 +1,6 @@
+reserved/fixed/builtin case spellings and dynamic same-spelling enum parameters passed
+awaited true ["left","left settled","right","right settled"]
+awaited false ["left","left settled","right","right settled"]
+awaitedGrouped true ["left","left settled","right","right settled"]
+awaitedGrouped false ["left","left settled","right","right settled"]
+exact awaited failure order; compact/grouped-long or/coalesce lazy skips and taken coalesce passed

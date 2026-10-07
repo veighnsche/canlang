@@ -1,0 +1,11 @@
+
+running 6 tests
+test enum_claims_and_membership_execute_with_binding_and_order_controls ... ok
+test enum_local_shadowing_keeps_resolved_slots_in_compiled_scenario ... ok
+test flat_ladder_checks_compiles_and_executes_actual_artifacts ... ok
+test long_binary_emission_preserves_order_overflow_grouping_and_lazy_rhs ... ok
+test long_logical_check_and_recovery_keep_valid_siblings ... ok
+test unsupported_binary_retains_skipped_operand_diagnostics ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.95s
+

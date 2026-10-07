@@ -912,7 +912,7 @@ fn golden_expenseflow_structure() {
         "lock rule"
     );
     assert!(
-        entry.contains("[\"approved\",\"rejected\"].includes(row.status)"),
+        entry.contains("(($member,$collection)=>$collection.includes($member))(row.status,[\"approved\",\"rejected\"])"),
         "in membership"
     );
     // G4 contracts and preferences.
@@ -1804,7 +1804,10 @@ fn construct_scalars_per_op() {
             bool_ty.clone(),
         ),
     );
-    assert_eq!(text, "[\"a\",\"b\"].includes(\"a\")");
+    assert_eq!(
+        text,
+        "(($member,$collection)=>$collection.includes($member))(\"a\",[\"a\",\"b\"])"
+    );
     let (text, _, _) = lower(
         &ir,
         &typed(

@@ -1,0 +1,23 @@
+{
+  "frozen_at": "2026-10-07T19:40:37.633569+00:00",
+  "files": {
+    "compiler/src/analysis/types.rs": "4ef262e2b341b9caebe225921d0a4c7e6db18d637443d46fcbfad17bed94817e",
+    "compiler/src/codegen/ir.rs": "e8c2554ace88f61569e977598020a34ea4b8002d1ed3d7829507719a65a5422a",
+    "compiler/src/codegen/js.rs": "249419ed51f2f1dab78c5e42f7591ac914a9f4ba870689bcd3c52001d00e1494",
+    "compiler/tests/codegen.rs": "d794dce6f7680e678dab83b9cc201eb69127fe221decff2918100688c0fded98",
+    "compiler/tests/flat_expression_runtime.rs": "0f2d6eb84fa2d80b291702382a6aa6595f74963c0f047c96e0934fdb361a04e3"
+  },
+  "checks": {
+    "codegen": {
+      "passed": 117,
+      "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline --test codegen --test flat_expression_runtime",
+      "raw_receipt_retained": false
+    },
+    "final_runtime": {
+      "passed": 6,
+      "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline --test flat_expression_runtime -- --test-threads=1",
+      "stdout_sha256": "67579cb1a667f1cb8eea54e5e03e50e38b579223cca0fa2bbdb757fe7bbc21ae",
+      "stderr_sha256": "97a9fd6182d218d25b9c8efcf56c9cd9f1967d7e368ce126e1a67024b06e03a6"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+app ReviewJoins
+Given
+ contract Row { v:enum(b,s,c,event,result,parent,preferences,count),a:int,items:int[],maybe:bool? }
+ derive identity(value:int):int = value
+ derive itemsIdentity(value:int[]):int[] = value
+ derive enumIdentity(value:Row.v):Row.v = value
+ derive arrayIdentity(values:Row.v[]):Row.v[] = values
+ derive allCases(value:Row.v):bool = value in [b,s,c,event,result,parent,preferences,count]
+ derive expected(row:Row):bool = enumIdentity(count)==row.v
+ derive collectionExpected(row:Row):bool = row.v in arrayIdentity([b,s])
+ derive bound(c:Row.v,b:Row.v,s:Row.v):bool = c==b and b in [s,c]
+ derive nullableBound(b:Row.v?):bool = b==null or b in [s,c]
+ derive boundLong(c:Row.v,b:Row.v,s:Row.v):bool = true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and c==b and b in [s,c]
+ derive awaited(row:Row):bool = identity(row.a) in itemsIdentity(row.items)
+ derive awaitedGrouped(row:Row):bool = true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and (identity(row.a) in itemsIdentity(row.items))
+ derive orLazy(row:Row):bool = true or (identity(row.a) in itemsIdentity(row.items))
+ derive orLazyLong(row:Row):bool = true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and (true or (identity(row.a) in itemsIdentity(row.items)))
+ derive nullishLazy(row:Row):bool = row.maybe??(identity(row.a) in itemsIdentity(row.items))
+ derive nullishLong(row:Row):bool = true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and true and (row.maybe??(identity(row.a) in itemsIdentity(row.items)))
+When
+Then
