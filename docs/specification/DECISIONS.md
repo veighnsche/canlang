@@ -1654,3 +1654,10 @@ Independent current-source compilation, 41 selected caller tests and getter/exce
 Schema and wire retain their collector types, path aliases and traversal owners while sharing the identical pushViolation leaf through internal/violations.ts. Preserve receiver-bound ctx.violations.push, copied/frozen paths, field omission and ordered construction; no generic validation pipeline or backend conversion is introduced.
 
 Independent 254 selected tests, seven baseline/current public-caller comparisons and receiver/getter/iterator/exception controls pass. Public owner declarations are byte-identical. Readable production decreases by 16 lines; charging four private declaration lines, complete measured closure decreases by 12. Emitted bytes increase slightly, so no byte-saving claim is made. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/violations-independent-review.json) preserves source pins and original backend limits.
+
+
+## 2026-10-07 — Share private prepared binding entries (accepted)
+
+HTTP and ordinary MCP prepared plans share the exact deferralFor/toBindingEntry mechanics through internal/prepared-binding.ts. Existing PreparedDeferral/PreparedBindingEntry declarations stay at the HTTP owner, and the helper's type-only import creates no runtime cycle. Framing, mismatch errors and plan construction remain with each caller.
+
+Independent 16 selected caller/construction tests and scoped typecheck pass; getter, enum copy/freeze, exception identity and mismatch-before-shape order match baseline. Public declaration bytes and interface augmentation remain unchanged. Readable production decreases by 15 lines; charging three private declaration lines, complete measured closure decreases by 12. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/prepared-binding-independent-review.json) preserves exact pins. SDK provenance, sealed handles and broader prepared/backend/CSV acceptance remain separate.

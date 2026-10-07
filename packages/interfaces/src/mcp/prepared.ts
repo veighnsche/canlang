@@ -34,7 +34,6 @@ import type {
   BusinessError,
   ClosedInputs,
   DerivedOperationInputs,
-  DerivedWritableInput,
 } from '@canlang/contracts';
 import type {
   InterfacesClock,
@@ -42,9 +41,10 @@ import type {
   OperationDescriptor,
   OperationInputShape,
 } from '../ports.js';
+import { toBindingEntry } from '../internal/prepared-binding.js';
 import { buildBusinessError } from '../errors/envelope.js';
 import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
-import type { PreparedBindingEntry, PreparedDeferral } from '../envelope/prepared.js';
+import type { PreparedBindingEntry } from '../envelope/prepared.js';
 import { MAX_ID_LENGTH, parseMutationRef, parseReadRef } from '../envelope/refs.js';
 import { checkBoundArguments, isMutationKind } from './schemas.js';
 
@@ -85,25 +85,6 @@ export type PreparedMcpOutcome =
   | { readonly ok: true; readonly operation_id: string; readonly inputs: ClosedInputs }
   | { readonly ok: false; readonly error: BusinessError };
 
-function deferralFor(input: DerivedWritableInput): PreparedDeferral {
-  if (input.kind === 'string') return 'string-values';
-  if (input.kind === 'boolean') return 'boolean-values';
-  if (input.kind === 'money') return 'currency-code';
-  return 'bound';
-}
-
-function toBindingEntry(input: DerivedWritableInput): PreparedBindingEntry {
-  return Object.freeze({
-    name: input.name,
-    kind: input.kind,
-    required: input.required,
-    nullable: input.nullable === true,
-    array: input.array !== undefined,
-    versioned: input.versioned === true,
-    enumValues: input.enumValues === undefined ? null : Object.freeze([...input.enumValues]),
-    deferral: deferralFor(input),
-  });
-}
 
 function toRefRule(field: McpNamedField): PreparedMcpRefRule {
   const versioned = field.field.kind === 'ref' && field.field.requireVersion === true;
