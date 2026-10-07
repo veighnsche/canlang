@@ -1,0 +1,330 @@
+{
+  "stage": "human-approved exact payload reviewed; root source-current joins open",
+  "destination": "OpenAI through one supported finite Astra high review",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "high",
+  "historical_pin": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "current_head": "a9edf8741c96e64f87d5617139175775db4d3b58",
+  "sources": [
+    {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "historical_sha256": "1160f08db792ebe64c1c48829e6e3be8df436c3019fb47e87746c9e5ac3c39b9",
+      "current_sha256": "1160f08db792ebe64c1c48829e6e3be8df436c3019fb47e87746c9e5ac3c39b9",
+      "current_ranges": [
+        [
+          150,
+          212
+        ]
+      ]
+    },
+    {
+      "path": "packages/state/src/mutation/crud.ts",
+      "historical_sha256": "194bdcb9341aadd9bd21af141efc635853f05773c1c742b1a1f64fdbde202952",
+      "current_sha256": "194bdcb9341aadd9bd21af141efc635853f05773c1c742b1a1f64fdbde202952",
+      "current_ranges": [
+        [
+          400,
+          534
+        ]
+      ]
+    },
+    {
+      "path": "packages/state/src/invocation/invoke.ts",
+      "historical_sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "current_sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "current_ranges": [
+        [
+          1,
+          100
+        ],
+        [
+          270,
+          370
+        ]
+      ]
+    },
+    {
+      "path": "packages/state/src/query/engine.ts",
+      "historical_sha256": "9d8b5f499dd04f72a71511af3761c53051f2df5476174e40627eb91ada337a83",
+      "current_sha256": "9d8b5f499dd04f72a71511af3761c53051f2df5476174e40627eb91ada337a83",
+      "current_ranges": [
+        [
+          1,
+          140
+        ],
+        [
+          610,
+          815
+        ]
+      ]
+    },
+    {
+      "path": "packages/state/src/storage/d1.ts",
+      "historical_sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+      "current_sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+      "current_ranges": [
+        [
+          628,
+          735
+        ]
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "historical_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "current_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "current_ranges": [
+        [
+          810,
+          875
+        ],
+        [
+          1770,
+          1800
+        ],
+        [
+          2100,
+          2190
+        ]
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "historical_sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "current_sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "current_ranges": [
+        [
+          875,
+          930
+        ],
+        [
+          1630,
+          1705
+        ]
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/operations.ts",
+      "historical_sha256": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a",
+      "current_sha256": "1c575196b21444f7cc2680667752a39c6403c0a1b06a10c07676cd0ecc7de36a",
+      "current_ranges": [
+        [
+          182,
+          309
+        ]
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "historical_sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+      "current_sha256": "4a701c54ffa724e047a12407a19068223e571213a0c874e96e5dd32ce8f944a1",
+      "current_ranges": [
+        [
+          493,
+          518
+        ],
+        [
+          575,
+          627
+        ]
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/worker/entry.ts",
+      "historical_sha256": "106bfa11b9075dca53d4f4933497e5cb382d317471278d4f90c56402bad1580f",
+      "current_sha256": "106bfa11b9075dca53d4f4933497e5cb382d317471278d4f90c56402bad1580f",
+      "current_ranges": [
+        [
+          1,
+          34
+        ]
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/grant-route.ts",
+      "historical_sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d",
+      "current_sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d",
+      "current_ranges": [
+        [
+          1,
+          40
+        ],
+        [
+          125,
+          206
+        ]
+      ]
+    },
+    {
+      "path": "docs/specification/DESIGN.md",
+      "historical_sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+      "current_sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+      "current_ranges": [
+        [
+          215,
+          245
+        ],
+        [
+          285,
+          320
+        ],
+        [
+          355,
+          375
+        ],
+        [
+          543,
+          562
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/authentication/grants.ts",
+      "historical_sha256": "56f26d214a51de1caa8cc28b6757d9319c582e26f744cfc9e81e4c1a70418df4",
+      "current_sha256": "56f26d214a51de1caa8cc28b6757d9319c582e26f744cfc9e81e4c1a70418df4",
+      "current_ranges": [
+        [
+          1,
+          63
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/authentication/context.ts",
+      "historical_sha256": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "current_sha256": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "current_ranges": [
+        [
+          1,
+          166
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/csrf.ts",
+      "historical_sha256": "b577b2619951a51f1aaccc62ae3db942a7d2237aec5f6d5c2d6d65a815040d60",
+      "current_sha256": "b577b2619951a51f1aaccc62ae3db942a7d2237aec5f6d5c2d6d65a815040d60",
+      "current_ranges": [
+        [
+          1,
+          41
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "historical_sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "current_sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "current_ranges": [
+        [
+          1,
+          103
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/ports.ts",
+      "historical_sha256": "6145aef4de7dc0fabeed0a285a3dd8191c8c6f6c37d6554ca0659173a210a1bd",
+      "current_sha256": "6145aef4de7dc0fabeed0a285a3dd8191c8c6f6c37d6554ca0659173a210a1bd",
+      "current_ranges": [
+        [
+          1,
+          233
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/storage/d1.ts",
+      "historical_sha256": "7d25f77228fdd17c2fe49684c8cbefd1f3c50acf621533dc349dedaa66a3f18f",
+      "current_sha256": "7d25f77228fdd17c2fe49684c8cbefd1f3c50acf621533dc349dedaa66a3f18f",
+      "current_ranges": [
+        [
+          1,
+          897
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/authentication/oauth.ts",
+      "historical_sha256": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+      "current_sha256": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+      "current_ranges": [
+        [
+          1,
+          246
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/authentication/revocation.ts",
+      "historical_sha256": "3b18c1865f4f78cfda004b5d2bbb2959910c307c8a6a21c0c5928b15a2e5eb56",
+      "current_sha256": "3b18c1865f4f78cfda004b5d2bbb2959910c307c8a6a21c0c5928b15a2e5eb56",
+      "current_ranges": [
+        [
+          1,
+          133
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/presession.ts",
+      "historical_sha256": "f2c4cc913ea8fc3a70c7688991dd4a0a68cb05682efa433705d1654b3dda213d",
+      "current_sha256": "f2c4cc913ea8fc3a70c7688991dd4a0a68cb05682efa433705d1654b3dda213d",
+      "current_ranges": [
+        [
+          1,
+          71
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/accounts/recovery.ts",
+      "historical_sha256": "78c8589260eaea5536b2f90374d004d7664184b664b85135c7a0924da2f5e367",
+      "current_sha256": "78c8589260eaea5536b2f90374d004d7664184b664b85135c7a0924da2f5e367",
+      "current_ranges": [
+        [
+          1,
+          88
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/teams/membership.ts",
+      "historical_sha256": "8297f93d24b3062dd25bdc225fb71b8973c2c2551ba307b80becfe97161b334d",
+      "current_sha256": "8297f93d24b3062dd25bdc225fb71b8973c2c2551ba307b80becfe97161b334d",
+      "current_ranges": [
+        [
+          1,
+          43
+        ]
+      ]
+    },
+    {
+      "path": "packages/identity/src/teams/roles.ts",
+      "historical_sha256": "3c7c75a62b8de6e5a61f79c38b1b0a4ee337e15d26fc3e1193d4b93d0b111d0f",
+      "current_sha256": "3c7c75a62b8de6e5a61f79c38b1b0a4ee337e15d26fc3e1193d4b93d0b111d0f",
+      "current_ranges": [
+        [
+          1,
+          77
+        ]
+      ]
+    }
+  ],
+  "range_mapping": "Exact historical selections mapped to current line boundaries using line equality/replacement opcodes; all source hashes pinned. No review findings supplied.",
+  "bytes": 186981,
+  "sha256": "5e38ac5a4107eea2e2c4f3c920b636da7ddc2062f8c4f6ed2e0e3e1bf68c393b",
+  "changed_source_paths": [
+    "packages/interfaces/src/http/operations.ts",
+    "packages/cloudflare/src/worker/main.ts"
+  ],
+  "scope": "Bounded confidentiality, owner/store correspondence, credential/revocation/single-use enforcement; read-only source review, not whole package security acceptance.",
+  "human_approval": {
+    "question": "Approve sending prepared 187 KB source excerpts for read-only Astra high review to OpenAI",
+    "answer": "Approve scoped review",
+    "received_utc": "2026-10-07T19:14:24.263592+00:00",
+    "payload_sha256": "5e38ac5a4107eea2e2c4f3c920b636da7ddc2062f8c4f6ed2e0e3e1bf68c393b"
+  },
+  "review_sha256": "9b50ffca5f1d2d3184fe39d572ddd22886f945e8bebcbc71786fd0ddc4a2e71a",
+  "reviewer": "/root/critical_package_security"
+}

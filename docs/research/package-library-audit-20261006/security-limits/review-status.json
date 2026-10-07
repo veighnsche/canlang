@@ -1,16 +1,28 @@
 {
   "Astra": {
-    "status": "explicit egress approval pending",
+    "status": "Approved frozen-source review completed; source-current security joins and fixes remain open",
     "requested_model": "gpt-6-astra",
     "reasoning_effort": "high",
-    "in_chat_attempt": "agent thread limit reached; no reviewer created",
-    "CLI_attempt": "automatic approval review rejected before process start; no CLI review/egress occurred",
-    "rejection": "Sending potentially private repository source/design details to OpenAI requires explicit approval for this payload/destination. No workaround attempted.",
-    "payload_prepared_local_only": "24 frozen code/design source excerpts, 185703 bytes in /private/tmp/canlang-security-astra-d83d11f; secret projection, owner correspondence and credential/revocation/single-use only. No egress.",
-    "approval_question_pending": true,
+    "previous_blocked_attempt": {
+      "status": "explicit egress approval pending",
+      "requested_model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "in_chat_attempt": "agent thread limit reached; no reviewer created",
+      "CLI_attempt": "automatic approval review rejected before process start; no CLI review/egress occurred",
+      "rejection": "Sending potentially private repository source/design details to OpenAI requires explicit approval for this payload/destination. No workaround attempted.",
+      "payload_prepared_local_only": "24 frozen code/design source excerpts, 185703 bytes in /private/tmp/canlang-security-astra-d83d11f; secret projection, owner correspondence and credential/revocation/single-use only. No egress.",
+      "approval_question_pending": true,
+      "critical_acceptance": false,
+      "payload_sha256": "0bc110f9fd72f030bd2f49b4d4d4040b40ceb253f355739528ffad38d6ecc9fe",
+      "pending_cleanup_owner": "Originating Codex after approved review or human decline; no native/Muse/session resources were launched."
+    },
+    "approval_question_pending": false,
+    "human_approval": "Approve scoped review for the exact prepared 187 KB payload to OpenAI",
+    "payload_sha256": "5e38ac5a4107eea2e2c4f3c920b636da7ddc2062f8c4f6ed2e0e3e1bf68c393b",
+    "review": "../../../../implementation/package-maintenance-repair/runs/codex-go-20261007/critical-security-review.json",
     "critical_acceptance": false,
-    "payload_sha256": "0bc110f9fd72f030bd2f49b4d4d4040b40ceb253f355739528ffad38d6ecc9fe",
-    "pending_cleanup_owner": "Originating Codex after approved review or human decline; no native/Muse/session resources were launched."
+    "scope_limits": "Finite frozen excerpt review; eight findings require source-current caller/configuration/root adjudication; no full-package security acceptance or policy adoption",
+    "pending_cleanup_owner": "Root Codex; preserve approved frozen input until joined adjudication and released readers finish"
   },
   "Sol_capacity": {
     "reviewer": "protocol_identity_privacy",
