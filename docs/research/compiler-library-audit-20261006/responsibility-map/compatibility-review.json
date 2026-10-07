@@ -1,0 +1,946 @@
+{
+  "scope": "independent source/authority/caller challenge; no new execution",
+  "families": {
+    "input": {
+      "verdict": "Accept bounded 25-row compatibility challenge after concrete anchor/caller/qualification corrections below. Classifications fairly separate accepted migration guards from real semantic and raw-ID obligations; proposals do not authorize policy/API deletion.",
+      "scope": "Independent read-only current-source and consuming-editor/accepted Pass2/6/7/R01 review; all 25 claims considered. No builds/tests/runtime/network/JEV/delegation or repository edits. Protocol interpretations checked against pinned repository official-source references and accepted matrices, not newly fetched external standards; no new normative policy selected.",
+      "row_review": [
+        {
+          "ids": [
+            "IN-01",
+            "IN-02",
+            "IN-03",
+            "IN-04",
+            "IN-05",
+            "IN-06",
+            "IN-07",
+            "IN-08"
+          ],
+          "verdict": "confirmed with anchor/caller qualifications",
+          "anchors": [
+            "compiler/src/json.rs:70 enum/:87 first get/:111 lexical as_i64/:150 parse/:240 capture_error/:264 depth and numeric branch/:324 ordered duplicates/:336 render",
+            "compiler/src/analysis/catalog.rs:339 discovery/:386 parse_catalog/:465 parse_entry"
+          ],
+          "why": "Full-document grammar/strict decoded Unicode; value-entry0..64; ordered decoded duplicates and raw Num text/current public views persist. Catalog first-readable and first-key projection real; parse offsets remain message detail anchored to caller Span. Whole carrier fidelity stronger than catalog projections, but public/accepted promises not voided by narrower production use."
+        },
+        {
+          "ids": [
+            "LSP-01",
+            "LSP-02",
+            "LSP-03",
+            "LSP-04",
+            "LSP-05",
+            "LSP-06",
+            "LSP-07"
+          ],
+          "verdict": "confirmed with initialize exception and framing limits",
+          "anchors": [
+            "compiler/src/lsp/transport.rs:19 read_message/:67 write_message/:112 integer_value/:168 valid_id/:173 parse_call",
+            "compiler/src/lsp/server.rs:580 handle_json/:616 handle_request/:813 handle_notification/:1012 no_params/:1019 valid_params/:1155 run_stdio"
+          ],
+          "why": "Strict UTF8, cap before allocation, reserved duplicates, raw mathematical integral i32 IDs incl -0, omission/null policy and safe correlation implemented. Framing quirks/no header budget are preserved migration scope with future gaps, not required normal editor behavior. Queue version equality/current SourceDb and full-text semantics source-confirmed; client ignores diagnostic versions."
+        },
+        {
+          "ids": [
+            "LSP-08",
+            "LSP-09",
+            "LSP-10",
+            "LSP-11"
+          ],
+          "verdict": "confirmed with token symbol correction and client version limitation",
+          "anchors": [
+            "compiler/src/lsp/output.rs:11 response/:67 Diagnostics/:87 DocumentEdit/:93 DocumentIdentifier/:139 action/:181 SemanticTokens",
+            "compiler/src/ide/tokens.rs:62 semantic_tokens",
+            "compiler/src/source.rs:159 to_lsp",
+            "editors/vscode/test/lsp-capabilities.cjs:45 eq JSON.stringify"
+          ],
+          "why": "Named fields/null/omissions/lists current typed minimum; order-sensitive probe fixture is real test obligation distinct from extension property reads. Raw token tail retained by accepted callback contract; not valid protocol success guarantee. UTF16 coordinate owner distinct from maps byte profile."
+        },
+        {
+          "ids": [
+            "URI-01",
+            "URI-02",
+            "URI-03"
+          ],
+          "verdict": "confirmed",
+          "anchors": [
+            "compiler/src/lsp/uri.rs:7 native_file_path/:50 display_path",
+            "compiler/src/lsp/server.rs:1141 public uri_to_path",
+            "compiler/src/lsp/output.rs:53 Location/:93 DocumentIdentifier",
+            "docs/specification/DECISIONS.md:1312 R01 supersession"
+          ],
+          "why": "Original decoded URI String remains routing/output identity; native display conversion file:// only UTF8/noNUL, fallback exact. Current always-String projection replaces historical standard/exceptional branching; no mandatory complete outer-DTO adoption."
+        },
+        {
+          "ids": [
+            "API-01",
+            "API-02",
+            "API-03"
+          ],
+          "verdict": "confirmed with classification-scope correction for helpers",
+          "anchors": [
+            "compiler/src/lib.rs:8 public modules",
+            "compiler/src/codegen/mod.rs:108 emit",
+            "compiler/src/lsp/transport.rs:217 response_ok/:227 response_err/:244 notification",
+            "compiler/src/json.rs:18 generic serializer/:40 write_compatible_escape",
+            "compiler/src/diagnostic.rs:323 push_json_str"
+          ],
+          "why": "Public callers own coherence/admission; byte grammar/depth absent for manually constructed Json; source APIs/traits remain exported risk. Notification legacy helper has test-only repository use, success/error helpers live. Two escape overrides and errors retain accepted current behavior."
+        }
+      ],
+      "corrections": [
+        {
+          "id": "LSP-11",
+          "correction": "compiler/src/ide/tokens.rs:52 is legend, semantic_tokens starts62. Use62 for vector encoder and retain52 separately for legend."
+        },
+        {
+          "id": "API-02",
+          "correction": "response_ok has production rename unknown-document/null fallback at server.rs:740 as well as shutdown663. Add this actual caller; do not describe success helper as shutdown-only."
+        },
+        {
+          "id": "API-02",
+          "correction": "test_only classification applies only transport::notification repository consumer scope. response_ok/response_err and private output builders are live; add classification_scope or split helper claims to prevent aggregate test_only inference."
+        },
+        {
+          "id": "LSP-06",
+          "correction": "Preinitialize -32002 applies admitted noninitialize requests. initialize is special first: malformed params return -32602; valid initializes Ready; duplicate initialize returns -32600. Current minimum shorthand should state this exception (server.rs:616-644)."
+        },
+        {
+          "id": "IN-01/IN-07/IN-08",
+          "correction": "parse_catalog symbol begins catalog.rs386 (388 is match branch); use386 for symbol anchor,388 only for grammar failure branch."
+        },
+        {
+          "id": "LSP-09/LSP-06/API-01/API-03",
+          "correction": "Exact symbols: parse_coord server.rs1105 (not1106), handle_json580(not579), handle_request616(not617), handle_notification813(not814); write_compatible_escape json.rs40(not39). Diagnostics struct output.rs67(not68), DocumentEdit87/DocumentIdentifier93. Nearby lines may remain branch anchors if labeled as such."
+        }
+      ],
+      "required_limit_annotations": [
+        {
+          "ids": [
+            "LSP-04",
+            "LSP-10"
+          ],
+          "annotation": "Accepted project chooses raw numeric byte echo beyond correlation value minimum. String IDs retain decoded value and shared re-escape, not original input escape bytes; packet correctly says this and must preserve distinction."
+        },
+        {
+          "ids": [
+            "LSP-08",
+            "LSP-07"
+          ],
+          "annotation": "Version fields/hash guards are server-side; actual extension.ts116 toWorkspaceEdit discards textDocument.version and client.ts839 ignores params.version. Do not imply end-user stale-edit/diagnostic rejection from required server version output."
+        },
+        {
+          "ids": [
+            "LSP-03"
+          ],
+          "annotation": "Oversize/malformed header errors can occur before consuming declared body; continuing does not guarantee recovery/resync for every subsequent frame, and persistent non-EOF read error may loop. Packet appropriately leaves this gap; no new header/charset policy accepted."
+        },
+        {
+          "ids": [
+            "IN-04"
+          ],
+          "annotation": "E/+000 wording is exponent spelling within a legal JSON token such as1E+000; standalone E or +000 is not admitted valid JSON. Make examples explicit to avoid ambiguous numeric grammar claim."
+        },
+        {
+          "ids": [
+            "IN-02",
+            "IN-04",
+            "IN-05",
+            "LSP-11",
+            "API-02"
+          ],
+          "annotation": "migration_guard/test_only marks why repository needs are broader than normal production minima; current accepted exported behavior remains required until explicit scoped migration. No live caller does not authorize deletion."
+        }
+      ],
+      "evidence_limits": "Source branches and named existing tests only for reviewer. Step3 209/15 replay/body skips and raw streams were not re-executed or independently rehashed here; retain root evidence packet qualifications. No every-input correctness, external Rust user, malformed custom backend, all-URI GUI or other-host qualification."
+    },
+    "output": {
+      "verdict": "accept_with_corrections",
+      "reviewed_packet": "/private/tmp/canlang-step4-output-maps.json",
+      "reviewed_ids": [
+        "OUT-01",
+        "OUT-02",
+        "OUT-03",
+        "OUT-04",
+        "OUT-05",
+        "OUT-06",
+        "OUT-07",
+        "OUT-08",
+        "OUT-09",
+        "OUT-10",
+        "OUT-11",
+        "OUT-12",
+        "OUT-13",
+        "OUT-14",
+        "OUT-15",
+        "OUT-16",
+        "OUT-17",
+        "OUT-18",
+        "OUT-19",
+        "OUT-20",
+        "OUT-21",
+        "OUT-22",
+        "OUT-23",
+        "OUT-24",
+        "OUT-25",
+        "MAP-01",
+        "MAP-02",
+        "MAP-03",
+        "MAP-04",
+        "MAP-05"
+      ],
+      "scope": "Independent bounded source/consumer/authority review of all 30 rows. No builds/tests/runtime/network/repo edits. Source trace is not new execution or exhaustive semantic audit.",
+      "corrections": [
+        {
+          "ids": [
+            "OUT-01",
+            "OUT-02"
+          ],
+          "issue": "DIAGNOSTICS machine contract does not itself require exact JSON member order.",
+          "correction": "Keep diagnostic array sorting/facts required_semantic. Attribute member order to released DTO declaration and accepted C05D; include public compact/single-line promise separately. Exact old wording is not established as a permanent language guarantee.",
+          "exact_refs": [
+            {
+              "path": "implementation/DIAGNOSTICS.md",
+              "line": 21,
+              "symbol": "machine result"
+            },
+            {
+              "path": "compiler/src/diagnostic.rs",
+              "line": 107,
+              "symbol": "released compact diagnostic wire order"
+            },
+            {
+              "path": "compiler/src/diagnostic.rs",
+              "line": 246,
+              "symbol": "finish sorting"
+            },
+            {
+              "path": "compiler/src/diagnostic.rs",
+              "line": 266,
+              "symbol": "to_json public contract"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-03"
+          ],
+          "issue": "required_minimum incorrectly makes short escapes, unescaped slash and literal Unicode semantic requirements.",
+          "correction": "Required minimum is decoded-string fidelity and valid supported JSON/JS host syntax. Short/raw/slash spellings, including u0008/u000c, belong to current accepted byte profile/migration guard. Their accepted status is not voided by lacking a parse consumer that distinguishes them.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/json.rs",
+              "line": 39,
+              "symbol": "write_compatible_escape"
+            },
+            {
+              "path": "compiler/src/json.rs",
+              "line": 51,
+              "symbol": "CanCompactFormatter"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 1080,
+              "symbol": "js_string"
+            },
+            {
+              "path": "compiler/src/diagnostic.rs",
+              "line": 321,
+              "symbol": "push_json_str shared policy"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-05",
+            "OUT-06"
+          ],
+          "issue": "Ordered duplicate carrier fidelity and live production first-match/ID requirements need separate scope; OUT-06 numeric-render anchor is wrong.",
+          "correction": "Json::Num raw spelling, duplicate entries and first-match lookup are current public carrier/accepted compatibility properties, not proof every production boundary observes every lexeme. Arbitrary handcrafted Num can render invalid text; retain unresolved constructor precondition. Correct raw number render to json.rs346. as_i64 has no current production caller, but remains public.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/json.rs",
+              "line": 70,
+              "symbol": "Json"
+            },
+            {
+              "path": "compiler/src/json.rs",
+              "line": 87,
+              "symbol": "get"
+            },
+            {
+              "path": "compiler/src/json.rs",
+              "line": 111,
+              "symbol": "as_i64"
+            },
+            {
+              "path": "compiler/src/json.rs",
+              "line": 346,
+              "symbol": "render Num"
+            },
+            {
+              "path": "docs/specification/DECISIONS.md",
+              "line": 1186,
+              "symbol": "C06 accepted carrier"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-07",
+            "OUT-08"
+          ],
+          "issue": "OUT-07 says compiler emits empty descriptor arrays universally.",
+          "correction": "Compiler emits operations/models/migrations array keys, possibly empty; values are not universally empty. Preserve schema/source-order arrays independently from outer dictionary member order. Source order is expressly declared on CompileArtifact; artifact.ts old-artifact optionality does not waive producer behavior. Outer JSON order/no LF remains accepted C05A guard; public compact promise also applies.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/codegen/artifact.rs",
+              "line": 186,
+              "symbol": "CompileArtifact"
+            },
+            {
+              "path": "compiler/src/codegen/artifact.rs",
+              "line": 198,
+              "symbol": "operations source order"
+            },
+            {
+              "path": "compiler/src/codegen/artifact.rs",
+              "line": 201,
+              "symbol": "models source order"
+            },
+            {
+              "path": "compiler/src/codegen/artifact.rs",
+              "line": 210,
+              "symbol": "migrations source order"
+            },
+            {
+              "path": "compiler/src/codegen/artifact.rs",
+              "line": 573,
+              "symbol": "ArtifactWire"
+            },
+            {
+              "path": "packages/contracts/src/artifact.ts",
+              "line": 412,
+              "symbol": "CompileArtifact compatibility"
+            },
+            {
+              "path": "docs/specification/DECISIONS.md",
+              "line": 1164,
+              "symbol": "C05A"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-09"
+          ],
+          "issue": "Consumer symbol bundleDigest does not exist at the given anchor.",
+          "correction": "Use packages/cloudflare/src/deploy/bundle.ts920 bundleSha256, body925. Exact source bytes and sorted staged module/mainModule serialization are separate hash inputs; outer artifact JSON spelling is not automatically included. assertCompiledIdentity only checks when invoked.",
+          "exact_refs": [
+            {
+              "path": "packages/cloudflare/src/deploy/bundle.ts",
+              "line": 920,
+              "symbol": "bundleSha256"
+            },
+            {
+              "path": "packages/cloudflare/src/deploy/bundle.ts",
+              "line": 925,
+              "symbol": "digest serialization"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/artifact.ts",
+              "line": 49,
+              "symbol": "assertCompiledIdentity"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-11"
+          ],
+          "issue": "Generic accepted-decision authority undercounts explicit descriptor-helper field-order promises.",
+          "correction": "Tags/nullability/omission/shape remain semantic requirements. Add public helper rustdoc field-order authority where exact order is claimed; do not derive every dictionary ordering promise solely from a schema interface or DECISIONS1126.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 537,
+              "symbol": "descriptor compact JSON in owning contract field order"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 558,
+              "symbol": "descriptor field order"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 575,
+              "symbol": "operations_json"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 684,
+              "symbol": "model field order"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 693,
+              "symbol": "models_json"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-12",
+            "OUT-13"
+          ],
+          "issue": "Authored decimal spelling/scale is blended with numeric semantic correctness.",
+          "correction": "Required semantics: exact legal scalar value, checked domain/bounds, string-based numeric wire contracts and no lossy floating-point coercion. Authored input scale is separately accepted C05M lexical transport guard. Runtime encodeScalar explicitly calls decimalToString; it does not promise trailing-zero preservation. Keep accepted input guard pending explicit revision. Current general decimal expression emission remains unsupported; metadata fixture is not emitted/runtime arithmetic proof. Integer i128 carrier tests do not expand language int64.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 426,
+              "symbol": "wire_literal"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 429,
+              "symbol": "Decimal spelling"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 1607,
+              "symbol": "unsupported decimal emission"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 2131,
+              "symbol": "lower_arithmetic"
+            },
+            {
+              "path": "docs/specification/DESIGN.md",
+              "line": 219,
+              "symbol": "decimal domain/arithmetic"
+            },
+            {
+              "path": "docs/specification/DECISIONS.md",
+              "line": 1158,
+              "symbol": "C05M authored scale"
+            },
+            {
+              "path": "packages/values/src/internal/wire-core.ts",
+              "line": 1592,
+              "symbol": "encodeScalar"
+            },
+            {
+              "path": "packages/values/src/internal/wire-core.ts",
+              "line": 1600,
+              "symbol": "decimalToString"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-14"
+          ],
+          "issue": "migration_guard classification undercounts raw default embedding semantics.",
+          "correction": "Classify decoded literal/value embedding exactly once and correct Literal/Parent/Server/Derived tag behavior required_semantic, or split the row. Exact public fragment bytes are a separate accepted guard; RawValue mechanism is incidental representation. Public literal_json accepts a broader carrier than checked IR, so invalid/unpaired cases need qualified preconditions.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 388,
+              "symbol": "literal_json"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 794,
+              "symbol": "JsFieldDefault"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 811,
+              "symbol": "RawValue default embedding"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-15"
+          ],
+          "issue": "Distinct-key object order and repeated-key relative order cannot be treated uniformly.",
+          "correction": "Keep source order/duplicate emission accepted guard. Repeated-key relative order can change the decoded value at real JSON.parse consumers through last-wins behavior; distinct-key dictionary order is a different question. Literal metadata transport does not independently prove arbitrary effectful object evaluation ordering.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 415,
+              "symbol": "WireLiteral Object SerializeMap"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 445,
+              "symbol": "wire_literal Object"
+            },
+            {
+              "path": "docs/specification/DECISIONS.md",
+              "line": 1158,
+              "symbol": "C05M object order/duplicates"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-17"
+          ],
+          "issue": "migration_guard classification undercounts lazy factory and execution sequence obligations.",
+          "correction": "Lazy suite construction and table/statement execution order are required semantics for generated tests; whitespace/export spelling snapshots are accepted byte guards. Split or classify required_semantic with guarded representation portion. BDD byte fixtures remain insufficient runtime evidence.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/codegen/bdd.rs",
+              "line": 64,
+              "symbol": "suite factory"
+            },
+            {
+              "path": "compiler/src/codegen/bdd.rs",
+              "line": 151,
+              "symbol": "shell throwing behavior"
+            },
+            {
+              "path": "compiler/src/codegen/bdd.rs",
+              "line": 186,
+              "symbol": "emit suites"
+            },
+            {
+              "path": "packages/testkit/src/runner/loader.ts",
+              "line": 231,
+              "symbol": "loadExampleSuite"
+            },
+            {
+              "path": "packages/testkit/src/runner/table.ts",
+              "line": 81,
+              "symbol": "row execution"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-19"
+          ],
+          "issue": "migration_guard alone undercounts an explicit current public contract.",
+          "correction": "Classify public contract-order compact reference output required_bytes at the current API scope, with accepted migration history as supporting evidence. This does not imply perpetual language-level order or prohibit a future versioned revision. CLI renderer semantic minimum remains separate. Current no-newline bytes are accepted guard; compact rustdoc explicitly promises contract order.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/docs.rs",
+              "line": 1123,
+              "symbol": "ReferenceModel to_json_string contract order"
+            },
+            {
+              "path": "compiler/src/docs.rs",
+              "line": 1127,
+              "symbol": "to_json_string"
+            },
+            {
+              "path": "compiler/src/docs.rs",
+              "line": 1116,
+              "symbol": "public compatibility view"
+            },
+            {
+              "path": "compiler/src/cli.rs",
+              "line": 944,
+              "symbol": "direct reference payload"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "OUT-24",
+            "OUT-25"
+          ],
+          "issue": "Public String helper wrapper consumers are conflated with CLI use of the underlying Serialize implementation; migration_guard undercounts fixed-key public promises.",
+          "correction": "Record CLI as consumer of LintFix/FixRejected Serialize family, not direct caller of the three String wrappers. Their currently observed callers are tests/public API exposure. Classify explicit fixed-key helper contract required_bytes at current API scope, and retain newline/envelope fixtures as accepted guards. fixes_to_json preserves input slice order; collect_fixes additionally ties by title despite abbreviated rustdoc tuple.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/lint/driver.rs",
+              "line": 203,
+              "symbol": "collect_fixes sorting"
+            },
+            {
+              "path": "compiler/src/lint/driver.rs",
+              "line": 410,
+              "symbol": "fix_to_json fixed key order"
+            },
+            {
+              "path": "compiler/src/lint/driver.rs",
+              "line": 417,
+              "symbol": "keep key order stable"
+            },
+            {
+              "path": "compiler/src/lint/driver.rs",
+              "line": 423,
+              "symbol": "fixes_to_json slice order"
+            },
+            {
+              "path": "compiler/src/lint/driver.rs",
+              "line": 430,
+              "symbol": "rejected_to_json fixed key order"
+            },
+            {
+              "path": "compiler/src/cli.rs",
+              "line": 1693,
+              "symbol": "LintOutput"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "MAP-01",
+            "MAP-02",
+            "MAP-03"
+          ],
+          "issue": "Map arrays/public ordering and LSP coordinate use need scope clarification.",
+          "correction": "Keep byte-column source attribution distinct from LSP UTF16 conversion; LSP does not consume emitted sourcemaps, so EDITOR_LSP is a comparison, not a live map workflow endpoint. SourceMap public docs explicitly promise SourceDb ID source order and first-appearance names; coherent permutation may preserve decoded attribution but changes that current public promise. Outer member order/VLQ equivalent spelling guards are separate from array coherence and source content identity.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/codegen/sourcemap.rs",
+              "line": 13,
+              "symbol": "SourceMap"
+            },
+            {
+              "path": "compiler/src/codegen/sourcemap.rs",
+              "line": 18,
+              "symbol": "sources ID order"
+            },
+            {
+              "path": "compiler/src/codegen/sourcemap.rs",
+              "line": 22,
+              "symbol": "names first appearance"
+            },
+            {
+              "path": "compiler/src/codegen/sourcemap.rs",
+              "line": 32,
+              "symbol": "build"
+            },
+            {
+              "path": "compiler/src/source.rs",
+              "line": 137,
+              "symbol": "byte coordinate"
+            },
+            {
+              "path": "compiler/src/source.rs",
+              "line": 159,
+              "symbol": "UTF16 coordinate"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "MAP-04"
+          ],
+          "issue": "sourcemap_contract.rs47 is not a decode_mappings caller.",
+          "correction": "Remove that entry from public decoder real callers. It is an independent JS decoder oracle for emitted mappings. Actual decode_mappings callers include compiler/tests/codegen.rs126,3197,3216,3574 and inline sourcemap tests. test_only means currently observed in-repository usage, not proven unused externally; accepted C08 guard remains applicable.",
+          "exact_refs": [
+            {
+              "path": "compiler/src/codegen/sourcemap.rs",
+              "line": 155,
+              "symbol": "decode_mappings"
+            },
+            {
+              "path": "compiler/tests/codegen.rs",
+              "line": 126,
+              "symbol": "public decoder caller"
+            },
+            {
+              "path": "compiler/tests/codegen.rs",
+              "line": 3197,
+              "symbol": "public decoder caller"
+            },
+            {
+              "path": "compiler/tests/codegen.rs",
+              "line": 3216,
+              "symbol": "malformed public decoder caller"
+            },
+            {
+              "path": "compiler/tests/sourcemap_contract.rs",
+              "line": 47,
+              "symbol": "independent point oracle"
+            },
+            {
+              "path": "docs/specification/DECISIONS.md",
+              "line": 1234,
+              "symbol": "decoder compatibility"
+            }
+          ]
+        }
+      ],
+      "anchor_fixes": [
+        {
+          "ids": [
+            "OUT-01"
+          ],
+          "old_line": 87,
+          "correct": {
+            "path": "compiler/src/diagnostic.rs",
+            "line": 86,
+            "symbol": "DiagnosticResult"
+          }
+        },
+        {
+          "ids": [
+            "OUT-03"
+          ],
+          "old_line": 40,
+          "correct": {
+            "path": "compiler/src/json.rs",
+            "line": 39,
+            "symbol": "write_compatible_escape"
+          }
+        },
+        {
+          "ids": [
+            "OUT-04"
+          ],
+          "old_line": 345,
+          "correct": {
+            "path": "compiler/src/json.rs",
+            "line": 348,
+            "symbol": "render Str"
+          }
+        },
+        {
+          "ids": [
+            "OUT-05"
+          ],
+          "old_line": 72,
+          "correct": {
+            "path": "compiler/src/json.rs",
+            "line": 70,
+            "symbol": "Json declaration"
+          }
+        },
+        {
+          "ids": [
+            "OUT-06"
+          ],
+          "old_line": 349,
+          "correct": {
+            "path": "compiler/src/json.rs",
+            "line": 346,
+            "symbol": "render Num"
+          }
+        },
+        {
+          "ids": [
+            "OUT-13"
+          ],
+          "old_line": 431,
+          "correct": {
+            "path": "compiler/src/codegen/js.rs",
+            "line": 429,
+            "symbol": "Decimal spelling"
+          }
+        },
+        {
+          "ids": [
+            "OUT-13"
+          ],
+          "old_line": 2140,
+          "correct": {
+            "path": "compiler/src/codegen/js.rs",
+            "line": 2131,
+            "symbol": "lower_arithmetic"
+          }
+        },
+        {
+          "ids": [
+            "OUT-24"
+          ],
+          "old_line": 1690,
+          "correct": {
+            "path": "compiler/src/cli.rs",
+            "line": 1693,
+            "symbol": "LintOutput"
+          }
+        }
+      ],
+      "accepted_without_substantive_change": [
+        "OUT-04",
+        "OUT-10",
+        "OUT-16",
+        "OUT-18",
+        "OUT-20",
+        "OUT-21",
+        "OUT-22",
+        "OUT-23",
+        "MAP-05"
+      ],
+      "cross_cutting": [
+        "Accepted finite migration contracts remain obligations at their declared stage; lacking live parser sensitivity does not retrospectively void approval.",
+        "Public rustdoc/declared API properties apply at current API scope even with publish=false; path/git callers remain possible. No external nonusage proof was obtained.",
+        "Exact public bytes and semantics may coexist in one family. A parser using named fields only establishes that consumer minimum, not a waiver of explicit public field-order promises.",
+        "Every simplification remains PROPOSED inspection/versioned migration work; this review selects no new language, filesystem, protocol or package policy."
+      ],
+      "limitations": [
+        "Historical receipts and named tests are evidence only at their stated scope; no fresh tests were executed by this reviewer.",
+        "Original-app success, generated BDD runtime, installed/editor GUI and remote acceptance remain outside this challenge.",
+        "Package implementation was read only as needed to confirm concrete consumers; this is not the separate package owner full audit.",
+        "OUT-20 source revision hashes actual portable IDs and extracted source texts; those extractors include trimming and should not be described as arbitrary verbatim source-file hashing."
+      ]
+    },
+    "root": {
+      "scope": {
+        "reviewed": "/private/tmp/canlang-step4-root.json",
+        "rows": 27,
+        "mode": "Independent bounded current-source and declared-owner-contract review; no repository edits, builds, tests, runtime, network or JEV calls. Historical receipts are inherited qualifications only, not execution by this reviewer."
+      },
+      "verdict": "Accept the distinctions and proposed investigation scope after the corrections below. All 27 classifications are defensible at their declared bounded stage; required minima need caller-specific qualification for file no-op and position negotiation. Current accepted migration byte/behavior promises remain binding until explicitly released; this report does not release them.",
+      "accepted_rows": [
+        "LANG-01",
+        "STR-01",
+        "STR-02",
+        "VAL-01",
+        "VAL-02",
+        "VAL-03",
+        "VAL-04",
+        "VAL-05",
+        "VAL-06",
+        "VAL-07",
+        "HASH-01",
+        "FILE-01",
+        "FILE-02",
+        "FILE-03",
+        "FILE-04",
+        "FMT-01",
+        "CLI-01",
+        "CLI-02",
+        "CLI-03",
+        "CLI-04",
+        "POS-01",
+        "PATH-01",
+        "ICU-01",
+        "ICU-02",
+        "TEMP-01",
+        "GRAPH-01",
+        "ARCH-01"
+      ],
+      "corrections": [
+        {
+          "ids": [
+            "LANG-01"
+          ],
+          "kind": "authority anchor",
+          "correction": "DESIGN.md159 is the full invocation contract, not the expression section. Use 163 for Boolean short-circuit/operators, 167 for evaluate-once optional receiver and 169 for null-fallback order. Retain 159 separately for invocation authority."
+        },
+        {
+          "ids": [
+            "VAL-01",
+            "VAL-07"
+          ],
+          "kind": "authority anchor",
+          "correction": "DESIGN.md161 is a heading. URL/email scalar ownership is DESIGN.md109; expected validated-literal inhabitation is DESIGN.md165."
+        },
+        {
+          "ids": [
+            "STR-02"
+          ],
+          "kind": "source anchor",
+          "correction": "types.rs7801 is commentary; invalid_string_literal definition is 7802. Lexer lex_string447 is the actual E1006 owner for malformed/unterminated strings."
+        },
+        {
+          "ids": [
+            "VAL-03"
+          ],
+          "kind": "minimum qualification",
+          "correction": "Full tags must mean owner-admitted full tags, including known extension/private-use examples, rather than every syntactically well-formed BCP47 string. canonicalLocale locale.ts16 delegates to Intl.getCanonicalLocales. Compiler heuristic15394 cannot establish complete owner parity."
+        },
+        {
+          "ids": [
+            "VAL-06"
+          ],
+          "kind": "authority and defining owner",
+          "correction": "DESIGN.md223 is unrelated flatten guidance. Use DESIGN.md111 for IANA identity and925 for pinned-data requirement. Add packages/values/src/timezone.ts50 isTimezone, with docs46-48: current membership is host Intl database, case-insensitive admission retaining authored string. internal/wire-core.ts518 calls that owner. Do not claim current host data is already a proven language-version-pinned database."
+        },
+        {
+          "ids": [
+            "HASH-01",
+            "PATH-01"
+          ],
+          "kind": "source anchor",
+          "correction": "docs.rs967 defines source_revision;972 is an interior expression, and no workspace_revision symbol exists there. source.rs183 documents lowercase hex and185 exact input bytes;184 is blank doc line."
+        },
+        {
+          "ids": [
+            "FILE-01",
+            "FILE-02"
+          ],
+          "kind": "actual caller behavior",
+          "correction": "Scope equal-output/no-op/link-preservation to fmt (cli.rs1330-1336). docs always calls write_file_atomic(...,None) at954 after rendering, even if rendered bytes equal current destination. Do not promise docs equal bytes preserve inode/symlink. The selected changed docs entry replacement, mode/noclobber and bounded checks remain accepted policy."
+        },
+        {
+          "ids": [
+            "FILE-02",
+            "FILE-03"
+          ],
+          "kind": "authority anchor",
+          "correction": "Pass4 files/contract.md20 is changed symlink,21 no-op symlink,22 hardlink; cite these separately.29 is blank; concurrent edits are27 and whole-invocation/durability limits28."
+        },
+        {
+          "ids": [
+            "FMT-01"
+          ],
+          "kind": "authority anchor",
+          "correction": "implementation/DIAGNOSTICS.md31 is the fixes/formatting contract;33 is measurements. Preserve its idempotence/content/indentation requirements and current formatter byte release guards separately."
+        },
+        {
+          "ids": [
+            "POS-01"
+          ],
+          "kind": "current behavior versus capability",
+          "correction": "LineIndex conversion docs start source.rs132, not130. Public LineIndex::to_lsp159 supports a UTF16 boolean (false selects byte units), but the live server declares UTF16 and uses UTF16 paths; avoid describing live UTF8 negotiation as established. Public conversion support remains an exported API obligation even without a current UTF8 server consumer."
+        },
+        {
+          "ids": [
+            "ICU-01",
+            "ICU-02"
+          ],
+          "kind": "actual checker owner",
+          "correction": "message_slots is types.rs7842, not7844; scan_argument7872 gathers argument slots rather than owning the full ICU profile. Add analysis/examples.rs528 check_message_value (doc525-527, source/variant E5007 driver) and3034 icu_error as compiler structural/profile admission. Preserve types slot/type consumers separately. Runtime icu.ts136 remains public descriptor owner."
+        },
+        {
+          "ids": [
+            "TEMP-01"
+          ],
+          "kind": "source anchor",
+          "correction": "valid_date is types.rs15494; valid_datetime15521; runtime datetime is temporal.ts218, not206 (date return). temporal.ts189 date is correct."
+        }
+      ],
+      "additional_compatibility_gap": {
+        "family": "Public migration-check admission and generated migration lineage/directive constraints",
+        "anchors": [
+          {
+            "path": "compiler/src/analysis/mod.rs",
+            "line": 32,
+            "symbol": "pub mod migrate_check"
+          },
+          {
+            "path": "compiler/src/analysis/migrate_check.rs",
+            "line": 188,
+            "symbol": "pub fn check_migration"
+          },
+          {
+            "path": "compiler/src/codegen/ir.rs",
+            "line": 4964,
+            "symbol": "check_migration before migration IR emission"
+          }
+        ],
+        "finding": "LANG/GRAPH broadly cover admission and OUT migration digest covers bytes, but do not explicitly classify this public checker input/precondition and actual compile admission family. Record a dependent gap or bounded row for owner/from snapshots, model/field lineage, duplicate predecessors and conflicting directives. Required language/schema outcomes must be separated from optional snapshot carrier/algorithm and exact diagnostic prose. No migration runtime execution or complete lineage correctness follows from this trace."
+      },
+      "limits_and_retained_gates": [
+        "No alternative library, graph witness policy, top-level ICU pound policy, temporal private linkage or locale canonical identity policy selected. Existing G09-1/JEV and ICU dependent-choice blocks remain unresolved.",
+        "Source-current statements and required owner outcomes are separate: compiler timezone/locale heuristics and host data do not prove owner parity. Known invalid behavior is not automatically grandfathered, but a classification is not permission to change the API.",
+        "Current accepted migration comparison promises are still current promises. Calling exact CLI prose/precedence, formatter bytes or chosen path walks migration guards supports a later explicit release proposal, not silent relaxation today.",
+        "Exported Rust/public package APIs retain compatibility risk even when tests are the only found caller or Cargo publish=false. Unfound external callers remain unqualified.",
+        "The combined output/map and input/LSP packets cover serializers, wire scalar carriers, source maps, public JSON helpers and transport. This bounded root review is not exhaustive language admission, dependency/data provenance or platform OS certification."
+      ]
+    }
+  },
+  "correction_policy": "all reviewer refinements integrated or preserved as explicit mixed-scope qualification",
+  "final_artifact_review": "pending"
+}
