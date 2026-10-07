@@ -166,22 +166,19 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "DEL-A01-binding",
-      "state": "candidate released; independent review active",
-      "agent": "/root/impl_form_own_keys",
-      "reviewer": "/root/review_ui_appearance"
+      "id": "TECH-S01",
+      "state": "exact ACK; private backend leaf equivalence implementation active",
+      "agent": "/root/review_ui_appearance"
     },
     {
       "id": "DEL-A01-admission",
       "state": "exact ACK; duplicate leaf implementation active",
-      "agent": "/root/impl_form_own_keys",
-      "reviewer": null
+      "agent": "/root/impl_form_own_keys"
     },
     {
       "id": "VERIFY-TV01",
       "state": "independent discovery diagnosis released; Identity/Work exact manifest/resource repairs active; Values provenance separate",
-      "agent": "/root/review_test_discovery",
-      "reviewer": null
+      "agent": "/root/review_test_discovery"
     }
   ],
   "packet_state": {
@@ -274,7 +271,7 @@
     },
     "TECH-S01": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "exact ACK; private backend leaf equivalence implementation active",
       "files": [
         "packages/state/src/storage/d1.ts",
         "packages/state/src/storage/durable-object.ts",
@@ -285,7 +282,11 @@
         "packages/state/src/policy/grants.ts",
         "packages/state/src/storage/sqlite-codecs.ts",
         "packages/state/src/internal/own-data.ts"
-      ]
+      ],
+      "agent": "/root/review_ui_appearance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Known mechanical profile comparison across released State owners; substantive security packet remains separate"
     },
     "TECH-S01-own-key": {
       "planning_status": "blocked",
@@ -629,7 +630,7 @@
     },
     "TECH-V02-violations": {
       "planning_status": "ready",
-      "state": "accepted private-leaf reduction; committing",
+      "state": "accepted private-leaf reduction; committed",
       "files": [
         "packages/values/src/internal/schema-core.ts",
         "packages/values/src/internal/wire-core.ts",
@@ -638,7 +639,8 @@
       "agent": "/root/review_ui_appearance",
       "review": "violations-independent-review.json",
       "readable_reduction": 16,
-      "full_closure_reduction": 12
+      "full_closure_reduction": 12,
+      "commit": "85fd8c2"
     },
     "TECH-V02-gregorian": {
       "planning_status": "ready",
@@ -726,7 +728,7 @@
     },
     "DEL-A01-binding": {
       "planning_status": "ready",
-      "state": "candidate released; independent review active",
+      "state": "accepted private-leaf reduction; committing",
       "files": [
         "packages/interfaces/src/envelope/prepared.ts",
         "packages/interfaces/src/mcp/prepared.ts"
@@ -735,7 +737,10 @@
       "model": "gpt-6.1-sol",
       "effort": "low",
       "reason": "Frozen duplicate private mechanics with construction/error controls; independent Sol medium review planned",
-      "reviewer": "/root/review_ui_appearance"
+      "reviewer": "/root/review_ui_appearance",
+      "review": "prepared-binding-independent-review.json",
+      "readable_reduction": 15,
+      "full_closure_reduction": 12
     },
     "DEL-A01-admission": {
       "planning_status": "ready",
@@ -779,5 +784,15 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:09:34.418428+00:00"
+  "updated_utc": "2026-10-07T19:11:37.541327+00:00",
+  "critical_security_review": {
+    "state": "exact payload approved; Astra high review active",
+    "agent": "/root/critical_package_security",
+    "model": "gpt-6-astra",
+    "effort": "high",
+    "payload_sha256": "5e38ac5a4107eea2e2c4f3c920b636da7ddc2062f8c4f6ed2e0e3e1bf68c393b",
+    "reason": "Existing required persisted-security independent gate; not a routine leaf review",
+    "approval": "human: Approve scoped review",
+    "acceptance": "pending actual review and root source-current join adjudication"
+  }
 }

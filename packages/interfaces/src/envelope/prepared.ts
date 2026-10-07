@@ -34,6 +34,7 @@ import type {
   DerivedOperationInputs,
   DerivedWritableInput,
 } from '@canlang/contracts';
+import { toBindingEntry } from '../internal/prepared-binding.js';
 import type { OperationInputShape } from '../ports.js';
 import { checkBoundArguments } from '../mcp/schemas.js';
 import { checkClosedInputs } from './validate.js';
@@ -80,25 +81,6 @@ export type PreparedHttpOutcome =
   | { readonly ok: true; readonly inputs: ClosedInputs }
   | { readonly ok: false; readonly error: BusinessError };
 
-function deferralFor(input: DerivedWritableInput): PreparedDeferral {
-  if (input.kind === 'string') return 'string-values';
-  if (input.kind === 'boolean') return 'boolean-values';
-  if (input.kind === 'money') return 'currency-code';
-  return 'bound';
-}
-
-function toBindingEntry(input: DerivedWritableInput): PreparedBindingEntry {
-  return Object.freeze({
-    name: input.name,
-    kind: input.kind,
-    required: input.required,
-    nullable: input.nullable === true,
-    array: input.array !== undefined,
-    versioned: input.versioned === true,
-    enumValues: input.enumValues === undefined ? null : Object.freeze([...input.enumValues]),
-    deferral: deferralFor(input),
-  });
-}
 
 /**
  * Prepare the framing/binding plan for one operation from its dispatch
