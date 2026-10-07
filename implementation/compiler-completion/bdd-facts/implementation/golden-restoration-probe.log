@@ -1,0 +1,31 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.67s
+     Running tests/codegen.rs (compiler/target/debug/deps/codegen-05d37f97ce2b7725)
+
+running 1 test
+test golden_expenseflow_structure ... FAILED
+
+failures:
+
+---- golden_expenseflow_structure stdout ----
+
+thread 'golden_expenseflow_structure' (1875763) panicked at tests/codegen.rs:1210:5:
+sequence binding consumes checked first/query facts:
+// Test-only example artifact: erased from production bundles.
+import { first, hasRole, money, records, same } from "@canlang/stdlib";
+export function exampleFixtures({self,other,imported}){
+const $can$f$72657669657765725f6f6e65={dependencies:[],user:async(c,s)=>({roles:["expenses.reviewer"]})};
+const $can$f$72657669657765725f74776f={dependencies:[],user:async(c,s)=>({roles:["expenses.reviewer"]})};
+const $can$f$70656e64696e67={model:"expenses.Expense",dependencies:[],value:async(c,s)=>({purpose:"Travel",amount:money(25n,"EUR"),submitted_by:other,status:"submitted"})};
+return {fixtures:{["reviewer_one"]:$can$f$72657669657765725f6f6e65,["reviewer_two"]:$can$f$72657669657765725f74776f,["pending"]:$can$f$70656e64696e67},examples:[{operation:"expenses.approve",dependencies:[$can$f$70656e64696e67],inputs:async(c,s)=>({expense:s.pending}),selectors:["as","expense.status","expense.submitted_by"],observations:[async(c,s)=>s.pending.status,async(c,s)=>s.pending.decided_by],rows:[{dependencies:[],values:async(c,s)=>(["expenses.reviewer","submitted",other]),expected:async(c,s)=>(["approved",self])},{dependencies:[],values:async(c,s)=>(["expenses.reviewer","draft",other]),error:"rule_failed"},{dependencies:[],values:async(c,s)=>(["members","submitted",other]),error:"forbidden"},{dependencies:[],values:async(c,s)=>(["expenses.reviewer","submitted",self]),error:"rule_failed"}]},{operation:"expenses.approve",dependencies:[$can$f$72657669657765725f6f6e65,$can$f$72657669657765725f74776f,$can$f$70656e64696e67],inputs:async(c,s)=>({expense:s.pending}),selectors:["as"],observations:[async(c,s)=>s.pending.status,async(c,s)=>s.pending.decided_by,async(c,s)=>hasRole(c,"expenses.reviewer",s.reviewer_one),async(c,s)=>hasRole(c,"expenses.reviewer",s.reviewer_two)],rows:[{dependencies:[],values:async(c,s)=>([s.reviewer_one]),expected:async(c,s)=>(["approved",s.reviewer_one,true,true])},{dependencies:[],values:async(c,s)=>([s.reviewer_two]),expected:async(c,s)=>(["approved",s.reviewer_two,true,true])}]},{operation:"expenses.approve",dependencies:[$can$f$72657669657765725f6f6e65,$can$f$72657669657765725f74776f],sequence:[{operation:"expenses.Expense.create",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:"Travel",amount:money(25n,"EUR")})},{let:"draft_claim",value:async(c,s,b)=>(await first(await records(c,"expenses.Expense",{where:($can$l$303a726f77)=>same($can$l$303a726f77.submitted_by,other)})))},{observations:async(c,s,b)=>([b.draft_claim !== null]),expected:async(c,s,b)=>([true]),types:["bool"]},{let:"original_version",value:async(c,s,b)=>(b.draft_claim?.version)},{operation:"expenses.submit",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({expense:b.draft_claim})},{let:"submitted_claim",value:async(c,s,b)=>(await first(await records(c,"expenses.Expense",{where:($can$l$313a726f77)=>$can$l$313a726f77.id === b.draft_claim?.id})))},{observations:async(c,s,b)=>([b.submitted_claim !== null]),expected:async(c,s,b)=>([true]),types:["bool"]},{observations:async(c,s,b)=>([b.submitted_claim?.status]),expected:async(c,s,b)=>(["submitted"]),types:["expenses.Expense.status"]},{operation:"expenses.approve",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({expense:b.submitted_claim}),error:"forbidden"},{observations:async(c,s,b)=>([b.submitted_claim?.status]),expected:async(c,s,b)=>(["submitted"]),types:["expenses.Expense.status"]},{operation:"expenses.approve",by:async(c,s,b)=>(s.reviewer_one),inputs:async(c,s,b)=>({expense:b.submitted_claim}),request:async(c,s,b)=>({expense:{version:b.original_version}}),error:"conflict"},{operation:"expenses.approve",by:async(c,s,b)=>(s.reviewer_one),inputs:async(c,s,b)=>({expense:b.submitted_claim})},{let:"approved_claim",value:async(c,s,b)=>(await first(await records(c,"expenses.Expense",{where:($can$l$323a726f77)=>$can$l$323a726f77.id === b.draft_claim?.id})))},{observations:async(c,s,b)=>([b.approved_claim !== null]),expected:async(c,s,b)=>([true]),types:["bool"]},{observations:async(c,s,b)=>([b.approved_claim?.status,b.approved_claim?.decided_by]),expected:async(c,s,b)=>(["approved",s.reviewer_one]),types:["expenses.Expense.status","user?"]},{operation:"expenses.approve",by:async(c,s,b)=>(s.reviewer_two),inputs:async(c,s,b)=>({expense:b.approved_claim}),error:"rule_failed"},{observations:async(c,s,b)=>([b.approved_claim?.status,b.approved_claim?.decided_by]),expected:async(c,s,b)=>(["approved",s.reviewer_one]),types:["expenses.Expense.status","user?"]}]}]};
+}
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    golden_expenseflow_structure
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 116 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `--test codegen`

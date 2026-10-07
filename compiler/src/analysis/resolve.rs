@@ -3899,7 +3899,7 @@ impl<'a> Resolver<'a> {
         }
         for child in kids(node) {
             if child.kind == SyntaxKind::Examples {
-                self.resolve_example_headers(text, module, root, child, diags);
+                self.resolve_example_headers(text, module, root, root, child, diags);
             }
         }
     }
@@ -3999,20 +3999,44 @@ impl<'a> Resolver<'a> {
             let _ = &mut scope;
             self.resolve_execution(text, module, scope, node, diags);
         }
+        let example_root = self.new_scope(Some(root));
+        if let Some(ScopedName::Local(id)) =
+            name.as_deref().and_then(|n| self.lookup_prod(module, n))
+        {
+            self.tables.scopes[example_root.0 as usize].bindings.insert(
+                "result".into(),
+                Binding::Context(ContextVar::Result {
+                    scenario: Some(id),
+                    crud_op: None,
+                }),
+            );
+        }
+        if trusted {
+            self.tables.scopes[example_root.0 as usize]
+                .bindings
+                .insert("event".into(), Binding::Context(ContextVar::Event));
+        }
+        for param in &params {
+            self.tables.scopes[example_root.0 as usize].bindings.insert(
+                self.tables.symbols[param.0 as usize].name.clone(),
+                Binding::Symbol(*param),
+            );
+        }
         for child in kids(node) {
             if child.kind == SyntaxKind::Examples {
-                self.resolve_example_headers(text, module, root, child, diags);
+                self.resolve_example_headers(text, module, example_root, root, child, diags);
             }
         }
     }
 
-    /// Resolve `examples` header bindings (fixture/name resolution only;
-    /// table cells and sequences are PR5).
+    /// Resolve the lexical expression scopes of examples. E5 retains
+    /// selector/caller vocabulary and operation envelope validation.
     fn resolve_example_headers(
         &mut self,
         text: &'a str,
         module: ModuleId,
         root: ScopeId,
+        header_root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
     ) {
@@ -4021,13 +4045,148 @@ impl<'a> Resolver<'a> {
         }
         let test_root = self.test_root(module, root);
         let scope = self.with_facts(test_root, ActorKind::NonNull, true, false);
+        // Common values resolve in the fixture/production namespace before
+        // action input bindings become available to selectors/observations.
+        let header_test_root = self.test_root(module, header_root);
+        let header_scope = self.with_facts(header_test_root, ActorKind::NonNull, true, false);
         for child in kids(node) {
             if child.kind == SyntaxKind::Attribute
-                && let Some((_, value)) = attribute_parts(child)
+                && let Some((key, value)) = attribute_parts(child)
             {
-                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags);
+                self.walk_expr(module, header_scope, value, text, ExprCtx::bare(), diags);
+                if let Some(name) = name_text(key, text)
+                    && name != "seed"
+                    && self
+                        .tables
+                        .resolve_name(scope, name, self.catalog)
+                        .is_none()
+                    && let Some(binding) =
+                        self.tables.node_binding.get(&NodeKey::of(value)).cloned()
+                {
+                    self.tables.scopes[scope.0 as usize]
+                        .bindings
+                        .insert(name.to_string(), binding);
+                }
             }
         }
+        // General row/sequence expressions retain their existing runner/E5
+        // unresolved-name ownership. The common walker still publishes every
+        // known lexical binding, query alias and expression scope.
+        let unresolved_before = self.tables.unresolved_names.len();
+        let rows: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::ExampleRow)
+            .collect();
+        for (index, row) in rows.iter().enumerate() {
+            let mut expected = false;
+            for part in kids(row) {
+                if is_punct(part, text, "->") {
+                    expected = true;
+                }
+                // Resolve only input selectors with a known lexical root; E5 owns
+                // selector vocabulary, request envelopes and caller profiles.
+                if index == 0 && !expected && is_expression(part.kind) {
+                    let mut root_node = part;
+                    while root_node.kind == SyntaxKind::Member {
+                        if let Some(base) =
+                            kids(root_node).into_iter().find(|n| is_expression(n.kind))
+                        {
+                            root_node = base;
+                        } else {
+                            break;
+                        }
+                    }
+                    if let Some(word) = kids(root_node).into_iter().find_map(|n| name_text(n, text))
+                        && word != "as"
+                        && word != "request"
+                        && self
+                            .tables
+                            .resolve_name(scope, word, self.catalog)
+                            .is_some()
+                    {
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                    }
+                }
+                if is_expression(part.kind) && (index != 0 || expected) {
+                    // Caller selectors (roles, predicates and arrays) have their own E5 profile.
+                    let caller_column = index != 0
+                        && !expected
+                        && rows.first().is_some_and(|header| {
+                            let inputs: Vec<_> = kids(header)
+                                .into_iter()
+                                .take_while(|n| !is_punct(n, text, "->"))
+                                .filter(|n| is_expression(n.kind))
+                                .collect();
+                            let cells: Vec<_> = kids(row)
+                                .into_iter()
+                                .take_while(|n| !is_punct(n, text, "->"))
+                                .filter(|n| is_expression(n.kind))
+                                .collect();
+                            cells
+                                .iter()
+                                .position(|n| NodeKey::of(n) == NodeKey::of(part))
+                                .and_then(|i| inputs.get(i))
+                                .is_some_and(|n| {
+                                    text[n.span.start as usize..n.span.end as usize].trim() == "as"
+                                })
+                        });
+                    if !caller_column {
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                    }
+                }
+            }
+        }
+        if let Some(body) = kids(node)
+            .into_iter()
+            .find(|n| n.kind == SyntaxKind::DoBlock)
+        {
+            let mut active = self.new_scope(Some(scope));
+            for step in kids(body) {
+                match step.kind {
+                    SyntaxKind::Let => self.walk_statement(text, module, active, step, diags),
+                    SyntaxKind::ExampleAssert => {
+                        for part in kids(step) {
+                            if is_expression(part.kind) {
+                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags);
+                            }
+                        }
+                    }
+                    SyntaxKind::ExampleCall => {
+                        let parts = kids(step);
+                        let target = parts.iter().find(|n| is_expression(n.kind)).copied();
+                        if let Some(target) = target {
+                            self.walk_expr(module, active, target, text, ExprCtx::bare(), diags);
+                        }
+                        for part in &parts {
+                            if part.kind == SyntaxKind::Object {
+                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags);
+                            }
+                        }
+                        let next = self.new_scope(Some(active));
+                        if let Some(target) = target {
+                            self.bind_result(module, text, next, target);
+                            if parts.iter().any(|n| n.kind == SyntaxKind::ExpectedError) {
+                                self.tables.scopes[next.0 as usize]
+                                    .bindings
+                                    .insert("result".into(), Binding::Error);
+                            } else if let Some((name, _)) = as_binding(step, text) {
+                                let binding = self.tables.scopes[next.0 as usize]
+                                    .bindings
+                                    .get("result")
+                                    .cloned()
+                                    .unwrap_or(Binding::Error);
+                                self.tables.scopes[next.0 as usize]
+                                    .bindings
+                                    .insert(name, binding);
+                            }
+                        }
+                        active = next;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        self.tables.unresolved_names.truncate(unresolved_before);
     }
 
     /// Walk leading guards and the `do` body with `scope`.

@@ -1,0 +1,17 @@
+app SequenceAlias
+use Provider {take as alias}
+Given
+When
+ scenario echo(value:text) read=true -> text by=members
+  do return value
+  examples
+   do
+    let word="A"
+    call echo {value=word} by=self
+    alias(b="B",a=word) -> "A|B"
+Then
+package Provider
+ Given
+  export derive take(a:text="D",b:text=a):text = format("{a}|{b}",{a=a,b=b})
+ When
+ Then

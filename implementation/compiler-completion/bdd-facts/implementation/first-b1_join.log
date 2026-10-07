@@ -1,0 +1,21 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+error: expected `,`, found `-`
+    --> src/codegen/js.rs:3473:35
+     |
+3473 |                 format!("{value}+"-"+encodeURIComponent(JSON.stringify([{}]))", occurrences.join(","))
+     |                                   ^ expected `,`
+
+error[E0533]: expected value, found struct variant `IrExpr::Unsupported`
+    --> src/codegen/ir.rs:5809:25
+     |
+5809 |                         IrExpr::Unsupported("missing tab caption".to_string()),
+     |                         ^^^^^^^^^^^^^^^^^^^ not a value
+     |
+help: you might have meant to create a new value of the struct
+     |
+5809 -                         IrExpr::Unsupported("missing tab caption".to_string()),
+5809 +                         IrExpr::Unsupported { what: /* value */, why: /* value */ },
+     |
+
+For more information about this error, try `rustc --explain E0533`.
+error: could not compile `canlang-compiler` (lib) due to 2 previous errors

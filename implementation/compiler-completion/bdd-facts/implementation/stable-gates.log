@@ -1,0 +1,32 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.02s
+     Running tests/b1_join.rs (compiler/target/debug/deps/b1_join-b34516eeaf75961f)
+
+running 2 tests
+test b1_teamtasks_artifact ... ok
+test b2_expenseflow_artifact ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/bdd_checked_facts.rs (compiler/target/debug/deps/bdd_checked_facts-afeefbf791508b04)
+
+running 1 test
+test original_expenseflow_publishes_bdd_calls_and_sequence_observation_types ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/selected_calls.rs (compiler/target/debug/deps/selected_calls-a1c0b73248fb7a6d)
+
+running 2 tests
+test missing_checked_binding_has_no_catalog_reconstruction_fallback ... ok
+test production_selected_calls_execute_actual_facades ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+
+     Running tests/ui_adapter.rs (compiler/target/debug/deps/ui_adapter-fe16f8d43bfc14e7)
+
+running 1 test
+test literal_card_and_transient_tabs_reach_actual_factory ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+

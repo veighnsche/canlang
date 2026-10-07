@@ -4228,6 +4228,102 @@ impl<'a> Typer<'a> {
                 self.expr(&cx, value, expect);
             }
         }
+        // Headers retain their type-owned unresolved diagnostics; general
+        // BDD expression values retain the runner's diagnostic profile.
+        let unresolved_before = self.types.unresolved_names.len();
+        let rows: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::ExampleRow)
+            .collect();
+        let mut observation_types = Vec::new();
+        let mut input_types = Vec::new();
+        for (index, row) in rows.iter().enumerate() {
+            let mut expected = false;
+            let mut column = 0;
+            for part in kids(row) {
+                if is_punct(part, text, "->") {
+                    expected = true;
+                    column = 0;
+                }
+                if !is_expression(part.kind) {
+                    continue;
+                }
+                if index == 0 {
+                    if expected {
+                        observation_types.push(self.expr(&cx, part, None));
+                    } else {
+                        input_types.push(self.expr(&cx, part, None));
+                    }
+                } else {
+                    let expectation = if expected {
+                        observation_types.get(column).cloned()
+                    } else {
+                        input_types.get(column).cloned()
+                    };
+                    self.expr(&cx, part, expectation);
+                }
+                column += 1;
+            }
+        }
+        if let Some(body) = kids(node)
+            .into_iter()
+            .find(|n| n.kind == SyntaxKind::DoBlock)
+        {
+            let mut env = NarrowEnv::default();
+            for step in kids(body) {
+                let cx = Ctx {
+                    module,
+                    file,
+                    text,
+                    narrow: &env,
+                    strict: false,
+                    server_default: false,
+                };
+                match step.kind {
+                    SyntaxKind::Let => self.stmt_let(&cx, step),
+                    SyntaxKind::ExampleCall => {
+                        for part in kids(step) {
+                            if part.kind == SyntaxKind::Object {
+                                self.expr(&cx, part, None);
+                            }
+                        }
+                    }
+                    SyntaxKind::ExampleAssert => {
+                        let mut expected = false;
+                        let mut observations: Vec<(&SyntaxNode, ResolvedType)> = Vec::new();
+                        let mut column = 0;
+                        let mut refinements = NarrowEnv::default();
+                        for part in kids(step) {
+                            if is_punct(part, text, "->") {
+                                expected = true;
+                            }
+                            if !is_expression(part.kind) {
+                                continue;
+                            }
+                            if expected {
+                                self.expr(
+                                    &cx,
+                                    part,
+                                    observations.get(column).map(|(_, ty)| ty.clone()),
+                                );
+                                if text[part.span.start as usize..part.span.end as usize].trim()
+                                    == "true"
+                                    && let Some((observed, _)) = observations.get(column)
+                                {
+                                    refinements.extend(self.extract_narrow(&cx, observed, false));
+                                }
+                                column += 1;
+                            } else {
+                                observations.push((part, self.expr(&cx, part, None)));
+                            }
+                        }
+                        env.extend(refinements);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        self.types.unresolved_names.truncate(unresolved_before);
     }
 
     // --- Phase 2: labels, messages and captions -------------------------

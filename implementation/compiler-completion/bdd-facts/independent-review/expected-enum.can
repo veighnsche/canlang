@@ -1,0 +1,11 @@
+app TypedCells
+Given
+ Item { status:enum(draft,ready)=draft }
+ fixture item=Item {}
+When
+ scenario echo(item:Item) read=true -> Item.status by=members
+  do return item.status
+  examples item=item
+   item.status -> item.status
+   ready -> ready
+Then

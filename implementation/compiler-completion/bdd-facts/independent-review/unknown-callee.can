@@ -1,0 +1,21 @@
+app BddIndependent
+Given
+ contract Answer { text:text, ok:bool }
+When
+ scenario echo(value:text) read=true -> text by=members
+  do return value
+  examples
+   value -> missing_observation(result)
+   lower(value="HI") -> lower(value="HI")
+  examples
+   do
+    let original=lower(value="HI")
+    call echo {value=original} by=self as saved
+    lower(value=saved),missing_observation(result) -> "hi","hi"
+    call flag {value=true} by=self
+    saved,result -> "hi",true
+    let later=lower(value=saved)
+    later -> "hi"
+ scenario flag(value:bool) read=true -> bool by=members
+  do return value
+Then

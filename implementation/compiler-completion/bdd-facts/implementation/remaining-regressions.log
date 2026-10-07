@@ -1,0 +1,184 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests/b4_examples.rs (compiler/target/debug/deps/b4_examples-d17d793d1dc0add8)
+
+running 25 tests
+test header_non_case_still_e2001 ... ok
+test t02_completion_body_sees_typed_envelope ... ok
+test header_enum_case_elides_like_fixture ... ok
+test t02_preferences_invariant_guarded_actor_accepted ... ok
+test t02_preferences_invariant_nullable_actor_rejected ... ok
+test minimal_table_rows_emit_expected_and_error ... ok
+test t02_derive_pure_accepted ... ok
+test t02_derive_state_read_builtin_rejected ... ok
+test t35r24_completion_result_version_observable ... ok
+test t35r24_contained_parent_rejected ... ok
+test t35r24_parent_midpath_navigates ... ok
+test t35r24_event_value_id_observable ... ok
+test t35r24_event_value_version_observable ... ok
+test t35r24_provenance_key_parent ... ok
+test t35r24_provenance_key_payload_vs_stored ... ok
+test t35r24_stored_created_rejected ... ok
+test t35r24_stored_id_rejected ... ok
+test t35r24_stored_version_rejected ... ok
+test t36_report_parent_override_resolved ... ok
+test t35r24_desk139_value_id_observable ... ok
+test canfeedback_176_planned_elides ... ok
+test caninbox_header_routine_parity ... ok
+test canfeedback_tables_row_parity ... ok
+test caninbox_tables_row_parity ... ok
+test t35r24_propose_result_and_value_version_observable ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests/bdd_binding_runtime.rs (compiler/target/debug/deps/bdd_binding_runtime-7f66ea5153eb937e)
+
+running 1 test
+test fixture_bindings_and_suite_paths_execute_through_testkit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+     Running tests/codegen.rs (compiler/target/debug/deps/codegen-05d37f97ce2b7725)
+
+running 117 tests
+test a2a_action_external_targets_lower_to_schema ... ok
+test a2b_composite_unique_emits_sparse_member_and_registry_rule ... ok
+test a2b_named_args_lower_positionally_in_signature_order ... ok
+test a2a_for_limit_checks_length_then_loops ... ok
+test a2a_derive_call_lowers_to_awaited_named_fn ... ok
+test a2a_page_poll_refresh_lower_to_descriptor ... ok
+test a2b_require_desugars_to_admit_and_gate ... ok
+test construct_delivery ... ok
+test construct_defaults ... ok
+test construct_effects ... ok
+test construct_fixtures_and_recipes ... ok
+test construct_guards ... ok
+test construct_messages_and_format ... ok
+test a2b_ui_profiles_lower_to_factories ... ok
+test construct_page_admit_returns_preference_defaults ... ok
+test construct_page_preferences_preamble_reads_bindings ... ok
+test construct_models_and_grants ... ok
+test construct_sequences ... ok
+test construct_pages_admit_render ... ok
+test construct_tables ... ok
+test construct_ui_factories ... ok
+test construct_ui_gate_ternary ... ok
+test construct_scalars_per_op ... ok
+test construct_value_query ... ok
+test catalog_profile_violations_stay_loud ... ok
+test d03_attached_and_legacy_feed_same_slot ... ok
+test d03_inline_field_variants_emit_source_only ... ok
+test d03_inline_param_desc_reaches_mcp_source ... ok
+test d03_empty_desc_stays_present ... ok
+test catalog_factories_lower_from_source ... ok
+test d03_message_reference_resolves_to_source ... ok
+test derive_result_resolves_from_symbol_results ... ok
+test d03_undescribed_inputs_omit_member ... ok
+test f6_missing_bind_emits_null ... ok
+test f6_both_spellings_emit_cohort_descriptors ... ok
+test f6_no_cohort_emits_no_member ... ok
+test f6_invalid_cohort_emits_no_descriptor ... ok
+test gap_helper_divide_decimal_shapes ... ok
+test gap_helper_add_decimal ... ok
+test gap_helper_divide_money ... ok
+test gap_helper_multiply_decimal ... ok
+test gap_helper_negate_decimal ... ok
+test gap_helper_scalar_money_product ... ok
+test form_fields_unknown_op_stays_loud ... ok
+test gap_helper_subtract_decimal ... ok
+test omission_marker_flows_from_spelling_to_descriptor ... ok
+test requires_pins_catalog_and_families ... ok
+test c01_lexer_strings_reach_literal_metadata_and_message_lowering ... ok
+test sourcemap_emitted_fixture_plain_snippet ... ok
+test sourcemap_mappings_round_trip ... ok
+test sequence_as_binding_decodes ... ok
+test refuses_incomplete_analysis_without_ack ... ok
+test t15a_callable_identity ... ok
+test t15a_field_default_mapping ... ok
+test t15a_literal_json_exactness ... ok
+test t15a_model_field_tags ... ok
+test t15a_models_shape_end_to_end ... ok
+test t15a_negative_duplicate_record_name ... ok
+test t15a_negative_exotic_omits_operation_only ... ok
+test t15a_operation_inputs_carry_arrays_defaults_nullable ... ok
+test form_fields_default_to_model_schema ... ok
+test t15a_negative_kinds_closed ... ok
+test t15a_parent_path_extraction ... ok
+test awaited_follows_catalog_effects ... ok
+test t15a_structural_literal_default ... ok
+test t15b_delivery_descriptor_helper ... ok
+test t15b_model_delivery_end_to_end ... ok
+test t15a_ownership_and_recursion ... ok
+test t15b_closed_kinds_with_delivery ... ok
+test t15a_parent_defaults_delete_modes_derived ... ok
+test t15b_recipe_join_negatives_stay_shelled ... ok
+test t15b_no_regress_t15a_mixed ... ok
+test t15b_std_delivery_model_tags ... ok
+test t15b_operation_input_delivery_end_to_end ... ok
+test t18_child_create_parent_input ... ok
+test t15a_example_separation ... ok
+test t18_server_init_mapping ... ok
+test t18_r27_server_owned_checker ... ok
+test t31_before_after_reads_legal ... ok
+test t15b_recipe_join_std ... ok
+test t18_server_init_end_to_end ... ok
+test t31_cross_model_staging_legal ... ok
+test t31_before_snapshot_write_rejected ... ok
+test t31_before_delete_rejected_once ... ok
+test t31_delete_hook_after_adjust_rejected ... ok
+test t31_delete_hook_cancel_barred ... ok
+test t31_delete_hook_create_barred ... ok
+test t31_delete_hook_require_read_legal ... ok
+test t31_delete_hook_same_model_order ... ok
+test t31_delete_hook_set_barred ... ok
+test t31_delete_hook_schedule_barred ... ok
+test t31_delete_outside_hook_legal ... ok
+test t31_hook_decimal_eq_unsupported ... ok
+test golden_expenseflow_structure ... FAILED
+test t31_hook_expr_gaps ... ok
+test t31_hook_emit_unsupported ... ok
+test t31_hook_query_unsupported ... ok
+test t31_hook_stmt_backstops ... ok
+test t31_nested_same_model_barred ... ok
+test t31_pending_delete_rejected_once ... ok
+test b4g_team_id_lowers_through_c ... ok
+test t31_same_model_create_barred ... ok
+test t31_same_model_set_barred ... ok
+test b4g_operation_id_lowers_through_c ... ok
+test b4g_hook_team_operation_unchanged ... ok
+test t31_staged_delete_barred ... ok
+test unsupported_schema_positions_error ... ok
+test unavailable_capability_errors ... ok
+test t31_verified_ref_set_outside_hook_legal ... ok
+test value_queries_lower_from_source ... ok
+test t31_hook_delete_op_registry ... ok
+test t31_hook_run_shape ... ok
+test t31_plain_schedule_lowers ... ok
+test t21l1_single_app_crud_entry_imports_and_executes ... ok
+test t31_e2e_staged_failure_names_hook ... ok
+test t31_e2e_emitted_hook_drives_engine ... ok
+test golden_teamtasks_structure ... ok
+
+failures:
+
+---- golden_expenseflow_structure stdout ----
+
+thread 'golden_expenseflow_structure' (1856983) panicked at tests/codegen.rs:1180:5:
+unchecked role observation stays loud:
+// Test-only example artifact: erased from production bundles.
+import { hasRole, money, same } from "@canlang/stdlib";
+export function exampleFixtures({self,other,imported}){
+const $can$f$72657669657765725f6f6e65={dependencies:[],user:async(c,s)=>({roles:["expenses.reviewer"]})};
+const $can$f$72657669657765725f74776f={dependencies:[],user:async(c,s)=>({roles:["expenses.reviewer"]})};
+const $can$f$70656e64696e67={model:"expenses.Expense",dependencies:[],value:async(c,s)=>({purpose:"Travel",amount:money(25n,"EUR"),submitted_by:other,status:"submitted"})};
+return {fixtures:{["reviewer_one"]:$can$f$72657669657765725f6f6e65,["reviewer_two"]:$can$f$72657669657765725f74776f,["pending"]:$can$f$70656e64696e67},examples:[{operation:"expenses.submit",dependencies:[$can$f$72657669657765725f6f6e65,$can$f$72657669657765725f74776f,$can$f$70656e64696e67],inputs:async(c,s)=>({expense:s.pending}),selectors:["as","expense.status"],observations:[async(c,s)=>s.pending.status,async(c,s)=>hasRole(c,"expenses.reviewer",s.reviewer_one),async(c,s)=>hasRole(c,"expenses.reviewer",s.reviewer_two),async(c,s)=>!same(s.reviewer_one,s.reviewer_two),async(c,s)=>!same(s.pending.submitted_by,s.reviewer_one),async(c,s)=>!same(s.pending.submitted_by,s.reviewer_two)],rows:[{dependencies:[],values:async(c,s)=>([other,"draft"]),expected:async(c,s)=>(["submitted",true,true,true,true,true])}]}]};
+}
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    golden_expenseflow_structure
+
+test result: FAILED. 116 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+error: test failed, to rerun pass `--test codegen`

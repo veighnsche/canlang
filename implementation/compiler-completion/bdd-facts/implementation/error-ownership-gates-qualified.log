@@ -1,0 +1,23 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.06s
+     Running tests/bdd_checked_facts.rs (compiler/target/debug/deps/bdd_checked_facts-afeefbf791508b04)
+
+running 2 tests
+test header_fixture_scope_and_runner_error_ownership_remain_distinct ... FAILED
+test original_expenseflow_publishes_bdd_calls_and_sequence_observation_types ... ok
+
+failures:
+
+---- header_fixture_scope_and_runner_error_ownership_remain_distinct stdout ----
+
+thread 'header_fixture_scope_and_runner_error_ownership_remain_distinct' (1885839) panicked at tests/bdd_checked_facts.rs:116:5:
+[]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    header_fixture_scope_and_runner_error_ownership_remain_distinct
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `--test bdd_checked_facts`

@@ -1,0 +1,113 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.03s
+     Running tests/analysis.rs (compiler/target/debug/deps/analysis-33fe4504353b37c5)
+
+running 37 tests
+test cli_catalog_flag_rejections ... ok
+test duplicates ... ok
+test catalog_missing_unavailable_and_helper_misuse ... ok
+test cli_real_pipeline_exit_codes_and_discipline ... ok
+test c01_invalid_delivery_status_keeps_payload_diagnostics ... ok
+test cli_catalog_flag_forms ... ok
+test e3009_entry_names_ctor_code ... ok
+test explain_round_trip_loader_codes ... ok
+test fixture_mime_and_quoted_locale_keys ... ok
+test imports_and_visibility ... ok
+test invalid_app_header_suite_does_not_reserve_module_identity ... ok
+test call_on_action_reports_missing ... ok
+test c01_decoded_strings_reach_analysis_callers ... ok
+test lane05_component_shape ... ok
+test c01_invalid_strings_do_not_fabricate_values_or_hide_siblings ... ok
+test invocation_type_position ... ok
+test malformed_owner_headers_still_suppress_body_cascades ... ok
+test malformed_declaration_preserves_independent_sibling_diagnostics ... ok
+test invocation_constructor_complete_inputs ... ok
+test lane05_component_shape_gaps ... ok
+test misplaced_body_line_preserves_independent_sibling_diagnostics ... ok
+test invocation_result_type_and_call ... ok
+test real_catalog_end_to_end ... ok
+test message_calls_against_real_catalog ... ok
+test operator_matrix ... ok
+test read_scenarios_rejected_as_action_targets ... ok
+test suffix_bang_and_default_order ... ok
+test signature_shape_gaps ... ok
+test ui_transparent_groups_resolve ... ok
+test ui_row_enum_cases_claim ... ok
+test unknown_names_and_cascade_suppression ... ok
+test expense_flow_checks_clean_with_implemented_sum ... ok
+test team_tasks_checks_clean ... ok
+test c03_url_owner_admission_and_source_anchors ... ok
+test valid_corpus_checks_clean ... ok
+test explain_round_trip_source_codes ... ok
+test draft_outcome_table ... FAILED
+
+failures:
+
+---- draft_outcome_table stdout ----
+
+thread 'draft_outcome_table' (1869429) panicked at tests/analysis.rs:1077:5:
+draft table moved:
+draft/CanCreative.can: expected 71, got 69
+draft/CanGallery.can: expected 23, got 22
+actual table:
+("draft/CanAffiliate.can", 40),
+("draft/CanApprove.can", 47),
+("draft/CanBoard.can", 3),
+("draft/CanBook.can", 161),
+("draft/CanCRM.can", 144),
+("draft/CanCatch.can", 57),
+("draft/CanChat.can", 58),
+("draft/CanCheck.can", 38),
+("draft/CanContract.can", 25),
+("draft/CanCreative.can", 69),
+("draft/CanCustomer.can", 59),
+("draft/CanDecide.can", 27),
+("draft/CanDesk.can", 85),
+("draft/CanDiscover.can", 69),
+("draft/CanDo.can", 38),
+("draft/CanEnrich.can", 19),
+("draft/CanEvent.can", 309),
+("draft/CanExpense.can", 95),
+("draft/CanFeedback.can", 13),
+("draft/CanField.can", 115),
+("draft/CanGallery.can", 22),
+("draft/CanGrant.can", 48),
+("draft/CanHire.can", 126),
+("draft/CanInbox.can", 100),
+("draft/CanInvoice.can", 371),
+("draft/CanKnowledge.can", 50),
+("draft/CanLearn.can", 50),
+("draft/CanLeave.can", 79),
+("draft/CanLoyalty.can", 71),
+("draft/CanMail.can", 147),
+("draft/CanMaintain.can", 123),
+("draft/CanMember.can", 338),
+("draft/CanOnboard.can", 55),
+("draft/CanPropose.can", 131),
+("draft/CanPurchase.can", 146),
+("draft/CanReception.can", 186),
+("draft/CanRefer.can", 79),
+("draft/CanRent.can", 634),
+("draft/CanReport.can", 34),
+("draft/CanShift.can", 187),
+("draft/CanStats.can", 31),
+("draft/CanStock.can", 60),
+("draft/CanSuccess.can", 50),
+("draft/CanSync.can", 17),
+("draft/CanTable.can", 31),
+("draft/CanTime.can", 126),
+("draft/CanTrade.can", 18),
+("draft/CanVolunteer.can", 76),
+("draft/CanWorkbench.can", 82),
+("draft/shared/Employees.can", 8),
+("draft/shared/Locations.can", 5),
+("draft/shared/Suppliers.can", 6),
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    draft_outcome_table
+
+test result: FAILED. 36 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.73s
+
+error: test failed, to rerun pass `--test analysis`

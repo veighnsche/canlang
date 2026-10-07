@@ -1,0 +1,23 @@
+{
+  "state": "Choose bounded generated-artifact implementation policies. Verified facts: test-only modules are separate from production; production never imports tests. Tables call callbacks(c,s); sequences(c,s,b). c is bounded read-only inspection context, not invocation authority. s holds freshly loaded fixtures and b retained immutable lets. Source observations may access actual action inputs and declared successful result. Current emitter leaves free result/plain input names; suite derive calls reference canonical functions not emitted. Existing selected-call authority already proves overload/slots and source argument order. Actual runner success type is currently{ok:true} with no payload; sequence as currently captures that envelope; canonical live mappers also discard payloads. Full repair must transport the real declared successful payload, retain null vs absent/void, clear current result after rejected/void calls, keep earlier as/let captures, preserve request overrides and per-call rollback. Fresh record input views must come from owning canonical read/invoke ports; no fixture substitution or fabricated business value. Fixture/input/let names may collide with result, inputs, c,s,b or each other; rewrites must use checked lexical identities. c must preserve its existing bounded inspection authority and cannot become a production caller context. Production derive emission already implements checked canonical bodies and ordered parameter defaults, including transitive private helper/default calls; imported aliases select owning declaration identities. Isolated test artifacts currently emit none of these functions. Entry-module imports can bring app registry initialization/production dependencies; generated package modules do not currently export executable derives. Each alternative must close real producer/runner consumers, include only needed generated helper dependencies, preserve effects/await/lazy/source order, retain runtime stdlib calls rather than copying runtime helpers, and require actual compiler+testkit+canonical mapper evidence. Select practical policy, not whether these legal source examples should be supported.",
+  "questions": {
+    "transport": {
+      "type": "choice",
+      "description": "Where should current inputs and typed result be transported to BDD callbacks?",
+      "criteria": {
+        "bounded_context": "Retain(c,s)/(c,s,b); add distinct read-only inspection slots c.inputs and c.result, compiler routes checked source bindings there; runner and canonical ports supply fresh inputs/real result and reset result, with collision-safe source routing.",
+        "explicit_frame": "Extend callbacks with one explicit immutable observation frame argument containing inputs/result; preserve c/s/b roles, compiler routes checked bindings to frame; update compiler/runner/mappers and discriminate absent/null/reset.",
+        "scope_namespaces": "Keep existing callback arities but extend s with distinct internal namespaces for fixtures/inputs/result and sequence b for captures; migrate fixture access consistently to prevent authored name collisions; join actual live/payload owners."
+      }
+    },
+    "helper_composition": {
+      "type": "choice",
+      "description": "How should callable derive dependency closure reach isolated test artifacts?",
+      "criteria": {
+        "reachable_emission": "Record checked canonical derive targets while lowering a suite; reuse the existing production function/default emitter to materialize only reachable bodies and transitive private/default helpers within that test module. No production app initialization import.",
+        "shared_generated_module": "Extract the same checked reachable callable closure into isolated generated helper modules shared by production/test consumers; test modules import only those units. Add artifact/link assembly while preserving private closure and single emitter.",
+        "production_entry_import": "Expose checked callable exports from their actual generated production owner and import those from test modules, closing private/default dependencies there; handle and verify entry initialization/production dependencies instead of duplicating generated bodies."
+      }
+    }
+  }
+}

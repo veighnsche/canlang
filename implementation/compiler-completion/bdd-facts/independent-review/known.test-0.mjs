@@ -1,0 +1,5 @@
+// Test-only example artifact: erased from production bundles.
+import { lower } from "@canlang/stdlib";
+export function exampleFixtures({self,other,imported}){
+return {fixtures:{},examples:[{operation:"BddIndependent.echo",dependencies:[],inputs:async(c,s)=>({}),selectors:["value"],observations:[async(c,s)=>lower(result)],rows:[{dependencies:[],values:async(c,s)=>([lower("HI")]),expected:async(c,s)=>([lower("HI")])}]},{operation:"BddIndependent.echo",dependencies:[],sequence:[{let:"original",value:async(c,s,b)=>(lower("HI"))},{operation:"BddIndependent.echo",by:async(c,s,b)=>(self),inputs:async(c,s,b)=>({value:b.original}),bind:"saved"},{observations:async(c,s,b)=>([lower(b.saved),lower(result)]),expected:async(c,s,b)=>(["hi","hi"]),types:["text","text"]},{operation:"BddIndependent.flag",by:async(c,s,b)=>(self),inputs:async(c,s,b)=>({value:true})},{observations:async(c,s,b)=>([b.saved,result]),expected:async(c,s,b)=>(["hi",true]),types:["text","bool"]},{let:"later",value:async(c,s,b)=>(lower(b.saved))},{observations:async(c,s,b)=>([b.later]),expected:async(c,s,b)=>(["hi"]),types:["text"]}]}]};
+}

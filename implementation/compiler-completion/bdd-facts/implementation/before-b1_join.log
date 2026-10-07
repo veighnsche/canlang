@@ -1,0 +1,35 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.94s
+     Running tests/b1_join.rs (compiler/target/debug/deps/b1_join-b34516eeaf75961f)
+
+running 2 tests
+test b1_teamtasks_artifact ... FAILED
+test b2_expenseflow_artifact ... FAILED
+
+failures:
+
+---- b1_teamtasks_artifact stdout ----
+
+thread 'b1_teamtasks_artifact' (1819472) panicked at tests/b1_join.rs:219:9:
+B1 join failures (1):
+- expected E6008=2 pinned UI gaps, got 3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- b2_expenseflow_artifact stdout ----
+
+thread 'b2_expenseflow_artifact' (1819473) panicked at tests/b1_join.rs:337:9:
+B2 join failures (5):
+- expected E6008=0 lowered, got 16
+- suite expenses.submit has a throwing placeholder with zero diagnostics
+- suite expenses.approve has a throwing placeholder with zero diagnostics
+- suite reporting.summarize has a throwing placeholder with zero diagnostics
+- approve suite missing "types:[\"expenses.Expense.status\",\"user?\"]"
+
+
+failures:
+    b1_teamtasks_artifact
+    b2_expenseflow_artifact
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `--test b1_join`

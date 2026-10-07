@@ -1,0 +1,10 @@
+app Ownership
+Given
+ derive broken():text = missing_production
+When
+ scenario echo(value:text) read=true -> text by=members
+  do return value
+  examples value=value
+   value -> lower(result),missing_observation(result)
+   "HI" -> "hi","hi"
+Then

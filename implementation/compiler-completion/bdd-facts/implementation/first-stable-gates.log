@@ -1,0 +1,30 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.01s
+     Running tests/b1_join.rs (compiler/target/debug/deps/b1_join-b34516eeaf75961f)
+
+running 2 tests
+test b1_teamtasks_artifact ... ok
+test b2_expenseflow_artifact ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/bdd_checked_facts.rs (compiler/target/debug/deps/bdd_checked_facts-afeefbf791508b04)
+
+running 1 test
+test original_expenseflow_publishes_bdd_calls_and_sequence_observation_types ... FAILED
+
+failures:
+
+---- original_expenseflow_publishes_bdd_calls_and_sequence_observation_types stdout ----
+
+thread 'original_expenseflow_publishes_bdd_calls_and_sequence_observation_types' (1848931) panicked at tests/bdd_checked_facts.rs:52:10:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    original_expenseflow_publishes_bdd_calls_and_sequence_observation_types
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `--test bdd_checked_facts`
