@@ -1,3 +1,4 @@
+import { encode } from "@jridgewell/sourcemap-codec";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -272,4 +273,37 @@ describe("sourcemap runtime round-trip (B3 I2)", () => {
       await dev.dispose();
     }
   }, 120000);
+  it("maps a real throw after a same-line producer rewrite with staged maps disabled", async () => {
+    const { stdlibUrl, uiUrl } = stubProducers();
+    const workDir = mkdtempSync(join(tmpdir(), "b3-column-work-"));
+    const js = 'import { stdlibMarker } from "@canlang/stdlib"; export function canApp(){return {boom};} function boom(){throw new Error("column-kaboom");}\n';
+    const column = js.indexOf("new Error");
+    // The next segment makes an uncomposed changed-length lookup observably
+    // wrong, even when the generated throw remains on the same line.
+    const map: SourceMap = { ...REAL_MAP, mappings: encode([[[0, 0, 0, 0], [column, 0, 23, 8], [column + 9, 0, 24, 11]]]) };
+    const artifact = artifactWith({ path: "main.js", js, map });
+    const original = JSON.stringify(artifact);
+    const assembled = await assembleModules({ artifact, sourcePath: "column.artifact.json" }, { uiUrl, workDir, stdlibUrl });
+    rmSync(join(workDir, "main.js.map"));
+    writeFileSync(join(workDir, "main.js"), readFileSync(join(workDir, "main.js"), "utf8").replace(/\/\/# sourceMappingURL=.*\n?/, ""));
+    const result = await invokeCallable(assembled, artifact, "plain.Plain.boom", testCtx());
+    expect(result).toEqual({ ok: false, error: "column-kaboom", mapped: { source: "plain.can", line: 24, column: 9 } });
+    expect(JSON.stringify(artifact)).toBe(original);
+  });
+
+  it("does not fall back to a stale artifact map when a supplied diagnostic map is malformed", async () => {
+    const { stdlibUrl, uiUrl } = stubProducers();
+    const workDir = mkdtempSync(join(tmpdir(), "b3-invalid-work-"));
+    const artifact = artifactWith({ path: "main.js", js: THROWING_JS, map: REAL_MAP });
+    const assembled = await assembleModules({ artifact, sourcePath: "invalid.artifact.json" }, { uiUrl, workDir, stdlibUrl });
+    rmSync(join(workDir, "main.js.map"));
+    writeFileSync(join(workDir, "main.js"), readFileSync(join(workDir, "main.js"), "utf8").replace(/\/\/# sourceMappingURL=.*\n?/, ""));
+    assembled.sourceMaps = { "main.js": { ...REAL_MAP, mappings: "!" } };
+    const result = await invokeCallable(assembled, artifact, "plain.Plain.boom", testCtx());
+    expect(result).toEqual({ ok: false, error: "kaboom" });
+    delete assembled.sourceMaps;
+    const fallback = await invokeCallable(assembled, artifact, "plain.Plain.boom", testCtx());
+    expect(fallback.mapped).toEqual({ source: "plain.can", line: 3, column: 1 });
+  });
+
 });
