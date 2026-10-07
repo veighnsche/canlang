@@ -1,0 +1,5 @@
+app T
+Given
+ derive g():text = format(template="Hi",template="Ho")
+When
+Then

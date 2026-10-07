@@ -1,0 +1,6 @@
+app T
+Given
+ derive f(a:text,b:text):text = a
+ derive g():text = f(b="B",a="A")
+When
+Then

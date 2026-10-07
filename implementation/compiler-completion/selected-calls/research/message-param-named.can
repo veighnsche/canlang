@@ -1,0 +1,6 @@
+app T
+Given
+ message m(name:text)="Hi {name}"@{}
+ derive g():text = format(m(name="Bo"),locale=null)
+When
+Then

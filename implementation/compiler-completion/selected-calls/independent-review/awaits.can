@@ -1,0 +1,6 @@
+app AwaitAudit
+Given
+When
+ scenario run() read=true -> bool by=members
+  do return false and contains(value="ABC",needle="BC")
+Then

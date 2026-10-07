@@ -1,0 +1,8 @@
+app Dutch
+context
+ locale default="nl"
+Given
+ message m="Hello"@{nl="Hallo"}
+ derive g():text = format(m,locale=null)
+When
+Then

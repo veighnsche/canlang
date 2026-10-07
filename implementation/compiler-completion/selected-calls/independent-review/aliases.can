@@ -1,0 +1,15 @@
+app AliasAudit
+use Owner {compute as class,descriptor as renamed}
+Given
+ derive word():text = "caller"
+ derive run():text = class(third="third")
+ derive inspect():renamed = renamed(await="supplied")
+When
+Then
+package Owner
+ Given
+  derive word():text = "owner"
+  export derive compute(c:text=word(),second:text=c,third:text=second):text = format("{c}/{second}/{third}",{c=c,second=second,third=third})
+  export message descriptor(c:text=word(),class:text=c,await:text=class)="{c}/{class}/{await}"@{}
+ When
+ Then

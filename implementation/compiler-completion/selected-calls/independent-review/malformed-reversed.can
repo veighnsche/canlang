@@ -1,0 +1,5 @@
+app Diag
+Given
+ derive run():text = format(values={},template="}")
+When
+Then

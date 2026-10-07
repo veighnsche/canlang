@@ -1,0 +1,20 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {pathToFileURL} from 'node:url';
+import {buildContext} from '@canlang/state/invocation/context';
+import {invokeCallable} from '@canlang/cloudflare/runtime/invoke';
+import {makeMessageDescriptor} from '@canlang/values';
+import {format} from '@canlang/stdlib';
+import {createContext} from '../../../../../packages/cloudflare/dist/runtime/context.js';
+const admitted=buildContext({identity:{actor:null,team:{team_id:'team',timezone:'Europe/Brussels'}},operation:'Shared.op',operationId:'019f8b84-0000-7000-8000-000000000001',source:'test',now:1791324000000,app:'Dutch'});
+const handler=createContext({caller:{userId:'anonymous',roles:[]},store:{},clock:()=>admitted.now});
+const observations=[{id:'actual-canonical-versus-handler-carriers',canonical:{app:admitted.app,team:admitted.team},handlerKeys:Object.keys(handler),handlerHasTeam:Object.hasOwn(handler,'team'),handlerHasAppDefault:Object.hasOwn(handler,'appDefaultLocale'),scope:'Actual state buildContext public export and actual Cloudflare built internal createContext. No canonical scenario success claim.'}];
+const artifact=JSON.parse(readFileSync(new URL('./locale-shared.stdout',import.meta.url),'utf8'));
+const asm={moduleUrls:{},entryUrl:'',dir:'',mapUrls:{},sourceMaps:{}};
+for(let i=0;i<artifact.modules.length;i++){const path=new URL('./locale-shared-'+i+'.mjs',import.meta.url);asm.moduleUrls[artifact.modules[i].path]=path.href;if(i===0)asm.entryUrl=path.href}
+const entry=await import(asm.entryUrl);
+observations.push({id:'actual-generated-selected-app-registry',definition:entry.appDefinition});
+observations.push({id:'actual-cloudflare-shared-pure-call',outcome:await invokeCallable(asm,artifact,'Shared.g',handler),scope:'Production emitted artifact through actual public Cloudflare invokeCallable and actual format imports; direct pure callable only, not canonical scenario admission.'});
+const d=makeMessageDescriptor('Bonjour',{nl:'Hallo',de:'Hallo Deutsch'});
+observations.push({id:'actual-values-owner-default-differential',Dutch:format(d,{locale:null,appDefault:'nl',sourceLang:'fr',timeZone:admitted.team.timezone}),German:format(d,{locale:null,appDefault:'de',sourceLang:'fr',timeZone:admitted.team.timezone}),sourceFallback:format(d,{locale:'es',appDefault:'es',sourceLang:'fr',timeZone:'UTC'}),scope:'Actual facade owner controls with explicit options; not claimed generated adapter behavior.'});
+writeFileSync(new URL('./runtime-observations.json',import.meta.url),JSON.stringify(observations,null,2)+'\n');
+console.log(JSON.stringify(observations,null,2));
