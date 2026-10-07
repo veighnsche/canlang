@@ -1,0 +1,1 @@
+Three initial sandboxed calls failed before a response with `Jev connection failed; no retry was made`. No advisory result was inferred. Their original requests are preserved as `request-N-initial.json`. Actual consultations use fully independently worded context/questions/criteria per tools/README.md, with network permission for the preauthorized JEV API.
