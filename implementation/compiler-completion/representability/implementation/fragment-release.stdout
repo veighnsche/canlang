@@ -1,0 +1,8 @@
+
+running 3 tests
+test public_lex_fragment_admits_fitting_byte_ranges ... ok
+test public_lex_fragment_keeps_fitting_lexical_errors ... ok
+test public_lex_fragment_refuses_the_whole_range_before_lexing ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.00s
+

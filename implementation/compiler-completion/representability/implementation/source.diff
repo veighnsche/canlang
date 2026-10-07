@@ -1,0 +1,281 @@
+diff --git a/compiler/src/explain.rs b/compiler/src/explain.rs
+index 87a816df..ace69efb 100644
+--- a/compiler/src/explain.rs
++++ b/compiler/src/explain.rs
+@@ -8,7 +8,7 @@
+ //! `W3xxx` deprecated, `I1xxx` unused/redundant/locale-fallback.
+ //!
+ //! The `E1xxx` entries are reconciled with the real `syntax` emission
+-//! sites: lexer `E1001`–`E1007`, layout `E1101`–`E1103`/`E1120`–`E1126`
++//! sites: lexer `E1001`–`E1008`, layout `E1101`–`E1103`/`E1120`–`E1126`
+ //! and parser `E1200`–`E1216` (see `syntax::mod` for the per-code
+ //! summary). The `E2xxx` entries describe name resolution, the `E3xxx`
+ //! entries type checking, and the `E6xxx` entries the producer-catalog
+@@ -101,7 +101,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
+     out
+ }
+ 
+-const CATALOG: [CodeInfo; 116] = [
++const CATALOG: [CodeInfo; 117] = [
+     CodeInfo {
+         code: "E1001",
+         title: "bare-carriage-return",
+@@ -158,6 +158,14 @@ const CATALOG: [CodeInfo; 116] = [
+         example_valid: "app T\nGiven\n role a label=\"A\"\nWhen\nThen\n",
+         example_invalid: "app T\nGiven\n role a label=\"A\" $\nWhen\nThen\n",
+     },
++    CodeInfo {
++        code: "E1008",
++        title: "fragment-offset-range",
++        severity: Severity::Error,
++        explanation: "The public syntax::lex_fragment API requires the fragment's UTF-8 byte length to fit in u32 and base + byte length to be at most u32::MAX. An empty fragment at u32::MAX and an exact-fitting end are valid. A fragment outside this range returns no tokens and appends one error at the zero-width (file, base, base) span, preserving earlier diagnostics. Use a base and fragment length whose sum fits. These examples describe API arguments: CLI-authored source cannot specify a fragment base.",
++        example_valid: "syntax::lex_fragment(file, \"a\", u32::MAX - 1, &mut diagnostics)",
++        example_invalid: "syntax::lex_fragment(file, \"a\", u32::MAX, &mut diagnostics)",
++    },
+     CodeInfo {
+         code: "E1101",
+         title: "mismatched-closing-delimiter",
+diff --git a/compiler/src/syntax/lexer.rs b/compiler/src/syntax/lexer.rs
+index 4356a6f5..3cf9dc7f 100644
+--- a/compiler/src/syntax/lexer.rs
++++ b/compiler/src/syntax/lexer.rs
+@@ -11,7 +11,7 @@
+ //! CST builder. `##` comment lines and `#` description lines are single
+ //! tokens spanning marker to end of line; layout decides their role.
+ //!
+-//! Diagnostics use codes E1001–E1007 (see `syntax::mod` catalog).
++//! Diagnostics use codes E1001–E1008 (see `syntax::mod` catalog).
+ 
+ use crate::diagnostic::Diagnostic;
+ use crate::source::{SourceId, Span};
+@@ -433,12 +433,30 @@ fn lex_code_tokens(
+ /// Lex a code fragment with absolute offsets, for description `#=`/`@{...}`
+ /// validation. The fragment is tokenized as code on one line: `#` inside
+ /// is an error, tabs are errors, and diagnostics carry absolute spans.
++///
++/// Before tokenization, the fragment's UTF-8 byte length must fit in `u32`
++/// and `base + length` must not exceed `u32::MAX`. An empty fragment at
++/// `u32::MAX` and a fragment ending exactly there are admitted. Otherwise
++/// this returns no tokens and appends one `E1008` error at the zero-width
++/// span `(file, base, base)`, preserving any earlier caller diagnostics.
+ pub fn lex_fragment(
+     file: SourceId,
+     fragment: &str,
+     base: u32,
+     diagnostics: &mut Vec<Diagnostic>,
+ ) -> Vec<Token> {
++    if u32::try_from(fragment.len())
++        .ok()
++        .and_then(|length| base.checked_add(length))
++        .is_none()
++    {
++        diagnostics.push(Diagnostic::error(
++            "E1008",
++            "code fragment extends beyond the u32 source-offset range".to_string(),
++            Span::new(file, base, base),
++        ));
++        return Vec::new();
++    }
+     lex_code_tokens(file, fragment, 0, base, diagnostics)
+ }
+ 
+diff --git a/compiler/src/syntax/mod.rs b/compiler/src/syntax/mod.rs
+index 96285f62..83e034ad 100644
+--- a/compiler/src/syntax/mod.rs
++++ b/compiler/src/syntax/mod.rs
+@@ -19,7 +19,8 @@
+ //! Lexer: `E1001` bare carriage return, `E1002` invalid UTF-8 (bytes entry
+ //! only), `E1003` tab in indentation/code, `E1004` backslash continuation,
+ //! `E1005` invalid numeric literal or unit, `E1006` invalid string,
+-//! `E1007` unexpected character.
++//! `E1007` unexpected character, `E1008` code fragment exceeds the `u32`
++//! source-offset range (public `lex_fragment` API admission).
+ //!
+ //! Layout: `E1101` mismatched closing delimiter, `E1102` unclosed
+ //! delimiter, `E1103` bad indentation or excessive nesting, `E1120` description column
+diff --git a/compiler/tests/authoring.rs b/compiler/tests/authoring.rs
+index 04c1088b..892fb9c8 100644
+--- a/compiler/tests/authoring.rs
++++ b/compiler/tests/authoring.rs
+@@ -797,7 +797,25 @@ fn explain_round_trips_every_emitted_code() {
+         if info.code == "E1002" {
+             continue;
+         }
+-        let (_tree, diags) = parse_source(SourceId(0), info.example_invalid);
++        let diags = if info.code == "E1008" {
++            // The catalog describes API arguments; authored source cannot set base.
++            assert_eq!(
++                info.example_invalid,
++                "syntax::lex_fragment(file, \"a\", u32::MAX, &mut diagnostics)",
++            );
++            let mut diagnostics = Vec::new();
++            let tokens = canlang_compiler::syntax::lex_fragment(
++                SourceId(37),
++                "a",
++                u32::MAX,
++                &mut diagnostics,
++            );
++            assert!(tokens.is_empty());
++            assert_eq!(diagnostics.len(), 1);
++            diagnostics
++        } else {
++            parse_source(SourceId(0), info.example_invalid).1
++        };
+         let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
+         assert!(
+             codes.contains(&info.code),
+@@ -886,7 +904,27 @@ fn explain_e1xxx_valid_examples_parse_clean() {
+     use canlang_compiler::syntax::parse_source;
+ 
+     for info in explain::all().iter().filter(|i| i.code.starts_with("E1")) {
+-        let (_tree, diags) = parse_source(SourceId(0), info.example_valid);
++        let diags = if info.code == "E1008" {
++            assert_eq!(
++                info.example_valid,
++                "syntax::lex_fragment(file, \"a\", u32::MAX - 1, &mut diagnostics)",
++            );
++            let mut diagnostics = Vec::new();
++            let tokens = canlang_compiler::syntax::lex_fragment(
++                SourceId(37),
++                "a",
++                u32::MAX - 1,
++                &mut diagnostics,
++            );
++            assert_eq!(tokens.len(), 1);
++            assert_eq!(
++                tokens[0].span,
++                canlang_compiler::source::Span::new(SourceId(37), u32::MAX - 1, u32::MAX),
++            );
++            diagnostics
++        } else {
++            parse_source(SourceId(0), info.example_valid).1
++        };
+         assert!(
+             diags.is_empty(),
+             "example_valid for {} emitted {diags:?}",
+diff --git a/compiler/tests/syntax.rs b/compiler/tests/syntax.rs
+index 492fc443..a94128ec 100644
+--- a/compiler/tests/syntax.rs
++++ b/compiler/tests/syntax.rs
+@@ -377,6 +377,121 @@ fn lex_fragment_offsets() {
+     );
+ }
+ 
++#[test]
++fn public_lex_fragment_admits_fitting_byte_ranges() {
++    use canlang_compiler::source::Span;
++
++    let source = SourceId(37);
++    for (fragment, base, expected) in [
++        ("", 0, vec![]),
++        ("", u32::MAX, vec![]),
++        ("a", u32::MAX - 1, vec![(u32::MAX - 1, u32::MAX)]),
++        (
++            "a + b",
++            u32::MAX - 5,
++            vec![
++                (u32::MAX - 5, u32::MAX - 4),
++                (u32::MAX - 3, u32::MAX - 2),
++                (u32::MAX - 1, u32::MAX),
++            ],
++        ),
++        ("\"é\"", u32::MAX - 4, vec![(u32::MAX - 4, u32::MAX)]),
++        ("a", 42, vec![(42, 43)]),
++    ] {
++        let mut diagnostics = Vec::new();
++        let tokens =
++            canlang_compiler::syntax::lex_fragment(source, fragment, base, &mut diagnostics);
++        assert!(diagnostics.is_empty(), "{fragment:?}: {diagnostics:?}");
++        assert_eq!(
++            tokens.iter().map(|token| token.span).collect::<Vec<_>>(),
++            expected
++                .into_iter()
++                .map(|(start, end)| Span::new(source, start, end))
++                .collect::<Vec<_>>(),
++            "{fragment:?} at {base}",
++        );
++    }
++}
++
++#[test]
++fn public_lex_fragment_refuses_the_whole_range_before_lexing() {
++    use canlang_compiler::diagnostic::{Related, Severity};
++    use canlang_compiler::source::Span;
++
++    let source = SourceId(37);
++    for (fragment, base) in [
++        ("a", u32::MAX),
++        ("a + b", u32::MAX - 4),
++        ("\"é\"", u32::MAX - 3),
++        ("a $", u32::MAX - 2),
++        ("\t#", u32::MAX - 1),
++        ("  ", u32::MAX - 1),
++    ] {
++        let mut prior = Diagnostic::error(
++            "E1007",
++            "earlier caller diagnostic".to_string(),
++            Span::new(SourceId(9), 3, 4),
++        );
++        prior.related.push(Related {
++            span: Span::new(SourceId(8), 1, 2),
++            message: "earlier related span".to_string(),
++        });
++        prior.tags.push("earlier-tag".to_string());
++        let prior_snapshot = format!("{prior:?}");
++        let mut diagnostics = vec![prior];
++        let tokens =
++            canlang_compiler::syntax::lex_fragment(source, fragment, base, &mut diagnostics);
++        assert!(tokens.is_empty(), "{fragment:?} at {base}: {tokens:?}");
++        assert_eq!(diagnostics.len(), 2, "{fragment:?}: {diagnostics:?}");
++        assert_eq!(format!("{:?}", diagnostics[0]), prior_snapshot);
++        let refusal = &diagnostics[1];
++        assert_eq!(refusal.code, "E1008");
++        assert_eq!(refusal.severity, Severity::Error);
++        assert_eq!(
++            refusal.message,
++            "code fragment extends beyond the u32 source-offset range",
++        );
++        assert_eq!(refusal.primary, Span::new(source, base, base));
++        assert!(refusal.related.is_empty());
++        assert!(refusal.tags.is_empty());
++    }
++}
++
++#[test]
++fn public_lex_fragment_keeps_fitting_lexical_errors() {
++    use canlang_compiler::source::Span;
++
++    let source = SourceId(37);
++    for fragment in ["\t", "#", "$", "\"", "5minutes"] {
++        let base = u32::MAX - u32::try_from(fragment.len()).unwrap();
++        let mut diagnostics = Vec::new();
++        let tokens =
++            canlang_compiler::syntax::lex_fragment(source, fragment, base, &mut diagnostics);
++        let expected_code = match fragment {
++            "\t" => "E1003",
++            "\"" => "E1006",
++            "5minutes" => "E1005",
++            _ => "E1007",
++        };
++        assert_eq!(codes(&diagnostics), vec![expected_code]);
++        assert_eq!(diagnostics[0].primary, Span::new(source, base, u32::MAX));
++        if fragment == "\t" {
++            assert!(tokens.is_empty());
++            continue;
++        }
++        assert_eq!(tokens.len(), 1);
++        assert_eq!(
++            tokens[0].kind,
++            if fragment == "\"" {
++                TokenKind::String
++            } else {
++                TokenKind::Error
++            },
++        );
++        assert_eq!(tokens[0].span, Span::new(source, base, u32::MAX));
++    }
++}
++
+ // --- Layout -------------------------------------------------------------
+ 
+ fn lay_out(text: &str) -> LayoutResult {

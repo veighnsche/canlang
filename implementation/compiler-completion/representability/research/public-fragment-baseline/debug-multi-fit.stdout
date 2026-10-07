@@ -1,0 +1,5 @@
+case=multi-fit base=4294967290 bytes=5
+token=Name span=4294967290..4294967291 payload=None
+token=Punct(Plus) span=4294967292..4294967293 payload=None
+token=Name span=4294967294..4294967295 payload=None
+normal-return

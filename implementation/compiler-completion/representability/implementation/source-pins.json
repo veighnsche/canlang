@@ -1,0 +1,11 @@
+{
+  "recorded_at_utc": "2026-10-07T22:37:35.136068+00:00",
+  "sha256": {
+    "compiler/src/syntax/lexer.rs": "abede67114dfbdb74e9d9db9d96281f4dfcaab1e426cfb0c359c1fb0b9d21cef",
+    "compiler/src/syntax/mod.rs": "0f6988f6262e470359e47ae28cd80aa8f7eac03723d59bcdb16722ad1dbd9d0e",
+    "compiler/src/explain.rs": "3087a58934c2ccf13c9b458694b31faf0bed27d3d59dcca3cf056f8b7220741f",
+    "compiler/tests/syntax.rs": "ee5d6be4dbb0c54a92370c0e4af4488ba876e0e77d2b62da1d150e9a9bd8fb3f",
+    "compiler/tests/authoring.rs": "eace4e3f729909b79c5e59aba9044777cf837556defc9cf37e2bd77f5330b34e"
+  },
+  "scope": "public syntax::lex_fragment arithmetic admission; independent acceptance and DEC/Git remain root-owned"
+}

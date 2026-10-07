@@ -1,0 +1,3 @@
+case=tab-fit base=4294967294 bytes=1
+diagnostic=E1003 span=4294967294..4294967295 message=tab in code; use spaces (tabs are prose only inside `#`/`##` lines and rejected inside strings)
+normal-return

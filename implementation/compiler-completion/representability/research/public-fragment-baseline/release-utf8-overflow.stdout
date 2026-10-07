@@ -1,0 +1,3 @@
+case=utf8-overflow base=4294967292 bytes=4
+token=String span=4294967292..0 payload=Some("é")
+normal-return

@@ -1,0 +1,22 @@
+
+running 3 tests
+test public_lex_fragment_refuses_the_whole_range_before_lexing ... ok
+test public_lex_fragment_admits_fitting_byte_ranges ... ok
+test public_lex_fragment_keeps_fitting_lexical_errors ... FAILED
+
+failures:
+
+---- public_lex_fragment_keeps_fitting_lexical_errors stdout ----
+
+thread 'public_lex_fragment_keeps_fitting_lexical_errors' (2040027) panicked at tests/syntax.rs:483:9:
+assertion `left == right` failed
+  left: String
+ right: Error
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    public_lex_fragment_keeps_fitting_lexical_errors
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.00s
+

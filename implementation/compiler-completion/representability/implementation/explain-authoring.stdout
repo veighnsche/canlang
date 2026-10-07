@@ -1,0 +1,8 @@
+
+running 3 tests
+test cli_explain_json_shape_and_unknown_code ... ok
+test explain_e1xxx_valid_examples_parse_clean ... ok
+test explain_round_trips_every_emitted_code ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.25s
+

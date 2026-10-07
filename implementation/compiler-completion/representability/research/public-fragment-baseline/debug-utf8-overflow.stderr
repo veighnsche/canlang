@@ -1,0 +1,4 @@
+
+thread 'main' (2019839) panicked at src/syntax/lexer.rs:482:21:
+attempt to add with overflow
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

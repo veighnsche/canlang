@@ -1,0 +1,5 @@
+case=multi-overflow base=4294967291 bytes=5
+token=Name span=4294967291..4294967292 payload=None
+token=Punct(Plus) span=4294967293..4294967294 payload=None
+token=Name span=4294967295..0 payload=None
+normal-return

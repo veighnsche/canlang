@@ -1,0 +1,3 @@
+case=name-overflow base=4294967295 bytes=1
+token=Name span=4294967295..0 payload=None
+normal-return

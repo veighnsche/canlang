@@ -1,0 +1,22 @@
+compiler/tests/authoring.rs:804:                "syntax::lex_fragment(file, \"a\", u32::MAX, &mut diagnostics)",
+compiler/tests/authoring.rs:807:            let tokens = canlang_compiler::syntax::lex_fragment(
+compiler/tests/authoring.rs:910:                "syntax::lex_fragment(file, \"a\", u32::MAX - 1, &mut diagnostics)",
+compiler/tests/authoring.rs:913:            let tokens = canlang_compiler::syntax::lex_fragment(
+compiler/src/syntax/lexer.rs:442:pub fn lex_fragment(
+compiler/src/syntax/mod.rs:23://! source-offset range (public `lex_fragment` API admission).
+compiler/src/syntax/mod.rs:62:    Lexed, PhysLine, Punct, Token, TokenKind, decode_json_string, lex, lex_bytes, lex_fragment,
+compiler/src/syntax/layout.rs:16:use crate::syntax::lexer::{PhysLine, Punct, Token, TokenKind, lex_fragment};
+compiler/src/syntax/layout.rs:655:    let tokens = lex_fragment(file, fragment, base, diagnostics);
+compiler/src/syntax/layout.rs:704:    let tokens = lex_fragment(file, fragment, base, diagnostics);
+compiler/tests/syntax.rs:8:    lex_bytes, lex_fragment, parse_source,
+compiler/tests/syntax.rs:367:fn lex_fragment_offsets() {
+compiler/tests/syntax.rs:369:    let tokens = lex_fragment(file(), "a + b", 100, &mut diags);
+compiler/tests/syntax.rs:381:fn public_lex_fragment_admits_fitting_byte_ranges() {
+compiler/tests/syntax.rs:403:            canlang_compiler::syntax::lex_fragment(source, fragment, base, &mut diagnostics);
+compiler/tests/syntax.rs:417:fn public_lex_fragment_refuses_the_whole_range_before_lexing() {
+compiler/tests/syntax.rs:443:            canlang_compiler::syntax::lex_fragment(source, fragment, base, &mut diagnostics);
+compiler/tests/syntax.rs:461:fn public_lex_fragment_keeps_fitting_lexical_errors() {
+compiler/tests/syntax.rs:469:            canlang_compiler::syntax::lex_fragment(source, fragment, base, &mut diagnostics);
+compiler/src/explain.rs:165:        explanation: "The public syntax::lex_fragment API requires the fragment's UTF-8 byte length to fit in u32 and base + byte length to be at most u32::MAX. An empty fragment at u32::MAX and an exact-fitting end are valid. A fragment outside this range returns no tokens and appends one error at the zero-width (file, base, base) span, preserving earlier diagnostics. Use a base and fragment length whose sum fits. These examples describe API arguments: CLI-authored source cannot specify a fragment base.",
+compiler/src/explain.rs:166:        example_valid: "syntax::lex_fragment(file, \"a\", u32::MAX - 1, &mut diagnostics)",
+compiler/src/explain.rs:167:        example_invalid: "syntax::lex_fragment(file, \"a\", u32::MAX, &mut diagnostics)",

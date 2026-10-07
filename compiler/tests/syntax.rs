@@ -377,6 +377,121 @@ fn lex_fragment_offsets() {
     );
 }
 
+#[test]
+fn public_lex_fragment_admits_fitting_byte_ranges() {
+    use canlang_compiler::source::Span;
+
+    let source = SourceId(37);
+    for (fragment, base, expected) in [
+        ("", 0, vec![]),
+        ("", u32::MAX, vec![]),
+        ("a", u32::MAX - 1, vec![(u32::MAX - 1, u32::MAX)]),
+        (
+            "a + b",
+            u32::MAX - 5,
+            vec![
+                (u32::MAX - 5, u32::MAX - 4),
+                (u32::MAX - 3, u32::MAX - 2),
+                (u32::MAX - 1, u32::MAX),
+            ],
+        ),
+        ("\"é\"", u32::MAX - 4, vec![(u32::MAX - 4, u32::MAX)]),
+        ("a", 42, vec![(42, 43)]),
+    ] {
+        let mut diagnostics = Vec::new();
+        let tokens =
+            canlang_compiler::syntax::lex_fragment(source, fragment, base, &mut diagnostics);
+        assert!(diagnostics.is_empty(), "{fragment:?}: {diagnostics:?}");
+        assert_eq!(
+            tokens.iter().map(|token| token.span).collect::<Vec<_>>(),
+            expected
+                .into_iter()
+                .map(|(start, end)| Span::new(source, start, end))
+                .collect::<Vec<_>>(),
+            "{fragment:?} at {base}",
+        );
+    }
+}
+
+#[test]
+fn public_lex_fragment_refuses_the_whole_range_before_lexing() {
+    use canlang_compiler::diagnostic::{Related, Severity};
+    use canlang_compiler::source::Span;
+
+    let source = SourceId(37);
+    for (fragment, base) in [
+        ("a", u32::MAX),
+        ("a + b", u32::MAX - 4),
+        ("\"é\"", u32::MAX - 3),
+        ("a $", u32::MAX - 2),
+        ("\t#", u32::MAX - 1),
+        ("  ", u32::MAX - 1),
+    ] {
+        let mut prior = Diagnostic::error(
+            "E1007",
+            "earlier caller diagnostic".to_string(),
+            Span::new(SourceId(9), 3, 4),
+        );
+        prior.related.push(Related {
+            span: Span::new(SourceId(8), 1, 2),
+            message: "earlier related span".to_string(),
+        });
+        prior.tags.push("earlier-tag".to_string());
+        let prior_snapshot = format!("{prior:?}");
+        let mut diagnostics = vec![prior];
+        let tokens =
+            canlang_compiler::syntax::lex_fragment(source, fragment, base, &mut diagnostics);
+        assert!(tokens.is_empty(), "{fragment:?} at {base}: {tokens:?}");
+        assert_eq!(diagnostics.len(), 2, "{fragment:?}: {diagnostics:?}");
+        assert_eq!(format!("{:?}", diagnostics[0]), prior_snapshot);
+        let refusal = &diagnostics[1];
+        assert_eq!(refusal.code, "E1008");
+        assert_eq!(refusal.severity, Severity::Error);
+        assert_eq!(
+            refusal.message,
+            "code fragment extends beyond the u32 source-offset range",
+        );
+        assert_eq!(refusal.primary, Span::new(source, base, base));
+        assert!(refusal.related.is_empty());
+        assert!(refusal.tags.is_empty());
+    }
+}
+
+#[test]
+fn public_lex_fragment_keeps_fitting_lexical_errors() {
+    use canlang_compiler::source::Span;
+
+    let source = SourceId(37);
+    for fragment in ["\t", "#", "$", "\"", "5minutes"] {
+        let base = u32::MAX - u32::try_from(fragment.len()).unwrap();
+        let mut diagnostics = Vec::new();
+        let tokens =
+            canlang_compiler::syntax::lex_fragment(source, fragment, base, &mut diagnostics);
+        let expected_code = match fragment {
+            "\t" => "E1003",
+            "\"" => "E1006",
+            "5minutes" => "E1005",
+            _ => "E1007",
+        };
+        assert_eq!(codes(&diagnostics), vec![expected_code]);
+        assert_eq!(diagnostics[0].primary, Span::new(source, base, u32::MAX));
+        if fragment == "\t" {
+            assert!(tokens.is_empty());
+            continue;
+        }
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(
+            tokens[0].kind,
+            if fragment == "\"" {
+                TokenKind::String
+            } else {
+                TokenKind::Error
+            },
+        );
+        assert_eq!(tokens[0].span, Span::new(source, base, u32::MAX));
+    }
+}
+
 // --- Layout -------------------------------------------------------------
 
 fn lay_out(text: &str) -> LayoutResult {

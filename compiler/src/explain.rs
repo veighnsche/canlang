@@ -8,7 +8,7 @@
 //! `W3xxx` deprecated, `I1xxx` unused/redundant/locale-fallback.
 //!
 //! The `E1xxx` entries are reconciled with the real `syntax` emission
-//! sites: lexer `E1001`–`E1007`, layout `E1101`–`E1103`/`E1120`–`E1126`
+//! sites: lexer `E1001`–`E1008`, layout `E1101`–`E1103`/`E1120`–`E1126`
 //! and parser `E1200`–`E1216` (see `syntax::mod` for the per-code
 //! summary). The `E2xxx` entries describe name resolution, the `E3xxx`
 //! entries type checking, and the `E6xxx` entries the producer-catalog
@@ -101,7 +101,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 116] = [
+const CATALOG: [CodeInfo; 117] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -157,6 +157,14 @@ const CATALOG: [CodeInfo; 116] = [
         explanation: "Outside strings only NAME tokens, JSON strings and the GRAMMAR punctuation set are valid. Anything else (e.g. `$`), an inline `#` (prose markers must start the physical line) or a mid-line backslash is reported; the byte stays as an error token so coverage is preserved. Remove or quote the character.",
         example_valid: "app T\nGiven\n role a label=\"A\"\nWhen\nThen\n",
         example_invalid: "app T\nGiven\n role a label=\"A\" $\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E1008",
+        title: "fragment-offset-range",
+        severity: Severity::Error,
+        explanation: "The public syntax::lex_fragment API requires the fragment's UTF-8 byte length to fit in u32 and base + byte length to be at most u32::MAX. An empty fragment at u32::MAX and an exact-fitting end are valid. A fragment outside this range returns no tokens and appends one error at the zero-width (file, base, base) span, preserving earlier diagnostics. Use a base and fragment length whose sum fits. These examples describe API arguments: CLI-authored source cannot specify a fragment base.",
+        example_valid: "syntax::lex_fragment(file, \"a\", u32::MAX - 1, &mut diagnostics)",
+        example_invalid: "syntax::lex_fragment(file, \"a\", u32::MAX, &mut diagnostics)",
     },
     CodeInfo {
         code: "E1101",

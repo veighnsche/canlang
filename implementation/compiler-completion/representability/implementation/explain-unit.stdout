@@ -1,0 +1,8 @@
+
+running 3 tests
+test explain::tests::catalog_is_sorted_unique_and_covers_policy_ranges ... ok
+test explain::tests::json_shape_has_all_fields ... ok
+test explain::tests::lookup_normalizes_case_and_whitespace ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 126 filtered out; finished in 0.00s
+

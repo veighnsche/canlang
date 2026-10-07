@@ -1,0 +1,67 @@
+{
+  "accepted": "bounded public fragment admission only",
+  "implementation_blockers": [],
+  "artifact_manifest": {
+    "caller-closure.txt": {
+      "sha256": "99c54d56fdd2a2b16a6cc8017a118618ec411ccd390ab519416b6e8d57ae66ca",
+      "bytes": 2637
+    },
+    "debug-observer-build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "debug-observer-build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "debug-observer-controls.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "debug-observer-controls.stdout": {
+      "sha256": "8e57ff2f21f81083facc052e5579473080707db1e67ae5058bb23e8276a67c1c",
+      "bytes": 2583
+    },
+    "pins.json": {
+      "sha256": "e2a4e124536cdc7086f62f75874dccc7d87f22044f93cbd7f1175f90e22479a3",
+      "bytes": 5409
+    },
+    "probe.rs": {
+      "sha256": "881f35b5a4dc99edea48eb5e6d08711164fdc0d3a8b7d54d353b59945540ab22",
+      "bytes": 3715
+    },
+    "qualification.json": {
+      "sha256": "95921f3a806f1a69b565c5cb4c10d0d139596f487f1e967276afae632335c502",
+      "bytes": 14493
+    },
+    "release-observer-build.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "release-observer-build.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "release-observer-controls.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "release-observer-controls.stdout": {
+      "sha256": "8e57ff2f21f81083facc052e5579473080707db1e67ae5058bb23e8276a67c1c",
+      "bytes": 2583
+    },
+    "review.md": {
+      "sha256": "b6a869afdc59b9fc32892ce287df84d1fc0b83105f865b9ff471bd6e3ec03db7",
+      "bytes": 5579
+    },
+    "reviewed-source.diff": {
+      "sha256": "c6cf6890f59222a45b44a0bb0bacbb8ee1ed86c272ead9db09a9a7167a79916d",
+      "bytes": 11455
+    },
+    "run.py": {
+      "sha256": "04bd2b43d21316067394927a12557bcc54823e67420fb8b8ca9e5f0b620af6a4",
+      "bytes": 2916
+    }
+  },
+  "actual_large_source_or_count_qualification": false
+}

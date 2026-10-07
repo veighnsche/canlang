@@ -1,0 +1,4 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `release` profile [optimized] target(s) in 24.30s
+     Running tests/syntax.rs (compiler/target/release/deps/syntax-7baf9ec2b91777f7)
+error: test failed, to rerun pass `--test syntax`

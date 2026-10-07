@@ -1,0 +1,142 @@
+{
+  "status": "implemented; focused checks passed; independent acceptance remains root-owned",
+  "recorded_at_utc": "2026-10-07T22:38:27.965074+00:00",
+  "source_paths": [
+    "compiler/src/syntax/lexer.rs",
+    "compiler/src/syntax/mod.rs",
+    "compiler/src/explain.rs",
+    "compiler/tests/syntax.rs",
+    "compiler/tests/authoring.rs"
+  ],
+  "source_pins_match": true,
+  "contract": "Before tokenization admit only u32-representable UTF-8 byte length and base.checked_add(length). Otherwise append exactly E1008 Error at (file,base,base), return no tokens, preserve caller diagnostics.",
+  "checks": {
+    "syntax-debug": {
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--test",
+        "syntax"
+      ],
+      "started_at_utc": "2026-10-07T22:37:35.136672+00:00",
+      "exit_code": 0
+    },
+    "fragment-release": {
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--release",
+        "--test",
+        "syntax",
+        "public_lex_fragment"
+      ],
+      "started_at_utc": "2026-10-07T22:37:38.837876+00:00",
+      "exit_code": 0
+    },
+    "explain-unit": {
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--lib",
+        "explain::tests"
+      ],
+      "started_at_utc": "2026-10-07T22:36:20.724548+00:00",
+      "exit_code": 0
+    },
+    "explain-typed": {
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--test",
+        "typed_explain"
+      ],
+      "started_at_utc": "2026-10-07T22:36:24.657463+00:00",
+      "exit_code": 0
+    },
+    "explain-authoring": {
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--test",
+        "authoring",
+        "explain_"
+      ],
+      "started_at_utc": "2026-10-07T22:36:29.284541+00:00",
+      "exit_code": 0
+    },
+    "diff-check": {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "compiler/src/syntax/lexer.rs",
+        "compiler/src/syntax/mod.rs",
+        "compiler/src/explain.rs",
+        "compiler/tests/syntax.rs",
+        "compiler/tests/authoring.rs"
+      ],
+      "exit_code": 0
+    },
+    "format-check": {
+      "command": [
+        "rustfmt",
+        "--edition",
+        "2024",
+        "--check",
+        "--config",
+        "skip_children=true",
+        "compiler/src/syntax/lexer.rs",
+        "compiler/src/syntax/mod.rs",
+        "compiler/src/explain.rs",
+        "compiler/tests/syntax.rs",
+        "compiler/tests/authoring.rs"
+      ],
+      "exit_code": 0
+    }
+  },
+  "test_counts": {
+    "syntax-debug": 57,
+    "fragment-release": 3,
+    "explain-unit": 3,
+    "explain-typed": 3,
+    "explain-authoring": 3
+  },
+  "toolchain": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "rustfmt": "rustfmt 1.10.0-stable (b940084d7e 2026-09-28)"
+  },
+  "failed_attempts_retained": {
+    "attempt1": "Initial tests failed compilation because explicit CATALOG array length was not yet updated from 116 to 117.",
+    "attempt2-syntax-debug": "New fitting lexical-error control incorrectly expected a tab error token; existing lexer reports E1003 without a token.",
+    "attempt3-syntax-debug/attempt2-fragment-release": "New fitting lexical-error control incorrectly expected malformed string to emit Error token; existing lexer preserves String token. Also replaced unexecuted 01 numeric fixture with established E1005 invalid-unit 5minutes."
+  },
+  "limits": [
+    "No giant allocation: >u32 fragment byte-length branch is implemented via checked conversion but not physically exercised.",
+    "Only public lex_fragment offset-range admission; no whole-source/source-count policy, CLI/LSP cap, analysis/IR changes or all FAIL-R06 closure claim.",
+    "No full suite, all-target Clippy, network or JEV. Existing tiny debug/release baseline was neither rerun nor rewritten.",
+    "Internal description #=/@{...} callers unchanged; debug syntax corpus/description tests passed.",
+    "Root retains independent acceptance, DEC recording and Git actions."
+  ]
+}
