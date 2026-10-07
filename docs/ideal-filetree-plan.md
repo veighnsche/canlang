@@ -156,3 +156,5 @@ Work decisions/utf16_json.rs owns shared byte-exact UTF16 JSON append mechanics.
 Interfaces retains ordinary form/filter/coercion objects with explicit own data descriptors; contracts records that declared keys are data. The mounted HTTP correction is accepted with separate correctness growth; collection-query remains helper-only. No owner migration or complete checkpoint advance.
 
 UI internal/business-errors.ts shares exact private digest mechanics for export and CSV. Original public interfaces retain declaration merging and wrappers retain their return contracts; no third private shape declaration is maintained. Narrow source-current closure reduction is accepted, with broader CSV/browser and complete checkpoint review still open.
+
+Values internal/violations.ts owns only the exact schema/wire append leaf. Collector types, path aliases and traversal remain local; source/declaration reduction and actual public-caller controls are accepted without broad validation/backend qualification or complete checkpoint advance.
