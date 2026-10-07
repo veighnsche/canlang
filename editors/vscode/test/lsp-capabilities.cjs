@@ -140,7 +140,8 @@ function main() {
 
   (async () => {
     // initialize: all 7 providers + legend + utf-16.
-    const init = await send('initialize', { processId: null, rootUri: null, capabilities: {} });
+    const init = await send('initialize', { processId: null, rootUri: null,
+      capabilities: { workspace: { workspaceEdit: { documentChanges: true } } } });
     const caps = init.capabilities;
     check('initialize/hoverProvider', caps.hoverProvider === true, JSON.stringify(caps.hoverProvider));
     check(
@@ -252,7 +253,7 @@ function main() {
     });
     check(
       'references/task',
-      references.length === 2 &&
+      references.length === 3 &&
         eq(references[0].range, {
           start: { line: 4, character: 19 },
           end: { line: 4, character: 23 },
@@ -260,11 +261,15 @@ function main() {
         eq(references[1].range, {
           start: { line: 6, character: 13 },
           end: { line: 6, character: 17 },
+        }) &&
+        eq(references[2].range, {
+          start: { line: 7, character: 7 },
+          end: { line: 7, character: 11 },
         }),
       JSON.stringify(references),
     );
 
-    // 5. rename (offset 102, newName `job` -> documentChanges, 2 edits).
+    // 5. rename (offset 102, newName `job` -> documentChanges, 3 edits).
     const rename = await send('textDocument/rename', {
       textDocument: { uri: CAP_URI },
       position: posOf(FIXTURE, 102),
@@ -273,7 +278,7 @@ function main() {
     const edits = rename && rename.documentChanges && rename.documentChanges[0].edits;
     check(
       'rename/task',
-      edits && edits.length === 2 && edits.every((edit) => edit.newText === 'job'),
+      edits && edits.length === 3 && edits.every((edit) => edit.newText === 'job'),
       JSON.stringify(rename),
     );
     const renameBad = await send('textDocument/rename', {
