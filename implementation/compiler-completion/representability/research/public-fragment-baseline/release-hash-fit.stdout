@@ -1,0 +1,4 @@
+case=hash-fit base=4294967294 bytes=1
+token=Error span=4294967294..4294967295 payload=None
+diagnostic=E1007 span=4294967294..4294967295 message=unexpected `#`; inline hash comments are invalid and `#` prose must start the physical line
+normal-return

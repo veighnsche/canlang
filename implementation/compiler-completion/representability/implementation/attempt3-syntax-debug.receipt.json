@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--locked",
+    "--offline",
+    "--test",
+    "syntax"
+  ],
+  "started_at_utc": "2026-10-07T22:37:04.255040+00:00",
+  "exit_code": 101
+}

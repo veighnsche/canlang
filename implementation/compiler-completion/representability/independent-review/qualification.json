@@ -1,0 +1,220 @@
+{
+  "recorded_at_utc": "2026-10-07T22:39:48.708516+00:00",
+  "scope": "28 tiny public fragment offset-equivariance/refusal controls per native profile, seeded diagnostics, empty MAX, E1008 catalog output; no large source/count or unrelated API claim",
+  "source_pins_before": {
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+    "compiler/src/analysis/check.rs": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+    "compiler/src/analysis/cohort.rs": "aad351ef70dc46118e51832705ffd84063ddf641a42cf2645c94dac2154f23e0",
+    "compiler/src/analysis/effects.rs": "3d5ae54a89c189ab907146ed702a10e3d22e91cb8400653e2029421f29054c07",
+    "compiler/src/analysis/examples.rs": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+    "compiler/src/analysis/migrate_check.rs": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb",
+    "compiler/src/analysis/mod.rs": "4bedf6bafa36bac0f0c01cdccae42ea3baabecdb0e5304a0cb8f419eee7bf7bf",
+    "compiler/src/analysis/resolve.rs": "55844929ce0032d3ad1a46e7c250bf44b318d138651364d67551ce172afca899",
+    "compiler/src/analysis/types.rs": "fdfae505833d91c919920860c7296c325fb76cf8295998d64fb7aae1c855027e",
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "compiler/src/codegen/artifact.rs": "5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c",
+    "compiler/src/codegen/bdd.rs": "13f465b553276046198bda84db340dc1bfbfeef4327ae273698cc200093f68a4",
+    "compiler/src/codegen/ir.rs": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+    "compiler/src/codegen/js.rs": "dd4a84f977a0ecdeb1e03685936042fcf47706de3757feda5f89c7987d99e8d4",
+    "compiler/src/codegen/mod.rs": "2ba20c0dcc1c29f821f3dff62da8cba0414aa77ae3194ef9db9197eed6206e7d",
+    "compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+    "compiler/src/diagnostic.rs": "2a27b52767a5f99af4b69853c5f924be5edd32b2b082abad68a65f1e6b37bc2d",
+    "compiler/src/docs.rs": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+    "compiler/src/explain.rs": "3087a58934c2ccf13c9b458694b31faf0bed27d3d59dcca3cf056f8b7220741f",
+    "compiler/src/format.rs": "13897d9c121f7f4941d5ce5af65b0f23f3b56aca30460fe134613e580b900c03",
+    "compiler/src/ide/fixes.rs": "dec86317bd2bd2bc22f66c27643d5afc70d4997abacd174058031fd35402399d",
+    "compiler/src/ide/mod.rs": "cadad2e06e0c21495f96fddaa04c3ec898e16779e4055e7092fc77a916a8a542",
+    "compiler/src/ide/queries.rs": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5",
+    "compiler/src/ide/tokens.rs": "bb2102209718b24f5dffc08f0a52ad08902a0e453d5cff1589782954d73f369b",
+    "compiler/src/json.rs": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/src/lint/driver.rs": "567a6a43ade59d553e7ebe1634c7a436a0ad1c9a9ed44cbda442951d9de79d96",
+    "compiler/src/lint/mod.rs": "fd8590276ed4362722b252398936d519e4964a70fee4cef30faa854d1cd4dc0d",
+    "compiler/src/lint/rules.rs": "b66419673896e7204320e2f9e85cc268b9f75f7c11c5ce4c2367ca90463cd492",
+    "compiler/src/lsp/mod.rs": "722f436d11ac0cfdbf0a04ed958f7c75c86e31d98118adcdb6b0fba6fe11421e",
+    "compiler/src/lsp/output.rs": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c",
+    "compiler/src/lsp/server.rs": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+    "compiler/src/lsp/transport.rs": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987",
+    "compiler/src/lsp/uri.rs": "3e7cf29690c1a257085d35f04b6dc50d0fb3255911ac6c5fdaf37e471245a08f",
+    "compiler/src/main.rs": "0ffc541bd55a96f5d3779eb59b0e7ef3e0ef119956ec8363af13942c1c46f610",
+    "compiler/src/policy.rs": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "compiler/src/source.rs": "7188ed986a95ca47696f0286eccba5ecc5198cea0b596a7412472999fe4bbda9",
+    "compiler/src/syntax/cst.rs": "265fb3def13e9ed8e8421bb604724e8848149b5a34b683d35622ef1ea0ee6ecc",
+    "compiler/src/syntax/layout.rs": "2f0bf7a120109f3221bf52852ca8a7e0bae4723461b9ce3ffafa1975d23c8a4d",
+    "compiler/src/syntax/lexer.rs": "abede67114dfbdb74e9d9db9d96281f4dfcaab1e426cfb0c359c1fb0b9d21cef",
+    "compiler/src/syntax/mod.rs": "0f6988f6262e470359e47ae28cd80aa8f7eac03723d59bcdb16722ad1dbd9d0e",
+    "compiler/src/syntax/parser.rs": "87aa962dd5de5aec9ee73f82e25cf1d2cbc0553ec2c6ffc0f64cdd6e5f65b806",
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "compiler/build.rs": "2a6fbba3681c67ad5804430a8439e3db53965f665017cf7c8e2ff8c1566bb965",
+    "compiler/tests/syntax.rs": "ee5d6be4dbb0c54a92370c0e4af4488ba876e0e77d2b62da1d150e9a9bd8fb3f",
+    "compiler/tests/authoring.rs": "eace4e3f729909b79c5e59aba9044777cf837556defc9cf37e2bd77f5330b34e"
+  },
+  "selected_rlibs": {
+    "debug": {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/deps/libcanlang_compiler-7ac8439fc564dd9b.rlib",
+      "sha256": "fc1039439d3933fee2fe1a6e508696f48e9c75bd595248dc87940555dea5c889",
+      "mtime_ns": 1791412626545128879
+    },
+    "release": {
+      "path": "/Users/vince/Projects/canlang/compiler/target/release/deps/libcanlang_compiler-ed7278457aa6aa6c.rlib",
+      "sha256": "cb1efddc785dbfad24c1814fa4504e5f5379cb2826094adbc863bac261a6dc2f",
+      "mtime_ns": 1791412673715535243
+    }
+  },
+  "observer_sha256": "881f35b5a4dc99edea48eb5e6d08711164fdc0d3a8b7d54d353b59945540ab22",
+  "runner_sha256": "04bd2b43d21316067394927a12557bcc54823e67420fb8b8ca9e5f0b620af6a4",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+  "debug_observer_sha256": "b298069c8261a6ecb74e615122e3a4234f2f1e90354b2ab2f6abeb65bc1362c0",
+  "release_observer_sha256": "dca408480bcab6210bb9894bd42e1296cbf6c3fe02d152653648329b43ef3845",
+  "source_pins_after": {
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+    "compiler/src/analysis/check.rs": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+    "compiler/src/analysis/cohort.rs": "aad351ef70dc46118e51832705ffd84063ddf641a42cf2645c94dac2154f23e0",
+    "compiler/src/analysis/effects.rs": "3d5ae54a89c189ab907146ed702a10e3d22e91cb8400653e2029421f29054c07",
+    "compiler/src/analysis/examples.rs": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+    "compiler/src/analysis/migrate_check.rs": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb",
+    "compiler/src/analysis/mod.rs": "4bedf6bafa36bac0f0c01cdccae42ea3baabecdb0e5304a0cb8f419eee7bf7bf",
+    "compiler/src/analysis/resolve.rs": "55844929ce0032d3ad1a46e7c250bf44b318d138651364d67551ce172afca899",
+    "compiler/src/analysis/types.rs": "fdfae505833d91c919920860c7296c325fb76cf8295998d64fb7aae1c855027e",
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "compiler/src/codegen/artifact.rs": "5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c",
+    "compiler/src/codegen/bdd.rs": "13f465b553276046198bda84db340dc1bfbfeef4327ae273698cc200093f68a4",
+    "compiler/src/codegen/ir.rs": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+    "compiler/src/codegen/js.rs": "dd4a84f977a0ecdeb1e03685936042fcf47706de3757feda5f89c7987d99e8d4",
+    "compiler/src/codegen/mod.rs": "2ba20c0dcc1c29f821f3dff62da8cba0414aa77ae3194ef9db9197eed6206e7d",
+    "compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+    "compiler/src/diagnostic.rs": "2a27b52767a5f99af4b69853c5f924be5edd32b2b082abad68a65f1e6b37bc2d",
+    "compiler/src/docs.rs": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+    "compiler/src/explain.rs": "3087a58934c2ccf13c9b458694b31faf0bed27d3d59dcca3cf056f8b7220741f",
+    "compiler/src/format.rs": "13897d9c121f7f4941d5ce5af65b0f23f3b56aca30460fe134613e580b900c03",
+    "compiler/src/ide/fixes.rs": "dec86317bd2bd2bc22f66c27643d5afc70d4997abacd174058031fd35402399d",
+    "compiler/src/ide/mod.rs": "cadad2e06e0c21495f96fddaa04c3ec898e16779e4055e7092fc77a916a8a542",
+    "compiler/src/ide/queries.rs": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5",
+    "compiler/src/ide/tokens.rs": "bb2102209718b24f5dffc08f0a52ad08902a0e453d5cff1589782954d73f369b",
+    "compiler/src/json.rs": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/src/lint/driver.rs": "567a6a43ade59d553e7ebe1634c7a436a0ad1c9a9ed44cbda442951d9de79d96",
+    "compiler/src/lint/mod.rs": "fd8590276ed4362722b252398936d519e4964a70fee4cef30faa854d1cd4dc0d",
+    "compiler/src/lint/rules.rs": "b66419673896e7204320e2f9e85cc268b9f75f7c11c5ce4c2367ca90463cd492",
+    "compiler/src/lsp/mod.rs": "722f436d11ac0cfdbf0a04ed958f7c75c86e31d98118adcdb6b0fba6fe11421e",
+    "compiler/src/lsp/output.rs": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c",
+    "compiler/src/lsp/server.rs": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+    "compiler/src/lsp/transport.rs": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987",
+    "compiler/src/lsp/uri.rs": "3e7cf29690c1a257085d35f04b6dc50d0fb3255911ac6c5fdaf37e471245a08f",
+    "compiler/src/main.rs": "0ffc541bd55a96f5d3779eb59b0e7ef3e0ef119956ec8363af13942c1c46f610",
+    "compiler/src/policy.rs": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "compiler/src/source.rs": "7188ed986a95ca47696f0286eccba5ecc5198cea0b596a7412472999fe4bbda9",
+    "compiler/src/syntax/cst.rs": "265fb3def13e9ed8e8421bb604724e8848149b5a34b683d35622ef1ea0ee6ecc",
+    "compiler/src/syntax/layout.rs": "2f0bf7a120109f3221bf52852ca8a7e0bae4723461b9ce3ffafa1975d23c8a4d",
+    "compiler/src/syntax/lexer.rs": "abede67114dfbdb74e9d9db9d96281f4dfcaab1e426cfb0c359c1fb0b9d21cef",
+    "compiler/src/syntax/mod.rs": "0f6988f6262e470359e47ae28cd80aa8f7eac03723d59bcdb16722ad1dbd9d0e",
+    "compiler/src/syntax/parser.rs": "87aa962dd5de5aec9ee73f82e25cf1d2cbc0553ec2c6ffc0f64cdd6e5f65b806",
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "compiler/build.rs": "2a6fbba3681c67ad5804430a8439e3db53965f665017cf7c8e2ff8c1566bb965",
+    "compiler/tests/syntax.rs": "ee5d6be4dbb0c54a92370c0e4af4488ba876e0e77d2b62da1d150e9a9bd8fb3f",
+    "compiler/tests/authoring.rs": "eace4e3f729909b79c5e59aba9044777cf837556defc9cf37e2bd77f5330b34e"
+  },
+  "sources_stable_during_execution": true,
+  "results": [
+    {
+      "name": "debug-observer-build",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/representability/independent-review/probe.rs",
+        "--extern",
+        "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/debug/deps/libcanlang_compiler-7ac8439fc564dd9b.rlib",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "-o",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-fragment-independent-4k8ckx0g/debug"
+      ],
+      "exit_code": 0,
+      "seconds": 0.836,
+      "stdout": {
+        "path": "debug-observer-build.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "debug-observer-build.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "debug-observer-controls",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-fragment-independent-4k8ckx0g/debug"
+      ],
+      "exit_code": 0,
+      "seconds": 0.21,
+      "stdout": {
+        "path": "debug-observer-controls.stdout",
+        "sha256": "8e57ff2f21f81083facc052e5579473080707db1e67ae5058bb23e8276a67c1c",
+        "bytes": 2583
+      },
+      "stderr": {
+        "path": "debug-observer-controls.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "release-observer-build",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/representability/independent-review/probe.rs",
+        "--extern",
+        "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/release/deps/libcanlang_compiler-ed7278457aa6aa6c.rlib",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/release/deps",
+        "-o",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-fragment-independent-4k8ckx0g/release",
+        "-C",
+        "opt-level=z",
+        "-C",
+        "overflow-checks=off",
+        "-C",
+        "debug-assertions=off",
+        "-C",
+        "lto=fat",
+        "-C",
+        "codegen-units=1"
+      ],
+      "exit_code": 0,
+      "seconds": 2.445,
+      "stdout": {
+        "path": "release-observer-build.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "release-observer-build.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "release-observer-controls",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-fragment-independent-4k8ckx0g/release"
+      ],
+      "exit_code": 0,
+      "seconds": 0.149,
+      "stdout": {
+        "path": "release-observer-controls.stdout",
+        "sha256": "8e57ff2f21f81083facc052e5579473080707db1e67ae5058bb23e8276a67c1c",
+        "bytes": 2583
+      },
+      "stderr": {
+        "path": "release-observer-controls.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    }
+  ]
+}

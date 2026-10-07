@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--locked",
+    "--offline",
+    "--release",
+    "--test",
+    "syntax",
+    "public_lex_fragment"
+  ],
+  "started_at_utc": "2026-10-07T22:37:38.837876+00:00",
+  "exit_code": 0
+}

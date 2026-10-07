@@ -1,0 +1,25 @@
+{
+  "kind": "read-only bounded source inspection; no public execution/build",
+  "inputs": {
+    "compiler/src/source.rs": "7188ed986a95ca47696f0286eccba5ecc5198cea0b596a7412472999fe4bbda9",
+    "compiler/src/syntax/lexer.rs": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0",
+    "compiler/src/syntax/layout.rs": "2f0bf7a120109f3221bf52852ca8a7e0bae4723461b9ce3ffafa1975d23c8a4d",
+    "compiler/src/syntax/mod.rs": "2a1517f81512614a7761082b3b03700023f51e6444175f69c8d865dca318b04d",
+    "compiler/src/syntax/parser.rs": "87aa962dd5de5aec9ee73f82e25cf1d2cbc0553ec2c6ffc0f64cdd6e5f65b806",
+    "compiler/src/syntax/cst.rs": "265fb3def13e9ed8e8421bb604724e8848149b5a34b683d35622ef1ea0ee6ecc",
+    "compiler/src/ide/queries.rs": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5",
+    "compiler/src/ide/tokens.rs": "bb2102209718b24f5dffc08f0a52ad08902a0e453d5cff1589782954d73f369b",
+    "compiler/src/lsp/server.rs": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+    "compiler/src/lsp/transport.rs": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987",
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+    "compiler/src/analysis/resolve.rs": "55844929ce0032d3ad1a46e7c250bf44b318d138651364d67551ce172afca899",
+    "compiler/src/analysis/types.rs": "fdfae505833d91c919920860c7296c325fb76cf8295998d64fb7aae1c855027e",
+    "compiler/src/analysis/cohort.rs": "aad351ef70dc46118e51832705ffd84063ddf641a42cf2645c94dac2154f23e0",
+    "compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+    "compiler/src/diagnostic.rs": "2a27b52767a5f99af4b69853c5f924be5edd32b2b082abad68a65f1e6b37bc2d",
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/tests/syntax.rs": "b0976f8de37a466c7d78479fa94b6b1b1f1a19c0b62a49c2bac949647c51ff22"
+  },
+  "scope": "Source files inspected concurrently with root work; hashes pin saved-note inspection endpoint, not a frozen production lease."
+}

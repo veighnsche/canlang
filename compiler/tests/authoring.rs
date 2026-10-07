@@ -797,7 +797,25 @@ fn explain_round_trips_every_emitted_code() {
         if info.code == "E1002" {
             continue;
         }
-        let (_tree, diags) = parse_source(SourceId(0), info.example_invalid);
+        let diags = if info.code == "E1008" {
+            // The catalog describes API arguments; authored source cannot set base.
+            assert_eq!(
+                info.example_invalid,
+                "syntax::lex_fragment(file, \"a\", u32::MAX, &mut diagnostics)",
+            );
+            let mut diagnostics = Vec::new();
+            let tokens = canlang_compiler::syntax::lex_fragment(
+                SourceId(37),
+                "a",
+                u32::MAX,
+                &mut diagnostics,
+            );
+            assert!(tokens.is_empty());
+            assert_eq!(diagnostics.len(), 1);
+            diagnostics
+        } else {
+            parse_source(SourceId(0), info.example_invalid).1
+        };
         let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
         assert!(
             codes.contains(&info.code),
@@ -886,7 +904,27 @@ fn explain_e1xxx_valid_examples_parse_clean() {
     use canlang_compiler::syntax::parse_source;
 
     for info in explain::all().iter().filter(|i| i.code.starts_with("E1")) {
-        let (_tree, diags) = parse_source(SourceId(0), info.example_valid);
+        let diags = if info.code == "E1008" {
+            assert_eq!(
+                info.example_valid,
+                "syntax::lex_fragment(file, \"a\", u32::MAX - 1, &mut diagnostics)",
+            );
+            let mut diagnostics = Vec::new();
+            let tokens = canlang_compiler::syntax::lex_fragment(
+                SourceId(37),
+                "a",
+                u32::MAX - 1,
+                &mut diagnostics,
+            );
+            assert_eq!(tokens.len(), 1);
+            assert_eq!(
+                tokens[0].span,
+                canlang_compiler::source::Span::new(SourceId(37), u32::MAX - 1, u32::MAX),
+            );
+            diagnostics
+        } else {
+            parse_source(SourceId(0), info.example_valid).1
+        };
         assert!(
             diags.is_empty(),
             "example_valid for {} emitted {diags:?}",

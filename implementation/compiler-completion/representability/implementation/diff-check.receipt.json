@@ -1,0 +1,14 @@
+{
+  "command": [
+    "git",
+    "diff",
+    "--check",
+    "--",
+    "compiler/src/syntax/lexer.rs",
+    "compiler/src/syntax/mod.rs",
+    "compiler/src/explain.rs",
+    "compiler/tests/syntax.rs",
+    "compiler/tests/authoring.rs"
+  ],
+  "exit_code": 0
+}

@@ -1,0 +1,3 @@
+case=name-fit base=4294967294 bytes=1
+token=Name span=4294967294..4294967295 payload=None
+normal-return

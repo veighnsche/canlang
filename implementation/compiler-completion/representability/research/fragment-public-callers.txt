@@ -1,0 +1,7 @@
+compiler/src/syntax/lexer.rs:436:pub fn lex_fragment(
+compiler/src/syntax/mod.rs:61:    Lexed, PhysLine, Punct, Token, TokenKind, decode_json_string, lex, lex_bytes, lex_fragment,
+compiler/src/syntax/layout.rs:16:use crate::syntax::lexer::{PhysLine, Punct, Token, TokenKind, lex_fragment};
+compiler/src/syntax/layout.rs:655:    let tokens = lex_fragment(file, fragment, base, diagnostics);
+compiler/src/syntax/layout.rs:704:    let tokens = lex_fragment(file, fragment, base, diagnostics);
+compiler/tests/syntax.rs:8:    lex_bytes, lex_fragment, parse_source,
+compiler/tests/syntax.rs:369:    let tokens = lex_fragment(file(), "a + b", 100, &mut diags);
