@@ -1,0 +1,51 @@
+{
+  "owner": "root",
+  "stage": "released owned untracked payload cleanup; full negative/source evidence retained byte-equal",
+  "utc": "2026-10-07T21:51:54.756874+00:00",
+  "entries": [
+    {
+      "original": "implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/context.json",
+      "archive": "/private/tmp/canlang-repair-go-20261007/released-source-payloads/security-contract/context.json",
+      "bytes": 37841,
+      "sha256": "89e8b47b43534fa7de54375046b77076ac1adf4e24eb0857b9ab9860e184dcd6",
+      "reader_release": "prior scoped JEV/Astra/metadata readers and handles released; current fanout/values/files writers do not use these payloads"
+    },
+    {
+      "original": "implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/request-1.json",
+      "archive": "/private/tmp/canlang-repair-go-20261007/released-source-payloads/security-contract/request-1.json",
+      "bytes": 42986,
+      "sha256": "ea2f49c55deda6ede3807b37702edaefc53a556023d4636e0b5329300c9c0adf",
+      "reader_release": "prior scoped JEV/Astra/metadata readers and handles released; current fanout/values/files writers do not use these payloads"
+    },
+    {
+      "original": "implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/request-2.json",
+      "archive": "/private/tmp/canlang-repair-go-20261007/released-source-payloads/security-contract/request-2.json",
+      "bytes": 42678,
+      "sha256": "1038d5c547b834f3c11fa519988a7b590dcc6ccc89f146cba3a08948f3c284f8",
+      "reader_release": "prior scoped JEV/Astra/metadata readers and handles released; current fanout/values/files writers do not use these payloads"
+    },
+    {
+      "original": "implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/request-3.json",
+      "archive": "/private/tmp/canlang-repair-go-20261007/released-source-payloads/security-contract/request-3.json",
+      "bytes": 42776,
+      "sha256": "8951d76362c0f25d91fa48a7b077fff8bd594ff9bc683d49096d396171784b41",
+      "reader_release": "prior scoped JEV/Astra/metadata readers and handles released; current fanout/values/files writers do not use these payloads"
+    },
+    {
+      "original": "implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/assessment.md",
+      "archive": "/private/tmp/canlang-repair-go-20261007/released-source-payloads/security-contract/assessment.md",
+      "bytes": 7597,
+      "sha256": "1bd7f770abf3e0a1fe4d538db49944b1ea3ea60ed2352a8bc17c59387fb38fa2",
+      "reader_release": "prior scoped JEV/Astra/metadata readers and handles released; current fanout/values/files writers do not use these payloads"
+    },
+    {
+      "original": "implementation/package-maintenance-repair/runs/codex-go-20261007/critical-review-request/source-excerpts.txt",
+      "archive": "/private/tmp/canlang-repair-go-20261007/released-source-payloads/critical-review-request/source-excerpts.txt",
+      "bytes": 186981,
+      "sha256": "5e38ac5a4107eea2e2c4f3c920b636da7ddc2062f8c4f6ed2e0e3e1bf68c393b",
+      "reader_release": "prior scoped JEV/Astra/metadata readers and handles released; current fanout/values/files writers do not use these payloads"
+    }
+  ],
+  "foreign_files_and_private_active_roots": "unchanged",
+  "full_cleanup": "pending until selected programme and actual active readers finish"
+}
