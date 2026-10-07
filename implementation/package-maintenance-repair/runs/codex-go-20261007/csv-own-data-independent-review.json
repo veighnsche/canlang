@@ -1,0 +1,140 @@
+{
+  "packet": "CSV own-data finite independent review",
+  "disposition": "PASS within declared finite source and caller scope",
+  "sourceSHA256": {
+    "packages/interfaces/src/http/csv.ts": "3d40ad3ca05f4833a0c207fea0fc35765ad28f797cae1a57936e455ef59c8537",
+    "packages/interfaces/test/csv-own-data.test.ts": "7db270eb7c57a69a4a7d06d2bdef6d2e90372c22f0d35682f1adee6d4c09cc2e"
+  },
+  "baselineOwnerSHA256": "a7aa6ee00728dde7a06f4589f3316a8aef81d75d7a73d2555110eb750925add1",
+  "sourceProof": {
+    "onlyMapRowCellsChanged": true,
+    "publicDeclarationBytesIdentical": true,
+    "publicDeclarationSHA256": "faf040d6ec695b3e5de909c230d19aa3c05a3e8fa576e8d9e7ad83096fa82d23",
+    "ordinaryObjectAndOwnEnumerableWritableConfigurableData": true,
+    "emptyCellsOmitAndBooleanBytesPreserved": true
+  },
+  "freshIndependentRuns": {
+    "baseline": {
+      "tests": 5,
+      "pass": 0,
+      "fail": 5,
+      "expectedExit": 1
+    },
+    "current": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "exit": 0
+    },
+    "handles": [
+      {
+        "scope": "baseline",
+        "pid": 72303,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "--test-timeout=45000",
+          "/private/tmp/canlang-repair-go-20261007/csv-own-data-independent/baseline/dist/test/csv-own-data.test.js"
+        ],
+        "start": "2026-10-07T20:42:45.907Z",
+        "deadline": "2026-10-07T20:43:45.907Z",
+        "exitCode": 1,
+        "signal": null,
+        "end": "2026-10-07T20:42:46.227Z"
+      },
+      {
+        "scope": "current",
+        "pid": 72305,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "--test-timeout=45000",
+          "/private/tmp/canlang-repair-go-20261007/csv-own-data-independent/current/dist/test/csv-own-data.test.js"
+        ],
+        "start": "2026-10-07T20:42:46.239Z",
+        "deadline": "2026-10-07T20:43:46.239Z",
+        "exitCode": 0,
+        "signal": null,
+        "end": "2026-10-07T20:42:46.537Z"
+      }
+    ],
+    "strictSourceContractsTypecheck": {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "/private/tmp/canlang-repair-go-20261007/csv-own-data-independent/current/typecheck.json"
+      ],
+      "pid": 73364,
+      "start": "2026-10-07T20:46:00.649208+00:00",
+      "deadline": "2026-10-07T20:47:00.649208+00:00",
+      "exit": 0,
+      "end": "2026-10-07T20:46:02.489276+00:00"
+    },
+    "additionalControls": {
+      "onlyMapperChanged": true,
+      "getterDemandAndFirstErrorEquivalent": true,
+      "throwIdentityPreserved": true,
+      "inheritedSetterNotInvoked": true,
+      "actualPreparedCallerSameObjectAndDescriptors": true,
+      "events": [
+        "name:a",
+        "name:b",
+        "name:c",
+        "name:d",
+        "cell:0",
+        "kind:a",
+        "cell:1",
+        "kind:b",
+        "cell:2",
+        "kind:c"
+      ]
+    },
+    "additionalControlsHandle": {
+      "pid": 73483,
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/private/tmp/canlang-repair-go-20261007/csv-own-data-independent/controls.mjs"
+      ],
+      "start": "2026-10-07T20:46:48.155951+00:00",
+      "deadline": "2026-10-07T20:47:33.155951+00:00",
+      "exit": 0,
+      "end": "2026-10-07T20:46:48.450974+00:00"
+    }
+  },
+  "actualCallerProof": [
+    "mounted createHttpHandler \u2192 handleCsvRequest \u2192 actual invocation receives distinct __proto__ data and source-ordered IDs",
+    "changed __proto__ cell invalidates original consent with 409 before any invocation",
+    "real prepareHttpPlan \u2192 runPreparedHttpPlan returns same ordinary inputs object and exact five special-name descriptors"
+  ],
+  "consumerPins": {
+    "envelope/prepared.ts": "c511fdf952d7944c2d3147b817553fd1e2761a1ec4db837b64c4c128b22e39e0",
+    "mcp/schemas.ts": "44e1e8f6df2cddfc3c0a7b0b3f080d74dfe96c53f0d7d0d9420b3a27786f22fb",
+    "envelope/validate.ts": "115b21e75eb724664a2a87eea0434ab792114702e72e97cf8af9e8200d32d1ec",
+    "http/routes.ts": "e793a0130b30fa115fc5dea091f6300cf52cfc15f095a03f59cd20a9f72b7a42",
+    "http/operations.ts": "1c575196b21444f7cc2680667752a39c6403c0a1b06a10c07676cd0ecc7de36a"
+  },
+  "consumerQualification": "Private consumer source snapshots byte-equal current sources for five pinned owners; fresh owner and test emission reuses unchanged frozen emitted consumer/dependency profile. Strict source-current contract compilation passes.",
+  "reusedEvidence": {
+    "scope": "unchanged 29 CSV regression controls only",
+    "tests": 29,
+    "pass": 29,
+    "fail": 0,
+    "logSHA256": "9aea413c36f7d1ca62b597c69228555eb04abebd2bbc5382b7c50188cd955541"
+  },
+  "privateHarnessRepair": {
+    "initialExtraControlExit": 1,
+    "reason": "Private hand-created derived fixture used unsupported text kind; replaced by real catalogFromArtifactOperations string declarations. No product defect; failed command output chunk85e730 retained in task trace.",
+    "correctedControlExit": 0
+  },
+  "defects": [],
+  "limits": [
+    "No reduction claim: scoped correctness repair.",
+    "No grammar tightening, null-prototype conversion, canonical profile, consent or source-order change.",
+    "Parent DEL-C01/DEL-C02 grammar/resource/authority/integrity and arbitrary canonical profiles remain open.",
+    "No durable, installed, native, whole backend or broad adoption acceptance.",
+    "No own acceptance of separate URI candidate."
+  ],
+  "privateEvidenceRoot": "/private/tmp/canlang-repair-go-20261007/csv-own-data-independent",
+  "readAndCommandLeasesReleased": true
+}

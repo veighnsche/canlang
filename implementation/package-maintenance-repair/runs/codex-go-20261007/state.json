@@ -229,7 +229,7 @@
     },
     "TECH-W01-uri": {
       "planning_status": "blocked",
-      "state": "independently accepted finite extraction; scoped source commit prepared",
+      "state": "independently accepted finite extraction; committed bf075707",
       "files": [
         "packages/work-kernel/decisions/rows.rs",
         "packages/work-kernel/decisions/receipt.rs",
@@ -268,8 +268,9 @@
       "full_closure_reduction": 100,
       "external_upstream_readable_lines": 320,
       "review_read_released": true,
-      "commit_pending": true,
-      "limits": "Original installed/native/Wasm ABI/backend/measurement gates open; no source payload or generated-output reduction credit"
+      "commit_pending": false,
+      "limits": "Original installed/native/Wasm ABI/backend/measurement gates open; no source payload or generated-output reduction credit",
+      "commit": "bf075707"
     },
     "TECH-V03": {
       "planning_status": "blocked",
@@ -632,9 +633,9 @@
         "packages/ui/src/csv/parse.ts",
         "packages/ui/src/csv/grammar.ts"
       ],
-      "residual_evidence": "canonical-json-independent-review.json: declared optional __proto__ cells drop/collapse into duplicate candidates in both original/current actual CSV mapper; existing grammar/integrity parent remains open",
+      "residual_evidence": "Own-key loss independently corrected at finite actual CSV caller/consent scope; parent grammar/resource admission remains open",
       "finite_own_data_slice": {
-        "state": "independently accepted actual own-data/consent correction; scoped commit pending shared-doc handback",
+        "state": "independently accepted and scoped commit prepared",
         "files": [
           "packages/interfaces/src/http/csv.ts",
           "packages/interfaces/test/csv-own-data.test.ts"
@@ -647,7 +648,8 @@
         "root_write_lease_released": true,
         "reviewer": "/root/review_ui_appearance",
         "review": "csv-own-data-independent-review.json",
-        "review_read_released": true
+        "review_read_released": true,
+        "commit_pending": true
       }
     },
     "DEL-C02": {
@@ -658,7 +660,7 @@
         "packages/ui/src/csv/confirm.ts",
         "packages/ui/src/csv/preview.ts"
       ],
-      "residual_evidence": "canonical-json-independent-review.json: baseline-preserved lost declared __proto__ input changes selected candidate/hash meaning; separate finite correctness repair needed"
+      "residual_evidence": "Finite own-data correction passes changed-cell consent refusal; broader consent authority and replay remain open"
     },
     "DEL-C02-order": {
       "planning_status": "ready",
@@ -707,7 +709,7 @@
     },
     "DEL-D03": {
       "planning_status": "blocked",
-      "state": "finite pre-existing entry-write cleanup repair active; broad resource prerequisites still open",
+      "state": "released finite entry-write cleanup candidate; independent review pending",
       "files": [
         "packages/cloudflare/src/deploy/bundle.ts",
         "packages/cloudflare/src/preparation/build-adapter.ts",
@@ -725,7 +727,10 @@
         "packages/cloudflare/src/deploy/bundle.ts",
         "packages/cloudflare/test/bundle-entry-cleanup.test.ts"
       ],
-      "start_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741"
+      "start_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "writer_released": true,
+      "producer_receipt": "/private/tmp/canlang-repair-go-20261007/entry-cleanup/result.json",
+      "source_sha256": "e7db969b11fdc80d631574519d80c934b8816595e06f444c5c33683eeb517fc2"
     },
     "DEL-D04": {
       "planning_status": "blocked",
@@ -1041,7 +1046,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T20:57:39.747339+00:00",
+  "updated_utc": "2026-10-07T20:58:33.414655+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1076,14 +1081,13 @@
   "shared_doc_handoff": {
     "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
     "human_authority": "actual source chat Yes, coordinate with both agents",
-    "state": "root permits one append-only PROPOSED evaluation entry; explicit completion/release pending",
+    "state": "explicit append completion/release received from same authorized foreign chat",
     "files": [
       "docs/specification/DECISIONS.md"
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
-    "package_decision_notes_pending": [
-      "URI library extraction",
-      "CSV own-data correction"
-    ]
+    "package_decision_notes_pending": [],
+    "heading": "2026-10-07 \u2014 Language capability evaluation and implementation roadmap (PROPOSED)",
+    "foreign_append_staging": "Preserved unstaged; root stages only its notes from HEAD"
   }
 }

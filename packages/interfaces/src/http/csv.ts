@@ -180,9 +180,10 @@ function mapRowCells(
     const cell = cells[i] ?? '';
     if (cell === '') continue;
     const declared = byName.get(name);
+    let value: string | boolean = cell;
     if (declared?.kind === 'boolean') {
-      if (cell === 'true') inputs[name] = true;
-      else if (cell === 'false') inputs[name] = false;
+      if (cell === 'true') value = true;
+      else if (cell === 'false') value = false;
       else {
         const message =
           `Invalid value for input ${JSON.stringify(name)}: boolean columns take true/false text ` +
@@ -194,9 +195,8 @@ function mapRowCells(
           }),
         };
       }
-      continue;
     }
-    inputs[name] = cell;
+    Object.defineProperty(inputs, name, { value, enumerable: true, writable: true, configurable: true });
   }
   return { inputs, error: null };
 }

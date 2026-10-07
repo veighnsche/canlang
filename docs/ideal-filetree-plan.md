@@ -195,3 +195,5 @@ State child-join port now enforces the same-fanout converse before store submiss
 
 
 Work decisions/uri_component.rs delegates byte escaping to pinned percent-encoding2.3.2 through a streaming raw-UTF16 leaf; owner-local errors and registered callers remain local. Independent finite source-current review accepts a100-line reduction in our full maintained closure with21 sampled allocation profiles no worse than the old scanner. New upstream320-line source, license/update/deployed burden is charged separately; installed/publicWasm/backend adoption remains open. The rejected temporary-String resource regression is retained privately. Scoped DECISIONS append awaits the foreign proposal writer's explicit shared-file handback; no merge or complete checkpoint advance.
+
+Explicit proposal-writer handback releases DECISIONS; package URI/CSV accepted notes are recorded while foreign compiler/proposal bytes remain unstaged. CSV declared special names are own ordinary data through real prepared/mounted consumers, with consent-tamper refusal and public declarations preserved. Parent grammar/resource/current-authority joins remain open; no complete checkpoint advance.
