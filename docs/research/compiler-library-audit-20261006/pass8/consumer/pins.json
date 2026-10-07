@@ -1,0 +1,127 @@
+[
+  {
+    "path": "compiler/src/source.rs",
+    "sha256": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a",
+    "bytes": 12332
+  },
+  {
+    "path": "compiler/src/codegen/sourcemap.rs",
+    "sha256": "eefeb9d2b8bebd6f6c70cf121415daa7918177f5c17b71adfc6b6990024782d3",
+    "bytes": 7995
+  },
+  {
+    "path": "compiler/src/codegen/js.rs",
+    "sha256": "5cebbd00bcb5dd78cc9644e58c916bdcf23c80ec2519fa0dc76ffdc3e12366e5",
+    "bytes": 237614
+  },
+  {
+    "path": "compiler/src/codegen/artifact.rs",
+    "sha256": "614ffe61893330f07a94ee83863e12b6830e8332f3536acf1a093e0c9abda5dc",
+    "bytes": 22429
+  },
+  {
+    "path": "compiler/src/diagnostic.rs",
+    "sha256": "9fd7f517cb57423c45eb11f8cae995746181d678966b6d9d379334a93d4c99de",
+    "bytes": 12609
+  },
+  {
+    "path": "compiler/src/lsp/server.rs",
+    "sha256": "79c53edb9ba35b411e48d7d0064776dfbb4b8b622f748dbb13d3958cb9f78743",
+    "bytes": 58926
+  },
+  {
+    "path": "packages/contracts/src/artifact.ts",
+    "sha256": "3031c619c79fc6d688667d4a1af07ae7d07863b52c2408c6b96587cc43ccf173",
+    "bytes": 18006
+  },
+  {
+    "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+    "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "bytes": 6534
+  },
+  {
+    "path": "packages/cloudflare/src/runtime/invoke.ts",
+    "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+    "bytes": 319853
+  },
+  {
+    "path": "packages/cloudflare/src/runtime/artifact.ts",
+    "sha256": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d",
+    "bytes": 16101
+  },
+  {
+    "path": "packages/cloudflare/src/runtime/modules.ts",
+    "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+    "bytes": 6362
+  },
+  {
+    "path": "packages/cloudflare/src/deploy/module-maps.ts",
+    "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+    "bytes": 5985
+  },
+  {
+    "path": "packages/cloudflare/src/deploy/module-imports.ts",
+    "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+    "bytes": 12176
+  },
+  {
+    "path": "packages/cloudflare/src/deploy/bundle.ts",
+    "sha256": "7875284ee7f630d0834a5dc484691ad04999a81ea4cfcb8a77114eb521ab5fc8",
+    "bytes": 60731
+  },
+  {
+    "path": "packages/cloudflare/src/dev/local-run.ts",
+    "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+    "bytes": 4434
+  },
+  {
+    "path": "packages/cloudflare/test/sourcemap.test.ts",
+    "sha256": "f872355aafd2706e45680a2e75a255a0a5b5a2571eb7f7c66d1ac5f9837efb6c",
+    "bytes": 14131
+  },
+  {
+    "path": "packages/cloudflare/test/raw-source-map-contract.test.ts",
+    "sha256": "879771aa9af09b49593dc41901b04de56091655a1d4d6b9fcaf9282277108f90",
+    "bytes": 5330
+  },
+  {
+    "path": "packages/cloudflare/test/fixtures/raw-source-map-contract.json",
+    "sha256": "9099f386c64d25a8f848125213c18620aba5a13e4e520fe0f3219f08ebdca23a",
+    "bytes": 397077
+  },
+  {
+    "path": "packages/testkit/src/reporting/report.ts",
+    "sha256": "79cbbfce42ed673196b6f0d2b32d567a3d302e4b8104429119bfd52a6ae6bcd1",
+    "bytes": 3099
+  },
+  {
+    "path": "editors/vscode/src/client.ts",
+    "sha256": "9f7fe131a0485a12d97537c28f90a9c989d5977027688b1dba5bc95a55b8a83e",
+    "bytes": 28328
+  },
+  {
+    "path": "compiler/target/debug/can",
+    "sha256": "c79d963aca875240162b257537fc4d255a2a38f668ef659ee719f599cc574d2c",
+    "bytes": 19264744
+  },
+  {
+    "path": "compiler/target/debug/libcanlang_compiler.rlib",
+    "sha256": "79e735e57997289eab4362efb2abf24a047acaa448a936b805743cc18dbd9a69",
+    "bytes": 71013944
+  },
+  {
+    "path": "packages/cloudflare/src/runtime/context.ts",
+    "sha256": "9f628244197b61fc376319c9a4fe5aed82fbd04a62b283c96e564f6877a614d8",
+    "bytes": 5841
+  },
+  {
+    "path": "/Users/vince/.bun/install/cache/@jridgewell/sourcemap-codec@1.6.0@@@1/package.json",
+    "sha256": "ac7afd57294dbee1f891ca797e19e405340f2cd6031808e6d3845fec60a5b43f",
+    "bytes": 2185
+  },
+  {
+    "path": "/Users/vince/.bun/install/cache/@jridgewell/sourcemap-codec@1.6.0@@@1/dist/sourcemap-codec.mjs",
+    "sha256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0",
+    "bytes": 14399
+  }
+]
