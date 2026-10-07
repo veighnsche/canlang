@@ -39,8 +39,21 @@
       "packet": "step8:independent-critical-review",
       "model": "gpt-6-astra",
       "effort": "medium",
-      "status": "planned_not_dispatched",
-      "reason": "Human requests short independent stronger critical diagnostic judgment, finite frozen source/evidence. High reserved for new evidenced major seam; no such decision yet."
+      "status": "actual_completed_exit0",
+      "reason": "Human requests short independent stronger critical diagnostic judgment, finite frozen source/evidence. High reserved for new evidenced major seam; no such decision yet.",
+      "executor": "ephemeral read-only codex exec",
+      "handle": "16135",
+      "human_payload_export_approval": true,
+      "collaboration_dispatch_unavailable": "agent thread limit reached",
+      "actual_ephemeral_id": "01a113eb-2164-7142-83db-766ac1cd78ac",
+      "usage_reported": {
+        "input_tokens": 182382,
+        "cached_input_tokens": 140800,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1928,
+        "reasoning_output_tokens": 258
+      },
+      "usage_interpretation": "CLI raw token counts, not claimed subscription weekly usage; official API cost table only comparison aid"
     }
   ]
 }

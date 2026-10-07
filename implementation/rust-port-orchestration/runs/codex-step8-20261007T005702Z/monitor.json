@@ -4,11 +4,11 @@
   "private_root": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z",
   "base": "8581390afab9f3968230c5fbb070c41a1e749819",
   "previous_run": "codex-step7-20261007T002305Z",
-  "execution_authorized": true,
+  "execution_authorized": false,
   "human_release": "Human step8 D04 composition, real staged invoke diagnostics and installed Node/workerd acceptance",
   "preparation_hold": true,
   "future_dispatch_authorized": false,
-  "phase": "step8_product_wiring",
+  "phase": "step8_completed_finite_scope",
   "source_pins": {
     "packages/cloudflare/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
     "packages/cloudflare/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
@@ -30,15 +30,19 @@
       "model": "gpt-6.1-sol",
       "effort": "high",
       "ack_observed": true,
-      "execution_authorized": true,
+      "execution_authorized": false,
       "write_files": [
         "packages/cloudflare/src/deploy/module-maps.ts",
         "packages/cloudflare/test/map-composition-contract.test.ts",
         "packages/cloudflare/test/fixtures/map-composition-contract.json"
       ],
       "private_root": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/maps",
-      "status": "product_helper_writing",
-      "product_lease_ack_observed": true
+      "status": "released_helper_leaf",
+      "product_lease_ack_observed": true,
+      "writer_released": true,
+      "command_released": true,
+      "release_file": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/maps/product-release.json",
+      "source_sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98"
     },
     {
       "role": "R3",
@@ -47,7 +51,7 @@
       "model": "gpt-6.1-sol",
       "effort": "high",
       "ack_observed": true,
-      "execution_authorized": true,
+      "execution_authorized": false,
       "write_files": [
         "packages/cloudflare/src/runtime/modules.ts",
         "packages/cloudflare/src/deploy/bundle.ts",
@@ -59,12 +63,31 @@
         "packages/cloudflare/package.json"
       ],
       "private_root": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery",
-      "status": "product_lease_submitted_API_frozen",
-      "product_lease_ack_observed": false
+      "status": "product_wiring_written_private_joined_checks_starting",
+      "product_lease_ack_observed": true,
+      "writer_released": true,
+      "command_released": true
+    },
+    {
+      "role": "independent-critical-review",
+      "executor": "ephemeral read-only Codex CLI",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "handle": "16135",
+      "status": "source_review_released_no_actionable_findings",
+      "write_files": [],
+      "private_root": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/review",
+      "persistent_chat": false,
+      "reason": "Collaboration cumulative thread limit; user exact Astra selection retained via supported CLI route with explicit payload approval.",
+      "command_released": true,
+      "actual_ephemeral_id": "01a113eb-2164-7142-83db-766ac1cd78ac",
+      "exit": 0,
+      "writer_released": true,
+      "execution_authorized": false
     }
   ],
   "native_timers": [],
-  "supervisor_status": "ACTIVE",
+  "supervisor_status": "PAUSED",
   "heavy_grants": [
     {
       "slot": 1,
@@ -92,17 +115,25 @@
       "slot": 1,
       "owner": "/root/step8_maps",
       "id": "step8-map-product-03",
-      "released": false,
-      "scope": "private product helper compile/contract tests, max2workers"
+      "released": true,
+      "scope": "private product helper compile/contract tests, max2workers",
+      "result": "27/27 focused helper tests; private strict typecheck0; independent frozen raw oracle768 comparisons"
+    },
+    {
+      "slot": 2,
+      "owner": "/root/step8_delivery",
+      "id": "step8-r3-host-02",
+      "scope": "private exact source snapshot emit/test/repack/genuine tarball install and cold Node/Bun/workerd, max2workers",
+      "released": true
     }
   ],
   "schema_version": 1,
   "executor": "Codex collaboration subagents",
-  "updated_at_utc": "2026-10-07T01:05:30.971351+00:00",
+  "updated_at_utc": "2026-10-07T01:23:21.876663+00:00",
   "foreign_writer": "Independent compiler agent retains compiler/ and dirty shared decision/filetree documents. No shared checkout/Git resets.",
   "material_progress": {
-    "D04-map": "Actual private library witnesses pass; actual normal-profile host check now dispatched. No product lease yet.",
-    "R3": "Private genuine npm install and final host/negative fixture preparation done. Product wiring waiting explicit root API freeze."
+    "D04-map": "Product helper written55274d26; contracts source+fixtures actual and checks running. Four actual Node26.10 original/final pairs pass; sourcewriter still active.",
+    "R3": "Actual finite product lease/API ACK. Source modules/bundle/invoke publicexport+manifest+joined tests written; private sourcecurrent host qualification dispatched."
   },
   "writer_transfer": {
     "file": "packages/cloudflare/src/runtime/invoke.ts",
@@ -112,15 +143,107 @@
     "scope": "diagnostics-only derived sidecar selection and collectSources; original W06/validation/state task identities and behaviors unchanged",
     "evidence": "No active invoke writer in current finite roster; prior step7 writers released. contracts ownership future serial sequence is not an active lease. Existing root package integration authority applies.",
     "product_release_pending": false,
-    "recipient_product_ack_pending": true
+    "recipient_product_ack_pending": false,
+    "recipient_ack_observed": true
   },
   "composition_profile": "compatible_library_adapter_with_raw_Can_semantics",
   "composition_api": "composeModuleMap<T extends RawModuleMap>(original:T|undefined, stagesNewestFirst:readonly ImportTransformMap[], originalJs:string): ModuleMapView<T>",
   "diagnostic_sidecar": "AssembledModules.sourceMaps?: Record<string,SourceMap>; sidecar absence only falls back to original; present invalid map remains invalid",
   "remaining_gates": [
-    "Actual source-current assembly/deployment/invoke join tests",
-    "Genuine outside-checkout fresh tarball Node/workerd diagnostics and map-disabled fallback",
-    "Short Astra medium independent critical diagnostic review",
-    "Released commands/writers, scoped commits and truthful parent-status preservation"
-  ]
+    "ports:C04.ready",
+    "ports:C04.graph",
+    "ports:W06.runtimehandoff",
+    "challenge:T08",
+    "challenge:T26",
+    "full installed/default/native/Wasm/package programme",
+    "Ordinary finite JSON V3 point maps + accepted import edit stages, no indexed/range arbitrary-object certification",
+    "Large/negative raw-coordinate carrier compatibility is Can fallback only; stock-engine pathological-coordinate behavior not asserted",
+    "No new source-map fetch, raw identity normalization, range interpolation or content synthesis",
+    "Handwritten sharp diagnostic fixture qualifies this real runtime/host integration, not complete current compiler T08/business-workflow proof",
+    "Pinned workerd recipe uses2026-07-15; unsupported2026-10-04 fixture failure retained",
+    "D02 Unicode-separator retry budget and Bun lone-surrogate path behavior remain prior explicit residuals",
+    "Native preparation/native-release HUMAN HOLD",
+    "Shared documentation ownership handoff"
+  ],
+  "failures": [
+    {
+      "scope": "private joined strict TypeScript attempt1",
+      "evidence": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tsc-attempt1.log",
+      "errors": "Helper target/previous tuple indexing under noUncheckedIndexedAccess",
+      "repair_owner": "/root/step8_maps",
+      "repaired_source_sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "renewed_result_pending": false,
+      "renewed_result": "Whole private Cloudflare tsc-attempt2.log empty, actual handle65155 exit0"
+    },
+    {
+      "scope": "four-file joined Vitest runner",
+      "handle": "7013",
+      "result": "Owned runner interrupted exit130 after >3min without assertion progress",
+      "evidence": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/vitest-attempt1-stalled.log",
+      "next_action": "Same R3 owner runs bounded modules+sourcemap separately then bundle; no unrelated process mutation"
+    }
+  ],
+  "pending_handles": [],
+  "concurrent_head_observation": "Compiler test commit c7d240b interleaved before scoped root activation1ed78d7; unchanged package source pins preserve witnesses.",
+  "independent_review_dispatch": {
+    "initial_collaboration_result": "agent thread limit reached; no reviewer startup inferred",
+    "CLI_first_result": "Automatic approval review rejected payload export because explicit destination/payload approval absent; not executed or bypassed.",
+    "human_approval": "Approve the scoped Astra review; direct answer in this chat",
+    "approved_retry_handle": "16135",
+    "scope": "Cloudflare D04 source and diagnostic evidence to OpenAI, ephemeral read-only CLI Astra medium",
+    "result_pending": false,
+    "official_support": "https://learn.chatgpt.com/docs/non-interactive-mode",
+    "source_result": "no actionable findings; final installed Node/workerd evidence remains root-owned pending",
+    "report_sha256": "6b1f64c010559c27c5a814a426f0bb693c82082df976e66476fa9ea841cd410a"
+  },
+  "joined_source_checks": {
+    "strict_compile": "private whole Cloudflare tsc-attempt2 actual0",
+    "module_sourcemap_tests": "24/24 actual with needed host IPC permission",
+    "bundle_asset_tests": "54/54 actual with needed host IPC permission",
+    "installed_acceptance": "pending sourcecurrent final fresh tarballs; baseline preparation not credited"
+  },
+  "review": {
+    "D04_source": {
+      "status": "independent_source_review_no_actionable_findings",
+      "executor": "Astra medium ephemeral read-only CLI",
+      "source_pins": {
+        "module-maps.ts": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+        "runtime/modules.ts": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+        "runtime/invoke.ts": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+        "deploy/bundle.ts": "7875284ee7f630d0834a5dc484691ad04999a81ea4cfcb8a77114eb521ab5fc8",
+        "package.json": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8"
+      },
+      "parent_acceptance": false
+    },
+    "D04_installed": {
+      "helper_contract_tests": 27,
+      "joined_focused_tests": 78,
+      "installed_failure_controls": 14,
+      "independent_installed_counterfactual_controls": 5,
+      "Node": [
+        "v24.21.0 root independent counterfactual",
+        "v26.10.0 cold installed external and written-inline map engine/fallback"
+      ],
+      "Bun": "1.4.2 cold public consumer; nodecompat26.3.0",
+      "workerd": "1.20260730.1 real invoke from read-back written bundle, compatibilityDate2026-07-15",
+      "Astra_medium": "Actual ephemeral read-only source review no actionable findings; exact source hashes retained",
+      "sharp_false_witness": "rewritten generated col264 vs original141: stale originalmap=>25:12; composed actual Node/workerd=>24:9",
+      "identity": "Original artifact/verdict bytes and hashes unchanged; raw sources preserved; present invalid sidecar refuses stale positions"
+    }
+  },
+  "acceptance_reference": "implementation/rust-port-orchestration/runs/codex-step8-20261007T005702Z/acceptance.json",
+  "completion_reference": "implementation/rust-port-orchestration/runs/codex-step8-20261007T005702Z/completion.json",
+  "source_commits": {
+    "D04": "324d624",
+    "fixture_format_only": "aaa09fe"
+  },
+  "active_writer_leases": [],
+  "root_independent_installed": {
+    "checks": 5,
+    "runtime": "v24.21.0",
+    "result": "derived11:6 vs absent stale40:14, invalid/undefined no mapped, renewed11:6; artifact unchanged",
+    "fixture_correction": "Initial encoder import used require-condition UMD via ESM import and lacked named encode; corrected fixture to explicit installed public CJS require. Product not changed. Initial log preserved."
+  },
+  "formatting_only_fixture": "fixture-format-equality.json",
+  "supervisor_pause_verified_at_utc": "2026-10-07T01:25:00.555691+00:00"
 }

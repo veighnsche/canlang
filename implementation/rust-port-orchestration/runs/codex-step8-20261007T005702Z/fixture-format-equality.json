@@ -1,0 +1,10 @@
+{
+  "scope": "Formatting-only frozen regression corpus; no expected input/output or test behavior changed",
+  "before_sha256": "759b96adc90970f99d69e4b78bc6f8d6636145f7706b4e82106e6705d5dca449",
+  "after_sha256": "50c6811dfca95c129b8294f4ff2e1c87638b7e85e23bb1f3b64d7f39ed9d5f2b",
+  "canonical_semantics_sha256": "76c9c9b8a7775329aa67e95aee7a537f971d88b26b879a7d19b5a38dd502bb86",
+  "deep_parsed_equality_verified": true,
+  "before_lines": 6371,
+  "after_lines": 1019,
+  "source_and_test_code_unchanged": true
+}

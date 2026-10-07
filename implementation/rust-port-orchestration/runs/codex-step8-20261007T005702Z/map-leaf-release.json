@@ -1,0 +1,79 @@
+{
+  "status": "released_helper_leaf_only",
+  "d04_parent_complete": false,
+  "profile": "compatible_library_adapter",
+  "api": "composeModuleMap<T>(original, stagesNewestFirst, originalJs): ModuleMapView<T>",
+  "files": [
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/map-composition-contract.test.ts",
+      "sha256": "69c1206897dc2205d11845533cfe9c46abc1c712f37683642b6c261b12225273"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/map-composition-contract.json",
+      "sha256": "759b96adc90970f99d69e4b78bc6f8d6636145f7706b4e82106e6705d5dca449"
+    }
+  ],
+  "actual_checks": {
+    "focused_tests": {
+      "passed": 27,
+      "failed": 0,
+      "command": "node node_modules/vitest/vitest.mjs run --config /private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/maps/vitest.config.mjs",
+      "private_deps_aliases": true,
+      "installed_acceptance_claimed": false,
+      "runner": "Vitest 3.2.7"
+    },
+    "strict_typecheck": {
+      "exit": 0,
+      "command": "node node_modules/typescript/bin/tsc -p /private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/maps/tsconfig.product.json",
+      "strict_flags": [
+        "strict",
+        "noUncheckedIndexedAccess",
+        "exactOptionalPropertyTypes",
+        "noUncheckedSideEffectImports",
+        "verbatimModuleSyntax"
+      ],
+      "private_dependency_declarations": true
+    },
+    "raw_oracle_comparisons": {
+      "count": 768,
+      "independent_original_hash": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+      "accepted_D03_comparisons": 768,
+      "Bun_runner": "1.4.2",
+      "Node_observed_process_version": "v26.10.0"
+    },
+    "cold_Node_original_final": {
+      "pairs": 4,
+      "children": 8,
+      "observed_runner_and_children_process_version": "v26.10.0",
+      "separate_node_version_command_output": "v24.21.0",
+      "results": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/maps/host-results.json",
+      "sha256": "a5f604dd670acd5c611b8de1ce0c5419d8d435638e0180fa0b88727fbfec16fe"
+    }
+  },
+  "retained_failure_logs": [
+    "failed-attempts.json",
+    "product-tests.stdout",
+    "product-tests.stderr",
+    "product-typecheck.stdout",
+    "product-typecheck.stderr"
+  ],
+  "known_corrected_diagnostic": {
+    "file": "module-maps.ts",
+    "failure": [
+      "TS18048 target value possibly undefined",
+      "TS2532 previous[i] possibly undefined"
+    ],
+    "repair": "fixed-length numeric tuples and explicit bounded indexed accumulation; R3 tsc.log retains full failure"
+  },
+  "heavy_slot_released": "step8-map-product-03",
+  "gaps": [
+    "original-map-disabled Can invoke delivery join, root-owned integration",
+    "actual installed written Worker/workerd diagnostics, root-owned delivery",
+    "stock-host pathological coordinate limitations; Can raw fallback semantics preserved",
+    "no native preparation or future package dispatch"
+  ]
+}
