@@ -1,0 +1,32 @@
+--- old/worker/http-operations.js
+
++++ new/worker/http-operations.js
+
+@@ -313,3 +313,3 @@
+
+ }
+-// node_modules/@scure/base/index.js
++// ../../canlang-rust-port-codex-step10-20261007T015711Z/installed/node_modules/@scure/base/index.js
+ /*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+@@ -541,3 +541,3 @@
+
+ var RECOVERY_EXPIRES_MS = 60 * 60 * 1000;
+-// node_modules/cookie/dist/index.js
++// ../../canlang-rust-port-codex-step10-20261007T015711Z/installed/node_modules/cookie/dist/index.js
+ var NullObject = /* @__PURE__ */ (() => {
+@@ -5397,3 +5397,3 @@
+
+ var COMPACT_LABEL = message("Compact", { nl: "Compact" });
+-// node_modules/csv-parse/dist/esm/sync.js
++// ../../canlang-rust-port-codex-step10-20261007T015711Z/installed/node_modules/csv-parse/dist/esm/sync.js
+ var global$1 = typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {};
+--- old/worker/mcp-handler.js
+
++++ new/worker/mcp-handler.js
+
+@@ -16221,3 +16221,3 @@
+
+ }
+-// node_modules/@scure/base/index.js
++// ../../canlang-rust-port-codex-step10-20261007T015711Z/installed/node_modules/@scure/base/index.js
+ /*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */

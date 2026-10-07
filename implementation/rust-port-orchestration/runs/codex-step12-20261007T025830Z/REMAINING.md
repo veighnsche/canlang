@@ -1,0 +1,16 @@
+# Remaining work after selected release review
+
+This is a source-current finite acceptance overlay, not a new independent task count or a whole-program completion claim. [Selected scope ledger](selected-scope-ledger.json) preserves the 27 library-sequence units as crosswalks; [residual task index](residual-task-index.json) keeps exact original IDs, acceptance clauses and dependencies. The historical canonical ledger still has 333 parent/gate/source records and is unchanged. Its old 234 required-remaining count is not presented as a refreshed number of coding jobs.
+
+The main unfinished selected Rust progression is:
+
+1. Complete values semantic registration and validation prepared owner/default/Decimal/profile/resource joins: `A04.5`, `A07.3`, `V02.6`, `V06`, `V07`, `V08`, `V09`, `V11`. The six-operation scaffold and private structural transport do not close these.
+2. Qualify actual values/validation consumers, asset delivery, whole-input pilot, complete-call economics and persisted/in-flight rollback: `A08.1`, `A08.2`, `A09.2`, `A10.1`–`A10.3`. Keep the explicit TS backend and original acceptance clauses. Current opt-in measurements do not justify default adoption.
+3. Complete work producer provenance/prepared traces and unsampled native assembly, then actual Rust/Wasm loader/export/asset/installed consumers: `W03.4`, `W04.4`, `W05.1`–`W05.4`, `C04.work-assets`. The current public installed work facts are TS-only.
+4. Join the actual selected work backend to state/Cloudflare and durable race/crash/restart, then complete-flow benefit/rollback: `W06.1`–`W06.3`, `W07.3`, `W08.1`. Original prerequisite edges remain; registered Rust files are insufficient.
+
+Other original obligations remain separate: `challenge:T08` same-context/compiler metadata parity; `T26` real receipts/notification/authority/fanout/read joins; `T37`–`T41` original app and release reviews; `finished-product:FP.CSV`, `FP.AW-REPLAY-IMPORT`, `FP.EXPORT`, durable files, installed/product qualification and `FP.SOURCE-CLOSURE`. The selected CSV handler checks use memory identity/scripted invocations, and its advisory browser mount was not executed. Identity primitive timing is not whole-handler timing. Ordinary finite point-map diagnostics do not prove indexed/range/arbitrary-object maps or universal hosts. The Unicode separator recovery budget and Bun raw-surrogate path residual remain explicit.
+
+All 22 historical held records remain held, including native preparation/native-release. Optional W09/deferred routes are unchanged. Conditional H02 was exercised because a real quota violation was found and repaired. C04 export evaluation retains its small serializer/formula policy; E01 retains eleven uncertain candidates with concrete reopening inputs. No blanket library replacement or TS deletion follows.
+
+Shared decision/filetree reconciliation awaits the current document owner's exact-file handoff; its contribution is recorded locally. No complete checkpoint advances. Future product dispatch, deployment/publication and default adoption remain unauthorized after this finite review. A next packet should select an exact original ready prerequisite and source-current contract; this document does not launch it.
