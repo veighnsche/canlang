@@ -1,0 +1,26 @@
+{
+  "helper": "check_message_value",
+  "signature": "params: Option<&[String]>",
+  "callers": [
+    {
+      "function": "check_caption",
+      "coverage": "None: structural only"
+    },
+    {
+      "function": "check_description_slot",
+      "coverage": "None: structural only"
+    },
+    {
+      "function": "check_text_or_message",
+      "coverage": "None: structural only"
+    },
+    {
+      "function": "phase2_message",
+      "coverage": "Some(&names): explicit signature, including empty"
+    },
+    {
+      "function": "check_page_static_text",
+      "coverage": "None: structural only; existing independent context-free check retained"
+    }
+  ]
+}

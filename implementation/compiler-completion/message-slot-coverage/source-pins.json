@@ -1,0 +1,38 @@
+{
+  "compiler/src/analysis/types.rs": {
+    "sha256": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "bytes": 649151
+  },
+  "compiler/tests/message_slot_coverage.rs": {
+    "sha256": "a1714951d2a0cb172b176ae54fb363581acafacafa48b10b5d9e098cea8a207d",
+    "bytes": 4591
+  },
+  "compiler/tests/analysis.rs": {
+    "sha256": "c61d79766abb2109c9704575cc22c84e5985d4bfe753248e68a4322865378937",
+    "bytes": 91601
+  },
+  "compiler/tests/temporal_message_types.rs": {
+    "sha256": "92e2547c7d6076cda35409a4532d3c034fcf3ca7370d6bd5f7ea8685ca78ce11",
+    "bytes": 4279
+  },
+  "compiler/tests/b4_check.rs": {
+    "sha256": "ca50a18147ef4d621ac07ce18120db4b337889b6de19c9a782904c60f4d9b4bf",
+    "bytes": 178287
+  },
+  "compiler/tests/check.rs": {
+    "sha256": "cfd5856ddd05418574f67d30fe0ce94fb623a24d37f022b850f30f2ec2b36b7d",
+    "bytes": 43264
+  },
+  "docs/specification/DESIGN.md": {
+    "sha256": "1d36f88fe206299b383e0b7eb76182d559486c99670a2ecc87b5420e28cf7f82",
+    "bytes": 272290
+  },
+  "compiler/Cargo.lock": {
+    "sha256": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "bytes": 21845
+  },
+  "packages/values/dist/catalog.json": {
+    "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "bytes": 22290
+  }
+}

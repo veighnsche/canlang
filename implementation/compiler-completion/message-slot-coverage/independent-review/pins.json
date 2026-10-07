@@ -1,0 +1,87 @@
+{
+  "compiler/src/analysis/types.rs": {
+    "sha256": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "pinMatches": true,
+    "snapshotMatches": true
+  },
+  "compiler/tests/message_slot_coverage.rs": {
+    "sha256": "a1714951d2a0cb172b176ae54fb363581acafacafa48b10b5d9e098cea8a207d",
+    "pinMatches": true,
+    "snapshotMatches": true
+  },
+  "compiler/tests/analysis.rs": {
+    "sha256": "c61d79766abb2109c9704575cc22c84e5985d4bfe753248e68a4322865378937",
+    "pinMatches": true,
+    "snapshotMatches": true
+  },
+  "compiler/tests/temporal_message_types.rs": {
+    "sha256": "92e2547c7d6076cda35409a4532d3c034fcf3ca7370d6bd5f7ea8685ca78ce11",
+    "pinMatches": true,
+    "snapshotMatches": true
+  },
+  "compiler/tests/b4_check.rs": {
+    "sha256": "ca50a18147ef4d621ac07ce18120db4b337889b6de19c9a782904c60f4d9b4bf",
+    "pinMatches": true,
+    "snapshotMatches": true
+  },
+  "compiler/tests/check.rs": {
+    "sha256": "cfd5856ddd05418574f67d30fe0ce94fb623a24d37f022b850f30f2ec2b36b7d",
+    "pinMatches": true,
+    "snapshotMatches": true
+  },
+  "docs/specification/DESIGN.md": {
+    "sha256": "1d36f88fe206299b383e0b7eb76182d559486c99670a2ecc87b5420e28cf7f82",
+    "pinMatches": true,
+    "snapshotMatches": true
+  },
+  "compiler/Cargo.lock": {
+    "sha256": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "pinMatches": true,
+    "snapshotMatches": true
+  },
+  "packages/values/dist/catalog.json": {
+    "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "pinMatches": true,
+    "snapshotMatches": true
+  },
+  "closure": {
+    "callCount": 5,
+    "explicitSignatureCount": 1,
+    "structuralCallerCount": 4,
+    "scannerRange": "message_slots through skip_quoted unchanged by reviewed patch",
+    "coverageChanges": "base and variant conditions only; absent map versus empty declared map now explicit"
+  },
+  "receipts": {
+    "README.md": "145ac8e6bf74988afad994b0b21f07c51edc56d3bd4dda0e17427b4a1514a347",
+    "analysis-fixture.patch": "94c529a2d8cfc362fa75ee5c52b50b8f8274e63b0eff232e55c4ebfae4b0eb55",
+    "analysis-message-corrected.stderr": "4deb09985dd35eb02959c65439812cb9d777a46638cfd770450fd0844e7d0f27",
+    "analysis-message-corrected.stdout": "c77f5fb31d455307cdbae60c5664b96335beb73a1238efdb295ef6353af0e558",
+    "analysis-message.stderr": "d82f673889464a4c4ee8b262d931c2453fd85456cd8f1aec4145164f84154f15",
+    "analysis-message.stdout": "cf775e4e308beb7d87dfdd4cee3708d3132096a1ae05ee0a078bce751f68cf41",
+    "anonymous-binding-expected-gap.json": "a5632e18adb89cfd1e9c3e9ddc8ec1070f9f64b5896b5c2da9211d4d3bc08dda",
+    "anonymous-binding-probe.can": "2fb3cd3b85f28d7e7f8d31948a2836419e0d5e5c2119fb110dc44928966a4099",
+    "anonymous-binding-probe.stderr": "078aa43f057009d5faa89aad80917ad1883c64ba8d877ddc7ae09fcae5fd1143",
+    "anonymous-binding-probe.stdout": "60b0447080345c1650895d94b8ea0fa2f055eef1db189b53089874d7c92af7a9",
+    "b4-message.stderr": "f26f3ce49164a1cf20d76005f0a6356f18fb5e34c6b0213d3dd3324e58e394e9",
+    "b4-message.stdout": "b0e3c01f8f111f9a10a20662449f8477efcd19547c272207b141f0db47cb4ce7",
+    "caller-inventory.json": "f76fedb898e2e6964b3fbec0011dad17a25ae32cc565cc0bb22f0ca9ef9f619c",
+    "check-icu.stderr": "642e3a4404ed8a37df10349ae43fb14a60eb22337dbb128e39791709b3decd1b",
+    "check-icu.stdout": "88590136b3ed8289c2137401672e98e441238087f982da22d684333ee2612922",
+    "check-message.stderr": "3bda8d31d10b9e8b348e9761da760df4ce077d6ba4a243586b7f572dc5b9c073",
+    "check-message.stdout": "c10d5ec1362b96c9c77eea84b43b72b5b4f4476319c27c07fb4468665329a45b",
+    "focused.stderr": "7796ac59c95c9897699b2fcf33d1a81277732fec85637acee9776d78bc679680",
+    "focused.stdout": "06eb1fb93a168c593d8bfabbe966135b1f597261bb25fe4e0c54ffc138292297",
+    "source-pins.json": "8f23e9a9274f6c1eda5d1fe4683af8b99cefa0012adf482b09eb21868f6bcbdd",
+    "t35r25.stderr": "8fa218d98513e4840c3c306569ffa868e7272971e5d5e013f72c2215fc037e86",
+    "t35r25.stdout": "f1d7446e7dcfc896c7c72de21d6538c2e610298a38bdfff9366059da819c425e",
+    "temporal.stderr": "0fe0f7b2908e4eda4ef2179f696510d6bc040d987ee740a56c521fa9769543d5",
+    "temporal.stdout": "ba7f2d717ea6a24366c665a6c5e0c32d6286b29b569c5d4ca83cfa37ea0bbfca",
+    "types-coverage.patch": "6f06b6e94c9c682218ad1bfc09c3c6180182aa5dd867d26ce99dc388176e8ef3"
+  },
+  "exactReverseAgainstPriorIndependentPin": {
+    "baselinePacket": "temporal-values/decimal-literal-research/pins.json",
+    "reconstructedBeforeSHA256": "fdfae505833d91c919920860c7296c325fb76cf8295998d64fb7aae1c855027e",
+    "baselineSHA256": "fdfae505833d91c919920860c7296c325fb76cf8295998d64fb7aae1c855027e",
+    "matches": true
+  }
+}

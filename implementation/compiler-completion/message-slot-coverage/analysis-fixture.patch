@@ -1,0 +1,11 @@
+--- before/compiler/tests/analysis.rs
++++ after/compiler/tests/analysis.rs
+@@ -1093,7 +1093,7 @@
+     };
+     let catalog = load_real_catalog(&path);
+     assert_clean(
+-        "app T\nGiven\n message m = \"Hi {name}\"@{}\nWhen\n scenario s() by=members\n  do\n   let x = format(m, locale=null)\nThen\n",
++        "app T\nGiven\n message m = \"Hi\"@{}\nWhen\n scenario s() by=members\n  do\n   let x = format(m, locale=null)\nThen\n",
+         Some(&catalog),
+     );
+     assert_clean(

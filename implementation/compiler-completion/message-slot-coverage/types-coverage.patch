@@ -1,0 +1,83 @@
+--- before/compiler/src/analysis/types.rs
++++ after/compiler/src/analysis/types.rs
+@@ -4374,7 +4374,7 @@
+                 }
+             }
+             SyntaxKind::MessageValue => {
+-                self.check_message_value(cx, node, what, &[]);
++                self.check_message_value(cx, node, what, None);
+             }
+             SyntaxKind::Label => {
+                 self.check_label_table(cx, node, what, expected);
+@@ -4466,7 +4466,7 @@
+                                 cx,
+                                 value.expect("matched descriptor"),
+                                 "description",
+-                                &[],
++                                None,
+                             );
+                         }
+                         Some(SyntaxKind::Path) => {
+@@ -4512,13 +4512,15 @@
+     /// Check an inline descriptor: string source, string-or-null
+     /// variants with valid BCP 47 tags that neither duplicate each
+     /// other (canonically) nor repeat the owner's source tag, and
+-    /// slots covered by `params` (`E3016`).
++    /// slots covered by `params` when a signature is supplied (`E3016`).
++    /// `None` preserves raw descriptors for later explicit binding;
++    /// `Some(&[])` checks a named zero-parameter message.
+     fn check_message_value(
+         &mut self,
+         cx: &Ctx<'_, '_>,
+         node: &SyntaxNode,
+         what: &str,
+-        params: &[String],
++        params: Option<&[String]>,
+     ) {
+         let parts = kids(node);
+         let base = parts
+@@ -4532,7 +4534,7 @@
+             .map(|text| message_slots(&text))
+             .unwrap_or_default();
+         for slot in &base_slots {
+-            if !params.is_empty() && !params.iter().any(|p| p == slot) {
++            if params.is_some_and(|params| !params.iter().any(|p| p == slot)) {
+                 self.diags.push(Diagnostic::error(
+                     "E3016",
+                     format!("{what} placeholder '{{{slot}}}' names no message parameter"),
+@@ -4601,7 +4603,7 @@
+                     // Variants may use a subset of the signature; every
+                     // placeholder must still name a parameter.
+                     for slot in message_slots(&text) {
+-                        if !params.is_empty() && !params.iter().any(|p| p == &slot) {
++                        if params.is_some_and(|params| !params.iter().any(|p| p == &slot)) {
+                             self.diags.push(Diagnostic::error(
+                                 "E3016",
+                                 format!(
+@@ -4738,7 +4740,7 @@
+             return;
+         }
+         if node.kind == SyntaxKind::MessageValue {
+-            self.check_message_value(cx, node, what, &[]);
++            self.check_message_value(cx, node, what, None);
+             return;
+         }
+         if node.kind == SyntaxKind::Path || node.kind == SyntaxKind::NameRef {
+@@ -6037,7 +6039,7 @@
+         {
+             let narrow = NarrowEnv::default();
+             let cx = Self::body_cx(module, file, text, &narrow);
+-            self.check_message_value(&cx, value, "message", &names);
++            self.check_message_value(&cx, value, "message", Some(&names));
+         }
+     }
+ 
+@@ -6597,7 +6599,7 @@
+                 .find(|n| n.kind == SyntaxKind::Literal)
+                 .and_then(|lit| string_literal_value(lit))
+                 .unwrap_or_default();
+-            self.check_message_value(cx, node, what, &[]);
++            self.check_message_value(cx, node, what, None);
+             if !message_slots(&template).is_empty() {
+                 self.diags.push(Diagnostic::error(
+                     "E3013",
