@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {createHash} from 'node:crypto';
+import {pathToFileURL,fileURLToPath} from 'node:url';
+const frozen='/private/tmp/canlang-roadmap-f1-db57c379',out=fileURLToPath(new URL('./',import.meta.url));
+const {Miniflare}=createRequire(`${frozen}/packages/cloudflare/package.json`)('miniflare');
+const {assembleModules}=await import(`${frozen}/packages/cloudflare/dist/runtime/modules.js`);
+const {buildInvoker}=await import(`${frozen}/packages/cloudflare/dist/worker/assembly.js`);
+const {createD1Storage}=await import(`${frozen}/packages/state/dist/src/storage/d1.js`);
+const {createMemoryIdentityStore,createFrozenClock}=await import(`${frozen}/packages/identity/dist/src/testing.js`);
+const {resolveIdentity}=await import(`${frozen}/packages/identity/dist/src/index.js`);
+const raw=await readFile(`${out}/runtime-results.json`),original=JSON.parse(raw);
+const updated=original.receipts.find(r=>r.name==='authorized generated scalar update preserves machine/default/ref fields');
+assert.equal(updated.outcome.result.status,'committed');
+const row=updated.after.tables.records.find(r=>r.model==='Bounded.Job'&&r.id===updated.envelope.inputs.record.id);
+const data=JSON.parse(row.data);
+const accountCreate=original.receipts.find(r=>r.name==='bounded scalar account create defaults');
+assert.equal(accountCreate.outcome.result.status,'committed');
+const expectedAccount={id:accountCreate.envelope.operation_id,version:'1'};
+const expectedSafeData={title:'changed by authorized update',count:'1',enabled:true,account:expectedAccount,status:'ready'};
+assert.deepEqual(data,expectedSafeData);
+const artifactRaw=await readFile(`${out}/../f1-metadata/artifacts/bounded-compile.json`),artifact=JSON.parse(artifactRaw);
+const identities=createMemoryIdentityStore({clock:createFrozenClock(original.now)}),identity=await resolveIdentity(identities,{},{});
+const asm=await assembleModules({artifact,sourcePath:`${out}/../f1-metadata/Bounded.can`},{workDir:`${original.privateRoot}/read-review-modules`,stdlibUrl:pathToFileURL(`${frozen}/packages/cloudflare/dist/runtime/stdlib.js`).href,uiUrl:pathToFileURL(`${frozen}/packages/ui/dist/src/index.js`).href});
+const mf=new Miniflare({modules:true,script:'export default { fetch(){return new Response("ok")} }',d1Databases:{DB:'f1-invocation-bounded'},d1Persist:`${original.privateRoot}/persist`});
+try{
+ const db=await mf.getD1Database('DB'),store=createD1Storage(db);
+ async function snapshot(){const tables={};for(const t of ['records','history','receipts','outbox','schedules','fence','fence_log'])tables[t]=(await db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()).results;return {revision:await store.readRevision(),tables}}
+ const before=await snapshot();
+ const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>original.now});
+ const envelope={operation:'Bounded.Job.read',inputs:{}},outcome=await invoker.invokeRead(envelope,identity),after=await snapshot();
+ assert.deepEqual(after,before);
+ assert.equal(outcome.result.records.length,1);
+ const actual=outcome.result.records[0];assert.equal(actual.id,row.id);assert.equal(actual.version,row.version);assert.deepEqual(actual.data,expectedSafeData);
+ assert.deepEqual(actual.data.account,expectedAccount);
+ const receipt={status:'passed',kind:'single read-only actual production canonical vector over the same persisted final DB',expected:{id:row.id,version:row.version,safeData:expectedSafeData},outcome,before,after,originalRawSha256:createHash('sha256').update(raw).digest('hex'),artifactSha256:createHash('sha256').update(artifactRaw).digest('hex'),preStrengtheningHarnessSha256:createHash('sha256').update(await readFile(`${out}/run-before-read-strengthening.mjs`)).digest('hex'),unchangedArtifact:true,noWrites:true};
+ await writeFile(`${out}/read-control-results.json`,JSON.stringify(receipt,null,2)+'\n');
+ console.log(JSON.stringify({status:'passed',id:actual.id,version:actual.version,data:actual.data,revision:before.revision,unchangedState:true},null,2));
+}finally{await mf.dispose()}

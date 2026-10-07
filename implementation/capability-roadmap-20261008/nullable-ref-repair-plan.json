@@ -1,0 +1,163 @@
+{
+  "status": "proposed_pending_root_exact_lease_pins_ack",
+  "implemented": false,
+  "checks_run": false,
+  "new_test_path": "packages/state/src/mutation/nullable-ref.test.ts",
+  "requested_write_paths": [
+    {
+      "path": "packages/state/src/invocation/registry.ts",
+      "absolute_path": "/Users/vince/Projects/canlang/packages/state/src/invocation/registry.ts",
+      "kind": "existing",
+      "exists": true,
+      "sha256": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
+      "frozen_exists": true,
+      "frozen_sha256": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
+      "matches_frozen": true,
+      "required_ack": "Exact existing hash or new-path absence before writes."
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "absolute_path": "/Users/vince/Projects/canlang/packages/state/src/invocation/admission.ts",
+      "kind": "existing",
+      "exists": true,
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "frozen_exists": true,
+      "frozen_sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "matches_frozen": true,
+      "required_ack": "Exact existing hash or new-path absence before writes."
+    },
+    {
+      "path": "packages/state/src/invocation/prepared-inputs.ts",
+      "absolute_path": "/Users/vince/Projects/canlang/packages/state/src/invocation/prepared-inputs.ts",
+      "kind": "existing",
+      "exists": true,
+      "sha256": "3dad1154a046905899d87197fbe8f0ea77a397552348fc80d105fb81a769f6b6",
+      "frozen_exists": true,
+      "frozen_sha256": "3dad1154a046905899d87197fbe8f0ea77a397552348fc80d105fb81a769f6b6",
+      "matches_frozen": true,
+      "required_ack": "Exact existing hash or new-path absence before writes."
+    },
+    {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "absolute_path": "/Users/vince/Projects/canlang/packages/state/src/mutation/pipeline.ts",
+      "kind": "existing",
+      "exists": true,
+      "sha256": "89b5840c8a819a80fb142fe720e252ffca2e02033abb15d8bbe043645ff546f4",
+      "frozen_exists": true,
+      "frozen_sha256": "89b5840c8a819a80fb142fe720e252ffca2e02033abb15d8bbe043645ff546f4",
+      "matches_frozen": true,
+      "required_ack": "Exact existing hash or new-path absence before writes."
+    },
+    {
+      "path": "packages/state/test/invocation/owned-admission.test.ts",
+      "absolute_path": "/Users/vince/Projects/canlang/packages/state/test/invocation/owned-admission.test.ts",
+      "kind": "existing",
+      "exists": true,
+      "sha256": "7c1a000b5c3d257c42d847c0a407ab121a79477bf41994bad5b1dfbabbad22dc",
+      "frozen_exists": true,
+      "frozen_sha256": "7c1a000b5c3d257c42d847c0a407ab121a79477bf41994bad5b1dfbabbad22dc",
+      "matches_frozen": true,
+      "required_ack": "Exact existing hash or new-path absence before writes."
+    },
+    {
+      "path": "packages/state/src/mutation/nullable-ref.test.ts",
+      "absolute_path": "/Users/vince/Projects/canlang/packages/state/src/mutation/nullable-ref.test.ts",
+      "kind": "new_file",
+      "exists": false,
+      "sha256": null,
+      "frozen_exists": false,
+      "frozen_sha256": null,
+      "matches_frozen": false,
+      "required_ack": "Exact existing hash or new-path absence before writes."
+    }
+  ],
+  "read_only_source_pins": {
+    "docs/specification/DESIGN.md": "1d36f88fe206299b383e0b7eb76182d559486c99670a2ecc87b5420e28cf7f82",
+    "packages/contracts/src/artifact.ts": "f10a0cd071b59d737f4065b54ed13d015bc341cc371909a34a4e18373857e91f",
+    "packages/contracts/src/state.ts": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+    "packages/state/src/mutation/models.ts": "3f08b165d5c90a068618226e4f15b57405fe2944e7e0ea074e18a4158a8bbbf0",
+    "packages/state/src/mutation/generated-crud.test.ts": "12c127963a3e80c2a92268a88059a0c40a36561cabc2a9ce8d9fcbb06ce026a9",
+    "packages/state/src/mutation/t18-defaults.test.ts": "2e71ab9e2bd8496e5fe0bd8708d6295f2362013a9b2beb85b6c90338add294c1",
+    "packages/state/src/invocation/descriptor-join.test.ts": "24bd42fd8cd83a4c1723ec05d65c14e52496b6043441a5e51d8559a9f69fd3d7",
+    "packages/state/test/invocation/secret-metadata.test.ts": "a57a54749632e30c021cd7898606953f12a1e6109db80778ea48e422f84f600f"
+  },
+  "independent_source_contract_review": {
+    "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/nullable-ref-contract-review.md": "38d7f5ac639c27fe33bd50813e733f42f28b23686ca83c06da378f4b68cce835",
+    "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/nullable-ref-contract-review.json": "fc6bd1e05e7d975848645b2a84438242c32adffb7dd9ad05d1eebe68a94102a7"
+  },
+  "proposal_markdown": {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/nullable-ref-repair-plan.md",
+    "sha256": "369a6d8f17d5c52aaed3dc6a384532955c224579f7d28e594f8c117216019846"
+  },
+  "before_packet": {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-invocation",
+    "pins_sha256": "000dbae0d3a89b08aac7be70364c0f3fe3257ad7f5e9464acd29e98349505784",
+    "preserve_unchanged": true,
+    "base_source_pin": "db57c3794d386fcd27f17f54b199272d58106a81",
+    "artifact": {
+      "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-metadata/artifacts/bounded-compile.json",
+      "sha256": "9f39ab8caf73621ab825eeb1db0507282d38932884d1316c9029a7be5060b343"
+    }
+  },
+  "implementation": {
+    "carrier": "Optional immutable own-key-safe engine-local inputNullableRefs record; copied optional true primitive in prepared ref rules.",
+    "artifact_association": "Own nullable:true on already checked singular ref input with no array marker; no required/model/name inference.",
+    "artifact_additive_non_true": "Preserve no-proof behavior; no generic malformed-additive policy.",
+    "intake_channel_validation": "Reject dangling operation/input, non-ref, array-marked and non-true engine-local marker associations as whole-set errors.",
+    "admission": "Null-only exception at existing ref-shape point; normalized null retained; no pending ref; omissions/default ownership unchanged.",
+    "pipeline": "Exact own non-dotted top-level field nullable:true and absent array marker at existing ref-null rejection point; preserve missing/unchanged/non-null/order gates.",
+    "prepared": "Same marker copied for both preparation paths; optional third descriptor-preparation argument; exact differential parity under state-generated/v1.",
+    "public_contracts_changed": false,
+    "values_stamps_changed": false
+  },
+  "test_groups": {
+    "owned_admission": [
+      "Loader-produced explicit-null and omission parity",
+      "Non-null id/version/error-order regression",
+      "Unknown/nonnullable/inherited/non-true marker and ref-array boundaries",
+      "Own-key safe immutable source associations and fresh plans",
+      "Invalid engine-local association whole-set rejection"
+    ],
+    "new_nullable_ref": [
+      "Canonical omitted/explicit null persistence and successful replay",
+      "Non-null-to-null clearing, omission preservation, null-to-current-ref updates",
+      "Nonnullable/unknown/required/server-only/unknown-input and malformed/missing/archived/stale/version denials",
+      "Direct pipeline dotted/nested/array boundaries and unchanged archived-ref behavior"
+    ]
+  },
+  "after_qualification": {
+    "build_context": "Separate private db57 baseline plus only four acknowledged candidate source changes; private State outputs and remapped own-package links; before packet never written.",
+    "route": "Unchanged actual Bounded CLI artifact -> production assembler/canonical invoker -> production persisted local D1 adapter",
+    "vectors": [
+      "Omitted nullable create",
+      "Explicit null create",
+      "Clear nullable reference",
+      "Update omission preserves value",
+      "Current versioned refs and wrong-model/missing/stale/version denials",
+      "Matching success/error replay and changed-payload conflict",
+      "Dispose/reopen same private persistence and fresh invoker",
+      "Exact all-known public read projections and no-write snapshots"
+    ],
+    "required_evidence": [
+      "Exact runtime/persisted scalar/default/reference/version types",
+      "Before/after SQL rows/history/receipts/fence snapshots",
+      "Raw input/outcome hashes and saved replay result",
+      "Independent post-patch review"
+    ],
+    "limits": [
+      "Public stdlib import union not repaired",
+      "Numeric hydration/arithmetic not qualified",
+      "Ref arrays/nested paths and generic nullable/default policies not expanded",
+      "Secrecy/source-declared selector/full generated hook/lock/invariant gates retained",
+      "Installed identity and owner-storage routing unqualified",
+      "SEQ-008/SEQ-009/F1 remain partial"
+    ]
+  },
+  "forbidden_before_ack": [
+    "Product source edits",
+    "Compilation/runtime/test repair commands",
+    "Source/dist/dependency changes",
+    "Git mutation",
+    "DECISIONS/file-tree edits"
+  ]
+}
