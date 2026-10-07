@@ -289,10 +289,10 @@ impl Formatter for PolicyFormatter {
             populated,
             ..
         }) = self.containers.pop()
+            && populated
+            && end_indent > 0
         {
-            if populated && end_indent > 0 {
-                indent(writer, end_indent)?;
-            }
+            indent(writer, end_indent)?;
         }
         CompactFormatter.end_array(writer)
     }
