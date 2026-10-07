@@ -1,0 +1,55 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "The requested boundary is typed outgoing LSP data plus a document display/path adapter, leaving framed input, admission and lifecycle intact. Inspection finds eight supported result families and no document-symbol serializer. Source-owned UTF16 indexes and existing immutable text snapshots must stay. Request ID text is deliberately preserved in the envelope. Required version correction is already authorized: every known open target gets its current i32 version; an unopened edit target uses null. List order, omissions and semantic fields are compatibility requirements; member order may vary except envelope/fixed errors and tested coordinate/location objects. Raw Vec<u32> token output must not be truncated when adapting typed tokens.\nTested lsp-types0.97.0 with no defaults preserves the spelling of syntactically accepted URIs, including percent case, nonfile schemes and remote/file authorities. Its fluent-uri view accepts empty/relative references, but refuses raw Unicode and malformed percent strings. These latter strings pass the server's present string-only URI checks and can appear from the public String-based analysis interface; file:///100%.can is an existing helper witness. VSCode's real client serializes document.uri.toString() and parses replies using Uri.parse. Standard library output structs use Uri fields, so naïve conversion could discard notifications/edits or impose a new admission policy. Preserve received identity and retain input/output separation; no invented canonical URI key.\nThe current URI decoder feeds only SourceDb paths on open/change. Documents/jobs/requests/replies remain keyed by untouched URI; queries use SourceId and memory, with no file/import read from this decoder. Problems are display/index metadata: nonfile escapes change despite the declared verbatim rule, invalid UTF8 becomes replacement characters, authority looks like a relative directory and query/fragment leak into the path. Pinned url2.5.8/std can derive native local paths while maintaining received identity separately. Unix allows localhost/empty hosts, refuses remote hosts and permits raw nonUTF8/NUL bytes. Scheme/dot/file:/ normalization is WHATWG behavior; file:relative.can becomes root-looking file URI. Local String conversion needs exact UTF8 or unchanged fallback; embedded NUL is unusable for filesystem access. Current releases are Linux/macOS; Windows drive/UNC behavior has only source evidence. Select explicit file:// conversion or wider file normalization deliberately, rather than inheriting incidental parser defaults.",
+    "questions": {
+      "output_uri": {
+        "type": "choice",
+        "instructions": "Which outgoing URI adaptation best balances typed library use with the actual String-based admission contract?",
+        "criteria": {
+          "compatibility_views": "Adopt complete standard DTOs when syntax fits, and explicit small fallback projections for original URI strings otherwise; preserve typed remaining values, replies and admission at a small code cost.",
+          "strict_admission": "Make Uri validity a declared new input/backend contract and return or drop using classified errors; fewer output adapters but broader supported-input change.",
+          "string_views": "Always use borrowed typed String URI projections backed by library positions/enums/edits, avoiding syntax splitting; stable input/identity with fewer complete-library outer structs."
+        }
+      },
+      "file_display": {
+        "type": "choice",
+        "instructions": "Which file-to-display policy is proportionate for the supported hosts and observed path behavior?",
+        "criteria": {
+          "narrow_native": "Convert explicit file:// spellings only, case-insensitively, through checked native file conversion and strictUTF8/noNUL with raw fallback. Keep query/fragment out of display and library dot handling inside this finite scope.",
+          "broad_native": "Allow all parser-recognized file URL spellings in display conversion, applying native authority/UTF8/NUL checks and raw fallback; accept the additional relative-looking/single-slash normalization.",
+          "portable_display": "Prefer an authority-aware URI display independent of platform file-path rules, preserving raw identity but requiring additional component adaptation."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "output_uri": {
+        "type": "choice",
+        "choice": "compatibility_views",
+        "confidence": 0.89,
+        "probabilities": {
+          "compatibility_views": 0.93,
+          "string_views": 0.07,
+          "strict_admission": 0.0
+        }
+      },
+      "file_display": {
+        "type": "choice",
+        "choice": "narrow_native",
+        "confidence": 0.97,
+        "probabilities": {
+          "narrow_native": 0.98,
+          "broad_native": 0.01,
+          "portable_display": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1111,
+      "output_tokens": 95
+    }
+  }
+}
