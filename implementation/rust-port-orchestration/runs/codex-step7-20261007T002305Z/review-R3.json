@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-07T00:37:28.154Z",
+  "reviewer": "/root/step7_review_delivery",
+  "status": "ACCEPTED_BOUNDED_D03_DELIVERY_AND_DEPENDENCY_JOIN",
+  "blockingFindings": [],
+  "findings": [],
+  "acceptedScope": [
+    "Exact selected host dependencies and private lock candidate for root handoff",
+    "Preserving D03 runtime codec staging and only the runtime codec import edge rewrite",
+    "Synchronous existing deployment API, unchanged artifact identity/layering/legacy CJS guards",
+    "Private Cloudflare package source snapshot/public entry and explicit written Worker closure"
+  ],
+  "scopeBoundaries": [
+    "D03 mapper algorithm/contract qualification is a separate independent review; this review qualifies its concrete runtime dependency delivery",
+    "D02 leaf caller adoption is unadopted pending D04; initial source snapshot freshness is historical evidence at the recorded hashes, not qualification of an in-progress D02 repair",
+    "No D04 composition, invoke changes, derived map consumer handshake, default adoption, native preparation, global assembly, compiler acceptance or release credit",
+    "Fresh Node/Bun hosts import the real public package export in a private copied package tree with existing read-only external tool links; no fresh standalone Can tarball installation acceptance",
+    "Written Worker boot reaches real DB-bound /mcp authentication refusal (401); it does not prove authenticated business execution or all computed dynamic branches",
+    "No strict-CSP browser proof is credited by this R3 Worker review; host lexer/editor do not ship",
+    "Corruption control proves syntax-corrupt physical codec startup refusal; no semantic tamper integrity-check contract is introduced"
+  ],
+  "sourceHashes": {
+    "packages/cloudflare/package.json": "f8d1483482dde2a5b333d35196584e4b61c9985c9825249a4aba9e9716d51252",
+    "packages/cloudflare/src/deploy/bundle.ts": "ad64a7974ecd4b245f2c58d8edf8a243e8f9a4df939b026178cc590a330b34fb",
+    "packages/cloudflare/test/deploy-bundle.test.ts": "6c006032979736f8d72660fc920c7f1fea69c987993e55e4054b14ae76a39b63",
+    "packages/cloudflare/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "packages/cloudflare/src/runtime/modules.ts": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230",
+    "packages/cloudflare/src/runtime/invoke.ts": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+    "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+    "bun.lock": "28eeb481d3b6ce420b1ccc6573581572b47da25a0b8eb5ff833d1143e5cc4c19"
+  },
+  "privateLockCandidate": {
+    "file": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/lock-candidate/bun.lock",
+    "sha256": "aec35229030b460af533a1aee3b95581f0eab7cc82a166ea00fbb871d8bc1a4a",
+    "changedPackageRecords": [
+      "es-module-lexer",
+      "magic-string",
+      "@vitest/mocker/magic-string",
+      "@vitest/snapshot/magic-string",
+      "vite-node/es-module-lexer",
+      "vitest/magic-string"
+    ],
+    "removedPackageRecords": [],
+    "workspaceChanges": [
+      "packages/cloudflare direct dependencies only"
+    ],
+    "codecResolutionUnchanged": true,
+    "retainedOldToolEdges": {
+      "vite-node/es-module-lexer": "es-module-lexer@1.7.0",
+      "@vitest/mocker/magic-string": "magic-string@0.30.21",
+      "@vitest/snapshot/magic-string": "magic-string@0.30.21",
+      "vitest/magic-string": "magic-string@0.30.21"
+    },
+    "allGenerationManifestsStillMatch": true
+  },
+  "codeReview": {
+    "manifestDelta": "Only es-module-lexer3.0.3, magic-string1.4.3, codec1.6.0 direct exact pins added",
+    "bundleDelta": "stageSourceMapCodec resolves exported package.json, validates version1.6.0/exact published ESM target and reads the selected entry synchronously; adds exact vendor key and extends only rewriteRuntimeImports codec mapping; guard/link/sort/digest and other producer mappings unchanged",
+    "faultEnvelopes": "Missing package/manifest preserves resolveProducerFile envelope; wrong version/export, malformed manifest or missing entry uses pinned ESM missing-or-invalid envelope with cause; no new public error code",
+    "testDelta": "One focused codec staging/host-absence/dangling-codec link control added; all existing test bytes preserved after insertion",
+    "heldFiles": "runtime/modules.ts, runtime/invoke.ts, root package.json, shared bun.lock and original consumer test files byte-identical to beforebaseline"
+  },
+  "installedDependencies": {
+    "actualPrivateNpmTarballInstall": true,
+    "selectedReleaseFilesIndependentlyMatch": true,
+    "publishedTarballSHA256AndSHA512IndependentlyMatch": true,
+    "productionTraceResolveAdded": false,
+    "codecPublishedSHA256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0",
+    "evidence": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/independent-check.json"
+  },
+  "verification": {
+    "recordedFullPrivateTypecheck": {
+      "exitCode": 0,
+      "stdout": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/full-typecheck.stdout",
+      "stderr": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/full-typecheck.stderr"
+    },
+    "recordedFinalFullPrivateCompile": {
+      "exitCode": 0,
+      "stdout": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/final-full-compile.stdout",
+      "stderr": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/final-full-compile.stderr"
+    },
+    "independentByteFreshness": {
+      "sourceAndTestSnapshots": 107,
+      "emittedJSFiles": 54,
+      "allMatched": true,
+      "method": "In-memory TypeScript transpile from reviewed source, same target/options with explicit ESM mode for package.json context, compared complete emitted bytes; no shared compiler/cache writes",
+      "note": "Before concurrent D02 repair; D03 relevant current source hashes independently rechecked at report creation"
+    },
+    "actualConsumerTests": {
+      "executed": 71,
+      "passed": 71,
+      "failed": 0,
+      "files": [
+        {
+          "file": "deploy-bundle.test.ts",
+          "executed": 28,
+          "passed": 28
+        },
+        {
+          "file": "deploy-package-assets.test.ts",
+          "executed": 25,
+          "passed": 25
+        },
+        {
+          "file": "modules.test.ts",
+          "executed": 4,
+          "passed": 4
+        },
+        {
+          "file": "sourcemap.test.ts",
+          "executed": 14,
+          "passed": 14
+        }
+      ],
+      "originalSourcemapInvokeSuiteExecuted": 14,
+      "noDuplicateSuiteRun": true
+    },
+    "coldNode": {
+      "version": "24.21.0",
+      "realPublicExport": "file:///private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/cloudflare-check-fixture/packages/cloudflare/dist/deploy/bundle.js",
+      "synchronousFirstCall": true,
+      "deterministicRepeatedBytes": true,
+      "moduleCount": 153
+    },
+    "coldBun": {
+      "version": "1.4.2",
+      "realPublicExport": "file:///private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/cloudflare-check-fixture/packages/cloudflare/dist/deploy/bundle.js",
+      "synchronousFirstCall": true,
+      "deterministicRepeatedBytes": true,
+      "moduleCount": 153
+    },
+    "writtenWorker": {
+      "explicitRoot": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/written-worker",
+      "allInventoryFilesExist": true,
+      "mainModule": "worker/main.js",
+      "moduleCount": 153,
+      "independentlyRecomputedSHA256": "95722a7ec44d19be5a5d907644ff92a699f3cde7491a1e981b572cd49afa0d1b",
+      "manifestDigestMatches": true,
+      "literalEdgesChecked": 407,
+      "allLiteralEdgesResolve": true,
+      "computedProducerEdges": 17,
+      "computedEdges": "Legacy trusted producer dynamic seams retained; not resolved-link claims",
+      "codecExactPublishedBytes": true,
+      "hostToolingAbsent": true,
+      "mapperExecuted": {
+        "duplicate": {
+          "source": "../raw/./x.can?x#y",
+          "line": 2,
+          "column": 1
+        },
+        "signedZero": 0,
+        "overflow": -1073741824
+      },
+      "dbBoundProductionBoot": {
+        "status": 401,
+        "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Authentication required.\"}}"
+      },
+      "physicallyMissingCodecRefused": {
+        "name": "MiniflareCoreError [ERR_RUNTIME_FAILURE]",
+        "message": "The Workers runtime failed to start. There was likely a problem with the workerd binary or your configuration.\nRuntime stderr:\nservice core:user:r3-written-worker: Uncaught Error: No such module \"vendor/sourcemap-codec/sourcemap-codec.js\".\n  imported from \"runtime/sourcemap.js\""
+      }
+    },
+    "freshNegativeControls": {
+      "executed": 7,
+      "allRefused": true,
+      "cases": [
+        {
+          "name": "wrong codec version",
+          "refused": true,
+          "error": {
+            "name": "Error",
+            "message": "deploy bundle: @jridgewell/sourcemap-codec 1.6.0 ESM export missing or invalid; run `bun install --frozen-lockfile` first",
+            "codePresent": false,
+            "cause": "unexpected codec version or ESM export"
+          }
+        },
+        {
+          "name": "wrong public ESM export target",
+          "refused": true,
+          "error": {
+            "name": "Error",
+            "message": "deploy bundle: @jridgewell/sourcemap-codec 1.6.0 ESM export missing or invalid; run `bun install --frozen-lockfile` first",
+            "codePresent": false,
+            "cause": "unexpected codec version or ESM export"
+          }
+        },
+        {
+          "name": "invalid manifest JSON",
+          "refused": true,
+          "error": {
+            "name": "Error",
+            "message": "deploy bundle: @jridgewell/sourcemap-codec 1.6.0 ESM export missing or invalid; run `bun install --frozen-lockfile` first",
+            "codePresent": false,
+            "cause": "Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+          }
+        },
+        {
+          "name": "physically missing selected ESM entry",
+          "refused": true,
+          "error": {
+            "name": "Error",
+            "message": "deploy bundle: @jridgewell/sourcemap-codec 1.6.0 ESM export missing or invalid; run `bun install --frozen-lockfile` first",
+            "codePresent": false,
+            "cause": "ENOENT: no such file or directory, open '/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/independent-faults/node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.mjs'"
+          }
+        },
+        {
+          "name": "physically missing package",
+          "refused": true,
+          "error": {
+            "name": "Error",
+            "message": "deploy bundle: @jridgewell/sourcemap-codec/package.json not built; run `bun install --frozen-lockfile` first",
+            "codePresent": false,
+            "cause": "ENOENT: no such file or directory, stat '/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/independent-faults/node_modules/@jridgewell/sourcemap-codec/package.json'"
+          }
+        },
+        {
+          "name": "physically missing manifest",
+          "refused": true,
+          "error": {
+            "name": "Error",
+            "message": "deploy bundle: @jridgewell/sourcemap-codec/package.json not built; run `bun install --frozen-lockfile` first",
+            "codePresent": false,
+            "cause": "ENOENT: no such file or directory, stat '/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/independent-faults/node_modules/@jridgewell/sourcemap-codec/package.json'"
+          }
+        },
+        {
+          "name": "physically corrupted codec module",
+          "refused": true,
+          "error": {
+            "name": "MiniflareCoreError [ERR_RUNTIME_FAILURE]",
+            "message": "The Workers runtime failed to start. There was likely a problem with the workerd binary or your configuration.\nRuntime stderr:\nservice core:user:r3-review-corrupt: Uncaught SyntaxError: Unexpected identifier 'broken'\n  at vendor/sourcemap-codec/sourcemap-codec.js:1:22"
+          }
+        }
+      ],
+      "evidence": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/independent-faults.json",
+      "execution": "Initial sandbox workerd localhost bind EPERM; successful authorized escalation reran private controls and observed real syntax failure. Existing proof fixtures and product sources unchanged"
+    }
+  },
+  "repeatability": {
+    "sourceAndEvidenceOwnerPinsIndependentlyVerified": true,
+    "prepareRecipeNeedsFiniteFollowup": "prepare-check-fixture.mjs seeds leaf-only Vitest config; checked consumer configuration and full emitted outputs are separately preserved in the fixture. Reproducing full consumer suite requires the recorded four-file vitest.config.mjs, not blindly rerunning initial preparation config.",
+    "commands": {
+      "freshness": "node /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/independent-check.mjs",
+      "newFaults": "node /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/independent-faults.mjs",
+      "consumer": "node /Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs run --root /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/cloudflare-check-fixture --config /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/cloudflare-check-fixture/vitest.config.mjs",
+      "typecheck": "node /Users/vince/Projects/canlang/node_modules/typescript/bin/tsc -p /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3/cloudflare-check-fixture/tsconfig.cloudflare-check.json"
+    },
+    "mutations": "Independent private copied outputs/review scripts only; no product Git commands, shared outputs, shared cache or shared lock writes"
+  },
+  "evidenceHashes": {
+    "independent-check.mjs": "928cc2fd8e475e9316138da2573a30089189f510a94b5229b2d6a93dc6c5b874",
+    "independent-check.json": "9dac58b51608f5e33856fc6491ca13c04a2f02fa4deb85b3b4a9e7c2d3d2de7d",
+    "independent-faults.mjs": "616f94763809bfdc28d70c3cc1d0c8232877f851f08e947465f7123bde21b527",
+    "independent-faults.json": "7dda56510855c426886a643096eb32e8f5187d6548f094f8edeb7d08789b8350",
+    "delivery-result.json": "695e6245bcb6bf7ab78e3b1e4c5bab7927dea9157c7dac9c7e06ad58e36ff6c5",
+    "consumer-tests.json": "a673780487366608989a0b7d9a8cce1a2ba3c8206224fb97e884bbfa40bfb290",
+    "consumer-tests.stdout": "19e55ef93ca025ca6a9e440daf7fb1e166d3e4c642ed5d2a1ca648da748e735b",
+    "consumer-tests.stderr": "7f470cfbf4460f19a5790ef38194b6bf618d8ad36e9fb3f6e15918f34259e430",
+    "node-public-entry.json": "2dc9f2f87a356c6229cb5e4222871f0a25564de40bc33765469997046f5f68f1",
+    "bun-public-entry.json": "6f7af2a4b9e8b7e06f2e1e002d851c297b2c763443ffe16a7b0e7db51429e994",
+    "written-worker-proof.json": "26408bddc25588744156c8b84573d1ec76271d1a2c67bec1d0ee3b2704dc0736",
+    "written-worker-proof.stderr": "46fd6f7a025a9515f8e44b04db214f13fbee7b0e2fddc35cdab74915405070cb",
+    "installed-deps.json": "2d8ece0dc931c787f960766772b2ef7cd39c39e430be0282b7267d59116aad17",
+    "bun-lock-candidate.diff": "d5855b4c6661ba3630281b8900ee6c5a195827f3ee5661223203b943e240bd7b",
+    "cloudflare-check-fixture/cold-public-entry.mjs": "b2a25c46d1ce67b5922834ead453c80539e67c0fa1954ae56dae129d69341a09",
+    "cloudflare-check-fixture/written-worker-proof.mjs": "8beed075eb52e4dbbd03d391127cd28ce3a306b54a70b64e63a0cdec1585d7ff"
+  }
+}

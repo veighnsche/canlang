@@ -1,0 +1,552 @@
+{
+  "schema": 1,
+  "reviewer": "/root/step7_review_maps",
+  "timestamp_utc": "2026-10-07T00:34:56.203856+00:00",
+  "verdict": "D03 source compatibility accepted at exact reviewed pins; delivery acceptance remains separate",
+  "blocking_findings": [],
+  "nonblocking_findings": [],
+  "scope": "Independent static review and fresh lightweight both-host execution; no product, Git, shared-cache, dist, D04, staged composition, native preparation or default-installed acceptance work",
+  "exact_hashes": [
+    {
+      "path": "/Users/vince/Projects/canlang/AGENTS.md",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+      "bytes": 1886
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md",
+      "sha256": "5665fd668c57d6968811a0314360660e9df1c5b7c23fa241f3af75b8caac1aad",
+      "bytes": 18311
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/contracts-20261007/delivery-contracts.json",
+      "sha256": "e2f9e744ca092f6f5215772eb791caaeb8b20959651bddcde0ba258eaf20dc91",
+      "bytes": 74490
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z/D03-owner.json",
+      "sha256": "a87ce40003df98db7985fa6616d8e8125db818ef73c7937fd736e260dd9005c0",
+      "bytes": 2132
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/baseline/packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+      "bytes": 6411
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/baseline/packages/cloudflare/test/sourcemap.test.ts",
+      "sha256": "8dea333cf3bbf89c89186f69a47ba5810dfd5730da85a9d6e031b694c9c2011b",
+      "bytes": 11625
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "bytes": 6534
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/sourcemap.test.ts",
+      "sha256": "8dea333cf3bbf89c89186f69a47ba5810dfd5730da85a9d6e031b694c9c2011b",
+      "bytes": 11625
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/raw-source-map-contract.test.ts",
+      "sha256": "879771aa9af09b49593dc41901b04de56091655a1d4d6b9fcaf9282277108f90",
+      "bytes": 5330
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/raw-source-map-contract.json",
+      "sha256": "9099f386c64d25a8f848125213c18620aba5a13e4e520fe0f3219f08ebdca23a",
+      "bytes": 397077
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/manifest.json",
+      "sha256": "a00b46e1b7cf70cb3f3a5a4b75235052c4d57856e0a0c88307dc6cd93d215f0d",
+      "bytes": 8074
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/commands.json",
+      "sha256": "6e755d2f03b4a17dd19a3ccc6f88409b7bd850dc02215c5f0eeb9ab4e2536740",
+      "bytes": 3715
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/prepare.mjs",
+      "sha256": "dd9794a836d764bbff4cb2c0860c2fab9afde88f2eafe3451bf48108f9e43f83",
+      "bytes": 5911
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/qualify.mjs",
+      "sha256": "6ff5f19ed298350529e1b81d78c087cd538562fee73e0b1ced5ced0aaf6603c9",
+      "bytes": 5267
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/stress-actual.mjs",
+      "sha256": "000ff8000193c861dcc734740df9f60d4f32765a57ae8d8b194b4e04c9f14ce4",
+      "bytes": 4318
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/freeze-current.mjs",
+      "sha256": "20efcad2eb994a41d7b1d666fafd62684f2b2aabb6a0d7246452177bda5deade",
+      "bytes": 1213
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/host-closure.json",
+      "sha256": "9f52e4a7148476b39f70a4e2b68b9d18a06e352804166b29c147975684e10a9e",
+      "bytes": 2475
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/comparison.json",
+      "sha256": "518f5e666d41c0837bdacd0e6f9726926de6c0bfef4876cfbcba48ace2e67f14",
+      "bytes": 3608
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/oracle-source.ts",
+      "sha256": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+      "bytes": 6411
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/oracle.mjs",
+      "sha256": "02cda1bbe1b581ecf4e02a9c1cf8a51cd70b4c6f7dfbc60c74cc4702bd493fcf",
+      "bytes": 5910
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/actual-source.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "bytes": 6534
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/actual-source.mjs",
+      "sha256": "33d0a6ddd31eed020f6948739b9310a447f1925001e166b416d203a7a4dfbffb",
+      "bytes": 6076
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/candidate-node.json",
+      "sha256": "b439c62700343c4cda92f0bd5dd28fac32a6050aad435c1f686a4e3f528c6cf4",
+      "bytes": 362332
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/candidate-bun.json",
+      "sha256": "b4e79726093a33881c37a511adc429866469392aa0cd0cf36cf2c16a7266be7e",
+      "bytes": 362303
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/actual-stress-node.json",
+      "sha256": "925d3bd30d2f1e986bb97b82db171fb4c383b717fa9a874b916a8514865c262e",
+      "bytes": 13444
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/actual-stress-bun.json",
+      "sha256": "6476717c1aa9a4585ff42b635e0cee80e95ced67341e7aa8c306063fdca82fb7",
+      "bytes": 13627
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/current-regression-vitest.json",
+      "sha256": "0f54ab1308dec9c225d95f4a5a46f313b3bba0f1ceb544995f64bdcf9cc7467c",
+      "bytes": 79652
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/adapter-regression-vitest.json",
+      "sha256": "9398ac0df0b1d731813815a8b37fd5124a3c8eae50d9687cc96fd5fae9ad1c91",
+      "bytes": 79638
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-probes.mjs",
+      "sha256": "fae63ad84ba9e50a99b99f7c77a938721add462b57acd297ce3644f182c54f55",
+      "bytes": 7927
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-probes-node.json",
+      "sha256": "fc4df119060cdec750aca39bfa4ae56ca9a76dd0e96b983733a15437cc544e68",
+      "bytes": 2893
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-probes-bun.json",
+      "sha256": "13e4c5580beada6987aee64498bc66c8114d571c3400374eae6c28dd986cf161",
+      "bytes": 2864
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-probes-node.log",
+      "sha256": "8266510ae8ef7e0f9adbbb670b90ad37c7f62cf0856bab15dbd3116c61535d46",
+      "bytes": 303
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-probes-bun.log",
+      "sha256": "a7a0c26da95eac423eb0062bd80c7783e3d0e5345dbf468b37e42dc1eb8fcbd3",
+      "bytes": 274
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-review-audit.py",
+      "sha256": "8dd0cc33d96916b4c03fac70ecabd707f27e7677871dc0f3f809d338e7bde5bf",
+      "bytes": 10088
+    }
+  ],
+  "checks": {
+    "owner_manifest_entries": 39,
+    "owner_manifest_mismatches": [],
+    "fixture_cases": 277,
+    "fixture_lookups": 910,
+    "fixture_oracle_hash_matches_baseline": true,
+    "oracle_source_matches_original": true,
+    "actual_source_matches_current": true,
+    "original_invoke_test_unchanged": true
+  },
+  "selected_release": {
+    "name": "@jridgewell/sourcemap-codec",
+    "version": "1.6.0",
+    "esm_export": "dist/sourcemap-codec.mjs",
+    "dependencies": {},
+    "files": [
+      {
+        "path": "LICENSE",
+        "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c",
+        "frozen_sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c",
+        "match": true
+      },
+      {
+        "path": "package.json",
+        "sha256": "ac7afd57294dbee1f891ca797e19e405340f2cd6031808e6d3845fec60a5b43f",
+        "frozen_sha256": "ac7afd57294dbee1f891ca797e19e405340f2cd6031808e6d3845fec60a5b43f",
+        "match": true
+      },
+      {
+        "path": "README.md",
+        "sha256": "50e5282b46bafe5e2c87a0f224a86876067694f0434c5b27c0ea2d5bbceba5d7",
+        "frozen_sha256": "50e5282b46bafe5e2c87a0f224a86876067694f0434c5b27c0ea2d5bbceba5d7",
+        "match": true
+      },
+      {
+        "path": "dist/sourcemap-codec.mjs",
+        "sha256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0",
+        "frozen_sha256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0",
+        "match": true
+      },
+      {
+        "path": "src/sourcemap-codec.ts",
+        "sha256": "91d136138bf0d2a4c4d9ca811cc10af74eead3165b75edb5eaa9ddf5337e5fc9",
+        "frozen_sha256": "91d136138bf0d2a4c4d9ca811cc10af74eead3165b75edb5eaa9ddf5337e5fc9",
+        "match": true
+      },
+      {
+        "path": "src/vlq.ts",
+        "sha256": "6aff12a00b5a44ada57df49bddc90f90fead9dc230463b49784904373bd11ecd",
+        "frozen_sha256": "6aff12a00b5a44ada57df49bddc90f90fead9dc230463b49784904373bd11ecd",
+        "match": true
+      }
+    ]
+  },
+  "prior_evidence_audit": {
+    "vitest": [
+      {
+        "report": "current-regression-vitest.json",
+        "success": true,
+        "passed": 284,
+        "failed": 0,
+        "pending": 0,
+        "files": [
+          "/Users/vince/Projects/canlang/packages/cloudflare/test/raw-source-map-contract.test.ts"
+        ]
+      },
+      {
+        "report": "adapter-regression-vitest.json",
+        "success": true,
+        "passed": 284,
+        "failed": 0,
+        "pending": 0,
+        "files": [
+          "/Users/vince/Projects/canlang/packages/cloudflare/test/raw-source-map-contract.test.ts"
+        ]
+      }
+    ],
+    "actual_candidate_stress": [
+      {
+        "report": "actual-stress-node.json",
+        "host": {
+          "path": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "node": "v24.21.0",
+          "bun": null
+        },
+        "counts": {
+          "maps": 4171,
+          "decode": 4171,
+          "lookup": 16684,
+          "numericFields": 21372
+        },
+        "failures": 0,
+        "semantic": [
+          {
+            "id": "live-mutation",
+            "pass_": true
+          },
+          {
+            "id": "native-type-query-precedence",
+            "pass_": true
+          },
+          {
+            "id": "signedzero-and-freshness",
+            "pass_": true
+          },
+          {
+            "id": "negative-array-properties",
+            "pass_": true
+          }
+        ]
+      },
+      {
+        "report": "actual-stress-bun.json",
+        "host": {
+          "path": "/Users/vince/.bun/bin/bun",
+          "node": "v26.3.0",
+          "bun": "1.4.2"
+        },
+        "counts": {
+          "maps": 4171,
+          "decode": 4171,
+          "lookup": 16684,
+          "numericFields": 21372
+        },
+        "failures": 0,
+        "semantic": [
+          {
+            "id": "live-mutation",
+            "pass_": true
+          },
+          {
+            "id": "native-type-query-precedence",
+            "pass_": true
+          },
+          {
+            "id": "signedzero-and-freshness",
+            "pass_": true
+          },
+          {
+            "id": "negative-array-properties",
+            "pass_": true
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "argv": [
+          "node",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/prepare.mjs"
+        ],
+        "exit": 0,
+        "output": "oracle.json + test fixture; 277 cases/910 lookups"
+      },
+      {
+        "argv": [
+          "node",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/qualify.mjs"
+        ],
+        "exit": 0,
+        "output": "candidate-node.json; tool stdout 277/910 per-segment pass"
+      },
+      {
+        "argv": [
+          "node",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/stress.mjs"
+        ],
+        "exit": 0,
+        "stdout": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/stress-node.log"
+      },
+      {
+        "argv": [
+          "bun",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/qualify.mjs"
+        ],
+        "exit": 0,
+        "stdout": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/qualify-bun.log"
+      },
+      {
+        "argv": [
+          "bun",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/stress.mjs"
+        ],
+        "exit": 0,
+        "stdout": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/stress-bun.log"
+      },
+      {
+        "argv": [
+          "bun",
+          "run",
+          "test:root",
+          "packages/cloudflare/test/raw-source-map-contract.test.ts",
+          "--pool",
+          "forks",
+          "--maxWorkers",
+          "1",
+          "--minWorkers",
+          "1",
+          "--no-file-parallelism",
+          "--no-cache",
+          "--reporter=json",
+          "--outputFile=/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/current-regression-vitest.json"
+        ],
+        "exit": 0,
+        "stdout_stderr": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/current-regression-vitest.log",
+        "passed_tests": 284
+      },
+      {
+        "argv": [
+          "node",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/freeze-current.mjs"
+        ],
+        "exit": 0,
+        "source_sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113"
+      },
+      {
+        "argv": [
+          "node",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/stress-actual.mjs"
+        ],
+        "exit": 0,
+        "stdout": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/actual-stress-node.log"
+      },
+      {
+        "argv": [
+          "bun",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/stress-actual.mjs"
+        ],
+        "exit": 0,
+        "stdout": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/actual-stress-bun.log"
+      },
+      {
+        "argv": [
+          "bun",
+          "run",
+          "test:root",
+          "packages/cloudflare/test/raw-source-map-contract.test.ts",
+          "--config",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/vitest.config.mjs",
+          "--pool",
+          "forks",
+          "--maxWorkers",
+          "1",
+          "--minWorkers",
+          "1",
+          "--no-file-parallelism",
+          "--no-cache",
+          "--reporter=json",
+          "--outputFile=/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/adapter-regression-vitest.json"
+        ],
+        "exit": 0,
+        "stdout_stderr": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/adapter-regression-vitest.log",
+        "passed_tests": 284
+      },
+      {
+        "argv": [
+          "node",
+          "node_modules/typescript/bin/tsc",
+          "-p",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/tsconfig.json"
+        ],
+        "exit": 0,
+        "stdout_stderr": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/typecheck.log"
+      },
+      {
+        "argv": [
+          "node",
+          "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/behavior-probes.mjs"
+        ],
+        "exit": 0,
+        "output": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/behavior-probes.json"
+      }
+    ],
+    "source_oracle_independence": "Read prepare.mjs: observations come from exact original oracle, not codec decode/encode; local generator only encodes fixture inputs. Re-executed fresh exact baseline for every fixture expected value on both hosts. Printed comments about temporal freezing are not accepted as proof by themselves.",
+    "candidate_execution": "Reviewed actual-source freeze script: exact current TS transpile with only module specifier rewritten. Independently repeated this directly from current source in each fresh host process."
+  },
+  "fresh_execution": [
+    {
+      "host": {
+        "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "version": "v24.21.0",
+        "bun": null
+      },
+      "counts": {
+        "fixtureDecode": 277,
+        "fixtureLookup": 910,
+        "freshDecode": 1074,
+        "freshLookup": 72,
+        "numericAlgebra": 352,
+        "semantic": 5
+      },
+      "failures": [],
+      "stable_functions": {
+        "decodeMappings": true,
+        "lookup": true
+      },
+      "source_hashes": {
+        "original": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+        "current": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+        "codec": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0",
+        "fixture": "9099f386c64d25a8f848125213c18620aba5a13e4e520fe0f3219f08ebdca23a",
+        "originalModule": "02cda1bbe1b581ecf4e02a9c1cf8a51cd70b4c6f7dfbc60c74cc4702bd493fcf",
+        "currentModule": "33d0a6ddd31eed020f6948739b9310a447f1925001e166b416d203a7a4dfbffb"
+      }
+    },
+    {
+      "host": {
+        "execPath": "/Users/vince/.bun/bin/bun",
+        "version": "v26.3.0",
+        "bun": "1.4.2"
+      },
+      "counts": {
+        "fixtureDecode": 277,
+        "fixtureLookup": 910,
+        "freshDecode": 1074,
+        "freshLookup": 72,
+        "numericAlgebra": 352,
+        "semantic": 5
+      },
+      "failures": [],
+      "stable_functions": {
+        "decodeMappings": true,
+        "lookup": true
+      },
+      "source_hashes": {
+        "original": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+        "current": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+        "codec": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0",
+        "fixture": "9099f386c64d25a8f848125213c18620aba5a13e4e520fe0f3219f08ebdca23a",
+        "originalModule": "02cda1bbe1b581ecf4e02a9c1cf8a51cd70b4c6f7dfbc60c74cc4702bd493fcf",
+        "currentModule": "33d0a6ddd31eed020f6948739b9310a447f1925001e166b416d203a7a4dfbffb"
+      }
+    }
+  ],
+  "raw_commands": [
+    {
+      "command": "node /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-probes.mjs > /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-probes-node.log 2>&1",
+      "exit_code": 0
+    },
+    {
+      "command": "bun /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-probes.mjs > /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-probes-bun.log 2>&1",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03/independent-review-audit.py",
+      "exit_code": 0
+    }
+  ],
+  "reasoning": {
+    "synchronous_shape": "Type and function exports remain synchronous. Independent AST printer compares exported decodeMappings and lookup bodies exactly ignoring comments. Fresh arrays and own-property omission compared with isDeepStrictEqual; Object.is probes preserve positive accumulated zero.",
+    "first_errors": "Empty segment checked first. Regex without unicode flag finds the first invalid UTF16 unit, matching old charCodeAt order. A continuation-valued last digit is exactly old nonzero shift condition. Termination count equals old field count. Guard checks invalid/truncated before arity, while unchanged loops retain segment/line first-fault order and whole-map decode before lookup bounds.",
+    "numeric": "Pinned published ESM and src/vlq.ts both OR identical 5-bit groups into the same signed32 accumulator with modulo32 shifts. Let raw r be final signed32 bits and m=r>>>1. Codec yields m when even, -m when odd except m=0 maps to INT32_MIN. (m<<1)>>1 equals r>>1. Negative branch -((-v<<1)>>1) gives -(r>>1). INT32_MIN is uniquely signed-zero sentinel; mapping it to zero is indistinguishable after every original accumulator starts at +0 and adds it. No numeric loop, alphabet value conversion, shift counter, overflow guard or new admission policy remains in owned segment decoder.",
+    "order": "Codec receives one admitted segment at a time; its line sorting cannot reorder a singleton. Old per-line generated and persistent source/name accumulators, source-order break, last duplicate and unmapped winner are unchanged.",
+    "identity_mutation": "No TraceMap, URL/sourceRoot normalization or cache is introduced. Raw array property lookup and live source/name/mappings reads are unchanged. Negative array properties, raw URLs/lone surrogates, replacement/mutation transitions and getter read ordering were compared.",
+    "native_wrong_types": "Unchanged query gates and mappings.split preserve actual native TypeError name/message within both hosts for ordinary wrong types and null/undefined maps; invalid queries bypass map access.",
+    "smaller_responsibility": "Removed alphabet-to-digit and owned per-character numeric VLQ accumulator. New guard is three regex structural scans plus upstream singleton decode and pointwise sign algebra. It is a smaller owned numeric responsibility, not a second full decoder. Published dependency bytes increase; no runtime-performance improvement is inferred."
+  },
+  "finite_accepted": [
+    "Frozen corpus: 277 decodes and 910 lookups on each host, independently regenerated from original baseline; all expected observations verified.",
+    "Fresh additional corpus per host: 1074 decodes, 72 lookups, 352 raw-bit-pattern algebra checks, 5 semantic probes; zero differences.",
+    "Owner evidence manifest: all 39 listed byte counts and SHA-256 pins matched at review; selected codec published release files also matched.",
+    "Original valid/odd/malformed witnesses remain admitted or rejected exactly as frozen, including noncanonical/modulo shifts, unsorted early break, duplicate/unmapped barriers, negative output coordinates and optional invalid-name omission."
+  ],
+  "residual": [
+    "R3 exact manifest/lock/export/build delivery and actual installed target closure remain a distinct, currently uncredited gate.",
+    "Original invoke sourcemap suite was read and verified unchanged but not freshly run by this reviewer; R3 owns affected joins.",
+    "Browser/workerd/public installed source closure not executed in this review; Node/Bun private qualification does not certify them.",
+    "No D04 composition, staged-map policy, native preparation/release, complete original-port, or default adoption acceptance claimed.",
+    "Finite tests and pinned-source algebra support this version; arbitrary proxies/coercion/overridden String/RegExp/Array builtins and resource-exhaustion equivalence remain outside the frozen admitted host-object scope.",
+    "No performance benchmark or improvement claim; three scans and one codec call per segment trade local code reduction for added dependency/runtime work."
+  ]
+}

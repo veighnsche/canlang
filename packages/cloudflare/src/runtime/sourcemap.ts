@@ -1,7 +1,8 @@
 /**
  * B3 I2 source-mapped diagnostics: V3 `mappings` decode + lookup.
  *
- * Pure, workerd-safe, zero dependencies. Mirrors the Rust encoder/decoder
+ * Pure, workerd-safe, with sourcemap-codec for VLQ numeric decoding.
+ * Preserves Can's raw-map compatibility around the Rust encoder/decoder
  * (`compiler/src/codegen/sourcemap.rs`) and consumes the `SourceMap`
  * contract from `@canlang/contracts` artifact.ts (validated structurally:
  * `version: 3`, `file`, `sources`, `sourcesContent`, `names`, `mappings`).
@@ -17,6 +18,7 @@
  */
 
 import type { SourceMap } from "@canlang/contracts";
+import { decode } from "@jridgewell/sourcemap-codec";
 
 /** One decoded mappings segment (0-based source position). */
 export interface DecodedSegment {
@@ -32,7 +34,7 @@ export interface DecodedSegment {
   readonly name?: number;
 }
 
-/** Decoded segments for one generated line, in ascending `genCol` order. */
+/** Decoded segments for one generated line, preserving encoded source order. */
 export type DecodedLine = readonly DecodedSegment[];
 
 /** 1-based `.can` position a generated frame maps to. */
@@ -49,41 +51,27 @@ function fail(detail: string): never {
   throw new Error(`sourcemap: ${detail}`);
 }
 
-function base64Value(code: number): number {
-  if (code >= 0x41 && code <= 0x5a) return code - 0x41; // A-Z
-  if (code >= 0x61 && code <= 0x7a) return code - 0x61 + 26; // a-z
-  if (code >= 0x30 && code <= 0x39) return code - 0x30 + 52; // 0-9
-  if (code === 0x2b) return 62; // +
-  if (code === 0x2f) return 63; // /
-  fail(`bad VLQ character ${JSON.stringify(String.fromCharCode(code))}`);
-}
-
 /** Decode one segment into its signed VLQ fields. */
 function decodeSegment(segment: string): number[] {
-  const fields: number[] = [];
-  let value = 0;
-  let shift = 0;
-  let started = false;
-  for (let i = 0; i < segment.length; i++) {
-    const digit = base64Value(segment.charCodeAt(i));
-    started = true;
-    value |= (digit & 0x1f) << shift;
-    shift += 5;
-    if ((digit & 0x20) === 0) {
-      fields.push((value & 1) === 1 ? -(value >> 1) : value >> 1);
-      value = 0;
-      shift = 0;
-    }
-  }
-  if (!started) fail("empty segment");
-  if (shift !== 0) fail("truncated VLQ value");
-  return fields;
+  if (segment === "") fail("empty segment");
+  const invalid = /[^A-Za-z0-9+/]/.exec(segment);
+  if (invalid) fail(`bad VLQ character ${JSON.stringify(invalid[0])}`);
+  if (/[g-z0-9+/]$/.test(segment)) fail("truncated VLQ value");
+  const count = (segment.match(/[A-Za-f]/g) ?? []).length;
+  if (count !== 1 && count !== 4 && count !== 5) fail(`bad segment field count ${count}`);
+  // Isolated segments keep source order despite the codec's whole-line sorting.
+  // The codec shares Can's modulo-32 accumulation but shifts magnitudes unsigned.
+  // Restore signed arithmetic shifts; its INT32_MIN sentinel represents signed zero.
+  return decode(segment)[0]![0]!.map((value) =>
+    value === -2147483648 ? 0 : value < 0 ? -((-value << 1) >> 1) : (value << 1) >> 1,
+  );
 }
 
 /**
  * Decode VLQ `mappings` into per-line segments. Throws a loud `sourcemap:`
  * error on malformed input (bad characters, truncated values, bad field
- * counts); never misresolves. An empty string decodes to no lines.
+ * counts). Preserves legacy 32-bit numeric semantics and accepts unsorted
+ * or negative coordinates. An empty string decodes to no lines.
  */
 export function decodeMappings(mappings: string): DecodedLine[] {
   if (mappings === "") return [];
@@ -139,9 +127,9 @@ export function decodeMappings(mappings: string): DecodedLine[] {
  * Map a 1-based generated line + 0-based generated column through `map`.
  * Returns the 1-based `.can` position, or `null` for unknown frames
  * (out-of-range lines, lines without segments, unmapped 1-field segments,
- * indexes outside `sources`/`names`). Throws on malformed `mappings`
- * (fail loud via `decodeMappings`); structurally missing data resolves to
- * `null`, never a guess.
+ * source indexes outside `sources`). Invalid optional names are omitted.
+ * Throws on malformed `mappings` (fail loud via `decodeMappings`); missing
+ * or wrong-type mappings retain native type failures after query validation.
  */
 export function lookup(map: SourceMap, genLine: number, genCol: number): MappedPosition | null {
   if (!Number.isInteger(genLine) || genLine < 1) return null;
