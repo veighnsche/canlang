@@ -105,7 +105,9 @@ pub fn offset_at_position(text: &str, line: u32, character: u32) -> Option<u32> 
     }
     let line_end = text[offset..].find('\n').map_or(text.len(), |i| offset + i);
     let mut line_text = &text[offset..line_end];
-    line_text = line_text.strip_suffix('\r').unwrap_or(line_text);
+    if text.as_bytes().get(line_end) == Some(&b'\n') {
+        line_text = line_text.strip_suffix('\r').unwrap_or(line_text);
+    }
     let mut walked_units = 0u32;
     let mut walked_bytes = 0usize;
     for c in line_text.chars() {

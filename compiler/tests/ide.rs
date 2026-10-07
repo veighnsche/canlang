@@ -646,6 +646,46 @@ fn offset_at_position_cases() {
     assert_eq!(offset_at_position(wide, 0, 1), Some(1));
     assert_eq!(offset_at_position(wide, 0, 2), Some(1));
     assert_eq!(offset_at_position(wide, 0, 3), Some(5));
+    assert_eq!(offset_at_position(wide, 0, 99), Some(6));
+    // A bare CR, including at EOF, counts as an ordinary scalar.
+    for character in [2, 99] {
+        assert_eq!(offset_at_position("a\r", 0, character), Some(2));
+        assert_eq!(offset_at_position("a\r\n", 0, character), Some(1));
+    }
+    assert_eq!(offset_at_position("a\rb", 0, 2), Some(2));
+    assert_eq!(offset_at_position("a\rb", 0, 99), Some(3));
+    assert_eq!(offset_at_position("a\n", 1, 0), Some(2));
+    assert_eq!(offset_at_position("a\n", 1, 99), Some(2));
+    assert_eq!(offset_at_position("a\n", 2, 0), None);
+    assert_eq!(offset_at_position("", 0, 99), Some(0));
+    assert_eq!(offset_at_position("", 1, 0), None);
+}
+
+#[test]
+fn offset_at_position_roundtrips_addressable_scalar_boundaries() {
+    for text in [
+        "", "é😀x", "ab\r\nc", "a\rb", "a\r", "a\n", "a\r\n", "\r\r\n",
+    ] {
+        let index = canlang_compiler::source::LineIndex::new(text);
+        for offset in 0..=text.len() {
+            if !text.is_char_boundary(offset) {
+                continue;
+            }
+            // The LF of CRLF shares the preceding CR's position.
+            if offset > 0
+                && text.as_bytes().get(offset - 1) == Some(&b'\r')
+                && text.as_bytes().get(offset) == Some(&b'\n')
+            {
+                continue;
+            }
+            let (line, character) = index.to_lsp(text, offset as u32, true);
+            assert_eq!(
+                offset_at_position(text, line, character),
+                Some(offset as u32),
+                "{text:?} at byte {offset}"
+            );
+        }
+    }
 }
 
 // --- server integration (real backend) ---
