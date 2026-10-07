@@ -1,6 +1,6 @@
-# Compiler responsibility coverage — audit Steps 2–6
+# Compiler responsibility coverage — audit Steps 2–7
 
-The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. Structural inventory maps duties and review scope; it does not qualify semantic correctness or test adequacy. [Step 3 workflow tracing](workflows.md) extends this same ledger with actual consumers and bounded executed witnesses. [Step 4 compatibility challenge](compatibility.md) distinguishes owning outcomes, current public byte promises, migration guards and incidental mechanisms. [Step 5 representations](representations.md) traces stage authorities, conversions, reconstructed facts and source/catalog coherence. [Step 6 integrations](integrations.md) records complete scoped library caller/adapter closures and conditional retirement results.
+The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. Structural inventory maps duties and review scope; it does not qualify semantic correctness or test adequacy. [Step 3 workflow tracing](workflows.md) extends this same ledger with actual consumers and bounded executed witnesses. [Step 4 compatibility challenge](compatibility.md) distinguishes owning outcomes, current public byte promises, migration guards and incidental mechanisms. [Step 5 representations](representations.md) traces stage authorities, conversions, reconstructed facts and source/catalog coherence. [Step 6 integrations](integrations.md) records complete scoped library caller/adapter closures and conditional retirement results. [Step 7 syntax/recovery](syntax.md) maps finite admitted forms through stage owners and records independently corroborated recovery/meaning-loss findings.
 
 Compiler source remains pinned to `1fd07722090fe70228a6b661e3c6e136275ca84b`. The Step 2 inventory observation head is `16def5f95f51dbfb158d0ac086323ac256ee1c6d`; intervening commits changed documentation. All 107 compiler file hashes match the [Step 1 inventory](../baseline-verification/compiler-inventory.jsonl). Dependency/catalog/runtime/toolchain inputs and earlier executed evidence remain in [Step 1](../baseline-verification/README.md). The additional 31 supporting interface files have hashes in the ledger. They are narrow cross-owner references, not a new package/editor audit.
 
@@ -78,3 +78,22 @@ Eight fresh public-API emission cases expose deliberately mixed source/catalog c
 ## Step 6 integration/retirement status
 
 All seven direct dependency pins are accounted for in 22 result records: 15 retain, six defer, one bounded simplify; no unqualified replacement is selected. The linked closure union covers 383 source units/25 compiler source files/15,841 inclusive physical lines, including domain/caller context rather than library overhead. [Counts](integration-counts.json), [independent review](integration-review.json) and [validation](integration-validation.json) distinguish necessary projections and file/URI/value policy from private reader/registration coupling, legacy views, raw-default revalidation and incidental source-map extraction. Conditional targets include replacements and current public support; no production code is deleted. Fresh published-tool replay and independent arithmetic retain current69,255/original69,119, gross2067removed/2203added/net+136. Support pins and prior source/workflow/representation evidence remain linked; no compiler behavior/build, merge or living checkpoint advancement occurs.
+
+
+## Syntax, stage coverage and recovery — Step 7
+
+[Syntax findings](syntax.md) add 27 finite stage families, eight open repair packets
+and a registry to the same coverage ledger. All 186 full EBNF productions, 119 CST
+kinds and four NodeDetail variants are accounted for; custom HeaderKind and
+parser-specific key scopes are separate. Fresh native evidence comprises 345
+selected harness passes, 50 public stage cases, all 54 corpus stage projections,
+16 actual CLI calls and six executed decoded-string/testkit witnesses.
+[Independent review](syntax-evidence/cross-review.json) and
+[integrated validation](syntax-validation.json) preserve source/execution limits.
+
+The independent-sibling contract still fails in effects and source-tag metadata
+collection. Tab captions/children, structured order and corpus declarations can
+be lost with compile success. Delimiter synchronization and new feature/profile
+support remain separately gated. Whole semantics and per-branch emitted execution
+are not certified; these open defects do not invalidate the finite source map.
+No compiler/package/dependency/policy change or merge/checkpoint advance occurs.

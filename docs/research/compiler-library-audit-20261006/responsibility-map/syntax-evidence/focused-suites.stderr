@@ -1,0 +1,16 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.13s
+     Running tests/analysis.rs (compiler/target/debug/deps/analysis-33fe4504353b37c5)
+     Running tests/b4_parse.rs (compiler/target/debug/deps/b4_parse-7718c8ea814570c6)
+     Running tests/check.rs (compiler/target/debug/deps/check-303aec0da8e456d7)
+     Running tests/codegen.rs (compiler/target/debug/deps/codegen-05d37f97ce2b7725)
+     Running tests/effects.rs (compiler/target/debug/deps/effects-904d5d38a6756069)
+     Running tests/format.rs (compiler/target/debug/deps/format-bc0b0fb509c870cd)
+     Running tests/string_payload_runtime.rs (compiler/target/debug/deps/string_payload_runtime-1a7304a1cd59972b)
+C01 witness 0: production CLI, runtime metadata, testkit closures passed
+C01 witness 1: production CLI, runtime metadata, testkit closures passed
+C01 witness 2: production CLI, runtime metadata, testkit closures passed
+C01 witness 3: production CLI, runtime metadata, testkit closures passed
+C01 witness 4: production CLI, runtime metadata, testkit closures passed
+C01 witness 5: production CLI, runtime metadata, testkit closures passed
+     Running tests/syntax.rs (compiler/target/debug/deps/syntax-2b6db2528939065b)

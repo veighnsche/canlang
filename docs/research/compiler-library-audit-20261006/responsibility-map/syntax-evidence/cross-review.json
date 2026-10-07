@@ -1,0 +1,269 @@
+{
+  "schema_version": 1,
+  "role": "independent challenger",
+  "independence": "Recorded source/raw observation trace before reading inventory/forms/recovery conclusions. No duplicate execution or production/test/shared-doc edits.",
+  "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "task_start_head": "f3dd798c",
+  "checked_inputs": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/cases.json",
+      "sha256": "aa31b096308243825bf2ce7c4b8e839e767f7ca010cf3657158725483c11e3ca"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/probe.rs",
+      "sha256": "d5d33daa780eb1a8ff945ad2175bc80a97971774224d89c8d86e09e3454c0f7f"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/run.py",
+      "sha256": "40913c5bcaa73fec2ffc84472e4fb28cfccdd3f3be68cbf76367298edfebd407"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/forms.json",
+      "sha256": "d797d0c39fcd5a2d502c46deaab27fc9f2cfcbf661e7570b9d357d1f2e950a6b"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/recovery.json",
+      "sha256": "19adf7cb2c9aa3a92229067b70a99724288ae39fc89703677e0aae662582c6ea"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/inventory.json",
+      "sha256": "3c9f062074600c2fb11f6c8d586fcb764b818b67e5553c4154ba3dc7392601f8"
+    }
+  ],
+  "source_anchor_verification": {
+    "forms_input_sha_pins": 30,
+    "stale_sha_pins": [],
+    "family_function_start_mismatches": []
+  },
+  "independent_contracts": [
+    "ASCII identifiers reject Unicode scalar code bytes; literal/prose Unicode retains decoded scalars",
+    "LF/CRLF/final implicit newline equivalent decoded/default witness",
+    "Invalid closed declaration retains exact intact derive CST and E3002/E2001 sentinels",
+    "Open delimiter absorbs independent-looking lines before parser dispatch; coverage does not establish recovery",
+    "complete=true means passes available; direct emit artifact accompanied by E6008 is not successful supported emission"
+  ],
+  "findings": [
+    {
+      "id": "CR-GRAMMAR-CONTINUATIONS",
+      "classification": "evidence correction requested",
+      "contract": "Multiline EBNF rules retain all continuation alternatives and accurate ranges",
+      "evidence": [
+        "inventory.json:grammar.productions",
+        "inventory-notes.md:Counts and inputs"
+      ],
+      "examples": [
+        "app_composed",
+        "context_declaration",
+        "primary",
+        "arguments"
+      ],
+      "status": "resolved: full continuation text and inclusive ranges inspected (primary220\u2013222)"
+    },
+    {
+      "id": "CR-NEGATIVE-ADMISSION",
+      "classification": "assertion gap",
+      "contract": "Each malformed source witness must independently require its declared rejection, besides preserving valid sibling diagnostics",
+      "evidence": [
+        "run.py:main",
+        "cases.json"
+      ],
+      "status": "resolved: verify.py explicitly requires27rejection codes; raw source/diagnostic catalog authority checked"
+    },
+    {
+      "id": "CR-POSITIVE-ARTIFACT",
+      "classification": "assertion gap",
+      "contract": "Clean parse/check must join to error-free emission and exact default/description values in artifact and emitted JS",
+      "evidence": [
+        "case-valid-decoded-default.stdout",
+        "case-valid-default-crlf.stdout",
+        "case-valid-default-eof.stdout",
+        "case-valid-description.stdout"
+      ],
+      "status": "resolved: inline description/default and clean emission plus exact owner raw-prose JS assertion inspected;76later checks69passes7defect mismatches"
+    },
+    {
+      "id": "CR-IMPORT-OWNER",
+      "classification": "incorrect responsibility anchor",
+      "contract": "Import checking anchored at actual provider/member/export/alias resolution",
+      "evidence": [
+        "forms.json:IMPORT.check",
+        "compiler/src/analysis/resolve.rs:resolve_given:2838"
+      ],
+      "replacement_anchors": [
+        "compiler/src/analysis/resolve.rs:resolve_imports:1832",
+        "compiler/src/analysis/resolve.rs:resolve_import:1909",
+        "compiler/src/analysis/resolve.rs:bind_import_alias:2071",
+        "compiler/src/analysis/resolve.rs:bind_import_fixture:2099"
+      ],
+      "status": "resolved: actual read_import/resolve_imports/resolve_import/alias/fixture owner anchors inspected"
+    },
+    {
+      "id": "CR-ATTRIBUTE-SCOPE",
+      "classification": "enumeration scope gap",
+      "contract": "Closed HeaderKind attr_kind matrix distinct from custom scenario/effect/example keys",
+      "evidence": [
+        "forms.json:closed_header_attribute_inventory",
+        "compiler/src/syntax/parser.rs:parse_scenario:4374",
+        "compiler/src/syntax/parser.rs:parse_statement:5060",
+        "compiler/src/syntax/parser.rs:parse_examples_line:5275"
+      ],
+      "status": "resolved: HeaderKind scope explicit and21custom key forms inventoried"
+    },
+    {
+      "id": "CR-RECOVERY-CONFIRMED",
+      "classification": "independently confirmed demonstrated bugs",
+      "contract": "Malformed closed declaration must preserve E4011 and E4020 in intact scenario siblings",
+      "evidence": [
+        "case-control-secret-return.stdout",
+        "case-malformed-secret-return.stdout",
+        "case-control-actor-subject.stdout",
+        "case-malformed-actor-subject.stdout",
+        "case-cross-module-actor.stdout"
+      ],
+      "status": "primary recovery agrees; E4004/E5007 survival prevents overgeneralization"
+    },
+    {
+      "id": "CR-DELIMITER-BOUNDARY",
+      "classification": "independently confirmed implementation limit",
+      "contract": "Lossless bytes distinguish from reparsed independent declaration boundaries",
+      "evidence": [
+        "case-sibling-open-schema.stdout",
+        "case-sibling-open-call.stdout",
+        "case-sibling-open-list.stdout",
+        "case-independent-module-after-open-schema.stdout"
+      ],
+      "status": "policy not selected; no full sibling recovery completion claim"
+    }
+  ],
+  "acceptable_bounded_scope": "Finite source-form enumeration and subsequent-stage source-owner trace, representative public observations, explicit unsupported or unqualified branches, controlled selective sibling diagnostics. Full per-branch artifact witness and semantic/runtime/post-deploy qualification not established by counts/harness success.",
+  "remaining_root_work": "No review blocker. Root may commit accepted bounded evidence; demonstrated defects and future qualification/repair work remain open.",
+  "additional_raw_controls": {
+    "cases": 10,
+    "observer": "same public observer; root execution only",
+    "findings": [
+      "false E4004 despite intact authored policy",
+      "source=fr E3016 suppression and false en-repeat E3016",
+      "silent Tab caption and descendant JS loss",
+      "silent PreferenceOrder semantic loss to order:[]",
+      "silent Corpus omission with unresolved model",
+      "Judgment blocked emission via E6006 despite fieldless contract artifact"
+    ],
+    "tab_assertion_scope": "modules[].js; sourcesContent is lossless source retention and must not be counted as emitted UI preservation"
+  },
+  "final_reviewed_inputs": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/inventory.json",
+      "sha256": "3c9f062074600c2fb11f6c8d586fcb764b818b67e5553c4154ba3dc7392601f8"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/forms.json",
+      "sha256": "6cde4f38b1e84dc4a5aa3f5c96ff718e8dca70499633f24f4f50f827c6659315"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/verify.py",
+      "sha256": "fa6ea239c8a7e4874993d7e3816e06d23885b5d9d34088ced05a51934b9553e4"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/outcome-verification.json",
+      "sha256": "6e13a728f66a23201927a48ac316b623b015439c7def18eb4eca2082ad191252"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-cases.json",
+      "sha256": "309712b6444b6b5b5f555579d3a8222e84bb8c4864dc0e635b461a082c10e593"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-execution.json",
+      "sha256": "db582bcd939c5a57d7979c24ff7cddcc23f7f8c945cd986bc71e9a6e29278b77"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-observations.json",
+      "sha256": "b0d4e684446f3cf44d04d4935713052b885dcfd6f79a4f314633ccfb61d3a6c2"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/corpus-observations.json",
+      "sha256": "4b45885ed7edea54aa6ef98900ac12ead016ff8b163eb9b631ad2ac85f6e7cd0"
+    }
+  ],
+  "final_receipt_counts": {
+    "preexecution_assertions": 94,
+    "preexecution_passes": 81,
+    "preexecution_mismatches": 13,
+    "mismatch_cases": 8,
+    "postobservation_checks": 76,
+    "postobservation_passes": 69,
+    "postobservation_defect_mismatches": 7,
+    "custom_key_forms": 21,
+    "targeted_harness_passes": 330,
+    "separate_inline_syntax_passes_reported_by_root": 15,
+    "separate_inline_execution_independently_inspected": true,
+    "actual_cli_calls": 16
+  },
+  "status": "bounded source-form/stage audit accepted; demonstrated implementation and recovery gaps retained",
+  "integrated_delta_review": {
+    "status": "accepted at finite source/form/stage mapping and bounded execution scope; defects remain open",
+    "reviewed": [
+      "responsibility-map/syntax.md",
+      "coverage.jsonl:27syntax_family,8syntax_finding,registry/inputs/execution",
+      "syntax-validation.json",
+      "shared responsibility/research README",
+      "compiler-correctness-simplicity-audit.md Step7",
+      "DECISIONS.md isolated Step7 append",
+      "byte_cli.py and byte-cli-admission.json"
+    ],
+    "prior_ledger_records": 358,
+    "prior_ledger_deltas_only": [
+      "scope.completion",
+      "scope.status_defaults",
+      "path.syntax_refs",
+      "path.syntax_scope"
+    ],
+    "decisions_prefix_bytes": 239376,
+    "decisions_prefix_hash_matches": true,
+    "mechanical_receipt": {
+      "pins": 806,
+      "bounds": 1253,
+      "local_links": 118,
+      "errors": [],
+      "scope": "mechanical receipt inspected, not rerun by reviewer"
+    },
+    "raw_byte_cli_contract": "check/compile E7002stderr exit2 empty stdout even with--format=json; public lex_bytes E1002 separate",
+    "writer_dependency_assessment": "R01/R02 existing-contract repairs independent of delimiter/support policy; R03/R04 sharedIRserialized; R05/R07 released ownership/profile boundaries; R06JEVsynchronization; R08maintenance/test promotion. No implementation authorized.",
+    "remaining_minor_locator": "resolved: plain inventory.json with witness_inventory_key=witnesses",
+    "ledger_sha256": "5b359a9f4d44ce0bcdc008cf7fbe7597977bef3f51348c7f005c6ca78d925af5",
+    "consumer_anchor_correction": "Root runTable full body246\u2013259 within actual table.tsEOF259; inspected final bounded range"
+  },
+  "final_delta_snapshot_pins": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md",
+      "sha256": "4100bdb20a548749cb2666958ca904e4175f9a918b1a81de03450b71682c91f8"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
+      "sha256": "5b359a9f4d44ce0bcdc008cf7fbe7597977bef3f51348c7f005c6ca78d925af5"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-validation.json",
+      "sha256": "22065347b9bbff5f416d23324f010bb0d29aaae6afb59c4b6d985c42e69b9803"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/verify.py",
+      "sha256": "fa6ea239c8a7e4874993d7e3816e06d23885b5d9d34088ced05a51934b9553e4"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/outcome-verification.json",
+      "sha256": "6e13a728f66a23201927a48ac316b623b015439c7def18eb4eca2082ad191252"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/byte_cli.py",
+      "sha256": "a26448c8e9f46ceced176c3ef40ca009abdad616030d17ab51b7392799db8fb1"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/byte-cli-admission.json",
+      "sha256": "817127e1b76c2f2fbad5d93513b555173406c2c3f1e13150994ee4b9381be339"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/syntax-inline-tests.stdout",
+      "sha256": "c3922ac62841b0f5700e56f40a7db46677b68ea27f2027ca186adbe20c7515ad"
+    }
+  ]
+}

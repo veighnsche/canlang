@@ -1,0 +1,463 @@
+{
+  "scope": "Post-observation independent grammar/diagnostic/artifact checks; earlier sentinels remain pre-execution. Failures intentionally record defects or open recovery boundaries, not rewritten expectations.",
+  "checks": [
+    {
+      "case": "sibling-policy",
+      "contract": "required rejection code E1200",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-token",
+      "contract": "required rejection code E1007",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-numeric-unit",
+      "contract": "required rejection code E1005",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-unknown-escape",
+      "contract": "required rejection code E1006",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-lone-surrogate",
+      "contract": "required rejection code E1006",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-unterminated-string",
+      "contract": "required rejection code E1006",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-closer",
+      "contract": "required rejection code E1101",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-open-schema",
+      "contract": "required rejection code E1102",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-open-call",
+      "contract": "required rejection code E1102",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-open-list",
+      "contract": "required rejection code E1102",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-desc-ref",
+      "contract": "required rejection code E1122",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-indent",
+      "contract": "required rejection code E1103",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-policy-crlf",
+      "contract": "required rejection code E1200",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "sibling-policy-eof",
+      "contract": "required rejection code E1200",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "independent-module-after-bad-owner",
+      "contract": "required rejection code E1203",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "independent-module-after-open-schema",
+      "contract": "required rejection code E1102",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "malformed-app-policy",
+      "contract": "required rejection code E1200",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "malformed-secret-return",
+      "contract": "required rejection code E1200",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "malformed-actor-subject",
+      "contract": "required rejection code E1200",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "malformed-icu-sibling",
+      "contract": "required rejection code E1200",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "cross-module-actor",
+      "contract": "required rejection code E1200",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "valid-decoded-default",
+      "contract": "clean-result emission has no diagnostics",
+      "pass": true,
+      "authority": "Production error-gated emission; source forms independently declared valid"
+    },
+    {
+      "case": "valid-decoded-default",
+      "contract": "schema default preserves code points",
+      "pass": true,
+      "authority": "JSON STRING token value; Can field default semantics"
+    },
+    {
+      "case": "valid-decoded-default",
+      "contract": "schema description retains Unicode",
+      "pass": true,
+      "authority": "GRAMMAR desc= metadata slot"
+    },
+    {
+      "case": "valid-decoded-default",
+      "contract": "emitted default preserves controls and scalar",
+      "pass": true,
+      "authority": "Fixed JS string value spelling, independent scalar expectation"
+    },
+    {
+      "case": "valid-default-crlf",
+      "contract": "clean-result emission has no diagnostics",
+      "pass": true,
+      "authority": "Production error-gated emission; source forms independently declared valid"
+    },
+    {
+      "case": "valid-default-crlf",
+      "contract": "schema default preserves code points",
+      "pass": true,
+      "authority": "JSON STRING token value; Can field default semantics"
+    },
+    {
+      "case": "valid-default-crlf",
+      "contract": "schema description retains Unicode",
+      "pass": true,
+      "authority": "GRAMMAR desc= metadata slot"
+    },
+    {
+      "case": "valid-default-crlf",
+      "contract": "emitted default preserves controls and scalar",
+      "pass": true,
+      "authority": "Fixed JS string value spelling, independent scalar expectation"
+    },
+    {
+      "case": "valid-default-eof",
+      "contract": "clean-result emission has no diagnostics",
+      "pass": true,
+      "authority": "Production error-gated emission; source forms independently declared valid"
+    },
+    {
+      "case": "valid-default-eof",
+      "contract": "schema default preserves code points",
+      "pass": true,
+      "authority": "JSON STRING token value; Can field default semantics"
+    },
+    {
+      "case": "valid-default-eof",
+      "contract": "schema description retains Unicode",
+      "pass": true,
+      "authority": "GRAMMAR desc= metadata slot"
+    },
+    {
+      "case": "valid-default-eof",
+      "contract": "emitted default preserves controls and scalar",
+      "pass": true,
+      "authority": "Fixed JS string value spelling, independent scalar expectation"
+    },
+    {
+      "case": "valid-description",
+      "contract": "clean-result emission has no diagnostics",
+      "pass": true,
+      "authority": "Production error-gated emission; source forms independently declared valid"
+    },
+    {
+      "case": "valid-description",
+      "contract": "attached owner prose preserves raw Unicode",
+      "pass": true,
+      "authority": "GRAMMAR description attachment and literal raw prose; executable metadata only"
+    },
+    {
+      "case": "invalid-unicode-name",
+      "contract": "required rejection code E1007",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "invalid-unicode-name",
+      "contract": "E1007 spans complete scalar é",
+      "pass": true,
+      "authority": "ASCII NAME + byte span contract"
+    },
+    {
+      "case": "invalid-unicode-name",
+      "contract": "E1007 spans complete scalar 😀",
+      "pass": true,
+      "authority": "ASCII NAME + byte span contract"
+    },
+    {
+      "case": "empty-eof",
+      "contract": "clean-result emission has no diagnostics",
+      "pass": true,
+      "authority": "Production error-gated emission; source forms independently declared valid"
+    },
+    {
+      "case": "comment-eof",
+      "contract": "clean-result emission has no diagnostics",
+      "pass": true,
+      "authority": "Production error-gated emission; source forms independently declared valid"
+    },
+    {
+      "case": "string-physical-control",
+      "contract": "required rejection code E1006",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "eof-unclosed-string",
+      "contract": "required rejection code E1006",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "eof-unclosed-delimiter",
+      "contract": "required rejection code E1102",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "dangling-description-eof",
+      "contract": "required rejection code E1125",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "bare-cr",
+      "contract": "required rejection code E1001",
+      "pass": true,
+      "authority": "GRAMMAR + syntax/mod.rs diagnostic catalog"
+    },
+    {
+      "case": "invalid-utf8",
+      "contract": "invalid UTF8 exact byte anchor",
+      "pass": true,
+      "authority": "GRAMMAR UTF8; lex_bytes valid_up_to contract"
+    },
+    {
+      "case": "valid-policy-control",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "valid-policy-control",
+      "contract": "parse and check clean",
+      "pass": true,
+      "authority": "Independently authored valid source"
+    },
+    {
+      "case": "valid-policy-control",
+      "contract": "emission clean",
+      "pass": true,
+      "authority": "Production error-gated emission"
+    },
+    {
+      "case": "valid-policy-malformed-sibling",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "valid-policy-malformed-sibling",
+      "contract": "no fabricated E4004",
+      "pass": false,
+      "authority": "Existing valid policy, local syntax-error suppression only"
+    },
+    {
+      "case": "source-fr-fr-control",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "source-fr-fr-control",
+      "contract": "source=fr repetition still diagnoses",
+      "pass": true,
+      "authority": "Owner source language is unchanged by a malformed sibling"
+    },
+    {
+      "case": "source-fr-fr-malformed",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "source-fr-fr-malformed",
+      "contract": "source=fr repetition still diagnoses",
+      "pass": false,
+      "authority": "Owner source language is unchanged by a malformed sibling"
+    },
+    {
+      "case": "source-fr-en-control",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "source-fr-en-control",
+      "contract": "parse and check clean",
+      "pass": true,
+      "authority": "Independently authored valid source"
+    },
+    {
+      "case": "source-fr-en-control",
+      "contract": "emission clean",
+      "pass": true,
+      "authority": "Production error-gated emission"
+    },
+    {
+      "case": "source-fr-en-control",
+      "contract": "en variant is not owner-source repetition",
+      "pass": true,
+      "authority": "Valid app source=fr, independent en translation"
+    },
+    {
+      "case": "source-fr-en-malformed",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "source-fr-en-malformed",
+      "contract": "en variant is not owner-source repetition",
+      "pass": false,
+      "authority": "Valid app source=fr, independent en translation"
+    },
+    {
+      "case": "tabs-caption-children",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "tabs-caption-children",
+      "contract": "parse and check clean",
+      "pass": true,
+      "authority": "Independently authored valid source"
+    },
+    {
+      "case": "tabs-caption-children",
+      "contract": "emission clean",
+      "pass": true,
+      "authority": "Production error-gated emission"
+    },
+    {
+      "case": "tabs-caption-children",
+      "contract": "emitted UI retains Audit Tab",
+      "pass": false,
+      "authority": "GRAMMAR tab caption and child semantics; search executable JS only, exclude source-map contents"
+    },
+    {
+      "case": "tabs-caption-children",
+      "contract": "emitted UI retains Audit Child",
+      "pass": false,
+      "authority": "GRAMMAR tab caption and child semantics; search executable JS only, exclude source-map contents"
+    },
+    {
+      "case": "preference-order",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "preference-order",
+      "contract": "nonempty structured ordering does not silently become []",
+      "pass": false,
+      "authority": "Authored by/default/cases with nonempty selectors must survive or reject explicitly"
+    },
+    {
+      "case": "corpus-unresolved-owners",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "corpus-unresolved-owners",
+      "contract": "missing corpus owner checked or explicit unsupported",
+      "pass": false,
+      "authority": "Normative corpus declaration requires semantic owner; unknown Missing model cannot be complete valid input"
+    },
+    {
+      "case": "judgment-declaration",
+      "contract": "lossless-byte-coverage",
+      "pass": true,
+      "authority": "Lossless CST contract"
+    },
+    {
+      "case": "focused-suites",
+      "contract": "8 harnesses,330passes,no failures",
+      "pass": true,
+      "authority": "Actual Cargo harness results"
+    },
+    {
+      "case": "focused-suites",
+      "contract": "no reported SKIP",
+      "pass": true,
+      "authority": "Reported body skips; not proof all optional branches tested"
+    },
+    {
+      "case": "string-runtime",
+      "contract": "six executed codepoint witness lines",
+      "pass": true,
+      "authority": "Actual fixture success output"
+    },
+    {
+      "case": "inputs",
+      "contract": "all107compilerinputs unchanged",
+      "pass": true,
+      "authority": "Frozen source/manifest/test/config pins"
+    },
+    {
+      "case": "inputs",
+      "contract": "all550recordedruntimepins unchanged",
+      "pass": true,
+      "authority": "Installed workspace dist prerequisites, source/build parity not asserted"
+    }
+  ],
+  "passed": 69,
+  "failed": 7
+}

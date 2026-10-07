@@ -1,0 +1,62 @@
+[
+  {
+    "id": "valid-policy-control",
+    "process_exit": 0,
+    "source_sha256": "7d8f59ee2f3277dee6b42ec5f71acf77a7fe8f2942b2882b22445fa365e200f2",
+    "observation": "extra-valid-policy-control.stdout"
+  },
+  {
+    "id": "valid-policy-malformed-sibling",
+    "process_exit": 0,
+    "source_sha256": "c09d7763a77c790e0a6e41608c9df91312a77ce67dc1be60c2ccacaab1db77ab",
+    "observation": "extra-valid-policy-malformed-sibling.stdout"
+  },
+  {
+    "id": "source-fr-fr-control",
+    "process_exit": 0,
+    "source_sha256": "c3bcf4a462f36afb65269de811f08822a1b3f7ec8ed79fc0dd94dd6ce5d34f8f",
+    "observation": "extra-source-fr-fr-control.stdout"
+  },
+  {
+    "id": "source-fr-fr-malformed",
+    "process_exit": 0,
+    "source_sha256": "46d4f47b78f2411e89211305556638dfa6857f4f8059e20e9e777a948409115d",
+    "observation": "extra-source-fr-fr-malformed.stdout"
+  },
+  {
+    "id": "source-fr-en-control",
+    "process_exit": 0,
+    "source_sha256": "088b5fbea3ab842147fe115a2184cfb37eacd8ad576a0ad709af61465079145e",
+    "observation": "extra-source-fr-en-control.stdout"
+  },
+  {
+    "id": "source-fr-en-malformed",
+    "process_exit": 0,
+    "source_sha256": "864e10937c55b5421133804e0de243bdbfba389ddb096329cd20dbe30d0df5b6",
+    "observation": "extra-source-fr-en-malformed.stdout"
+  },
+  {
+    "id": "tabs-caption-children",
+    "process_exit": 0,
+    "source_sha256": "16b31fa1b87c5955436f919c99c653c92deab0c5a69ca9c2fec0a450d13d6a71",
+    "observation": "extra-tabs-caption-children.stdout"
+  },
+  {
+    "id": "preference-order",
+    "process_exit": 0,
+    "source_sha256": "d57faaf07718c4b880261f2a75c0115b1cbea14a6b347470d814fe352b5b6304",
+    "observation": "extra-preference-order.stdout"
+  },
+  {
+    "id": "corpus-unresolved-owners",
+    "process_exit": 0,
+    "source_sha256": "ba59c4c0714e115a29b760d24df6d3bba1486827307fb2def2132ca3f6f8e963",
+    "observation": "extra-corpus-unresolved-owners.stdout"
+  },
+  {
+    "id": "judgment-declaration",
+    "process_exit": 0,
+    "source_sha256": "feaf26484a4c2ae6a1ee145a0827536c501da7f851dfe19045afd390e39b7394",
+    "observation": "extra-judgment-declaration.stdout"
+  }
+]

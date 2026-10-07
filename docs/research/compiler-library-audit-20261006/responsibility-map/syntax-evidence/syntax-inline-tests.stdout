@@ -1,0 +1,20 @@
+
+running 15 tests
+test syntax::lexer::tests::crlf_ok_bare_cr_rejected ... ok
+test syntax::cst::tests::traversal_visits_preorder ... ok
+test syntax::cst::tests::coverage_detects_gaps_and_overlaps ... ok
+test syntax::lexer::tests::inline_hash_and_backslash_continuation_rejected ... ok
+test syntax::lexer::tests::longest_match_punctuation ... ok
+test syntax::layout::tests::blank_and_comment_lines_emit_nothing ... ok
+test syntax::layout::tests::brackets_join_without_blocks ... ok
+test syntax::layout::tests::one_space_indent_and_dedent ... ok
+test syntax::lexer::tests::tabs_prose_ok_code_rejected ... ok
+test syntax::layout::tests::mismatched_and_unclosed_delimiters ... ok
+test syntax::lexer::tests::numeric_units_and_adjacency ... ok
+test syntax::layout::tests::prose_attaches_at_same_column ... ok
+test syntax::lexer::tests::strings_decode_json_escapes ... ok
+test syntax::layout::tests::ineligible_heads_rejected ... ok
+test syntax::layout::tests::ref_rules_and_suffix_rules ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 111 filtered out; finished in 0.00s
+

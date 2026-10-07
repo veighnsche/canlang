@@ -1,0 +1,68 @@
+[
+  {
+    "id": "valid-policy-control",
+    "source": "app Shop\nGiven\n Config in app { name:text }\n policy Config read=members\nWhen\nThen\n",
+    "clean": true
+  },
+  {
+    "id": "valid-policy-malformed-sibling",
+    "source": "app Shop\nGiven\n policy\n Config in app { name:text }\n policy Config read=members\nWhen\nThen\n",
+    "forbidden_codes": [
+      "E4004"
+    ],
+    "cli": true,
+    "purpose": "A separate malformed declaration cannot invent missing policy when valid policy exists."
+  },
+  {
+    "id": "source-fr-fr-control",
+    "source": "app Shop source=\"fr\"\nGiven\n message m = \"Bonjour\"@{fr=\"Salut\"}\nWhen\nThen\n",
+    "purpose": "fr duplicates source; en is independent valid translation.",
+    "clean": false
+  },
+  {
+    "id": "source-fr-fr-malformed",
+    "source": "app Shop source=\"fr\"\nGiven\n policy\n message m = \"Bonjour\"@{fr=\"Salut\"}\nWhen\nThen\n",
+    "purpose": "Valid owner source tag must stay authoritative despite unrelated malformed declaration.",
+    "cli": true
+  },
+  {
+    "id": "source-fr-en-control",
+    "source": "app Shop source=\"fr\"\nGiven\n message m = \"Bonjour\"@{en=\"Salut\"}\nWhen\nThen\n",
+    "purpose": "fr duplicates source; en is independent valid translation.",
+    "clean": true
+  },
+  {
+    "id": "source-fr-en-malformed",
+    "source": "app Shop source=\"fr\"\nGiven\n policy\n message m = \"Bonjour\"@{en=\"Salut\"}\nWhen\nThen\n",
+    "purpose": "Valid owner source tag must stay authoritative despite unrelated malformed declaration.",
+    "cli": true
+  },
+  {
+    "id": "tabs-caption-children",
+    "source": "app Shop\nGiven\nWhen\nThen\n page / title=\"Home\"\n  tabs\n   tab \"Audit Tab\"\n    text \"Audit Child\"\n",
+    "clean": true,
+    "cli": true,
+    "required_emitted_strings": [
+      "Audit Tab",
+      "Audit Child"
+    ]
+  },
+  {
+    "id": "preference-order",
+    "source": "app Shop\nGiven\n preferences {view:enum(all)=all}\n Todo {title:text,priority:int}\n policy Todo read=members\nWhen\nThen\n page / title=\"Home\"\n  list Todo order={by=preferences.view,default=[-priority],cases={all=[title]}}\n",
+    "purpose": "Structured order must retain by/default/cases or explicit unsupported result.",
+    "cli": true
+  },
+  {
+    "id": "corpus-unresolved-owners",
+    "source": "app Shop\nGiven\n corpus H model=Missing scope=parent title=title content=body where=true from=deployment.knowledge\nWhen\nThen\n",
+    "purpose": "Unsupported declaration must not silently disappear as checked complete output.",
+    "cli": true
+  },
+  {
+    "id": "judgment-declaration",
+    "source": "app Shop\nGiven\n judgment J version=1\n  a noul \"Question\"\nWhen\nThen\n",
+    "purpose": "Observed judgment stage carrier, without claiming available evaluate/result workflow.",
+    "cli": true
+  }
+]

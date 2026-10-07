@@ -1,7 +1,6 @@
 {
   "observed_head": "f3dd798c866916b526b72e0a53c1ddf257748587",
   "compiler_source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
-  "dirty_at_start": "?? docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/\n?? docs/research/package-library-audit-20261006/data-protocol/\n",
   "scope": "Step7 syntax/source-recovery audit. Source/consumer trace plus native bounded execution; no implementation or policy changes.",
   "allocation": {
     "syntax_forms": "gpt-6.1-sol medium",
@@ -559,7 +558,8 @@
     {
       "path": "docs/specification/DECISIONS.md",
       "sha256": "34a02dac124cb9cea2b5c5ed4c85dc6320bab06838c28ec3bfd52332083d9408",
-      "bytes": 239376
+      "bytes": 239376,
+      "pin_kind": "context_prefix_before_Step7_append"
     },
     {
       "path": "docs/specification/DESIGN.md",
@@ -607,5 +607,8 @@
       "bytes": 22290
     }
   ],
-  "pin_note": "DECISIONS pin is collection context and will receive an isolated Step7 append; compiler/catalog/corpus pins are execution inputs."
+  "pin_note": "DECISIONS pin is collection context and will receive an isolated Step7 append; compiler/catalog/corpus pins are execution inputs.",
+  "dirty_at_collection": "?? docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/\n?? docs/research/package-library-audit-20261006/data-protocol/\n",
+  "initial_task_git_status": "",
+  "status_provenance": "Initial read-only git status was empty; dirty_at_collection includes audit files already being authored, not pre-existing compiler/package edits."
 }

@@ -1,0 +1,54 @@
+{
+  "scope": "CLI read_to_string rejects malformed UTF8 as E7002/exit2 stderr tool error, even with --format=json. Public lex_bytes separately returns E1002. No lossy replacement.",
+  "initial_capture_correction": "First read-only capture assumed JSON stdout for a tool failure and its observer raised JSONDecodeError; actual CLI exited2 with empty stdout/E7002 stderr. Preserved first CLI output in byte-cli-attempt1.*; corrected capture checks the owning early tool error mapping.",
+  "commands": [
+    {
+      "name": "cli-check-invalid-utf8",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step7-byte-pldrtf73/invalid.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 2,
+      "elapsed_seconds": 0.003,
+      "stdout": "cli-check-invalid-utf8.stdout",
+      "stderr": "cli-check-invalid-utf8.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "70c3581b0eef3705d78e740e64f75b6b47c1baa6a871cc820c58bff7a50c37e9",
+      "source_sha256": "f7f6255a8e5ce3a8fd121b5517eee2d29720f1e88d0e4a8499062bad1ee66ddc",
+      "expected": {
+        "exit": 2,
+        "stderr_code": "E7002"
+      },
+      "pass": true
+    },
+    {
+      "name": "cli-compile-invalid-utf8",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step7-byte-pldrtf73/invalid.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 2,
+      "elapsed_seconds": 0.003,
+      "stdout": "cli-compile-invalid-utf8.stdout",
+      "stderr": "cli-compile-invalid-utf8.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "70c3581b0eef3705d78e740e64f75b6b47c1baa6a871cc820c58bff7a50c37e9",
+      "source_sha256": "f7f6255a8e5ce3a8fd121b5517eee2d29720f1e88d0e4a8499062bad1ee66ddc",
+      "expected": {
+        "exit": 2,
+        "stderr_code": "E7002"
+      },
+      "pass": true
+    }
+  ]
+}
