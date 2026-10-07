@@ -1,0 +1,69 @@
+{
+  "pin": "f3dd798c866916b526b72e0a53c1ddf257748587",
+  "method": "source-derived unexecuted; eight separate platform primitive reference facts only",
+  "witnesses": [
+    {
+      "id": "DP01",
+      "title": "Form decoding drops an own input key that JSON preserves",
+      "status": "exported parser contract gap; real form handler uses it",
+      "minimal_input": "__proto__=x&ok=y versus JSON {\"__proto__\":\"x\",\"ok\":\"y\"}",
+      "producer": "URLSearchParams yields both keys; parseFormBody assigns into {}.",
+      "consumer": "The __proto__ string invokes the inherited setter and creates no own key. Output only owns ok; JSON.parse retains both.",
+      "required_fix": "Preserve own encoded keys through parsing and coercion using an existing safe construction primitive, or explicitly reject a disallowed key before conversion. Do not introduce a generic bridge.",
+      "acceptance": "JSON/form key-presence comparison, last duplicate wins, __proto__/constructor/prototype controls, body caps and existing error ordering.",
+      "scope_limit": "Top-level operation extras are explicitly lenient. Normal parser drops string __proto__ before coerceFormBody: no reachable prototype-object injection or authorization bypass is established.",
+      "original_ids": [
+        "interfaces-http-limits",
+        "interfaces-http-operation"
+      ],
+      "anchors": [
+        {
+          "path": "packages/interfaces/src/http/limits.ts",
+          "line": 88,
+          "end": 105
+        },
+        {
+          "path": "packages/interfaces/src/http/operations.ts",
+          "line": 144,
+          "end": 155
+        },
+        {
+          "path": "packages/interfaces/src/http/operations.ts",
+          "line": 195,
+          "end": 199
+        }
+      ]
+    },
+    {
+      "id": "DP02",
+      "title": "Collection filter passthrough silently drops __proto__",
+      "status": "exported parser gap; production consuming query join not found",
+      "minimal_input": "?filter[__proto__]=x",
+      "producer": "Matching filter parameter sets hasFilters=true and assigns into {}.",
+      "consumer": "Returns a present but empty filters:{}; the encoded member is unavailable to a future owning validator.",
+      "required_fix": "Preserve own filter keys or refuse explicitly before conversion, alongside DP01. Qualify the real query consumer before claiming an end-to-end unknown-field rejection fix.",
+      "acceptance": "Own special keys reach the declared validator or explicit refusal; absence, empty text, repeated filter keys and safe integer limits retain their current distinctions.",
+      "scope_limit": "Definition/export and test callers found; no source production caller identified. No demonstrated downstream permission or unknown-filter bypass.",
+      "original_ids": [
+        "interfaces-http-limits"
+      ],
+      "anchors": [
+        {
+          "path": "packages/interfaces/src/http/limits.ts",
+          "line": 124,
+          "end": 164
+        },
+        {
+          "path": "packages/contracts/src/wire.ts",
+          "line": 333,
+          "end": 343
+        },
+        {
+          "path": "packages/interfaces/test/http-operations.test.ts",
+          "line": 358,
+          "end": 379
+        }
+      ]
+    }
+  ]
+}

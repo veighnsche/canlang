@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "pin": "f3dd798c866916b526b72e0a53c1ddf257748587",
+  "observed_head": "b2f227495ca45ab1abb0b7a6f40578431caf8bef",
+  "unique_frozen_and_current_equal_sources": 81,
+  "validated_anchor_occurrences": 285,
+  "source_derived_unexecuted_witnesses": 32,
+  "classifications": {
+    "private-provenance-join-gap": 1,
+    "scaffold-identity-decision": 1,
+    "private-prepared-completeness-gap": 1,
+    "raw-ABI-hygiene-gap": 1,
+    "declared-error-profile-limit": 1,
+    "declared-UTF16-profile-limit": 1,
+    "canonical-identity-clarification": 1,
+    "unselected-public-envelope-join-gap": 1,
+    "required-outcome-source-gap": 9,
+    "conditional-host-domain-join": 1,
+    "compatibility-constraint-control": 8,
+    "held-foreign-wire-coherence-gate": 1,
+    "held-outside-producer-domain-gate": 1,
+    "held-framing-resource-gap": 1,
+    "known-held-reviewed-byte-gap": 1,
+    "exported-parser-source-gap": 1,
+    "exported-parser-source-gap-unjoined-consumer": 1
+  },
+  "independent_source_challenge_cases": 11,
+  "proposed_dependency_ordered_queue_units": 11,
+  "standalone_platform_reference_facts": 8,
+  "reference_node": "v24.21.0",
+  "package_execution": false,
+  "new_consumer_acceptance": false,
+  "limits": [
+    "No product tests/builds/install/Wasm instantiation/network probes",
+    "Platform reference script imports only node:assert/strict; it does not execute Can packages",
+    "Static disagreement witnesses do not establish deployed incidents, adoption or new acceptance",
+    "Compiler audit work and shared decisions preserved",
+    "No JEV question was needed: factual gaps against existing authority, with material mechanism/domain decisions left proposed",
+    "Historical Step9/12 exact matching f587 asset receipts retain finite credit; no replay or broad native/default acceptance"
+  ]
+}
