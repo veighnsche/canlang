@@ -1,0 +1,28 @@
+✔ buildPresentationContext sets all fields from the inputs (25.271083ms)
+✔ buildPresentationContext honors isPartial and caps locale tags at 10 (0.178042ms)
+✔ buildPresentationContext with no Accept-Language yields no locales (0.0965ms)
+✔ dispatch builds equal partial and full contexts across all 10 fields (230.389ms)
+✔ anonymous dispatch leaves csrfToken empty (124.439167ms)
+✔ authed dispatch derives the CSRF token from the session (105.83925ms)
+✔ poll context is stable for partial renders and changes with session, caller, team or path (0.312ms)
+✔ poll URL preserves the team selector and collection query (0.085792ms)
+▶ configured page polling
+  ✔ renders stable typed polling metadata and an external browser entry (1.778208ms)
+  ✔ preserves the current query in poll requests and rejects external poll URLs (16.294375ms)
+  ✔ native client rereads an authorized partial and updates state without losing typed input or focus (5.142ms)
+  ✔ refreshes focused form availability and hidden metadata while preserving editable values (4.747209ms)
+  ✔ stops errors, redirected/full login pages and foreign-context partials without painting (7.998083ms)
+  ✔ suppresses a delayed body after principal/team context changes (4.1585ms)
+  ✔ stops when hidden, re-arms on visibility, and refuses late navigation or logout responses (8.117166ms)
+  ✔ resumes polling when a persisted page returns from the browser cache (4.162125ms)
+  ✔ replaces reassigned records and renamed controls instead of carrying dirty input across identity (6.946042ms)
+  ✔ default morph rejects nested/full documents and executable partials (5.831542ms)
+✔ configured page polling (66.221667ms)
+ℹ tests 18
+ℹ suites 1
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 669.651375

@@ -397,3 +397,7 @@ These documentation tasks do not impose a global barrier on product lanes. Seria
 ## Consolidated source availability — October 6, 2026
 
 The [consolidation review](consolidation-review.json) records current source availability and incomplete B/D, values and E/F gates. All original required duties, task IDs/dependencies, writer boundaries and retirement gates remain unchanged; consolidation marks no task complete and launches no workers.
+
+## Stored machines and state views — October 7, 2026
+
+`SM.CORE` and dependent `SM.VIEW` are complete at the [recorded flat-machine and DOM/HTTP scope](../../../implementation/state-machines/integration-verification.json). `SM.QUALIFY` remains required before `FP.FULL`: generated hook/lock/invariant and form/action joins, actual installed browser/durable/provider and late-completion occurrence witnesses need their existing owner contracts and exact-file handoffs. These tasks extend the current DAG; original acceptance clauses remain. Advanced named/hierarchical/parallel/history semantics remain proposals outside this implemented scope. No future lane is dispatched by bookkeeping.

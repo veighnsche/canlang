@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-07",
+  "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+  "feature_commits": [
+    "b585d97dc3bf114f381dc5256b5a7b889de4ec6c",
+    "65f43dc8bd36450184ee215660464706adeaab42"
+  ],
+  "base": "b055ca616dc0ab3a8df3df4429c1f58ba2508bf2",
+  "integration": "Fast-forward under both coding chats Git/shared-file hold; 78 exact released paths preflight checked, index empty, full foreign DECISIONS working text preserved plus accepted entry. Other source/evidence edits excluded.",
+  "checks": [
+    {
+      "command": "cargo test --locked --manifest-path compiler/Cargo.toml --no-fail-fast",
+      "passed": 1088,
+      "result_summaries": 55,
+      "log": "compiler-rebased.log",
+      "source": "Ran on bb78f28a after first rebase; git diff bb78f28a source_pin -- compiler is empty, verified at integration."
+    },
+    {
+      "command": "node ../../scripts/build-package.mjs in packages/interfaces",
+      "result": "pass on final rebased tree"
+    },
+    {
+      "command": "node --test packages/interfaces/dist/test/http-presentation.test.js packages/ui/dist/test/page-polling.test.js",
+      "passed": 18,
+      "log": "presentation-integration.log",
+      "result": "pass on final rebased source and fresh interface producer"
+    },
+    {
+      "command": "can check; can fmt --check examples/Generation.can; node scripts/check-package-boundaries.mjs",
+      "result": "pass; 13 packages, 729 JS/TS files, zero boundary violations"
+    },
+    {
+      "command": "git diff --check b055ca61 feature_head",
+      "result": "pass after captured-log trailing blank normalization"
+    }
+  ],
+  "prior_runtime_evidence": "verification.json retains original base/pins and 109 canonical runtime, 18 state machine and 20 stdlib consumer controls plus producer builds; no new durable substrate acceptance. Existing source changes from concurrent agents were included only after committed ancestry/rebase and focused follow-up checks.",
+  "scope_and_limits": [
+    "Flat stored machines only; reusable named graphs, hierarchy/parallel/history and implicit callbacks/cascades remain future design.",
+    "No actual provider delivery, generated full image application or complete generic generated form/action adaptation qualified.",
+    "Complete generated hook/lock/invariant wiring and per-hook version observations remain unqualified; seam version normalization follows pipeline rule evaluation.",
+    "Two preexisting shell RTL direction tests fail on Node 26 Intl.Locale.textInfo; no polling test failure.",
+    "Optional real-substrate Miniflare durable checks stalled in the sandbox and were terminated; no new durable-substrate acceptance claimed.",
+    "No full original-app, native release or complete living-filetree source checkpoint advance claimed."
+  ],
+  "source_sha256": {
+    "bun.lock": "c1578aadef222851a2bb03dbc5094699f6542764bbd5e8657c1ef6ccf64fc52a",
+    "compiler/src/analysis/effects.rs": "3d5ae54a89c189ab907146ed702a10e3d22e91cb8400653e2029421f29054c07",
+    "compiler/src/analysis/resolve.rs": "a7e4a82c135e594e9163a4d2abc6a75518741a9648ed24be7b3cbe8eb109959f",
+    "compiler/src/analysis/types.rs": "06b2065377bcec066a823268ca57f8cac4e119531ce3797ef2fdb42e3d3f434b",
+    "compiler/src/codegen/artifact.rs": "5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c",
+    "compiler/src/codegen/ir.rs": "8699717919573598e6476a580e532e90536d68d1df1c356da06dae2828d01b7f",
+    "compiler/src/codegen/js.rs": "cdfbcda4bfce6b9d7c127ecef969ba7f54d877c60a3d86be12b511ec6a68dd08",
+    "compiler/src/ide/tokens.rs": "bb2102209718b24f5dffc08f0a52ad08902a0e453d5cff1589782954d73f369b",
+    "compiler/src/lint/rules.rs": "b66419673896e7204320e2f9e85cc268b9f75f7c11c5ce4c2367ca90463cd492",
+    "compiler/src/syntax/cst.rs": "265fb3def13e9ed8e8421bb604724e8848149b5a34b683d35622ef1ea0ee6ecc",
+    "compiler/src/syntax/parser.rs": "87aa962dd5de5aec9ee73f82e25cf1d2cbc0553ec2c6ffc0f64cdd6e5f65b806",
+    "compiler/tests/b3_i5.rs": "fde7a8b903d77b231373b89d075a87fd30cdede928726460ba9027ff397ff7d1",
+    "compiler/tests/codegen.rs": "9245b06e5402046d23416917ba51073eb1f31dd3582520373a198a39037d4c56",
+    "compiler/tests/fixtures/state-machine-consumer.mjs": "3a96f2b9d21ae50944dcc01112532f7384dd6aa8674d38fb7d711ecbbe7c5461",
+    "compiler/tests/format.rs": "7aa0d6e817c811e3abc21cdf0098df01d5f139711ba8d32f2c1381db5e0ca982",
+    "compiler/tests/state_machines.rs": "3fbfd0fb6738c3c95365609be40755f5895c4f3cbf2bc1c98206611c66691675",
+    "compiler/tests/typed_artifact.rs": "4f63005b8989070aab5c59afba6efa0cba8c25737f88d70ecaaeddbbe9330950",
+    "compiler/tests/typed_descriptors.rs": "10812d90b8803e782b6eeda488eab4d8a817c8ee364819e90b3e1afaafd371a8",
+    "editors/vscode/syntaxes/can.tmLanguage.json": "da5649a96e318c8e812ef98bba9dbc5e39066234fb82700fb096a4b6e73ffe21",
+    "examples/Generation.can": "2a72305a6aeeb7e9a7b99d0edee68149f61c0c106fe376b950a908a7740edc51",
+    "packages/cloudflare/src/deploy/activate.ts": "1a55b26757d92f4ea55b8bfdce1201976eeb8163da95f3ea4f2408068a9e23cf",
+    "packages/cloudflare/src/deploy/installed.ts": "c636a0e524b70bef1f570eec421414d8f5bdd46157dc413777d44b18da5b86db",
+    "packages/cloudflare/src/runtime/artifact.ts": "2e08d43be4fc5c4c51061dca9610f6a8d0b579e9d520c51e88fde663f912e5bc",
+    "packages/cloudflare/src/runtime/context.ts": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+    "packages/cloudflare/src/runtime/invoke.ts": "5e11d09fede0f0b1265d8f05fe4e308ea02b0a2911846f65375596305c0b82c9",
+    "packages/cloudflare/src/runtime/stdlib.ts": "0ce14c6bf281740bf8c147209a9119a5cf54d4dcf8ff3473cbc71f4153e290d2",
+    "packages/cloudflare/src/runtime/t16b-canonical.test.ts": "a16ed484c42162e79ef624104f8351ba7713878a8d610bec1aa7b02ab9cd259d",
+    "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts": "755af65c3502582c6499ed1bf736aa6a575e8c94cc5005fa2e7a88de2e660339",
+    "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts": "f94cbfd3c6eb0aa81b7cc7cefcd8e96f2c501d1ed85aa905d5c12525f3010ecf",
+    "packages/cloudflare/src/worker/assembly.ts": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11",
+    "packages/cloudflare/test/runtime-stdlib.test.ts": "7959e67dee9949064586e648b821ac238bea165d0385a71f158ff53bd438df44",
+    "packages/contracts/src/artifact.ts": "f10a0cd071b59d737f4065b54ed13d015bc341cc371909a34a4e18373857e91f",
+    "packages/contracts/src/presentation.ts": "8c0a790f53f463e0097443f941994a0a0b3fa450e7393fd7fa4e344e5258a507",
+    "packages/contracts/src/state.ts": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+    "packages/interfaces/src/http/presentation.ts": "1251a57227afce9e970339bb8faf99715fb259c237ab7e15cef2b10c88353981",
+    "packages/interfaces/test/http-presentation.test.ts": "ea8d52dc3bfc8f1d8d163340c49730cb818591fb5d0252944a34089b4c83d033",
+    "packages/state/package.json": "3269795181e21b0a57988ffd9312137f96e9e793694e9e903e2482bf0765bb03",
+    "packages/state/src/catalog.ts": "ad49370de22d43f09795c094fc9cea75508821f28cf4580c30dc558b9deac13a",
+    "packages/state/src/effects/transition.ts": "fd25b81af366d96f37abe4235013198310c069e16f66197183ddb36b2e327c09",
+    "packages/state/src/index.ts": "da66642681c29d38d3e7b6ef8bbc1b267cfdb93aa8ea3e71fde329d922e22310",
+    "packages/state/src/internal/machine.ts": "2ff49381bc4971f677b971b7c188f8e52ec805b349be4bbe5599d250c35c6f4d",
+    "packages/state/src/invocation/registry.ts": "fd88acbc2fdfc7ccb5ee1c75ee5ac14cd20c335dd159a9c65a6a0474acc9aaf7",
+    "packages/state/src/migration/mapper.ts": "8131f21262de9e7dd8f7116f32807e2c73b9f6dfa4b5753c2a10068c43fbb7b0",
+    "packages/state/src/migration/validate.ts": "d8c04f4ea24a98cb7e4f2bb4f09773431759695cc4694e0c4a5b44f5ec5fe189",
+    "packages/state/src/mutation/models.ts": "3f08b165d5c90a068618226e4f15b57405fe2944e7e0ea074e18a4158a8bbbf0",
+    "packages/state/src/mutation/pipeline.ts": "89b5840c8a819a80fb142fe720e252ffca2e02033abb15d8bbe043645ff546f4",
+    "packages/state/test/mutation/machines.test.ts": "61a846adbab7d86ba7fbe186b0883408c709f3e006c4e239366a80e74f173cbc",
+    "packages/stdlib/package.json": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+    "packages/stdlib/src/index.ts": "d2820de7d5d2b24fb549e4163fe253bc0dd7dc13799b1e4f9307f5ede7ba775c",
+    "packages/stdlib/test/assembly.test.ts": "d2cabd283db37bdf8a5e05a33a26ec71f4d213c0682371a80adae3ea3b2a2a87",
+    "packages/ui/src/browser/bootstrap.ts": "ed50a872d64c7d7fd227041079c212da19d9ec475d3fab7441ef0ce409c12af7",
+    "packages/ui/src/browser/polling.ts": "4e4c1c0b280a0fb146d59359507e34bda70612421c9687449e33a8dd327437e6",
+    "packages/ui/src/shell.ts": "00a2884fed3c54cd96247540492cdd9b15ef8c56f036a6bda0d17b95f9e7bb96",
+    "packages/ui/test/page-polling.test.ts": "336f40c83c422072101cbde84be9042de5eae5b6f6b88e00daa947cbe3697270"
+  },
+  "checkpoint_advanced": false
+}

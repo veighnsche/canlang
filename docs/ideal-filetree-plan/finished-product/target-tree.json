@@ -247,7 +247,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "build",
+        "duty": "Workspace build and owning package dependencies",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/.gitignore",
@@ -388,7 +395,14 @@
       "decision": "gated responsibility split",
       "gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations.",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/src/analysis/examples.rs",
@@ -447,7 +461,14 @@
       "decision": "split",
       "gate": "owning correctness/compatibility gate before structural cutover",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/src/analysis/types.rs",
@@ -478,7 +499,14 @@
       "decision": "gated responsibility split",
       "gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations.",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/src/cli.rs",
@@ -503,7 +531,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/src/codegen/bdd.rs",
@@ -537,7 +572,14 @@
       "decision": "gated responsibility split",
       "gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations.",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/src/codegen/js.rs",
@@ -558,7 +600,14 @@
       "decision": "gated responsibility split",
       "gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations.",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/src/codegen/mod.rs",
@@ -674,7 +723,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/src/json.rs",
@@ -730,7 +786,14 @@
       "decision": "consolidate-pure-helpers",
       "gate": "owning correctness/compatibility gate before structural cutover",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/src/lsp/mod.rs",
@@ -811,7 +874,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/src/syntax/layout.rs",
@@ -867,7 +937,14 @@
       "decision": "gated responsibility split",
       "gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations.",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/tests/analysis.rs",
@@ -927,7 +1004,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/tests/b3_migrate.rs",
@@ -1045,7 +1129,14 @@
       "decision": "retain target and split cases",
       "gate": "owning correctness/compatibility gate before structural cutover",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/tests/common/lsp_driver.rs",
@@ -1122,7 +1213,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "compiler/tests/foundation.rs",
@@ -17410,7 +17508,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "editors",
+        "duty": "Editor: machine and transition highlighting",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "editors/vscode/test/lsp-capabilities.can",
@@ -19401,7 +19506,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/deploy/bundle.ts",
@@ -19434,7 +19546,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/deploy/plan.ts",
@@ -19533,7 +19652,14 @@
       "decision": "move",
       "gate": "owning correctness/compatibility gate before structural cutover",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/runtime/context.ts",
@@ -19544,7 +19670,14 @@
       "decision": "retain-facade-and-split",
       "gate": "C02 context union before further extraction",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/runtime/env-assembly.ts",
@@ -19607,7 +19740,14 @@
       "decision": "retain facade/canonical adapters; one work orchestration partition",
       "gate": "matching live state/work producers; current public ABI and ordered admission; one actual call-site cutover; old private dispatch partition superseded",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/runtime/mcp-permissions.ts",
@@ -19662,7 +19802,14 @@
       "decision": "retain-facade-and-split",
       "gate": "C01/C02/C08 generated binding/default contracts",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
@@ -19673,7 +19820,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
@@ -19684,7 +19838,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/runtime/t17b-durable.test.ts",
@@ -19739,7 +19900,14 @@
       "decision": "retain",
       "gate": "C08/T32 complete guard/read/fence/durable joined-path qualification; late deep review pending",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/runtime/t34-f7-emitted-cohorts.test.ts",
@@ -19797,7 +19965,14 @@
       "decision": "retain-facade-and-split",
       "gate": "C01/C02/C03; retired demo DDL has no successor",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/src/worker/entry.ts",
@@ -20250,7 +20425,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/cloudflare",
+        "duty": "Cloudflare: capability admission, scenario parameter views, canonical version/commit and installed binding",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/cloudflare/test/sourcemap.test.ts",
@@ -20338,7 +20520,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/contracts",
+        "duty": "Contracts: machine graph, invocation input convention and page context descriptors",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/contracts/src/deployment.ts",
@@ -20433,7 +20622,14 @@
       "decision": "split-with-existing-entry",
       "gate": "owning correctness/compatibility gate before structural cutover",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/contracts",
+        "duty": "Contracts: machine graph, invocation input convention and page context descriptors",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/contracts/src/reference.ts",
@@ -20474,7 +20670,14 @@
       "decision": "split-with-existing-entry",
       "gate": "owning correctness/compatibility gate before structural cutover",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/contracts",
+        "duty": "Contracts: machine graph, invocation input convention and page context descriptors",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/contracts/src/values.ts",
@@ -21500,7 +21703,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/interfaces",
+        "duty": "Interfaces: authorized partial page context with query/team/session identity",
+        "task": "SM.VIEW",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/interfaces/src/http/routes.ts",
@@ -21836,7 +22046,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/interfaces",
+        "duty": "Interfaces: authorized partial page context with query/team/session identity",
+        "task": "SM.VIEW",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/interfaces/test/ingress.test.ts",
@@ -22368,7 +22585,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/state/src/catalog.ts",
@@ -22379,7 +22603,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/state/src/effects/staging.ts",
@@ -22566,7 +22797,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/state/src/internal/json.ts",
@@ -22703,7 +22941,14 @@
       "decision": "retain-facade-and-split",
       "gate": "stabilize owning semantics and exact caller/test/export joins",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/state/src/invocation/replay.ts",
@@ -22773,7 +23018,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/state/src/migration/recover.ts",
@@ -22837,7 +23089,14 @@
       "decision": "split-with-existing-entry",
       "gate": "owning correctness/compatibility gate before structural cutover",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/state/src/mutation/b1-generated-parity-durable.test.ts",
@@ -22936,7 +23195,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/state/src/mutation/pipeline.ts",
@@ -22952,7 +23218,14 @@
       "decision": "split-with-existing-entry",
       "gate": "owning correctness/compatibility gate before structural cutover",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/state/src/mutation/t18-defaults-durable.test.ts",
@@ -23849,7 +24122,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/stdlib",
+        "duty": "Stdlib: public transition facade and owning state dependency",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/stdlib/src/index.ts",
@@ -23860,7 +24140,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/stdlib",
+        "duty": "Stdlib: public transition facade and owning state dependency",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/stdlib/test/assembly.test.ts",
@@ -23871,7 +24158,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/stdlib",
+        "duty": "Stdlib: public transition facade and owning state dependency",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/stdlib/tsconfig.json",
@@ -24505,7 +24799,14 @@
       "decision": "retain",
       "gate": "retained ownership; relevant workflow/export/CI qualification",
       "catalog_scope": "structural catalog; see responsibility reviews for semantic scope",
-      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed"
+      "semantic_review": "see new workflow duty ledger plus byte-scoped historical review; not every function executed",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/ui",
+        "duty": "UI: one page shell, native polling lifetime and edit-preserving partial morph",
+        "task": "SM.VIEW",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/ui/test/appearance.test.ts",
@@ -30652,7 +30953,14 @@
       "decision": "retained consolidation input; source/evidence stage explicit",
       "gate": "Retain exact owning source/evidence; FP.SOURCE-CLOSURE and matching existing product/port gates. Presence and ancestry are not completion.",
       "catalog_scope": "current structural accountability or retained historical input; see consolidation-review.json",
-      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only"
+      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "docs",
+        "duty": "Specification: accepted grammar, runtime scope, qualifications and decisions",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "docs/specification/DESIGN.md",
@@ -30663,7 +30971,14 @@
       "decision": "retained consolidation input; source/evidence stage explicit",
       "gate": "Retain exact owning source/evidence; FP.SOURCE-CLOSURE and matching existing product/port gates. Presence and ancestry are not completion.",
       "catalog_scope": "current structural accountability or retained historical input; see consolidation-review.json",
-      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only"
+      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "docs",
+        "duty": "Specification: accepted grammar, runtime scope, qualifications and decisions",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "docs/specification/GRAMMAR.md",
@@ -30674,7 +30989,14 @@
       "decision": "retained consolidation input; source/evidence stage explicit",
       "gate": "Retain exact owning source/evidence; FP.SOURCE-CLOSURE and matching existing product/port gates. Presence and ancestry are not completion.",
       "catalog_scope": "current structural accountability or retained historical input; see consolidation-review.json",
-      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only"
+      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "docs",
+        "duty": "Specification: accepted grammar, runtime scope, qualifications and decisions",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "docs/specification/REQUIREMENTS.md",
@@ -31554,7 +31876,14 @@
       "decision": "retained consolidation input; source/evidence stage explicit",
       "gate": "Retain exact owning source/evidence; FP.SOURCE-CLOSURE and matching existing product/port gates. Presence and ancestry are not completion.",
       "catalog_scope": "current structural accountability or retained historical input; see consolidation-review.json",
-      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only"
+      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/ui",
+        "duty": "UI: one page shell, native polling lifetime and edit-preserving partial morph",
+        "task": "SM.VIEW",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/ui/src/browser/export.ts",
@@ -31587,7 +31916,14 @@
       "decision": "retained consolidation input; source/evidence stage explicit",
       "gate": "Retain exact owning source/evidence; FP.SOURCE-CLOSURE and matching existing product/port gates. Presence and ancestry are not completion.",
       "catalog_scope": "current structural accountability or retained historical input; see consolidation-review.json",
-      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only"
+      "semantic_review": "not independently re-reviewed at consolidation; prior exact scope only",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/ui",
+        "duty": "UI: one page shell, native polling lifetime and edit-preserving partial morph",
+        "task": "SM.VIEW",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     },
     {
       "source": "packages/ui/src/browser/print.ts",
@@ -33084,6 +33420,546 @@
       "gate": "length/digest/name validation before any copy; explicit backend selection unchanged; actual install/consumer/rollout remains gated",
       "catalog_scope": "source-read and structural consolidation",
       "semantic_review": "bounded staging mechanism; no full release qualification"
+    },
+    {
+      "source": "compiler/tests/fixtures/state-machine-consumer.mjs",
+      "capability": "F01",
+      "targets": [
+        "compiler/tests/fixtures/state-machine-consumer.mjs"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "compiler/tests/state_machines.rs",
+      "capability": "F01",
+      "targets": [
+        "compiler/tests/state_machines.rs"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "compiler/tests/typed_artifact.rs",
+      "capability": "F01",
+      "targets": [
+        "compiler/tests/typed_artifact.rs"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "compiler/tests/typed_descriptors.rs",
+      "capability": "F01",
+      "targets": [
+        "compiler/tests/typed_descriptors.rs"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "compiler",
+        "duty": "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/assessment.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/assessment.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/detailed-assessment.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/detailed-assessment.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/detailed-request-1.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/detailed-request-1.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/detailed-request-2.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/detailed-request-2.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/detailed-request-3.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/detailed-request-3.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/detailed-response-1.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/detailed-response-1.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/detailed-response-2.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/detailed-response-2.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/detailed-response-3.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/detailed-response-3.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/request-1.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/request-1.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/request-2.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/request-2.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/request-3.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/request-3.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/response-1.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/response-1.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/response-2.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/response-2.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "design/jev/state-machines-20261007/response-3.json",
+      "capability": "F01",
+      "targets": [
+        "design/jev/state-machines-20261007/response-3.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "design",
+        "duty": "Retained consultation requests, replies and uncertainty; advice only",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "examples/Generation.can",
+      "capability": "F12",
+      "targets": [
+        "examples/Generation.can"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "examples",
+        "duty": "Can source: lifecycle states, owning scenarios, guards, inline examples and state-driven page",
+        "task": "SM.VIEW",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "implementation/state-machines/cloudflare-memory.log",
+      "capability": "F01",
+      "targets": [
+        "implementation/state-machines/cloudflare-memory.log"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "implementation",
+        "duty": "Retained source-pinned scoped implementation verification",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "implementation/state-machines/compiler-clippy.log",
+      "capability": "F01",
+      "targets": [
+        "implementation/state-machines/compiler-clippy.log"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "implementation",
+        "duty": "Retained source-pinned scoped implementation verification",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "implementation/state-machines/compiler-full.log",
+      "capability": "F01",
+      "targets": [
+        "implementation/state-machines/compiler-full.log"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "implementation",
+        "duty": "Retained source-pinned scoped implementation verification",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "implementation/state-machines/compiler-post-review.log",
+      "capability": "F01",
+      "targets": [
+        "implementation/state-machines/compiler-post-review.log"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "implementation",
+        "duty": "Retained source-pinned scoped implementation verification",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "implementation/state-machines/runtime-stdlib.log",
+      "capability": "F01",
+      "targets": [
+        "implementation/state-machines/runtime-stdlib.log"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "implementation",
+        "duty": "Retained source-pinned scoped implementation verification",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "implementation/state-machines/state-machines-and-joins.log",
+      "capability": "F01",
+      "targets": [
+        "implementation/state-machines/state-machines-and-joins.log"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "implementation",
+        "duty": "Retained source-pinned scoped implementation verification",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "implementation/state-machines/verification.json",
+      "capability": "F01",
+      "targets": [
+        "implementation/state-machines/verification.json"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "implementation",
+        "duty": "Retained source-pinned scoped implementation verification",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "packages/state/src/effects/transition.ts",
+      "capability": "F03",
+      "targets": [
+        "packages/state/src/effects/transition.ts"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "packages/state/src/internal/machine.ts",
+      "capability": "F03",
+      "targets": [
+        "packages/state/src/internal/machine.ts"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "packages/state/test/mutation/machines.test.ts",
+      "capability": "F03",
+      "targets": [
+        "packages/state/test/mutation/machines.test.ts"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/state",
+        "duty": "State: protected stored lifecycle mutation, provisional state, migration validation and transition export",
+        "task": "SM.CORE",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
+    },
+    {
+      "source": "packages/ui/test/page-polling.test.ts",
+      "capability": "F09",
+      "targets": [
+        "packages/ui/test/page-polling.test.ts"
+      ],
+      "decision": "retain owning feature source or exact historical evidence",
+      "gate": "Scoped state-machine acceptance only; broader installed/native/provider and complete source-review gates remain open. Evidence retains its original source pin.",
+      "catalog_scope": "state-machine integration source/evidence ownership",
+      "semantic_review": "See state-machine scope and source-pinned verification; no acceptance outside that scope",
+      "state_machine_review": {
+        "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+        "owner": "packages/ui",
+        "duty": "UI: one page shell, native polling lifetime and edit-preserving partial morph",
+        "task": "SM.VIEW",
+        "gate": "SM.QUALIFY and FP.SOURCE-CLOSURE remain open; existing successor and retirement gates unchanged"
+      }
     }
   ],
   "target_leaves": [
@@ -91523,6 +92399,546 @@
         "REQUIRED"
       ],
       "status": "existing"
+    },
+    {
+      "path": "compiler/tests/fixtures/state-machine-consumer.mjs",
+      "owner": "compiler",
+      "capability": "F01",
+      "sources": [
+        "compiler/tests/fixtures/state-machine-consumer.mjs"
+      ],
+      "duties": [
+        "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "compiler/tests/state_machines.rs",
+      "owner": "compiler",
+      "capability": "F01",
+      "sources": [
+        "compiler/tests/state_machines.rs"
+      ],
+      "duties": [
+        "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "compiler/tests/typed_artifact.rs",
+      "owner": "compiler",
+      "capability": "F01",
+      "sources": [
+        "compiler/tests/typed_artifact.rs"
+      ],
+      "duties": [
+        "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "compiler/tests/typed_descriptors.rs",
+      "owner": "compiler",
+      "capability": "F01",
+      "sources": [
+        "compiler/tests/typed_descriptors.rs"
+      ],
+      "duties": [
+        "Rust compiler: syntax, semantic admission, ordered effects, generated artifact and actual consumer tests"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/assessment.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/assessment.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/detailed-assessment.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/detailed-assessment.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/detailed-request-1.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/detailed-request-1.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/detailed-request-2.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/detailed-request-2.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/detailed-request-3.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/detailed-request-3.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/detailed-response-1.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/detailed-response-1.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/detailed-response-2.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/detailed-response-2.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/detailed-response-3.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/detailed-response-3.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/request-1.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/request-1.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/request-2.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/request-2.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/request-3.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/request-3.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/response-1.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/response-1.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/response-2.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/response-2.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "design/jev/state-machines-20261007/response-3.json",
+      "owner": "design",
+      "capability": "F01",
+      "sources": [
+        "design/jev/state-machines-20261007/response-3.json"
+      ],
+      "duties": [
+        "Retained consultation requests, replies and uncertainty; advice only"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "examples/Generation.can",
+      "owner": "examples",
+      "capability": "F12",
+      "sources": [
+        "examples/Generation.can"
+      ],
+      "duties": [
+        "Can source: lifecycle states, owning scenarios, guards, inline examples and state-driven page"
+      ],
+      "tasks": [
+        "SM.VIEW"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "implementation/state-machines/cloudflare-memory.log",
+      "owner": "implementation",
+      "capability": "F01",
+      "sources": [
+        "implementation/state-machines/cloudflare-memory.log"
+      ],
+      "duties": [
+        "Retained source-pinned scoped implementation verification"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "implementation/state-machines/compiler-clippy.log",
+      "owner": "implementation",
+      "capability": "F01",
+      "sources": [
+        "implementation/state-machines/compiler-clippy.log"
+      ],
+      "duties": [
+        "Retained source-pinned scoped implementation verification"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "implementation/state-machines/compiler-full.log",
+      "owner": "implementation",
+      "capability": "F01",
+      "sources": [
+        "implementation/state-machines/compiler-full.log"
+      ],
+      "duties": [
+        "Retained source-pinned scoped implementation verification"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "implementation/state-machines/compiler-post-review.log",
+      "owner": "implementation",
+      "capability": "F01",
+      "sources": [
+        "implementation/state-machines/compiler-post-review.log"
+      ],
+      "duties": [
+        "Retained source-pinned scoped implementation verification"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "implementation/state-machines/runtime-stdlib.log",
+      "owner": "implementation",
+      "capability": "F01",
+      "sources": [
+        "implementation/state-machines/runtime-stdlib.log"
+      ],
+      "duties": [
+        "Retained source-pinned scoped implementation verification"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "implementation/state-machines/state-machines-and-joins.log",
+      "owner": "implementation",
+      "capability": "F01",
+      "sources": [
+        "implementation/state-machines/state-machines-and-joins.log"
+      ],
+      "duties": [
+        "Retained source-pinned scoped implementation verification"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "implementation/state-machines/verification.json",
+      "owner": "implementation",
+      "capability": "F01",
+      "sources": [
+        "implementation/state-machines/verification.json"
+      ],
+      "duties": [
+        "Retained source-pinned scoped implementation verification"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "packages/state/src/effects/transition.ts",
+      "owner": "packages/state",
+      "capability": "F03",
+      "sources": [
+        "packages/state/src/effects/transition.ts"
+      ],
+      "duties": [
+        "State: protected stored lifecycle mutation, provisional state, migration validation and transition export"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "packages/state/src/internal/machine.ts",
+      "owner": "packages/state",
+      "capability": "F03",
+      "sources": [
+        "packages/state/src/internal/machine.ts"
+      ],
+      "duties": [
+        "State: protected stored lifecycle mutation, provisional state, migration validation and transition export"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "packages/state/test/mutation/machines.test.ts",
+      "owner": "packages/state",
+      "capability": "F03",
+      "sources": [
+        "packages/state/test/mutation/machines.test.ts"
+      ],
+      "duties": [
+        "State: protected stored lifecycle mutation, provisional state, migration validation and transition export"
+      ],
+      "tasks": [
+        "SM.CORE"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
+    },
+    {
+      "path": "packages/ui/test/page-polling.test.ts",
+      "owner": "packages/ui",
+      "capability": "F09",
+      "sources": [
+        "packages/ui/test/page-polling.test.ts"
+      ],
+      "duties": [
+        "UI: one page shell, native polling lifetime and edit-preserving partial morph"
+      ],
+      "tasks": [
+        "SM.VIEW"
+      ],
+      "dispositions": [
+        "REQUIRED"
+      ],
+      "status": "existing; integrated scoped feature"
     }
   ],
   "retirements": [
@@ -94231,5 +95647,12 @@
       "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts"
     ],
     "scope": "actual consolidated binding names retained; older planned values.js/values.wasm stems remain provisional until exact producer/ABI/installed import cutover inventory freezes; no installed support inferred"
+  },
+  "state_machine_integration": {
+    "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+    "record": "../state-machines-20261007.json",
+    "verification": "../../../implementation/state-machines/integration-verification.json",
+    "scope": "78 released feature paths reviewed; all accumulated checkpoint deltas registered separately. Prior selected splits, retirements and unreviewed accumulated duties are not accepted by this update.",
+    "checkpoint_advanced": false
   }
 }

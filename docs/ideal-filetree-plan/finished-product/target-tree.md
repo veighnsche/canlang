@@ -204,17 +204,21 @@ compiler/tests/data/s4_fix.can
 compiler/tests/docs.rs
 compiler/tests/effects.rs
 compiler/tests/exe.rs
+compiler/tests/fixtures/state-machine-consumer.mjs
 compiler/tests/format.rs
 compiler/tests/foundation.rs
 compiler/tests/ide.rs
 compiler/tests/lint.rs
 compiler/tests/mcp_p1.rs
 compiler/tests/mcp_p4.rs
+compiler/tests/state_machines.rs
 compiler/tests/syntax.rs
 compiler/tests/syntax/corpus.rs
 compiler/tests/syntax/layout.rs
 compiler/tests/syntax/lexer.rs
 compiler/tests/syntax/parser.rs
+compiler/tests/typed_artifact.rs
+compiler/tests/typed_descriptors.rs
 design/AI-AND-SERVICE-DRAFTS.md
 design/COMPLEX-APPS.md
 design/UI-COMPONENTS.md
@@ -1262,6 +1266,20 @@ design/jev/shared-attribution-capture-20261004-b.questions.json
 design/jev/shared-attribution-capture-20261004-b.result.json
 design/jev/shared-attribution-capture-20261004-c.questions.json
 design/jev/shared-attribution-capture-20261004-c.result.json
+design/jev/state-machines-20261007/assessment.json
+design/jev/state-machines-20261007/detailed-assessment.json
+design/jev/state-machines-20261007/detailed-request-1.json
+design/jev/state-machines-20261007/detailed-request-2.json
+design/jev/state-machines-20261007/detailed-request-3.json
+design/jev/state-machines-20261007/detailed-response-1.json
+design/jev/state-machines-20261007/detailed-response-2.json
+design/jev/state-machines-20261007/detailed-response-3.json
+design/jev/state-machines-20261007/request-1.json
+design/jev/state-machines-20261007/request-2.json
+design/jev/state-machines-20261007/request-3.json
+design/jev/state-machines-20261007/response-1.json
+design/jev/state-machines-20261007/response-2.json
+design/jev/state-machines-20261007/response-3.json
 design/jev/stats-breakdown-20261004/1.request.json
 design/jev/stats-breakdown-20261004/1.result.json
 design/jev/stats-breakdown-20261004/2.request.json
@@ -1927,6 +1945,7 @@ editors/vscode/test/palette.cjs
 editors/vscode/test/syntax.cjs
 editors/vscode/token-colors.json
 examples/ExpenseFlow.can
+examples/Generation.can
 examples/TeamTasks.can
 examples/expenseflow-demo/README.md
 examples/expenseflow-demo/demo.mjs
@@ -2089,6 +2108,13 @@ implementation/prompts/06-identity-interfaces.md
 implementation/prompts/07-platform.md
 implementation/prompts/08-frontend-catalog-migration.md
 implementation/prompts/08-frontend-catalog-steering.md
+implementation/state-machines/cloudflare-memory.log
+implementation/state-machines/compiler-clippy.log
+implementation/state-machines/compiler-full.log
+implementation/state-machines/compiler-post-review.log
+implementation/state-machines/runtime-stdlib.log
+implementation/state-machines/state-machines-and-joins.log
+implementation/state-machines/verification.json
 implementation/status/frontend-catalog-migration.md
 implementation/status/lane-01.md
 implementation/status/lane-02.md
@@ -2617,6 +2643,7 @@ packages/state/src/corpus/grounded.ts
 packages/state/src/corpus/sources.ts
 packages/state/src/corpus/status.ts
 packages/state/src/effects/staging.ts
+packages/state/src/effects/transition.ts
 packages/state/src/errors.ts
 packages/state/src/fanout/cohort.ts
 packages/state/src/fanout/lifecycle.ts
@@ -2626,6 +2653,7 @@ packages/state/src/fanout/progress.ts
 packages/state/src/fanout/tables.ts
 packages/state/src/index.ts
 packages/state/src/internal/json.ts
+packages/state/src/internal/machine.ts
 packages/state/src/invocation/admission.ts
 packages/state/src/invocation/artifact-descriptors.ts
 packages/state/src/invocation/b2-conflict-currents.test.ts
@@ -2753,6 +2781,7 @@ packages/state/test/mutation/generated-crud.test.ts
 packages/state/test/mutation/history.test.ts
 packages/state/test/mutation/invariants.test.ts
 packages/state/test/mutation/locks.test.ts
+packages/state/test/mutation/machines.test.ts
 packages/state/test/mutation/models.test.ts
 packages/state/test/mutation/rejected.test.ts
 packages/state/test/mutation/remove.test.ts
@@ -2934,6 +2963,7 @@ packages/ui/test/media.test.ts
 packages/ui/test/messages.test.ts
 packages/ui/test/navigation.test.ts
 packages/ui/test/overlays.test.ts
+packages/ui/test/page-polling.test.ts
 packages/ui/test/panels.test.ts
 packages/ui/test/policyPage.test.ts
 packages/ui/test/review.test.ts
@@ -3296,3 +3326,8 @@ The completed `editors/vscode/audit-astra/` working copies are retired: 187 file
 ## Consolidated source availability — October 6, 2026
 
 The [consolidation review](consolidation-review.json) accounts for every current tracked and historical predecessor input without replacing previous target/cutover choices. Observed values_semantics output names and verified staging are recorded separately from provisional installed ABI stems; FP.SOURCE-CLOSURE and release qualification remain open.
+
+
+## Stored state machines — October 7, 2026
+
+The selected tree now includes the owning transition effect, machine validation helper, actual compiler/runtime/browser regressions and generation lifecycle example. Existing compiler split and state cutover gates remain unchanged. Source declarations own states and operation edges; state owns mutation protection, Cloudflare binds canonical execution, interfaces owns authorized partial context, and UI owns refresh/morph behavior. The [integration registry](../state-machines-20261007.json) records all accumulated checkpoint deltas and the scoped review. `SM.QUALIFY` retains full generated hooks/locks/invariants, forms, installed browser/provider and durable delivery witnesses. Named/hierarchical/parallel/history machines remain proposals. No predecessor retirement or complete checkpoint advance is authorized.
