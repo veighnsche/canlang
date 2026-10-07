@@ -1,0 +1,299 @@
+{
+  "packet": "DEL-U01-appearance",
+  "base": "e5ad5cf767004a892c0ae1937aedd67629170786",
+  "head": "511ecd7590364c3059690b08b2ebbe29b1814b60",
+  "acceptanceLimits": [
+    "Only private appearance leaf and fixed ten callers",
+    "Byte-identical classes/attributes/defaults and local renderer output",
+    "Caller composition/errors and public declarations unchanged",
+    "Strictly decreasing readable production and production plus declarations closure",
+    "No broader browser/app/backend acceptance"
+  ],
+  "files": [
+    {
+      "path": "packages/ui/src/collections.ts",
+      "baseSha256": "c9568ffd924ba2ba842c776adb1cf75cbb5df7af73702d12fe3718d572bde3ab",
+      "currentSha256": "68c1b226749d876378858e4c0221f7e9895b981bc1349ff59041ad362efe74e7",
+      "oldReadable": 846,
+      "currentReadable": 821,
+      "oldPhysical": 1036,
+      "currentPhysical": 1005,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "a74a254474d8822d9694d2c71c7bc8ba379a12360a4bbaf8d887a5d3e3ff4d7b",
+      "privateOutputMatchesSourceCurrent": true
+    },
+    {
+      "path": "packages/ui/src/controls.ts",
+      "baseSha256": "ddf2dc4c1a098bcbf2f2beb92e2df551ffc09843b84bafd7ffdc4d9bbd56ccd8",
+      "currentSha256": "04eb1095f1cc7f3f1773d7509337e1fd468b27256b926dcaf9a2d4ea32ac8e02",
+      "oldReadable": 844,
+      "currentReadable": 819,
+      "oldPhysical": 1058,
+      "currentPhysical": 1026,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "7e272fe29c5cffeaa5691a5e99b9ea921bdca792b5a7e0f29d2dfdf738eb61ef",
+      "privateOutputMatchesSourceCurrent": true
+    },
+    {
+      "path": "packages/ui/src/groups.ts",
+      "baseSha256": "a9c4b976518a73c5905480ab86352b02f794db161335c0129f47dde1b3ea5e0f",
+      "currentSha256": "d6a6bdabb0818941dd42d0d0337a6a9054acd6acbb6b3d4a4c8630d3ce928289",
+      "oldReadable": 334,
+      "currentReadable": 309,
+      "oldPhysical": 489,
+      "currentPhysical": 458,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "ad620f38e8d4c0ba07ca876c6d756ba9f45d5018a1950347561856f1afc98dbc",
+      "privateOutputMatchesSourceCurrent": true
+    },
+    {
+      "path": "packages/ui/src/leaves.ts",
+      "baseSha256": "7b6adec794d80689be67a03993632d8ef9fa107b266ae613c3f8bc58d5051e4e",
+      "currentSha256": "44fc4d8b9b00fc76588790174ec0c888ae0ebbfa3ccaf03272ffe94732d70571",
+      "oldReadable": 198,
+      "currentReadable": 173,
+      "oldPhysical": 312,
+      "currentPhysical": 281,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "fe1dec7c7d24abcc9e3bfba94d53fee51f9d0306628236a50ad598d5220622ce",
+      "privateOutputMatchesSourceCurrent": true
+    },
+    {
+      "path": "packages/ui/src/media.ts",
+      "baseSha256": "22de7f0408016471ec6d84ca62498a59c2ee7e6732a5ff866321008fa1f43a52",
+      "currentSha256": "d09363451e7bf7b433a78937bfb4250ee14cea2e7de0480f68f9604f5660cd3b",
+      "oldReadable": 134,
+      "currentReadable": 109,
+      "oldPhysical": 213,
+      "currentPhysical": 182,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "d9a74009a2e1e9aff7c4a26b95d4c6726873568f226a75c4f4cf2bde7000692b",
+      "privateOutputMatchesSourceCurrent": true
+    },
+    {
+      "path": "packages/ui/src/navigation.ts",
+      "baseSha256": "b361c673d0cef45297673394e08679f8f55d5458bbff2a0847f5f40ed244e869",
+      "currentSha256": "7b2aaf0617950fac96794bdd1e01ec84ee2412a22093d785c8ba513769e53104",
+      "oldReadable": 517,
+      "currentReadable": 492,
+      "oldPhysical": 709,
+      "currentPhysical": 678,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "0c1bf0dc43fce26a64e1bca9006e96f6b95300ac1b50860619529b948009a7e8",
+      "privateOutputMatchesSourceCurrent": true
+    },
+    {
+      "path": "packages/ui/src/overlays.ts",
+      "baseSha256": "125ddc7c0d491a9056b55db5e4fd8d14dbd69e156b995f5fb3d3d9769ade4b4c",
+      "currentSha256": "4ca6a3dced5c27dafc95dbd24b48a16aae49740099920b155c7d8af875d67310",
+      "oldReadable": 313,
+      "currentReadable": 288,
+      "oldPhysical": 460,
+      "currentPhysical": 429,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "ab300ace48157062fea396fdb4b7485d41e32468c0574b98f829f19e8e63bcdc",
+      "privateOutputMatchesSourceCurrent": true
+    },
+    {
+      "path": "packages/ui/src/panels.ts",
+      "baseSha256": "3d8bd4461930b48e326ec2f733f7d95acb5e01b52dc3a4fe8097e51fbdd7838e",
+      "currentSha256": "7b0be13c621cc652147cf3ca72f92a513543b61b322cbe7542efa360cfd45d22",
+      "oldReadable": 311,
+      "currentReadable": 286,
+      "oldPhysical": 414,
+      "currentPhysical": 383,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "5500079ed6221c2f31e58381bbf732d27f25485cc11783afafb28f07f833e387",
+      "privateOutputMatchesSourceCurrent": true
+    },
+    {
+      "path": "packages/ui/src/review.ts",
+      "baseSha256": "b01e6fa2923dae76cbd4e743b9618d891cfd07dc79060e77bec2c04d381bcfea",
+      "currentSha256": "5069e70309b4a5a98f33297d75d62b67c363218606427f0ac5b171454a12979b",
+      "oldReadable": 84,
+      "currentReadable": 59,
+      "oldPhysical": 116,
+      "currentPhysical": 85,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "5b4d31ff9281b6411298c5d389b57f4f23b91e411bc4dd18e5a110d6dd716eaf",
+      "privateOutputMatchesSourceCurrent": true
+    },
+    {
+      "path": "packages/ui/src/settings.ts",
+      "baseSha256": "f82458311f13871649ff392368efb17fc85c17250eede1153450b5f509b8136f",
+      "currentSha256": "4643b06538fcc86f919781c0c6dd82ccb8d7cb08fd21c743dda7ac2c7467cbc0",
+      "oldReadable": 159,
+      "currentReadable": 134,
+      "oldPhysical": 218,
+      "currentPhysical": 187,
+      "exactBody": true,
+      "emittedRendererEquivalentAfterHelperSubstitution": true,
+      "declarationsIdentical": true,
+      "privateEmittedJsSha256": "16f63ff549bcd588a80cc1222c6c770377174f467f844960d2e4bd19d4ee9bf1",
+      "privateOutputMatchesSourceCurrent": true
+    }
+  ],
+  "helper": {
+    "path": "packages/ui/src/internal/appearance-props.ts",
+    "sha256": "1b8b44c210d31f13666b03b13bb9cf9ecd31e265a03bbfe2e6c73a8d0191c565",
+    "privateEmittedJsSha256": "22273a46b6f6e49020bd399d0c52e28c9d632fc639ae5d7039c6ddc4fd03a17a",
+    "readable": 29,
+    "declarationReadable": 2
+  },
+  "counts": {
+    "measure": "Nonblank noncomment source lines; TS parsed syntax comment ranges remove comments without interpreting strings/templates; tests/maps excluded",
+    "productionBefore": 3740,
+    "productionAfter": 3519,
+    "productionReduction": 221,
+    "declarationsBefore": 101,
+    "declarationsAfter": 103,
+    "totalBefore": 3841,
+    "totalAfter": 3622,
+    "totalReduction": 219
+  },
+  "directControls": [
+    {
+      "scenario": "present",
+      "trace": [
+        "tone",
+        "tone",
+        "size",
+        "size",
+        "variant",
+        "variant",
+        "orientation",
+        "orientation"
+      ],
+      "value": {
+        "tone": "primary",
+        "size": "sm",
+        "variant": "outline",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "scenario": "undefined",
+      "trace": [
+        "tone",
+        "size",
+        "variant",
+        "orientation"
+      ],
+      "value": {}
+    },
+    {
+      "scenario": "changes-to-undefined",
+      "trace": [
+        "tone",
+        "tone",
+        "size",
+        "size",
+        "variant",
+        "variant",
+        "orientation",
+        "orientation"
+      ],
+      "value": {}
+    },
+    {
+      "scenario": "inherited",
+      "trace": [
+        "tone",
+        "tone",
+        "size",
+        "size",
+        "variant",
+        "variant",
+        "orientation",
+        "orientation"
+      ],
+      "value": {
+        "tone": "primary",
+        "size": "sm",
+        "variant": "outline",
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "scenario": "throws-size",
+      "trace": [
+        "tone",
+        "tone",
+        "size"
+      ],
+      "error": "same sentinel"
+    },
+    {
+      "scenario": "throws-second-tone",
+      "trace": [
+        "tone",
+        "tone"
+      ],
+      "error": "same sentinel"
+    },
+    {
+      "scenario": "irrelevant",
+      "trace": [
+        "tone",
+        "tone",
+        "size",
+        "size",
+        "variant",
+        "variant",
+        "orientation",
+        "orientation"
+      ],
+      "value": {
+        "tone": "primary",
+        "size": "sm",
+        "variant": "outline",
+        "orientation": "horizontal"
+      }
+    }
+  ],
+  "tests": {
+    "files": 11,
+    "tests": 496,
+    "passed": 496,
+    "failed": 0,
+    "log": "/private/tmp/canlang-repair-go-20261007/ui-independent-test.log",
+    "resolution": "Private dist/node_modules symlink to real package dependencies; private ui/package.json symlink to real manifest; actual contracts package exports preserved"
+  },
+  "defects": [],
+  "scope": "Independent source/current-consumer appearance review only",
+  "unchangedBoundaryFiles": [
+    {
+      "path": "packages/ui/package.json",
+      "sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "unchanged": true
+    },
+    {
+      "path": "packages/ui/src/index.ts",
+      "sha256": "e84a76c8b9585f03d5c87288a8d0e6d2ce2418146c65759e14e9c8be33e50369",
+      "unchanged": true
+    },
+    {
+      "path": "packages/ui/src/appearance.ts",
+      "sha256": "ece7d62ee0cc16688c06cd9d32155c56c25d377b4540b9003eb80d169b94b95c",
+      "unchanged": true
+    }
+  ]
+}
