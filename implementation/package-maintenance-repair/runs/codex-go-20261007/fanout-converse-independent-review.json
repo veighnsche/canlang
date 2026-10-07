@@ -1,0 +1,238 @@
+{
+  "packet": "TECH-W02",
+  "subscope": "GAP-L04 same-fanout checkpoint converse",
+  "review": "independent source-current bounded acceptance",
+  "disposition": "Accepted at the defining child-join port and single-owner memory/D1/DO adapter scope. No introduced defect found; root parent acceptance is separate.",
+  "baseline": {
+    "sourceSha256": "20ebcc4792bc145d60d16210d19dfec45bb6a1d0961b86973d3bea6b6a01a902",
+    "snapshot": "/private/tmp/canlang-repair-go-20261007/fanout-converse/input-baseline/src/ports/transact.ts",
+    "capturedCommitReportedByProducer": "b055ca616dc0ab3a8df3df4429c1f58ba2508bf2",
+    "qualification": "Exact original source was read from the frozen hash-verified snapshot; no Git command was issued in this review."
+  },
+  "sourcePins": [
+    {
+      "path": "packages/state/src/ports/transact.ts",
+      "sha256": "a322234e281865e6a61be016efa647d812b7e3e4d2e58a66aad98a7a66001c8d",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/fanout/outcome.ts",
+      "sha256": "cc319f783b6621ccfe2079eb41ec94b436e1e64c9330afd36b7f0df1f7b457af",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/fanout/tables.ts",
+      "sha256": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/effects/staging.ts",
+      "sha256": "e5526973013ddefe2dbe19baafd3f8c20b00378258eea0a84482265ae73313c7",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/errors.ts",
+      "sha256": "43badb7a7a5f4567d6ff7fdc63ad7a93013720fd38e6788d125e56b639ece387",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/storage/memory.ts",
+      "sha256": "89ba826037d7162e8f642a4bb97de3d07eca04b2ae00c14969746567643b94f8",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/storage/d1.ts",
+      "sha256": "077cce4d61901d165615240414bbb4255d24cd027e0811c495dd82998215b7a8",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/storage/durable-object.ts",
+      "sha256": "d4df52bb725d437a5c8f3f26e3212f83d74038ae3173d92bf5ecf0ce5b5ed185",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/storage/schema.ts",
+      "sha256": "2a64ec108ea971c72be75c7c7bc1c8a16566bdcb81cf75178fb564a490468520",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/storage/sqlite-codecs.ts",
+      "sha256": "8a9070fc7fd365a7a1c8b099e8df49a7110b3b56973d07d5e7ed35d8d4ef5b3e",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/src/storage/port.ts",
+      "sha256": "4b82b567fee3816ce96630475a70f654d89200eed888acb53d3a76a242ea807b",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/test/fanout/checkpoint-converse.test.ts",
+      "sha256": "b00fe2ede52035e4bc1c0ec6fd9fb9f630564919c97fef43426c121d2ac90332",
+      "sameAsStart": true
+    },
+    {
+      "path": "packages/state/test/storage/do-test-worker.js",
+      "sha256": "922910c5e7e3692137827d0db5510c5d94300690c98eef1147442a49ea378b7a",
+      "sameAsStart": true
+    }
+  ],
+  "publicContractPin": {
+    "path": "packages/contracts/src/state.ts",
+    "sha256": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c"
+  },
+  "sourceProof": {
+    "allNonAssertionStatementsTokensEqual": true,
+    "allOriginalParsingAndValidationTokensEqual": true,
+    "declarationTokensEqual": true,
+    "declarationBytesEqual": false,
+    "declarationByteDifference": "same-fanout explanatory comment only",
+    "changedFrozenInputs": [
+      "src/ports/transact.ts"
+    ],
+    "manifestsHashVerified": true,
+    "sourceCurrentRuntimeProof": "All 12 relevant TypeScript owner/test inputs produce the same executable AST tokens as frozen runtime emits; unchanged private DO worker points to the copied exact adapter. Source/emitted proof does not certify unexercised invocation dependencies."
+  },
+  "invariantProof": {
+    "forward": "Each completed/skipped/failed child update must find its recordId in checkpointCovers keyed by its fanoutId. This existing validation completes before its fanoutId enters coveredFanoutIds.",
+    "converse": "Every checkpointCovers key must occur in coveredFanoutIds; an outcome in another fanout, even with the same recordId, cannot satisfy it. Both sets/maps derive only from this commit batch.",
+    "beforeEffects": "createFanoutChildJoinPort calls assertFanoutChildJoin before StoragePort.commit and only storage errors pass through the unchanged storageToStateError mapping.",
+    "preserved": "Original row identity/state/cause, duplicate child/checkpoint, empty checkpoint insert, forward cover, intent insert-only, ordinary batch and nonterminal claim checks are token-identical. Cursor-only checkpoint maintenance remains plain-store. Completed sets may contain prior records; no new count or delta policy."
+  },
+  "independentEvidence": {
+    "matrix": {
+      "cases": 64,
+      "fanouts": 3,
+      "recordIdentity": "same-record for every fanout",
+      "order": "checkpoint writes precede terminal outcomes",
+      "oracle": "For this completed-outcome/identical-record corpus, acceptance iff terminal-fanout set equals updated-checkpoint-fanout set. Oracle is independent of the implementation Set construction.",
+      "baselineWrongAcceptances": 12,
+      "currentCorrect": 64
+    },
+    "adapterControls": {
+      "count": 12,
+      "adapters": [
+        "memory",
+        "D1 real SQLite",
+        "DO real SQLite"
+      ],
+      "controls": [
+        "two terminal siblings do not justify third-fanout checkpoint: validation and zero store submissions",
+        "completed/skipped/failed with own covers plus domain/history/receipt/outbox/schedule effects commit in one revision",
+        "valid join with stale child version: one store submission, conflict, complete unchanged state",
+        "valid join followed by ordinary duplicate record insert: exact records primary-key constraint, one submission, complete unchanged revision/rows/domain/history/receipt/outbox/schedule state"
+      ],
+      "observations": "/private/tmp/canlang-repair-go-20261007/fanout-converse-independent/observations.json",
+      "rollbackQualification": "Stale expectedVersion refusal occurs in adapter preflight; it demonstrates no effects but does not alone prove a transaction rolled back. The distinct late records primary-key witness reaches actual D1 db.batch / DO transactionSync and proves rollback after staged join statements. Memory uses its scratch application map."
+    },
+    "actualExecution": {
+      "command": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node /private/tmp/canlang-repair-go-20261007/fanout-converse-independent/witness.mjs",
+      "final": {
+        "start": "2026-10-07T20:26:49.156Z",
+        "deadline": "2026-10-07T20:27:49.156Z",
+        "end": "2026-10-07T20:26:50.758Z",
+        "pid": 64563,
+        "exitCode": 0
+      },
+      "finalSessionId": 96847,
+      "finalSessionResult": "explicit write_stdin exitCode0",
+      "earlierSuccessfulSessionId": 78073,
+      "earlierSuccessfulSessionResult": "explicit write_stdin exitCode0; rerun strengthened constraint predicate and preserved original receipt",
+      "sandboxAttempt": {
+        "exitCode": 1,
+        "reason": "Miniflare localhost listener denied with listen EPERM 127.0.0.1; exact private command was then automatically approved with require_escalated. No auto-review rejection occurred."
+      },
+      "noActiveHandles": true,
+      "privateHostsDisposed": true
+    }
+  },
+  "frozenEvidenceReuse": {
+    "scope": "Read source-matched new test and raw Node logs; no implementer verdict used as acceptance proof. Existing strict compile logs are empty, while raw baseline/current test logs show the observations below. Independent source transpile matching and executed real controls establish the current bounded seam.",
+    "baseline": {
+      "pass": 9,
+      "fail": 4,
+      "reason": "mixed-fanout/nonterminal converse cases lacked expected validation rejection; other controls passed"
+    },
+    "current": {
+      "pass": 13,
+      "fail": 0,
+      "memory": 7,
+      "D1": 3,
+      "DO": 3
+    },
+    "countercontrols": "Forward cover/duplicate rows/nonempty inserts, empty pending inserts, broader completed sets, cursor-only plain-store maintenance, ordinary effects and nonterminal claims are verified in frozen source-current tests; private source/test/worker pins were independently checked."
+  },
+  "defects": [],
+  "gates": [
+    {
+      "id": "GAP-L01",
+      "status": "OPEN",
+      "scope": "pagination remains separate"
+    },
+    {
+      "id": "GAP-L03",
+      "status": "OPEN",
+      "scope": "fresh facts remains separate"
+    },
+    {
+      "id": "TECH-W02 full compiled/durable parent",
+      "status": "OPEN",
+      "scope": "No broad invocation/runtime/contracts/registry assembly, fresh compiled .can, deployed durable parent, process restart survival, cross-store atomicity, installed closure or universal concurrency qualification from these ephemeral single-owner fixtures."
+    }
+  ],
+  "evidence": [
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse-independent/proof.cjs",
+      "sha256": "91a2c56472e26afdbfe9ecf13294d36edc530c56acfa0079b1450d011eef496a"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse-independent/source-facts.json",
+      "sha256": "eb7a4447ff0db350d9228d509b6facca63a99182dc6d8e86c47628c92d75e36c"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse-independent/witness.mjs",
+      "sha256": "6bba8c7f1e4ae2564898e5ea5a6328c951e54d4c061668ba96aea00726308a31"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse-independent/execution.json",
+      "sha256": "a51c5b38eadfb7b948e9a2704d1bd26165f87f809e2ac0132a79ca7091301ef0"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse-independent/first-success-execution.json",
+      "sha256": "f9b3faa37ee7e320f1baa7017e0c86b93d552f426ec270c419d824c518b79440"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse-independent/observations.json",
+      "sha256": "a51c5b38eadfb7b948e9a2704d1bd26165f87f809e2ac0132a79ca7091301ef0"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse/baseline-tests.log",
+      "sha256": "94f5d66e0f7d850ed91795debb3b669230877a948096f7216980d2d161dd304b"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse/current-tests.log",
+      "sha256": "4b014ed420c1edb9d84633c1fce0fd3da5b8e8da9e3aff85ad2a863bbb8809a1"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse/baseline-input-manifest.json",
+      "sha256": "36995815fb4afc76abd2720c96a2f62624ce354c3e8ff3a9ae11c1980397f0a7"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/fanout-converse/current-input-manifest.json",
+      "sha256": "b51f2a4d72a4e05eaa2dc92945ebf6b7100b36d6baa1a78d37fc1200a52c28d1"
+    }
+  ],
+  "finishedAt": "2026-10-07T20:27:50.636418+00:00",
+  "readLease": {
+    "paths": [
+      "packages/state/src/ports/transact.ts",
+      "packages/state/test/fanout/checkpoint-converse.test.ts"
+    ],
+    "released": true,
+    "endPinsUnchanged": true,
+    "sourceWrites": false,
+    "GitCommands": false,
+    "sharedOutputsOrBuilds": false,
+    "privateOutputsOnly": true,
+    "noActiveCommandHandles": true
+  }
+}
