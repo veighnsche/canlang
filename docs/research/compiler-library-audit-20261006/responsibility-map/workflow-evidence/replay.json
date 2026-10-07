@@ -1,0 +1,74 @@
+{
+  "argv": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--test",
+    "check",
+    "--test",
+    "authoring",
+    "--test",
+    "exe",
+    "--test",
+    "format",
+    "--test",
+    "lint",
+    "--test",
+    "docs",
+    "--test",
+    "file_ownership",
+    "--test",
+    "lsp_admission",
+    "--test",
+    "lsp_typed_output",
+    "--test",
+    "typed_fixes_cli",
+    "--test",
+    "typed_reference_policy_consumers",
+    "--test",
+    "typed_artifact_consumer",
+    "--test",
+    "b3_s4",
+    "--test",
+    "b3_authoring_join",
+    "--test",
+    "completion_contract",
+    "--",
+    "--nocapture"
+  ],
+  "environment_overrides": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_NET_OFFLINE": "true",
+    "CAN_COMPLETION_REQUIRE_ENGINES": "1"
+  },
+  "started_utc": "2026-10-07T10:11:20.767983+00:00",
+  "elapsed_seconds": 98.39,
+  "exit_code": 0,
+  "timed_out": false,
+  "observed_head": "b975817b143926baa3191cfbe0f63b36fa5b0c57",
+  "compiler_source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "before_pins": "replay-before.json",
+  "after_pins": "replay-after.json",
+  "pin_count": 2784,
+  "changed_inputs": [],
+  "harnesses": 15,
+  "harness_passes": 209,
+  "skip_lines": [
+    "SKIP mode 4750: this host did not retain the requested fixture bits"
+  ],
+  "streams": {
+    "replay.stdout": {
+      "sha256": "146c98eee2cafbc5cb1de5b6887865bb86c1cfa32fb183119654922362acfda9",
+      "bytes": 16553
+    },
+    "replay.stderr": {
+      "sha256": "ad170383edefc6b474cd97830e93ad84b30f8c1235d67fc0400f1deebb5cae96",
+      "bytes": 2680
+    }
+  },
+  "scope": "Native existing focused integration tests; per-test actual bodies/optional prerequisites still interpreted from raw outputs and source. Not full suite/GUI/installed/release/remote deployment/generator operation qualification."
+}

@@ -1,0 +1,384 @@
+{
+  "scope": "Independent targeted cross-review by Sol medium of source/control flow and selected source/test/raw receipts. Reviewers did not author the families they challenged. No claim of exhaustive semantics or fresh execution by reviewer. Root integrates corrections and executes bounded receipts.",
+  "status": "draft trace accepted after recorded corrections; final artifact consistency review pending",
+  "correction_application": [
+    "CHECK catalog discovery/readiness/complete=false clarified",
+    "Pilot observation fallback/liveRecords scope explicit",
+    "Editor public names, compiled mock scope and ignored versions corrected",
+    "run assembly errors internal1, deploy hardcoded activation envelope2, shared API symbols corrected",
+    "Build output numeric count vs arrays and deploy partial writes/flag precedence clarified",
+    "Docs output anchor140, direct Node replacement UTF8 and mixed-stdin formatting failure explicit"
+  ],
+  "reviews": [
+    {
+      "family": "reports-transforms",
+      "reviewer": "Sol 6.1 medium",
+      "receipt": {
+        "reviewed": "/private/tmp/canlang-step3-transforms-reports.json",
+        "reviewer_scope": "Independent source/test-body review; no repository edits, builds, tests, runtime, network or policy choices. Temporary review JSON only.",
+        "verdict": "accept-with-small-clarifications",
+        "accept": [
+          {
+            "id": "FORMAT",
+            "finding": "Correct CLI -> formatter -> all-input parse gate -> ordered --check/stdout/atomic-file consumers and malformed/no-write/write-failure branches. Every input formats before writes; earlier files can remain changed after later replacement failure. Existing-file final check is not CAS; creation uses persist_noclobber; regular/symlink-target permissions copied after writes. Metadata+expected bytes checked twice. No fsync/ACL/owner/transaction promise.",
+            "sources": [
+              "compiler/src/format.rs:98 format_source",
+              "compiler/src/cli.rs:1223 run_fmt",
+              "compiler/src/cli.rs:1281 input-format loop",
+              "compiler/src/cli.rs:1310 check branch",
+              "compiler/src/cli.rs:1336 ordered write loop",
+              "compiler/src/cli.rs:1363 replace_file_with",
+              "compiler/src/cli.rs:1454 check_replacement_input"
+            ],
+            "tests_read": [
+              "compiler/tests/format.rs:343 invalid_sources_yield_diagnostics_and_no_output",
+              "compiler/src/cli.rs:1539 stale_format_input_is_rejected_before_staging",
+              "compiler/src/cli.rs:1551 concurrent_permission_change_is_not_reverted"
+            ]
+          },
+          {
+            "id": "LINT_FIX",
+            "finding": "Correct recommended lint config/catalog deprecation snapshot and --fix serializes suggestions only. Public apply_fix/apply_fixes compare supplied hash, do not recompute it, and depend on caller's same-file grouping. Stale/span/overlap errors reject complete in-memory batch; lint reparses ignoring parse diagnostics and does not admit completeness itself.",
+            "sources": [
+              "compiler/src/cli.rs:1640 run_lint",
+              "compiler/src/lint/driver.rs:184 lint_program",
+              "compiler/src/lint/driver.rs:203 collect_fixes",
+              "compiler/src/lint/driver.rs:288 apply_fix",
+              "compiler/src/lint/driver.rs:308 apply_fixes",
+              "compiler/src/lint/driver.rs:465 run_with_files"
+            ],
+            "tests_read": [
+              "compiler/tests/lint.rs:575 fix_refuses_stale_and_invalid",
+              "compiler/tests/lint.rs:633 fixes_apply_as_batch",
+              "compiler/tests/typed_fixes_cli.rs:6 lint_fix_flag_controls_presence_order_and_single_newline"
+            ]
+          },
+          {
+            "id": "LINT_FIX_IDE_JOIN",
+            "finding": "Correct real LSP codeAction -> collect fixes -> file/hash/range filters -> IDE conversion -> current-text hash check -> UTF16 versioned documentChanges. Server offers edits rather than applying them; public IDE apply_fix recomputes actual hash and separately rejects overlap/range. Hash-mismatched final conversion produces an action with no edit, not a server file write.",
+            "sources": [
+              "compiler/src/lsp/server.rs:411 code_actions",
+              "compiler/src/lsp/server.rs:443 collect_fixes",
+              "compiler/src/ide/fixes.rs:119 from_lint_fix",
+              "compiler/src/lsp/server.rs:496 diagnostic_fix_to_action",
+              "compiler/src/lsp/server.rs:756 codeAction request",
+              "compiler/src/lsp/output.rs:139 action",
+              "compiler/src/ide/fixes.rs:136 apply_fix"
+            ],
+            "limit": "Client application/version enforcement remains untraced; completeness of full LSP lifecycle is separate ownership."
+          },
+          {
+            "id": "DOCS_REFERENCE",
+            "finding": "Correct actual production CLI bridge: preflight source refusal -> SourceDb/owned analysis error/program gates -> public extraction/JSON -> located producer fixed argv docs[--locale] with stdin EOF -> cloudflare CLI docs branch -> @canlang/interfaces dynamic renderer -> escaped localized Markdown -> stdout or atomic file replacement. Rust child failures/empty/nonUTF8/no producer and write failures are accurately separated E7004/E7007. No business handlers/examples execute. Public extraction reparses without readiness/errors gate; complete=false alone does not block CLI docs.",
+            "sources": [
+              "compiler/src/cli.rs:894 run_docs_with_platform",
+              "compiler/src/cli.rs:965 docs_out_refusal",
+              "compiler/src/docs.rs:355 extract_reference",
+              "compiler/src/docs.rs:1127 to_json_string",
+              "compiler/src/cli.rs:1002 render_via_platform",
+              "compiler/src/cli.rs:1097 locate_platform_bin",
+              "packages/cloudflare/src/cli/platform.ts:409 docs branch",
+              "packages/cloudflare/src/cli/docs.ts:133 runDocs",
+              "packages/interfaces/src/docs/reference.ts:725 renderReferenceMarkdown"
+            ],
+            "tests_read": [
+              "compiler/src/cli.rs:2159 renders_to_stdout_with_fixed_argv_and_stdin_payload (stub child verifies bridge mechanics)",
+              "compiler/src/cli.rs:2254 empty_and_non_utf8_output_are_e7004 (stub children)",
+              "compiler/tests/typed_reference_policy_consumers.rs:84 fresh_docs_cli_and_extracted_typed_json_enter_public_markdown_renderer (actual dist renderer, optional-body availability checks)"
+            ],
+            "limit": "Fixed argv does not guarantee termination: stdin write and wait block without timeout; early stdin failure returns without explicit kill/wait; stderr tail is bounded bytes after lossy decode, not a child stream capture size cap. Report already retains resource/deadlock limits."
+          },
+          {
+            "id": "POLICY",
+            "finding": "Correct CLI JSON/text reporting and public extractor/serializer, absent readiness guard, and actual exported UI sections/review HTML consumer. policyPage is an explicit library/test consumption path; report correctly does not claim automatic CLI production rendering. Serializer+CLI double trailing newline is actual behavior.",
+            "sources": [
+              "compiler/src/cli.rs:791 run_policy",
+              "compiler/src/policy.rs:128 policy_dump",
+              "compiler/src/policy.rs:145 policy_dump_json",
+              "packages/ui/src/policyPage.ts:158 policyDumpSections",
+              "packages/ui/src/policyPage.ts:194 policyPage"
+            ],
+            "tests_read": [
+              "compiler/tests/typed_policy.rs:167 real_cli_keeps_the_existing_second_trailing_newline",
+              "compiler/tests/typed_reference_policy_consumers.rs:212 fresh_policy_cli_enters_actual_policy_sections_and_html_page (actual dist UI, optional body)"
+            ],
+            "limit": "Reporting/HTML rendering is not authorization enforcement or operation execution."
+          },
+          {
+            "id": "EXPLAIN",
+            "finding": "Correct normalized static lookup, compact six-key JSON/text, known exit0/unknown E7003 exit2 and bad argument E7001. No source analysis needed; catalog presence does not establish a live diagnostic emitter.",
+            "sources": [
+              "compiler/src/cli.rs:1186 run_explain",
+              "compiler/src/explain.rs:51 lookup",
+              "compiler/src/explain.rs:62 entry_to_json",
+              "compiler/src/explain.rs:85 entry_to_text",
+              "compiler/src/main.rs:8 panic hook/catch_unwind",
+              "compiler/src/cli.rs:226 write_ignoring_broken_pipe"
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "LINT_FIX",
+            "claim": "production readiness emits error [for incomplete analysis]",
+            "replace_with": "readiness emits E7006 only when caller flags say a pass did not run. Current CatalogAnalyzer executes every pass and passes CompleteInputs::all, so it normally claims complete=true even with malformed/recovered source. A custom analyzer that supplies complete=false without error diagnostics is not independently blocked by lint/docs/policy has_errors/program gates.",
+            "sources": [
+              "compiler/src/analysis/check.rs:84 readiness",
+              "compiler/src/cli.rs:196 readiness(CompleteInputs::all)",
+              "compiler/src/cli.rs:1665 run_lint analysis gate",
+              "compiler/src/cli.rs:932 docs analysis gate",
+              "compiler/src/cli.rs:813 policy analysis gate"
+            ],
+            "severity": "wording clarification; report otherwise states injected incomplete behavior correctly"
+          },
+          {
+            "id": "EVIDENCE_SCOPE",
+            "claim": "all workflow evidence is historical/source-traced; no fresh Step1 specifically qualifies these workflows",
+            "replace_with": "Keep Step1 distinction, but final ledger must also attach the separately supplied root Step3 fresh bounded replay receipt: 209 tests/15 suites with one body SKIP for mode4750. This reviewer did not execute that replay; root must reconcile process output and selected test bodies before elevating each workflow. Do not call 209 harness passes zero-skip or all optional production-consumer bodies executed merely from overall pass count.",
+            "sources": [
+              "compiler/tests/typed_reference_policy_consumers.rs:35 available checks missing dists/Node and returns early with SKIP",
+              "compiler/tests/typed_reference_policy_consumers.rs:84 actual docs renderer test",
+              "compiler/tests/typed_reference_policy_consumers.rs:212 actual policy UI test",
+              "compiler/src/cli.rs replacement_tests special permission fixture"
+            ],
+            "evidence_status": "owner-reported replay details supplied by root; source-traced bodies by reviewer"
+          }
+        ],
+        "gaps": [
+          "Mixed stdin+file format invocations are supported. If a later file replacement fails, previously accumulated stdin output is not returned because E7007 returns a new tool error; earlier file writes may persist. Report's ordered write limitation covers files, but can add this mixed-output termination detail if completeness requires it (cli.rs:1335-1351).",
+          "Node docs bridge Buffer.toString(utf8) performs replacement decoding; its 64MiB cap and JSON parse are not strict incoming byte UTF8 validation. Rust-generated JSON is valid UTF8; public runDocs direct caller byte behavior is narrower than the Rust outbound contract (packages/cloudflare/src/cli/docs.ts:70-91).",
+          "Existing malformed nested renderer/dump validation and broad rule semantic coverage are not comprehensively qualified. Keep these dependent gaps rather than infer successful application from report/render/edit output.",
+          "Exact named entrypoint anchors checked match source; nearby stage anchors are branch locations, not always declaration starts. No blocking line-anchor correction found."
+        ],
+        "evidence_status": "source-traced review; historical evidence remains qualified by baseline-verification; fresh root replay is owner-reported here until attached by root"
+      }
+    },
+    {
+      "family": "check-compile-bdd-editor",
+      "reviewer": "Sol 6.1 medium",
+      "receipt": {
+        "verdict": "Accept bounded source-consumer trace after corrections below; no semantic or executed-test certification. Both packets reach actual consumers and distinguish artifact, assembly, invocation, generic BDD and pilot execution endpoints.",
+        "review_scope": "Read-only independent targeted source review of /private/tmp/canlang-step3-check-compile.json and /private/tmp/canlang-step3-editor.json. No builds/tests/runtime/network or repository writes. Selected exact anchors inspected, not exhaustive re-review of every listed test or all package internals.",
+        "verified_routes": [
+          {
+            "workflow": "CHECK/COMPILE",
+            "anchors": [
+              "compiler/src/cli.rs:666 run_check_like",
+              "compiler/src/cli.rs:174 CatalogAnalyzer::analyze_owned",
+              "compiler/src/analysis/mod.rs:108 check_program",
+              "compiler/src/codegen/mod.rs:108 emit",
+              "packages/cloudflare/src/runtime/artifact.ts:161 parseArtifactText",
+              "packages/cloudflare/src/runtime/invoke.ts:298 invokeWith/:444 invokeCallable"
+            ],
+            "finding": "CLI error gates and emit completeness refusal are real. Public check_program returns partial CheckedProgram+diagnostics; emit does not enforce analysis has_errors. Loaded/assembled artifacts and successful registry invocation are separate endpoints; handler return/throw maps to ok:true/false."
+          },
+          {
+            "workflow": "BDD",
+            "anchors": [
+              "compiler/src/codegen/mod.rs:151 emit_suites join",
+              "packages/testkit/src/runner/table.ts:81 executeRow/:206 runOneRow",
+              "tests/e2e/fixtures/pilot-examples.ts:271 invokeCall/:301 observeScope/:318 createScope",
+              "tests/e2e/fixtures/pilot-seed.ts:250 stageSuiteModule"
+            ],
+            "finding": "Generic setup failures cannot satisfy expected rejection; exact errors require snapshot equality; mismatch/observation/disposal fail. Pilot ignores call.by, uses fixed deps.caller, shared store and no-op disposal. Suite staging just writes bytes without import rewriting."
+          },
+          {
+            "workflow": "EDITOR",
+            "anchors": [
+              "compiler/src/ide/queries.rs:227 Snapshot::analyze",
+              "compiler/src/lsp/server.rs:600 pump/:756 codeAction/:1155 run_stdio",
+              "editors/vscode/src/client.ts:504 spawn/:839 onPublishDiagnostics",
+              "editors/vscode/src/extension.ts:116 toWorkspaceEdit",
+              "editors/vscode/test/server-startup.cjs:1 compile-then-mock harness"
+            ],
+            "finding": "Real server uses current-version queue/hash guards and versioned output. Startup harness is compiled out JavaScript plus mocks; no GUI. Normal stop has shutdown timeout then exit grace timer. Server EOF/torn frame/write-failure returns lifecycle code; external SIGINT stays default OS termination."
+          }
+        ],
+        "corrections": [
+          {
+            "packet": "check-compile",
+            "location": "CHECK.scenarios.positive.branch",
+            "correction": "compiler/src/analysis/check.rs exit_code is line136, not144 (known root correction verified). Readiness symbol begins77;84 is inner branch, not function entry."
+          },
+          {
+            "packet": "check-compile",
+            "location": "CHECK.state_authority / scenarios",
+            "correction": "Explicitly state run_check_like gates only result.has_errors (cli.rs:690), not complete. Injectable incomplete/no-error result exits0; production readiness may report E7006. COMPILE emit independently checks complete and refuses unless test-only ack."
+          },
+          {
+            "packet": "check-compile and editor",
+            "location": "catalog discovery statements",
+            "correction": "First readable candidate in flag, nonempty CAN_CATALOG, cwd can-catalog.json, cwd packages/values/dist/catalog.json order wins. Unreadable candidates are skipped even explicit flag/env; readable invalid UTF8/JSON/profile terminates, no later fallback. catalog.rs:339-386 verified."
+          },
+          {
+            "packet": "editor",
+            "location": "public_library_routes Snapshot APIs",
+            "correction": "Snapshot exposes document_symbols at queries.rs:466, not outline; outline is conceptual output/helper naming."
+          },
+          {
+            "packet": "editor",
+            "location": "Typed outputs, rename-and-quickfix-edits and version-stale-close",
+            "correction": "Server output versions/hash do not survive as client stale guards: extension.ts:116 toWorkspaceEdit ignores textDocument.version; client.ts:839 onPublishDiagnostics ignores params.version even though initialize declares versionSupport. Guarded ide::fixes::apply_fix is a public/test API, not the actual extension apply path."
+          },
+          {
+            "packet": "check-compile",
+            "location": "GENERATED_BDD.actual_consumers / gaps",
+            "correction": "Pilot observeScope reads live state only for provisioned liveRecords. pilot-examples.ts:306-309 returns supplied fixture fallback for names lacking live record; line312 throws only when a known live record vanished. Do not describe all observations as live-store evidence."
+          }
+        ],
+        "additional_gaps": [
+          {
+            "workflow": "EDITOR",
+            "anchor": "editors/vscode/src/client.ts:544-570",
+            "gap": "initialize response is stored without validating capabilities/error result; async spawn failure settles pending initialize as null and start resolves, with failure reported via onExit. Existing packet names this risk; mocked success does not certify actual binary startup."
+          },
+          {
+            "workflow": "EDITOR",
+            "anchor": "compiler/src/lsp/server.rs:1181-1187",
+            "gap": "Other framing I/O errors continue loop; persistent non-EOF read failure may keep looping. EOF/torn frame specifically terminate; no blanket clean termination claim for all transport failures."
+          },
+          {
+            "workflow": "BDD",
+            "anchor": "packages/testkit/src/runner/table.ts:206-227",
+            "gap": "createScope rejection is setup-failed and has no scope to dispose. Generic fresh-scope interface cannot enforce actual isolation of caller-supplied createScope; pilot fixed actor/shared state prevents broader permissions/isolation qualification."
+          }
+        ],
+        "anchor_status": {
+          "confirmed_named_test_entries": [
+            "compiler/tests/check.rs:884 readiness_gate/:982 warnings_never_block",
+            "compiler/tests/analysis.rs:154 malformed_declaration_preserves_independent_sibling_diagnostics/:1114 real_catalog_end_to_end",
+            "compiler/tests/codegen.rs:2967 refuses_incomplete_analysis_without_ack/:3164 unsupported_schema_positions_error/:3305 catalog_profile_violations_stay_loud",
+            "compiler/tests/exe.rs:300 compile_twice_is_byte_identical",
+            "compiler/tests/ide.rs:733 server_publishes_analysis_and_lint/:755 server_stale_version_suppressed_with_real_backend/:911 server_code_action_fix_application",
+            "compiler/tests/lsp_typed_output.rs:266 real_diagnostics_keep_valid_siblings_after_a_parse_error"
+          ],
+          "execution": "No test execution by reviewer. Existing Step1 selected replay and historical receipts retain their original narrow inputs/host/body-skip qualification. Root separate editor recipe execution must use its own current raw receipts."
+        }
+      }
+    },
+    {
+      "family": "forwarding-common",
+      "reviewer": "Sol 6.1 medium",
+      "receipt": {
+        "verdict": "Accept five forwarding and common/public source-consumer routes after bounded corrections. Source paths establish behavior; fresh receipt only qualifies named actual built-dist calls, not rebuild equivalence or remote application.",
+        "scope": "Independent read-only review of /private/tmp/canlang-step3-root.json; selected exact source anchors and saved additional-replay/raw outputs inspected. No builds/runtime/network/repository changes by reviewer.",
+        "verified": [
+          {
+            "route": "all five",
+            "anchors": [
+              "compiler/src/cli.rs:450 parse_args (:528 thin suffix passthrough)",
+              "compiler/src/cli.rs:1743 run_thin_entry (:1755 Command.status)",
+              "packages/cloudflare/src/cli/platform.ts:118 parse/:407 main"
+            ],
+            "finding": "Every suffix is passed verbatim after recognized thin subcommand; default inherited child stdio and exact numeric status forwarded. No code means2; spawn/missing bin E7004/2. Public run_thin_entry admits arbitrary caller-selected subcommand; CLI recognizes five."
+          },
+          {
+            "route": "run",
+            "anchors": [
+              "packages/cloudflare/src/cli/platform.ts:209 runArtifact",
+              "packages/cloudflare/src/runtime/modules.ts:92 assembleModules",
+              "packages/cloudflare/src/runtime/invoke.ts:444 invokeCallable"
+            ],
+            "finding": "Run loads and stages modules then reports entry/callables/pages; no module import/handler invocation. invokeCallable separate route calls registry member and returns value/failure."
+          },
+          {
+            "route": "test",
+            "anchors": [
+              "packages/cloudflare/src/cli/platform.ts:336 runTest",
+              "packages/cloudflare/src/dev/row-scope.ts:72 createLocalRowScope",
+              "packages/cloudflare/src/dev/local-run.ts:65 startLocalDev"
+            ],
+            "finding": "Miniflare local worker/D1 scope snapshot then finally disposal; emitted receipt executed:0 even if testModules>0. No generated row loader/runner caller in CLI route."
+          },
+          {
+            "route": "build",
+            "anchors": [
+              "packages/cloudflare/src/preparation/host.ts:248 runPreparedBuild",
+              "packages/cloudflare/src/preparation/host.ts:510 selectBackend/:548 runNativeJob"
+            ],
+            "finding": "Artifact validation + release lockstep then count/id/path receipt; no bundling/invocation. rg current src found no production calls to selectBackend/runNativeJob."
+          },
+          {
+            "route": "deploy",
+            "anchors": [
+              "packages/cloudflare/src/preparation/host.ts:292 runPreparedDeploy (:310 sidecars, :336 confirmation, :395 preview, :429 writes, :442 apply)",
+              "packages/cloudflare/src/upgrade/apply.ts:184 runWranglerDeploy"
+            ],
+            "finding": "Compat precedes confirmation; preview builds plan in memory and returns wrote:false; --yes only after compiler match writes bundle/plan/toml then default Wrangler timed spawn. applied:false result or caught apply throw still produces ok:true/wrote:true with normal0. No remote execution reviewer evidence."
+          },
+          {
+            "route": "activate",
+            "anchors": [
+              "packages/cloudflare/src/cli/platform.ts:270 runActivate (:310 activate inputs, :323 emit)",
+              "packages/cloudflare/src/deploy/activate.ts:276 activate"
+            ],
+            "finding": "Loads bundle/probes installed, optional snapshot store; supplies no inventory/gates so verdict inactive. inactive verdict emits ok:true/active:false with normal0; report route does not install or change serving."
+          },
+          {
+            "route": "shared/common",
+            "anchors": [
+              "compiler/src/main.rs:8 panic boundary",
+              "compiler/src/cli.rs:216 run/:226 write_ignoring_broken_pipe",
+              "compiler/src/json.rs:150 parse",
+              "compiler/src/diagnostic.rs:267 to_json/:275 to_text"
+            ],
+            "finding": "Broken pipe ignored retaining chosen code; other output errors panic, caught only binary unwind boundary E7005/2. Library callers own admission/returned state."
+          }
+        ],
+        "required_corrections": [
+          {
+            "workflow": "FORWARD_RUN.scenarios.malformed",
+            "correction": "Artifact load failures caught at platform.ts213 become invalid-artifact/2. assembleModules await platform.ts225 is outside catch: zero-module/UI/import/path/IO/map rejects reach main.catch447 => {ok:false,command:null,code:internal,detail} exit1, forwarded as1. Do not list all import/path producer failures as2."
+          },
+          {
+            "workflow": "FORWARD_DEPLOY.scenarios.malformed",
+            "correction": "loadBundleJson host.ts104 catches unreadable/invalid JSON and directly calls fail(activate,invalid-activation-bundle), fail70 process.exit2. Deploy catch invalid-deploy-bundle does not intercept process.exit. Well-read but structurally invalid sidecar needRecord/shape throws may be caught as deploy invalid-deploy-bundle. Saved wrong-prod deploy stdout establishes activate envelope/2, not confirm-required."
+          },
+          {
+            "workflow": "PUBLIC_SHARED_BOUNDARIES.stages",
+            "correction": "No TextIndex or render_json/render_text symbols exist in compiler/src current source. Use SourceDb/LineIndex source.rs and DiagnosticResult::to_json267/to_text275. Json parse150 confirmed."
+          },
+          {
+            "workflow": "FORWARD_BUILD.valid/stages",
+            "correction": "JSON modules is a count; callables/pages are arrays of ids/paths, not JSON numeric counts. Human stderr counts all three. Saved build receipt has modules:1,callables:[],pages:[]."
+          },
+          {
+            "workflow": "FORWARD_DEPLOY.evidence/gaps",
+            "correction": "Update preview status only when corrected-local raw receipt arrives. Initial forward-deploy-refusal --env prod ends at unreadable environment/activate envelope and qualifies no bare confirmation or preview branch. Initial forward-activate-inactive id likewise returned2 at bad environment, not inactive0; rename/qualify case by actual output."
+          }
+        ],
+        "additional_limits": [
+          {
+            "anchor": "packages/cloudflare/src/preparation/host.ts:429-436",
+            "finding": "Bundle/plan/toml writes are ordered nontransactional write operations outside local catch; failure can leave partial files and reaches top-level internal/1. Do not imply whole-deployment atomic write/rollback."
+          },
+          {
+            "anchor": "packages/cloudflare/src/cli/platform.ts:186-198 and host.ts395",
+            "finding": "Parser accepts --preview and --yes together; preview branch returns without applying. Exact flag acceptance/status belongs source, not inferred approval policy."
+          },
+          {
+            "anchor": "packages/cloudflare/src/cli/platform.ts:447",
+            "finding": "Unexpected errors emit internal JSON on stdout exit1 without human stderr error line; Rust does not reshape child envelope."
+          },
+          {
+            "anchor": "packages/cloudflare/src/cli/platform.ts:218",
+            "finding": "run mkdtemp staging not cleaned in shown route. Test also stages temp tree; scope disposal handles Miniflare but no displayed temp cleanup. These are trace gaps, not semantic recommendations."
+          }
+        ],
+        "saved_evidence_observed": {
+          "receipt": "docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/additional-replay.json",
+          "valid_saved_cases": [
+            "forward-run-staged exit0 entry URL",
+            "forward-build-receipt exit0 count/id/path metadata"
+          ],
+          "initial_failures": [
+            "forward-activate-inactive --env prod exit2 unreadable sidecar",
+            "forward-deploy-refusal --env prod exit2 hardcoded activate envelope"
+          ],
+          "qualification": "Actual native debug Can\u2192executable wrapper\u2192built workspace platform. Package fixture hand-authored, source/dist separately pinned; no package rebuild or positive Worker/GUI/remote --yes acceptance. Corrected local cases not yet reviewed in this packet."
+        }
+      }
+    }
+  ],
+  "final_delta_review": null
+}

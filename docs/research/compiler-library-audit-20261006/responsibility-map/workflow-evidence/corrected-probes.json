@@ -1,0 +1,150 @@
+{
+  "scope": "Corrected package hand-authored fixture local environment after initial prod-env rejection; actual current platform/compiler forwarding. No remote changes or --yes. Fixture sidecars pinned; no compiler-emitted/installed application qualification.",
+  "before": [
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.store.json",
+      "bytes": 204,
+      "sha256": "c7662dbd39d2844ec033536ebe2ca18b2c046d47b0fef5364112d463f08ea873"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.descriptor.json",
+      "bytes": 403,
+      "sha256": "263cfcf90ba05629b32ba7bcecaa060e8eb4c9f167b4cccece545097af80503a"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json",
+      "bytes": 582,
+      "sha256": "ff47eb80f46fdd70655ac4e8d53fc1104c34596845453c515498f8fb9d8dbd93"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.local.environment.json",
+      "bytes": 176,
+      "sha256": "42f4eed2a09c0488326c2f83dd9b66ddefc45a9c68bd2ebc9cc4fef162cabb43"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.target.json",
+      "bytes": 191,
+      "sha256": "e8a200522182935dae5cc05006940e908279f7ff047f63df0ce010b382d120fb"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+      "bytes": 19800664,
+      "sha256": "4e2aad9448b5bf87d86117106bf3671b249ddc06cb2f9912ea61d62f7effd897"
+    },
+    {
+      "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform",
+      "bytes": 124,
+      "sha256": "7566364f14df4dab2a81069691b95409a28747de14d961c7f92860a7dadca97d"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/dist/preparation/host.js",
+      "bytes": 23468,
+      "sha256": "6b3f708430efff75b0cad88c2cd6861955ccc023a0a48ddab2e91dc737493a62"
+    }
+  ],
+  "after": [
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.store.json",
+      "bytes": 204,
+      "sha256": "c7662dbd39d2844ec033536ebe2ca18b2c046d47b0fef5364112d463f08ea873"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.descriptor.json",
+      "bytes": 403,
+      "sha256": "263cfcf90ba05629b32ba7bcecaa060e8eb4c9f167b4cccece545097af80503a"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json",
+      "bytes": 582,
+      "sha256": "ff47eb80f46fdd70655ac4e8d53fc1104c34596845453c515498f8fb9d8dbd93"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.local.environment.json",
+      "bytes": 176,
+      "sha256": "42f4eed2a09c0488326c2f83dd9b66ddefc45a9c68bd2ebc9cc4fef162cabb43"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.target.json",
+      "bytes": 191,
+      "sha256": "e8a200522182935dae5cc05006940e908279f7ff047f63df0ce010b382d120fb"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+      "bytes": 19800664,
+      "sha256": "4e2aad9448b5bf87d86117106bf3671b249ddc06cb2f9912ea61d62f7effd897"
+    },
+    {
+      "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform",
+      "bytes": 124,
+      "sha256": "7566364f14df4dab2a81069691b95409a28747de14d961c7f92860a7dadca97d"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/dist/preparation/host.js",
+      "bytes": 23468,
+      "sha256": "6b3f708430efff75b0cad88c2cd6861955ccc023a0a48ddab2e91dc737493a62"
+    }
+  ],
+  "runs": [
+    {
+      "id": "forward-activate-local",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "activate",
+        "--artifact",
+        "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json",
+        "--env",
+        "local"
+      ],
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:23:29.832522+00:00",
+      "elapsed_seconds": 5.862,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-local.stdout",
+          "bytes": 220,
+          "sha256": "acc1f75c14334a4502f2903a47093dee56a113b21cbb40a0c2426291d382aad9"
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-local.stderr",
+          "bytes": 34,
+          "sha256": "508b9ccbc13df4dc2342896f88b527631b8330e06591e84b8c3c618062513982"
+        }
+      }
+    },
+    {
+      "id": "forward-deploy-local-refusal",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "deploy",
+        "--artifact",
+        "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json",
+        "--env",
+        "local"
+      ],
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:23:35.694753+00:00",
+      "elapsed_seconds": 6.221,
+      "exit_code": 2,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-local-refusal.stdout",
+          "bytes": 168,
+          "sha256": "ed282dcafc64ae0fb47e52dae296e51dffd755dd08ffed0089211a56f2e1840a"
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-local-refusal.stderr",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    }
+  ],
+  "changed_inputs": []
+}

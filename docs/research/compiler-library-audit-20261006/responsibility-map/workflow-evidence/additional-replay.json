@@ -1,0 +1,610 @@
+{
+  "scope": "Fresh native debug can -> actual built workspace platform CLI through a temporary executable shim. Hand-authored package activation fixture is not compiler emission or application execution. Editor startup compiles current TS then mocks VS Code and child; capability probe spawns actual compiler but not GUI. No --yes/apply/deploy/activate external writes or package rebuilds. Source/dist are pinned independently; same-byte snapshots alone do not prove all package builds match current source.",
+  "compiler_binary": {
+    "path": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+    "sha256": "4e2aad9448b5bf87d86117106bf3671b249ddc06cb2f9912ea61d62f7effd897",
+    "bytes": 19800664
+  },
+  "compiler_version": "can 0.1.0 (commit b975817b; language 1.0; schema 1)",
+  "tools": {
+    "node": {
+      "path": "/Users/vince/.vite-plus/bin/node",
+      "sha256": "ce6081b1dc4585695c843ed92efbf6568a1b971818b097bc28dfd3751daea1c4",
+      "bytes": 8421568
+    },
+    "node_version": "v24.21.0",
+    "bun": {
+      "path": "/Users/vince/.bun/bin/bun",
+      "sha256": "35d20dd0263e5c950194434b925454fdfa9ba6e4467da960410fa05b08a7a5b5",
+      "bytes": 61884464
+    },
+    "bun_version": "1.4.2"
+  },
+  "consumer_before": [
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/dist/cli/platform.js",
+      "sha256": "f3b2415475d81162b9292d0d295068583f2c88d15afb823c127ac60f91665ffa",
+      "bytes": 17187
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "bytes": 17588
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+      "bytes": 24710
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/editors/vscode/src/client.ts",
+      "sha256": "048b44dce7fc1ba5bba80985ba3b4710c392993f2b03d8db19fd0a48072063af",
+      "bytes": 28791
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/editors/vscode/src/extension.ts",
+      "sha256": "916ccb65410f7f55e1b4ffe5a3e9a1e0294d6fba11abb3ffd802515103da86b6",
+      "bytes": 15840
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json",
+      "sha256": "ff47eb80f46fdd70655ac4e8d53fc1104c34596845453c515498f8fb9d8dbd93",
+      "bytes": 582
+    },
+    {
+      "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform",
+      "sha256": "7566364f14df4dab2a81069691b95409a28747de14d961c7f92860a7dadca97d",
+      "bytes": 124
+    }
+  ],
+  "consumer_after": [
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/dist/cli/platform.js",
+      "sha256": "f3b2415475d81162b9292d0d295068583f2c88d15afb823c127ac60f91665ffa",
+      "bytes": 17187
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "bytes": 17588
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+      "bytes": 24710
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/editors/vscode/src/client.ts",
+      "sha256": "048b44dce7fc1ba5bba80985ba3b4710c392993f2b03d8db19fd0a48072063af",
+      "bytes": 28791
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/editors/vscode/src/extension.ts",
+      "sha256": "916ccb65410f7f55e1b4ffe5a3e9a1e0294d6fba11abb3ffd802515103da86b6",
+      "bytes": 15840
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json",
+      "sha256": "ff47eb80f46fdd70655ac4e8d53fc1104c34596845453c515498f8fb9d8dbd93",
+      "bytes": 582
+    },
+    {
+      "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform",
+      "sha256": "7566364f14df4dab2a81069691b95409a28747de14d961c7f92860a7dadca97d",
+      "bytes": 124
+    }
+  ],
+  "editor_outputs": [
+    {
+      "path": "/Users/vince/Projects/canlang/editors/vscode/out/client.js",
+      "sha256": "47a8de28f1dfaec38b22436aa4432d3d095cca213a44401e938db18bc0e2e03f",
+      "bytes": 20987
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/editors/vscode/out/extension.js",
+      "sha256": "472240bb06e7529b691cc4b62618c0871f6192b3ce0ff22c59ce4c46e5bbdcf9",
+      "bytes": 16221
+    }
+  ],
+  "runs": [
+    {
+      "id": "editor-startup",
+      "argv": [
+        "/Users/vince/.bun/bin/bun",
+        "run",
+        "test:startup"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/editors/vscode",
+      "environment_overrides": {},
+      "started_utc": "2026-10-07T10:18:38.040005+00:00",
+      "elapsed_seconds": 11.342,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/editor-startup.stdout",
+          "sha256": "1e7d6a431d911e0f9fcc9d702466aa9b07860b2bf830cd32bac32598b3c5589b",
+          "bytes": 541
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/editor-startup.stderr",
+          "sha256": "9c1c3646d022eb18c1e64435f5f4e325ce0b958f50419520b56739965463d96e",
+          "bytes": 200
+        }
+      }
+    },
+    {
+      "id": "editor-capabilities",
+      "argv": [
+        "/Users/vince/.vite-plus/bin/node",
+        "editors/vscode/test/lsp-capabilities.cjs"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_BIN": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      },
+      "started_utc": "2026-10-07T10:18:49.382070+00:00",
+      "elapsed_seconds": 4.708,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/editor-capabilities.stdout",
+          "sha256": "051cc0b7864eab60ca39b79e28d34c0112df037f79039acf2bae784abfd6c9df",
+          "bytes": 1219
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/editor-capabilities.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    },
+    {
+      "id": "forward-run-help",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "run",
+        "--help"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:18:54.090619+00:00",
+      "elapsed_seconds": 6.43,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170
+        }
+      }
+    },
+    {
+      "id": "forward-run-invalid",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "run",
+        "--artifact",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/invalid.artifact.json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:00.521078+00:00",
+      "elapsed_seconds": 4.83,
+      "exit_code": 2,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-invalid.stdout",
+          "sha256": "22df9ccd53805c5bde78753de3968deb5a3f56dc7edc8a5b783b93764208ff68",
+          "bytes": 222
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-invalid.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    },
+    {
+      "id": "forward-test-help",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "test",
+        "--help"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:05.351035+00:00",
+      "elapsed_seconds": 5.243,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-test-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-test-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170
+        }
+      }
+    },
+    {
+      "id": "forward-test-invalid",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "test",
+        "--artifact",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/invalid.artifact.json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:10.594374+00:00",
+      "elapsed_seconds": 6.136,
+      "exit_code": 2,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-test-invalid.stdout",
+          "sha256": "fd6ea0f788420d357317a44b09d7ae07e50971a6a6d640d592aee2c7c17eaa86",
+          "bytes": 219
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-test-invalid.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    },
+    {
+      "id": "forward-build-help",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "build",
+        "--help"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:16.731058+00:00",
+      "elapsed_seconds": 6.238,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170
+        }
+      }
+    },
+    {
+      "id": "forward-build-invalid",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "build",
+        "--artifact",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/invalid.artifact.json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:22.969153+00:00",
+      "elapsed_seconds": 6.581,
+      "exit_code": 2,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-invalid.stdout",
+          "sha256": "447f94ae9b1f7bfc9c98f9260a827b003e11d430929316c32754fbfb2c068537",
+          "bytes": 187
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-invalid.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    },
+    {
+      "id": "forward-deploy-help",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "deploy",
+        "--help"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:29.550918+00:00",
+      "elapsed_seconds": 4.369,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170
+        }
+      }
+    },
+    {
+      "id": "forward-deploy-invalid",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "deploy",
+        "--artifact",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/invalid.artifact.json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:33.919766+00:00",
+      "elapsed_seconds": 4.891,
+      "exit_code": 2,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-invalid.stdout",
+          "sha256": "477d717e6cb9d7255f4d26651ed29d586b44051a47635952fe5f08652c4dd944",
+          "bytes": 187
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-invalid.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    },
+    {
+      "id": "forward-activate-help",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "activate",
+        "--help"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:38.810941+00:00",
+      "elapsed_seconds": 6.023,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170
+        }
+      }
+    },
+    {
+      "id": "forward-activate-invalid",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "activate",
+        "--artifact",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/invalid.artifact.json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:44.834163+00:00",
+      "elapsed_seconds": 5.9,
+      "exit_code": 2,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-invalid.stdout",
+          "sha256": "d659d78937f183315418d79092c55ae7d4856aa9a8dde84db0cd8e1ecfb87945",
+          "bytes": 85
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-invalid.stderr",
+          "sha256": "e8706d0d00271560ae4108b2e7fa3a0238c13e377781548c5a3836b2d6023bf9",
+          "bytes": 128
+        }
+      }
+    },
+    {
+      "id": "forward-run-staged",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "run",
+        "--artifact",
+        "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:50.734054+00:00",
+      "elapsed_seconds": 6.516,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-staged.stdout",
+          "sha256": "1a18dc9d8f85ed73bfb295bb44d57a9c987833caecf70c192a25d9ef05622df8",
+          "bytes": 136
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-staged.stderr",
+          "sha256": "a2a062904247ae52c5892f944f2ffa9d397c36afafb52cdbaad200afc30935ea",
+          "bytes": 42
+        }
+      }
+    },
+    {
+      "id": "forward-build-receipt",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "build",
+        "--artifact",
+        "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:19:57.249996+00:00",
+      "elapsed_seconds": 6.203,
+      "exit_code": 0,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-receipt.stdout",
+          "sha256": "7535f67cf19c346be8f75f696442b2ff620c68596cf3ac13ea5a9cc65a7e6037",
+          "bytes": 86
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-receipt.stderr",
+          "sha256": "cd4fdf456cd3855ced007e1f5cc232dac50c27be9021be72f34ee1cc78b14151",
+          "bytes": 55
+        }
+      }
+    },
+    {
+      "id": "forward-activate-inactive",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "activate",
+        "--artifact",
+        "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json",
+        "--env",
+        "prod"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:20:03.453459+00:00",
+      "elapsed_seconds": 4.692,
+      "exit_code": 2,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-inactive.stdout",
+          "sha256": "3c9fecb8844f774a5012ac3183a390704457dad8552321636c742aafe545e1ff",
+          "bytes": 324
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-inactive.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      },
+      "actual_outcome": "Missing prod environment sidecar -> invalid-activation-bundle exit2; case does not qualify original intended inactive/confirmation boundary. Corrected local probes saved separately."
+    },
+    {
+      "id": "forward-deploy-refusal",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "deploy",
+        "--artifact",
+        "/Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json",
+        "--env",
+        "prod"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:20:08.146108+00:00",
+      "elapsed_seconds": 5.521,
+      "exit_code": 2,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-refusal.stdout",
+          "sha256": "3c9fecb8844f774a5012ac3183a390704457dad8552321636c742aafe545e1ff",
+          "bytes": 324
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-refusal.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      },
+      "actual_outcome": "Missing prod environment sidecar -> invalid-activation-bundle exit2; case does not qualify original intended inactive/confirmation boundary. Corrected local probes saved separately."
+    },
+    {
+      "id": "forward-missing-artifact",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "run",
+        "--artifact",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/missing.artifact.json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "environment_overrides": {
+        "CAN_PLATFORM_BIN": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/can-platform"
+      },
+      "started_utc": "2026-10-07T10:20:13.667269+00:00",
+      "elapsed_seconds": 5.706,
+      "exit_code": 2,
+      "timed_out": false,
+      "streams": {
+        "stdout": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-missing-artifact.stdout",
+          "sha256": "b9c989f7fe423ba145072b6974aca2439bbe6235b6608657070bacdd6e158659",
+          "bytes": 187
+        },
+        "stderr": {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-missing-artifact.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    }
+  ],
+  "changed_consumers": [],
+  "startup_checks": 11,
+  "shim_script": "#!/bin/sh\nexec /Users/vince/.vite-plus/bin/node /Users/vince/Projects/canlang/packages/cloudflare/dist/cli/platform.js \"$@\"\n",
+  "generated_invalid_fixture": {
+    "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step3-forward-y89qs1dt/invalid.artifact.json",
+    "content": "{\"note\":\"opaque\"}\n",
+    "sha256": "39bd72a1c5dfd6fcc9a9b521bea5388afc7df98afca8e1a17f7357e7a65c84b8"
+  },
+  "capability_checks": 39
+}

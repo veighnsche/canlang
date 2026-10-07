@@ -1,0 +1,1 @@
+{"ok":false,"command":"activate","code":"invalid-activation-bundle","detail":"environment not readable: /Users/vince/Projects/canlang/packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.prod.environment.json (bundle convention: <stem>.{descriptor,<env>.environment,target}[,store].json next to --artifact)"}
