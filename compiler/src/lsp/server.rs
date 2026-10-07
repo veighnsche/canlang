@@ -299,22 +299,7 @@ impl LanguageAnalysis for RealAnalysis {
                 .into_iter()
                 .filter(|d| d.primary.file == id),
         );
-        diagnostics.sort_by(|a, b| {
-            (
-                a.primary.file,
-                a.primary.start,
-                a.primary.end,
-                a.code,
-                &a.message,
-            )
-                .cmp(&(
-                    b.primary.file,
-                    b.primary.start,
-                    b.primary.end,
-                    b.code,
-                    &b.message,
-                ))
-        });
+        diagnostics.sort_by(Diagnostic::canonical_cmp);
         diagnostics
     }
 

@@ -159,22 +159,7 @@ pub fn emit(
         sources.catalog,
     );
     diags.append(&mut artifact_diags);
-    diags.sort_by(|a, b| {
-        (
-            a.primary.file,
-            a.primary.start,
-            a.primary.end,
-            a.code,
-            &a.message,
-        )
-            .cmp(&(
-                b.primary.file,
-                b.primary.start,
-                b.primary.end,
-                b.code,
-                &b.message,
-            ))
-    });
+    diags.sort_by(Diagnostic::canonical_cmp);
     (artifact, diags)
 }
 
