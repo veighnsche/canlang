@@ -243,3 +243,6 @@ Root bounded capability integration: State retains checked artifact nullable-ref
 
 
 Root bounded DEL-D03 reconciliation: Mixed and Package writers share the existing planned file/ancestor check. Source-current clean-room336-case ancestry matrix, exact-error/declaration and actual FS pairs accept finite pre-effect collision refusal, including internal trailing-slash identity. Raw output names and unrelated native trailing-path failures remain unchanged; runtime+466bytes/eight lines and163-line owning proof are correctness cost. Wider sidecar, child/lifetime, race/atomic, installed/native and complete checkpoint review remain open; no merge or new responsibility owner.
+
+
+Root bounded runtime peer integration: Cloudflare stdlib directly reexports the existing Values int64/datetime/compareInstant owners, with runtime-stdlib-pure.test.ts. Exact producer/error identity and private source/generated temporal compatibility are independently reviewed; unchanged baseline failures, string integer hydration, void replay, actual host/installed/backend/context and task9/F1 remain open. No new wrapper/data plane/owner, zero-initializer claim, production reduction, merge or complete checkpoint advance.

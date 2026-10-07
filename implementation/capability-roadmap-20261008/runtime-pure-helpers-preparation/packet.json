@@ -1,0 +1,9 @@
+{
+  "status": "ready for independent source-contract review; no source/test/build/runtime activation",
+  "artifacts": {
+    "PLAN.md": "052e184eb9f38955b5d3d7799d3ef295a0dbadd2f4f3a093ef49ccb935be2440",
+    "pins.json": "58c3ba85f40e942e373e6121c2241913896a55cd08722d8476856a8fbc86771b",
+    "proposed-source.txt": "caf31afca8aaee37188234c530e1c77032a9023a494a87c4fb78b3052cb5c08a",
+    "proposed-test.txt": "6af5cdec3681419fba28eb50b96f3dd89ed605313d140306eb1b549bb12ba750"
+  }
+}

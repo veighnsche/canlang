@@ -1,0 +1,24 @@
+[
+  {
+    "command": [
+      "/private/tmp/canlang-f1-metadata-target/debug/can",
+      "check",
+      "--format=json",
+      "--catalog",
+      "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+      "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers/DatetimeControl.can"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "/private/tmp/canlang-f1-metadata-target/debug/can",
+      "compile",
+      "--format=json",
+      "--catalog",
+      "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+      "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers/DatetimeControl.can"
+    ],
+    "exit": 0
+  }
+]
