@@ -1485,3 +1485,10 @@ Observer/review errors are preserved separately: one audit-only compilation omit
 **Accepted existing-contract repairs:** SEM-R01 preserves a nullable peer when joining equal array element types, independent of authored order. Contextual arrays and arrays inferred into locals both reject a nonnullable argument; established narrowing still admits both orders. SYN-R02 reads valid module header source metadata despite an unrelated malformed body, while malformed headers retain local suppression through parser/resolver identity. No new nullable-element type syntax, locale policy or general union inference is introduced.
 
 **Verification:** the nullable regression failed against the predecessor's fixed-first case. The complete b4_check suite passes281 tests including exact rejection anchors, local/contextual paths, narrowing positives, app/package source variants and invalid-header controls. Independent source review found no blocker. Captured historical nullable-array rejection is E3001; the old audit packet's E3005 expectation was mistaken. Production types.rs grows one net physical line; this is correctness growth, not library simplification. No merge or living-plan checkpoint advancement.
+
+
+## 2026-10-07 — Retire duplicate BDD string quoting
+
+**Accepted simplification:** BDD and production JS use the existing shared JSON string quote owner. Remove private bdd::js_string rather than leave a wrapper/fallback; narrow shared visibility to the codegen module. Complete two-owner production closure removes six lines and adds one import line (net−5), exceeding the declared at-least-three-line retirement target. This is a bounded achieved saving, not completion of the programme's aggregate reduction goal.
+
+**Verification:** both independent fixed-byte control/Unicode unit tests, two typed BDD tests and all six real compiler/testkit string witnesses pass. Source review confirms equivalent escaping and error invariant; no new dependencies or wire/recipe identity policy. No GUI, installed-release or whole-app conclusion; no merge/checkpoint advancement.
