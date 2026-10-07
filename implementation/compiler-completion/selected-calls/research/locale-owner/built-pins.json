@@ -1,0 +1,8 @@
+{
+  "packages/cloudflare/dist/runtime/context.js": "829a1b9a765af035e1ea73d852c7bbca04d21db77d104d119eb0c26f469f8c7f",
+  "packages/cloudflare/dist/runtime/invoke.js": "06fd1beb4a640137cee4f28772eb1eabf71956acac97d22666224b7c9928ba0d",
+  "packages/cloudflare/dist/worker/assembly.js": "e00b6dc58da7ddf8733d86f19769493efc483c8f3b70181d892ad39838f92c6f",
+  "packages/state/dist/src/invocation/context.js": "227e0fb15bfa5adf3c31909d9706a5917635be03bfe6b099e7a91d3f93567fab",
+  "packages/values/dist/src/stdlib-pure.js": "73ef39b37549767cc6d7662fc559198674500bbd5d8f7a12deffb7216889a73b",
+  "packages/values/dist/src/locale.js": "5d6cc1f08b9ddb0a7ddf73778b4950d214c116a02b102ca60169214f8339f030"
+}

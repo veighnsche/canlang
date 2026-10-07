@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Localized source messages in a reusable package can be invoked by applications with different declared default locales. Checked metadata must merge application composition settings consistently and keep message source language separate; package settings do not contribute deployment context. Trusted admission already resolves team timezone, with UTC only when no team exists. Generated routines run with another context containing caller, clock, store and queries, not those formatter inputs; nested derives keep it unchanged. A public formatter with two arguments and explicit descriptor/options handles exact scalar carriers and returns text/locale provenance. All choices below must connect checked app metadata, actual canonical/occurrence invocations and shared derives, and require clear compatibility refusal when the needed generated protocol is unavailable. Do not overwrite receipt identity, infer metadata from filenames, select viewer locale as app default, or change the formatter facade.",
+    "questions": {
+      "format_context": {
+        "type": "choice",
+        "instructions": "Which option best preserves trusted provenance and current APIs while avoiding unnecessary contract/caller migration? Assess each against the same full workflow.",
+        "criteria": {
+          "handler_scope": "Add immutable formatting inputs to the existing executable handler context, populated only from checked selected-app metadata and admitted team timezone. Migrate canonical/direct/occurrence handler constructors, generated adapter and compatibility requirements; nested context forwarding stays unchanged. Keep admission receipt identity and public formatter unchanged. Missing qualified scope fails loudly.",
+          "canonical_context": "Add app default to the canonical admitted invocation context alongside existing team timezone, then explicitly forward a formatting view to executable handlers. Migrate shared canonical contracts, admission constructors/fixtures and every handler/occurrence entry plus generated adapter/compatibility. This offers one broader trusted carrier but changes more shared APIs; caller/store/query context remains separate.",
+          "bound_factory": "Bind selected-app formatting configuration into generated callable factories, passing admitted timezone per invocation. Migrate the current zero-argument factory convention and every loader/dispatcher/testkit/occurrence constructor to bind the selected app consistently, including shared packages and compatibility. Preserve canonical receipt and public formatter, but change all callable factory consumers."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "format_context": {
+        "type": "choice",
+        "choice": "handler_scope",
+        "confidence": 0.92,
+        "probabilities": {
+          "bound_factory": 0.01,
+          "canonical_context": 0.04,
+          "handler_scope": 0.95
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 708,
+      "output_tokens": 43
+    }
+  }
+}

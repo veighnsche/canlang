@@ -636,10 +636,26 @@ fn golden_teamtasks_structure() {
         "selectors"
     );
     assert!(
-        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>format("),
-        "observations"
+        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(() => { throw new Error(\"call has no lowering\"); })()"),
+        "unchecked observation stays loud:\n{suite}"
     );
-    assert!(suite.contains("{locale:\"nl\"})"), "format locale");
+    let missing: Vec<_> = diags
+        .iter()
+        .filter(|d| {
+            d.code == "E6008"
+                && d.message == "cannot lower call: checked selected-call binding is not published"
+        })
+        .collect();
+    assert_eq!(
+        missing.len(),
+        1,
+        "untyped BDD format observation: {diags:?}"
+    );
+    let span = missing[0].primary;
+    assert_eq!(
+        &db.get(id).unwrap().text[span.start as usize..span.end as usize],
+        "format(task_count(count(Todo)),locale=\"nl\")"
+    );
     assert!(
         suite.contains("values:async(c,s)=>([\"members\",true,1n])"),
         "first row values:\n{suite}"
@@ -672,7 +688,7 @@ fn golden_teamtasks_structure() {
     }
     // Codegen diagnostics: zero E6006 (every emission-needed position
     // is checked and bridged), zero E6007 (the golden catalog verifies
-    // every referenced builtin), and two E6008 for catalog UI
+    // every referenced builtin), and three E6008: the untyped BDD call and catalog UI
     // factories with no §13 lowering (`tooltip`/`collapse`;
     // `breadcrumbs`/`input`/`textarea`/`pagination` lower now, and
     // A2b closed `delete`).
@@ -701,7 +717,7 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        2,
+        3,
         "unsupported count"
     );
     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
@@ -728,8 +744,8 @@ fn golden_teamtasks_structure() {
 
 /// G12: `awaited` follows the catalog `Effects` shape exactly — a
 /// builtin call awaits if and only if its catalog effects are
-/// `state-read`. Without a catalog the call is unverifiable (`E6007`)
-/// and lowers synchronously.
+/// `state-read`. Without a catalog there is no selected overload; the
+/// explicit incomplete emitter preserves an E6008 throwing stub.
 #[test]
 fn awaited_follows_catalog_effects() {
     let (db, id) = load_example("TeamTasks.can");
@@ -755,22 +771,25 @@ fn awaited_follows_catalog_effects() {
         diags.iter().all(|d| d.code != "E6007"),
         "catalog verifies every builtin"
     );
-    // Without a catalog the same call lowers synchronously and loud.
+    // Without a catalog no selected binding exists; lowering fails closed.
     let (program, result) = check_example(&db, id, None);
     let (artifact, diags) = emit_test_only(&program, &db, &result, None);
     assert!(
         !artifact.modules[0].js.contains("await count("),
-        "unverifiable calls stay sync"
+        "unchecked target is never guessed"
     );
     assert!(
-        artifact.modules[0].js.contains("count("),
-        "call still emits"
+        artifact.modules[0]
+            .js
+            .contains("(() => { throw new Error(\"call has no lowering\"); })()"),
+        "unchecked call emits a throwing stub"
     );
     assert!(
-        diags
-            .iter()
-            .any(|d| d.code == "E6007" && d.message.contains("'count'")),
-        "unverifiable count is a loud E6007"
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message == "cannot lower call: checked selected-call binding is not published"
+            && &db.get(id).unwrap().text[d.primary.start as usize..d.primary.end as usize]
+                == "count(Todo)"),
+        "unchecked count is a loud E6008 at the owning call"
     );
     let _ = std::fs::remove_file(&catalog_path);
 }
@@ -1159,8 +1178,8 @@ fn golden_expenseflow_structure() {
         "submit inputs"
     );
     assert!(
-        submit.contains("async(c,s)=>hasRole(c,\"expenses.reviewer\",s.reviewer_one)"),
-        "role predicate observation"
+        submit.contains("async(c,s)=>(() => { throw new Error(\"call has no lowering\"); })()"),
+        "unchecked role observation stays loud:\n{submit}"
     );
     assert!(
         submit.contains("async(c,s)=>!same(s.reviewer_one,s.reviewer_two)"),
@@ -1185,12 +1204,12 @@ fn golden_expenseflow_structure() {
     // caller/inputs/request/error, `let` bindings through `b`, and
     // assertions with §13 type ids.
     assert!(
-        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:money(25n,\"EUR\")})}"),
-        "sequence create call"
+        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:(() => { throw new Error(\"call has no lowering\"); })()})}"),
+        "sequence create keeps unchecked money stub"
     );
     assert!(
-        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>(await first(await records(c,\"expenses.Expense\",{where:($can$l$303a726f77)=>same($can$l$303a726f77.submitted_by,other)})))}"),
-        "sequence binding"
+        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>((() => { throw new Error(\"call has no lowering\"); })())}"),
+        "untyped sequence binding keeps missing-fact stub"
     );
     assert!(
         approve.contains("{operation:\"expenses.submit\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({expense:b.draft_claim})}"),
@@ -1203,12 +1222,12 @@ fn golden_expenseflow_structure() {
         "sequence request override with exact error"
     );
     assert!(
-        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim?.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"expenses.Expense.status\"]}"),
-        "sequence enum assertion"
+        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"unknown\"]}"),
+        "untyped sequence assertion keeps unknown metadata"
     );
     assert!(
-        approve.contains("types:[\"expenses.Expense.status\",\"user?\"]"),
-        "sequence tuple assertion types"
+        approve.contains("types:[\"unknown\",\"unknown\"]"),
+        "untyped sequence tuple metadata stays unknown"
     );
     assert!(
         approve.contains("dependencies:[$can$f$72657669657765725f6f6e65,$can$f$72657669657765725f74776f],sequence:["),
@@ -1258,8 +1277,9 @@ fn golden_expenseflow_structure() {
     }
     // Zero E6006 (tables and the approve sequence all bridge), zero
     // E6007 (the golden catalog verifies every referenced builtin),
-    // zero E6008 (every catalog factory, gate, slot and the value
-    // query lower).
+    // Sixteen E6008 are confined to unchecked BDD calls and the assertion
+    // types that depend on their untyped lets. This partial artifact makes
+    // no runtime claim; S9-Q07 must publish those owner facts and types.
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6006").count(),
         0,
@@ -1276,8 +1296,73 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        0,
+        16,
         "unsupported count: {diags:?}"
+    );
+    let missing: Vec<_> = diags
+        .iter()
+        .filter(|d| {
+            d.message == "cannot lower call: checked selected-call binding is not published"
+        })
+        .map(|d| {
+            assert_eq!(d.code, "E6008");
+            assert_eq!(d.primary.file, id);
+            (
+                d.primary.start,
+                d.primary.end,
+                db.get(id).unwrap().text[d.primary.start as usize..d.primary.end as usize]
+                    .to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        missing,
+        vec![
+            (2179, 2201, "reviewer(reviewer_one)".into()),
+            (2202, 2224, "reviewer(reviewer_two)".into()),
+            (3347, 3369, "reviewer(reviewer_one)".into()),
+            (3370, 3392, "reviewer(reviewer_two)".into()),
+            (3762, 3777, "money(25,\"EUR\")".into()),
+            (
+                3809,
+                3864,
+                "first(Expense as claim where claim.submitted_by==other)".into()
+            ),
+            (
+                4015,
+                4069,
+                "first(Expense as claim where claim.id==draft_claim.id)".into()
+            ),
+            (
+                4468,
+                4522,
+                "first(Expense as claim where claim.id==draft_claim.id)".into()
+            ),
+            (7529, 7544, "money(25,\"EUR\")".into()),
+            (7563, 7577, "money(0,\"EUR\")".into()),
+        ]
+    );
+    let downstream: Vec<_> = diags
+        .iter()
+        .filter(|d| {
+            d.message == "cannot lower sequence assertion: observation type is not resolvable"
+        })
+        .map(|d| {
+            assert_eq!(d.code, "E6008");
+            assert_eq!(d.primary.file, id);
+            (d.primary.start, d.primary.end)
+        })
+        .collect();
+    assert_eq!(
+        downstream,
+        vec![
+            (4104, 4132),
+            (4218, 4246),
+            (4556, 4583),
+            (4584, 4609),
+            (4715, 4742),
+            (4743, 4768)
+        ]
     );
     if let Some(node) = find_node() {
         for module in &artifact.modules {
@@ -7450,7 +7535,8 @@ fn a2a_action_external_targets_lower_to_schema() {
 /// A2b named→positional: builtin calls with named arguments lower
 /// positionally in catalog signature order (`money(minor,currency)`
 /// here; the corpus `fold=` 4th slot takes the same path), whether
-/// fully named out of order or mixed positional + named.
+/// fully named out of order or mixed positional + named. Reordering
+/// captures supplied values once in source order before applying slots.
 #[test]
 fn a2b_named_args_lower_positionally_in_signature_order() {
     let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do\n    let a = money(currency=\"EUR\", minor=25)\n    let b = money(30, currency=\"USD\")\n Then\n";
@@ -7461,8 +7547,8 @@ fn a2b_named_args_lower_positionally_in_signature_order() {
     );
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("money(25n,\"EUR\")"),
-        "out-of-order named args reorder:\n{js}"
+        js.contains("(($can$a$30)=>money($can$a$30[1],$can$a$30[0]))([\"EUR\",25n])"),
+        "out-of-order named args capture source order once:\n{js}"
     );
     assert!(
         js.contains("money(30n,\"USD\")"),

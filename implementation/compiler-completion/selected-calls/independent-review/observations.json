@@ -1,0 +1,130 @@
+{
+  "scope": "Independent actual production CLI and unmodified installed facade controls; direct getter inputs qualify evaluation only.",
+  "receipts": [
+    {
+      "id": "controls",
+      "exit": 0,
+      "modules": [
+        "$can$m$4175646974.mjs"
+      ]
+    },
+    {
+      "id": "aliases",
+      "exit": 0,
+      "modules": [
+        "$can$m$416c6961734175646974.mjs",
+        "$can$m$4f776e6572.mjs"
+      ]
+    },
+    {
+      "id": "winning",
+      "exit": 0,
+      "modules": [
+        "$can$m$57696e.mjs"
+      ]
+    },
+    {
+      "id": "winning-names",
+      "exit": 0,
+      "modules": [
+        "$can$m$57696e.mjs"
+      ]
+    },
+    {
+      "id": "awaits",
+      "exit": 0,
+      "modules": [
+        "$can$m$41776169744175646974.mjs"
+      ]
+    },
+    {
+      "id": "state-read-runtime",
+      "status": "OPEN",
+      "reason": "Actual emitted module fails import on absent stdlib require; syntax and await/lazy placement verified, runtime context forwarding not claimed."
+    },
+    {
+      "id": "missing-sorted",
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E3005",
+          "severity": "error",
+          "message": "`format` placeholder '{a}' has no values entry",
+          "primary": {
+            "file": 0,
+            "start": 62,
+            "end": 73
+          },
+          "related": [],
+          "tags": []
+        },
+        {
+          "code": "E3005",
+          "severity": "error",
+          "message": "`format` placeholder '{z}' has no values entry",
+          "primary": {
+            "file": 0,
+            "start": 62,
+            "end": 73
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "escaped-missing",
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E3005",
+          "severity": "error",
+          "message": "`format` placeholder '{z}' has no values entry",
+          "primary": {
+            "file": 0,
+            "start": 62,
+            "end": 79
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "malformed-reversed",
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E3005",
+          "severity": "error",
+          "message": "malformed `format` template: unmatched closing brace",
+          "primary": {
+            "file": 0,
+            "start": 62,
+            "end": 65
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "exact-arity",
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E3005",
+          "severity": "error",
+          "message": "'contains' takes 2 arguments, given 1",
+          "primary": {
+            "file": 0,
+            "start": 37,
+            "end": 58
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    }
+  ]
+}

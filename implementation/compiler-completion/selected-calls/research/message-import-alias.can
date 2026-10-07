@@ -1,0 +1,11 @@
+app T
+use P {m as alias}
+Given
+ derive g():text = format(alias(name="Bo"),locale=null)
+When
+Then
+package P
+ Given
+  export message m(name:text="Default")="Hi {name}"@{}
+ When
+ Then

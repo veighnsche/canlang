@@ -1,0 +1,12 @@
+app Dutch uses=[Shared]
+context
+ locale default="nl"
+app German uses=[Shared]
+context
+ locale default="de"
+package Shared source="fr"
+ Given
+  export message greeting="Bonjour"@{nl="Hallo",de="Hallo Deutsch"}
+  export derive g():text = format(greeting,locale=null)
+ When
+ Then

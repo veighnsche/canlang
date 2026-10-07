@@ -1,0 +1,15 @@
+{
+  "compiler/src/analysis/effects.rs": "3d5ae54a89c189ab907146ed702a10e3d22e91cb8400653e2029421f29054c07",
+  "compiler/src/analysis/resolve.rs": "a7e4a82c135e594e9163a4d2abc6a75518741a9648ed24be7b3cbe8eb109959f",
+  "compiler/src/analysis/types.rs": "49b9d4ff361136e768d5b39e3fb02063a1b2f1a2dd8e3a6f676e6ae3d9746080",
+  "compiler/src/codegen/ir.rs": "2644cb16e84d46c90f01f88d8a1a7cc8da4ac5a490ee7d64bad007878d17bb04",
+  "compiler/src/codegen/js.rs": "ed06577e463748474119a0e8d5714953257163842012047bc38d3a2af27247ed",
+  "packages/contracts/src/state.ts": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+  "packages/state/src/invocation/context.ts": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f",
+  "packages/cloudflare/src/worker/assembly.ts": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11",
+  "packages/cloudflare/src/runtime/context.ts": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+  "packages/cloudflare/src/runtime/invoke.ts": "cce3bb7c384dc086ec6ccb67f6e235a80c73ba152e5bef6c0e42bf1b13c7ab02",
+  "packages/cloudflare/src/runtime/executors.ts": "76d481665ae5c9ada116e797d91b8848fcaa4c2171a5126970f9b83fcf6d33c1",
+  "packages/interfaces/src/ports.ts": "b326f155d580543bd83f2aa00b8c1be18a468399474cb957e220d5c32f0c3629",
+  "packages/values/src/locale.ts": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e"
+}

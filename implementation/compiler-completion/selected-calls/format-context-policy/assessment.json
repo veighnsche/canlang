@@ -1,0 +1,56 @@
+{
+  "status": "accepted design choice; implementation/qualification pending",
+  "choice": "handler_scope",
+  "advice_only": true,
+  "responses": [
+    {
+      "request": 1,
+      "type": "choice",
+      "choice": "handler_scope",
+      "confidence": 0.93,
+      "probabilities": {
+        "handler_scope": 0.95,
+        "canonical_context": 0.05,
+        "bound_factory": 0.0
+      }
+    },
+    {
+      "request": 2,
+      "type": "choice",
+      "choice": "handler_scope",
+      "confidence": 0.88,
+      "probabilities": {
+        "canonical_context": 0.08,
+        "bound_factory": 0.0,
+        "handler_scope": 0.92
+      }
+    },
+    {
+      "request": 3,
+      "type": "choice",
+      "choice": "handler_scope",
+      "confidence": 0.92,
+      "probabilities": {
+        "bound_factory": 0.01,
+        "canonical_context": 0.04,
+        "handler_scope": 0.95
+      }
+    }
+  ],
+  "uncertainty": "All equivalent requests favor handler_scope; no explanatory rationale. Agreement does not prove missing owner joins or compatibility.",
+  "decision_basis": "Actual handler differs from canonical admission context; nested derives already forward handler. Formatter needs selected-app metadata and admitted timezone, not a new receipt-identity field or migrated factory API.",
+  "owners": "Compiler checked app-context fold and descriptor source language; generated appDefinition metadata; Cloudflare selected-app metadata/HandlerContext/canonical and occurrence constructors; generated adapter and capability admission.",
+  "open_gates": [
+    "Composition conflicts/default-after-explicit-merge and package context exclusion",
+    "Source-based selected identity consistency with existing deployment/receipts",
+    "Actual canonical and occurrence forwarding of admitted timezone",
+    "Old-host/missing-scope refusal",
+    "Installed stdlib require export/canonical read-serving gaps",
+    "Active foreign invoke.ts ownership; no package edit lease released"
+  ],
+  "request_sha256": {
+    "1": "d0b280234fa6fedb007b018240e186b66622e0a99512419984ae33912d738d9c",
+    "2": "a9dcd668dd5dc5d72c800ad604507ba30ea43b53e769b3fb7d445eb57198b751",
+    "3": "9b5aac67e8708d8037eef011846478ea4e23cb67afa2c65780c815cb6ab06060"
+  }
+}

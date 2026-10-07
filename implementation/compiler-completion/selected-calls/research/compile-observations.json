@@ -1,0 +1,382 @@
+{
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "cases": [
+    {
+      "id": "plain-positional",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/plain-positional.can"
+      ],
+      "exit": 0,
+      "diagnostics": [],
+      "emitted": true
+    },
+    {
+      "id": "plain-named",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/plain-named.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower format call: no descriptor argument",
+          "primary": {
+            "file": 0,
+            "start": 30,
+            "end": 72
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "plain-reversed",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/plain-reversed.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower format call: no descriptor argument",
+          "primary": {
+            "file": 0,
+            "start": 30,
+            "end": 72
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "plain-missing-reversed",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/plain-missing-reversed.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower format call: no descriptor argument",
+          "primary": {
+            "file": 0,
+            "start": 30,
+            "end": 76
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "message-positional",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/message-positional.can"
+      ],
+      "exit": 0,
+      "diagnostics": [],
+      "emitted": true
+    },
+    {
+      "id": "message-named",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/message-named.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower format call: no descriptor argument",
+          "primary": {
+            "file": 0,
+            "start": 57,
+            "end": 90
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "message-reversed",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/message-reversed.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower format call: no descriptor argument",
+          "primary": {
+            "file": 0,
+            "start": 57,
+            "end": 90
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "message-dynamic",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/message-dynamic.can"
+      ],
+      "exit": 0,
+      "diagnostics": [],
+      "emitted": true
+    },
+    {
+      "id": "message-param-named",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/message-param-named.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower call to m: named arguments have no \u00a713 lowering",
+          "primary": {
+            "file": 0,
+            "start": 75,
+            "end": 87
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "message-param-default",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/message-param-default.can"
+      ],
+      "exit": 0,
+      "diagnostics": [],
+      "emitted": true
+    },
+    {
+      "id": "derive-default",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/derive-default.can"
+      ],
+      "exit": 0,
+      "diagnostics": [],
+      "emitted": true
+    },
+    {
+      "id": "derive-named",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/derive-named.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower call to f: named arguments have no \u00a713 lowering",
+          "primary": {
+            "file": 0,
+            "start": 64,
+            "end": 79
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "alias-call",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/alias-call.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower call to f: named arguments have no \u00a713 lowering",
+          "primary": {
+            "file": 0,
+            "start": 71,
+            "end": 86
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "unknown-name",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/unknown-name.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E3005",
+          "severity": "error",
+          "message": "'format' has no parameter 'bad'",
+          "primary": {
+            "file": 0,
+            "start": 38,
+            "end": 46
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "duplicate-name",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/duplicate-name.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E1202",
+          "severity": "error",
+          "message": "duplicate named argument `template`",
+          "primary": {
+            "file": 0,
+            "start": 52,
+            "end": 60
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "missing-arg",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/missing-arg.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E3005",
+          "severity": "error",
+          "message": "'format' takes 2 arguments, given 1",
+          "primary": {
+            "file": 0,
+            "start": 31,
+            "end": 43
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    },
+    {
+      "id": "plain-eval-order",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/plain-eval-order.can"
+      ],
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower format call: no descriptor argument",
+          "primary": {
+            "file": 0,
+            "start": 76,
+            "end": 112
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "emitted": false
+    }
+  ]
+}

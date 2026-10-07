@@ -1,0 +1,14 @@
+{
+  "state": "Applications composed from authored declarations invoke shared-package handlers. Each message has a distinct owning source language. Effective app defaults must be folded from explicit application contexts, rejecting conflicts and excluding package contexts. The existing admitted invocation knows trusted team timezone (null team means UTC), but the executable handler receives a different caller/store/clock/query context lacking timezone and app default. Shared derives forward that same context. Existing public formatting takes descriptor and explicit options in two arguments and preserves both rendered text and chosen locale; exact tagged numbers and dates must survive a checked descriptor bridge. Choose a complete carrier for the trusted selected app default and timezone. Preserve current public formatter behavior, callable effects and invocation identity; viewer preferences and a shared package cannot choose deployment default. Missing context on old hosts must be diagnosed rather than defaulted.",
+  "questions": {
+    "format_context": {
+      "type": "choice",
+      "instructions": "Choose the most coherent minimal ownership boundary among these complete alternatives, including compatibility and direct/occurrence constructors.",
+      "criteria": {
+        "handler_scope": "Add immutable formatting inputs to the existing executable handler context, populated only from checked selected-app metadata and admitted team timezone. Migrate canonical/direct/occurrence handler constructors, generated adapter and compatibility requirements; nested context forwarding stays unchanged. Keep admission receipt identity and public formatter unchanged. Missing qualified scope fails loudly.",
+        "canonical_context": "Add app default to the canonical admitted invocation context alongside existing team timezone, then explicitly forward a formatting view to executable handlers. Migrate shared canonical contracts, admission constructors/fixtures and every handler/occurrence entry plus generated adapter/compatibility. This offers one broader trusted carrier but changes more shared APIs; caller/store/query context remains separate.",
+        "bound_factory": "Bind selected-app formatting configuration into generated callable factories, passing admitted timezone per invocation. Migrate the current zero-argument factory convention and every loader/dispatcher/testkit/occurrence constructor to bind the selected app consistently, including shared packages and compatibility. Preserve canonical receipt and public formatter, but change all callable factory consumers."
+      }
+    }
+  }
+}

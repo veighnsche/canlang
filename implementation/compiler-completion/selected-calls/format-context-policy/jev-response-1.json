@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "A source-based system generates application callables and reusable packages. Localized message declarations own their source language, parameter types and variants. The selected invoking application owns a declared default locale after composition conflict checking; imported packages do not set that default. Canonical invocation admission already supplies a verified team timezone, or a null team. The generated handlers receive a separate context for caller/storage/query/clock; it currently forwards neither application default nor admitted timezone. Nested reusable derives pass that handler context unchanged. A public two-argument formatter already accepts normalized descriptors plus explicit locale, app default, source language and timezone, and returns text plus locale provenance. Preserve this formatter API and exact numeric/temporal values. Add the complete selected-app metadata and trusted context join without viewer-locale substitution, package-static defaults, or silent missing-host fallback. Old protocol support must refuse unsupported generated requirements explicitly.",
+    "questions": {
+      "format_context": {
+        "type": "choice",
+        "instructions": "Which complete carrier meets these identical semantics with the smallest reliable ownership and maintenance burden? Compare all required consumers fairly.",
+        "criteria": {
+          "handler_scope": "Add immutable formatting inputs to the existing executable handler context, populated only from checked selected-app metadata and admitted team timezone. Migrate canonical/direct/occurrence handler constructors, generated adapter and compatibility requirements; nested context forwarding stays unchanged. Keep admission receipt identity and public formatter unchanged. Missing qualified scope fails loudly.",
+          "canonical_context": "Add app default to the canonical admitted invocation context alongside existing team timezone, then explicitly forward a formatting view to executable handlers. Migrate shared canonical contracts, admission constructors/fixtures and every handler/occurrence entry plus generated adapter/compatibility. This offers one broader trusted carrier but changes more shared APIs; caller/store/query context remains separate.",
+          "bound_factory": "Bind selected-app formatting configuration into generated callable factories, passing admitted timezone per invocation. Migrate the current zero-argument factory convention and every loader/dispatcher/testkit/occurrence constructor to bind the selected app consistently, including shared packages and compatibility. Preserve canonical receipt and public formatter, but change all callable factory consumers."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "format_context": {
+        "type": "choice",
+        "choice": "handler_scope",
+        "confidence": 0.93,
+        "probabilities": {
+          "handler_scope": 0.95,
+          "canonical_context": 0.05,
+          "bound_factory": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 718,
+      "output_tokens": 43
+    }
+  }
+}

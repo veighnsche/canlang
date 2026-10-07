@@ -1,0 +1,5 @@
+app T
+Given
+ derive g():text = format(values={n="Bo"},template="Hi {n}")
+When
+Then

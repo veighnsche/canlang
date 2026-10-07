@@ -1,0 +1,5 @@
+app Exact
+Given
+ derive run():bool = contains(value="ABC")
+When
+Then

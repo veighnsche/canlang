@@ -1,0 +1,41 @@
+[
+  {
+    "id": "same-arity-later",
+    "result": true
+  },
+  {
+    "id": "same-arity-selected-order",
+    "result": true
+  },
+  {
+    "id": "same-arity-awaited",
+    "error": {
+      "name": "SyntaxError",
+      "message": "The requested module '@canlang/stdlib' does not provide an export named 'require'"
+    }
+  },
+  {
+    "id": "ordinary-eval-order",
+    "expectedSourceReads": [
+      "a",
+      "b"
+    ],
+    "actualReads": [
+      "b",
+      "a"
+    ],
+    "result": true,
+    "scope": "Direct production callable expression-order witness with getter-backed contract input; no generated-app admission claim and no facade mocking."
+  },
+  {
+    "id": "ordinary-eval-failure-order",
+    "expectedSourceReads": [
+      "a"
+    ],
+    "actualReads": [
+      "b"
+    ],
+    "error": "second",
+    "scope": "Same direct callable getter-input boundary."
+  }
+]
