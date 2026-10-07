@@ -1,0 +1,396 @@
+{
+  "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
+  "acknowledgments_claimed": false,
+  "exact_file_conflicts": [
+    {
+      "file": "packages/cloudflare/src/cli/platform.ts",
+      "packet_refs": [
+        "DEL-D03",
+        "DEL-R01"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "packet_refs": [
+        "DEL-D01",
+        "DEL-D03",
+        "DEL-D04"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/cloudflare/src/dev/local-run.ts",
+      "packet_refs": [
+        "DEL-D03",
+        "DEL-D04",
+        "DEL-E02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/cloudflare/src/dev/row-scope.ts",
+      "packet_refs": [
+        "DEL-D03",
+        "DEL-E02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "packet_refs": [
+        "DEL-D01",
+        "DEL-D03"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/cloudflare/src/preparation/host.ts",
+      "packet_refs": [
+        "DEL-D01",
+        "DEL-D03",
+        "DEL-D05"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/cloudflare/src/runtime/invoke.ts",
+      "packet_refs": [
+        "TECH-S02",
+        "TECH-W02",
+        "TECH-W03",
+        "TECH-SV02",
+        "TECH-S04-cohort"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/cloudflare/src/worker/assembly.ts",
+      "packet_refs": [
+        "TECH-S02",
+        "TECH-S03",
+        "TECH-F02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/cloudflare/src/worker/main.ts",
+      "packet_refs": [
+        "TECH-I02",
+        "DEL-D02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/files/src/bridge.ts",
+      "packet_refs": [
+        "TECH-F01",
+        "TECH-SV03"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/files/src/finalize/index.ts",
+      "packet_refs": [
+        "TECH-F01",
+        "TECH-F02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/files/src/provenance/index.ts",
+      "packet_refs": [
+        "TECH-F01",
+        "TECH-F02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/files/src/upload/index.ts",
+      "packet_refs": [
+        "TECH-F01",
+        "TECH-F02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/identity/package.json",
+      "packet_refs": [
+        "DEL-R01",
+        "VERIFY-TV01"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/identity/src/authentication/oauth.ts",
+      "packet_refs": [
+        "TECH-I01",
+        "TECH-I02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/identity/src/sessions/presession.ts",
+      "packet_refs": [
+        "TECH-I01",
+        "TECH-I02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/interfaces/src/http/csv.ts",
+      "packet_refs": [
+        "DEL-C01",
+        "DEL-C02",
+        "DEL-C02-order",
+        "REPLAY-IP07",
+        "DEL-A01-admission",
+        "DEL-A01-canonical"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/interfaces/src/http/export.ts",
+      "packet_refs": [
+        "DEL-B02",
+        "DEL-A01-admission",
+        "DEL-A01-canonical"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/interfaces/src/http/limits.ts",
+      "packet_refs": [
+        "DEL-B02",
+        "PARSER-DP01"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/interfaces/src/http/operations.ts",
+      "packet_refs": [
+        "TECH-S02",
+        "REPLAY-IP07",
+        "PARSER-DP01"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/interfaces/src/mcp/server.ts",
+      "packet_refs": [
+        "TECH-I02",
+        "DEL-R01",
+        "DEL-A01-admission"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/interfaces/src/uploads/routes.ts",
+      "packet_refs": [
+        "TECH-F01",
+        "TECH-F02",
+        "DEL-A01-admission"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/services/src/media/comfyui.ts",
+      "packet_refs": [
+        "TECH-SV01",
+        "TECH-SV02",
+        "TECH-SV03"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/state/src/invocation/admission.ts",
+      "packet_refs": [
+        "TECH-S03",
+        "TECH-S04-admission"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/state/src/invocation/invoke.ts",
+      "packet_refs": [
+        "TECH-S02",
+        "TECH-W02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/state/src/invocation/replay.ts",
+      "packet_refs": [
+        "TECH-S02",
+        "TECH-S04-admission"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/state/src/mutation/crud.ts",
+      "packet_refs": [
+        "TECH-S01",
+        "TECH-S02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/state/src/mutation/pipeline.ts",
+      "packet_refs": [
+        "TECH-S01",
+        "TECH-S02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/state/src/query/engine.ts",
+      "packet_refs": [
+        "TECH-S03",
+        "TECH-S04-query"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/state/src/storage/d1.ts",
+      "packet_refs": [
+        "TECH-S01",
+        "TECH-S01-own-key",
+        "TECH-S03",
+        "TECH-S04-query"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/state/src/storage/durable-object.ts",
+      "packet_refs": [
+        "TECH-S01",
+        "TECH-S01-own-key",
+        "TECH-S04-query"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/ui/src/browser/export.ts",
+      "packet_refs": [
+        "DEL-B02",
+        "DEL-A01-error"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/ui/src/client.ts",
+      "packet_refs": [
+        "DEL-B01",
+        "DEL-B02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/ui/src/controls.ts",
+      "packet_refs": [
+        "DEL-U01-appearance",
+        "DEL-U01-draft"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/ui/src/csv/parse.ts",
+      "packet_refs": [
+        "DEL-C01",
+        "DEL-A01-error"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/ui/src/csv/preview.ts",
+      "packet_refs": [
+        "DEL-C02",
+        "DEL-B02"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/values/package.json",
+      "packet_refs": [
+        "DEL-R01",
+        "VERIFY-TV01"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/work-kernel/decisions/lib.rs",
+      "packet_refs": [
+        "TECH-W01-quote",
+        "TECH-W01-uri",
+        "TECH-W03"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/work-kernel/decisions/linkage.rs",
+      "packet_refs": [
+        "TECH-V01-work",
+        "TECH-W01-quote",
+        "TECH-W01-uri",
+        "TECH-W03"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/work-kernel/decisions/receipt.rs",
+      "packet_refs": [
+        "TECH-V01-work",
+        "TECH-W01-quote",
+        "TECH-W01-uri",
+        "TECH-W03"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/work-kernel/decisions/recovery.rs",
+      "packet_refs": [
+        "TECH-V01-work",
+        "TECH-W01-quote",
+        "TECH-W01-uri",
+        "TECH-W03"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/work-kernel/decisions/rows.rs",
+      "packet_refs": [
+        "TECH-V01-work",
+        "TECH-W01-quote",
+        "TECH-W01-uri",
+        "TECH-W03"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/work-kernel/package.json",
+      "packet_refs": [
+        "DEL-R01",
+        "VERIFY-TV01"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    },
+    {
+      "file": "packages/work/src/kernel/commands.ts",
+      "packet_refs": [
+        "TECH-S04-admission",
+        "TECH-S04-query"
+      ],
+      "rule": "One exact-file writer at a time; explicit short released handoff. No package/global lock or forced unrelated ordering."
+    }
+  ],
+  "retained_owner_rules": [
+    "Only current exact successor packet IDs/files in exact_file_conflicts establish future handoff constraints; no historical compound path or predecessor packet label is a lease.",
+    "DR01 reduction and SSW07 correctness have separate scope/budgets/receipts. They may share a short backend file lease after each contract/review release; unrelated DR02 does not wait.",
+    "REPLAY-IP07 writes Interfaces guards, not already-correct State L3; canonical admission/runtime are read-only consumer inputs."
+  ],
+  "human_holds_and_foreign_owners": [
+    "Compiler source, docs and tests remain with the compiler agent; only released producer inputs consumed.",
+    "Native preparation/release stays held.",
+    "Root owns queue/decisions/living-plan planning refresh; package defining owners own future finite code leases."
+  ]
+}

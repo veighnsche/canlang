@@ -158,3 +158,6 @@ and locale display is saved with its split/confidence investigation; earlier
 raw-map advice is reused at its original scope. Candidate replacement still
 requires actual complete-closure production/declaration reduction; no policy,
 backend, source implementation or task acceptance is activated.
+
+
+The [reviewed dependency-ordered repair queue](repair-queue/README.md) maps the findings to existing task IDs, exact file handoffs, local blockers, intended deletions, complete-closure reduction gates and real consumer checks. Forty-eight packet refinements preserve the original ledger without duplicate obligations; an independent Sol high challenger verified seven corrections. It remains planning only, with no implementation authorization.

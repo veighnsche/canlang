@@ -1,0 +1,116 @@
+{
+  "mode": "planning metadata/source validation only; no product build/test/runtime",
+  "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
+  "checks": [
+    {
+      "check": "48 unique finite packet labels; no canonical task creation",
+      "passed": true
+    },
+    {
+      "check": "planning only and all packet execution disabled",
+      "passed": true
+    },
+    {
+      "check": "ready/blocked/deferred counts match records",
+      "passed": true
+    },
+    {
+      "check": "all packet existing IDs resolve exactly",
+      "passed": true
+    },
+    {
+      "check": "original packet statuses and prerequisites preserved",
+      "passed": true
+    },
+    {
+      "check": "all 333 original identities accounted once",
+      "passed": true
+    },
+    {
+      "check": "original full ledger statuses and prerequisites preserved",
+      "passed": true
+    },
+    {
+      "check": "323 ideal DAG identities remain present in canonical universe",
+      "passed": true
+    },
+    {
+      "check": "114 duties accounted once",
+      "passed": true
+    },
+    {
+      "check": "duty disposition and original ID crosswalk preserved",
+      "passed": true
+    },
+    {
+      "check": "316 responsibilities accounted once",
+      "passed": true
+    },
+    {
+      "check": "400 behavior contracts accounted once",
+      "passed": true
+    },
+    {
+      "check": "76 dispositions accounted without unallocated proposal",
+      "passed": true
+    },
+    {
+      "check": "DR08 aliases DC-01, no second obligation",
+      "passed": true
+    },
+    {
+      "check": "69 overlay groups routed, not added as canonical tasks",
+      "passed": true
+    },
+    {
+      "check": "308 raw records accounted once by namespace/source",
+      "passed": true
+    },
+    {
+      "check": "one primary remedy for every security finding",
+      "passed": true
+    },
+    {
+      "check": "existing file and read-only input paths resolve",
+      "passed": true
+    },
+    {
+      "check": "new file allocations are proposals, not already implemented APIs",
+      "passed": true
+    },
+    {
+      "check": "frozen input/source hashes still match",
+      "passed": true
+    },
+    {
+      "check": "dependency references resolve",
+      "passed": true
+    },
+    {
+      "check": "topological order is complete and acyclic",
+      "passed": true
+    },
+    {
+      "check": "all conflicts are exact files/current successor IDs",
+      "passed": true
+    },
+    {
+      "check": "no live owner ACK claimed",
+      "passed": true
+    },
+    {
+      "check": "no fabricated future production reductions",
+      "passed": true
+    },
+    {
+      "check": "replacement strict reduction and independent correctness budget explicit",
+      "passed": true
+    },
+    {
+      "check": "security approval/HOLD/compiler boundaries explicit",
+      "passed": true
+    }
+  ],
+  "passed": 27,
+  "total": 27
+}

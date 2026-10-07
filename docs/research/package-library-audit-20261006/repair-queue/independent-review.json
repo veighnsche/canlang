@@ -1,0 +1,875 @@
+{
+  "schema": "canlang.repair-queue-independent-coverage-review/v1",
+  "reviewer_role": "Independent requirements-and-proposal coverage challenger; not clean-room runtime validation",
+  "scope": "Planning only; read-only raw evidence, no product execution, no CLI, no Git, no source audit repetition, no statuses changed",
+  "source_freeze": {
+    "short": "3ff5fbd6",
+    "full": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
+    "provided_by_root": true
+  },
+  "raw_evidence_counts": {
+    "responsibilities": 316,
+    "behavior_contracts": 400,
+    "language_boundary_rows": 316,
+    "lifecycle_resources": 93,
+    "enforcement_rows": 63,
+    "security_findings": 29,
+    "runtime_matrix_rows": 49,
+    "test_claims": 42,
+    "remaining_task_identities": 333,
+    "ideal_task_identities": 323,
+    "finished_product_duties": 114
+  },
+  "owner_ledger": [
+    {
+      "owner": "cloudflare",
+      "responsibilities": 55,
+      "behavior_contracts": 36,
+      "caller_stages": [
+        "production-observed-source",
+        "conditional-production",
+        "test-only-observed-call",
+        "prototype-unadopted"
+      ]
+    },
+    {
+      "owner": "contracts",
+      "responsibilities": 30,
+      "behavior_contracts": 39,
+      "caller_stages": [
+        "type-contract",
+        "production-observed-source",
+        "public-api-no-observed-in-repo-call"
+      ]
+    },
+    {
+      "owner": "files",
+      "responsibilities": 14,
+      "behavior_contracts": 16,
+      "caller_stages": [
+        "test-only-observed-call",
+        "public-api-no-observed-in-repo-call",
+        "generated-staged",
+        "conditional-production",
+        "type-contract"
+      ]
+    },
+    {
+      "owner": "identity",
+      "responsibilities": 22,
+      "behavior_contracts": 41,
+      "caller_stages": [
+        "conditional-production",
+        "production-observed-source",
+        "generated-staged",
+        "test-only-observed-call"
+      ]
+    },
+    {
+      "owner": "interfaces",
+      "responsibilities": 26,
+      "behavior_contracts": 38,
+      "caller_stages": [
+        "test-only-observed-call",
+        "conditional-production",
+        "type-contract",
+        "generated-staged",
+        "production-observed-source"
+      ]
+    },
+    {
+      "owner": "services",
+      "responsibilities": 13,
+      "behavior_contracts": 20,
+      "caller_stages": [
+        "public-api-no-observed-in-repo-call",
+        "generated-staged",
+        "test-only-observed-call",
+        "conditional-production"
+      ]
+    },
+    {
+      "owner": "state",
+      "responsibilities": 39,
+      "behavior_contracts": 63,
+      "caller_stages": [
+        "test-only-observed-call",
+        "production-observed-source",
+        "conditional-production",
+        "generated-staged",
+        "type-contract"
+      ]
+    },
+    {
+      "owner": "stdlib",
+      "responsibilities": 3,
+      "behavior_contracts": 1,
+      "caller_stages": [
+        "production-observed-source",
+        "conditional-production"
+      ]
+    },
+    {
+      "owner": "testkit",
+      "responsibilities": 9,
+      "behavior_contracts": 7,
+      "caller_stages": [
+        "test-only-observed-call"
+      ]
+    },
+    {
+      "owner": "ui",
+      "responsibilities": 22,
+      "behavior_contracts": 26,
+      "caller_stages": [
+        "generated-staged",
+        "conditional-production",
+        "test-only-observed-call"
+      ]
+    },
+    {
+      "owner": "values",
+      "responsibilities": 57,
+      "behavior_contracts": 84,
+      "caller_stages": [
+        "production-observed-source",
+        "public-api-no-observed-in-repo-call",
+        "test-only-observed-call",
+        "conditional-production",
+        "generated-staged",
+        "prototype-unadopted"
+      ]
+    },
+    {
+      "owner": "work",
+      "responsibilities": 15,
+      "behavior_contracts": 25,
+      "caller_stages": [
+        "conditional-production",
+        "test-only-observed-call",
+        "type-contract"
+      ]
+    },
+    {
+      "owner": "work-kernel",
+      "responsibilities": 11,
+      "behavior_contracts": 4,
+      "caller_stages": [
+        "prototype-unadopted",
+        "type-contract"
+      ]
+    }
+  ],
+  "phase1": {
+    "ready_for_proposal": true,
+    "prior_reviewer_verdicts_read": false,
+    "omission_checklist": [
+      {
+        "id": "OC01",
+        "topic": "All defining owners",
+        "owners": [
+          "cloudflare",
+          "contracts",
+          "files",
+          "identity",
+          "interfaces",
+          "services",
+          "state",
+          "stdlib",
+          "testkit",
+          "ui",
+          "values",
+          "work",
+          "work-kernel"
+        ],
+        "requirement": "Every responsibility has an explicit retained, repair, library replacement, conditional adoption or blocked owner disposition; contextual family mapping never proves every duty.",
+        "sources": [
+          "responsibility-callers/responsibilities.jsonl",
+          "required-behavior/contracts.jsonl"
+        ]
+      },
+      {
+        "id": "OC02",
+        "topic": "Complete plan identities",
+        "requirement": "All 333 remaining-work identities including 10 auxiliary gate/handoff records, all 323 ideal DAG task identities and all 114 required/conditional/deferred/declined finished duties have an exact crosswalk; original subtask identities and acceptance remain independently recoverable.",
+        "sources": [
+          "implementation/remaining-work/tasks.json",
+          "docs/ideal-filetree-plan/finished-product/tasks.json",
+          "docs/ideal-filetree-plan/finished-product/requirements.json"
+        ]
+      },
+      {
+        "id": "OC03",
+        "topic": "Retained mechanics and library fit",
+        "requirement": "Library/centralization candidates retain actual required domain, first error, ordering, callbacks, immutable carriers and public exports; keep retained TS ICU/timezone/locale, unknown JS traversal, protocol profiles, SDK/browser/storage/provider ownership. Dependency import cost, pack closure, license/version and upgrade obligations stay explicit.",
+        "sources": [
+          "language-boundaries/coverage.jsonl",
+          "dependency-runtime/execution-matrix.jsonl",
+          "required-behavior/contracts.jsonl"
+        ]
+      },
+      {
+        "id": "OC04",
+        "topic": "Public and dead helper distinction",
+        "requirement": "A public or externally callable helper with no observed in-repo caller is not dead; test-only, type-only, generated, conditional and prototype status stay separate. Retirement requires exact matching mechanism body and complete actual consumer/caller-domain negative evidence, including rollback successor.",
+        "sources": [
+          "responsibility-callers/responsibilities.jsonl",
+          "docs/ideal-filetree-plan/finished-product/ownership.md"
+        ]
+      },
+      {
+        "id": "OC05",
+        "topic": "Observable value/protocol domains",
+        "requirement": "Preserve bigint/int64/Decimal scale/negative-zero/f64 bits, UTF16 lone surrogates, missing/null/undefined, own duplicate keys, integer-index enumeration, getter/proxy/prototype/toJSON and reference/default identity distinctions; no universal serializer or clone inferred from names.",
+        "sources": [
+          "data-protocol/coverage.tsv",
+          "required-behavior/contracts.jsonl"
+        ]
+      },
+      {
+        "id": "OC06",
+        "topic": "Canonical digest and privacy",
+        "requirement": "Raw state receipt hash ordering/profile/version remains separate from normalized CSV candidates/media mapping/export descriptor hashes. Safe provider failures use trusted adapter-owned fields/templates, not free-text blacklist/hash secrecy. Secret current read/CRUD/replay/changed-record projection refusal is qualified per actual consumer.",
+        "witness_ids": [
+          "IP03",
+          "IP08",
+          "IP10",
+          "SSW01"
+        ],
+        "sources": [
+          "data-protocol/identity-privacy.json",
+          "security-limits/findings.jsonl"
+        ]
+      },
+      {
+        "id": "OC07",
+        "topic": "CSV complete review/commit",
+        "requirement": "Type-directed blank mapping, schema header/protected/overlap validation, normalized duplicate detection, frozen row/index/input consent, source-row commit order, user/app/team/session/24h lifecycle, and replay-before-unseen-age authority handling retain invalid/unselected/partial/unknown outcomes; parser allocation/URL props remain owning consumer gates.",
+        "witness_ids": [
+          "IP01",
+          "IP02",
+          "IP03",
+          "IP04",
+          "IP05",
+          "IP06",
+          "IP07",
+          "SR02",
+          "SR03"
+        ],
+        "sources": [
+          "data-protocol/identity-privacy.json",
+          "security-limits/findings.jsonl"
+        ]
+      },
+      {
+        "id": "OC08",
+        "topic": "Canonical state and storage",
+        "requirement": "One canonical commit engine with dense monotone fence, rollback of staged rows/history/uniques/outbox, current live authority and owning tenant/store correspondence; own-property SQL metadata lookup; public and trusted exceptions precise. Replay receipt namespace/projection/retention precedes unseen validation without repeating effects.",
+        "witness_ids": [
+          "LSW-01",
+          "LSW-02",
+          "LSW-03",
+          "LSW-04",
+          "SSW03",
+          "SSW07"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl",
+          "security-limits/findings.jsonl"
+        ]
+      },
+      {
+        "id": "OC09",
+        "topic": "Identity atomic participant",
+        "requirement": "Origin/CSRF proof, bounded grant body, exact PKCE validation, presession browser binding, single-use winner outcomes, password/revocation cascades, last-owner and role concurrency require explicit typed context/fence participant agreement before implementations. A registered command or separate IdentityStore is not the real atomic join.",
+        "witness_ids": [
+          "LI03",
+          "LI04",
+          "LI06",
+          "LI09",
+          "LI10",
+          "LI12",
+          "LI14",
+          "SI01",
+          "SI02",
+          "SI03",
+          "SI04",
+          "SI05",
+          "SI06",
+          "SI07"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl",
+          "security-limits/findings.jsonl"
+        ]
+      },
+      {
+        "id": "OC10",
+        "topic": "Files durable coordination",
+        "requirement": "Upload semantic operation/field authority; exact chunk/retry/count bytes and digest; recoverable blob/metadata finalization; provider origin/dedup; current attachment/download record authority; retention/sweep/tombstones/quotas; no imaginary atomic R2+state transaction, memory alias crash proof or filesystem traversal promise beyond actual host.",
+        "witness_ids": [
+          "LF01",
+          "LF02",
+          "LF03",
+          "LF04",
+          "LF05",
+          "LF06",
+          "LF07",
+          "LF08",
+          "LF09",
+          "SI08",
+          "SI09",
+          "SI10",
+          "SI11"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl",
+          "security-limits/findings.jsonl"
+        ]
+      },
+      {
+        "id": "OC11",
+        "topic": "Work durable dispatch and recovery",
+        "requirement": "Atomic joined outbox/dispatch, held claim generation, guard order, exact intent/provider identity and first-attempt horizon, uncertainty/reconciliation, occurrence admission, schedule supersession and recurrence durable joins, act-time rereads; lease expiry never implies provider cancellation or unknown becomes failure.",
+        "witness_ids": [
+          "LSW-06",
+          "LSW-07",
+          "LSW-08",
+          "LSW-09",
+          "LSW-10",
+          "LSW-11",
+          "LSW-12"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl"
+        ]
+      },
+      {
+        "id": "OC12",
+        "topic": "Complete finite fanout",
+        "requirement": "Frozen full identity membership, current child retry/body facts, same-fanout terminal/checkpoint converse coverage, stale-release continuation/fair termination, honest pending/attention/cancel; page caps never replace total cohort or truncate business results.",
+        "witness_ids": [
+          "LSW-15",
+          "LSW-16",
+          "LSW-17",
+          "LSW-18",
+          "LSW-19",
+          "SSW05"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl",
+          "security-limits/findings.jsonl"
+        ]
+      },
+      {
+        "id": "OC13",
+        "topic": "Budgets deadlines and disposal",
+        "requirement": "Byte/depth/node/count/CPU and scan/memory resource limits precede costly admitted parsing/hash/materialization where promised, retain complete all-or-reject semantics. Real cancellation/cleanup joins provider/body/SDK/testkit/native/Bun resources; timeout/retry age is not physical interruption. No new threshold chosen by audit.",
+        "witness_ids": [
+          "SR01",
+          "SR02",
+          "SSW02",
+          "SSW04",
+          "SSW05",
+          "SSW06",
+          "LR08",
+          "LR12",
+          "LR21",
+          "CF01",
+          "CF04",
+          "CF05"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl",
+          "security-limits/enforcement.jsonl",
+          "security-limits/findings.jsonl"
+        ]
+      },
+      {
+        "id": "OC14",
+        "topic": "Values owned/native lifetimes",
+        "requirement": "Ownership before graph exposure, genuine lineage, schema/default/ref admission and first-failure trace, TS/native handle-generation-capacity parity, partial registration cleanup, owner disposal and stale/foreign/released tokens. Freeze/snapshot does not create provenance; selected native trap/error never reruns TS.",
+        "witness_ids": [
+          "LR15",
+          "LR16",
+          "LR17",
+          "LR18",
+          "LSW-21"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl",
+          "language-boundaries/coverage.jsonl"
+        ]
+      },
+      {
+        "id": "OC15",
+        "topic": "Browser and actual interface consumers",
+        "requirement": "68-component shell/page-admission/typed asset/client/DOM/focus/unsaved-state workflows; stale context checked through body completion, physical polling cancellation evidence, upload/result retry and expiring export/download/Print lifecycle. Preferences authority/default/reset/version/ref and pure server CSV review remain required joins.",
+        "witness_ids": [
+          "LR01",
+          "LR04",
+          "LR05",
+          "LR06",
+          "LR07",
+          "LR09",
+          "LR10"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl",
+          "docs/ideal-filetree-plan/finished-product/requirements.json"
+        ]
+      },
+      {
+        "id": "OC16",
+        "topic": "Required unselected product duties",
+        "requirement": "Keep corpus all-used-context grounded authority, lifetime/erasure, mailbox/payments/documents/connector/onboard/judgment/invocation/tracker/report/alerts/maintenance/ping/instrumentation/source mappings and original app intent requirements visible. Contract/stub/source helpers/501 refuse truthfully but do not close advertised workflows.",
+        "sources": [
+          "docs/ideal-filetree-plan/finished-product/requirements.json",
+          "control-lifecycle/resources.jsonl"
+        ]
+      },
+      {
+        "id": "OC17",
+        "topic": "Preparation held demand order",
+        "requirement": "Human hold on native preparation persists despite required native semantic outcome; retained synchronous TS helpers and current CLI behavior remain. One retained native job preserves artifact/companion/compat/confirmation/activation/module/Bun/catalog/plan/prior/review/publication/apply order and host observables; native cannot synthesize active app or missing authority.",
+        "witness_ids": [
+          "CF01",
+          "CF02",
+          "CF03",
+          "CF04",
+          "CF05",
+          "CF06",
+          "CF08"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl",
+          "docs/ideal-filetree-plan/finished-product/requirements.json"
+        ]
+      },
+      {
+        "id": "OC18",
+        "topic": "Reviewed publication and path containment",
+        "requirement": "Exact reviewed byte/key set, symlink containment, platform-bootstrap namespace, bounded Bun scratch/process cleanup, native frame/diagnostic/whole-job queue limits, sidecar consistency and honest partial/manual recovery; source-selected CLI writer distinct from held helper.",
+        "witness_ids": [
+          "SEC-C01",
+          "SEC-C02",
+          "SEC-C03",
+          "SEC-C04",
+          "SEC-C05",
+          "SEC-C06"
+        ],
+        "sources": [
+          "security-limits/findings.jsonl",
+          "control-lifecycle/resources.jsonl"
+        ]
+      },
+      {
+        "id": "OC19",
+        "topic": "Real backend/installed release gates",
+        "requirement": "Acyclic source/export/build/lock/tarball closure; installed release producer facts resolve outside checkout; actual final values/work glue+Wasm assets, kind/byte/hash/version inventory, eager startup before synchronous calls, explicit qualified backend selection and fail-closed init; tiny loader smoke is prerequisite only. Native host/packaging choice and rollback economics remain bounded and conditional.",
+        "sources": [
+          "dependency-runtime/execution-matrix.jsonl",
+          "docs/ideal-filetree-plan/finished-product/requirements.json",
+          "docs/ideal-filetree-plan/finished-product/ownership.md"
+        ]
+      },
+      {
+        "id": "OC20",
+        "topic": "Installed upgrade and lifetime",
+        "requirement": "Exact predecessor/desired source schemas, validated staging and retained pending work, fenced maintenance/publish/installed pointer, failure and forward-only recovery are required; online/universal transfer remains separate. Receipt/fence/content/secret retention and disposal duties not silently pruned.",
+        "witness_ids": [
+          "LSW-20",
+          "LSW-22"
+        ],
+        "sources": [
+          "control-lifecycle/resources.jsonl",
+          "docs/ideal-filetree-plan/finished-product/requirements.json"
+        ]
+      },
+      {
+        "id": "OC21",
+        "topic": "Independent consumer evidence",
+        "requirement": "Future actual caller/comparator mutant negatives must challenge scalar/extra/identity/order/privacy/lifecycle mismatches; independent fixture expectations, real D1/DO/backend/provider/browser/installed paths and original authored source. Historical tests/source labels/producers/pack bytes are evidence only at declared scope; no new runtime or global acceptance.",
+        "sources": [
+          "tests-evidence/claims.jsonl",
+          "dependency-runtime/execution-matrix.jsonl"
+        ]
+      },
+      {
+        "id": "OC22",
+        "topic": "Queue semantics authority and migrations",
+        "requirement": "Exact file owners/reservations, dependency successors and cycle handling; local readiness separate from execution authorization and holds. Repairs wait only for consequential interface agreements; migration required when actual API/bytes/identity/authority changes, not every equivalent internal replacement. No source-task status mutation or selected default/adoption/retirement inferred from planning.",
+        "sources": [
+          "required-behavior/contracts.jsonl",
+          "implementation/remaining-work/tasks.json",
+          "docs/ideal-filetree-plan/finished-product/ownership.md"
+        ]
+      }
+    ]
+  },
+  "phase2": {
+    "proposal_directory": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/repair-queue",
+    "review_limit": "Independent requirements-and-proposal review; no earlier newqueue producer verdicts read. Source freeze supplied by root; static existence/hash/source-anchor checks only, no runtime execution.",
+    "initial_proposal_hashes": {
+      "queue.json": "5d9537080f02002f347cf2d3b8e2d7454a1c71d2143eff85fb95fe05b41a6a94",
+      "coverage.json": "369b28c82b44079558b56d000842872e60d104899a27d479e47010b4df409a2f",
+      "owner-conflicts.json": "f7105aedddf612703c95ef7e3690563a71375fa2bf31850550851d4ea99aaf8c",
+      "source-hashes.json": "09451d3e230e9affa53ad3dd7e98f4e657f677287f46bb73e488a246c97e0762"
+    },
+    "findings": [
+      {
+        "id": "CR01",
+        "severity": "metadata",
+        "packet": "TECH-W01-uri",
+        "finding": "Nonexistent root Cargo.lock listed as existing file; Work owns packages/work-kernel/Cargo.lock.",
+        "correction": "Use owning exact lock path in queue, lease/conflict and source hash metadata.",
+        "resolution": "Corrected in regenerated proposal and independently reread; no outstanding correction for this bounded review."
+      },
+      {
+        "id": "CR02",
+        "severity": "metadata",
+        "packet": "owner-conflicts",
+        "finding": "retained_owner_rules retains nonexistent split predecessors TECH-S04, TECH-V01 and TECH-W01, stale bundled-security claim and compound file string.",
+        "correction": "Expand exact successor packet IDs and individual file entries; use only precise current scoped conflict relation.",
+        "resolution": "Corrected in regenerated proposal and independently reread; no outstanding correction for this bounded review."
+      },
+      {
+        "id": "CR03",
+        "severity": "coverage",
+        "packet": "REPLAY-IP07",
+        "finding": "Actual premature age checks are in interfaces/http/operations.ts:256 and interfaces/http/csv.ts:538, absent from packet writes/owner; canonical admission already replays before age.",
+        "correction": "Add Interfaces files/owner and owning envelope/validate.ts shape/age seam as appropriate, plus CSV short lease/conflict.",
+        "resolution": "Corrected in regenerated proposal and independently reread; no outstanding correction for this bounded review."
+      },
+      {
+        "id": "CR04",
+        "severity": "scope",
+        "packet": "DEL-C02 / DEL-C02-order",
+        "finding": "Inherited caller and positive/negative recipes still claim ownership of order and replay-age despite separate primary remedy packets.",
+        "correction": "Consent packet owns frozen row/context/lifecycle; order packet owns source order; reference REPLAY-IP07 and order acceptance only without duplicate remedy.",
+        "resolution": "Corrected in regenerated proposal and independently reread; no outstanding correction for this bounded review."
+      },
+      {
+        "id": "CR05",
+        "severity": "dependency",
+        "packet": "all acceptance_dependencies VERIFY-TV01",
+        "finding": "Unconditional acceptance dependency on combined Identity/Values/Work discovery creates unrelated completion barrier for every UI/storage/preparation packet.",
+        "correction": "Use supporting reference or explicit seam-relevant verification slices; do not create global semantic prerequisite from unrelated test script work.",
+        "resolution": "Corrected in regenerated proposal and independently reread; no outstanding correction for this bounded review."
+      },
+      {
+        "id": "CR06",
+        "severity": "coverage",
+        "packet": "TECH-S04-query",
+        "finding": "Recovery scan resource duty claims recover limit1 but omits work/kernel/commands.ts:1257-1318 from exact files and Work owner. File is present only in admission slice.",
+        "correction": "Add Work recover owner/file/lease to query scope; narrow hash/query/cohort recipes separately, consumer qualification for state invocation/pipeline optional precise scoped reads.",
+        "resolution": "Corrected in regenerated proposal and independently reread; no outstanding correction for this bounded review."
+      },
+      {
+        "id": "CR07",
+        "severity": "clarity",
+        "packet": "TECH-V02 and DEL-U01/DEL-A01 split leaves",
+        "finding": "Shared inherited caller/acceptance prose mentions independent sibling mechanisms after splitting.",
+        "correction": "Narrow decisive caller/positive/negative recipes to each exact mechanism; preserve sibling obligations only as context references.",
+        "resolution": "Corrected in regenerated proposal and independently reread; no outstanding correction for this bounded review."
+      }
+    ],
+    "mechanical_checks": {
+      "all_333_canonical_identity_set_exact": true,
+      "all_114_duty_identity_set_exact": true,
+      "all_316_responsibility_identity_set_exact": true,
+      "all_400_contract_identity_set_exact": true,
+      "original_packet_task_status_and_dependency_snapshots_exact": true,
+      "combined_packet_dependency_cycles": [],
+      "duplicate_packet_ids": [],
+      "unknown_packet_dependencies": [],
+      "source_hash_count": 184,
+      "source_hash_problems": [
+        {
+          "path": "Cargo.lock",
+          "error": "ENOENT",
+          "declared": null
+        }
+      ],
+      "proposed_new_files_already_exist": []
+    },
+    "conclusion": "No unresolved blocking omission or metadata correction found in this bounded independent requirements/proposal review of the hashed regenerated draft. Accountability coverage and planning recipe/owner/dependency consistency only; not semantic completeness, implementation authorization, runtime parity, security acceptance, measured reduction, adoption/retirement or installed workflow qualification.",
+    "final_proposal_hashes": {
+      "queue.json": "d17ccc95f93b2601258f390ff94327c0e1a779fc27af863fc1e9cff042968079",
+      "coverage.json": "58ec98a2ed8f6244263e5853b2624a505a3764d994d6a9f8facf7e25222d5dfe",
+      "owner-conflicts.json": "3678cf2d8e0d527e0f8ad9b3f9a3732e5bff3e814bcf9b06779995f3015b7bdf",
+      "source-hashes.json": "09451d3e230e9affa53ad3dd7e98f4e657f677287f46bb73e488a246c97e0762"
+    },
+    "final_checks": {
+      "identity_sets": [
+        {
+          "key": "canonical_tasks",
+          "n": 333,
+          "missing": [],
+          "extra": [],
+          "duplicate_count": 0
+        },
+        {
+          "key": "finished_product_duties",
+          "n": 114,
+          "missing": [],
+          "extra": [],
+          "duplicate_count": 0
+        },
+        {
+          "key": "responsibilities",
+          "n": 316,
+          "missing": [],
+          "extra": [],
+          "duplicate_count": 0
+        },
+        {
+          "key": "behavior_contracts",
+          "n": 400,
+          "missing": [],
+          "extra": [],
+          "duplicate_count": 0
+        }
+      ],
+      "packet_snapshot_mismatches": [],
+      "unknown_packet_references": [],
+      "missing_existing_files": [],
+      "hash_problems": [],
+      "cycles": [],
+      "security_allocations": [
+        {
+          "id": "SR01",
+          "primary_remedy_packet": "TECH-V04",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SR02",
+          "primary_remedy_packet": "DEL-C01",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SR03",
+          "primary_remedy_packet": "DEL-B02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SSW01",
+          "primary_remedy_packet": "TECH-S02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SSW02",
+          "primary_remedy_packet": "TECH-S04-admission",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SSW03",
+          "primary_remedy_packet": "TECH-S03",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SSW04",
+          "primary_remedy_packet": "TECH-S04-query",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SSW05",
+          "primary_remedy_packet": "TECH-S04-cohort",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SSW06",
+          "primary_remedy_packet": "TECH-SV02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SSW07",
+          "primary_remedy_packet": "TECH-S01-own-key",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI01",
+          "primary_remedy_packet": "TECH-I02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI02",
+          "primary_remedy_packet": "TECH-I01",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI03",
+          "primary_remedy_packet": "TECH-I01",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI04",
+          "primary_remedy_packet": "TECH-I02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI05",
+          "primary_remedy_packet": "TECH-I02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI06",
+          "primary_remedy_packet": "TECH-I02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI07",
+          "primary_remedy_packet": "TECH-I02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI08",
+          "primary_remedy_packet": "TECH-F02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI09",
+          "primary_remedy_packet": "TECH-F01",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI10",
+          "primary_remedy_packet": "TECH-F02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SI11",
+          "primary_remedy_packet": "TECH-F02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SEC-S01",
+          "primary_remedy_packet": "TECH-SV01",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SEC-S02",
+          "primary_remedy_packet": "TECH-SV02",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SEC-C01",
+          "primary_remedy_packet": "DEL-D03",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SEC-C02",
+          "primary_remedy_packet": "DEL-D04",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SEC-C03",
+          "primary_remedy_packet": "DEL-D03",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SEC-C04",
+          "primary_remedy_packet": "DEL-D05",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SEC-C05",
+          "primary_remedy_packet": "DEL-D05",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        },
+        {
+          "id": "SEC-C06",
+          "primary_remedy_packet": "DEL-D05",
+          "exactly_one_direct": true,
+          "corresponds": true,
+          "source_stage_retained": true
+        }
+      ],
+      "writer_conflict_mismatches": []
+    },
+    "correction_evidence": {
+      "CR01": "Owning Work Cargo.lock now exists and hash matches.",
+      "CR02": "Retained owner rules now explain exact successor/file conflicts; no unknown predecessor/compound path leases; exact conflict set independently recomputed.",
+      "CR03": "Interfaces operations/csv/validate writes and owner; already-correct canonical L3 read-only inputs; real caller checks retained.",
+      "CR04": "Consent/context and source-order recipes separately scoped; replay references acceptance only.",
+      "CR05": "All global VERIFY-TV01 acceptance dependencies removed; per-changed-owner/caller provenance gate replaces unrelated barrier.",
+      "CR06": "Work commands.ts added to query exact files and Work lease; admission/query/cohort recipes now local.",
+      "CR07": "V02 and U01/A01 split recipes now match each exact deleted mechanism."
+    },
+    "omission_challenge": {
+      "all_13_owners_accounted": true,
+      "public_no_observed_call_not_dead_preserved": true,
+      "behavior_classifications_and_migration_source_retained": true,
+      "all_29_security_findings_have_exactly_one_primary_remedy": true,
+      "secondary_crosswalk_not_semantic_coverage": true,
+      "canonical_bytes_and_privacy_profiles_separate": true,
+      "lifecycle_resource_deadline_disposal_replay_storage_backend_gates_retained": true,
+      "held_native_preparation_preserved": true,
+      "unselected_required_product_duties_preserved_under_original_owners": true,
+      "strict_both_measure_reduction_gate_without_measured_savings": true,
+      "global_runtime_or_security_acceptance_claimed": false
+    },
+    "limitations": [
+      "No product execution, CLI, Git, tests/build/install, network, source-wide audit or source/task status changes.",
+      "The 333/114/316/400 identity correspondence is accountability only; raw requirements, counterevidence, original stages and full later actual-consumer gates remain authoritative.",
+      "Source freeze was supplied by root; source byte hashes and narrowly identified caller paths were checked without Git.",
+      "Prior newqueue producer verdicts were not read."
+    ]
+  }
+}
