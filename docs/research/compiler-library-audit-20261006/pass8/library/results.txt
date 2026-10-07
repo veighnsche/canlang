@@ -1,0 +1,9 @@
+"AAAA": Ok([0, 0, 0, 0])
+"!A": Ok([-15])
+"éA": Ok([-511])
+"g": Err(VlqLeftover)
+"/////////////A": Err(VlqOverflow)
+"////////////P": Ok([1])
+"////////////H": Ok([-4611686018427387903])
+"///////////H": Ok([-144115188075855871])
+projection_fixture_bytes=167; {"version":3,"file":"plain.mjs","sources":["plain.can"],"sourcesContent":["app Plain\nnote Note\nrule allow\n"],"names":["appDefinition"],"mappings":"AAAAA;AACA;AACA"}

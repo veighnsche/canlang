@@ -1,0 +1,10 @@
+{
+  "cases": 277,
+  "lookups": 910,
+  "oracle": {
+    "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+    "sha256": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+    "base": "70fe33e2655afa0a4b91fb17853a84d7727edebe",
+    "method": "Frozen exact original TS source transpiled only; expected observations generated before candidate imports; original 28 declared expectations independently checked."
+  }
+}

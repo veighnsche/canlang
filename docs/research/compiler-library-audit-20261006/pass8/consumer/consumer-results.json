@@ -1,0 +1,151 @@
+{
+  "independent": [
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 0,
+        "srcCol": 0
+      }
+    ],
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 0,
+        "srcCol": 2
+      }
+    ],
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 0,
+        "srcCol": 6
+      }
+    ],
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 0,
+        "srcCol": 7
+      }
+    ],
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 0,
+        "srcCol": 7
+      }
+    ],
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 1,
+        "srcCol": 0
+      }
+    ],
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 1,
+        "srcCol": 6
+      }
+    ],
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 1,
+        "srcCol": 7
+      }
+    ],
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 1,
+        "srcCol": 7
+      }
+    ],
+    [
+      {
+        "genCol": 0,
+        "src": 0,
+        "srcLine": 2,
+        "srcCol": 0
+      }
+    ]
+  ],
+  "lookup": [
+    {
+      "source": "coordinate.can",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "source": "coordinate.can",
+      "line": 1,
+      "column": 3
+    },
+    {
+      "source": "coordinate.can",
+      "line": 1,
+      "column": 7
+    },
+    {
+      "source": "coordinate.can",
+      "line": 1,
+      "column": 8
+    },
+    {
+      "source": "coordinate.can",
+      "line": 1,
+      "column": 8
+    },
+    {
+      "source": "coordinate.can",
+      "line": 2,
+      "column": 1
+    },
+    {
+      "source": "coordinate.can",
+      "line": 2,
+      "column": 7
+    },
+    {
+      "source": "coordinate.can",
+      "line": 2,
+      "column": 8
+    },
+    {
+      "source": "coordinate.can",
+      "line": 2,
+      "column": 8
+    },
+    {
+      "source": "coordinate.can",
+      "line": 3,
+      "column": 1
+    }
+  ],
+  "invoked": {
+    "ok": false,
+    "error": "coordinate failure",
+    "mapped": {
+      "source": "coordinate.can",
+      "line": 1,
+      "column": 7
+    }
+  },
+  "report": "coordinate.can:1:7",
+  "hostPassThrough": {
+    "source": "coordinate.can",
+    "line": 2,
+    "column": 7
+  }
+}
