@@ -1,0 +1,21 @@
+{
+  "mode": "reuse of root execution; no new build/suite/harness",
+  "frozen_input_receipt": "implementation/compiler-completion/integration-after-bindings/after-bdd-ui/before-inputs-admission-temporal.json",
+  "frozen_input_receipt_sha256": "079d276846816cc4dcc4dd85ab172dda68c4a502bc353561c1b95c499ea17ba0",
+  "root_input_count": 117,
+  "all_root_inputs_match": true,
+  "source_log": "implementation/compiler-completion/integration-after-bindings/after-bdd-ui/full-suite-admission-temporal.log",
+  "excerpt_sha256": "1fd50409272d3504c7dccab426d53a13bccbf0f6f7c35934449d7a7d9701953e",
+  "current_artifact_sha256": {
+    "compiler/target/debug/deps/typed_descriptors-1db4f47615a291e7": "71f160d45dd673aa9300029fb82a26af2008ec996bd4d1b64afaf6f6b0a1a138",
+    "compiler/target/debug/deps/typed_fixes-5450b7a5619186ee": "a1c8e32328cf6acb561de8982a72d46dd18bff048b85ac152827b54187f1da53",
+    "compiler/target/debug/deps/typed_fixes_cli-ffeafcd41b01c124": "ba0a7d0ab447910c8c4f5b3815c4236b3724a477d6dcdff61bbe32734749016a",
+    "compiler/target/debug/can": "14d27d2574f4aa1309cc4abf82c2bc4faa6b03d3dfa54e0f7a7a9d358a0ac45f"
+  },
+  "tests": {
+    "typed_descriptors": 6,
+    "typed_fixes": 4,
+    "typed_fixes_cli": 1
+  },
+  "boundaries": "Actual Rust public serializer controls and actual lint CLI typed envelope; no whole artifact runtime/UI/external-client qualification."
+}

@@ -1,0 +1,356 @@
+compiler/src/cli.rs:696:        OutputFormat::Json => format!("{}\n", result.to_json()),
+compiler/src/cli.rs:1159:        OutputFormat::Json => format!("{}\n", result.to_json()),
+compiler/src/cli.rs:1323:            stdout: format!("{}\n", result.to_json()),
+compiler/src/cli.rs:1717:                format!("{}\n", result.to_json())
+compiler/src/lint/driver.rs:419:pub fn fix_to_json(fix: &LintFix) -> String {
+compiler/src/lint/driver.rs:426:pub fn fixes_to_json(fixes: &[LintFix]) -> String {
+compiler/src/lint/driver.rs:438:pub fn rejected_to_json(rejected: &FixRejected) -> String {
+compiler/tests/typed_descriptors.rs:10:fn delivery() -> JsDeliveryDescriptor {
+compiler/tests/typed_descriptors.rs:11:    JsDeliveryDescriptor {
+compiler/tests/typed_descriptors.rs:15:        result: JsNominalResult {
+compiler/tests/typed_descriptors.rs:18:                JsNominalLeaf {
+compiler/tests/typed_descriptors.rs:22:                JsNominalLeaf {
+compiler/tests/typed_descriptors.rs:33:    assert_eq!(delivery().to_json(), expected);
+compiler/tests/typed_descriptors.rs:34:    assert_eq!(JsMcpField::Delivery(delivery()).to_json(), expected);
+compiler/tests/typed_descriptors.rs:35:    assert_eq!(JsModelFieldType::Delivery(delivery()).to_json(), expected);
+compiler/tests/typed_descriptors.rs:39:    let mut input = JsOperationField {
+compiler/tests/typed_descriptors.rs:41:        field: JsMcpField::Ref {
+compiler/tests/typed_descriptors.rs:52:        input.to_json(),
+compiler/tests/typed_descriptors.rs:57:    input.default = Some(JsFieldDefault::Literal(
+compiler/tests/typed_descriptors.rs:61:    let operation = JsOperation {
+compiler/tests/typed_descriptors.rs:68:        operations_json(&[operation]),
+compiler/tests/typed_descriptors.rs:71:    assert_eq!(operations_json(&[]), "[]");
+compiler/tests/typed_descriptors.rs:76:        JsMcpField::String,
+compiler/tests/typed_descriptors.rs:77:        JsMcpField::Integer,
+compiler/tests/typed_descriptors.rs:78:        JsMcpField::Decimal,
+compiler/tests/typed_descriptors.rs:79:        JsMcpField::Money,
+compiler/tests/typed_descriptors.rs:80:        JsMcpField::Datetime,
+compiler/tests/typed_descriptors.rs:81:        JsMcpField::Boolean,
+compiler/tests/typed_descriptors.rs:82:        JsMcpField::File,
+compiler/tests/typed_descriptors.rs:87:        assert_eq!(field.to_json(), format!(r#"{{"kind":"{tag}"}}"#));
+compiler/tests/typed_descriptors.rs:90:        JsMcpField::Enum {
+compiler/tests/typed_descriptors.rs:93:        .to_json(),
+compiler/tests/typed_descriptors.rs:97:        JsModelFieldType::String,
+compiler/tests/typed_descriptors.rs:98:        JsModelFieldType::Integer,
+compiler/tests/typed_descriptors.rs:99:        JsModelFieldType::Decimal,
+compiler/tests/typed_descriptors.rs:100:        JsModelFieldType::Money,
+compiler/tests/typed_descriptors.rs:101:        JsModelFieldType::Datetime,
+compiler/tests/typed_descriptors.rs:102:        JsModelFieldType::Boolean,
+compiler/tests/typed_descriptors.rs:103:        JsModelFieldType::File,
+compiler/tests/typed_descriptors.rs:104:        JsModelFieldType::Date,
+compiler/tests/typed_descriptors.rs:105:        JsModelFieldType::Duration,
+compiler/tests/typed_descriptors.rs:106:        JsModelFieldType::Secret,
+compiler/tests/typed_descriptors.rs:107:        JsModelFieldType::User,
+compiler/tests/typed_descriptors.rs:108:        JsModelFieldType::Member,
+compiler/tests/typed_descriptors.rs:109:        JsModelFieldType::Json,
+compiler/tests/typed_descriptors.rs:110:        JsModelFieldType::Bytes,
+compiler/tests/typed_descriptors.rs:116:        assert_eq!(field.to_json(), format!(r#"{{"kind":"{tag}"}}"#));
+compiler/tests/typed_descriptors.rs:119:        JsModelFieldType::Ref {
+compiler/tests/typed_descriptors.rs:122:        .to_json(),
+compiler/tests/typed_descriptors.rs:126:        JsModelFieldType::Enum { values: vec![] }.to_json(),
+compiler/tests/typed_descriptors.rs:130:        JsModelFieldType::Other {
+compiler/tests/typed_descriptors.rs:133:        .to_json(),
+compiler/tests/typed_descriptors.rs:137:        JsFieldDefault::Parent {
+compiler/tests/typed_descriptors.rs:140:        .to_json(),
+compiler/tests/typed_descriptors.rs:143:    assert_eq!(JsFieldDefault::Derived.to_json(), r#"{"kind":"derived"}"#);
+compiler/tests/typed_descriptors.rs:145:        (JsServerInit::Actor, "actor"),
+compiler/tests/typed_descriptors.rs:146:        (JsServerInit::Now, "now"),
+compiler/tests/typed_descriptors.rs:147:        (JsServerInit::RandomSecret, "random_secret"),
+compiler/tests/typed_descriptors.rs:148:        (JsServerInit::Computed, "computed"),
+compiler/tests/typed_descriptors.rs:151:            JsFieldDefault::Server(init).to_json(),
+compiler/tests/typed_descriptors.rs:154:        assert_eq!(serde_json::to_string(&init).unwrap(), init.to_json());
+compiler/tests/typed_descriptors.rs:156:    assert!(serde_json::to_string(&JsFieldDefault::Literal("invalid".into())).is_err());
+compiler/tests/typed_descriptors.rs:160:    let mut model = JsModel {
+compiler/tests/typed_descriptors.rs:162:        fields: vec![JsModelField {
+compiler/tests/typed_descriptors.rs:164:            field: JsModelFieldType::Integer,
+compiler/tests/typed_descriptors.rs:179:        model.to_json(),
+compiler/tests/typed_descriptors.rs:184:    model.fields[0].default = Some(JsFieldDefault::Literal("null".into()));
+compiler/tests/typed_descriptors.rs:190:        models_json(&[model]),
+compiler/tests/typed_descriptors.rs:193:    assert_eq!(models_json(&[]), "[]");
+compiler/src/diagnostic.rs:364:        let first = result.to_json();
+compiler/src/diagnostic.rs:365:        let second = result.to_json();
+compiler/tests/typed_artifact.rs:5:    JsFieldDefault, JsMcpField, JsModel, JsModelField, JsModelFieldType, JsOperation,
+compiler/tests/typed_artifact.rs:6:    JsOperationField, JsOperationKind,
+compiler/tests/typed_artifact.rs:72:    artifact.operations = vec![JsOperation {
+compiler/tests/typed_artifact.rs:77:            JsOperationField {
+compiler/tests/typed_artifact.rs:79:                field: JsMcpField::Integer,
+compiler/tests/typed_artifact.rs:83:                default: Some(JsFieldDefault::Literal("null".into())),
+compiler/tests/typed_artifact.rs:86:            JsOperationField {
+compiler/tests/typed_artifact.rs:88:                field: JsMcpField::String,
+compiler/tests/typed_artifact.rs:97:    artifact.models = vec![JsModel {
+compiler/tests/typed_artifact.rs:99:        fields: vec![JsModelField {
+compiler/tests/typed_artifact.rs:101:            field: JsModelFieldType::Decimal,
+compiler/tests/typed_artifact.rs:106:            default: Some(JsFieldDefault::Literal(
+compiler/tests/docs.rs:579:    let value = available.to_json();
+compiler/tests/foundation.rs:38:    let expected_bytes = expected.to_json();
+compiler/tests/foundation.rs:49:            assert_eq!(result.to_json(), expected_bytes);
+compiler/tests/foundation.rs:52:            assert_eq!(result.to_json(), expected_bytes);
+compiler/tests/foundation.rs:81:    let json = result.to_json();
+compiler/tests/foundation.rs:100:    assert!(result.to_json().contains("\"complete\":false"));
+compiler/tests/foundation.rs:101:    assert!(result.to_json().contains("\"omitted\":3"));
+compiler/tests/foundation.rs:108:        result.to_json(),
+compiler/tests/foundation.rs:165:        result.to_json(),
+compiler/tests/foundation.rs:195:        result.to_json(),
+compiler/tests/typed_fixes.rs:3:    FixRejected, LintFix, fix_to_json, fixes_to_json, rejected_to_json,
+compiler/tests/typed_fixes.rs:21:        fix_to_json(&fix()),
+compiler/tests/typed_fixes.rs:28:    assert_eq!(fixes_to_json(&[]), "[]");
+compiler/tests/typed_fixes.rs:37:        fixes_to_json(&[first, second]),
+compiler/tests/typed_fixes.rs:45:        rejected_to_json(&FixRejected::Stale {
+compiler/tests/typed_fixes.rs:52:        rejected_to_json(&FixRejected::SpanInvalid {
+compiler/tests/typed_fixes.rs:60:        rejected_to_json(&FixRejected::Overlap {
+compiler/tests/b3_s4.rs:20:    FixRejected, LintConfig, RuleSet, apply_fix, collect_fixes, fix_to_json, fixes_to_json,
+compiler/tests/b3_s4.rs:21:    rejected_to_json,
+compiler/tests/b3_s4.rs:175:    let json = fix_to_json(fix);
+compiler/tests/b3_s4.rs:193:    assert_eq!(fixes_to_json(&fixes), format!("[{json}]"));
+compiler/tests/b3_s4.rs:206:    let stale_json = rejected_to_json(&err);
+compiler/tests/typed_references.rs:26:    assert_eq!(json::render(&model.to_json()), expected);
+compiler/tests/typed_references.rs:128:    assert_eq!(json::render(&model.to_json()), expected);
+compiler/tests/typed_references.rs:132:        owner.to_json(),
+compiler/tests/typed_references.rs:137:        declaration.to_json(),
+compiler/tests/typed_references.rs:142:            .to_json()
+compiler/tests/typed_references.rs:150:            .to_json()
+compiler/tests/typed_references.rs:176:        json::render(&input.to_json()),
+compiler/tests/typed_references.rs:185:        json::render(&result.to_json()),
+compiler/tests/typed_references.rs:201:        json::render(&operation.to_json()),
+compiler/tests/typed_references.rs:214:        json::render(&field.to_json()),
+compiler/tests/typed_references.rs:227:        json::render(&declaration.to_json()),
+compiler/tests/codegen.rs:3715:fn d03_operation<'a>(artifact: &'a CompileArtifact, name: &str) -> &'a js::JsOperation {
+compiler/tests/codegen.rs:3733:fn d03_input<'a>(op: &'a js::JsOperation, name: &str) -> &'a js::JsOperationField {
+compiler/tests/codegen.rs:3776:    let json = js::operations_json(&artifact.operations);
+compiler/tests/codegen.rs:3803:    let json = js::operations_json(&artifact.operations);
+compiler/tests/codegen.rs:3824:            .to_json()
+compiler/tests/codegen.rs:3827:        stock.to_json()
+compiler/tests/codegen.rs:3842:        !title.to_json().contains("description"),
+compiler/tests/codegen.rs:3844:        title.to_json()
+compiler/tests/codegen.rs:3859:        nick.to_json().contains("\"description\":\"\""),
+compiler/tests/codegen.rs:3861:        nick.to_json()
+compiler/tests/codegen.rs:3958:fn t15a_model<'a>(artifact: &'a CompileArtifact, name: &str) -> &'a js::JsModel {
+compiler/tests/codegen.rs:3976:fn t15a_field<'a>(model: &'a js::JsModel, name: &str) -> &'a js::JsModelField {
+compiler/tests/codegen.rs:4205:    assert_eq!(literal.to_json(), "{\"kind\":\"literal\",\"value\":\"7\"}");
+compiler/tests/codegen.rs:4224:    assert_eq!(parent.to_json(), "{\"kind\":\"parent\",\"path\":\"owner\"}");
+compiler/tests/codegen.rs:4238:    assert_eq!(server.to_json(), "{\"kind\":\"server\",\"init\":\"actor\"}");
+compiler/tests/codegen.rs:4243:    assert_eq!(both.to_json(), "{\"kind\":\"server\",\"init\":\"now\"}");
+compiler/tests/codegen.rs:4473:    assert!(matches!(tag("f_text"), js::JsModelFieldType::String));
+compiler/tests/codegen.rs:4474:    assert!(matches!(tag("f_email"), js::JsModelFieldType::String));
+compiler/tests/codegen.rs:4475:    assert!(matches!(tag("f_int"), js::JsModelFieldType::Integer));
+compiler/tests/codegen.rs:4476:    assert!(matches!(tag("f_dec"), js::JsModelFieldType::Decimal));
+compiler/tests/codegen.rs:4477:    assert!(matches!(tag("f_money"), js::JsModelFieldType::Money));
+compiler/tests/codegen.rs:4478:    assert!(matches!(tag("f_dt"), js::JsModelFieldType::Datetime));
+compiler/tests/codegen.rs:4479:    assert!(matches!(tag("f_bool"), js::JsModelFieldType::Boolean));
+compiler/tests/codegen.rs:4480:    assert!(matches!(tag("f_file"), js::JsModelFieldType::File));
+compiler/tests/codegen.rs:4482:        js::JsModelFieldType::Enum { values } => {
+compiler/tests/codegen.rs:4488:        js::JsModelFieldType::Ref { model } => assert_eq!(model, "demo.N"),
+compiler/tests/codegen.rs:4492:        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "demo.C"),
+compiler/tests/codegen.rs:4495:    assert!(matches!(tag("f_date"), js::JsModelFieldType::Date));
+compiler/tests/codegen.rs:4496:    assert!(matches!(tag("f_duration"), js::JsModelFieldType::Duration));
+compiler/tests/codegen.rs:4497:    assert!(matches!(tag("f_secret"), js::JsModelFieldType::Secret));
+compiler/tests/codegen.rs:4498:    assert!(matches!(tag("f_user"), js::JsModelFieldType::User));
+compiler/tests/codegen.rs:4499:    assert!(matches!(tag("f_member"), js::JsModelFieldType::Member));
+compiler/tests/codegen.rs:4500:    assert!(matches!(tag("f_json"), js::JsModelFieldType::Json));
+compiler/tests/codegen.rs:4501:    assert!(matches!(tag("f_bytes"), js::JsModelFieldType::Bytes));
+compiler/tests/codegen.rs:4504:    assert!(matches!(arr.field, js::JsModelFieldType::String));
+compiler/tests/codegen.rs:4508:    assert!(matches!(arrenum.field, js::JsModelFieldType::Enum { .. }));
+compiler/tests/codegen.rs:4511:    assert!(matches!(arrref.field, js::JsModelFieldType::Ref { .. }));
+compiler/tests/codegen.rs:4515:    assert!(matches!(nullable.field, js::JsModelFieldType::Integer));
+compiler/tests/codegen.rs:4518:    assert!(matches!(nularr.field, js::JsModelFieldType::String));
+compiler/tests/codegen.rs:4522:    assert!(matches!(elnull.field, js::JsModelFieldType::String));
+compiler/tests/codegen.rs:4526:    assert!(matches!(nested.field, js::JsModelFieldType::Other { .. }));
+compiler/tests/codegen.rs:4530:        js::JsModelFieldType::Other { type_id } => {
+compiler/tests/codegen.rs:4536:        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "action"),
+compiler/tests/codegen.rs:4540:        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "union"),
+compiler/tests/codegen.rs:4544:        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "object"),
+compiler/tests/codegen.rs:4548:        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "test-deferral"),
+compiler/tests/codegen.rs:4585:        stock.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4591:        price.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4596:        ratio.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4601:        qty.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4606:        state.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4623:        js::JsModelFieldType::Ref { model } => assert_eq!(model, "Shop.Gadget"),
+compiler/tests/codegen.rs:4630:        by.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4663:    assert!(matches!(notes.field, js::JsMcpField::String));
+compiler/tests/codegen.rs:4669:        limit.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4687:        stock.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4697:        js::JsMcpField::Ref {
+compiler/tests/codegen.rs:4734:        js::JsModelFieldType::Ref { model } => assert_eq!(model, "Shop.Member"),
+compiler/tests/codegen.rs:4741:        js::JsModelFieldType::Ref { model } => assert_eq!(model, "Shop.Right"),
+compiler/tests/codegen.rs:4745:        js::JsModelFieldType::Ref { model } => assert_eq!(model, "Shop.Left"),
+compiler/tests/codegen.rs:4770:        buddy.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4780:            .map(|d| d.to_json())
+compiler/tests/codegen.rs:4788:        shout.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:4968:    assert!(matches!(window.field, js::JsModelFieldType::Duration));
+compiler/tests/codegen.rs:5117:        tags.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:5123:        input.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:5159:        descriptor.to_json(),
+compiler/tests/codegen.rs:5287:        js::JsModelFieldType::Delivery(descriptor) => {
+compiler/tests/codegen.rs:5292:                descriptor.to_json(),
+compiler/tests/codegen.rs:5302:        js::JsModelFieldType::Delivery(descriptor) => {
+compiler/tests/codegen.rs:5304:                descriptor.to_json(),
+compiler/tests/codegen.rs:5322:        js::JsModelFieldType::Delivery(descriptor) => {
+compiler/tests/codegen.rs:5325:                descriptor.to_json(),
+compiler/tests/codegen.rs:5343:        js::JsModelFieldType::Delivery(descriptor) => {
+compiler/tests/codegen.rs:5345:            let json = descriptor.to_json();
+compiler/tests/codegen.rs:5368:        js::JsModelFieldType::Other { type_id } => {
+compiler/tests/codegen.rs:5375:        js::JsModelFieldType::Other { type_id } => {
+compiler/tests/codegen.rs:5381:        js::JsModelFieldType::Other { type_id } => {
+compiler/tests/codegen.rs:5415:    assert_eq!(note.field.to_json(), "{\"kind\":\"string\"}");
+compiler/tests/codegen.rs:5421:        js::JsMcpField::Delivery(descriptor) => {
+compiler/tests/codegen.rs:5427:                descriptor.to_json(),
+compiler/tests/codegen.rs:5455:    assert_eq!(recipient.field.to_json(), "{\"kind\":\"string\"}");
+compiler/tests/codegen.rs:5459:        js::JsModelFieldType::Delivery(descriptor) => {
+compiler/tests/codegen.rs:5706:    assert_eq!(title.field.to_json(), "{\"kind\":\"string\"}");
+compiler/tests/codegen.rs:5709:    assert_eq!(stock.field.to_json(), "{\"kind\":\"integer\"}");
+compiler/tests/codegen.rs:5715:            .is_some_and(|d| d.to_json().contains("\"literal\"")),
+compiler/tests/codegen.rs:5724:        matches!(delivery.field, js::JsModelFieldType::Delivery(_)),
+compiler/tests/codegen.rs:5733:        d03_input(ping, "note").field.to_json(),
+compiler/tests/codegen.rs:7019:        js::JsServerInit::Actor
+compiler/tests/codegen.rs:7021:    assert_eq!(js::js_server_init(&IrServer::Now), js::JsServerInit::Now);
+compiler/tests/codegen.rs:7034:        js::JsServerInit::RandomSecret
+compiler/tests/codegen.rs:7049:        js::JsServerInit::Computed
+compiler/tests/codegen.rs:7065:        js::JsServerInit::Computed
+compiler/tests/codegen.rs:7070:            .to_json(),
+compiler/tests/codegen.rs:7106:        value.default.as_ref().map(|d| d.to_json()).as_deref(),
+compiler/tests/codegen.rs:7114:            .map(|d| d.to_json())
+compiler/tests/codegen.rs:7122:            .map(|d| d.to_json())
+compiler/tests/codegen.rs:7165:        js::JsMcpField::Ref {
+compiler/src/codegen/artifact.rs:19:use crate::codegen::js::{Emitter, JsModel, JsOperation, JsOutput};
+compiler/src/codegen/artifact.rs:201:    pub operations: Vec<JsOperation>,
+compiler/src/codegen/artifact.rs:207:    pub models: Vec<JsModel>,
+compiler/src/codegen/artifact.rs:606:    operations: &'a [JsOperation],
+compiler/src/codegen/artifact.rs:607:    models: &'a [JsModel],
+compiler/src/codegen/js.rs:147:pub enum JsMcpField {
+compiler/src/codegen/js.rs:167:    /// [`JsModelFieldType::Delivery`] (one renderer, no drift).
+compiler/src/codegen/js.rs:168:    Delivery(JsDeliveryDescriptor),
+compiler/src/codegen/js.rs:179:pub struct JsNominalLeaf {
+compiler/src/codegen/js.rs:187:impl JsNominalLeaf {
+compiler/src/codegen/js.rs:197:pub struct JsNominalResult {
+compiler/src/codegen/js.rs:202:    pub fields: Vec<JsNominalLeaf>,
+compiler/src/codegen/js.rs:205:impl JsNominalResult {
+compiler/src/codegen/js.rs:221:pub struct JsDeliveryDescriptor {
+compiler/src/codegen/js.rs:229:    pub result: JsNominalResult,
+compiler/src/codegen/js.rs:232:impl JsDeliveryDescriptor {
+compiler/src/codegen/js.rs:247:pub fn delivery_descriptor(capability: &str, op: &StdOperation) -> Option<JsDeliveryDescriptor> {
+compiler/src/codegen/js.rs:250:    Some(JsDeliveryDescriptor {
+compiler/src/codegen/js.rs:254:        result: JsNominalResult {
+compiler/src/codegen/js.rs:259:                .map(|(name, declared)| JsNominalLeaf {
+compiler/src/codegen/js.rs:268:impl JsMcpField {
+compiler/src/codegen/js.rs:279:pub enum JsServerInit {
+compiler/src/codegen/js.rs:291:impl JsServerInit {
+compiler/src/codegen/js.rs:295:            JsServerInit::Actor => "\"actor\"",
+compiler/src/codegen/js.rs:296:            JsServerInit::Now => "\"now\"",
+compiler/src/codegen/js.rs:297:            JsServerInit::RandomSecret => "\"random_secret\"",
+compiler/src/codegen/js.rs:298:            JsServerInit::Computed => "\"computed\"",
+compiler/src/codegen/js.rs:306:pub enum JsFieldDefault {
+compiler/src/codegen/js.rs:315:    Server(JsServerInit),
+compiler/src/codegen/js.rs:320:impl JsFieldDefault {
+compiler/src/codegen/js.rs:342:pub fn js_server_init(server: &IrServer) -> JsServerInit {
+compiler/src/codegen/js.rs:344:        IrServer::Actor => JsServerInit::Actor,
+compiler/src/codegen/js.rs:345:        IrServer::Now => JsServerInit::Now,
+compiler/src/codegen/js.rs:346:        IrServer::Computed(expr) if is_random_secret_call(expr) => JsServerInit::RandomSecret,
+compiler/src/codegen/js.rs:347:        IrServer::Computed(_) => JsServerInit::Computed,
+compiler/src/codegen/js.rs:365:) -> Option<JsFieldDefault> {
+compiler/src/codegen/js.rs:367:        return Some(JsFieldDefault::Server(js_server_init(server)));
+compiler/src/codegen/js.rs:371:        Some(IrDefault::Literal(value)) => literal_json(value).map(JsFieldDefault::Literal),
+compiler/src/codegen/js.rs:373:            parent_path(expr).map(|path| JsFieldDefault::Parent { path })
+compiler/src/codegen/js.rs:516:pub struct JsOperationField {
+compiler/src/codegen/js.rs:520:    pub field: JsMcpField,
+compiler/src/codegen/js.rs:531:    pub default: Option<JsFieldDefault>,
+compiler/src/codegen/js.rs:538:impl JsOperationField {
+compiler/src/codegen/js.rs:548:pub struct JsOperation {
+compiler/src/codegen/js.rs:556:    pub inputs: Vec<JsOperationField>,
+compiler/src/codegen/js.rs:559:impl JsOperation {
+compiler/src/codegen/js.rs:570:fn has_duplicate_names(inputs: &[JsOperationField]) -> bool {
+compiler/src/codegen/js.rs:577:pub fn operations_json(operations: &[JsOperation]) -> String {
+compiler/src/codegen/js.rs:583:/// The `Ref`/scalar/`Enum`/`Delivery` members mirror [`JsMcpField`]
+compiler/src/codegen/js.rs:591:pub enum JsModelFieldType {
+compiler/src/codegen/js.rs:608:    /// [`JsDeliveryDescriptor`] shape with [`JsMcpField::Delivery`]).
+compiler/src/codegen/js.rs:609:    Delivery(JsDeliveryDescriptor),
+compiler/src/codegen/js.rs:624:impl JsModelFieldType {
+compiler/src/codegen/js.rs:633:pub struct JsModelField {
+compiler/src/codegen/js.rs:637:    pub field: JsModelFieldType,
+compiler/src/codegen/js.rs:647:    pub default: Option<JsFieldDefault>,
+compiler/src/codegen/js.rs:654:impl JsModelField {
+compiler/src/codegen/js.rs:678:pub struct JsModel {
+compiler/src/codegen/js.rs:682:    pub fields: Vec<JsModelField>,
+compiler/src/codegen/js.rs:702:impl JsModel {
+compiler/src/codegen/js.rs:712:pub fn models_json(models: &[JsModel]) -> String {
+compiler/src/codegen/js.rs:716:impl Serialize for JsDeliveryDescriptor {
+compiler/src/codegen/js.rs:760:impl Serialize for JsMcpField {
+compiler/src/codegen/js.rs:784:impl Serialize for JsModelFieldType {
+compiler/src/codegen/js.rs:813:impl Serialize for JsFieldDefault {
+compiler/src/codegen/js.rs:825:                init: JsServerInit,
+compiler/src/codegen/js.rs:847:impl Serialize for JsOperationField {
+compiler/src/codegen/js.rs:875:impl Serialize for JsModelField {
+compiler/src/codegen/js.rs:908:impl Serialize for JsOperation {
+compiler/src/codegen/js.rs:912:            fields: &'a [JsOperationField],
+compiler/src/codegen/js.rs:948:    pub operations: Vec<JsOperation>,
+compiler/src/codegen/js.rs:4908:    fn collect_operations(&self) -> Vec<JsOperation> {
+compiler/src/codegen/js.rs:4921:                    operations.push(JsOperation {
+compiler/src/codegen/js.rs:4969:                            Some((field, is_array)) => inputs.push(JsOperationField {
+compiler/src/codegen/js.rs:4987:                    operations.push(JsOperation {
+compiler/src/codegen/js.rs:5097:                                flat.push(JsOperationField {
+compiler/src/codegen/js.rs:5116:                    let record = || JsOperationField {
+compiler/src/codegen/js.rs:5118:                        field: JsMcpField::Ref {
+compiler/src/codegen/js.rs:5142:                                inputs.push(JsOperationField {
+compiler/src/codegen/js.rs:5144:                                    field: JsMcpField::Ref {
+compiler/src/codegen/js.rs:5180:                    operations.push(JsOperation {
+compiler/src/codegen/js.rs:5208:    /// the closed [`JsMcpField::Delivery`] kind below; bound-local
+compiler/src/codegen/js.rs:5213:    fn mcp_field_for_type(&self, ty: &IrType, require_version: bool) -> Option<(JsMcpField, bool)> {
+compiler/src/codegen/js.rs:5226:    ) -> Option<(JsMcpField, bool)> {
+compiler/src/codegen/js.rs:5239:                    | Scalar::Member => JsMcpField::String,
+compiler/src/codegen/js.rs:5240:                    Scalar::Int => JsMcpField::Integer,
+compiler/src/codegen/js.rs:5241:                    Scalar::Decimal => JsMcpField::Decimal,
+compiler/src/codegen/js.rs:5242:                    Scalar::Money => JsMcpField::Money,
+compiler/src/codegen/js.rs:5243:                    Scalar::Datetime => JsMcpField::Datetime,
+compiler/src/codegen/js.rs:5244:                    Scalar::Bool => JsMcpField::Boolean,
+compiler/src/codegen/js.rs:5245:                    Scalar::File => JsMcpField::File,
+compiler/src/codegen/js.rs:5251:                JsMcpField::Ref {
+compiler/src/codegen/js.rs:5258:                JsMcpField::Enum {
+compiler/src/codegen/js.rs:5278:                .map(|descriptor| (JsMcpField::Delivery(descriptor), false)),
+compiler/src/codegen/js.rs:5299:    pub fn collect_models(&self) -> Vec<JsModel> {
+compiler/src/codegen/js.rs:5347:            models.push(JsModel {
+compiler/src/codegen/js.rs:5390:    fn model_field(&self, field_item: &IrItem) -> JsModelField {
+compiler/src/codegen/js.rs:5393:            return JsModelField {
+compiler/src/codegen/js.rs:5400:                default: Some(JsFieldDefault::Derived),
+compiler/src/codegen/js.rs:5415:                return JsModelField {
+compiler/src/codegen/js.rs:5417:                    field: JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5442:        JsModelField {
+compiler/src/codegen/js.rs:5469:        let Some(JsFieldDefault::Literal(initial_json)) = js_field_default(default.as_ref(), None)
+compiler/src/codegen/js.rs:5537:    fn model_field_parts(&self, ty: &IrType) -> (JsModelFieldType, bool, bool) {
+compiler/src/codegen/js.rs:5542:                    JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5571:    /// the closed [`JsModelFieldType::Delivery`] tag below when both
+compiler/src/codegen/js.rs:5576:    fn model_field_tag(&self, ty: &ResolvedType) -> JsModelFieldType {
+compiler/src/codegen/js.rs:5584:                | Scalar::Currency => JsModelFieldType::String,
+compiler/src/codegen/js.rs:5585:                Scalar::Int => JsModelFieldType::Integer,
+compiler/src/codegen/js.rs:5586:                Scalar::Decimal => JsModelFieldType::Decimal,
+compiler/src/codegen/js.rs:5587:                Scalar::Money => JsModelFieldType::Money,
+compiler/src/codegen/js.rs:5588:                Scalar::Datetime => JsModelFieldType::Datetime,
+compiler/src/codegen/js.rs:5589:                Scalar::Bool => JsModelFieldType::Boolean,
+compiler/src/codegen/js.rs:5590:                Scalar::File => JsModelFieldType::File,
+compiler/src/codegen/js.rs:5591:                Scalar::Date => JsModelFieldType::Date,
+compiler/src/codegen/js.rs:5592:                Scalar::Duration => JsModelFieldType::Duration,
+compiler/src/codegen/js.rs:5593:                Scalar::Secret => JsModelFieldType::Secret,
+compiler/src/codegen/js.rs:5594:                Scalar::User => JsModelFieldType::User,
+compiler/src/codegen/js.rs:5595:                Scalar::Member => JsModelFieldType::Member,
+compiler/src/codegen/js.rs:5596:                Scalar::Json => JsModelFieldType::Json,
+compiler/src/codegen/js.rs:5597:                Scalar::Bytes => JsModelFieldType::Bytes,
+compiler/src/codegen/js.rs:5601:                    JsModelFieldType::Ref {
+compiler/src/codegen/js.rs:5605:                Some(row) => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5608:                None => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5612:            ResolvedType::Enum { cases, .. } => JsModelFieldType::Enum {
+compiler/src/codegen/js.rs:5615:            ResolvedType::Message(symbol) => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5626:            ResolvedType::Delivery { op } => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5638:                .map(JsModelFieldType::Delivery)
+compiler/src/codegen/js.rs:5639:                .unwrap_or_else(|| JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5642:            ResolvedType::Action { .. } => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5645:            ResolvedType::Invocation { .. } => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5648:            ResolvedType::Union(_) => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5651:            ResolvedType::Object(_) => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5654:            ResolvedType::Operation(symbol) => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5662:            ResolvedType::Opaque(id) => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5665:            ResolvedType::Team => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5668:            ResolvedType::OperationContext => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5671:            ResolvedType::Error => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5674:            ResolvedType::Unknown | ResolvedType::Null => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5681:            ResolvedType::Array { .. } => JsModelFieldType::Other {
+compiler/src/codegen/js.rs:5691:        operations: &[JsOperation],
+compiler/src/codegen/js.rs:5735:                &format!("operations:{},", operations_json(operations)),
