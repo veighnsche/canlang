@@ -1,0 +1,10 @@
+app T
+Given
+ derive a(): int = count(
+[
+1,
+2
+]
+)
+When
+Then

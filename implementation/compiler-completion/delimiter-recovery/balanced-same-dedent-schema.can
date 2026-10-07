@@ -1,0 +1,8 @@
+app T
+Given
+ M {
+value:int,
+ text:text="ok"
+}
+When
+Then
