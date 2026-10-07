@@ -1,0 +1,107 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "check": "129 unique current source identities match frozen blobs",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "15 prior audit/tool input identities",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "76 assessments cover exactly27 families and49 duplicate records",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "31 conditional duplication changes and18 retained boundaries",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "all primary ranges and exact slice measurements",
+      "passed": true,
+      "detail": {
+        "positions": 273,
+        "errors": []
+      }
+    },
+    {
+      "check": "two EOF corrections explicitly retained",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "future counts and benefits remain unmeasured",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "replacement gate covers mixed replacement/correction portions",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "before/after vectors and qualifications exist for every record",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "entire844-file package tree equals verified measured-current baseline",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "root package/lock identities equal measured-current baseline",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "13 owner before/after counts and historical total deltas reconcile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "old/new formatter and quote body measurements independently matched",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "480 branch groups crosswalk27 family assessments with unknown after counts",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "69 existing overlay groups retain no production credit/authorization",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "four capability boundaries remain separately unallocated",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "opposing gross-envelope checks match assessment and preserve net gate",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Sol medium delegation and planning-only scope retained",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local document links exist",
+      "passed": true,
+      "detail": {
+        "links": 12,
+        "errors": []
+      }
+    }
+  ],
+  "limits": "Source, frozen Git, role-aware historical baseline, hash/range/count/coverage and proposal consistency only. No production implementation, future reduction, product runtime/tests, build, install or acceptance."
+}
