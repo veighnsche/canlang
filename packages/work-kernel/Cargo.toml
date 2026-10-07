@@ -7,3 +7,9 @@ edition = "2021"
 name = "canlang_work_kernel"
 crate-type = ["cdylib", "rlib"]
 path = "rust/lib.rs"
+
+[dependencies]
+ryu-js = { version = "=1.0.3", default-features = false }
+
+[dev-dependencies]
+serde_json = "=1.0.151"

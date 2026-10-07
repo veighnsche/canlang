@@ -37,8 +37,7 @@
 //! - Error parity is name/code/message; class identity differs by
 //!   module on every backend (same rule as the TS suites).
 
-#[path = "numeric_text.rs"]
-mod numeric_text;
+use super::numeric_text;
 
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -6924,6 +6923,3 @@ mod units {
 }
 
 // N03 immutable witnesses: private Cargo route, not standalone rustc.
-#[cfg(test)]
-#[path = "../conformance/native-numeric-text.rs"]
-mod n03_numeric_tests;
