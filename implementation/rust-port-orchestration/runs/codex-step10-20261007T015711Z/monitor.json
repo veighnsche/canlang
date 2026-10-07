@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "run_id": "codex-step10-20261007T015711Z",
+  "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z",
+  "private_root": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+  "base": "295908144f14a070ac5f62122d1d0d982ea47c89",
+  "previous_run": "codex-step9-20261007T012914Z",
+  "phase": "step10_identity_contract_plus_root_ready_work",
+  "human_release": "Step10 identity/CSV/services finite packets and ready critical Rust-port prerequisites",
+  "execution_authorized": true,
+  "future_dispatch_authorized": false,
+  "preparation_hold": true,
+  "roles": [
+    {
+      "owner": "/root/step10_identity_contract",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "scope": "I01 independently released encoding/cookie/host contracts",
+      "ack": true,
+      "source_lease": false,
+      "output_lease": "contracts/identity-*",
+      "progress": "Current source/callers/policy qualification in progress"
+    },
+    {
+      "owner": "/root",
+      "scope": "C01 CSV source/grammar ownership; H01/H02 ready services work; current port prerequisite readiness; sole dependency/Git joins",
+      "source_lease": [
+        "packages/services/src/http/client.ts",
+        "packages/services/test/http-client.test.ts",
+        "packages/services/test/http-lifecycle.test.ts"
+      ],
+      "progress": "Verified source, quota gap and source snapshot preparation"
+    }
+  ],
+  "heavy_grants": [],
+  "native_timers": [],
+  "supervisor_status": "ACTIVE requested",
+  "foreign_writer": "compiler and six dirty shared plan/decision paths preserved",
+  "selected_units": [
+    "library-sequence:I01",
+    "library-sequence:I02",
+    "library-sequence:I03",
+    "library-sequence:I04",
+    "library-sequence:C01",
+    "library-sequence:C02",
+    "library-sequence:C03",
+    "library-sequence:C04 conditional evaluation",
+    "library-sequence:H01",
+    "library-sequence:H02 conditional corrective evaluation"
+  ],
+  "root_owner": "Exact manifests/lock/exports/delivery/Git only; sole global assembly writer",
+  "baseline_reference": "baseline.json",
+  "updated_at_utc": "2026-10-07T01:59:27.144918+00:00"
+}
