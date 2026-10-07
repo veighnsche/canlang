@@ -268,7 +268,7 @@
     },
     "TECH-V03": {
       "planning_status": "blocked",
-      "state": "Mutable content and missing factory witnesses retained; actual derivative caller/identity census ACKed",
+      "state": "Owned-content contract released; finite implementation ready, genuine factory/default joins remain open",
       "files": [
         "packages/values/bindings/owned-input.ts",
         "packages/values/src/prepared/plan.ts",
@@ -279,11 +279,17 @@
       "model": "gpt-6.1-sol",
       "effort": "medium",
       "outputs": "/private/tmp/canlang-repair-go-20261007/owned-content-contract",
-      "reason": "Bounded factual prerequisite, root substantive contract/JEV separate",
+      "reason": "Bounded released-contract correction; Sol medium finite implementation, different-author review required",
       "private_result": "/private/tmp/canlang-repair-go-20261007/prepared-ownership/result.json",
       "private_result_sha256": "541b0439c71379e656d37f4eb6724e3ba76e31d50e2aa6c45017fb181eb54096",
-      "root_contract_pending": true,
-      "read_released": true
+      "root_contract_pending": false,
+      "read_released": true,
+      "contract": "owned-content-contract.json",
+      "selected_contract": "stable_frozen",
+      "active_files": [
+        "packages/values/bindings/owned-input.ts",
+        "packages/values/test/owned-input.test.ts"
+      ]
     },
     "TECH-V04": {
       "planning_status": "blocked",
@@ -530,7 +536,7 @@
     },
     "TECH-I02": {
       "planning_status": "blocked",
-      "state": "independently accepted finite pkce correction; scoped commit prepared",
+      "state": "independently accepted finite S256 issuance; committed1eeedb6d",
       "files": [
         "packages/identity/src/authentication/oauth.ts",
         "packages/identity/src/sessions/presession.ts",
@@ -563,12 +569,13 @@
       },
       "review_read_released": true,
       "root_read_released": true,
-      "commit_pending": true,
-      "parent_limit": "Verifier grammar, browser origins, persisted/native/installed/current-authority and whole auth remain open"
+      "commit_pending": false,
+      "parent_limit": "Verifier grammar, browser origins, persisted/native/installed/current-authority and whole auth remain open",
+      "commit": "1eeedb6d"
     },
     "TECH-F01": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Exact crash/retry length and finalization phase witnesses complete; narrow size guard ready, broader recovery contract open",
       "files": [
         "packages/files/src/ports.ts",
         "packages/files/src/upload/index.ts",
@@ -577,7 +584,9 @@
         "packages/files/src/provenance/index.ts",
         "packages/files/src/bridge.ts",
         "packages/interfaces/src/uploads/routes.ts"
-      ]
+      ],
+      "outputs": "/private/tmp/canlang-repair-go-20261007/files-lifecycle",
+      "read_released": true
     },
     "TECH-F02": {
       "planning_status": "blocked",
@@ -636,12 +645,15 @@
     },
     "TECH-SV03": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Source-current caller/domain witnesses complete; consequential host/digest contract remains blocked",
       "files": [
         "packages/services/src/media/mapping.ts",
         "packages/services/src/media/comfyui.ts",
         "packages/files/src/bridge.ts"
-      ]
+      ],
+      "outputs": "/private/tmp/canlang-repair-go-20261007/service-mapping",
+      "read_released": true,
+      "result_sha256": "c8b22c143a20f253bc56aa9c1430385d2b1ed94feea832c3323260602961b42c"
     },
     "TECH-SV04": {
       "planning_status": "ready",
@@ -1189,7 +1201,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T21:46:07.005672+00:00",
+  "updated_utc": "2026-10-07T21:50:02.699344+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",

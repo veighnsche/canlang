@@ -1,0 +1,130 @@
+{
+  "packet": "TECH-V03 owned-content contract",
+  "stage": "accepted finite selected correction; implementation and consumer qualification pending",
+  "selected": "stable_frozen",
+  "source_pins": {
+    "packages/values/bindings/owned-input.ts": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+    "packages/values/bindings/validation.ts": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+    "packages/values/src/prepared/codec.ts": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e"
+  },
+  "private_census": "/private/tmp/canlang-repair-go-20261007/owned-content-contract/result.json",
+  "private_census_sha256": "06e4b296387a37486d7b3503e2183d0b3a91101a642dfcef1f473d290e9b6d46",
+  "production_callers": 0,
+  "public_subpath": "exported; external consumers unknown",
+  "observed_defects": [
+    "reader buffer mutation changes bytes while text/value stay old",
+    "returned value mutation changes parsed content alone",
+    "mutable record replacement makes byteLength disagree"
+  ],
+  "alternatives": {
+    "fresh_copies": "Isolates mutation while retaining mutable derivatives, but breaks explicit stable-value identity and repeats parse/allocation. Original text reparse preserves -0/Infinity; stringify clone does not.",
+    "stable_frozen": "Byte snapshot; iterative freeze-in-place of private parser-created tree; one stable frozen record/value; bytes getter returns fresh defensive copies. Preserves stable value/record identity, changes mutation and byte/reflection semantics.",
+    "trusted_aliases": "Retains no-traversal cost and all legacy identities under an issuance-only/trusted-nonmutation contract. Actual alias divergence remains; no production caller establishes trust, and no immutable content-authority acceptance follows."
+  },
+  "rationale": "The owned derivative contract must not let a caller mutate a different authoritative representation. Preserve existing test-pinned value identity with a private JSON tree rather than clone a second graph or add repeated parsing. No known production caller needs mutation; exported compatibility change is explicit, not inferred safe from census.",
+  "scope": [
+    "Snapshot injected reader bytes before decoding; reader errors/caps remain delegated and unchanged.",
+    "Iterative ownership freeze only, no semantic validation/normalization/depth cap/general arbitrary graph clone.",
+    "Preserve original JSON.parse order/duplicates/__proto__/-0/overflow/lone-surrogate/scalar/deep semantics and default TextDecoder BOM/replacement.",
+    "Frozen record and stable value identity; defensive byte accessor changes byte identity and descriptor/mutation behavior.",
+    "Do not alter provenance/plan/schema/default factories, add adopt(unknown), or claim genuine prepared-plan admission."
+  ],
+  "maintenance_budget": "Required correctness, no replacement saving. Added O(containers+edges) ownership traversal/scratch and B-byte input snapshot; each public bytes access copies B bytes. Measure actual current boundary; no copied-tree benchmark attributed to in-place variant.",
+  "uncertainty": [
+    "Unknown external exported consumers may depend on mutable records/values/byte identity; breaking behavioral correction needs release documentation.",
+    "Existing no-traversal stage comment changes explicitly to ownership-only traversal; no new semantic admission claimed.",
+    "No production prepared-plan join or genuine default/provenance handoff is yet qualified.",
+    "JEV returns choices/probabilities without rationale; advice, not proof."
+  ],
+  "consultations": [
+    {
+      "variant": 1,
+      "request_sha256": "1db58f5c4f9c7710817235cb3b7493f1515f12b45082c21b79f42264799da14a",
+      "pid": 8658,
+      "start": "2026-10-07T21:48:03.671428+00:00",
+      "deadline": "2026-10-07T21:49:03.671428+00:00",
+      "retries": 0,
+      "human_approval": "Approve these three consultations",
+      "exit": 0,
+      "end": "2026-10-07T21:48:04.087050+00:00",
+      "answers": {
+        "ownership_contract": {
+          "type": "choice",
+          "choice": "stable_frozen",
+          "confidence": 0.69,
+          "probabilities": {
+            "stable_frozen": 0.79,
+            "trusted_aliases": 0.2,
+            "fresh_copies": 0.01
+          }
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2477,
+        "output_tokens": 51
+      },
+      "response_sha256": "df0dca9f1f5415fc837bbba4abe283c226dc37b7b8f57cfb6a231a92f2b7e3f2"
+    },
+    {
+      "variant": 2,
+      "request_sha256": "151a9d8a5eeffd175e5d5dff28ffe38abf55b2a170f80f5ebb319ed39337ae0f",
+      "pid": 8657,
+      "start": "2026-10-07T21:48:03.671648+00:00",
+      "deadline": "2026-10-07T21:49:03.671648+00:00",
+      "retries": 0,
+      "human_approval": "Approve these three consultations",
+      "exit": 0,
+      "end": "2026-10-07T21:48:04.093085+00:00",
+      "answers": {
+        "ownership_contract": {
+          "type": "choice",
+          "choice": "stable_frozen",
+          "confidence": 0.52,
+          "probabilities": {
+            "stable_frozen": 0.68,
+            "trusted_aliases": 0.3,
+            "fresh_copies": 0.02
+          }
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2478,
+        "output_tokens": 51
+      },
+      "response_sha256": "17f7c30fdc8cee267c836721bfc3e6973c8dd34ef9f1e8aed9df107a65627995"
+    },
+    {
+      "variant": 3,
+      "request_sha256": "82eaf0c1dd6c2b68c1fc23ae01af6ab633745ce384479ba0e5eac068d3510ea5",
+      "pid": 8659,
+      "start": "2026-10-07T21:48:03.672874+00:00",
+      "deadline": "2026-10-07T21:49:03.672874+00:00",
+      "retries": 0,
+      "human_approval": "Approve these three consultations",
+      "exit": 0,
+      "end": "2026-10-07T21:48:04.093017+00:00",
+      "answers": {
+        "ownership_contract": {
+          "type": "choice",
+          "choice": "stable_frozen",
+          "confidence": 0.8,
+          "probabilities": {
+            "fresh_copies": 0.02,
+            "trusted_aliases": 0.11,
+            "stable_frozen": 0.87
+          }
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2479,
+        "output_tokens": 51
+      },
+      "response_sha256": "3f13f299a1f2ecb5df4d0bf72c2ae362c6722bfead148573322ac1cb28df6f29"
+    }
+  ],
+  "gate": "Exact two-file implementation/review with original parse/error and independent mutation/deep/resource controls before source acceptance",
+  "status": "contract released only"
+}
