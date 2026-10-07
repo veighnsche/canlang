@@ -601,7 +601,7 @@
     },
     "PARSER-DP01": {
       "planning_status": "ready",
-      "state": "independently accepted mounted own-key correctness; committing",
+      "state": "accepted mounted correctness repair; committed",
       "files": [
         "packages/interfaces/src/http/limits.ts",
         "packages/interfaces/src/http/operations.ts",
@@ -609,7 +609,8 @@
       ],
       "agent": "/root/impl_form_own_keys",
       "review": "form-own-keys-independent-review.json",
-      "acceptance": "42 source-current tests; baseline/parser-only/coercion-only/current mounted witnesses; helper-only collection query; correctness separate budget"
+      "acceptance": "42 source-current tests; baseline/parser-only/coercion-only/current mounted witnesses; helper-only collection query; correctness separate budget",
+      "commit": "2ca0684"
     },
     "VERIFY-TV01": {
       "planning_status": "ready",
@@ -702,14 +703,17 @@
     },
     "DEL-A01-error": {
       "planning_status": "ready",
-      "state": "final inferred private helper independently accepted; committing",
+      "state": "accepted private-leaf reduction; committing",
       "files": [
         "packages/ui/src/browser/export.ts",
         "packages/ui/src/csv/parse.ts",
         "packages/ui/src/internal/business-errors.ts"
       ],
-      "agent": "/root/review_ui_appearance",
-      "review": "business-errors-independent-review-final.json"
+      "agent": "/root/impl_values_gregorian",
+      "review": "business-errors-independent-review-final.json",
+      "reviewer": "/root/review_ui_appearance",
+      "readable_reduction": 22,
+      "full_closure_reduction": 12
     },
     "DEL-A01-binding": {
       "planning_status": "ready",
@@ -760,5 +764,5 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:06:12.229118+00:00"
+  "updated_utc": "2026-10-07T19:07:09.117917+00:00"
 }

@@ -29,6 +29,7 @@ import type {
 import { CSRF_FIELD } from "@canlang/contracts";
 import { escapeAttr, escapeHtml } from "../escape.js";
 import { assertRegionId } from "../htmx.js";
+import { digestBusinessError as digestUiBusinessError } from "../internal/business-errors.js";
 import { CSV_GRAMMAR_MAX_ROWS, CsvGrammarError, parseCsvGrammar } from "./grammar.js";
 import { message, resolveCaption } from "../messages.js";
 
@@ -54,44 +55,13 @@ export interface CsvBusinessError {
   readonly retryable?: boolean;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
  * Digest server error JSON into a renderable shape. Returns null when
  * the value is not error-shaped (caller decides: transport fallback).
  * Never throws on data; never passes raw bodies through.
  */
 export function digestBusinessError(value: unknown): CsvBusinessError | null {
-  if (!isRecord(value)) return null;
-  const code = value["code"];
-  const message = value["message"];
-  if (typeof code !== "string" || code === "" || typeof message !== "string" || message === "") {
-    return null;
-  }
-  const fields = value["fields"];
-  const digested: Array<{ path: string; code?: string; message: string }> = [];
-  if (Array.isArray(fields)) {
-    for (const entry of fields) {
-      if (!isRecord(entry)) continue;
-      const path = entry["path"];
-      const fieldMessage = entry["message"];
-      if (typeof path !== "string" || typeof fieldMessage !== "string") continue;
-      const fieldCode = entry["code"];
-      if (typeof fieldCode === "string") {
-        digested.push({ path, code: fieldCode, message: fieldMessage });
-      } else {
-        digested.push({ path, message: fieldMessage });
-      }
-    }
-  }
-  return {
-    code,
-    message,
-    ...(digested.length > 0 ? { fields: digested } : {}),
-    ...(typeof value["retryable"] === "boolean" ? { retryable: value["retryable"] } : {}),
-  };
+  return digestUiBusinessError(value);
 }
 
 /** One advisory parsed data row: raw cell strings + field-count flag. */

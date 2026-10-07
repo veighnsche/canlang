@@ -1,0 +1,277 @@
+{
+  "packet": "DEL-A01-error",
+  "base": "890fc3b637993cd28b697f2ccd3a97ac678a8024",
+  "status": "pass",
+  "files": [
+    {
+      "path": "packages/ui/src/browser/export.ts",
+      "baselineSha256": "9c85f8b85632ef10383eaffba1b0aea12c48302effc0a5d609c22a0c85070e63",
+      "currentSha256": "92126f724b7e42c4563fe43955ce696abf779f86f0729ee98d035f994c59b0bb",
+      "privateEmittedJsSha256": "2c4ef41389e2e1fc18051ca95d8514282778bf566d62f743d234edb83e77cf5d",
+      "baselineDeclarationSha256": "fbe6124dd0af0b7af63c39e17ab412e1b305822268d23cfe1d7e2f18c00b2301",
+      "currentDeclarationSha256": "fbe6124dd0af0b7af63c39e17ab412e1b305822268d23cfe1d7e2f18c00b2301",
+      "publicDeclarationChange": "None: full public declarations byte-identical",
+      "otherSourceUnchanged": true,
+      "exactDigestBody": true,
+      "sourceCurrentPrivateOutput": true
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "baselineSha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "currentSha256": "d57bf0d2729641b02c43980633cc4b14b5c403397ee569e0bf98ce2237f9856b",
+      "privateEmittedJsSha256": "c5325974ef0ff1904baeae479a8fcfab76b5216b490788c6cc4100837a37de81",
+      "baselineDeclarationSha256": "b40aff0fb0105548c658acd62374b92969cfd763d5f881008010ee3d436beae0",
+      "currentDeclarationSha256": "b40aff0fb0105548c658acd62374b92969cfd763d5f881008010ee3d436beae0",
+      "publicDeclarationChange": "None: full public declarations byte-identical",
+      "otherSourceUnchanged": true,
+      "exactDigestBody": true,
+      "sourceCurrentPrivateOutput": true
+    }
+  ],
+  "helper": {
+    "path": "packages/ui/src/internal/business-errors.ts",
+    "sha256": "f110d412ae2709ddb3e98831463609df556b1eb7b1d0b514e56826cfe58a9703",
+    "privateEmittedJsSha256": "5476c3f5a639ebfb63c22ee4366719167f16e29307d0450441f42c415e62cac1",
+    "noPrivateDuplicatedInterface": true,
+    "noTypeImportsOrCycle": true,
+    "inferredDeclarationSha256": "9b0ab9d555c8539da20315e970ff75e487da6ad6fbc51ca86a4d44ceaf6939eb"
+  },
+  "counts": {
+    "measure": "Nonblank noncomment source using parsed TS comment ranges; tests/generated output/maps excluded",
+    "productionBefore": 450,
+    "productionAfter": 428,
+    "declarationsBefore": 133,
+    "declarationsAfter": 143,
+    "totalBefore": 583,
+    "totalAfter": 571
+  },
+  "structuralTypes": {
+    "bidirectionalCompatibility": true,
+    "strictExactOptionalPropertyTypes": true,
+    "diagnostics": 0,
+    "publicDeclarationsByteIdentical": true,
+    "moduleAugmentationCapabilityPreserved": true
+  },
+  "controls": [
+    {
+      "scenario": "valid",
+      "trace": [
+        "code",
+        "message",
+        "fields",
+        "path",
+        "message",
+        "field-code",
+        "retryable",
+        "retryable"
+      ],
+      "value": {
+        "code": "conflict",
+        "message": "Safe <detail>",
+        "fields": [
+          {
+            "path": "a",
+            "code": "invalid",
+            "message": "Field"
+          },
+          {
+            "path": "",
+            "message": ""
+          },
+          {
+            "path": "b",
+            "message": "message"
+          }
+        ],
+        "retryable": true
+      }
+    },
+    {
+      "scenario": "missing",
+      "trace": [
+        "code",
+        "message"
+      ],
+      "value": null
+    },
+    {
+      "scenario": "invalid-message",
+      "trace": [
+        "code",
+        "message"
+      ],
+      "value": null
+    },
+    {
+      "scenario": "fields-not-array",
+      "trace": [
+        "code",
+        "message",
+        "fields",
+        "retryable",
+        "retryable"
+      ],
+      "value": {
+        "code": "conflict",
+        "message": "Safe <detail>",
+        "retryable": true
+      }
+    },
+    {
+      "scenario": "hostile-fields",
+      "trace": [
+        "code",
+        "message",
+        "fields",
+        "path",
+        "message",
+        "retryable",
+        "retryable"
+      ],
+      "value": {
+        "code": "conflict",
+        "message": "Safe <detail>",
+        "fields": [
+          {
+            "path": "",
+            "message": ""
+          },
+          {
+            "path": "b",
+            "message": "message"
+          }
+        ],
+        "retryable": true
+      }
+    },
+    {
+      "scenario": "changing-retryable",
+      "trace": [
+        "code",
+        "message",
+        "fields",
+        "path",
+        "message",
+        "field-code",
+        "retryable",
+        "retryable"
+      ],
+      "value": {
+        "code": "conflict",
+        "message": "Safe <detail>",
+        "fields": [
+          {
+            "path": "a",
+            "code": "invalid",
+            "message": "Field"
+          },
+          {
+            "path": "",
+            "message": ""
+          },
+          {
+            "path": "b",
+            "message": "message"
+          }
+        ]
+      }
+    },
+    {
+      "scenario": "throw-code",
+      "trace": [
+        "code"
+      ],
+      "errorIdentity": true
+    },
+    {
+      "scenario": "throw-message",
+      "trace": [
+        "code",
+        "message"
+      ],
+      "errorIdentity": true
+    },
+    {
+      "scenario": "throw-fields",
+      "trace": [
+        "code",
+        "message",
+        "fields"
+      ],
+      "errorIdentity": true
+    },
+    {
+      "scenario": "throw-path",
+      "trace": [
+        "code",
+        "message",
+        "fields",
+        "path"
+      ],
+      "errorIdentity": true
+    },
+    {
+      "scenario": "throw-field-message",
+      "trace": [
+        "code",
+        "message",
+        "fields",
+        "path",
+        "message"
+      ],
+      "errorIdentity": true
+    },
+    {
+      "scenario": "throw-field-code",
+      "trace": [
+        "code",
+        "message",
+        "fields",
+        "path",
+        "message",
+        "field-code"
+      ],
+      "errorIdentity": true
+    },
+    {
+      "scenario": "throw-retryable-first",
+      "trace": [
+        "code",
+        "message",
+        "fields",
+        "path",
+        "message",
+        "field-code",
+        "retryable"
+      ],
+      "errorIdentity": true
+    },
+    {
+      "scenario": "throw-retryable-second",
+      "trace": [
+        "code",
+        "message",
+        "fields",
+        "path",
+        "message",
+        "field-code",
+        "retryable",
+        "retryable"
+      ],
+      "errorIdentity": true
+    }
+  ],
+  "tests": {
+    "passed": 41,
+    "failed": 0,
+    "log": "/private/tmp/canlang-repair-go-20261007/business-errors-independent-final-test.log"
+  },
+  "defects": [],
+  "limits": [
+    "Only existing error digest extraction",
+    "Existing external interfaces/functions and declaration-merging capability preserved exactly",
+    "Export independent isRecord and all fallback/detail construction source unchanged",
+    "Hostile getter exceptions retain existing behavior and identity despite original comment saying never throws on data",
+    "No new CSV/authority/provider policy or broader UI acceptance"
+  ]
+}
