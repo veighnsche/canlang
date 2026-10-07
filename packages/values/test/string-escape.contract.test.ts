@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-const packageRoot = path.resolve(import.meta.dirname, "..");
+const emitted = path.basename(path.dirname(import.meta.dirname)) === "dist";
+const packageRoot = path.resolve(import.meta.dirname, emitted ? "../.." : "..");
 const fixturePath = path.resolve(packageRoot, "conformance/string-escape.json");
 const oraclePath = path.resolve(packageRoot, "conformance/string-escape.oracle.mjs");
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as {
@@ -18,7 +19,7 @@ const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as {
   routeSummary: { strings: number; rustStrAdmitted: number; helperParityAdmitted: number; actualWireParityAdmitted: number; astralCutResidual: string[]; jsOnlyUnpaired: string[]; callerActualWireResiduals: string[] };
 };
 
-test("frozen corpus and original owning TypeScript caller observations reproduce", { timeout: 30_000 }, () => {
+test("frozen corpus and source-current owning TypeScript caller observations reproduce", { timeout: 30_000 }, () => {
   assert.equal(fixture.contract, "n01.rust-str-escape.v1");
   assert.equal(fixture.strings.length, 93);
   assert.deepEqual(fixture.routeSummary, {
