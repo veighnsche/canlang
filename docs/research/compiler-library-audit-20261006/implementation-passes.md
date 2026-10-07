@@ -6,6 +6,8 @@ This is the detailed execution proposal accompanying the [audit](README.md), pin
 
 **Execution update, 2026-10-07:** the [final Pass 10 receipt](pass10/README.md) qualifies the selected core substitutions and links every packet's implemented contract/consumer evidence. The audit's [completion table](README.md#implementation-and-qualification-status) is the current scope ledger; the original preparation/instructions below remain historical planning context. Locale replacement failed its profile gate, conditional mechanisms retain/defer separately, and T37/FP.QUALIFY/FP.INSTALLED-RELEASE remain open. The pass labels do not replace canonical product or package task identities.
 
+**Clarified production-reduction requirement, 2026-10-07:** correctness/retirement qualification does not complete the user's simplification objective. Every further substitution must show a material net reduction across its complete production adapter/caller closure, with equivalent behavior and fewer owned mechanisms; tests, lockfiles and binary size are separate. Do not use formatting, relocation or contract weakening to manufacture a reduction. The [bounded follow-up](production-reduction/README.md) records the first checked LSP projection reduction and the remaining assessment gates. Its economical delegation and coherent commit rules apply to each packet.
+
 ## Pass 0 Establish the contracts and regression witnesses
 
 **Priority and effort:** first, bounded preparation. It should produce implementable packets rather than reopen the entire repository audit.

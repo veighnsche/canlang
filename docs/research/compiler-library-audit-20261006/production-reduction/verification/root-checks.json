@@ -1,0 +1,42 @@
+[
+  {
+    "name": "fmt",
+    "argv": [
+      "cargo",
+      "fmt",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--check"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.605,
+    "environment_overrides": {
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_NET_OFFLINE": "true"
+    },
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "clippy",
+    "argv": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 20.134,
+    "environment_overrides": {
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_NET_OFFLINE": "true"
+    },
+    "log_sha256": "a09c9f3553ba9ed2466ee94398f9205d39795893589de49678c2f06162898984"
+  }
+]

@@ -1,0 +1,83 @@
+CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 CARGO_NET_OFFLINE=true cargo test --locked --manifest-path compiler/Cargo.toml --test lsp_typed_output --test lsp_admission --test ide
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.13s
+     Running tests/ide.rs (compiler/target/debug/deps/ide-1bfd466c0a1a2187)
+
+running 32 tests
+test completion_builtin_with_catalog ... ok
+test fixes_for_analysis_diagnostics_are_deliberately_empty ... ok
+test document_symbols_outline ... ok
+test hover_description_shows_source_language_only ... ok
+test completion_section_keywords ... ok
+test completion_type_position ... ok
+test hover_description_static_reference_resolves_wording ... ok
+test definition_spans ... ok
+test completion_expression_scope ... ok
+test hover_builtin_with_catalog ... ok
+test hover_shows_descriptions ... ok
+test hover_predicate_and_unresolved_are_empty ... ok
+test hover_field_description_spellings ... ok
+test hover_param_description_from_slot ... ok
+test import_member_resolves_to_export ... ok
+test hover_symbol_decl_and_use ... ok
+test offset_at_position_cases ... ok
+test offset_at_position_roundtrips_addressable_scalar_boundaries ... ok
+test hover_local_binding_shows_type ... ok
+test lint_fix_wrap_apply_and_stale ... ok
+test semantic_tokens_tiny_exact ... ok
+test lint_fix_preserves_analysis ... ok
+test references_spans ... ok
+test server_capability_negotiation ... ok
+test semantic_tokens_classify_fixture ... ok
+test rename_spans_and_hash ... ok
+test server_stale_version_suppressed_with_real_backend ... ok
+test server_publishes_analysis_and_lint ... ok
+test server_rename_and_invalid_name ... ok
+test server_completion_and_semantic_tokens ... ok
+test server_code_action_fix_application ... ok
+test server_hover_definition_references_roundtrip ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lsp_admission.rs (compiler/target/debug/deps/lsp_admission-ec82d31837046378)
+
+running 26 tests
+test initialize_admits_unknown_capabilities_and_extensions ... ok
+test exit_before_shutdown_has_exit_code_one ... ok
+test eof_keeps_the_existing_clean_disconnect_exit ... ok
+test lifecycle_precedence_is_envelope_then_lifecycle_then_method_then_params ... ok
+test invalid_shutdown_and_exit_params_do_not_change_lifecycle ... ok
+test known_method_field_errors_reply_to_requests_and_leave_notifications_silent ... ok
+test malformed_did_open_is_silent_and_does_not_create_a_document ... ok
+test malformed_json_is_a_null_parse_error_and_consumes_the_frame ... ok
+test notifications_outside_ready_cannot_open_documents_or_publish ... ok
+test ignored_capabilities_keep_the_value_entry_depth_budget ... ok
+test primitive_shutdown_and_exit_params_are_envelope_errors ... ok
+test malformed_did_change_does_not_mutate_or_publish_a_new_version ... ok
+test decoded_reserved_duplicate_keys_are_rejected_before_dispatch ... ok
+test shutdown_then_exit_is_clean ... ok
+test ordinary_private_marker_keys_remain_objects_in_initialize_params ... ok
+test valid_notification_envelopes_are_silent_without_initializing ... ok
+test shutdown_and_exit_accept_absent_null_and_empty_object_params ... ok
+test invalid_initialize_fields_do_not_initialize ... ok
+test torn_headers_and_body_keep_the_existing_clean_disconnect_exit ... ok
+test valid_required_contexts_and_maximum_position_are_admitted ... ok
+test valid_unicode_string_id_keeps_its_semantic_value ... ok
+test malformed_utf8_is_one_parse_error_and_does_not_initialize ... ok
+test illegal_ids_are_null_correlated_and_never_initialize ... ok
+test accepted_integral_ids_preserve_the_original_number_lexeme ... ok
+test malformed_envelopes_correlate_only_a_unique_legal_id ... ok
+test strict_json_grammar_and_unknown_unicode_recover_through_shutdown_exit ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+     Running tests/lsp_typed_output.rs (compiler/target/debug/deps/lsp_typed_output-81aa3553cd56a342)
+
+running 4 tests
+test real_diagnostics_keep_valid_siblings_after_a_parse_error ... ok
+test real_all_output_families_crlf_and_supplementary_utf16 ... ok
+test real_version_increment_requeries_current_source_and_edits ... ok
+test real_opaque_uri_identities_keep_notifications_locations_and_edit_routing ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

@@ -62,6 +62,11 @@ measurements and retired predecessor engines. URL admission uses `url` while
 retaining authored values; JSON output uses `serde`/`serde_json`. Destination
 policy, protocol IDs/bounds, grammar and value rules remain compiler-owned.
 
+The [production-reduction follow-up](../docs/research/compiler-library-audit-20261006/production-reduction/README.md)
+requires smaller owned implementations as well as faithful behavior. Its first
+packet consolidates URI-bearing LSP output into one authored-identity projection
+while retaining the library's ranges, diagnostics, edits and action fields.
+
 Conditional locale, CLI framework, ICU, temporal, graph and position-library
 mechanisms have explicit retain/defer results. The [locale candidate gate](../docs/research/compiler-library-audit-20261006/pass3/README.md)
 and [remaining ICU/graph packets](../docs/research/compiler-library-audit-20261006/pass9/correctness/QUEUE.md) stay explicit;

@@ -1,0 +1,31 @@
+{
+  "source_sha256": "8b9a350c847dcc326007ca08108fc8a986cb5f0089b2438a22a8b04f33ee0a0b",
+  "production_lines_removed": 51,
+  "gross_removed": 94,
+  "gross_added": 43,
+  "inline_tests_unchanged": true,
+  "review": "independent Sol medium accepts bounded refactor, no blocking findings",
+  "integration_tests": 62,
+  "output_unit_tests": {
+    "passed": 3,
+    "provenance": "reported by exclusive writer; unchanged inline fixtures inspected independently"
+  },
+  "fmt_exit": 0,
+  "clippy_all_targets_exit": 0,
+  "local_links_checked": 74,
+  "unrelated_worktree_paths_preserved": [
+    "compiler/src/analysis/resolve.rs",
+    "compiler/src/syntax/parser.rs",
+    "compiler/tests/analysis.rs",
+    "compiler/tests/lsp_typed_output.rs",
+    "compiler/tests/syntax.rs",
+    "editors/vscode/README.md",
+    "editors/vscode/package.json",
+    "editors/vscode/src/client.ts",
+    "editors/vscode/src/extension.ts"
+  ],
+  "concurrency_limit": "Independent process run pins 98 unchanged inputs. Additional source/parser/editor edits by another owner occurred later and are not included in this packet. Root fmt/Clippy receipts describe their actual current worktree; no whole-tree hermetic claim.",
+  "dependency_changes": false,
+  "merge": false,
+  "living_checkpoint_advanced": false
+}

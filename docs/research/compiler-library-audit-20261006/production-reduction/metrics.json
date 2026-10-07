@@ -1,0 +1,39 @@
+{
+  "baseline_git": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "qualified_git": "f889e44f91daf12c27e5760f487ca1ca6c394e57",
+  "method": "Physical line counts, including comments and blank lines; compiler/src/*.rs split before first top-level #[cfg(test)] test module. No claim of AST complexity from LOC alone. Only compiler tree; concurrent package/editor/analysis work excluded from frozen comparison.",
+  "baseline": {
+    "implementation": 68637,
+    "inline_tests": 2836,
+    "integration_tests_and_fixtures": 27471,
+    "cargo_metadata": 30,
+    "docs_scripts_other": 1054
+  },
+  "qualified": {
+    "implementation": 68659,
+    "inline_tests": 4170,
+    "integration_tests_and_fixtures": 32894,
+    "cargo_metadata": 895,
+    "docs_scripts_other": 1123
+  },
+  "delta": {
+    "implementation": 22,
+    "inline_tests": 1334,
+    "integration_tests_and_fixtures": 5423,
+    "cargo_metadata": 865,
+    "docs_scripts_other": 69
+  },
+  "packet": {
+    "path": "compiler/src/lsp/output.rs",
+    "production_lines_before": 235,
+    "production_lines_after": 184,
+    "net_lines_removed": 51,
+    "production_bytes_before": 7064,
+    "production_bytes_after": 5029,
+    "inline_tests_unchanged": true,
+    "source_sha256_after": "8b9a350c847dcc326007ca08108fc8a986cb5f0089b2438a22a8b04f33ee0a0b",
+    "control_flow_reduction": "Three URI parse sites, four Standard/Compatible enums, duplicate workspace projection and action branch removed; no minification or relocation.",
+    "hypothetical_frozen_programme_delta_with_this_packet_only": -29,
+    "aggregate_limit": "The resulting -29 frozen-baseline implementation lines is not claimed as material programme simplification or as the whole live worktree size; concurrent owner changes are separate."
+  }
+}

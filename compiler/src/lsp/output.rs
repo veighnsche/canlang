@@ -48,36 +48,26 @@ pub(super) fn range(range: LspRange) -> lsp::Range {
     )
 }
 
-/// Uri preserves spelling when parseable. The compatibility branch retains
-/// strings already accepted by the server, including Unicode and bad percent
-/// escapes, without changing input admission or normalizing authored values.
+/// Project URI-bearing envelopes with the server's authored String identity;
+/// library types own the remaining fields without restricting URI admission.
 #[derive(Serialize)]
-#[serde(untagged)]
-pub(super) enum Location {
-    Standard(lsp::Location),
-    Compatible { uri: String, range: lsp::Range },
+pub(super) struct Location {
+    uri: String,
+    range: lsp::Range,
 }
 
 pub(super) fn location(location: DocLocation) -> Location {
-    let range = range(location.range);
-    match location.uri.parse::<lsp::Uri>() {
-        Ok(uri) => Location::Standard(lsp::Location { uri, range }),
-        Err(_) => Location::Compatible {
-            uri: location.uri,
-            range,
-        },
+    Location {
+        uri: location.uri,
+        range: range(location.range),
     }
 }
 
 #[derive(Serialize)]
-#[serde(untagged)]
-pub(super) enum Diagnostics {
-    Standard(lsp::PublishDiagnosticsParams),
-    Compatible {
-        uri: String,
-        diagnostics: Vec<lsp::Diagnostic>,
-        version: Option<i32>,
-    },
+pub(super) struct Diagnostics {
+    uri: String,
+    diagnostics: Vec<lsp::Diagnostic>,
+    version: Option<i32>,
 }
 
 pub(super) fn diagnostics(
@@ -85,77 +75,42 @@ pub(super) fn diagnostics(
     version: i32,
     diagnostics: Vec<lsp::Diagnostic>,
 ) -> Diagnostics {
-    match uri.parse::<lsp::Uri>() {
-        Ok(uri) => Diagnostics::Standard(lsp::PublishDiagnosticsParams::new(
-            uri,
-            diagnostics,
-            Some(version),
-        )),
-        Err(_) => Diagnostics::Compatible {
-            uri: uri.to_string(),
-            diagnostics,
-            version: Some(version),
-        },
+    Diagnostics {
+        uri: uri.to_string(),
+        diagnostics,
+        version: Some(version),
     }
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct CompatibleDocumentEdit {
-    text_document: CompatibleDocumentIdentifier,
+struct DocumentEdit {
+    text_document: DocumentIdentifier,
     edits: Vec<lsp::TextEdit>,
 }
 
 #[derive(Serialize)]
-struct CompatibleDocumentIdentifier {
+struct DocumentIdentifier {
     uri: String,
     // This field is required; None deliberately serializes as null.
     version: Option<i32>,
 }
 
 #[derive(Serialize)]
-#[serde(untagged)]
-pub(super) enum WorkspaceEdit {
-    Standard(lsp::WorkspaceEdit),
-    Compatible {
-        #[serde(rename = "documentChanges")]
-        document_changes: Vec<CompatibleDocumentEdit>,
-    },
+#[serde(rename_all = "camelCase")]
+pub(super) struct WorkspaceEdit {
+    document_changes: Vec<DocumentEdit>,
 }
 
 fn workspace_edit(groups: Vec<(String, Option<i32>, Vec<lsp::TextEdit>)>) -> WorkspaceEdit {
-    // Check every URI before consuming groups, so fallback retains all files
-    // and their first-seen order rather than dropping a rejected URI.
-    let uris = groups
-        .iter()
-        .map(|(uri, _, _)| uri.parse::<lsp::Uri>())
-        .collect::<Result<Vec<_>, _>>();
-    match uris {
-        Ok(uris) => WorkspaceEdit::Standard(lsp::WorkspaceEdit {
-            document_changes: Some(lsp::DocumentChanges::Edits(
-                groups
-                    .into_iter()
-                    .zip(uris)
-                    .map(|((_, version, edits), uri)| lsp::TextDocumentEdit {
-                        text_document: lsp::OptionalVersionedTextDocumentIdentifier {
-                            uri,
-                            version,
-                        },
-                        edits: edits.into_iter().map(lsp::OneOf::Left).collect(),
-                    })
-                    .collect(),
-            )),
-            ..Default::default()
-        }),
-        Err(_) => WorkspaceEdit::Compatible {
-            document_changes: groups
-                .into_iter()
-                .map(|(uri, version, edits)| CompatibleDocumentEdit {
-                    text_document: CompatibleDocumentIdentifier { uri, version },
-                    edits,
-                })
-                .collect(),
-        },
+    WorkspaceEdit {
+        document_changes: groups
+            .into_iter()
+            .map(|(uri, version, edits)| DocumentEdit {
+                text_document: DocumentIdentifier { uri, version },
+                edits,
+            })
+            .collect(),
     }
 }
 
@@ -174,24 +129,24 @@ pub(super) fn rename(uri: String, version: i32, edits: Vec<TextEdit>) -> Workspa
 }
 
 #[derive(Serialize)]
-#[serde(untagged)]
-pub(super) enum Action {
-    Standard(lsp::CodeAction),
-    Compatible {
-        #[serde(flatten)]
-        action: lsp::CodeAction,
-        edit: WorkspaceEdit,
-    },
+pub(super) struct Action {
+    #[serde(flatten)]
+    action: lsp::CodeAction,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    edit: Option<WorkspaceEdit>,
 }
 
 pub(super) fn action(action: CodeAction, version: impl Fn(&str) -> Option<i32>) -> Action {
-    let mut typed = lsp::CodeAction {
+    let typed = lsp::CodeAction {
         title: action.title,
         kind: Some(lsp::CodeActionKind::from(action.kind)),
         ..Default::default()
     };
     if action.edits.is_empty() {
-        return Action::Standard(typed);
+        return Action {
+            action: typed,
+            edit: None,
+        };
     }
     let mut by_uri: Vec<(String, Vec<FileEdit>)> = Vec::new();
     for edit in action.edits {
@@ -214,15 +169,9 @@ pub(super) fn action(action: CodeAction, version: impl Fn(&str) -> Option<i32>) 
             (uri, current, edits)
         })
         .collect();
-    match workspace_edit(groups) {
-        WorkspaceEdit::Standard(edit) => {
-            typed.edit = Some(edit);
-            Action::Standard(typed)
-        }
-        edit @ WorkspaceEdit::Compatible { .. } => Action::Compatible {
-            action: typed,
-            edit,
-        },
+    Action {
+        action: typed,
+        edit: Some(workspace_edit(groups)),
     }
 }
 
