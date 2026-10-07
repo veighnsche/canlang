@@ -1,0 +1,263 @@
+{
+  "packet": "VERIFY-TV01-values-discovery",
+  "disposition": "pass for bounded source/dist Node recipe and source-current provenance; no broader backend credit",
+  "base": "b055ca616dc0ab3a8df3df4429c1f58ba2508bf2",
+  "reviewedHead": "b055ca616dc0ab3a8df3df4429c1f58ba2508bf2",
+  "sourcePins": {
+    "testSha256": "ee5d0ec2d44a2b776970c2b3944eb292719704eb47264831380a6d0020407f3c",
+    "fixtureSha256": "db9bc7d13b3a222d221ed5ebabeb60275396db2ca4517ae8a87df6bc58f56f84",
+    "oracleSha256": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+    "frozenSha256": "d4bfe45964e46da4b3970702428d4e336b46fd8391ef6fc12572748c138d2a7b"
+  },
+  "proofs": {
+    "testDiffOnlyOwningPathAndWording": true,
+    "entireBaselineNonSourceFixtureIncludingEngineStructurallyIdentical": true,
+    "sourceCurrentCaptureIncludingSourceEqualExceptExistingIgnoredEngine": true,
+    "all93Strings23Callers4ControlsRouteSummaryLimitsUnchanged": true,
+    "corruptionAssertionsAndSemanticDeepEqualUnchanged": true,
+    "semanticProjectionIgnoresOnlyEngine": true,
+    "sourceNotIgnored": true,
+    "frozenOracleAndGeneratorByteIdenticalToBaseline": true,
+    "donorInventoryExact": 29,
+    "donorHashesCurrentGitAndDiskExact": true,
+    "emittedCompilerExit": 0,
+    "owningConformancePathSourceAndDistProved": true,
+    "oracleNotCopiedToDist": true
+  },
+  "runtime": {
+    "execChunk": "bc2ead",
+    "allExplicitExpectedExits": true,
+    "sourcePass": 2,
+    "distPass": 2,
+    "runs": [
+      {
+        "name": "source-current",
+        "pid": 49501,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values/test/string-escape.contract.test.ts"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values",
+        "start": "2026-10-07T20:05:45.068Z",
+        "deadline": "2026-10-07T20:06:30.068Z",
+        "expectedExit": 0,
+        "exitCode": 0,
+        "signal": null,
+        "end": "2026-10-07T20:05:45.549Z"
+      },
+      {
+        "name": "dist-current",
+        "pid": 49504,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values/dist/test/string-escape.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values",
+        "start": "2026-10-07T20:05:45.549Z",
+        "deadline": "2026-10-07T20:06:30.549Z",
+        "expectedExit": 0,
+        "exitCode": 0,
+        "signal": null,
+        "end": "2026-10-07T20:05:45.937Z"
+      },
+      {
+        "name": "baseline-dist-recipe",
+        "pid": 49509,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values/dist/test/baseline-recipe.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values",
+        "start": "2026-10-07T20:05:45.938Z",
+        "deadline": "2026-10-07T20:06:30.938Z",
+        "expectedExit": 1,
+        "exitCode": 1,
+        "signal": null,
+        "end": "2026-10-07T20:05:46.002Z"
+      },
+      {
+        "name": "missing-fixture",
+        "pid": 49511,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values/dist/test/string-escape.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values",
+        "start": "2026-10-07T20:05:46.002Z",
+        "deadline": "2026-10-07T20:06:31.002Z",
+        "expectedExit": 1,
+        "exitCode": 1,
+        "signal": null,
+        "end": "2026-10-07T20:05:46.059Z"
+      },
+      {
+        "name": "missing-oracle",
+        "pid": 49513,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values/dist/test/string-escape.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values",
+        "start": "2026-10-07T20:05:46.059Z",
+        "deadline": "2026-10-07T20:06:31.059Z",
+        "expectedExit": 1,
+        "exitCode": 1,
+        "signal": null,
+        "end": "2026-10-07T20:05:46.148Z"
+      },
+      {
+        "name": "stale-fixture-donor",
+        "pid": 49516,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values/dist/test/string-escape.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values",
+        "start": "2026-10-07T20:05:46.150Z",
+        "deadline": "2026-10-07T20:06:31.150Z",
+        "expectedExit": 1,
+        "exitCode": 1,
+        "signal": null,
+        "end": "2026-10-07T20:05:46.506Z"
+      },
+      {
+        "name": "changed-donor-source",
+        "pid": 49519,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values/test/string-escape.contract.test.ts"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/values-discovery-review/repo/packages/values",
+        "start": "2026-10-07T20:05:46.506Z",
+        "deadline": "2026-10-07T20:06:31.506Z",
+        "expectedExit": 1,
+        "exitCode": 1,
+        "signal": null,
+        "end": "2026-10-07T20:05:46.899Z"
+      }
+    ]
+  },
+  "donorChanges": [
+    {
+      "path": "packages/values/src/internal/gregorian.ts",
+      "old": null,
+      "current": "99142cba4caf04ca931e445f03b073afc0336542e1a79a346c36acce15f0320f",
+      "recentGitHistory": [
+        "a48dfbfd9ea51f4bf4aae5c932a5cd8367ef19fd 2026-10-07T20:49:09+02:00 refactor(values): share pure Gregorian calendar rules"
+      ]
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "old": null,
+      "current": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+      "recentGitHistory": [
+        "85fd8c20609cf5939f1c660d548f184f698ebb14 2026-10-07T21:10:49+02:00 refactor(values): share private violation append mechanics",
+        "c16ab48bbd7aed514a9395039e8caeeaca701d57 2026-10-07T02:02:31+02:00 refactor(values): separate nonrecursive TS validation cores"
+      ]
+    },
+    {
+      "path": "packages/values/src/internal/violations.ts",
+      "old": null,
+      "current": "a314a8545c1aebdadf8a512121d75e29cd4fdef71af3674e56e1aa289eb25ef2",
+      "recentGitHistory": [
+        "85fd8c20609cf5939f1c660d548f184f698ebb14 2026-10-07T21:10:49+02:00 refactor(values): share private violation append mechanics"
+      ]
+    },
+    {
+      "path": "packages/values/src/internal/wire-core.ts",
+      "old": null,
+      "current": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+      "recentGitHistory": [
+        "85fd8c20609cf5939f1c660d548f184f698ebb14 2026-10-07T21:10:49+02:00 refactor(values): share private violation append mechanics",
+        "c16ab48bbd7aed514a9395039e8caeeaca701d57 2026-10-07T02:02:31+02:00 refactor(values): separate nonrecursive TS validation cores"
+      ]
+    },
+    {
+      "path": "packages/values/src/kinds.ts",
+      "old": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+      "current": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+      "recentGitHistory": [
+        "a48dfbfd9ea51f4bf4aae5c932a5cd8367ef19fd 2026-10-07T20:49:09+02:00 refactor(values): share pure Gregorian calendar rules",
+        "069a48091594ffd8b7c938305731849ad83cfaa2 2026-10-06T22:15:50+02:00 refactor(packages): enforce ownership and schedule producer builds",
+        "812b6dec203dd889a9b0ae2ae952b433030466c0 2026-10-04T19:01:09+02:00 Lane 02 audit round: fix findings + close feature gaps (#72)"
+      ]
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "old": "ffe679d4db03ea3944c7af94a1eb88cb3398207dc319d41ce5413f39786e04a0",
+      "current": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+      "recentGitHistory": [
+        "c16ab48bbd7aed514a9395039e8caeeaca701d57 2026-10-07T02:02:31+02:00 refactor(values): separate nonrecursive TS validation cores",
+        "069a48091594ffd8b7c938305731849ad83cfaa2 2026-10-06T22:15:50+02:00 refactor(packages): enforce ownership and schedule producer builds",
+        "c32dcfadd28cfbaab5869ec7ae187a486af76933 2026-10-06T14:52:04+02:00 Lane F V02.2: values AST codec + whole-call comparator + traces"
+      ]
+    },
+    {
+      "path": "packages/values/src/prepared/validation.ts",
+      "old": "34d0723b0491b54908fecf7494f1e5bd16bf78b470473ab2d1108f322c3e3e76",
+      "current": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+      "recentGitHistory": [
+        "c16ab48bbd7aed514a9395039e8caeeaca701d57 2026-10-07T02:02:31+02:00 refactor(values): separate nonrecursive TS validation cores",
+        "069a48091594ffd8b7c938305731849ad83cfaa2 2026-10-06T22:15:50+02:00 refactor(packages): enforce ownership and schedule producer builds",
+        "c32dcfadd28cfbaab5869ec7ae187a486af76933 2026-10-06T14:52:04+02:00 Lane F V02.2: values AST codec + whole-call comparator + traces"
+      ]
+    },
+    {
+      "path": "packages/values/src/schema.ts",
+      "old": "8216016fd7467e3ac6b23b79a06a3d55d9aff2f4bfba3a1d0ecc77c2760f5772",
+      "current": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+      "recentGitHistory": [
+        "c16ab48bbd7aed514a9395039e8caeeaca701d57 2026-10-07T02:02:31+02:00 refactor(values): separate nonrecursive TS validation cores",
+        "069a48091594ffd8b7c938305731849ad83cfaa2 2026-10-06T22:15:50+02:00 refactor(packages): enforce ownership and schedule producer builds",
+        "000fba738f605010422c020b51dba0ca84c4f505 2026-10-05T18:21:45+02:00 T08 Rust+policyPage (E2013 -160 pure) + T09-TS omission repair (parents open)"
+      ]
+    },
+    {
+      "path": "packages/values/src/temporal.ts",
+      "old": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+      "current": "51d8ab0f6bf7aeed7cd06420e660111bbf6b82997d76fedeab5c0602728481dc",
+      "recentGitHistory": [
+        "a48dfbfd9ea51f4bf4aae5c932a5cd8367ef19fd 2026-10-07T20:49:09+02:00 refactor(values): share pure Gregorian calendar rules",
+        "069a48091594ffd8b7c938305731849ad83cfaa2 2026-10-06T22:15:50+02:00 refactor(packages): enforce ownership and schedule producer builds",
+        "812b6dec203dd889a9b0ae2ae952b433030466c0 2026-10-04T19:01:09+02:00 Lane 02 audit round: fix findings + close feature gaps (#72)"
+      ]
+    },
+    {
+      "path": "packages/values/src/wire.ts",
+      "old": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03",
+      "current": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+      "recentGitHistory": [
+        "c16ab48bbd7aed514a9395039e8caeeaca701d57 2026-10-07T02:02:31+02:00 refactor(values): separate nonrecursive TS validation cores",
+        "069a48091594ffd8b7c938305731849ad83cfaa2 2026-10-06T22:15:50+02:00 refactor(packages): enforce ownership and schedule producer builds",
+        "c3d74073873a0a21df744b80eeee5377f57250e3 2026-10-05T20:33:54+02:00 T11 R16-ACCEPT decision + values-side exact integral decimals"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "old": "4863a9b9f30c4551a6220a44caaa03094a643f51f71088de5ef613b7a34508fa",
+      "current": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "recentGitHistory": [
+        "ee211cf8c95c4b768ec0aa9232cc463c74ddfdc3 2026-10-07T03:49:12+02:00 fix(values): refuse inherited backend operations",
+        "069a48091594ffd8b7c938305731849ad83cfaa2 2026-10-06T22:15:50+02:00 refactor(packages): enforce ownership and schedule producer builds",
+        "dc078d82ba122d1c7f8101314806135bbc0515d8 2026-10-06T15:45:21+02:00 values: A07.1+A07.2 binding/init/host-carrier scaffold"
+      ]
+    }
+  ],
+  "attribution": "Changes include prior ownership/validation-core work (069a480,c16ab48) and inherited-backend refusal (ee211cf), alongside Gregorian (a48dfbf) and violation append (85fd8c2); not all changes belong to those two leaves.",
+  "limits": [
+    "Node builtin oracle and source-current TypeScript caller observations only",
+    "No installed/native/Wasm/whole-Value profile acceptance",
+    "No shared dist/target/fixture or source/Git edits; only requested review receipt is written in repo",
+    "Original unpaired UTF16 and astral truncation residuals retained"
+  ],
+  "defects": [],
+  "readLeaseReleased": true,
+  "rawEvidenceRoot": "/private/tmp/canlang-repair-go-20261007/values-discovery-review"
+}
