@@ -215,3 +215,5 @@ Identity remains the S256 digest-domain owner; mounted Interfaces consumes the s
 Values retains owned JSON parsing and derivative ownership. The finite stable-frozen contract is released with explicit mutation/byte-access cost and compatibility limits; source correction and genuine factory/default/consumer qualification remain pending. No new package/layer, merge or complete checkpoint advance.
 
 Cloudflare remains the fanout scheduling/effect consumer, State the admission/lifecycle/transaction owner. Narrow current cursor, guard-demand and per-retry admitted-row qualification is accepted with explicit reachable callback declaration narrowing and correctness budget. Structural views are not producer authority; original mounted/compiled/durable/installed/T26 gates remain open. No merge or complete checkpoint advance.
+
+Files retains upload/finalization owners. The existing immutable-size agreement guard is independently accepted at its frozen FS/persisted-fixture scope; separate completion correction/joint tests are active. No durable-binding/phase-recovery/lifetime claim, new protocol owner, merge or complete checkpoint advance.
