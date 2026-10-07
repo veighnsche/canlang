@@ -2,6 +2,11 @@
 
 Planning review, 2026-10-06. Source checkpoint: `309644a6881909d8dba32560bc6711f67e00a7ab`. Recommendations below are proposals, not implementation or accepted dependency changes. Preparation/native-release remains human-held.
 
+The later [production baseline](production-baseline/README.md) compares this
+checkpoint with post-adoption package source. It accounts for all tracked files,
+inline Rust tests, generated assets, scaffolds and implementation transfers;
+the historical source-candidate counts below are not production LOC.
+
 We should replace several standard parsing and encoding mechanisms with maintained libraries or platform APIs. Keep Can's authored semantics, authority, evaluation order, exact values, identity and error contracts in small owning adapters. A library whose adapter becomes another parser or semantic engine is not a simplification.
 
 ## Coverage and evidence
