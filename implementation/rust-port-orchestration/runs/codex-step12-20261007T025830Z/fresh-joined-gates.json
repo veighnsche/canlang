@@ -1,0 +1,202 @@
+{
+  "captured_at_utc": "2026-10-07T03:13:43.910429+00:00",
+  "all_final_commands_exit": 0,
+  "source_emit": {
+    "runtime": "Node current",
+    "source_bridge": "cloudflare-full-source-bridge.json",
+    "source_files": 55,
+    "command": "node prior step11 private typescript/bin/tsc -p step11 source packages/cloudflare/tsconfig.json --composite false --incremental false --outDir step12 fresh-cloudflare/dist",
+    "exit": 0,
+    "scope": "Fresh exact source-current Cloudflare emit; sibling package whole-source rebuild not claimed"
+  },
+  "build": {
+    "command": "node build.mjs",
+    "exit": 0,
+    "module_count": 161,
+    "sha256": "d067681ec7f34ea9592d3d402cc6437de0b5a7a13233f29db97c5dd854c9bc52",
+    "physical_package_inputs": true,
+    "outside_checkout": true,
+    "staged_byte_equivalence": "staged-byte-equivalence.json"
+  },
+  "policy": {
+    "command": "node policy-check.mjs",
+    "exit": 0,
+    "checks": 8,
+    "raw": "raw/installed-policy-final.log"
+  },
+  "maps_on": {
+    "command": "NODE_OPTIONS=--enable-source-maps node diagnostic-probe.mjs",
+    "exit": 0,
+    "result": {
+      "runtime": "v26.10.0",
+      "engineStack": "Error: installed-kaboom\n    at Object.boom (/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/staged-maps-on/app/original-handler.can:24:9)\n    at file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/diagnostic-probe.mjs:25:70\n    at async file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/diagnostic-probe.mjs:25:19",
+      "writtenEngineStack": "Error: installed-kaboom\n    at Object.boom (/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/written-bundle/app/original-handler.can:24:9)\n    at file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/diagnostic-probe.mjs:38:158\n    at async file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/diagnostic-probe.mjs:38:83",
+      "writtenReadBack": true,
+      "invoke": {
+        "ok": false,
+        "error": "installed-kaboom",
+        "mapped": {
+          "source": "original-handler.can",
+          "line": 24,
+          "column": 9
+        }
+      },
+      "artifactSha256": "f0791ee9f40a6bbca1dce874225f34c5ea7bbc98dc28dde9e473d22554e5b72f",
+      "bundleSha256": "a4dd815909733693108f49222f4bfbb5390a75510f9c7e3179df54be674fe999",
+      "bundleModules": 161,
+      "sourceMaps": "--enable-source-maps",
+      "publicInstalled": true
+    }
+  },
+  "maps_off_and_workerd": {
+    "command": "node diagnostic-probe.mjs",
+    "exit": 0,
+    "local_port_permission": "Authorized temporary local test ports only, no deployment",
+    "result": {
+      "runtime": "v26.10.0",
+      "engineStack": "Error: installed-kaboom\n    at Object.boom (file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/staged-maps-off/app/main.js:1:251)\n    at file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/diagnostic-probe.mjs:25:70\n    at async file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/diagnostic-probe.mjs:25:19",
+      "writtenReadBack": true,
+      "invoke": {
+        "ok": false,
+        "error": "installed-kaboom",
+        "mapped": {
+          "source": "original-handler.can",
+          "line": 24,
+          "column": 9
+        }
+      },
+      "artifactSha256": "f0791ee9f40a6bbca1dce874225f34c5ea7bbc98dc28dde9e473d22554e5b72f",
+      "bundleSha256": "a4dd815909733693108f49222f4bfbb5390a75510f9c7e3179df54be674fe999",
+      "bundleModules": 161,
+      "originalMapFalseWitness": {
+        "generatedColumn": 250,
+        "originalThrowColumn": 141,
+        "stale": {
+          "source": "original-handler.can",
+          "line": 25,
+          "column": 12
+        },
+        "expected": {
+          "source": "original-handler.can",
+          "line": 24,
+          "column": 9
+        }
+      },
+      "sourceMaps": "",
+      "publicInstalled": true
+    },
+    "workerd": {
+      "ok": false,
+      "error": "installed-kaboom",
+      "mapped": {
+        "source": "original-handler.can",
+        "line": 24,
+        "column": 9
+      }
+    },
+    "compatibility_date": "2026-07-15"
+  },
+  "raw_inputs": [
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/fresh-cloudflare-emit.log",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/fresh-cloudflare-emit.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed-build.log",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/installed-build.log",
+      "bytes": 1153,
+      "sha256": "2d9cf53ea54d80568cb6841d4fc05b6d1ea5d0df63aa3c327c45b02f63452e12"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed-build-corrected.log",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/installed-build-corrected.log",
+      "bytes": 136,
+      "sha256": "d5566c95d0dcf12433f61baca328d1804686e19187e9722f39bb51f2473315a9"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed-build-final.log",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/installed-build-final.log",
+      "bytes": 136,
+      "sha256": "42e220f603acb4561b63cc1216e3af63e6b5614a26c5b58375435683498bdfbe"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed-policy-final.log",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/installed-policy-final.log",
+      "bytes": 66,
+      "sha256": "40ce9708f5d7b7ed9d110c37520375ddfe241f977a981c01e8bec9388191904b"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/joined-diagnostics-maps-on-final.log",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/joined-diagnostics-maps-on-final.log",
+      "bytes": 1232,
+      "sha256": "ad097a385c72150bd9b3a6a673898ac8b07cae652728f144ae930ae8434fd641"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/joined-diagnostics-maps-off-final.log",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/joined-diagnostics-maps-off-final.log",
+      "bytes": 996,
+      "sha256": "c9908a2079969c4c9824de253f566188d25acc4403ceaf9e7cddc5aee46122f5"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/fixture-repair.json",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/fixture-repair.json",
+      "bytes": 1127,
+      "sha256": "0cdd558ac44dea91ad0de45486f839b51f443e41e7989b504aae2b5921dd9b18"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/staged-byte-delta.diff",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/staged-byte-delta.diff",
+      "bytes": 1225,
+      "sha256": "ce093da1179bde116bb05b46a6de3f4572953fa38c0d54fab48f76ede153bfc9"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/result-maps-on.json",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/result-maps-on.json",
+      "bytes": 1322,
+      "sha256": "472620db9e473caf92a71dfde336390fd11a2d7a520913fab4acfbf5a7ed5af6"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/result-maps-off.json",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/result-maps-off.json",
+      "bytes": 1171,
+      "sha256": "79cbf1ab9a4aec2975a11419c9c88e3b520fd44df6448f198342a0fe7c9aa651"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/workerd-result.json",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/workerd-result.json",
+      "bytes": 137,
+      "sha256": "43a25f338f7462fde793b455767f31c3b5c9362d718cb8aa6ff973705f4fb77c"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/build.mjs",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/build.mjs",
+      "bytes": 1213,
+      "sha256": "4bb794117ce4b20e04b71b3964fe58bc4d1a29756dcc9e68fbdc2c0c8217bd37"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/policy-check.mjs",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/policy-check.mjs",
+      "bytes": 1719,
+      "sha256": "6c783ca5a9494c1422f14138aefcbfb12c66420c7ff10ef154cd1e7818cfbe5b"
+    },
+    {
+      "path": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/diagnostic-probe.mjs",
+      "repo_copy": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/diagnostic-probe.mjs",
+      "bytes": 6263,
+      "sha256": "f9033d0c1f2bc0b97d5fa286bd227bd2b0dbf855523f733fc8cec0fcdc7fd371"
+    }
+  ],
+  "setup_failures": {
+    "initial_build": "Missing trace-mapping caused by dereferenced nested installed link; fixed exact pinned private dependency neighborhood",
+    "first_byte_comparison": "Only four source-label comment lines differed; executable code equal. Physical root runtime libraries restored exact admitted shape",
+    "private_manifest_mutation": "Only private cookie manifest mutated/restored for refusal probe; no cache/old installed bytes modified"
+  },
+  "limits": [
+    "No deployment/publication",
+    "Only fresh current Cloudflare emitter plus copied exact qualified sibling installed outputs",
+    "No whole compiler/app/durable/backend adoption claim",
+    "Native preparation and native release HUMAN HOLD"
+  ]
+}

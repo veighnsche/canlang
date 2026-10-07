@@ -1,0 +1,13 @@
+{
+  "freshRawCount": 15,
+  "freshRawHashMismatches": [],
+  "installedInputCount": 2208,
+  "installedInputHashMismatches": [],
+  "stagedModuleCount": 161,
+  "stagedDifferenceKeys": [],
+  "stagedSha256": "d067681ec7f34ea9592d3d402cc6437de0b5a7a13233f29db97c5dd854c9bc52",
+  "nodeLeafAbsent": true,
+  "workerLeafPresent": true,
+  "privateAliasAbsent": true,
+  "scope": "Independent file and staged-byte comparisons only; no build or root probe rerun"
+}

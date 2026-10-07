@@ -1,0 +1,12 @@
+{
+  "captured_at_utc": "2026-10-07T03:13:43.910429+00:00",
+  "old_source": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed/bundle.json",
+  "new_source": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/bundle.json",
+  "old_sha": "d067681ec7f34ea9592d3d402cc6437de0b5a7a13233f29db97c5dd854c9bc52",
+  "new_sha": "d067681ec7f34ea9592d3d402cc6437de0b5a7a13233f29db97c5dd854c9bc52",
+  "actual_module_bytes_equal": true,
+  "module_count": 161,
+  "differing_keys": [],
+  "scope": "Same exact step10 fixture and admitted production modules, fresh source-current host bundler. Other fixtures and parent profiles retain their own gates.",
+  "initial_fixture_delta": "staged-byte-equivalence-initial-fixture.json: four comment source-label lines from borrowed library resolver neighborhoods. Physical pinned runtime-library copies restored admitted original installed shape; no product code repair."
+}

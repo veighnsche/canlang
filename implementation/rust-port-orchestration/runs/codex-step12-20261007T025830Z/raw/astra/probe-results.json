@@ -1,0 +1,14 @@
+{
+  "pins": {
+    "sources": 37,
+    "raw": 10,
+    "mismatches": [],
+    "rawMismatches": []
+  },
+  "maps": {
+    "checks": 4080,
+    "differences": [],
+    "differenceCount": 0,
+    "scope": "Private current-source transpilation; changed-length import with negative originals, unsorted/equal columns and duplicate raw source/name identities"
+  }
+}

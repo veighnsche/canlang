@@ -1,0 +1,74 @@
+{
+  "checked_at_utc": "2026-10-07T03:15:15.135989+00:00",
+  "official_sources": [
+    "https://developers.openai.com/api/docs/models/compare",
+    "https://developers.openai.com/api/docs/models/gpt-6-astra",
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+    "https://developers.openai.com/api/docs/models/gpt-6-luna"
+  ],
+  "API_standard_short_context_per_million": {
+    "gpt-6.1-sol": [
+      2,
+      0.1,
+      10
+    ],
+    "gpt-6-astra": [
+      10,
+      1,
+      50
+    ],
+    "gpt-6-luna": [
+      0.1,
+      0.01,
+      0.5
+    ]
+  },
+  "pricing_limit": "Official model pages verified this turn; comparison aid only, not subscription savings or measured optimal model/effort. Reliability, input size, retries and review affect cost.",
+  "actual_reused_reviewers": [
+    {
+      "agent": "/root/step10_consumer_review",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "packet": "R03 selected joined source/receipt qualification",
+      "reason": "Human requested high; cross-file numeric, ABI, delivery, authority/error/order joins require known-risk reliable technical review. Existing finite model verified in step10 selection; actual ACK and report received.",
+      "report": "reviews/SOL-QUALIFICATION.md",
+      "current_host_gate_limit": "Initial completed report conditional on root fresh changed bundler gates; renewal reawakening rejected by thread limit. Root final gates and actual Astra independent review separately resolve these, not fictitious Sol renewal."
+    },
+    {
+      "agent": "/root/step10_identity_contract",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "packet": "R03 independent selected critical source/host review",
+      "reason": "Human explicitly selected high; persisted/security plus numeric/diagnostic/native boundaries make a finite independent critical review appropriate. Existing model verified in step10 selection; actual ACK/progress received.",
+      "report": "reviews/ASTRA-CRITICAL.md"
+    }
+  ],
+  "dispatch_failures": [
+    {
+      "attempt": "new step12_joined_qualification Sol high",
+      "result": "agent thread limit reached; no new worker"
+    },
+    {
+      "attempt": "new step12_critical_review Astra high",
+      "result": "agent thread limit reached; no new worker"
+    },
+    {
+      "attempt": "reuse step7_ledger_check Luna medium",
+      "result": "agent thread limit reached; no indexing worker"
+    },
+    {
+      "attempt": "renew step10_consumer_review for final fresh gate",
+      "result": "agent thread limit reached; no resumed turn"
+    }
+  ],
+  "receipt_indexing": {
+    "selected": "gpt-6-luna medium",
+    "reason": "Several known mechanical crosswalk/hash/count steps; least expensive reliable supported choice.",
+    "fallback": "Root bounded extraction after actual unavailable reuse, no technical verdict delegated cheaply or model savings invented."
+  },
+  "CLI_export": {
+    "executed": false,
+    "reason": "Fresh specific approval requested while new agents unavailable; actual existing Astra high reviewer successfully reused in-chat instead. No exported packet or CLI started."
+  },
+  "future_dispatch_authorized": false
+}

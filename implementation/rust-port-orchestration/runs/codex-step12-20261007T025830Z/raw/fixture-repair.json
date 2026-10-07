@@ -1,0 +1,16 @@
+{
+  "failures": [
+    "First copied installed harness missed remapping transitive resolver neighborhood",
+    "Private-mutation safety check refused nonexistent nested cookie location; no cookie mutation executed"
+  ],
+  "product_changed": false,
+  "fixes": [
+    "Exact previously qualified trace-mapping/gen-mapping/resolve-uri copied privately",
+    "Root cookie link replaced with exact physical own copy; original scoped negative targets this actual resolver path",
+    "Physically copy exact unchanged scure-base/csv-parse runtime inputs; cookie already copied"
+  ],
+  "mutable_cookie_manifest": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/node_modules/cookie/package.json",
+  "cookie_manifest_sha256": "75cd16a27d7d0018a08dcbe46eef242f5cbaae4c47efd95979c77ddad59e5fac",
+  "shared_sources_untouched": true,
+  "additional_observation": "Borrowed runtime dependency links changed four Bun filename comment lines; executable staged code matched. Three accepted runtime libraries now have physical private copies, as in the accepted installed profile; tool dependencies remain read-only links."
+}
