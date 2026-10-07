@@ -1,0 +1,24 @@
+{
+  "accepted_by": "Codex root after renewed independent review and current joined compile",
+  "accepted_at_utc": "2026-10-07T00:52:06.065192+00:00",
+  "scope": "Finite repaired host import-policy/edit adapter only; D02 production caller adoption remains partial pending D04 composition and derived fallback diagnostics",
+  "source_pins": {
+    "packages/cloudflare/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+    "packages/cloudflare/test/module-imports-contract.test.ts": "e2e455bd302963491d01b3c34de532742b92120c2d0c725e6d3a57a04fc5d912",
+    "packages/cloudflare/test/fixtures/import-policy-contract.json": "222da767ca3334adc43d81a9c5d508d7fc8e904462378dbb98d506a28dc41c80"
+  },
+  "review_sha256": "1137c1aa1cd002593586ae1bcbf2fd79ad1e91f0465c98261a9cffb8919419a3",
+  "owner_report": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z/D02-owner.json",
+  "initial_failed_review_preserved": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z/review-D02-initial.json",
+  "joined_source_check": "joined-source-check.json",
+  "verified": "409 affected tests, strict typecheck, independent native syntax/literal/refusal/UTF16/map-position controls on Node/Bun and full joined Cloudflare emit",
+  "residuals": [
+    "Projection retries are bounded but may cost O(sourceLength * UnicodeLineSeparatorCount) on separator-dense quoted input. No linear performance claim.",
+    "The pinned library remains an import lexer, not a full JavaScript validity parser; native-invalid raw line-separator regex frontier is explicitly retained.",
+    "Existing Bun node:path posix.normalize replaces a raw lone surrogate by U+FFFD while Node preserves it; raw leaf record/decoded/source identity is preserved. No cross-host identical relative-target membership claim for raw lone-surrogate path keys; resolution intentionally uses existing host posix behavior. Evidence native-posix.json and retained initial audit harness.",
+    "D04 caller adoption/composition, no-edit original Can map serialization, modules/invoke/bundle wiring, installed deploy/browser/Worker acceptance and filesystem no-partial-write ordering remain unreleased/outside this leaf review.",
+    "No fresh full unchanged runtime suite run; actual existing409 discovery/pass log and all raw pins were checked. Root separately owns joined full compile/worker inventory proof."
+  ],
+  "write_and_command_release_observed": true,
+  "pending_handles": []
+}

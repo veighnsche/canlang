@@ -1,0 +1,307 @@
+{
+  "reviewer": "independent Sol high renewed finite D02 review",
+  "verdict": "accepted_with_scope_limits",
+  "scope_acceptance": "Repaired pure host import-policy/edit leaf accepted at exact listed source hashes. Initial P1 D02-R1 resolved. No remaining actionable findings within this finite leaf scope.",
+  "source_sha256": {
+    "packages/cloudflare/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+    "packages/cloudflare/test/module-imports-contract.test.ts": "e2e455bd302963491d01b3c34de532742b92120c2d0c725e6d3a57a04fc5d912",
+    "packages/cloudflare/test/fixtures/import-policy-contract.json": "222da767ca3334adc43d81a9c5d508d7fc8e904462378dbb98d506a28dc41c80"
+  },
+  "owner_sha256": "af5cf3b8e1309deeb4aa898ab68ba31e29065c98fff96df73dfdac2485aa71a2",
+  "repair_manifest_sha256": "d5935a5dd7c596042c03cf6ca21042691fce6789584b3d82a4022027b5b767ac",
+  "initial_failed_review_preserved_sha256": "3653c67deda49ecd1e70bafdcb0c533e34b2c0a3f154d6aa93a5e987a2fd3a6a",
+  "raw_evidence_sha256": {
+    "typecheck.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "vitest.log": "6f1e3ca192cdcf02346b78c6450dfff933a686cc28a48a3ac8a549bfc733bd96",
+    "oracle.log": "853e2c230855651358d1f63936fb3d3ad00a9ef7584408d68eaee2887f817c8c",
+    "cold-node.log": "3b41b570d98d152ade2b6b25d063bfdd4eca8603ed9862b8ffe0ad6f95a725ec",
+    "cold-bun.log": "fd8ddfdf9c51dfc2f1182b86e4d72ad778e7f9902cf2c914ef8633d9d39e42dd",
+    "oracle-node.json": "fa8f8e04ad6c653f9aa8440a75e116bd29360128be0d979d8f4d98a34bf104c4",
+    "candidate-node.json": "2c2867e9e505dd403e0c2c69721d89f0b9e8b68832b2295494de4555deb93078",
+    "candidate-bun.json": "60544a7548ad3bb7596fd5782f835a6c4d7ce3648114e4d5444671ecbe837439",
+    "comparison.json": "f8ab64d75bee6b07f1b26c67c4464a647ec26a435556e3c3a2f03c182621c87c",
+    "oracle-manifest.json": "6146843f500b801a725437e5d8fbe5522c04829cf88bb885ddb1d14fd2b9c5e5",
+    "host-closure.json": "c97c123bba9b89886def0ac0fd1cfa53baee4367c74ce94282d56011a043ada8",
+    "negative-hosts.json": "526e3797b082e48870b7b6991b64fed042902c0e4da5b2fdfb78e93ccbadb1eb",
+    "observe.mjs": "7fbfddf9257fe8fcbdadbd60750baa1efd7621e93d0e5a2a57ae679f0616bf23",
+    "controls.json": "e440cb116363db87e2669e5bba0a4ae02909f303d5584cb84415346380bbbc4a",
+    "dist/deploy/module-imports.js": "9c00bcd861f6e08bb6bf7cb8a90a347f8d1ebed7a549ba9e5bf61bcef8b8f8d1",
+    "tsconfig.json": "363fd40d8339ef5cfa74c52996ab36eae6323cc9f9e270b582b02c7899407206",
+    "vitest.config.mjs": "95778576ef210b0f491be64a5f6ddc13d9662af1a5a7958764c163a291cde8d4",
+    "pre-repair-owner.json": "e92f82984d3d199bf3a29cf465ca764308f401b62cf5b35e7334372537d1bcd5",
+    "pre-repair-emitted.js": "7d254bce56e69ac05e3f8319e6306f660c99d074b35522c799cdf532b8f19720",
+    "repair-typecheck.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "repair-vitest.log": "f8cd2cc2f4715e67117f5cfcabd10a7756633bf2d149b1214c2d5fead2c3ee6d",
+    "repair-regression.log": "57875626edc5b867d80e27f499cac9ce222df7abcacfa185c83eb57b18de7d6e",
+    "repair-regression-escalated.log": "2886353788c8e8a53d5954e874083e9fdc61c241b29f2344eaf12601b3f6972b",
+    "repair-regression.config.mjs": "0b8945fb8637cca08e68baa45e3dbeb14a39507aef091e90d6fa50e5efa675c8",
+    "repair-controls.json": "222da767ca3334adc43d81a9c5d508d7fc8e904462378dbb98d506a28dc41c80",
+    "repair-observe.mjs": "f1a4cb0fc6081c760d999895e1333a2e9a4a79c98dfca6edd9f4930718a28a10",
+    "repair-cold-node.json": "6aa04d57c8321cb38732d4a4147427ecb96d05dc1867c609a8b4e09b50a8e5d4",
+    "repair-cold-bun.json": "9d8ccc308eb89c3a51f9e7f63f744796c9003d5dbbbdbd2d7c467753e05cd991",
+    "repair-cold-node.log": "0cbe5a10a6acf84ce01c9db719cc6723c5f01df3a342cbbfd3fd1119452526bc",
+    "repair-cold-bun.log": "4422b90abf2eb040cc659b0c72d7862bae65c428beb340c41e2c318c5798d5bb",
+    "repair-cold-bun-first-failed.log": "96e0f2c277580b4291c0a0be1e30c63c03fb138ac869e733d464af8d2ab7ce3a",
+    "repair-native-syntax.py": "22136357fe9cf8c055aabac7c46fb75459d08df549746732672c19517c4cb55d",
+    "repair-native-syntax.json": "c0aa9d260723e52d6fa41682e0a4549d52433ecfbdd492e9e51b5486d1eb5981",
+    "repair-native-syntax.log": "93ee19a41413997b99f124e4f073b353ccbafa954db5da9237121a51e6d40ed3",
+    "repair-audited.mjs": "43d1d0bde455ad61a5112d400c2943b8c233e6c17884acf8edc1f192d2a3addf",
+    "repair-audit.mjs": "3d09bcc9f2d8aac2c243c93a846f031acc339789eb238a87858af1a4c58fc351",
+    "repair-audit.json": "31e00c5566099858c2174f134f39f5ada93c076f14487b6107fe81dac1f70752",
+    "repair-audit.log": "5f2a74d0e6ab7d9b0e8b0f979d5b93de48e7c65dcc86024bf8a7d34f76216303",
+    "repair-original41-node.json": "e92c52b4929ff0e68543c419f28948862c323a7409ec0ba03685d21c143f2f6c",
+    "repair-original41-bun.json": "c9cfe0781a840688751821b1bf0fff08ccff6a3012a94c0fc73b60e025f2bad0",
+    "repair-original41-node.log": "9163c90140c3ae194949eab768be5384fe06ce08a03ffcf8a53975b47ee7b5a1",
+    "repair-original41-bun.log": "147e786ffc61f3f9f900de7361a465e3c55179a0046ee199500562e05f2cf417",
+    "repair-manifest.json": "d5935a5dd7c596042c03cf6ca21042691fce6789584b3d82a4022027b5b767ac"
+  },
+  "installed_dependency_release_files": [
+    {
+      "package": "@jridgewell/sourcemap-codec",
+      "file": "LICENSE",
+      "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+    },
+    {
+      "package": "@jridgewell/sourcemap-codec",
+      "file": "package.json",
+      "sha256": "ac7afd57294dbee1f891ca797e19e405340f2cd6031808e6d3845fec60a5b43f"
+    },
+    {
+      "package": "@jridgewell/sourcemap-codec",
+      "file": "README.md",
+      "sha256": "50e5282b46bafe5e2c87a0f224a86876067694f0434c5b27c0ea2d5bbceba5d7"
+    },
+    {
+      "package": "@jridgewell/sourcemap-codec",
+      "file": "dist/sourcemap-codec.mjs",
+      "sha256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0"
+    },
+    {
+      "package": "@jridgewell/sourcemap-codec",
+      "file": "src/sourcemap-codec.ts",
+      "sha256": "91d136138bf0d2a4c4d9ca811cc10af74eead3165b75edb5eaa9ddf5337e5fc9"
+    },
+    {
+      "package": "@jridgewell/sourcemap-codec",
+      "file": "src/vlq.ts",
+      "sha256": "6aff12a00b5a44ada57df49bddc90f90fead9dc230463b49784904373bd11ecd"
+    },
+    {
+      "package": "es-module-lexer",
+      "file": "LICENSE",
+      "sha256": "8a4b6c44eebfb026d23719a348145a661a555568dbfdc11618ff2d0dd9306b00"
+    },
+    {
+      "package": "es-module-lexer",
+      "file": "dist/lexer.minimal.asm.js",
+      "sha256": "95f6b0530ab27cb146e89bc33acfa45f606c66ee589d16469b414942fc1b4864"
+    },
+    {
+      "package": "es-module-lexer",
+      "file": "package.json",
+      "sha256": "340add1d00a99e80e016b079b61e89957a5b1e02fe83545df0a78c5563537392"
+    },
+    {
+      "package": "es-module-lexer",
+      "file": "README.md",
+      "sha256": "e49a08534a18bd4fe84faf7dc74705fb652905757cf834cafb3509d0d86d8af0"
+    },
+    {
+      "package": "es-module-lexer",
+      "file": "types/lexer.minimal.d.ts",
+      "sha256": "8c8218c37f0d81b067b8f2900e3015c660f3e5d1227a25ddb79d2ba596de7e72"
+    },
+    {
+      "package": "magic-string",
+      "file": "LICENSE",
+      "sha256": "1cbe51b907662f6cb1492b16c359384a595180bf0e4d101603ed525e75c4e484"
+    },
+    {
+      "package": "magic-string",
+      "file": "README.md",
+      "sha256": "2a93379f18a2ad928c839ac54572df72c25333b1835da1f8f2e676b83f616a51"
+    },
+    {
+      "package": "magic-string",
+      "file": "dist/index.mjs",
+      "sha256": "1618c31179a48defaaedc218302176ff6325e0dff155a01da9a87b96e390c0fe"
+    },
+    {
+      "package": "magic-string",
+      "file": "package.json",
+      "sha256": "e5ab5677a00cf4c8028067b38fb7cee9de17c2662a9a1030bd90c4eadbcc090b"
+    }
+  ],
+  "findings": [],
+  "verification": {
+    "source_owner_manifest_pins_match": true,
+    "all_owner_raw_evidence_and_manifest_pins_match": true,
+    "original_frozen41_control_objects_and_source_inputs_unchanged": true,
+    "raw_suite_discovery": {
+      "files": 3,
+      "passed": 409,
+      "import_leaf_tests": 111,
+      "source": "repair-regression-escalated.log",
+      "fresh_rerun": false
+    },
+    "independent_initial_fixed_probes": {
+      "count_per_host": 17,
+      "hosts": [
+        "Node24.21.0",
+        "Bun1.4.2"
+      ],
+      "all_passed": true
+    },
+    "independent_renewed_probes": {
+      "count": 82,
+      "initial46_unicode_whitespace_controls": 46,
+      "initial11_comment_and_identity_contexts": 11,
+      "native_Node_original_syntax_proofs": 57,
+      "all_prior_bypasses_resolved": true,
+      "native_Node_and_Bun_rewritten_execution_proofs": 57,
+      "literal_identity_cases_per_Node_and_Bun": 18,
+      "expanded_map_line_grids": 6,
+      "unchanged_suffix_UTF16_point_checks": 354,
+      "native_Node_and_Bun_reported_throw_positions": 12,
+      "invalid_regex_native_frontier": 1
+    },
+    "independent_retry_probes": {
+      "contexts_per_Node_and_Bun": 6,
+      "record_and_error_parity_of_logging_shim": true,
+      "main_parse_call_bound": "at most original Unicode line-separator count + 1",
+      "each_restoration": "one differing original UTF16 unit at prior fault idx; only projectedLF whose original is U2028/U2029; no repeated offset",
+      "exact_original_decoder_fault_offsets_per_host": 3,
+      "raw_lone_surrogate_record_noedit_preserved": true
+    },
+    "cold_unicode_first_call_and_policy_probes": {
+      "hosts": [
+        "Node24.21.0",
+        "Bun1.4.2"
+      ],
+      "synchronous": true,
+      "unicode_computed_source_defer_refusals_per_host": 7,
+      "mapper_calls_on_refusal": 0,
+      "trusted_computed_dynamic_unchecked": true,
+      "group_and_cross_module_order": true
+    }
+  },
+  "reviewed_semantics": [
+    "parser-only equal-length UTF16 projection, no source emission normalization",
+    "original changed literal re-decoding through exact pinned sync parser, no eval or custom decoder",
+    "parser idx translation and per-module parser-first errors",
+    "group ordering and source/defer/computed refusal before any mapper call",
+    "false string/template/regex text remains nonimports; nested expressions recognized",
+    "original raw and decoded identities, nonBMP and lone-surrogate spans",
+    "no-edit exact source string/UTF8 for valid Unicode encoded source, no map property",
+    "content-only escaped edits including original empty-span insertion",
+    "opaque newest-to-previous hires map; no sourcesContent/rangeMappings",
+    "correct native coordinates for U2028/U2029/loneCR/CRLF/CRCRLF/mixed line grids"
+  ],
+  "residual": [
+    "Projection retries are bounded but may cost O(sourceLength * UnicodeLineSeparatorCount) on separator-dense quoted input. No linear performance claim.",
+    "The pinned library remains an import lexer, not a full JavaScript validity parser; native-invalid raw line-separator regex frontier is explicitly retained.",
+    "Existing Bun node:path posix.normalize replaces a raw lone surrogate by U+FFFD while Node preserves it; raw leaf record/decoded/source identity is preserved. No cross-host identical relative-target membership claim for raw lone-surrogate path keys; resolution intentionally uses existing host posix behavior. Evidence native-posix.json and retained initial audit harness.",
+    "D04 caller adoption/composition, no-edit original Can map serialization, modules/invoke/bundle wiring, installed deploy/browser/Worker acceptance and filesystem no-partial-write ordering remain unreleased/outside this leaf review.",
+    "No fresh full unchanged runtime suite run; actual existing409 discovery/pass log and all raw pins were checked. Root separately owns joined full compile/worker inventory proof."
+  ],
+  "harness_corrections": [
+    "Native raw lone-surrogate source written as UTF8 cannot preserve the unit; literal native counterpart uses its JavaScript escape, while direct API probe verifies the raw UTF16 unit.",
+    "An extra raw lone-surrogate relative membership assertion hit existing Bun posix surrogate conversion; preserved failed harness, removed only that cross-host equality assumption; independently recorded native host path behavior."
+  ],
+  "commands": [
+    {
+      "argv": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "compile.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-renewed-work",
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "probes.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-renewed-work",
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/Users/vince/.bun/bin/bun",
+        "probes.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-renewed-work",
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "renewed.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-renewed-work",
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "audit.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-renewed-work",
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/Users/vince/.bun/bin/bun",
+        "audit.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-renewed-work",
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "policies.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-renewed-work",
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/Users/vince/.bun/bin/bun",
+        "policies.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-renewed-work",
+      "exit_code": 0
+    }
+  ],
+  "private_evidence_sha256": {
+    "independent-renewed-work/probes-bun.json": "1373d932fbe93e2aa4a51b0e4c6cf9aaae65c6a961b2d2ac0b7bd68870148931",
+    "independent-renewed-work/audit.json": "93479162daf4977f44ee0f55a1f4e0c628ab6d5bc6ed850fe9734d7349e765dd",
+    "independent-renewed-work/native-posix.mjs": "d172100cb9a3467774662a0a7aa0e18d1cc06d2416c914b11d1254659fd22a41",
+    "independent-renewed-work/probes.mjs": "d480b10a3572dc2f9e297755a26305538dd52b48a828216c5750d09ee5eb8ce2",
+    "independent-renewed-work/audit-node.json": "93479162daf4977f44ee0f55a1f4e0c628ab6d5bc6ed850fe9734d7349e765dd",
+    "independent-renewed-work/renewed-probes.json": "3ba673f13971bf48a9e036adc3aecec13fe6df5545a0ccff0ff6d39925e21058",
+    "independent-renewed-work/native-literal.mjs": "05bfffd04428f098c0957b33814e8c65f88f1d199d907f87dc3fcda4d8986f22",
+    "independent-renewed-work/leaf.mjs": "9c00bcd861f6e08bb6bf7cb8a90a347f8d1ebed7a549ba9e5bf61bcef8b8f8d1",
+    "independent-renewed-work/native-execute.mjs": "fe54fb333cd444fbdea18ad7d5aec8786054307bba912f9aa828c64e5b8b5851",
+    "independent-renewed-work/renewed.mjs": "e8fe538ec29ee08bb76ee24632d6188c3f022b05f2bf645139873ac26651fa14",
+    "independent-renewed-work/probes-node.json": "7c1b2a1244beaf9ba8637fbb2b7a8a89a5cfda229b7f65d0759a7e0e142455fc",
+    "independent-renewed-work/native-posix.json": "c35f9b077495f5e084526545f0e8d86c31bcf1f711913ae02b7557a694b4c133",
+    "independent-renewed-work/native-check.mjs": "fe54fb333cd444fbdea18ad7d5aec8786054307bba912f9aa828c64e5b8b5851",
+    "independent-renewed-work/native-invalid.mjs": "594643e602c76cb5e95a0e1d432929629c3b75affaee3a4ef8a8d52ee3b4741d",
+    "independent-renewed-work/package.json": "6dc1b06d6b093e9cccb20bee06a93836eee0420ae26803ca2ce4065d82f070d1",
+    "independent-renewed-work/audited.mjs": "251224924cf41047fe88d7b1073dccc141c75cc90c194a8827b6e866926b1eae",
+    "independent-renewed-work/policies-bun.json": "73ca5edf11729c1f9360f572a326cc0fa1bb1591ee43c52425b92b3eda5292e5",
+    "independent-renewed-work/policies.mjs": "5d99749ff1dc07d9754b95a79ec0fc3b9a140e749623dc1fa87a52fce798a172",
+    "independent-renewed-work/native-throw.mjs": "a3cf2967f44f89dde9b69022dcd1c332a51641d4743b5137ed94c313f3fc7c0e",
+    "independent-renewed-work/policies-node.json": "1f17148ff5bb371832e9597225768acb8bf3ca34163dabc4082d98cbea7fcd94",
+    "independent-renewed-work/audit.mjs": "17d9f73311c74e46864ffaa235016ce54797509bf851651dcd9b8272546e2582",
+    "independent-renewed-work/compile.mjs": "5fb3157ee9c03c96544c9692dd370530c2e01ce6e51344a1289f674a67691f02",
+    "independent-renewed-work/audit-bun-initial-harness.mjs": "9e5ddc9bf95d4de348c9577fbac3dbf47ad2230027609bb32b0ac2e559932f5a",
+    "independent-renewed-work/audit-bun.json": "93479162daf4977f44ee0f55a1f4e0c628ab6d5bc6ed850fe9734d7349e765dd"
+  },
+  "product_or_Git_or_shared_cache_or_shared_dist_writes": false,
+  "pending_handles": [],
+  "writer_lease": "none acquired; private evidence only",
+  "heavy_slot_released": true
+}
