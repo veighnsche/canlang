@@ -1,6 +1,6 @@
 # Compiler responsibility coverage — audit Step 2
 
-The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. Initial independent challenges found bounded mapping gaps; their corrections are recorded, with final delta review pending. This step maps duties and review scope; it does not qualify semantic correctness, test adequacy or complete workflows.
+The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. This step maps duties and review scope; it does not qualify semantic correctness, test adequacy or complete workflows.
 
 Compiler source remains pinned to `1fd07722090fe70228a6b661e3c6e136275ca84b`. The observation head is `16def5f95f51dbfb158d0ac086323ac256ee1c6d`; intervening commits changed documentation. All 107 compiler file hashes match the [Step 1 inventory](../baseline-verification/compiler-inventory.jsonl). Dependency/catalog/runtime/toolchain inputs and earlier executed evidence remain in [Step 1](../baseline-verification/README.md). The additional 31 supporting interface files have hashes in the ledger. They are narrow cross-owner references, not a new package/editor audit.
 
@@ -14,7 +14,7 @@ Compiler source remains pinned to `1fd07722090fe70228a6b661e3c6e136275ca84b`. Th
 | API index | 648 named source declarations/reexports: 612 classified externally reachable, 22 restricted, 14 in private LSP adapter modules |
 | Interfaces | Eight front-end joins and 16 root/tool/editor/runtime joins; root recipe values and 31 file pins |
 
-API numbers count named declaration sites, including methods and reexport statements; they are not counts of unique API identities or supported promises. Carrier fields/variants and trait methods remain attached to their owning type/trait and exact source anchor. Method reach follows the owning type: `ExprCtx::bare` remains crate-private despite its method's `pub` keyword. The lexical index is checked against source visibility, not generated from Rust semver tooling. The ledger's 929 explicit `#[test]` sites exclude macro expansion and do not predict the active host test count. No tests/builds were executed during Step 2.
+API numbers count named declaration sites, including methods and reexport statements; they are not counts of unique API identities or supported promises. Carrier fields/variants and trait methods remain attached to their owning type/trait and exact source anchor. Method reach follows the owning type: `ExprCtx::bare` remains crate-private despite its method's `pub` keyword. The lexical index is checked against source visibility, not generated from Rust semver tooling. The ledger's 929 explicit `#[test]` sites exclude macro expansion and do not predict the active host test count. No tests/builds were executed during Step 2. The fresh reviewer also checked all 168 indexed inherent public methods against owning-type reach, plus exact recipes, fixture consumers and scope states.
 
 ## Responsibility navigation
 
@@ -48,7 +48,7 @@ The ledger's scope row defines separate structural, workflow, semantic, independ
 - Assess test independence and coverage, optional prerequisite skips, macro-generated tests, mocks and actual consumer execution. Test names and API calls only identify intended witnesses.
 - Reconcile task recipes/CI headers with executable steps and qualify declared profiles separately. Package/editor sources remain with their owners.
 
-The ignored `compiler/target/` tree contains generated build/cache artifacts, whose provenance is handled by Step 1 receipts. The ignored `.DS_Store` is OS metadata. Neither is omitted compiler implementation. The current [validation receipt](validation.json) checks exact path equality, hashes, all bands/anchors, test links and supporting interface pins.
+The ignored `compiler/target/` tree contains generated build/cache artifacts, whose provenance is handled by Step 1 receipts. The ignored `.DS_Store` is OS metadata. Neither is omitted compiler implementation. Independent inventory review is accepted; semantic/workflow states remain open. The current [validation receipt](validation.json) checks exact path equality, hashes, all bands/anchors, test links and supporting interface pins.
 
 Luna low mapped paths/test families; Sol medium mapped technical boundaries and large-test bands. Root integrated the ledger and coordinates the single documentation writer. Future packets must release one writer per defining file; `types.rs`, `cli.rs`, shared JSON/serializers and Cargo changes require serialized ownership. Escalation was unnecessary.
 

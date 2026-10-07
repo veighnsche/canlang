@@ -12,7 +12,9 @@ The user's clarified production-reduction goal remains open beyond that frozen c
 
 The proposed [compiler correctness, ownership and simplicity audit](compiler-correctness-simplicity-audit.md) broadens the next review beyond utility callers: complete responsibility/workflow coverage, compatibility obligations, semantic authority, generated execution, editor lifecycle, resource limits and test-oracle quality. It specifies sixteen ordered steps and economical allocations, with a planning exit before implementation. Its preparation corrects the aggregate line-count method; it is not a completed whole-compiler audit or a second living plan.
 
-[Audit Step 1 is executed](baseline-verification/README.md): current inputs and category counts are pinned, historical receipts are classified, and a fresh native debug build plus six-test consumer replay qualifies its bounded scope. The evidence ledger preserves current/full-suite/product/host and temporal-provenance limits; subsequent responsibility and semantic audit steps remain open.
+[Audit Step 1 is executed](baseline-verification/README.md): current inputs and category counts are pinned, historical receipts are classified, and a fresh native debug build plus six-test consumer replay qualifies its bounded scope. The evidence ledger preserves current/full-suite/product/host and temporal-provenance limits.
+
+[Audit Step 2 is executed](responsibility-map/README.md): one coverage ledger accounts for every tracked compiler path, large-file responsibility bands, named API declarations, test/fixture roles and tool/editor/runtime interfaces. Fresh independent review accepts structural inventory; workflow tracing and semantic/test-adequacy audit remain open.
 
 | Pass | Declared outcome / reference |
 | --- | --- |
