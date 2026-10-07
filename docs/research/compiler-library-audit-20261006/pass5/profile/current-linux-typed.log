@@ -1,0 +1,99 @@
+   Compiling canlang-compiler v0.1.0 (/profile/current/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 38.77s
+     Running tests/typed_artifact.rs (profile/current-linux-target/debug/deps/typed_artifact-f1c9e60ccebf3f41)
+
+running 2 tests
+test empty_artifact_has_fixed_fields_and_no_newline ... ok
+test populated_artifact_preserves_order_omissions_and_embedded_json ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/typed_artifact_consumer.rs (profile/current-linux-target/debug/deps/typed_artifact_consumer-38dfeb9afa79d2a3)
+
+running 1 test
+SKIP fresh_cli_artifact_loads_through_cloudflare: missing packages/values/dist/catalog.json
+test fresh_cli_artifact_loads_through_cloudflare ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/typed_bdd.rs (profile/current-linux-target/debug/deps/typed_bdd-3fec83b43bd95c9a)
+
+running 2 tests
+test generated_fixture_shell_keeps_quoted_error_and_throwing_function ... ok
+test generated_suite_keeps_strings_inside_executable_recipe ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/typed_descriptors.rs (profile/current-linux-target/debug/deps/typed_descriptors-2ef87ebdc9822ab1)
+
+running 6 tests
+test unary_overflow_and_nonliteral_rejection_and_constructor_calls ... ok
+test exact_literal_scalars_nested_order_and_controls ... ok
+test nested_delivery_and_nominal_order ... ok
+test operation_order_omissions_and_present_empty_metadata ... ok
+test model_order_optional_members_and_array_false ... ok
+test all_tags_and_defaults_are_closed ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/typed_diagnostics_cli.rs (profile/current-linux-target/debug/deps/typed_diagnostics_cli-93cb1106b99eef09)
+
+running 1 test
+test check_lint_and_fmt_diagnostics_keep_schema_order_and_one_newline ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/typed_explain.rs (profile/current-linux-target/debug/deps/typed_explain-b0caf4081530115e)
+
+running 3 tests
+test every_severity_uses_its_fixed_machine_spelling ... ok
+test six_keys_keep_blank_values_controls_unicode_and_no_newline ... ok
+test cli_known_code_matches_full_fixture_and_adds_one_newline ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/typed_fixes.rs (profile/current-linux-target/debug/deps/typed_fixes-02f97421cab5bda4)
+
+running 4 tests
+test fix_field_order_controls_unicode_and_u32_bounds ... ok
+test fix_list_is_ordered_and_empty_is_brackets ... ok
+test fixes_serialize_as_typed_envelope_members ... ok
+test every_rejection_variant_has_fixed_order_and_span_shape ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/typed_fixes_cli.rs (profile/current-linux-target/debug/deps/typed_fixes_cli-f2d22601daa4f77b)
+
+running 1 test
+test lint_fix_flag_controls_presence_order_and_single_newline ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/typed_json.rs (profile/current-linux-target/debug/deps/typed_json-f44486a9dac723ab)
+
+running 4 tests
+test serialization_errors_are_reported_without_fallback_output ... ok
+test typed_order_omission_null_and_exact_strings ... ok
+test raw_value_is_not_a_unicode_scalar_validator_and_input_parser_stays_strict ... ok
+test qualified_raw_fragments_preserve_exact_scalar_spellings ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/typed_policy.rs (profile/current-linux-target/debug/deps/typed_policy-5bfe011a74d20354)
+
+running 4 tests
+test empty_dump_has_one_serializer_newline ... ok
+test multiple_records_empty_nested_arrays_and_omitted_options ... ok
+test populated_dump_preserves_controls_blanks_and_inline_arrays ... ok
+test real_cli_keeps_the_existing_second_trailing_newline ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/typed_references.rs (profile/current-linux-target/debug/deps/typed_references-774891b4a27f877c)
+
+running 3 tests
+test empty_reference_preserves_explicit_null_and_empty_arrays ... ok
+test optional_descriptions_are_omitted_only_when_none ... ok
+test populated_reference_preserves_source_strings_order_and_presence ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s

@@ -1,0 +1,33 @@
+{
+  "added": [
+    ".DS_Store",
+    "tests/typed_artifact.rs",
+    "tests/typed_artifact_consumer.rs",
+    "tests/typed_bdd.rs",
+    "tests/typed_descriptors.rs",
+    "tests/typed_diagnostics_cli.rs",
+    "tests/typed_explain.rs",
+    "tests/typed_fixes.rs",
+    "tests/typed_fixes_cli.rs",
+    "tests/typed_json.rs",
+    "tests/typed_policy.rs",
+    "tests/typed_reference_policy_consumers.rs",
+    "tests/typed_references.rs"
+  ],
+  "removed": [],
+  "changed": [
+    "Cargo.lock",
+    "Cargo.toml",
+    "src/cli.rs",
+    "src/codegen/artifact.rs",
+    "src/codegen/bdd.rs",
+    "src/codegen/js.rs",
+    "src/diagnostic.rs",
+    "src/docs.rs",
+    "src/explain.rs",
+    "src/json.rs",
+    "src/lint/driver.rs",
+    "src/policy.rs",
+    "tests/foundation.rs"
+  ]
+}

@@ -1,0 +1,312 @@
+[
+  {
+    "package": "bitflags-2.13.2",
+    "sha256": "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06",
+    "checksum_verified": true
+  },
+  {
+    "package": "block-buffer-0.10.4",
+    "sha256": "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71",
+    "checksum_verified": true
+  },
+  {
+    "package": "cfg-if-1.0.5",
+    "sha256": "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600",
+    "checksum_verified": true
+  },
+  {
+    "package": "cpufeatures-0.2.17",
+    "sha256": "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280",
+    "checksum_verified": true
+  },
+  {
+    "package": "crypto-common-0.1.7",
+    "sha256": "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a",
+    "checksum_verified": true
+  },
+  {
+    "package": "digest-0.10.7",
+    "sha256": "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292",
+    "checksum_verified": true
+  },
+  {
+    "package": "displaydoc-0.2.7",
+    "sha256": "c6232dd377dcc64799954cbd3a9bb882e9cdc1308ccd87b1c098f1fb2eaf82a8",
+    "checksum_verified": true
+  },
+  {
+    "package": "errno-0.3.14",
+    "sha256": "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb",
+    "checksum_verified": true
+  },
+  {
+    "package": "fastrand-2.5.0",
+    "sha256": "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223",
+    "checksum_verified": true
+  },
+  {
+    "package": "form_urlencoded-1.2.2",
+    "sha256": "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf",
+    "checksum_verified": true
+  },
+  {
+    "package": "generic-array-0.14.7",
+    "sha256": "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a",
+    "checksum_verified": true
+  },
+  {
+    "package": "getrandom-0.4.3",
+    "sha256": "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099",
+    "checksum_verified": true
+  },
+  {
+    "package": "icu_collections-2.3.0",
+    "sha256": "fa68d21081c4a05d5a901a1c62add574c77048b6a1c67be3b50ce0b60d4ca513",
+    "checksum_verified": true
+  },
+  {
+    "package": "icu_locale_core-2.3.0",
+    "sha256": "d56e28588da92eee5c3201a6eff33fabdd49b62269c8938d4ff050ce4d900deb",
+    "checksum_verified": true
+  },
+  {
+    "package": "icu_normalizer-2.3.0",
+    "sha256": "12f9cf5f235641ed274641dd81c3f28d870e276763d0797aeeab72317b1c646f",
+    "checksum_verified": true
+  },
+  {
+    "package": "icu_normalizer_data-2.3.0",
+    "sha256": "1563da1ed3e0b3bf3d74c9b85917ac9c56464d2f57242270c09c9e752f8021a0",
+    "checksum_verified": true
+  },
+  {
+    "package": "icu_properties-2.3.0",
+    "sha256": "7e7ca276ad3145661a65914e6daf131ca5120cd3dcee8f8f3214b8875184a148",
+    "checksum_verified": true
+  },
+  {
+    "package": "icu_properties_data-2.3.0",
+    "sha256": "e590f038c1464a96894fd6d10127e90a8be4509f56ff7ecef851b15cee0b7caa",
+    "checksum_verified": true
+  },
+  {
+    "package": "icu_provider-2.3.1",
+    "sha256": "d27bbb9d3abbefac45d55f647c9de1d44aafcd1186eb91879afef17c396c3e73",
+    "checksum_verified": true
+  },
+  {
+    "package": "idna-1.1.0",
+    "sha256": "3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de",
+    "checksum_verified": true
+  },
+  {
+    "package": "idna_adapter-1.2.2",
+    "sha256": "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714",
+    "checksum_verified": true
+  },
+  {
+    "package": "itoa-1.0.18",
+    "sha256": "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682",
+    "checksum_verified": true
+  },
+  {
+    "package": "libc-0.2.190",
+    "sha256": "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78",
+    "checksum_verified": true
+  },
+  {
+    "package": "linux-raw-sys-0.12.1",
+    "sha256": "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53",
+    "checksum_verified": true
+  },
+  {
+    "package": "litemap-0.8.3",
+    "sha256": "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae",
+    "checksum_verified": true
+  },
+  {
+    "package": "memchr-2.8.3",
+    "sha256": "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98",
+    "checksum_verified": true
+  },
+  {
+    "package": "once_cell-1.21.4",
+    "sha256": "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50",
+    "checksum_verified": true
+  },
+  {
+    "package": "percent-encoding-2.3.2",
+    "sha256": "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220",
+    "checksum_verified": true
+  },
+  {
+    "package": "potential_utf-0.1.6",
+    "sha256": "d83eb9bc6d8e5cf568e7a1101d60ee05e81ed50ea106026f3d18deeb046d7661",
+    "checksum_verified": true
+  },
+  {
+    "package": "proc-macro2-1.0.107",
+    "sha256": "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9",
+    "checksum_verified": true
+  },
+  {
+    "package": "quote-1.0.47",
+    "sha256": "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001",
+    "checksum_verified": true
+  },
+  {
+    "package": "r-efi-6.0.0",
+    "sha256": "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf",
+    "checksum_verified": true
+  },
+  {
+    "package": "rustix-1.1.5",
+    "sha256": "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d",
+    "checksum_verified": true
+  },
+  {
+    "package": "serde-1.0.229",
+    "sha256": "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba",
+    "checksum_verified": true
+  },
+  {
+    "package": "serde_core-1.0.229",
+    "sha256": "67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48",
+    "checksum_verified": true
+  },
+  {
+    "package": "serde_derive-1.0.229",
+    "sha256": "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348",
+    "checksum_verified": true
+  },
+  {
+    "package": "serde_json-1.0.151",
+    "sha256": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+    "checksum_verified": true
+  },
+  {
+    "package": "sha2-0.10.9",
+    "sha256": "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283",
+    "checksum_verified": true
+  },
+  {
+    "package": "smallvec-1.16.2",
+    "sha256": "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e",
+    "checksum_verified": true
+  },
+  {
+    "package": "stable_deref_trait-1.2.1",
+    "sha256": "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596",
+    "checksum_verified": true
+  },
+  {
+    "package": "syn-2.0.119",
+    "sha256": "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297",
+    "checksum_verified": true
+  },
+  {
+    "package": "syn-3.0.6",
+    "sha256": "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee",
+    "checksum_verified": true
+  },
+  {
+    "package": "synstructure-0.13.2",
+    "sha256": "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2",
+    "checksum_verified": true
+  },
+  {
+    "package": "synstructure-0.14.0",
+    "sha256": "901704edd0dfe137f1987838ee4f259e4e063c31371bdb423f7ae38ec6f77f02",
+    "checksum_verified": true
+  },
+  {
+    "package": "tempfile-3.27.0",
+    "sha256": "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd",
+    "checksum_verified": true
+  },
+  {
+    "package": "tinystr-0.8.4",
+    "sha256": "b1e27c91459209c2986af3dcf603a5a74a4368754ce37414f59acc971167f643",
+    "checksum_verified": true
+  },
+  {
+    "package": "typenum-1.20.1",
+    "sha256": "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20",
+    "checksum_verified": true
+  },
+  {
+    "package": "unicode-ident-1.0.26",
+    "sha256": "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954",
+    "checksum_verified": true
+  },
+  {
+    "package": "url-2.5.8",
+    "sha256": "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed",
+    "checksum_verified": true
+  },
+  {
+    "package": "utf8_iter-1.0.4",
+    "sha256": "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be",
+    "checksum_verified": true
+  },
+  {
+    "package": "version_check-0.9.5",
+    "sha256": "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a",
+    "checksum_verified": true
+  },
+  {
+    "package": "windows-link-0.2.1",
+    "sha256": "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5",
+    "checksum_verified": true
+  },
+  {
+    "package": "windows-sys-0.61.2",
+    "sha256": "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc",
+    "checksum_verified": true
+  },
+  {
+    "package": "writeable-0.6.4",
+    "sha256": "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc",
+    "checksum_verified": true
+  },
+  {
+    "package": "yoke-0.8.3",
+    "sha256": "709fe23a0424b6a435d82152b1bd3fdfb0833487d5fa90d05d42762a9891fef5",
+    "checksum_verified": true
+  },
+  {
+    "package": "yoke-derive-0.8.2",
+    "sha256": "de844c262c8848816172cef550288e7dc6c7b7814b4ee56b3e1553f275f1858e",
+    "checksum_verified": true
+  },
+  {
+    "package": "zerofrom-0.1.8",
+    "sha256": "0ec05a11813ea801ff6d75110ad09cd0824ddba17dfe17128ea0d5f68e6c5272",
+    "checksum_verified": true
+  },
+  {
+    "package": "zerofrom-derive-0.1.8",
+    "sha256": "f75b4683f6c7f45248d4d64056a24298c6281e0993356d7d1b4a1a962ef10d4a",
+    "checksum_verified": true
+  },
+  {
+    "package": "zerotrie-0.2.5",
+    "sha256": "4ea269c3bd32f0a32c321907a2ae912ba6f4649bb0fc764a15627e99a7095a3f",
+    "checksum_verified": true
+  },
+  {
+    "package": "zerovec-0.11.8",
+    "sha256": "bb0464e17806c1d976d5cba29399c7f08e516e279e2ba493f63123b5fca67dd8",
+    "checksum_verified": true
+  },
+  {
+    "package": "zerovec-derive-0.11.6",
+    "sha256": "34df6fc39dbd26ddc9c10e6a2984476e13acce22e64e4487636ef494369225da",
+    "checksum_verified": true
+  },
+  {
+    "package": "zmij-1.0.23",
+    "sha256": "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b",
+    "checksum_verified": true
+  }
+]

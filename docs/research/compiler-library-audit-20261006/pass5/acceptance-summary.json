@@ -1,0 +1,127 @@
+{
+  "scope": "output-only, eight finite families; no package writers or input/coordinate redesign",
+  "native_full_suite": {
+    "passed": 1005,
+    "failed": 0,
+    "ignored": 0,
+    "actual_consumer_skips": 0,
+    "existing_mode_fixture_limit": "macOS could not establish set-ID mode4750; subcase loudly skips as in Pass4"
+  },
+  "post_suite_polish": {
+    "changes": [
+      "policy equivalent let-chain for Clippy",
+      "formatting new serializer/test lines",
+      "remove one-argument test concat macro"
+    ],
+    "affected_tests_passed": 13,
+    "clippy": "all targets, -D warnings passed"
+  },
+  "formatting": {
+    "baseline_hunks": 88,
+    "current_hunks": 83,
+    "added": 0,
+    "removed": 5,
+    "scope": "removed hunks only in converted descriptor region"
+  },
+  "raw_value_limit": "valid JSON grammar/exact lexemes, not a Unicode scalar validator; compiler-owned fragments only",
+  "existing_production_gap": "decimal literal default rejected with E6008 by current catalog lowering; scale qualification uses independent typed output fixtures",
+  "remaining_writers": [
+    {
+      "owner": "C06/C07",
+      "files": [
+        "compiler/src/json.rs",
+        "compiler/src/lsp/server.rs"
+      ],
+      "boundary": "ordered input model rendering/envelopes, parser/accessors/raw numbers; shared string scanner already library-owned"
+    },
+    {
+      "owner": "C08",
+      "files": [
+        "compiler/src/codegen/sourcemap.rs"
+      ],
+      "boundary": "source-map structural JSON/codecs/coordinates; shared strings library-owned, raw adapter syntax-qualified"
+    }
+  ],
+  "runtime_profile": "actual existing built Cloudflare artifact/docs APIs, interfaces renderer, UI policy page, values/std/UI/testkit runtime modules on native Node; not full operations, installed runtime, deployment or new decimal lowering",
+  "models": "Sol low frozen diagnostic/reference writers; Sol medium artifact/descriptor/policy/explain/fix/BDD and review; no model escalation",
+  "commits": [
+    "becd861",
+    "d9718aa",
+    "b8db68e",
+    "9a0b02e",
+    "112af03",
+    "e0c57cd",
+    "7621c2e",
+    "a6236d4",
+    "d78ba0a"
+  ],
+  "isolated_hosts": {
+    "native": {
+      "baseline": {
+        "bytes": 2117216,
+        "sha256": "8344341de523ed3bc90a44f85fd01c9e6c1fe9d42248bd78a62e0372778f5b4a",
+        "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+        "file": "/private/tmp/canlang-pass5-profile/baseline-native-target/release/can: Mach-O 64-bit executable arm64"
+      },
+      "current": {
+        "bytes": 2150544,
+        "sha256": "9c9eb9ee5a3b0e2168e41112d2c8b6939db71614a37d3b5afac2c8cf1e4ec9e7",
+        "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+        "file": "/private/tmp/canlang-pass5-profile/current-native-target/release/can: Mach-O 64-bit executable arm64"
+      },
+      "delta_bytes": 33328,
+      "delta_percent": 1.5741426477033993
+    },
+    "linux": {
+      "baseline": {
+        "bytes": 2905600,
+        "sha256": "c6fc22e7157319014d6e67afffe2eaede4115e7bc7b49f271d902243ce86cc4a",
+        "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)"
+      },
+      "current": {
+        "bytes": 2947352,
+        "sha256": "0d98f604dcaee70bf2a75798543d48ce329288591aedd08dcc54ee1b4d0855aa",
+        "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)"
+      },
+      "delta_bytes": 41752,
+      "delta_percent": 1.4369493392070485
+    },
+    "linux_tests": {
+      "library_passed": 109,
+      "typed_targets": 12,
+      "typed_harness_passed": 33,
+      "explicit_runtime_skips": [
+        "SKIP fresh_cli_artifact_loads_through_cloudflare: missing packages/values/dist/catalog.json",
+        "SKIP typed_policy_consumer: missing built package packages/values/dist/catalog.json",
+        "SKIP typed_reference_consumer: missing built package packages/values/dist/catalog.json"
+      ],
+      "typed_executed": 30
+    },
+    "linux_attempts": [
+      {
+        "attempt": 1,
+        "exit_code": 137,
+        "cause": "unconfirmed; no Rust error in output"
+      },
+      {
+        "attempt": 2,
+        "cargo_jobs": 1,
+        "exit_code": 137,
+        "cause": "unconfirmed; no Rust error; Docker event history empty and unrelated containers recently restarted"
+      },
+      {
+        "attempt": 3,
+        "cargo_jobs": 1,
+        "exit_code": 0,
+        "retained_state": "linux-final-container-state.json",
+        "oom_killed": false
+      }
+    ],
+    "qualification_limits": [
+      "Linux x86_64 under local emulation, not native Linux hardware",
+      "Three package runtime tests explicitly skipped; native actual consumers are separately root-qualified",
+      "No Windows or lower Rust MSRV execution",
+      "Full Linux integration suite not run"
+    ]
+  }
+}

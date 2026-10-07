@@ -1,0 +1,14 @@
+{
+  "baseline": {
+    "bytes": 2117216,
+    "sha256": "8344341de523ed3bc90a44f85fd01c9e6c1fe9d42248bd78a62e0372778f5b4a",
+    "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+    "file": "/private/tmp/canlang-pass5-profile/baseline-native-target/release/can: Mach-O 64-bit executable arm64"
+  },
+  "current": {
+    "bytes": 2150544,
+    "sha256": "9c9eb9ee5a3b0e2168e41112d2c8b6939db71614a37d3b5afac2c8cf1e4ec9e7",
+    "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+    "file": "/private/tmp/canlang-pass5-profile/current-native-target/release/can: Mach-O 64-bit executable arm64"
+  }
+}

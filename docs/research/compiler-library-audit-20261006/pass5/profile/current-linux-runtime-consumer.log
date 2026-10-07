@@ -1,0 +1,11 @@
+   Compiling canlang-compiler v0.1.0 (/profile/current/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.41s
+     Running tests/typed_reference_policy_consumers.rs (profile/current-linux-target/debug/deps/typed_reference_policy_consumers-fb7a8188c599e188)
+
+running 2 tests
+SKIP typed_policy_consumer: missing built package packages/values/dist/catalog.json
+SKIP typed_reference_consumer: missing built package packages/values/dist/catalog.json
+test fresh_policy_cli_enters_actual_policy_sections_and_html_page ... ok
+test fresh_docs_cli_and_extracted_typed_json_enter_public_markdown_renderer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s

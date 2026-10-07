@@ -1,0 +1,16 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+error: unneeded use of `concat!` macro
+   --> tests/typed_references.rs:126:20
+    |
+126 |       let expected = concat!(
+    |  ____________________^
+127 | |         r#"{"version":1,"sourceRevision":"revision","catalogVersion":"","languageVersion":"1.0","appDefaultLocale":"fr","owners":...
+128 | |     );
+    | |_____^ help: replace with: `"{\"version\":1,\"sourceRevision\":\"revision\",\"catalogVersion\":\"\",\"languageVersion\":\"1.0\",\"appDefaultLocale\":\"fr\",\"owners\":[{\"name\":\"Shop\",\"declarations\":[{\"owner\":\"Shop\",\"name\":\"Order\",\"kind\":\"model\",\"description\":{\"source\":\"é/🦀\\n\\u0008\\u000c\",\"sourceLang\":\"fr\",\"variants\":[{\"tag\":\"nl\",\"text\":null},{\"tag\":\"en\",\"text\":\"\"}],\"location\":{\"sourceId\":\"x.can\",\"start\":1,\"end\":9}},\"fields\":[{\"name\":\"value\",\"type\":\"text?\",\"nullable\":true,\"creationRequired\":false,\"default\":\"\\\"\\\\n\\\"\",\"constraints\":[{\"kind\":\"min\",\"detail\":\"1.00e+2\"}]},{\"name\":\"bare\",\"type\":\"bool\",\"nullable\":false,\"creationRequired\":true,\"constraints\":[]}],\"examples\":[{\"label\":\"first\",\"source\":\"do\\n  emit(\\\"\\\\t\\\")\\r\\n\",\"expected\":\"false\"},{\"label\":\"second\",\"source\":\"\"}],\"location\":{\"sourceId\":\"x.can\",\"start\":1,\"end\":9}}],\"operations\":[{\"id\":\"Shop.send\",\"inputs\":[{\"name\":\"request\",\"type\":\"text\",\"nullable\":false,\"creationRequired\":false,\"default\":\"\",\"constraints\":[]}],\"result\":{\"type\":\"void\",\"nullable\":false},\"examples\":[{\"label\":\"empty\",\"source\":\"\",\"expected\":\"\"}],\"location\":{\"sourceId\":\"x.can\",\"start\":1,\"end\":9}}]}],\"availability\":{\"status\":\"available\",\"owner\":\"owner\",\"catalog\":\"catalog\"}}"`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#useless_concat
+    = note: `-D clippy::useless-concat` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::useless_concat)]`
+
+error: could not compile `canlang-compiler` (test "typed_references") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
