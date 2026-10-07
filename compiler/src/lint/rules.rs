@@ -689,6 +689,52 @@ fn whole_line(text: &str, span: Span) -> bool {
     true
 }
 
+/// Remove executable source while retaining every explanatory comment at
+/// its original indentation and in source order. CST ownership is a byte
+/// coverage detail, not permission to erase author prose. Comment tokens
+/// cover whole physical lines; retain their preceding line break too (CRLF
+/// included), so comments remain separate from the surviving code.
+///
+/// Descriptions are declaration metadata, not comments. Refuse removal
+/// when it would delete nested metadata or leave an attached description
+/// behind to describe a different sibling.
+fn unreachable_replacement(suite: &SyntaxNode, stmt: &SyntaxNode, text: &str) -> Option<String> {
+    if !whole_line(text, stmt.span)
+        || stmt
+            .descendants()
+            .any(|node| node.kind == SyntaxKind::Description)
+    {
+        return None;
+    }
+    let siblings = kids(suite);
+    let position = siblings.iter().position(|node| std::ptr::eq(*node, stmt))?;
+    if position > 0 && siblings[position - 1].kind == SyntaxKind::Description {
+        return None;
+    }
+    let mut replacement = String::new();
+    for comment in stmt
+        .descendants()
+        .filter(|node| node.kind == SyntaxKind::Comment)
+    {
+        let start = comment.span.start as usize;
+        let end = comment.span.end as usize;
+        let line_start = text[..start].rfind('\n').map_or(0, |newline| {
+            if newline > 0 && text.as_bytes()[newline - 1] == b'\r' {
+                newline - 1
+            } else {
+                newline
+            }
+        });
+        // Never copy bytes from an earlier sibling, even if CST ownership
+        // changes. Current comment leaves always have their line prefix.
+        if line_start < stmt.span.start as usize || end > stmt.span.end as usize {
+            return None;
+        }
+        replacement.push_str(&text[line_start..end]);
+    }
+    Some(replacement)
+}
+
 /// Warn on statements after unconditional termination in the same list.
 ///
 /// Only exact `require false` is terminal (`require` with any other
@@ -716,11 +762,13 @@ fn rule_unreachable(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>
                     // message pair is fixed.
                     let message = "statement after `require false` never executes".to_string();
                     let related = "this `require` always rejects".to_string();
-                    let fix = whole_line(ctx.text, stmt.span).then(|| PendingFix {
-                        rule: rule.id,
-                        title: "remove unreachable statement".to_string(),
-                        span: stmt.span,
-                        replacement: String::new(),
+                    let fix = unreachable_replacement(suite, stmt, ctx.text).map(|replacement| {
+                        PendingFix {
+                            rule: rule.id,
+                            title: "remove unreachable statement".to_string(),
+                            span: stmt.span,
+                            replacement,
+                        }
                     });
                     push(
                         out,
