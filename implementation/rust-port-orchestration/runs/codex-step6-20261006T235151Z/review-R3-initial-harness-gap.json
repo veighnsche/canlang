@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "packet": "step6:R3:N06-registered-decisions",
+  "reviewer": "independent /root/step6_review_r3",
+  "baseline": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "verdict": "current_finite_93_receipt_accepted; persistent_harness_changes_required",
+  "scope": "Actual current Cargo registration and immutable finite conformance receipt only. Does not close original W03.4 or full W04.4, or authorize producer/backend/default/installed adoption.",
+  "blocking_current_candidate_defects": [],
+  "verification": {
+    "released_source_hashes": "All14 paths exactly match release-manifest after_sha256; all13 non-self hashes in native-conformance.json also match.",
+    "raw_logs": "Every recorded command log SHA256 independently recomputed and matches; recorded exit statuses treated as receipt data, no heavy rerun.",
+    "immutable_inputs": "Original native-numeric-text.rs and all16 existing fixture files byte-for-byte match baseline. All staged ts-full JSON fixtures match current immutable originals.",
+    "registration": "Actual rust/lib.rs registers decisions/lib.rs; seven existing leaves registered. Registered-native observer compiled under cfg(test) only. Exactly one crate-private numeric_text module; four leaves use super::numeric_text.",
+    "namespace_identity": "Leaf-local U16/value/fault data definitions retained; registration edits only imports and duplicate historical test removal. No automatic cross-leaf conversions introduced.",
+    "numeric_witnesses": {
+      "original": 72,
+      "registered": 72,
+      "exact_lexical_modulo_whitespace_and_optional_trailing_commas": 71,
+      "exception": "caller_34 retains identical assert_receipt_join(...).unwrap(); removes only let result and tautological assert_eq!(result,()).",
+      "primitive_records": 10213,
+      "primitive_original_tuple_fixture_equivalence": true
+    },
+    "dependency_boundary": "Cargo normal edge only exact ryu-js1.0.3 default-features=false. serde_json1.0.151 dev-only; feature tree shows std/default and no derive feature. Locked optional macro packages are not evidence of enabled production features.",
+    "production_authority": "Inspected production leaves/imports and registration diff: no env/fs/net/process/time/thread/random/security authority or unsafe introduced. Supplied RNG/evidence callbacks retain prior seams; env/fs/serde_json observer is test-only.",
+    "cargo_receipts": "Raw released log315 passed,0 failed,1 ignored. Explicit shared-native log1 passed,0 ignored,315 filtered; original input env is mandatory and observer nonempty.",
+    "ts_receipts": "Manifest recorded full-package strict tsc exit0 (empty hashed log) and raw full runtime log445 passed:371 seven original suites+74 numeric. Numeric typing changes are as const tuple inference and d.mts declaration only.",
+    "owning_ts_provenance_smoke": "Read-only TypeScript5.9.3 transpileModule smoke with ES2022+ESNext+verbatimModuleSyntax matches all seven current original source leaf emissions to R3/ts-full/src/*.js byte-for-byte; no diagnostics/typecheck or output files generated.",
+    "actual_shared_inputs": "93 original selected records encoded once for actual Rust observer and cloned for owning TS execution.93 result records independently equal by key/outcome/randomCalls; shared input hash, native marker and sourceHashes independently match stored results.",
+    "fatal_checks": "Source asserts cargo status===0, requires CAN_WORK_SHARED marker, parses it and checks record length/order/actual observations. Negative controls require detectable foreign key, fault code presence, and randomCalls mutation; no separate hardcoded pass count substituted."
+  },
+  "repeatability_findings": [
+    {
+      "priority": 2,
+      "file": "packages/work-kernel/conformance/registered-differential.mjs",
+      "lines": [
+        16,
+        17,
+        49,
+        54
+      ],
+      "issue": "Runner imports arbitrary supplied tsRoot JS while sourceHashes hash current repo TS; it neither binds emitted JS to source pins nor rejects fixture/source drift against fixed hashes. Reusing stale tsRoot can attribute current TS hashes to code that was not executed. Current reviewed receipt is independently proven to use exact owning TS and unchanged fixtures, so this is a repeatable-gate limitation rather than invalidation of this finite receipt. This is changes-required for the persistent harness.",
+      "recommendation": "Before using this as a repeatable acceptance gate, verify fixed original fixture/source pins and compilation/emitted JS provenance, or compile privately from the pinned sources within the runner."
+    },
+    {
+      "priority": 3,
+      "file": "private R3 command receipts",
+      "issue": "Saved release-manifest contains command handles/statuses but no exact command text. The only saved tsconfig.json is earlier leaf config excluding numeric contract test; full-package green receipt must be linked to the actual full package command, not reused as proof from that earlier config. ts-full staged numeric output and445 runtime receipt exist; independent emission smoke verifies7 imported leaves.",
+      "recommendation": "Root should retain exact full-package tsc command/flags and source pins with handle738774. Root will obtain and record command text from owner."
+    }
+  ],
+  "coverage": [
+    {
+      "leaf": "rows",
+      "fixture": "rows/supersession.json",
+      "sampled": 2,
+      "unsampled": 1,
+      "sha256": "c7f1f6f2a5924f4dbc5009554472d9d6ea14349a1ddb83ebf22fd0422f6ca17f"
+    },
+    {
+      "leaf": "rows",
+      "fixture": "rows/every_slot.json",
+      "sampled": 2,
+      "unsampled": 5,
+      "sha256": "902db640c1a669aa26ff158aeeba3c16016688bebc353866bdb02155ac657c57"
+    },
+    {
+      "leaf": "retry",
+      "fixture": "policy/retry.json",
+      "sampled": 19,
+      "unsampled": 4,
+      "sha256": "630bafad41c27b5ffb8023f4d6a6f92f353c80a75f51d079d9b6748275c30018"
+    },
+    {
+      "leaf": "every",
+      "fixture": "policy/every.json",
+      "sampled": 10,
+      "unsampled": 19,
+      "sha256": "48d193bc044174293e2f19f2cea0826b22b22fce6d106dc9f503168e46b3deab"
+    },
+    {
+      "leaf": "lifecycle",
+      "fixture": "policy/lifecycle.json",
+      "sampled": 18,
+      "unsampled": 0,
+      "sha256": "a78374dcd84bc3be4077cbba57e2012aebf9fb16628c8f93cd05803221fe9751"
+    },
+    {
+      "leaf": "receipt",
+      "fixture": "receipts/receipt.json",
+      "sampled": 27,
+      "unsampled": 30,
+      "sha256": "b18cf4101947da95942a212223d9517ab3629543b6c73642457cc07e6eb44751"
+    },
+    {
+      "leaf": "recovery",
+      "fixture": "receipts/recovery.json",
+      "sampled": 4,
+      "unsampled": 61,
+      "sha256": "b5b64fda283461e245230a668c31afb42021e0ff99b37ace58efa1e0cc897d8c"
+    },
+    {
+      "leaf": "linkage",
+      "fixture": "receipts/linkage.json",
+      "sampled": 11,
+      "unsampled": 21,
+      "sha256": "f5d2c38ef5ba3d72796343d42874de1587fdb08cace9d0d16330d31d9259dccd"
+    }
+  ],
+  "limits": [
+    "93 finite dynamic records; all unsampled selected-fixture IDs retained in registered-differential.json, other fixture families absent from dynamic sample remain frozen-suite evidence only.",
+    "Observer data conversions are per-leaf finite projections; absent/null optional fields, object identity, aliases/cycles, Map/Set/function payloads and opaque refs are not generally certified.",
+    "Full TS fault envelopes captured separately but native comparison covers name/message/code presence/code/scope presence/scope; URIError message intentionally engine-variable. Native details/own-key/StateError extras and fault identity remain open.",
+    "Negative randomCalls mutation proves strict observation equality, not actual clone/materialization trace parity; production demand/clone/stop-on-error traces remain open.",
+    "Native rows skip function payloads and true cycle in existing vectors; TS originals still execute. Unknown/exotic legacy adoption remains unproven.",
+    "W03.1 source declarations do not prove actual controlled producer/profile/backend/version provenance. W03.4 production producer identity/trace qualification remains missing; full W04.4 remains open.",
+    "No Wasm/workerd/transport/backend/default/installed producer or consumer proof. License/upstream delivery notices remain eventual packaging work.",
+    "No Git, implementation edits, foreign compiler/shared docs mutation or heavy commands performed during independent review."
+  ],
+  "final_source_hashes": {
+    "packages/work-kernel/Cargo.toml": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+    "packages/work-kernel/Cargo.lock": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+    "packages/work-kernel/rust/lib.rs": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+    "packages/work-kernel/decisions/lib.rs": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+    "packages/work-kernel/conformance/registered-native.rs": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a",
+    "packages/work-kernel/conformance/registered-differential.mjs": "faa7de8d629317d9655ef12eee77ff75547f3f28806000b0de2f960235063175",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json": "8318390313042042662e9cd2ff9ac5de61a40d164bec8dbab31fc6bebd5819e5",
+    "packages/work-kernel/decisions/rows.rs": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+    "packages/work-kernel/decisions/receipt.rs": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+    "packages/work-kernel/decisions/recovery.rs": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+    "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+    "packages/work-kernel/decisions/numeric_text.rs": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+    "packages/work-kernel/conformance/numeric-text.contract.test.ts": "08d5ad8c3773c1fcf14dbe1d9a7a2891139ab85f0e4391e0a6d2a88dc709e0bc",
+    "packages/work-kernel/conformance/numeric-text.oracle.d.mts": "dc8dbae0939b9d88b8f14f2caf5c13224c1706c6d142ea5a8c00420010da2369"
+  },
+  "review_result_source_sha256": "873df26eb1533d6eb043c590f3cf46166d8817d4b6e84ac68b07e1630e0ca616",
+  "persistent_harness_blocking_defects": [
+    {
+      "priority": 2,
+      "file": "packages/work-kernel/conformance/registered-differential.mjs",
+      "line": 16,
+      "title": "Bind executed JS and frozen inputs to fixed source pins",
+      "reason": "Current independent emission equivalence certifies only this reviewed receipt. Persistent runner accepts arbitrary stale/foreign tsRoot and records current source hashes without checking compiled provenance; source/fixture hashes are regenerated rather than checked against release pins. Root requires owner repair before accepting persistent repeatable gate."
+    }
+  ]
+}

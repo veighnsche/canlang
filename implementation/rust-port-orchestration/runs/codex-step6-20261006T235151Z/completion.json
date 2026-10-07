@@ -1,0 +1,40 @@
+{
+  "completed_at_utc": "2026-10-07T00:18:08.285852+00:00",
+  "phase": "step6_reviewed_slices_complete",
+  "human_release": "Step6 in this chat",
+  "base": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "source_commits": {
+    "R1": "188a050",
+    "R2": "c16ab48",
+    "R3": "5a4e827"
+  },
+  "independent_reviews": [
+    "review-R1.json",
+    "review-R2.json",
+    "review-R3.json"
+  ],
+  "joined_current_values_review": "joined-values-review.json",
+  "all_commands_and_writers_released": true,
+  "future_dispatch_authorized": false,
+  "preparation_hold": true,
+  "supervisor_status": "PAUSED",
+  "supervisor_cadence_minutes": 15,
+  "shared_decisions_and_filetree": "Pending exact writer handoff; foreign dirty records preserved, no merge/checkpoint advancement",
+  "canonical_narrow_credit": {
+    "ports:A07.2": "complete",
+    "ports:A07.foundation": "complete",
+    "ports:V02.6": "partial",
+    "ports:W04.4": "partial"
+  },
+  "required_remaining_record_count": 234,
+  "counting_limits": "Parents/gates/crosswalks retained; 234 is remaining required canonical records, not 234 independent coding tasks",
+  "pending_cleanup": {
+    "owner": "Codex",
+    "paths": [
+      "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z"
+    ],
+    "policy": "Retain compact/raw original source, logs, emitted proof and failed stages for later gates; prune only released run-owned disposable build outputs after retention handoff; shared caches/foreign resources untouched"
+  },
+  "foreign_work_preserved": true,
+  "no_push_or_deployment": true
+}

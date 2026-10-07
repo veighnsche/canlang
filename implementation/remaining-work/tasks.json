@@ -1,27 +1,27 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-06T18:56:31.010775+02:00",
+  "generated_at": "2026-10-07T00:18:08.285852+00:00",
   "timezone": "Europe/Brussels",
   "base_commit": "7fd8c6bf4717feeffc70b46819377b74b353e117",
   "source_verification_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
-  "scope": "Old three-plan backlog reconciled against consolidated main; planning-only, no task dispatch or product execution.",
-  "operational_state": "All eight Muse instances stopped; heartbeat PAUSED; no current worker assignments. D port task-specific HOLD retained.",
+  "scope": "Historical consolidated three-plan ledger with finite reviewed Codex step6 status/evidence updates; original source assessment pins and all task IDs/prerequisites retained. This list does not authorize dispatch.",
+  "operational_state": "Historical Muse generation remains stopped. Reviewed finite Codex step 6 slices are committed; no live writers or commands remain. The 15-minute supervisor is paused between finite releases. Preparation/native-release HOLD and all wider original gates remain.",
   "counting_policy": "323 existing canonical DAG records plus ten original checklist gate/handoff identities. Parents and acceptance gates are retained, not advertised as independent coding jobs. Repeated manifests and historical packets are aliases, not extra tasks.",
   "counts": {
     "all_source_identities": 333,
     "canonical_DAG_records": 323,
     "original_auxiliary_gate_handoff_records": 10,
     "statuses": {
-      "complete": 83,
-      "needs_verification": 23,
+      "complete": 85,
+      "needs_verification": 22,
       "held": 22,
-      "not_started": 99,
-      "partial": 101,
+      "not_started": 97,
+      "partial": 102,
       "deferred": 5
     },
     "required_total": 319,
-    "required_remaining": 236,
-    "required_complete": 83,
+    "required_remaining": 234,
+    "required_complete": 85,
     "accepted_conditional_remaining": 9,
     "deferred_records": 5,
     "per_namespace": {
@@ -44,11 +44,11 @@
       "ports": {
         "total": 230,
         "statuses": {
-          "complete": 54,
-          "needs_verification": 14,
+          "complete": 56,
+          "needs_verification": 13,
           "held": 22,
-          "not_started": 86,
-          "partial": 50,
+          "not_started": 84,
+          "partial": 51,
           "deferred": 4
         }
       },
@@ -8779,12 +8779,10 @@
       "title": "Prepare host carriers, backend registry and bootstrap checks",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "needs_verification",
+      "status": "complete",
       "disposition": "REQUIRED",
       "phase": "work",
-      "remaining_actions": [
-        "Repair/qualify the malformed historical bootstrap evidence while preserving its exact pin/commands/results/scope; record narrow host carrier/bootstrap acceptance from existing source and scoped tests."
-      ],
+      "remaining_actions": [],
       "original_actions": [],
       "original_acceptance": [
         "Public classes/freezing/BigInt parts and synchronous exports stay intact; failed selected Rust bootstrap is visible."
@@ -8855,9 +8853,14 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z/R1-accepted.json",
+          "revision": "188a050",
+          "scope": "Human step6 finite actualsource/consumer checks and independent review;not wholeparent/default/installed acceptance"
         }
       ],
-      "reason": "Private synchronous carrier/backend/bootstrap scaffold and Node/Bun failure tests exist. Exact A07.2 narrow code behavior is credited, but historical evidence JSON is malformed and current scoped acceptance ledger needs qualification; full registry belongs A07.3, workerd aggregate proof A07.foundation.",
+      "reason": "Carrier/bootstrap contract independently accepted at 188a050. A valid current record replaces the malformed historical receipt at its precise scope. Node, Bun and actual workerd prove public carrier identity, freezing, BigInt and synchronous visible startup failures. Full registry belongs to A07.3.",
       "assessment_details": {
         "plan": "exact-values",
         "parent": "ports/exact-values/A07",
@@ -8909,7 +8912,8 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": null,
+      "step6_scoped_update_at_utc": "2026-10-07T00:13:09.866074+00:00"
     },
     {
       "id": "ports:A07.foundation",
@@ -8919,12 +8923,10 @@
       "title": "Real binding and host bootstrap scaffold ready for validation",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "partial",
+      "status": "complete",
       "disposition": "REQUIRED",
       "phase": "gate",
-      "remaining_actions": [
-        "Review actual tiny exact entry/host scaffold synchronous/bootstrap/carrier contract across Node/Bun/workerd without claiming full exact operation parity."
-      ],
+      "remaining_actions": [],
       "original_actions": [],
       "original_acceptance": [
         "Actual tiny glue/module imports and synchronous bootstrap/carrier contract are usable in Node/Bun/local workerd; validation can integrate independently of exact algorithm completion."
@@ -8968,9 +8970,14 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z/R1-accepted.json",
+          "revision": "188a050",
+          "scope": "Human step6 finite actualsource/consumer checks and independent review;not wholeparent/default/installed acceptance"
         }
       ],
-      "reason": "Real generated glue and structural workerd smoke exist, but aggregate exact bootstrap/carrier scaffold gate is not reviewed across Node/Bun/workerd at its required contract.",
+      "reason": "Actual tiny exact glue/module/bootstrap/carrier scaffold accepted across Node, Bun and local workerd at 188a050. Combined R2 build passes 214 Node tests and eight host controls; all 11 emitted workerd dependency modules and binary equal the actual workerd proof. No full operation, installed or default claim.",
       "assessment_details": {
         "plan": "exact-values",
         "parent": "ports/exact-values/A07",
@@ -8985,9 +8992,7 @@
         "source_declared_status": null,
         "human_hold": false,
         "ownership_group": "values-shared-arithmetic-validation-core",
-        "blocked_by": [
-          "ports/exact-values/A07.2"
-        ],
+        "blocked_by": [],
         "observations": [
           "bootstrap-evidence-malformed-json"
         ],
@@ -8998,7 +9003,8 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": null,
+      "step6_scoped_update_at_utc": "2026-10-07T00:13:09.866074+00:00"
     },
     {
       "id": "ports:A07.3",
@@ -11750,11 +11756,12 @@
       "title": "Wire private prepared hooks without public API drift",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Install private genuine factory provenance and prepared validation/codec hooks without public export/signature/legacy evaluation drift; prove legacy unknown remains TS and no semantic retry."
+        "Complete audited PH2/PH4 private owner/request/protected-graph admission; genuine factory lineage alone grants no plan/default/backend authority.",
+        "Retain PH3 canonical DefaultRef/Decimal/lifetime prerequisites at their original tasks."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -11829,9 +11836,14 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z/R2-accepted.json",
+          "revision": "c16ab48",
+          "scope": "Human step6 finite actualsource/consumer checks and independent review;not wholeparent/default/installed acceptance"
         }
       ],
-      "reason": "normalizeSchema/wire/index have no private prepared provenance/hook join; handoff explicitly provides unapplied specification and tests mark provenance directly.",
+      "reason": "Nonrecursive private TS cores, unchanged public facades, direct prepared delegates and success-only nonadopting factory lineage accepted at c16ab48. 199 focused tests and 35 original trace pairs, plus the combined 214-test Node build pass. Complete PH2/PH4 request admission and authority remain unaccepted.",
       "assessment_details": {
         "plan": "input-validation",
         "parent": "ports/input-validation/V02",
@@ -11876,7 +11888,8 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": null,
+      "step6_scoped_update_at_utc": "2026-10-07T00:13:09.866074+00:00"
     },
     {
       "id": "ports:V03.1",
@@ -12396,7 +12409,10 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": null,
+      "step6_scope_notes": [
+        "R2 consumes unchanged structural scaffold without new lifetime/profile authority; original status and gates remain."
+      ]
     },
     {
       "id": "ports:V02.7",
@@ -13274,7 +13290,10 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": null,
+      "step6_scope_notes": [
+        "R2 consumes unchanged structural scaffold without new lifetime/profile authority; original status and gates remain."
+      ]
     },
     {
       "id": "ports:V06.8",
@@ -23450,7 +23469,10 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": null,
+      "step6_scope_notes": [
+        "Actual Cargo registration, 315 native tests and finite 93-case TS comparison add checked candidate evidence at 5a4e827. Full producer/compatibility acceptance remains at W03.4/W04.4."
+      ]
     },
     {
       "id": "ports:W04.2",
@@ -23600,7 +23622,10 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": null,
+      "step6_scope_notes": [
+        "Actual Cargo registration, 315 native tests and finite 93-case TS comparison add checked candidate evidence at 5a4e827. Full producer/compatibility acceptance remains at W03.4/W04.4."
+      ]
     },
     {
       "id": "ports:W04.3",
@@ -23750,7 +23775,10 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": null,
+      "step6_scope_notes": [
+        "Actual Cargo registration, 315 native tests and finite 93-case TS comparison add checked candidate evidence at 5a4e827. Full producer/compatibility acceptance remains at W03.4/W04.4."
+      ]
     },
     {
       "id": "ports:W04.4",
@@ -23760,11 +23788,12 @@
       "title": "Register native modules and run shared conformance",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Register decisions under the actual Cargo root, reconcile their shared data types, and run immutable current/prepared/native conformance plus locked test/fmt/clippy and host-authority import review."
+        "Complete W03.4 actual D1/DO controlled producer and prepared-vs-legacy demand/error/identity/clone/stop-on-error traces.",
+        "Extend native/prepared shared comparison to required unsampled channels and full fault/payload/ref identity; retain no production/backend/default adoption."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -23830,9 +23859,14 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z/R3-accepted.json",
+          "revision": "5a4e8279f7668b6ab4261bc8d0fdc5b656b12031",
+          "scope": "Actual registered pure candidate, strict TS/native compile and source-pinned finite shared conformance; not full W03.4/W04.4 or production adoption."
         }
       ],
-      "reason": "Cargo root points to rust/lib.rs exporting VERSION only, excludes decisions/*.rs, and has no assembled native/shared differential registration.",
+      "reason": "Actual seven decision modules and shared numeric helper registered in real Cargo at 5a4e827. 315 native tests, 445 TS tests, 93 actual TS/Rust cases, strict compilation, formatting and clippy pass. Renewed review verifies a repeatable fresh-source and original-fixture-pinned harness. Full W04.4 retains W03.4 and remaining fault/payload compatibility gates.",
       "assessment_details": {
         "plan": "work-transitions",
         "parent": "ports/work-transitions/W04",
@@ -23882,7 +23916,8 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": null,
+      "step6_scoped_update_at_utc": "2026-10-07T00:13:09.866074+00:00"
     },
     {
       "id": "ports:W05.1",
@@ -34756,6 +34791,22 @@
       "auxiliary": true,
       "execution_authorized_by_this_list": false,
       "source_state_annotation": null
+    }
+  ],
+  "baseline_generated_at": "2026-10-06T18:56:31.010775+02:00",
+  "scoped_updates": [
+    {
+      "run": "implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z",
+      "at_utc": "2026-10-07T00:13:09.866074+00:00",
+      "changed_status_ids": [
+        "ports:A07.2",
+        "ports:A07.foundation",
+        "ports:V02.6",
+        "ports:W04.4"
+      ],
+      "global_source_verification_pin_unchanged": true,
+      "other_statuses_and_all_dependencies_preserved": true,
+      "shared_filetree_and_DECISIONS_handoff_pending": true
     }
   ]
 }

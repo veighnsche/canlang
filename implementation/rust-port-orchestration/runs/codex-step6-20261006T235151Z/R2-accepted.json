@@ -1,0 +1,29 @@
+{
+  "packet": "step6:R2:N05-private-validation-join",
+  "source_commit": "c16ab48bbd7aed514a9395039e8caeeaca701d57",
+  "review": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/independent-review.json",
+  "review_sha256": "f45d997693e4dfa46173c7ac86bb7225609499580e157df27471ee8d5806d061",
+  "verified_committed_files": {
+    "packages/values/src/schema.ts": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+    "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "packages/values/src/internal/schema-core.ts": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+    "packages/values/src/internal/wire-core.ts": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+    "packages/values/src/prepared/validation.ts": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+    "packages/values/src/prepared/codec.ts": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+    "packages/values/test/prepared-hook.test.ts": "b9f7e31d0c22df220c98ea9c6e597a96599e031ee5b66d970d160d73064eca7c",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/step6-readiness.json": "7eccd127646c02478122b3240a538a02e4bc2322d3639c8aae12f714c4c4d9de"
+  },
+  "accepted_scope": "Nonrecursive private TS schema/wire cores; original public facade outcomes/errors/effect order and canonical identities; success-only nonadopting factory lineage",
+  "tests": {
+    "private_tsc": 0,
+    "focused_node": 199,
+    "original_trace_pairs": 35
+  },
+  "excluded": [
+    "Full PH2/PH4 request/default authority bridge",
+    "Prepared plan DefaultRef/Decimal migration and retirement/disposal",
+    "Native registration/profile semantic/backend public/default adoption"
+  ],
+  "writers_released": true,
+  "commands_released": true
+}

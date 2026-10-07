@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "packet": "step6:R3:N06-registered-decisions",
+  "reviewer": "independent /root/step6_review_r3",
+  "baseline": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "verdict": "accept_current_C3_registered_candidate_and_finite_persistent_differential_gate",
+  "blocking_defects": [],
+  "scope": "Actual Cargo assembly of seven existing pure decisions; immutable numeric/caller witnesses and93 finite shared observations. No original fullW04.4/W03.4 completion or production adoption inference.",
+  "prior_review": {
+    "path": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R3/independent-review.json",
+    "sha256": "3b0535030dfc587e65444526d79f9a934d6af6f3559d4f26dbc471ca53cb5c0f",
+    "disposition": "Preserved unchanged. Initial persistent-harness changes-required stage remains historically accurate; C3 resolves emitted-JS provenance and frozen input pin enforcement."
+  },
+  "resolved_findings": [
+    {
+      "prior": "Arbitrary external tsRoot could misattribute current TS source hashes to stale JS.",
+      "resolution": "Exactly one PRIVATE_ROOT argument is admitted. Full actual package tsconfig is compiled into unique mkdtemp private output; only its seven owning leaf modules are imported. Compiler status is required0 before observation. Source inputs are snapshotted before compilation, checked immediately after compilation and after differential; emitted seven hashes checked before/after. Exact compile command/exit/log digest retained."
+    },
+    {
+      "prior": "Frozen fixture hashes recorded anew without fixed rejection gate.",
+      "resolution": "All16 fixture pins hardcoded to original baseline SHA256 and enforced before compilation and after differential; independently confirmed every pin equals baseline bytes."
+    },
+    {
+      "prior": "Exact full-package tsc command missing from original green receipt.",
+      "resolution": "R3-C3-ACK and amended receipts retain738774 exact command directly using packages/work-kernel/tsconfig.json with only private output/declaration/map options; C3 independently records fresh full package compileCommand and successful status/log."
+    }
+  ],
+  "independent_checks": {
+    "source_release": "All14 amended release after hashes match actual current files; manifest itself equals requested71237fca11751e4171538781b5e1d45c4a5e36e417a9f43afc96e57cd97b9d25.",
+    "script_sha256": "bdbb31eff01512d79d0ed3f4e7a41e7928e7867035d75cc06da71b8ca41574f9",
+    "evidence_sha256": "560c250bf7b45cc6f38b5302037695090ef98d395248b3a117784db60efde230",
+    "result_sha256": "09fd36db454ceb56ac554350b78da836662f829bf9394929a6f59cb68aeb08cb",
+    "raw_logs": "All amended command log hashes independently match. C3 actual native marker parsed independently equals93 stored native observations; shared native log has actual ignored observer1 passed and315 filtered.",
+    "immutable_pins": "16 fixed pins independently equal baseline; current fixture channels remain originals. Prior original native-numeric-text preservation and72/10213 witness conservation remain valid at unchanged native/source hashes.",
+    "source_snapshot": {
+      "count": 41,
+      "before_equals_after": true,
+      "all_match_current_files": true
+    },
+    "emitted_bytes": "All7 before/after hashes independently match files under actual freshPrivateEmit. Read-only TypeScript5.9.3 transpileModule emission of current owning original source matches all7 actual fresh JS byte-for-byte.",
+    "compiled_provenance": "compileCommand directly targets actual full package tsconfig; tsRoot is freshly created internally. Runtime imports across7 owning modules resolve only other checked owning modules; contracts imports are type-only.",
+    "observations": "93 actual TS and native observations equal by key/order/outcome/randomCalls. Original shared input SHA and full observations exactly equal prior finite accepted receipt. C3 wire input hash independently matches actual file.",
+    "external_negative_control": "d417b8 recorded exit1; raw log rejects2 arguments versus1 at line13 before mkdir/compile/output. This removes caller-controlled precompiled input.",
+    "fatal_controls": "Compilation/native nonzero status required0; missing native marker fatal; JSON/length/order/comparison mismatch fatal. Fixture mismatch, source/emit beforeafter drift fatal. Existing actual observation mutations detect key/fault-code/randomCalls inequality.",
+    "unchanged_checks": "No full native suite rerun claimed in C3. Prior source-identical315+1defaultignored/fmt/clippy and445TS suites/numeric receipts retained with original raw logs."
+  },
+  "execution_binding": {
+    "selfCompiled": true,
+    "freshPrivateEmit": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R3/repeat-gate-C3/checked-ts-eSFzmK",
+    "compileCommand": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+      "-p",
+      "/Users/vince/Projects/canlang/packages/work-kernel/tsconfig.json",
+      "--outDir",
+      "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R3/repeat-gate-C3/checked-ts-eSFzmK",
+      "--declaration",
+      "false",
+      "--declarationMap",
+      "false",
+      "--sourceMap",
+      "false"
+    ],
+    "compileExit": 0,
+    "compileLogSha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "emittedHashesBefore": {
+      "rows": "022fc4f325e494177d4cb4fd4a0ca035bdf21d36bd7704e985e7daad15e54c40",
+      "retry": "1253370987f3a3db262d0bc52c4327820040ce1882fa5c6efe39ea5861b4c112",
+      "every": "a0fdbbac12e6f9bcae51ff5a55ff586bacdde7f8057ef7fe2f556a3d3db83fbd",
+      "lifecycle": "5178125e4bd37226d9d1637e3d270b8cc81d2320afd95f982ebcbbf27a6b996e",
+      "receipt": "eeed788121a4be401c2fcacac9c10f66e21f4659334a8abe61fbe5856e87ef7a",
+      "recovery": "0a56f831f72616e51e768e77064195215ae65a00ec0b36d6a5feefa1e0fc4964",
+      "linkage": "92bade4f7fc47bcd6da0e6ab68c0d9262220cf4dfdd92e217e9f5725d4581910"
+    },
+    "emittedHashesAfter": {
+      "rows": "022fc4f325e494177d4cb4fd4a0ca035bdf21d36bd7704e985e7daad15e54c40",
+      "retry": "1253370987f3a3db262d0bc52c4327820040ce1882fa5c6efe39ea5861b4c112",
+      "every": "a0fdbbac12e6f9bcae51ff5a55ff586bacdde7f8057ef7fe2f556a3d3db83fbd",
+      "lifecycle": "5178125e4bd37226d9d1637e3d270b8cc81d2320afd95f982ebcbbf27a6b996e",
+      "receipt": "eeed788121a4be401c2fcacac9c10f66e21f4659334a8abe61fbe5856e87ef7a",
+      "recovery": "0a56f831f72616e51e768e77064195215ae65a00ec0b36d6a5feefa1e0fc4964",
+      "linkage": "92bade4f7fc47bcd6da0e6ab68c0d9262220cf4dfdd92e217e9f5725d4581910"
+    },
+    "externalTsRootAllowed": false
+  },
+  "coverage": [
+    {
+      "leaf": "rows",
+      "fixture": "rows/supersession.json",
+      "sampled": 2,
+      "unsampled": 1,
+      "sha256": "c7f1f6f2a5924f4dbc5009554472d9d6ea14349a1ddb83ebf22fd0422f6ca17f"
+    },
+    {
+      "leaf": "rows",
+      "fixture": "rows/every_slot.json",
+      "sampled": 2,
+      "unsampled": 5,
+      "sha256": "902db640c1a669aa26ff158aeeba3c16016688bebc353866bdb02155ac657c57"
+    },
+    {
+      "leaf": "retry",
+      "fixture": "policy/retry.json",
+      "sampled": 19,
+      "unsampled": 4,
+      "sha256": "630bafad41c27b5ffb8023f4d6a6f92f353c80a75f51d079d9b6748275c30018"
+    },
+    {
+      "leaf": "every",
+      "fixture": "policy/every.json",
+      "sampled": 10,
+      "unsampled": 19,
+      "sha256": "48d193bc044174293e2f19f2cea0826b22b22fce6d106dc9f503168e46b3deab"
+    },
+    {
+      "leaf": "lifecycle",
+      "fixture": "policy/lifecycle.json",
+      "sampled": 18,
+      "unsampled": 0,
+      "sha256": "a78374dcd84bc3be4077cbba57e2012aebf9fb16628c8f93cd05803221fe9751"
+    },
+    {
+      "leaf": "receipt",
+      "fixture": "receipts/receipt.json",
+      "sampled": 27,
+      "unsampled": 30,
+      "sha256": "b18cf4101947da95942a212223d9517ab3629543b6c73642457cc07e6eb44751"
+    },
+    {
+      "leaf": "recovery",
+      "fixture": "receipts/recovery.json",
+      "sampled": 4,
+      "unsampled": 61,
+      "sha256": "b5b64fda283461e245230a668c31afb42021e0ff99b37ace58efa1e0cc897d8c"
+    },
+    {
+      "leaf": "linkage",
+      "fixture": "receipts/linkage.json",
+      "sampled": 11,
+      "unsampled": 21,
+      "sha256": "f5d2c38ef5ba3d72796343d42874de1587fdb08cace9d0d16330d31d9259dccd"
+    }
+  ],
+  "limits": [
+    "93 finite dynamic records; all unsampled selected-fixture IDs retained in registered-differential.json, other fixture families absent from dynamic sample remain frozen-suite evidence only.",
+    "Observer data conversions are per-leaf finite projections; absent/null optional fields, object identity, aliases/cycles, Map/Set/function payloads and opaque refs are not generally certified.",
+    "Full TS fault envelopes captured separately but native comparison covers name/message/code presence/code/scope presence/scope; URIError message intentionally engine-variable. Native details/own-key/StateError extras and fault identity remain open.",
+    "Negative randomCalls mutation proves strict observation equality, not actual clone/materialization trace parity; production demand/clone/stop-on-error traces remain open.",
+    "Native rows skip function payloads and true cycle in existing vectors; TS originals still execute. Unknown/exotic legacy adoption remains unproven.",
+    "W03.1 source declarations do not prove actual controlled producer/profile/backend/version provenance. W03.4 production producer identity/trace qualification remains missing; full W04.4 remains open.",
+    "No Wasm/workerd/transport/backend/default/installed producer or consumer proof. License/upstream delivery notices remain eventual packaging work.",
+    "The repeatable gate evaluates current candidate source with fixed original expectations; before/after source digests establish stable inputs for this execution, not unconditional immutable candidate versions across future intentional changes.",
+    "Negative randomCalls comparison control is no substitute for production materialization/clone traces. Full fault envelopes, opaque identity, exotic inputs, producer provenance/W03.4 and fullW04.4 remain explicitly open.",
+    "Review used read-only source/raw receipt inspection, hashing/baseline comparisons and lightweight transpilation equivalence only; no heavy suites, Git actions, implementation/shared-doc edits or foreign compiler mutation."
+  ],
+  "final_source_hashes": {
+    "packages/work-kernel/Cargo.toml": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+    "packages/work-kernel/Cargo.lock": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+    "packages/work-kernel/rust/lib.rs": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+    "packages/work-kernel/decisions/lib.rs": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+    "packages/work-kernel/conformance/registered-native.rs": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a",
+    "packages/work-kernel/conformance/registered-differential.mjs": "bdbb31eff01512d79d0ed3f4e7a41e7928e7867035d75cc06da71b8ca41574f9",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json": "560c250bf7b45cc6f38b5302037695090ef98d395248b3a117784db60efde230",
+    "packages/work-kernel/decisions/rows.rs": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+    "packages/work-kernel/decisions/receipt.rs": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+    "packages/work-kernel/decisions/recovery.rs": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+    "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+    "packages/work-kernel/decisions/numeric_text.rs": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+    "packages/work-kernel/conformance/numeric-text.contract.test.ts": "08d5ad8c3773c1fcf14dbe1d9a7a2891139ab85f0e4391e0a6d2a88dc709e0bc",
+    "packages/work-kernel/conformance/numeric-text.oracle.d.mts": "dc8dbae0939b9d88b8f14f2caf5c13224c1706c6d142ea5a8c00420010da2369"
+  }
+}

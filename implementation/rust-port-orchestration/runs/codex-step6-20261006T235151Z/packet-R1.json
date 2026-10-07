@@ -38,7 +38,7 @@
   "model": "gpt-6.1-sol",
   "reasoning_effort": "high",
   "model_reason": "Known producer/ABI/private-core or actual Cargo assembly join risks; user step6 and task-specific N05/N06 allocation select Sol high.",
-  "execution_authorized": true,
+  "execution_authorized": false,
   "source_input_sha256": {
     "implementation/remaining-work/tasks.json": {
       "exists": true,
@@ -123,5 +123,11 @@
   },
   "assigned_agent": "/root/step6_r1_values",
   "ack_observed": true,
-  "runtime_status": "bootstrap_actual_consumer_repair"
+  "runtime_status": "reviewed_finite_slice_complete",
+  "writer_released": true,
+  "commands_released": true,
+  "source_commit": "188a050",
+  "review": "review-R1.json",
+  "scope_complete_at_packet_boundary": true,
+  "original_parent_completion_implied": false
 }

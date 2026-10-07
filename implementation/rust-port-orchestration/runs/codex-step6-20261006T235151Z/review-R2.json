@@ -1,0 +1,78 @@
+{
+  "reviewer": "/root/step6_review_r2",
+  "reviewed_at_utc": "2026-10-07T00:01:59.846230+00:00",
+  "baseline": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "disposition": "accept-finite-private-ts-core-and-factory-lineage-slice",
+  "actionable_defects": [],
+  "source_sha256": {
+    "/Users/vince/Projects/canlang/packages/values/src/schema.ts": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+    "/Users/vince/Projects/canlang/packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "/Users/vince/Projects/canlang/packages/values/src/internal/schema-core.ts": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+    "/Users/vince/Projects/canlang/packages/values/src/internal/wire-core.ts": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+    "/Users/vince/Projects/canlang/packages/values/src/prepared/validation.ts": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+    "/Users/vince/Projects/canlang/packages/values/src/prepared/codec.ts": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+    "/Users/vince/Projects/canlang/packages/values/test/prepared-hook.test.ts": "b9f7e31d0c22df220c98ea9c6e597a96599e031ee5b66d970d160d73064eca7c",
+    "/Users/vince/Projects/canlang/docs/research/package-subsystem-ports-20261006/evidence/input-validation/step6-readiness.json": "7eccd127646c02478122b3240a538a02e4bc2322d3639c8aae12f714c4c4d9de"
+  },
+  "release_manifest_sha256": "02e30038cd46c82dd1ae0978514f1859710a3d71f5fb583c799e5fc642540b8a",
+  "independent_checks": {
+    "schema_core_exact_inverse_to_git_baseline": true,
+    "wire_core_exact_inverse_to_git_baseline": true,
+    "eight_released_source_hashes_match_current_checkout": true,
+    "all_manifest_raw_evidence_hashes_match": true,
+    "cached_originals_match_git_show": true,
+    "staged_oracle_schema_and_wire_equal_relocated_git_baseline": true,
+    "raw_oracle_pairs": 35,
+    "raw_oracle_pairs_have_equal_outcome_and_trace": true,
+    "prepared_gates_unchanged_against_baseline": true,
+    "prepared_calls_delegate_directly_to_private_cores": true,
+    "public_runtime_exports_and_function_arity_preserved": true,
+    "public_type_exports_and_overloads_preserved": true,
+    "plan_index_and_package_export_files_unchanged_against_baseline": true,
+    "no_production_factory_lineage_consumer_or_recorder": true
+  },
+  "reasoning": [
+    "schema-core.ts is the complete pinned schema body, with imports relocated, validation entry points renamed, schema-to-wire calls bound to wire cores, and a module-private WeakSet/query plus success-tail lineage recording. Reversing exactly those transformations reproduced git show byte-for-byte.",
+    "wire-core.ts is the complete pinned wire body with relocated imports and two renamed public functions. Reversing those transformations reproduced git show byte-for-byte.",
+    "Public schema.ts/wire.ts preserve runtime names, arities, type exports and create/update overloads. Validation and wire facades each delegate once. Existing sentinels and normalization are reexports of one core module.",
+    "validatePreparedValue retains owner/plan, normalized shape, ordered structural cross-check, and type-coverage gates, then calls validateValueTsCore directly. Codec gates are unchanged and calls target wire cores. No recursion, semantic retry or exception fallback was introduced. Comparator-only public imports remain in validation.ts; prepared evaluation itself does not call a public facade.",
+    "factorySchemas is module-private and has no arbitrary recorder. normalizeSchema records only the newly allocated frozen schema after both existing normalization passes succeed. Query uses typeof/null/WeakSet identity only. Public schema/wire/index exports and package exports do not expose the new query or cores.",
+    "The original explicit recordFactoryProvenance test seam remains in unchanged prepared/plan.ts and does not feed factorySchemas. This slice does not promote genuine lineage into a plan, request capability, default reference or backend authority.",
+    "Prepared-hook tests include negative manual/frozen/copied/proxy identities, descriptor and failed-factory identities, no candidate traps, missing-provenance plan admission, arbitrary thrown identity with exactly one relevant accessor read, canonical defaults/sentinels/engine omissions and trim/completeness witnesses. Raw oracle source genuinely uses independently relocated pinned bodies."
+  ],
+  "independent_runtime_smoke": {
+    "environment": "existing released R2 dist; no compiler or full-suite rerun",
+    "passed": true,
+    "witnesses": [
+      "Repeated normalization of the same descriptor creates distinct frozen schemas with lineage.",
+      "Public validation returns identical canonical schema Decimal and explicit array default objects; implicit empty array is EMPTY_ARRAY.",
+      "Create drops engine-resolved omission; update omission is the canonical UPDATE_OMITTED sentinel.",
+      "A frozen manual copy validates successfully through legacy entry without receiving lineage.",
+      "A revoked Proxy returns false from lineage query without touching candidate traps.",
+      "Genuine factory lineage alone still yields missing-provenance from plan registration."
+    ]
+  },
+  "observed_release_test_evidence": {
+    "tsc_log_empty": true,
+    "tests_log_reported_tests": 199,
+    "tests_log_reported_suites": 40,
+    "tests_log_reported_failures": 0,
+    "independently_reran_logged_commands": false,
+    "note": "Counts and hashes corroborate release evidence; acceptance also rests on actual source comparison and independent smoke. No broad compiler/backend tests were run by reviewer."
+  },
+  "finite_acceptance": [
+    "Public TS schema/wire behavior at the documented outcome/error/accessor-order boundary.",
+    "Whole-body private non-dispatching TS cores and direct delegation after existing explicit preparation gates.",
+    "Private success-only factory identity lineage, fresh frozen schemas and preserved canonical TS defaults/sentinels."
+  ],
+  "limitations_and_fences": [
+    "Thirty-five traced oracle calls are finite and do not exhaust all possible accessor/proxy behaviors; full-body source equivalence supplies broader static evidence.",
+    "Error stack locations, function source text and declaration source-map locations naturally change with relocation/wrapping and were not treated as stable API.",
+    "Review assumes standard untampered JavaScript builtins; it does not certify monkey-patched WeakSet/Object operations or resource-exhaustion behavior.",
+    "No complete V02.6 owner-issued private request capability or PH2/PH4 admission is accepted.",
+    "No canonical schema DefaultRef authority migration, prepared Decimal coverage, retirement/disposal/resource proof, complete producer/backend profile or native/public adoption is accepted.",
+    "Existing V03.4 retirement/default-ref residuals and V03.5 narrow structural profile credit remain fenced as stated in readiness packet; actual R1 implementation and foreign compiler/backend changes were outside this review.",
+    "No Rust, workerd, deployment or backend lifetime tests were run; protected files, common-source leases and Git/staging decisions remain root responsibilities.",
+    "No repository source, shared documentation or foreign work was edited."
+  ]
+}
