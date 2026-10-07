@@ -1,0 +1,17 @@
+{
+  "consulted": "2026-10-07",
+  "sources": [
+    {
+      "url": "https://tc39.es/ecma262/multipage/text-processing.html#sec-runtime-semantics-charactersetmatcher-abstract-operation",
+      "finding": "CharacterClassEscape s includes ECMAScript WhiteSpace and LineTerminator."
+    },
+    {
+      "url": "https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-white-space",
+      "finding": "WhiteSpace includes TAB VT FF FEFF and Unicode Zs; LineTerminator includes LF CR 2028 2029. Broader Unicode White_Space is intentionally not equivalent."
+    },
+    {
+      "url": "https://doc.rust-lang.org/std/primitive.char.html#method.is_whitespace",
+      "finding": "Rust char::is_whitespace uses Unicode White_Space; char::is_control covers C0 and C1 plus DEL, unlike current public email floor."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "compiler/src/analysis/types.rs": "3e25415436f61cecca33b263b7232f646332f40fa3e87fabf080930038d0ff07",
+  "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+  "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+  "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+  "packages/values/dist/src/wire.js": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+  "packages/values/dist/src/internal/wire-core.js": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+  "packages/values/src/prepared/codec.ts": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+  "packages/values/semantics/src/lib.rs": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+  "packages/values/bindings/backend.ts": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+  "docs/specification/DESIGN.md": "1d36f88fe206299b383e0b7eb76182d559486c99670a2ecc87b5420e28cf7f82",
+  "docs/research/compiler-library-audit-20261006/responsibility-map/semantics.md": "7271c103c6e6b31571b1f8c8f822fa13fa7adda4f9762331cc644f4f5f9d58a7"
+}

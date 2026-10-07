@@ -1,0 +1,1396 @@
+{
+  "pins": {
+    "compiler/src/analysis/types.rs": "49b9d4ff361136e768d5b39e3fb02063a1b2f1a2dd8e3a6f676e6ae3d9746080",
+    "compiler/tests/email_admission.rs": "b53e8af21051fc3d954b39ca65080fdb3bbcbab36e3c9ed82f30c53e7347ba7e",
+    "compiler/target/debug/can": "356f5e29685edf2e3f14363316294b2289c9d31decd887e096af4412458fd625",
+    "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+    "packages/values/dist/src/index.js": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+    "packages/values/dist/src/wire.js": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+    "packages/values/dist/src/internal/wire-core.js": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+  },
+  "freezeFilesVerified": 603,
+  "reused": {
+    "cases": 113,
+    "anchors": 84,
+    "metadataModulesImported": 29,
+    "uiImports": 0
+  },
+  "fresh": {
+    "cases": 145,
+    "directions": 290,
+    "check": 145,
+    "compile": 145,
+    "accepted": 61
+  },
+  "publicResolved": "/Users/vince/Projects/canlang/packages/values",
+  "results": [
+    {
+      "id": 0,
+      "value": "",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 1,
+      "value": "a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 2,
+      "value": "@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 3,
+      "value": "aa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 4,
+      "value": "@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 5,
+      "value": "a@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 6,
+      "value": "@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 7,
+      "value": "aaa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 8,
+      "value": "@aa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 9,
+      "value": "a@a",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 10,
+      "value": "@@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 11,
+      "value": "aa@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 12,
+      "value": "@a@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 13,
+      "value": "a@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 14,
+      "value": "@@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 15,
+      "value": "aaaa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 16,
+      "value": "@aaa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 17,
+      "value": "a@aa",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 18,
+      "value": "@@aa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 19,
+      "value": "aa@a",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 20,
+      "value": "@a@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 21,
+      "value": "a@@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 22,
+      "value": "@@@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 23,
+      "value": "aaa@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 24,
+      "value": "@aa@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 25,
+      "value": "a@a@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 26,
+      "value": "@@a@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 27,
+      "value": "aa@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 28,
+      "value": "@a@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 29,
+      "value": "a@@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 30,
+      "value": "@@@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 31,
+      "value": "aaaaa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 32,
+      "value": "@aaaa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 33,
+      "value": "a@aaa",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 34,
+      "value": "@@aaa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 35,
+      "value": "aa@aa",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 36,
+      "value": "@a@aa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 37,
+      "value": "a@@aa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 38,
+      "value": "@@@aa",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 39,
+      "value": "aaa@a",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 40,
+      "value": "@aa@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 41,
+      "value": "a@a@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 42,
+      "value": "@@a@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 43,
+      "value": "aa@@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 44,
+      "value": "@a@@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 45,
+      "value": "a@@@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 46,
+      "value": "@@@@a",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 47,
+      "value": "aaaa@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 48,
+      "value": "@aaa@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 49,
+      "value": "a@aa@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 50,
+      "value": "@@aa@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 51,
+      "value": "aa@a@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 52,
+      "value": "@a@a@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 53,
+      "value": "a@@a@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 54,
+      "value": "@@@a@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 55,
+      "value": "aaa@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 56,
+      "value": "@aa@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 57,
+      "value": "a@a@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 58,
+      "value": "@@a@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 59,
+      "value": "aa@@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 60,
+      "value": "@a@@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 61,
+      "value": "a@@@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 62,
+      "value": "@@@@@",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 63,
+      "value": "\u001fa@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 64,
+      "value": "a@b\u001f",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 65,
+      "value": " a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 66,
+      "value": "a@b ",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 67,
+      "value": "!a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 68,
+      "value": "a@b!",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 69,
+      "value": "~a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 70,
+      "value": "a@b~",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 71,
+      "value": "a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 72,
+      "value": "a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 73,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 74,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 75,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 76,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 77,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 78,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 79,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 80,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 81,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 82,
+      "value": "a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 83,
+      "value": " a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 84,
+      "value": "a@b ",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 85,
+      "value": "¡a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 86,
+      "value": "a@b¡",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 87,
+      "value": "ᙿa@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 88,
+      "value": "a@bᙿ",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 89,
+      "value": " a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 90,
+      "value": "a@b ",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 91,
+      "value": "ᚁa@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 92,
+      "value": "a@bᚁ",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 93,
+      "value": "῿a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 94,
+      "value": "a@b῿",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 95,
+      "value": " a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 96,
+      "value": "a@b ",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 97,
+      "value": " a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 98,
+      "value": "a@b ",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 99,
+      "value": "​a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 100,
+      "value": "a@b​",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 101,
+      "value": "‌a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 102,
+      "value": "a@b‌",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 103,
+      "value": "‧a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 104,
+      "value": "a@b‧",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 105,
+      "value": " a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 106,
+      "value": "a@b ",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 107,
+      "value": " a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 108,
+      "value": "a@b ",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 109,
+      "value": "‪a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 110,
+      "value": "a@b‪",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 111,
+      "value": "‮a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 112,
+      "value": "a@b‮",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 113,
+      "value": " a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 114,
+      "value": "a@b ",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 115,
+      "value": "‰a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 116,
+      "value": "a@b‰",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 117,
+      "value": "⁞a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 118,
+      "value": "a@b⁞",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 119,
+      "value": " a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 120,
+      "value": "a@b ",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 121,
+      "value": "⁠a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 122,
+      "value": "a@b⁠",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 123,
+      "value": "⿿a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 124,
+      "value": "a@b⿿",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 125,
+      "value": "　a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 126,
+      "value": "a@b　",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 127,
+      "value": "、a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 128,
+      "value": "a@b、",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 129,
+      "value": "﻾a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 130,
+      "value": "a@b﻾",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 131,
+      "value": "﻿a@b",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 132,
+      "value": "a@b﻿",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 133,
+      "value": "＀a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 134,
+      "value": "a@b＀",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 135,
+      "value": "🙂a@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 136,
+      "value": "a@b🙂",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 137,
+      "value": "É+X@例子",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 138,
+      "value": "é@B",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 139,
+      "value": "E@-B_..",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 140,
+      "value": "a@b.1",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 141,
+      "value": "a@zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 142,
+      "value": "x＠y",
+      "expected": false,
+      "decode": "SchemaError",
+      "encode": "ValueError",
+      "check": 10,
+      "compile": 10
+    },
+    {
+      "id": 143,
+      "value": "x@",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    },
+    {
+      "id": 144,
+      "value": "​@b",
+      "expected": true,
+      "decode": "accepted-exact",
+      "encode": "accepted-exact",
+      "check": 0,
+      "compile": 0,
+      "importedExact": true
+    }
+  ]
+}

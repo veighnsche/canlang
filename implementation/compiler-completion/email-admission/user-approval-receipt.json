@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-07",
+  "authorization": "Human approved both saved payloads in response to the exact request-1/request-3 destination disclosure question.",
+  "answer": "Approve both payloads",
+  "destination": "https://api.typesafe.ai/v1/systemone",
+  "approved_request_sha256": {
+    "jev-request-1.json": "f11102eff7f60bc7c47a3aabeade9e3d6692226253616eacd314b7f53f8c6d90",
+    "jev-request-3.json": "34168a0897205e0ba8f2d68225b1cc1fb5e40fa28aa1b3546de8cab86ca5156c"
+  },
+  "transmissions": {
+    "1": {
+      "exit_code": 0,
+      "response": "jev-response-1.json",
+      "stdout": "jev-1.user-approved.stdout",
+      "stderr": "jev-1.user-approved.stderr"
+    },
+    "3": {
+      "exit_code": 0,
+      "response": "jev-response-3.json",
+      "stdout": "jev-3.user-approved.stdout",
+      "stderr": "jev-3.user-approved.stderr"
+    }
+  },
+  "scope": "Exactly saved request 1 and 3; no additional context argument. Initial failures/rejections retained."
+}

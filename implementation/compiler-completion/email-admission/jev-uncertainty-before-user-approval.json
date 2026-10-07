@@ -1,0 +1,17 @@
+{
+  "requiredIndependentEquivalentRequests": 3,
+  "successfulResponses": 1,
+  "adviceOnly": true,
+  "successfulRequest": 2,
+  "successfulChoice": "current_public_floor",
+  "reportedConfidence": 1.0,
+  "independentAgreement": "Unavailable; two transmissions blocked by automatic review. One reported certainty does not substitute for required three consultations.",
+  "responseFormatLimit": "Response has choice/confidence/probabilities only, with no explanatory rationale despite instructions.",
+  "defaultAttempts": "All three sandbox calls reported connection failed; no external response was obtained.",
+  "rejectedEscalations": {
+    "request1": "Automatic approval review rejected: sends repository implementation details and project context to external JEV; general consultation authorization did not specifically authorize sensitive payload export. No retry or workaround made.",
+    "request3": "Automatic approval review rejected: sends private repository-derived details and local paths to untrusted external destination; exact payload disclosure was not explicitly approved. No retry or workaround made."
+  },
+  "blockedWork": "Required three-call consultation not completed. Exact saved requests 1 and 3 plus payload/destination approval are needed before any new transmission; no bypass or indirect retry is authorized.",
+  "policyStatus": "Proposal only pending required consultation and root/owner freeze; no production/policy change."
+}

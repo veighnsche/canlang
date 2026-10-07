@@ -1,0 +1,46 @@
+{
+  "requiredIndependentEquivalentRequests": 3,
+  "successfulResponses": 3,
+  "adviceOnly": true,
+  "responses": [
+    {
+      "request": 1,
+      "type": "choice",
+      "choice": "current_public_floor",
+      "confidence": 1.0,
+      "probabilities": {
+        "unicode_floor": 0.0,
+        "current_public_floor": 1.0,
+        "domain_shape_floor": 0.0
+      }
+    },
+    {
+      "request": 2,
+      "type": "choice",
+      "choice": "current_public_floor",
+      "confidence": 1.0,
+      "probabilities": {
+        "current_public_floor": 1.0,
+        "domain_shape_floor": 0.0,
+        "unicode_floor": 0.0
+      }
+    },
+    {
+      "request": 3,
+      "type": "choice",
+      "choice": "current_public_floor",
+      "confidence": 0.98,
+      "probabilities": {
+        "unicode_floor": 0.01,
+        "current_public_floor": 0.99,
+        "domain_shape_floor": 0.0
+      }
+    }
+  ],
+  "independentAgreement": "All three equivalent requests select current_public_floor; choice agreement does not prove correctness.",
+  "responseFormatLimit": "Choice/confidence/probabilities only; explanatory rationale absent.",
+  "priorAttempts": "Original sandbox failures and automatic-review rejections preserved in raw streams and jev-uncertainty-before-user-approval.json.",
+  "approvalResolution": "Human explicitly approved saved payload 1 and 3; both exact transmissions succeeded. See user-approval-receipt.json.",
+  "blockedWork": null,
+  "policyStatus": "Root freezes current public floor on verified owning APIs, same-input evidence, adoption and focused repair; independent leaf qualification remains pending."
+}
