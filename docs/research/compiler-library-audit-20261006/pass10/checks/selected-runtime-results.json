@@ -1,0 +1,48 @@
+{
+  "argv": [
+    "cargo",
+    "test",
+    "--locked",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--test",
+    "string_payload_runtime",
+    "--test",
+    "value_admission",
+    "--test",
+    "catalog_producer_runtime",
+    "--test",
+    "sourcemap_contract",
+    "--test",
+    "typed_bdd",
+    "--",
+    "--nocapture"
+  ],
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_NET_OFFLINE": "true"
+  },
+  "working_directory": "/Users/vince/Projects/canlang",
+  "exit_code": 0,
+  "exit_provenance": "exec_command session 98265 completion returned exit_code 0",
+  "log_sha256": "adb7138d498b780f9d754c86dd1113ee44960a72d040b9e080f3d840c5f56e1e",
+  "harnesses": 5,
+  "passed": 6,
+  "failed": 0,
+  "skip_markers": 0,
+  "scope": {
+    "catalog": "actual owning emitter, source/dist equality, isolated catalog and fresh real CLI loader; no TypeScript rebuild",
+    "strings": "six production CLI/default/testkit witnesses executed",
+    "url": "29 actual @canlang/values vectors, 15 production metadata defaults",
+    "sourcemap": "actual current artifact/Cloudflare/testkit consumers plus independent decoder; original Can byte columns; browser UTF16 unqualified",
+    "bdd": "two independently authored exact emitted-JavaScript byte fixtures; runtime BDD execution not claimed by these tests"
+  },
+  "source_hashes": {
+    "compiler/tests/string_payload_runtime.rs": "e19503a4192fcfecce15d656df6a73f9826f239d18c674bca611b2b98be54133",
+    "compiler/tests/value_admission.rs": "803d85c823a132d7ae44457bd9cf259df41bfa15493c057d88018b92a805ccf9",
+    "compiler/tests/catalog_producer_runtime.rs": "9b6a236c3f4e0b2603923c46ca2caf9b34c6e0fadf2f5c7893ab03f9d4c03e54",
+    "compiler/tests/sourcemap_contract.rs": "d6b245794c1aa323ba9eaa14804d734da1eaaf7c30e0a22e4ffaa39ed0c4bece",
+    "compiler/tests/typed_bdd.rs": "acef30f79b76fb64a1c97afc2c835aff373fc8db48dce1e35a749739eeec7380"
+  }
+}

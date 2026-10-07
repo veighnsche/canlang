@@ -1,0 +1,57 @@
+{
+  "sourceFrozenByRoot": "db495c6",
+  "productionBuildGit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+  "binary": "/private/tmp/canlang-pass10-profile/release/can",
+  "binarySha256": "6405484cb6156faf26f3efc3a32e57cb193b662581c61995842d78f41baa3c4f",
+  "binaryBytes": 2250544,
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "tools": {
+    "node": "v24.21.0",
+    "bun": "1.4.2",
+    "python3": "Python 3.14.7"
+  },
+  "inputDrift": {},
+  "originalApp": {
+    "unchanged": true,
+    "exit": 10,
+    "completeDiagnostics": true,
+    "codes": [
+      "E3001",
+      "E3010",
+      "E3010"
+    ],
+    "parentsRemainOpen": [
+      "T02",
+      "T37",
+      "FP.QUALIFY"
+    ]
+  },
+  "installed": {
+    "packageTarballs": 13,
+    "installedFilesMatchedTarballs": 2268,
+    "offline": true,
+    "ignoreScripts": true,
+    "linker": "isolated",
+    "checkoutRead": "ERR_ACCESS_DENIED",
+    "parentRemainsOpen": "FP.INSTALLED-RELEASE",
+    "cache": "read-only existing Bun cache cloned into tasklocal cache; no network, global installs or package rebuild"
+  },
+  "scope": "direct final process, actual complete frontend artifact, emitted import/canApp/defaults and real refused generated handler + mapper/testkit; no synthetic artifact, no app workflow/browser/Worker qualification",
+  "toolsExecutablePins": {
+    "node": {
+      "path": "/Users/vince/.vite-plus/bin/node",
+      "sha256": "ce6081b1dc4585695c843ed92efbf6568a1b971818b097bc28dfd3751daea1c4"
+    },
+    "bun": {
+      "path": "/Users/vince/.bun/bin/bun",
+      "sha256": "35d20dd0263e5c950194434b925454fdfa9ba6e4467da960410fa05b08a7a5b5"
+    },
+    "python3": {
+      "path": "/opt/homebrew/bin/python3",
+      "sha256": "87d4df53fd91304be5bac391fb204643c36b7df2023c04a0953bcbc7d4fdf634"
+    }
+  },
+  "binaryPreSha256": "6405484cb6156faf26f3efc3a32e57cb193b662581c61995842d78f41baa3c4f",
+  "binaryPostSha256": "6405484cb6156faf26f3efc3a32e57cb193b662581c61995842d78f41baa3c4f",
+  "version": "can 0.1.0 (commit aca27c2d; language 1.0; schema 1)"
+}

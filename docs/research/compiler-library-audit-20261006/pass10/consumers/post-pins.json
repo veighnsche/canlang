@@ -1,0 +1,20 @@
+{
+  "compiler/src/cli.rs": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679",
+  "compiler/src/lsp/server.rs": "79c53edb9ba35b411e48d7d0064776dfbb4b8b622f748dbb13d3958cb9f78743",
+  "compiler/src/codegen/artifact.rs": "5ee76bea1b84bb36985e99277292e688f02ae9097257ecafbb5571774c2c5d61",
+  "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+  "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+  "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "packages/cloudflare/dist/runtime/artifact.js": "7a959f96dfb7d84ea444af5c7194a9d0445770a99e543031ff847f8f6dc970c4",
+  "output/release-artifacts/manifest.json": "9cd905dc05e9ccbcfaf1143aea1b4f10ded535631bd5c432e58724540c6375d4",
+  "docs/ideal-filetree-plan/finished-product/tasks.json": "78f157a8de2d5c7cbcc58338f38b90255621eb7b43287c4919ab80d50f651f0a",
+  "tests/e2e/apps/challenge-pilot.spec.ts": "348f701da6188e1bf3479d63187231ed6df25d85c59b369ac769c7b6cd8dceeb",
+  "tests/e2e/apps/challenge-pilot-patched.spec.ts": "9bb3925e7d84e37516271794558130336e72244d86fb8ce635097f5a24540493",
+  "tests/e2e/apps/compiled-journey.spec.ts": "ed6930dd8eca57eb13c4a3e2bb889f00a2052f15e76a94fa6fe44895872c7d8c",
+  "tests/e2e/fixtures/artifact-loader.ts": "925f924ef688201f2fd530fd7359c9709724e9224d41607c894bb6e955b3035c",
+  "draft/CanDo.can": "15761cc422c6d11827a6f13aa3cc3318a8bb393ef2110169f1a02ff046e4ec35",
+  "draft/shared/Locations.can": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+  "draft/shared/Employees.can": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+  "scripts/verify-installed-worker.mjs": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443",
+  "scripts/verify-installed-types.mjs": "e342511eda8e25b80514d9fe6c3d5195a2cdd45d95b2e7a669d9a50416daebce"
+}

@@ -1,0 +1,98 @@
+[
+  {
+    "name": "dry-run",
+    "argv": [
+      "node",
+      "scripts/run-tasks.mjs",
+      "native:compiler:test",
+      "--root-turbo-json=/private/tmp/canlang-pass10-runner/turbo.json",
+      "--dry-run=json"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.386,
+    "stdout_sha256": "d25e11208cb7afdbb5e060ede14d3722adbd94edfc1890e5670648f799dfc3cc",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_bytes": 1157035,
+    "stderr_bytes": 0,
+    "env_overrides": {
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_NET_OFFLINE": "true",
+      "CAN_COMPLETION_REQUIRE_ENGINES": "1"
+    },
+    "temporary_turbo_config": "/private/tmp/canlang-pass10-runner/turbo.json",
+    "temporary_turbo_config_sha256": "cc3f808daa5f54f72bd70953ff36b78c38c2437bd106a10e101868927cfd936f"
+  },
+  {
+    "name": "build",
+    "argv": [
+      "bun",
+      "run",
+      "build:compiler",
+      "--root-turbo-json=/private/tmp/canlang-pass10-runner/turbo.json",
+      "--concurrency=1"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 11.313,
+    "stdout_sha256": "96ecedd6de802400e9920f544849fbe5e8570299a1307069f8bb4561af1b3fa1",
+    "stderr_sha256": "d931fc5ab7af35da74d872b2c9e26e81e0f7cb958eca318cf2a4e5ce2b700004",
+    "stdout_bytes": 812,
+    "stderr_bytes": 135,
+    "env_overrides": {
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_NET_OFFLINE": "true",
+      "CAN_COMPLETION_REQUIRE_ENGINES": "1"
+    },
+    "temporary_turbo_config": "/private/tmp/canlang-pass10-runner/turbo.json",
+    "temporary_turbo_config_sha256": "cc3f808daa5f54f72bd70953ff36b78c38c2437bd106a10e101868927cfd936f"
+  },
+  {
+    "name": "test",
+    "argv": [
+      "bun",
+      "run",
+      "test:compiler",
+      "--root-turbo-json=/private/tmp/canlang-pass10-runner/turbo.json",
+      "--concurrency=1"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 133.561,
+    "stdout_sha256": "c4b52f801c38a3979d200bf96cd65949f45dbb987cbbbb4f58a3b6805b032790",
+    "stderr_sha256": "a7dbee554e2aae82bf1bcb553a9360f84173ec79200a727762b52f82039c242f",
+    "stdout_bytes": 98211,
+    "stderr_bytes": 134,
+    "env_overrides": {
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_NET_OFFLINE": "true",
+      "CAN_COMPLETION_REQUIRE_ENGINES": "1"
+    },
+    "temporary_turbo_config": "/private/tmp/canlang-pass10-runner/turbo.json",
+    "temporary_turbo_config_sha256": "cc3f808daa5f54f72bd70953ff36b78c38c2437bd106a10e101868927cfd936f"
+  },
+  {
+    "name": "lint",
+    "argv": [
+      "bun",
+      "run",
+      "lint:compiler",
+      "--root-turbo-json=/private/tmp/canlang-pass10-runner/turbo.json",
+      "--concurrency=1"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 19.771,
+    "stdout_sha256": "e4acb15f16ae245b56da1924a7db9b7c628f8b529e8b449bd43ebdda06ab01f7",
+    "stderr_sha256": "4cb9bdb8545f16f5aa1577a8631862b694b1d884c5e6a700fd231365815983a4",
+    "stdout_bytes": 895,
+    "stderr_bytes": 134,
+    "env_overrides": {
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_NET_OFFLINE": "true",
+      "CAN_COMPLETION_REQUIRE_ENGINES": "1"
+    },
+    "temporary_turbo_config": "/private/tmp/canlang-pass10-runner/turbo.json",
+    "temporary_turbo_config_sha256": "cc3f808daa5f54f72bd70953ff36b78c38c2437bd106a10e101868927cfd936f"
+  }
+]

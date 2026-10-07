@@ -1,0 +1,7 @@
+Observed setup/probe failures, all before the final successful full replay:
+1. probe.py CLI sources equality assertion: authored expected source list omitted mandatory id:0; expected primary whole-file 0..11 also incorrect. Owning parser missing-block diagnostic uses header owner keyword span app 0..3. Corrected source id and keyword attribution assertion.
+2. probe.py duplicate-ID LSP assertion: authored expected -32700 parse error; actual -32600 invalid request with null correlation, consistent with compiler/tests/lsp_admission.rs decoded_reserved_duplicate_keys_are_rejected_before_dispatch. Corrected code; never relaxed recovery/count/null-ID assertions.
+3. bun install --offline --ignore-scripts: exit1, stdout bun install v1.4.2 (744846f84), stderr error: bun is unable to write files to tempdir: EPERM. TMPDIR alone retained same failure; explicit task cache removed it.
+4. Empty tasklocal cache: exit1; --offline no cached manifest for miniflare and @modelcontextprotocol/sdk; miniflare@4.20260730.0 and @modelcontextprotocol/sdk@1.32.0 failed to resolve.
+5. Read-only inspected existing /private/tmp/canlang-installed-verification and /private/tmp/canlang-worker-installed-proof: every present Can tarball differed from current release manifest hash; reuse rejected. No old installed evidence credited.
+6. Cloned existing /Users/vince/.bun/install/cache read-only into owned /private/tmp/canlang-pass10-consumers/cache with cp -cR; fresh task-owned install then succeeded offline with scripts disabled. No network and no global cache writes.
