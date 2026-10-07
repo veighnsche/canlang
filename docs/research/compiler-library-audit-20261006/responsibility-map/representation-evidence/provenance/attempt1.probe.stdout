@@ -1,0 +1,10 @@
+CASE coherent-control: analysis_catalog=0.1.0-lane02-draft, emission_catalog=0.1.0-lane02-draft, source_count=1, errors=0, requires=[ArtifactRequirement { capability: "canlang.builtins", min_version: 0 }]
+CASE foreign-db-same-id-and-spans: analysis_catalog=0.1.0-lane02-draft, emission_catalog=0.1.0-lane02-draft, source_count=1, errors=0, requires=[ArtifactRequirement { capability: "canlang.builtins", min_version: 0 }]
+WITNESS foreign database: checked old hash ca8734443ab9012da5b74ff344fa438d7a655ee553d3319832260b53dc765434, emitted new hash 536692b90552d8f08d3f43a0527d889cc0f8373eadf10d851a56f7c96c497e66 with changed default and no provenance rejection
+CASE same-db-append-is-immutable-control: analysis_catalog=0.1.0-lane02-draft, emission_catalog=0.1.0-lane02-draft, source_count=2, errors=0, requires=[ArtifactRequirement { capability: "canlang.builtins", min_version: 0 }]
+WITNESS append: original SourceId remains OLD; latest path id is Some(SourceId(1)); artifact includes both revisions
+CASE catalog-control: analysis_catalog=0.1.0-lane02-draft, emission_catalog=0.1.0-lane02-draft, source_count=1, errors=0, requires=[ArtifactRequirement { capability: "canlang.builtins", min_version: 0 }]
+CASE catalog-major-mismatch: analysis_catalog=0.1.0-lane02-draft, emission_catalog=7.0.0-audit, source_count=1, errors=0, requires=[ArtifactRequirement { capability: "canlang.builtins", min_version: 0 }]
+WITNESS catalog-major-mismatch: old checked catalog label retained, new state-read effect changes emitted awaiting; no mismatch rejection
+CASE catalog-same-version-content-change: analysis_catalog=0.1.0-lane02-draft, emission_catalog=0.1.0-lane02-draft, source_count=1, errors=0, requires=[ArtifactRequirement { capability: "canlang.builtins", min_version: 0 }]
+WITNESS catalog-same-version-content-change: old checked catalog label retained, new state-read effect changes emitted awaiting; no mismatch rejection

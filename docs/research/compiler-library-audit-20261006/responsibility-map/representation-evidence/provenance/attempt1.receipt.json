@@ -1,0 +1,30 @@
+{
+  "timestamp_utc": "2026-10-07T11:11:24.492549+00:00",
+  "commands": [
+    {
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "/private/tmp/canlang-step5-provenance.rs",
+        "--extern",
+        "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "-o",
+        "/private/tmp/canlang-step5-provenance/probe"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "/private/tmp/canlang-step5-provenance/probe",
+        "/private/tmp/canlang-step5-provenance",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      ],
+      "exit": 101
+    }
+  ],
+  "compiler_library_sha256": "1486166f24aeaf4bb7bf476270fdb32dc31fb17cccdfcb820c229dcfb3ab6d56",
+  "probe_source_sha256": "5651be925bf66b3f534f9b3890baf5746bd8d641205a43029eedaf22fbfafce9",
+  "scope": "public API coherence probes only; no JavaScript execution or full suite"
+}

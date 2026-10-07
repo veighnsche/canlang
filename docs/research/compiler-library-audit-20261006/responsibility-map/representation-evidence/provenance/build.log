@@ -1,0 +1,2 @@
+cargo build --locked --offline --lib; compiler cwd; initial: Compiling canlang-compiler v0.1.0
+Finished dev profile [unoptimized + debuginfo] target(s) in2.63s; exit0
