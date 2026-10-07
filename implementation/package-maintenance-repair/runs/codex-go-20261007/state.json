@@ -166,19 +166,19 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "TECH-S01",
-      "agent": "/root/review_state_private",
-      "state": "independent high review; exact writers released"
-    },
-    {
-      "id": "TECH-S02/TECH-S03 prerequisites",
+      "id": "DEL-A01-canonical",
       "agent": "/root/review_numeric_reduction",
-      "state": "actual security join adjudication"
+      "state": "independent high review"
     },
     {
       "id": "TECH-SV04",
-      "agent": "/root/impl_work_numeric",
-      "state": "finite implementation active"
+      "agent": "/root/review_state_private",
+      "state": "independent high review"
+    },
+    {
+      "id": "DEL-D01",
+      "agent": "/root/review_ui_appearance",
+      "state": "ACKed finite TS implementation"
     }
   ],
   "packet_state": {
@@ -271,7 +271,7 @@
     },
     "TECH-S01": {
       "planning_status": "ready",
-      "state": "mechanical extraction independently accepted; committing; separate own-key correction still open",
+      "state": "accepted private mechanical reduction; committed 78ff635",
       "files": [
         "packages/state/src/storage/d1.ts",
         "packages/state/src/storage/durable-object.ts",
@@ -290,16 +290,23 @@
       "reviewer": "/root/review_state_private",
       "review": "state-private-independent-review.json",
       "readable_reduction": 367,
-      "full_closure_reduction": 238
+      "full_closure_reduction": 238,
+      "commit": "78ff635"
     },
     "TECH-S01-own-key": {
       "planning_status": "blocked",
-      "state": "ready exact correctness fix after mechanical commit/read release; original metadata domain preserved",
+      "state": "independently accepted adapter correctness; committing",
       "files": [
-        "packages/state/src/storage/d1.ts",
-        "packages/state/src/storage/durable-object.ts"
+        "packages/state/src/storage/sqlite-codecs.ts",
+        "packages/state/test/storage/metadata-keys.test.ts"
       ],
-      "contract_release": "Independent source proof confirms inherited functions violate intended string SQL metadata lookup; own metadata check retains current declared identifiers and invalid-name refusal; approved frozen critical review received, broader security findings remain open"
+      "contract_release": "Independent source proof confirms inherited functions violate intended string SQL metadata lookup; own metadata check retains current declared identifiers and invalid-name refusal; approved frozen critical review received, broader security findings remain open",
+      "agent": "/root/review_ui_appearance",
+      "reviewer": "originating Codex",
+      "review": "state-own-key-independent-review.json",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "acceptance": "Own metadata lookup and legitimate inherited-name JSON fields; actual D1/DO controls, no broader query owner/security gate"
     },
     "TECH-S02": {
       "planning_status": "blocked",
@@ -445,7 +452,7 @@
     },
     "TECH-SV04": {
       "planning_status": "ready",
-      "state": "exact ACK; private profile-matched harness implementation active",
+      "state": "independent high review active",
       "files": [
         "packages/services/src/scenarios.ts",
         "packages/testkit/src/fixtures/playback.ts",
@@ -460,17 +467,24 @@
       "model": "gpt-6.1-sol",
       "effort": "medium",
       "base": "e284d1426d15dcac840bca537b928034f825242a",
-      "reason": "Known private profile comparisons; lifecycle/security decisions stay separate"
+      "reason": "Known private profile comparisons; lifecycle/security decisions stay separate",
+      "reviewer": "/root/review_state_private"
     },
     "DEL-D01": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "ACKed finite TS build-phase implementation active",
       "files": [
         "packages/cloudflare/src/preparation/build-adapter.ts",
         "packages/cloudflare/src/preparation/host.ts",
         "packages/cloudflare/src/deploy/bundle.ts",
         "scripts/build-package.mjs"
-      ]
+      ],
+      "agent": "/root/review_ui_appearance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "base": "530a0b7e73b98d7287f3d4394417295470385fc5",
+      "test_file": "packages/cloudflare/test/preparation-shared-phases.test.ts",
+      "reason": "Existing released phase API duplicate mechanics; independent high review later; native HOLD untouched"
     },
     "DEL-D02": {
       "planning_status": "ready",
@@ -795,7 +809,7 @@
     },
     "DEL-A01-canonical": {
       "planning_status": "ready",
-      "state": "candidate released; independent Sol high review pending",
+      "state": "independent high review active",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/http/export.ts",
@@ -805,7 +819,8 @@
       "model": "gpt-6.1-sol",
       "effort": "medium",
       "base": "e29ff90",
-      "reason": "Frozen identical canonical leaves; independent high review for actual byte/hash/error semantics"
+      "reason": "Frozen identical canonical leaves; independent high review for actual byte/hash/error semantics",
+      "reviewer": "/root/review_numeric_reduction"
     },
     "FINAL-R03": {
       "planning_status": "blocked",
@@ -825,7 +840,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:42:47.858207+00:00",
+  "updated_utc": "2026-10-07T19:52:39.463839+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -834,7 +849,7 @@
     "payload_sha256": "5e38ac5a4107eea2e2c4f3c920b636da7ddc2062f8c4f6ed2e0e3e1bf68c393b",
     "reason": "Existing required persisted-security independent gate; not a routine leaf review",
     "approval": "human: Approve scoped review",
-    "acceptance": "pending actual review and root source-current join adjudication",
+    "acceptance": "Frozen review and source-current joins received; confidentiality/authority/owner contract fixes remain open",
     "review": "critical-security-review.json",
     "joins_agent": "/root/review_numeric_reduction",
     "joins_model": "gpt-6.1-sol",
