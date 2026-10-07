@@ -27,7 +27,7 @@
       "baseline_source_sha256": {
         "packages/values/semantics/src/representations/numeric.rs": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
       },
-      "state": "independently accepted numeric reduction candidate; local commit pending",
+      "state": "accepted narrow reduction; committed 511ecd7",
       "agent": "/root/impl_values_numeric",
       "acceptance": "pending independent source-current review and exact qualified caller evidence",
       "provenance": "Fresh private source-current oracle regenerated: 10213 numbers/131 callers match; historical donor hash drift reconciled as core extraction, independent review pending.",
@@ -53,7 +53,7 @@
         "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
         "packages/work-kernel/decisions/recovery.rs": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
       },
-      "state": "independently accepted numeric reduction candidate; local commit pending",
+      "state": "accepted narrow reduction; committing independently",
       "agent": "/root/impl_work_numeric",
       "acceptance": "pending independent source-current review and exact qualified caller evidence",
       "review": "numeric-independent-review.json"

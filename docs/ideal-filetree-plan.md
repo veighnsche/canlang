@@ -142,3 +142,5 @@ The [economical per-packet allocation](research/package-library-audit-20261006/r
 ### Package maintenance implementation — 2026-10-07 (local)
 
 [Current repair run](../implementation/package-maintenance-repair/runs/codex-go-20261007/state.json) records the human release, three finite economical Codex workers, exact leases, source pins, independent reviews and scoped local commits. Values numeric text delegates its duplicated special cases to the existing pinned formatter, preserving its representation owner and original consumer gates. This is local narrow evidence; the complete accumulated-source checkpoint remains unchanged. Compiler-agent work and human-held native preparation stay separate.
+
+Work numeric text retains its package-local owner while caller imports replace seven private forwarders. The existing JSON and leaf carrier domains are unchanged; native reduction evidence does not close original production or delivery joins. Complete checkpoint unchanged.

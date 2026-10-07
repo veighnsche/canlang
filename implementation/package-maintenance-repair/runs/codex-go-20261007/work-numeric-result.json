@@ -1,0 +1,63 @@
+{
+  "packet": "TECH-V01-work",
+  "base": "e5ad5cf767004a892c0ae1937aedd67629170786",
+  "files": [
+    "packages/work-kernel/decisions/numeric_text.rs",
+    "packages/work-kernel/decisions/rows.rs",
+    "packages/work-kernel/decisions/receipt.rs",
+    "packages/work-kernel/decisions/linkage.rs",
+    "packages/work-kernel/decisions/recovery.rs"
+  ],
+  "implementation": "String delegates all f64 cases to pinned ryu-js 1.0.3 Buffer::format. JSON retains is_finite guard and null. Seven private numeric forwarders deleted; direct owner import aliases retain complete existing callers. Leaf types, escaping, structured errors, fault order, persisted identity builders, independent carriers unchanged.",
+  "cargoRoot": "packages/work-kernel/Cargo.toml -> rust/lib.rs -> decisions/lib.rs; registered_conformance in conformance/registered-native.rs",
+  "commands": [
+    "CARGO_TARGET_DIR=/private/tmp/canlang-repair-go-20261007/work-target cargo test --offline --locked --manifest-path packages/work-kernel/Cargo.toml registered_conformance -- --nocapture",
+    "same Cargo invocation with decisions::{rows,receipt,linkage,recovery}:: filters individually",
+    "node primitive oracle comparison against unchanged pinned numeric-text.json",
+    "git diff --check -- <five released files>"
+  ],
+  "results": {
+    "registeredTestsPassed": 73,
+    "registeredIgnored": 1,
+    "independentNumericCases": 10213,
+    "realRegisteredCallerWitnesses": 72,
+    "leafTestsPassed": {
+      "rows": 14,
+      "receipt": 58,
+      "linkage": 33,
+      "recovery": 66
+    },
+    "currentV8PrimitiveComparisonPassed": 10213,
+    "diffCheckPassed": true
+  },
+  "decisiveChecks": [
+    "registered_conformance::immutable_primitive_corpus covers threshold neighbors, subnormal values, signed zeros, NaN and both infinities, and preserves raw bits",
+    "registered row caller_0 preserves 1e20 diagnostic without i64 saturation; row nested-number callers retain JSON null and integer-key order",
+    "registered recovery caller_35/41/44/47/50 retain 1e20, 1e21, NaN and Infinity revision String diagnostics",
+    "registered receipt/linkage witnesses retain structured names/codes/messages and receipt wrapping; leaf suites retain invalid inputs, identity bytes and first fault order",
+    "rows::units::js_num_matches_v8 explicitly distinguishes String nonfinite words from JSON null; num_bits_distinguish_neg_zero preserves bits"
+  ],
+  "counts": {
+    "before": {
+      "readable_code_lines": 4868,
+      "total_production_declaration_lines": 5159,
+      "nonwhitespace_code_bytes": 113114
+    },
+    "after": {
+      "readable_code_lines": 4835,
+      "total_production_declaration_lines": 5123,
+      "nonwhitespace_code_bytes": 112717
+    },
+    "delta": {
+      "readable_code_lines": -33,
+      "total_production_declaration_lines": -36,
+      "nonwhitespace_code_bytes": -397
+    }
+  },
+  "limits": [
+    "Actual registered native pure decision functions and primitive V8 oracle verified; no public/installed/durable Work routing proof",
+    "No Wasm/browser execution, production parser/provenance/transport/opaque-ref lifecycle/default adoption, dependency changes, or TS retirement",
+    "The ignored shared observer was not run; owning TypeScript leaf vs native differential remains separate. Existing complete native caller fixtures and current primitive V8 check are the evidence here."
+  ],
+  "ownership": "Exact five-file lease released on completion; no ongoing writes. Root owns Git, records, independent review and subsequent UTF16 packet."
+}
