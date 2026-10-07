@@ -130,3 +130,12 @@ native host prerequisites and unfinished browser/port joins. Finite outside-chec
 checks of existing copied artifacts retain their exact partial fixture and asset
 scope; they do not qualify current-source installed Worker/browser workflows.
 Implementation and the separate pending critical Astra review remain deferred.
+
+The planning-only [tests and evidence challenge](tests-evidence/README.md) records
+42 finite source/evidence challenges, 17 dependency-ordered verification groups
+and 10 gated retention/cleanup groups. It distinguishes actual comparator and
+discovery gaps from overbroad consumer claims, while preserving independent
+oracles, real transaction/host tests and stronger written diagnostic evidence.
+The reproducible package/orchestration inventory separates 770 exact duplicate
+bytes from repeated corpus projections and receipt sections. No tests were run,
+evidence deleted or implementation/acceptance activated by this audit.
