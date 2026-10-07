@@ -1,0 +1,1179 @@
+{
+  "schema": 1,
+  "package_count": 93,
+  "packages": [
+    {
+      "name": "base64-simd",
+      "version": "0.8.0",
+      "lock_checksum": "339abbe78e73178762e23bea9dfd08e697eb3f3301cd4be981c0f78ba5859195",
+      "archive_present": true,
+      "archive_sha256": "339abbe78e73178762e23bea9dfd08e697eb3f3301cd4be981c0f78ba5859195",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": "1.63",
+      "license_notice_files": []
+    },
+    {
+      "name": "bitflags",
+      "version": "1.3.2",
+      "lock_checksum": "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a",
+      "archive_present": true,
+      "archive_sha256": "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a",
+      "checksum_matches": true,
+      "declared_license": "MIT/Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "bitflags",
+      "version": "2.13.2",
+      "lock_checksum": "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06",
+      "archive_present": true,
+      "archive_sha256": "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.56.0",
+      "license_notice_files": []
+    },
+    {
+      "name": "bitvec",
+      "version": "1.1.1",
+      "lock_checksum": "ddcec3d12c579d40898fe0a9a358a803c23e9c52ca3c425707f81c9436211837",
+      "archive_present": true,
+      "archive_sha256": "ddcec3d12c579d40898fe0a9a358a803c23e9c52ca3c425707f81c9436211837",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": "1.56",
+      "license_notice_files": [
+        {
+          "path": "bitvec-1.1.1/LICENSE.txt",
+          "sha256": "411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5"
+        }
+      ]
+    },
+    {
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "lock_checksum": "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71",
+      "archive_present": true,
+      "archive_sha256": "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "bumpalo",
+      "version": "3.20.3",
+      "lock_checksum": "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649",
+      "archive_present": true,
+      "archive_sha256": "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71.1",
+      "license_notice_files": []
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.5",
+      "lock_checksum": "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600",
+      "archive_present": true,
+      "archive_sha256": "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.32",
+      "license_notice_files": []
+    },
+    {
+      "name": "cpufeatures",
+      "version": "0.2.17",
+      "lock_checksum": "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280",
+      "archive_present": true,
+      "archive_sha256": "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "crypto-common",
+      "version": "0.1.7",
+      "lock_checksum": "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a",
+      "archive_present": true,
+      "archive_sha256": "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "data-encoding",
+      "version": "2.11.1",
+      "lock_checksum": "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06",
+      "archive_present": true,
+      "archive_sha256": "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": "1.48",
+      "license_notice_files": [
+        {
+          "path": "data-encoding-2.11.1/LICENSE",
+          "sha256": "b68ad1a3367b825447089e1f8d6829b97f47a89eb78d2f4ebaef4672f5606186"
+        }
+      ]
+    },
+    {
+      "name": "debugid",
+      "version": "0.8.0",
+      "lock_checksum": "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d",
+      "archive_present": true,
+      "archive_sha256": "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d",
+      "checksum_matches": true,
+      "declared_license": "Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "debugid-0.8.0/LICENSE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        }
+      ]
+    },
+    {
+      "name": "digest",
+      "version": "0.10.7",
+      "lock_checksum": "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292",
+      "archive_present": true,
+      "archive_sha256": "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "displaydoc",
+      "version": "0.2.7",
+      "lock_checksum": "c6232dd377dcc64799954cbd3a9bb882e9cdc1308ccd87b1c098f1fb2eaf82a8",
+      "archive_present": true,
+      "archive_sha256": "c6232dd377dcc64799954cbd3a9bb882e9cdc1308ccd87b1c098f1fb2eaf82a8",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71.0",
+      "license_notice_files": []
+    },
+    {
+      "name": "errno",
+      "version": "0.3.14",
+      "lock_checksum": "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb",
+      "archive_present": true,
+      "archive_sha256": "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.56",
+      "license_notice_files": []
+    },
+    {
+      "name": "fastrand",
+      "version": "2.5.0",
+      "lock_checksum": "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223",
+      "archive_present": true,
+      "archive_sha256": "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223",
+      "checksum_matches": true,
+      "declared_license": "Apache-2.0 OR MIT",
+      "declared_rust_version": "1.63",
+      "license_notice_files": []
+    },
+    {
+      "name": "fluent-uri",
+      "version": "0.1.4",
+      "lock_checksum": "17c704e9dbe1ddd863da1e6ff3567795087b1eb201ce80d8fa81162e1516500d",
+      "archive_present": true,
+      "archive_sha256": "17c704e9dbe1ddd863da1e6ff3567795087b1eb201ce80d8fa81162e1516500d",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "fluent-uri-0.1.4/LICENSE",
+          "sha256": "d49f02a020f14eed5c36d743d6bc43199b137a6f5ae608328fa093d0301f7a29"
+        }
+      ]
+    },
+    {
+      "name": "form_urlencoded",
+      "version": "1.2.2",
+      "lock_checksum": "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf",
+      "archive_present": true,
+      "archive_sha256": "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.51",
+      "license_notice_files": []
+    },
+    {
+      "name": "funty",
+      "version": "2.0.0",
+      "lock_checksum": "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c",
+      "archive_present": true,
+      "archive_sha256": "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "funty-2.0.0/LICENSE.txt",
+          "sha256": "f790cc576999f5998c766d3d26d7d64dc368e805a98461484f65e8d961ec6d9f"
+        }
+      ]
+    },
+    {
+      "name": "futures-core",
+      "version": "0.3.34",
+      "lock_checksum": "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e",
+      "archive_present": true,
+      "archive_sha256": "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.36",
+      "license_notice_files": []
+    },
+    {
+      "name": "futures-task",
+      "version": "0.3.34",
+      "lock_checksum": "cd417de3d1d015fc3bfd2b1ea46dfc7bab72ef86f1cc7cc9c78e728b34a6d1fd",
+      "archive_present": true,
+      "archive_sha256": "cd417de3d1d015fc3bfd2b1ea46dfc7bab72ef86f1cc7cc9c78e728b34a6d1fd",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "futures-util",
+      "version": "0.3.34",
+      "lock_checksum": "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc",
+      "archive_present": true,
+      "archive_sha256": "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "generic-array",
+      "version": "0.14.7",
+      "lock_checksum": "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a",
+      "archive_present": true,
+      "archive_sha256": "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "generic-array-0.14.7/LICENSE",
+          "sha256": "c09aae9d3c77b531f56351a9947bc7446511d6b025b3255312d3e3442a9a7583"
+        }
+      ]
+    },
+    {
+      "name": "getrandom",
+      "version": "0.4.3",
+      "lock_checksum": "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099",
+      "archive_present": true,
+      "archive_sha256": "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.85",
+      "license_notice_files": []
+    },
+    {
+      "name": "icu_collections",
+      "version": "2.3.0",
+      "lock_checksum": "fa68d21081c4a05d5a901a1c62add574c77048b6a1c67be3b50ce0b60d4ca513",
+      "archive_present": true,
+      "archive_sha256": "fa68d21081c4a05d5a901a1c62add574c77048b6a1c67be3b50ce0b60d4ca513",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.88",
+      "license_notice_files": [
+        {
+          "path": "icu_collections-2.3.0/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "icu_locale_core",
+      "version": "2.3.0",
+      "lock_checksum": "d56e28588da92eee5c3201a6eff33fabdd49b62269c8938d4ff050ce4d900deb",
+      "archive_present": true,
+      "archive_sha256": "d56e28588da92eee5c3201a6eff33fabdd49b62269c8938d4ff050ce4d900deb",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.88",
+      "license_notice_files": [
+        {
+          "path": "icu_locale_core-2.3.0/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "icu_normalizer",
+      "version": "2.3.0",
+      "lock_checksum": "12f9cf5f235641ed274641dd81c3f28d870e276763d0797aeeab72317b1c646f",
+      "archive_present": true,
+      "archive_sha256": "12f9cf5f235641ed274641dd81c3f28d870e276763d0797aeeab72317b1c646f",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.88",
+      "license_notice_files": [
+        {
+          "path": "icu_normalizer-2.3.0/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "icu_normalizer_data",
+      "version": "2.3.0",
+      "lock_checksum": "1563da1ed3e0b3bf3d74c9b85917ac9c56464d2f57242270c09c9e752f8021a0",
+      "archive_present": true,
+      "archive_sha256": "1563da1ed3e0b3bf3d74c9b85917ac9c56464d2f57242270c09c9e752f8021a0",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.88",
+      "license_notice_files": [
+        {
+          "path": "icu_normalizer_data-2.3.0/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "icu_properties",
+      "version": "2.3.0",
+      "lock_checksum": "7e7ca276ad3145661a65914e6daf131ca5120cd3dcee8f8f3214b8875184a148",
+      "archive_present": true,
+      "archive_sha256": "7e7ca276ad3145661a65914e6daf131ca5120cd3dcee8f8f3214b8875184a148",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.88",
+      "license_notice_files": [
+        {
+          "path": "icu_properties-2.3.0/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "icu_properties_data",
+      "version": "2.3.0",
+      "lock_checksum": "e590f038c1464a96894fd6d10127e90a8be4509f56ff7ecef851b15cee0b7caa",
+      "archive_present": true,
+      "archive_sha256": "e590f038c1464a96894fd6d10127e90a8be4509f56ff7ecef851b15cee0b7caa",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.88",
+      "license_notice_files": [
+        {
+          "path": "icu_properties_data-2.3.0/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "icu_provider",
+      "version": "2.3.1",
+      "lock_checksum": "d27bbb9d3abbefac45d55f647c9de1d44aafcd1186eb91879afef17c396c3e73",
+      "archive_present": true,
+      "archive_sha256": "d27bbb9d3abbefac45d55f647c9de1d44aafcd1186eb91879afef17c396c3e73",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.88",
+      "license_notice_files": [
+        {
+          "path": "icu_provider-2.3.1/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "idna",
+      "version": "1.1.0",
+      "lock_checksum": "3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de",
+      "archive_present": true,
+      "archive_sha256": "3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.57",
+      "license_notice_files": []
+    },
+    {
+      "name": "idna_adapter",
+      "version": "1.2.2",
+      "lock_checksum": "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714",
+      "archive_present": true,
+      "archive_sha256": "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714",
+      "checksum_matches": true,
+      "declared_license": "Apache-2.0 OR MIT",
+      "declared_rust_version": "1.86",
+      "license_notice_files": []
+    },
+    {
+      "name": "if_chain",
+      "version": "1.0.3",
+      "lock_checksum": "cd62e6b5e86ea8eeeb8db1de02880a6abc01a397b2ebb64b5d74ac255318f5cb",
+      "archive_present": true,
+      "archive_sha256": "cd62e6b5e86ea8eeeb8db1de02880a6abc01a397b2ebb64b5d74ac255318f5cb",
+      "checksum_matches": true,
+      "declared_license": "MIT/Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "itoa",
+      "version": "1.0.18",
+      "lock_checksum": "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682",
+      "archive_present": true,
+      "archive_sha256": "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.68",
+      "license_notice_files": []
+    },
+    {
+      "name": "js-sys",
+      "version": "0.3.106",
+      "lock_checksum": "7883d941dae510fb2d978fc3fe018c71c9e2892fd38854de3e8b92c2e5ad9cc5",
+      "archive_present": false
+    },
+    {
+      "name": "libc",
+      "version": "0.2.190",
+      "lock_checksum": "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78",
+      "archive_present": true,
+      "archive_sha256": "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.65",
+      "license_notice_files": []
+    },
+    {
+      "name": "linux-raw-sys",
+      "version": "0.12.1",
+      "lock_checksum": "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53",
+      "archive_present": false
+    },
+    {
+      "name": "litemap",
+      "version": "0.8.3",
+      "lock_checksum": "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae",
+      "archive_present": true,
+      "archive_sha256": "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.82",
+      "license_notice_files": [
+        {
+          "path": "litemap-0.8.3/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "lsp-types",
+      "version": "0.97.0",
+      "lock_checksum": "53353550a17c04ac46c585feb189c2db82154fc84b79c7a66c96c2c644f66071",
+      "archive_present": true,
+      "archive_sha256": "53353550a17c04ac46c585feb189c2db82154fc84b79c7a66c96c2c644f66071",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "lsp-types-0.97.0/LICENSE",
+          "sha256": "a11232911aa0d746688b560af367728021184084eeb6328a1922d60925c5eda0"
+        }
+      ]
+    },
+    {
+      "name": "memchr",
+      "version": "2.8.3",
+      "lock_checksum": "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98",
+      "archive_present": true,
+      "archive_sha256": "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98",
+      "checksum_matches": true,
+      "declared_license": "Unlicense OR MIT",
+      "declared_rust_version": "1.61",
+      "license_notice_files": [
+        {
+          "path": "memchr-2.8.3/COPYING",
+          "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f"
+        }
+      ]
+    },
+    {
+      "name": "once_cell",
+      "version": "1.21.4",
+      "lock_checksum": "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50",
+      "archive_present": true,
+      "archive_sha256": "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.65",
+      "license_notice_files": []
+    },
+    {
+      "name": "outref",
+      "version": "0.5.2",
+      "lock_checksum": "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e",
+      "archive_present": true,
+      "archive_sha256": "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": "1.63.0",
+      "license_notice_files": [
+        {
+          "path": "outref-0.5.2/LICENSE",
+          "sha256": "a00511478c83ebb464ef19d840f061c7444adc4636bb561900e75c5808cfc6cc"
+        }
+      ]
+    },
+    {
+      "name": "percent-encoding",
+      "version": "2.3.2",
+      "lock_checksum": "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220",
+      "archive_present": true,
+      "archive_sha256": "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.51",
+      "license_notice_files": []
+    },
+    {
+      "name": "pin-project-lite",
+      "version": "0.2.17",
+      "lock_checksum": "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd",
+      "archive_present": true,
+      "archive_sha256": "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd",
+      "checksum_matches": true,
+      "declared_license": "Apache-2.0 OR MIT",
+      "declared_rust_version": "1.37",
+      "license_notice_files": []
+    },
+    {
+      "name": "potential_utf",
+      "version": "0.1.6",
+      "lock_checksum": "d83eb9bc6d8e5cf568e7a1101d60ee05e81ed50ea106026f3d18deeb046d7661",
+      "archive_present": true,
+      "archive_sha256": "d83eb9bc6d8e5cf568e7a1101d60ee05e81ed50ea106026f3d18deeb046d7661",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.82",
+      "license_notice_files": [
+        {
+          "path": "potential_utf-0.1.6/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.107",
+      "lock_checksum": "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9",
+      "archive_present": true,
+      "archive_sha256": "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "quote",
+      "version": "1.0.47",
+      "lock_checksum": "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001",
+      "archive_present": true,
+      "archive_sha256": "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "r-efi",
+      "version": "6.0.0",
+      "lock_checksum": "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf",
+      "archive_present": false
+    },
+    {
+      "name": "radium",
+      "version": "0.7.0",
+      "lock_checksum": "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09",
+      "archive_present": true,
+      "archive_sha256": "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "radium-0.7.0/LICENSE.txt",
+          "sha256": "13f4cc9fbc8d4a447b28aa84019c10ad4abf4b5f6919db061bf6690ccc23bc02"
+        }
+      ]
+    },
+    {
+      "name": "rustc-hash",
+      "version": "2.1.3",
+      "lock_checksum": "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d",
+      "archive_present": true,
+      "archive_sha256": "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d",
+      "checksum_matches": true,
+      "declared_license": "Apache-2.0 OR MIT",
+      "declared_rust_version": "1.77",
+      "license_notice_files": []
+    },
+    {
+      "name": "rustix",
+      "version": "1.1.5",
+      "lock_checksum": "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d",
+      "archive_present": true,
+      "archive_sha256": "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d",
+      "checksum_matches": true,
+      "declared_license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "declared_rust_version": "1.65",
+      "license_notice_files": []
+    },
+    {
+      "name": "rustversion",
+      "version": "1.0.23",
+      "lock_checksum": "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f",
+      "archive_present": true,
+      "archive_sha256": "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.31",
+      "license_notice_files": []
+    },
+    {
+      "name": "serde",
+      "version": "1.0.229",
+      "lock_checksum": "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba",
+      "archive_present": true,
+      "archive_sha256": "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.56",
+      "license_notice_files": []
+    },
+    {
+      "name": "serde_core",
+      "version": "1.0.229",
+      "lock_checksum": "67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48",
+      "archive_present": true,
+      "archive_sha256": "67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.56",
+      "license_notice_files": []
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.229",
+      "lock_checksum": "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348",
+      "archive_present": true,
+      "archive_sha256": "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.151",
+      "lock_checksum": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+      "archive_present": true,
+      "archive_sha256": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "serde_repr",
+      "version": "0.1.21",
+      "lock_checksum": "8d3b1629de253c70a0508c3899572da79ca359fdab27c7920ff00406df418906",
+      "archive_present": true,
+      "archive_sha256": "8d3b1629de253c70a0508c3899572da79ca359fdab27c7920ff00406df418906",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "sha2",
+      "version": "0.10.9",
+      "lock_checksum": "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283",
+      "archive_present": true,
+      "archive_sha256": "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "slab",
+      "version": "0.4.12",
+      "lock_checksum": "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5",
+      "archive_present": true,
+      "archive_sha256": "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": "1.51",
+      "license_notice_files": [
+        {
+          "path": "slab-0.4.12/LICENSE",
+          "sha256": "8ce0830173fdac609dfb4ea603fdc002c2f4af0dc9b1a005653f5da9cf534b18"
+        }
+      ]
+    },
+    {
+      "name": "smallvec",
+      "version": "1.16.2",
+      "lock_checksum": "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e",
+      "archive_present": true,
+      "archive_sha256": "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "sourcemap",
+      "version": "9.3.2",
+      "lock_checksum": "314d62a489431668f719ada776ca1d49b924db951b7450f8974c9ae51ab05ad7",
+      "archive_present": true,
+      "archive_sha256": "314d62a489431668f719ada776ca1d49b924db951b7450f8974c9ae51ab05ad7",
+      "checksum_matches": true,
+      "declared_license": "BSD-3-Clause",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "sourcemap-9.3.2/LICENSE",
+          "sha256": "7516e1cf340213f60d96bca77bb012882dbf80e7cca5922c914174f605d9ef71"
+        }
+      ]
+    },
+    {
+      "name": "stable_deref_trait",
+      "version": "1.2.1",
+      "lock_checksum": "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596",
+      "archive_present": true,
+      "archive_sha256": "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "syn",
+      "version": "2.0.119",
+      "lock_checksum": "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297",
+      "archive_present": true,
+      "archive_sha256": "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "syn",
+      "version": "3.0.6",
+      "lock_checksum": "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee",
+      "archive_present": true,
+      "archive_sha256": "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "synstructure",
+      "version": "0.13.2",
+      "lock_checksum": "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2",
+      "archive_present": true,
+      "archive_sha256": "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "synstructure-0.13.2/LICENSE",
+          "sha256": "219920e865eee70b7dcfc948a86b099e7f4fe2de01bcca2ca9a20c0a033f2b59"
+        }
+      ]
+    },
+    {
+      "name": "synstructure",
+      "version": "0.14.0",
+      "lock_checksum": "901704edd0dfe137f1987838ee4f259e4e063c31371bdb423f7ae38ec6f77f02",
+      "archive_present": true,
+      "archive_sha256": "901704edd0dfe137f1987838ee4f259e4e063c31371bdb423f7ae38ec6f77f02",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": "1.71",
+      "license_notice_files": [
+        {
+          "path": "synstructure-0.14.0/LICENSE",
+          "sha256": "219920e865eee70b7dcfc948a86b099e7f4fe2de01bcca2ca9a20c0a033f2b59"
+        }
+      ]
+    },
+    {
+      "name": "tap",
+      "version": "1.0.1",
+      "lock_checksum": "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369",
+      "archive_present": true,
+      "archive_sha256": "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "tap-1.0.1/LICENSE.txt",
+          "sha256": "8b4e95f5cf0dc40269c99f7b787203ffe04ded245ca2427422c196efa2b2f42a"
+        }
+      ]
+    },
+    {
+      "name": "tempfile",
+      "version": "3.27.0",
+      "lock_checksum": "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd",
+      "archive_present": true,
+      "archive_sha256": "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.63",
+      "license_notice_files": []
+    },
+    {
+      "name": "tinystr",
+      "version": "0.8.4",
+      "lock_checksum": "b1e27c91459209c2986af3dcf603a5a74a4368754ce37414f59acc971167f643",
+      "archive_present": true,
+      "archive_sha256": "b1e27c91459209c2986af3dcf603a5a74a4368754ce37414f59acc971167f643",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.82",
+      "license_notice_files": [
+        {
+          "path": "tinystr-0.8.4/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "typenum",
+      "version": "1.20.1",
+      "lock_checksum": "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20",
+      "archive_present": true,
+      "archive_sha256": "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.41.0",
+      "license_notice_files": [
+        {
+          "path": "typenum-1.20.1/LICENSE",
+          "sha256": "db11fec9946737df39ca3898d9cd8c10ec6f6c3a884a6802b0ad0b81b4e8f23a"
+        }
+      ]
+    },
+    {
+      "name": "unicode-id-start",
+      "version": "1.5.0",
+      "lock_checksum": "0825d2e09dcae814a4273c1e1435979d414ede25b2ee235b1545da6682483765",
+      "archive_present": true,
+      "archive_sha256": "0825d2e09dcae814a4273c1e1435979d414ede25b2ee235b1545da6682483765",
+      "checksum_matches": true,
+      "declared_license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "declared_rust_version": "1.31",
+      "license_notice_files": []
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.26",
+      "lock_checksum": "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954",
+      "archive_present": true,
+      "archive_sha256": "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954",
+      "checksum_matches": true,
+      "declared_license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    },
+    {
+      "name": "url",
+      "version": "2.5.8",
+      "lock_checksum": "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed",
+      "archive_present": true,
+      "archive_sha256": "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.63",
+      "license_notice_files": []
+    },
+    {
+      "name": "utf8_iter",
+      "version": "1.0.4",
+      "lock_checksum": "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be",
+      "archive_present": true,
+      "archive_sha256": "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be",
+      "checksum_matches": true,
+      "declared_license": "Apache-2.0 OR MIT",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "uuid",
+      "version": "1.27.0",
+      "lock_checksum": "97277d36b9c3ace13e58fa6e753f8b0bbbf302a18dd193240d70f9e29681059a",
+      "archive_present": true,
+      "archive_sha256": "97277d36b9c3ace13e58fa6e753f8b0bbbf302a18dd193240d70f9e29681059a",
+      "checksum_matches": true,
+      "declared_license": "Apache-2.0 OR MIT",
+      "declared_rust_version": "1.89.0",
+      "license_notice_files": []
+    },
+    {
+      "name": "version_check",
+      "version": "0.9.5",
+      "lock_checksum": "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a",
+      "archive_present": true,
+      "archive_sha256": "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a",
+      "checksum_matches": true,
+      "declared_license": "MIT/Apache-2.0",
+      "declared_rust_version": null,
+      "license_notice_files": []
+    },
+    {
+      "name": "vsimd",
+      "version": "0.8.0",
+      "lock_checksum": "5c3082ca00d5a5ef149bb8b555a72ae84c9c59f7250f013ac822ac2e49b19c64",
+      "archive_present": true,
+      "archive_sha256": "5c3082ca00d5a5ef149bb8b555a72ae84c9c59f7250f013ac822ac2e49b19c64",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": "1.63",
+      "license_notice_files": []
+    },
+    {
+      "name": "wasm-bindgen",
+      "version": "0.2.129",
+      "lock_checksum": "9bb54f33acc68fd454578d9820b0bde1a1a3d17aa17bb7b6595806d02886d409",
+      "archive_present": true,
+      "archive_sha256": "9bb54f33acc68fd454578d9820b0bde1a1a3d17aa17bb7b6595806d02886d409",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.81",
+      "license_notice_files": []
+    },
+    {
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.129",
+      "lock_checksum": "2e29d0c35b16e224a7eeb5cd2d25e3e1968fbd65604117b44d3b789d00ee8535",
+      "archive_present": true,
+      "archive_sha256": "2e29d0c35b16e224a7eeb5cd2d25e3e1968fbd65604117b44d3b789d00ee8535",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.81",
+      "license_notice_files": []
+    },
+    {
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.129",
+      "lock_checksum": "6f501a8bc3719dba86ef8ae4728879c08001bea749eb1333ac5b91e040e2a6b7",
+      "archive_present": true,
+      "archive_sha256": "6f501a8bc3719dba86ef8ae4728879c08001bea749eb1333ac5b91e040e2a6b7",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.81",
+      "license_notice_files": []
+    },
+    {
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.129",
+      "lock_checksum": "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6",
+      "archive_present": true,
+      "archive_sha256": "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6",
+      "checksum_matches": true,
+      "declared_license": "MIT OR Apache-2.0",
+      "declared_rust_version": "1.81",
+      "license_notice_files": []
+    },
+    {
+      "name": "windows-link",
+      "version": "0.2.1",
+      "lock_checksum": "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5",
+      "archive_present": false
+    },
+    {
+      "name": "windows-sys",
+      "version": "0.61.2",
+      "lock_checksum": "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc",
+      "archive_present": false
+    },
+    {
+      "name": "writeable",
+      "version": "0.6.4",
+      "lock_checksum": "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc",
+      "archive_present": true,
+      "archive_sha256": "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.82",
+      "license_notice_files": [
+        {
+          "path": "writeable-0.6.4/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "wyz",
+      "version": "0.5.1",
+      "lock_checksum": "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed",
+      "archive_present": true,
+      "archive_sha256": "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "wyz-0.5.1/LICENSE.txt",
+          "sha256": "411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5"
+        }
+      ]
+    },
+    {
+      "name": "yoke",
+      "version": "0.8.3",
+      "lock_checksum": "709fe23a0424b6a435d82152b1bd3fdfb0833487d5fa90d05d42762a9891fef5",
+      "archive_present": true,
+      "archive_sha256": "709fe23a0424b6a435d82152b1bd3fdfb0833487d5fa90d05d42762a9891fef5",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.82",
+      "license_notice_files": [
+        {
+          "path": "yoke-0.8.3/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "yoke-derive",
+      "version": "0.8.2",
+      "lock_checksum": "de844c262c8848816172cef550288e7dc6c7b7814b4ee56b3e1553f275f1858e",
+      "archive_present": true,
+      "archive_sha256": "de844c262c8848816172cef550288e7dc6c7b7814b4ee56b3e1553f275f1858e",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "yoke-derive-0.8.2/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "zerofrom",
+      "version": "0.1.8",
+      "lock_checksum": "0ec05a11813ea801ff6d75110ad09cd0824ddba17dfe17128ea0d5f68e6c5272",
+      "archive_present": true,
+      "archive_sha256": "0ec05a11813ea801ff6d75110ad09cd0824ddba17dfe17128ea0d5f68e6c5272",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.71.1",
+      "license_notice_files": [
+        {
+          "path": "zerofrom-0.1.8/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "zerofrom-derive",
+      "version": "0.1.8",
+      "lock_checksum": "f75b4683f6c7f45248d4d64056a24298c6281e0993356d7d1b4a1a962ef10d4a",
+      "archive_present": true,
+      "archive_sha256": "f75b4683f6c7f45248d4d64056a24298c6281e0993356d7d1b4a1a962ef10d4a",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.71.1",
+      "license_notice_files": [
+        {
+          "path": "zerofrom-derive-0.1.8/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "zerotrie",
+      "version": "0.2.5",
+      "lock_checksum": "4ea269c3bd32f0a32c321907a2ae912ba6f4649bb0fc764a15627e99a7095a3f",
+      "archive_present": true,
+      "archive_sha256": "4ea269c3bd32f0a32c321907a2ae912ba6f4649bb0fc764a15627e99a7095a3f",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.82",
+      "license_notice_files": [
+        {
+          "path": "zerotrie-0.2.5/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "zerovec",
+      "version": "0.11.8",
+      "lock_checksum": "bb0464e17806c1d976d5cba29399c7f08e516e279e2ba493f63123b5fca67dd8",
+      "archive_present": true,
+      "archive_sha256": "bb0464e17806c1d976d5cba29399c7f08e516e279e2ba493f63123b5fca67dd8",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": "1.83",
+      "license_notice_files": [
+        {
+          "path": "zerovec-0.11.8/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "zerovec-derive",
+      "version": "0.11.6",
+      "lock_checksum": "34df6fc39dbd26ddc9c10e6a2984476e13acce22e64e4487636ef494369225da",
+      "archive_present": true,
+      "archive_sha256": "34df6fc39dbd26ddc9c10e6a2984476e13acce22e64e4487636ef494369225da",
+      "checksum_matches": true,
+      "declared_license": "Unicode-3.0",
+      "declared_rust_version": null,
+      "license_notice_files": [
+        {
+          "path": "zerovec-derive-0.11.6/LICENSE",
+          "sha256": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2"
+        }
+      ]
+    },
+    {
+      "name": "zmij",
+      "version": "1.0.23",
+      "lock_checksum": "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b",
+      "archive_present": true,
+      "archive_sha256": "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b",
+      "checksum_matches": true,
+      "declared_license": "MIT",
+      "declared_rust_version": "1.71",
+      "license_notice_files": []
+    }
+  ]
+}

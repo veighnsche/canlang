@@ -1,0 +1,9 @@
+# Corrected inventory acceptance
+
+Accepted as a finite mechanical release input inventory. Corrected manifest SHA-256 `dd6a93eee8278bfe93b0b728c2f7a19e5706995bc6bdadd51526a2dee921b760` and README SHA-256 `5652809573fbab70c6721c48d8e624a665eac3de507d9f4a6c828bda43a6bcc8` match the root's frozen correction pins.
+
+Compared corrected output with retained independent archive results without rescanning archives or invoking Cargo: all 88 archive hashes and all 142 recognized packaged license-file paths/hashes agree exactly; 93 lock entries, five missing archives and two available archives lacking recognized license files remain correctly distinguished. Source-hashes.json pins all match their files. `corrected-acceptance.json` retains exact corrected file pins and comparisons.
+
+README now accurately qualifies resumption and flat-stack evidence as historical, identifies stderr/results as the successful native release evidence, and states extraction diagnoses cannot be independently verified without raw receipts. Native activated features are now retained in a nonempty target-specific feature report whose hash matches the root's supplied pin; stderr is empty. This review validates retained output, not a repeated Cargo execution.
+
+Remaining explicit qualifications do not block the finite inventory: Linux activated features/current-source optimized artifacts, missing archives, release attribution/notices, and minimum dependency-closure MSRV remain unproved. No current-source native optimized build, universal support or distribution approval follows. At correction review time commands.txt still had its old blanket no-network/download/build header; README explicitly disclaims that interpretation and the original author summary is preserved. Root was advised to clarify the corrected header, without rerunning failed commands.

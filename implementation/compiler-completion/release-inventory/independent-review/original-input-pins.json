@@ -1,0 +1,7 @@
+{
+  "implementation/compiler-completion/release-inventory/manifest.json": "1a272f440b477306ef7a0d8747635812bdb660b9cfa3a35987f1bedcb0b2c77f",
+  "implementation/compiler-completion/release-inventory/README.md": "5a26084c5efca182ed98fa160edda1fc7f2ec24f86e4d0440f70c2639f38fa97",
+  "implementation/compiler-completion/release-inventory/commands.txt": "a2b8c98141e6601939ae83081d7b260a8f9d1878ffb1f3ef1f9c2c5934f8c9ac",
+  "implementation/compiler-completion/release-inventory/source-hashes.json": "36b4631ef3f50dc9c86fce34d585a523a2e3a339e8670ec6ce497e0f4f495491",
+  "implementation/compiler-completion/flat-stack/release-build.stderr": "95491fe105a43537983c09b74744ecd7da1b385f8c16bfba33c2ea143c06cee1"
+}

@@ -1,0 +1,8 @@
+{
+  "scope": "Root integration correction after independent finite inventory acceptance",
+  "resolved_review_note": "Clarified stale blanket command-summary header; original retained in attempt1/commands.txt",
+  "corrected_commands_sha256": "e91ea473e6bb0542b264d685e2e1dcb5a942e93e86342e81d471bd4d19cd316f",
+  "no_archive_or_cargo_rerun_needed": true,
+  "independent_acceptance": "independent-review/corrected-acceptance.json",
+  "remaining_qualification": "Linux activated features/final-source optimized builds, missing archives, distribution notices and dependency-closure MSRV remain open"
+}
