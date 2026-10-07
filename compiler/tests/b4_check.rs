@@ -140,6 +140,83 @@ fn empty_array_unifies() {
     assert!(diags.is_empty(), "file[]=[] unifies: {diags:?}");
 }
 
+/// Nullable elements must survive inference regardless of written order.
+/// Both contextual arrays and arrays first bound to a local reject the same
+/// nonnullable parameter; narrowing the element makes both orders legal.
+#[test]
+fn nullable_array_elements_are_order_independent() {
+    let catalog = fixture();
+    for array in ["[\"fixed\",x]", "[x,\"fixed\"]", "[x,\"fixed\",x]"] {
+        for local in [false, true] {
+            let body = if local {
+                format!("let xs={array}\n   let n=take(xs)")
+            } else {
+                format!("let n=take({array})")
+            };
+            let src = format!(
+                "app T\nGiven\n derive take(xs:text[]):int = count(xs)\nWhen\n scenario s(x:text?) by=members\n  do\n   {body}\nThen\n"
+            );
+            let diags = check(&src, Some(&catalog));
+            assert_eq!(codes(&diags), vec!["E3001"], "{src}\n{diags:?}");
+            let needle = if local { "xs)" } else { array };
+            let start = src.rfind(needle).unwrap();
+            let len = if local { 2 } else { array.len() };
+            assert_eq!(diags[0].primary.start as usize, start);
+            assert_eq!(diags[0].primary.end as usize, start + len);
+            let narrowed = src.replace("  do\n", "  require x!=null\n  do\n");
+            assert!(check(&narrowed, Some(&catalog)).is_empty(), "{narrowed}");
+        }
+    }
+}
+
+/// Header metadata belongs to its valid module even when a body sibling fails.
+#[test]
+fn recovered_siblings_preserve_module_source_language() {
+    for package in [false, true] {
+        for variant in ["fr", "en"] {
+            for malformed in [false, true] {
+                let body = format!(
+                    "Given\n{} message m = \"Bonjour\"@{{{variant}=\"Salut\"}}\nWhen\nThen\n",
+                    if malformed { " policy\n" } else { "" }
+                );
+                let src = if package {
+                    format!(
+                        "app T uses=[p]\npackage p source=\"fr\"\n{}",
+                        body.lines()
+                            .map(|line| format!(" {line}\n"))
+                            .collect::<String>()
+                    )
+                } else {
+                    format!("app T source=\"fr\"\n{body}")
+                };
+                let diags = check(&src, None);
+                assert_eq!(
+                    diags.iter().any(|d| d.code.starts_with("E1")),
+                    malformed,
+                    "{src}\n{diags:?}"
+                );
+                let translations: Vec<_> = diags.iter().filter(|d| d.code == "E3016").collect();
+                assert_eq!(
+                    translations.len(),
+                    usize::from(variant == "fr"),
+                    "{src}\n{diags:?}"
+                );
+                if let Some(diag) = translations.first() {
+                    assert_eq!(
+                        diag.primary.start as usize,
+                        src.find(&format!("{variant}=\"Salut\"")).unwrap()
+                    );
+                }
+            }
+        }
+    }
+    let invalid_header =
+        "app T source=\"fr\" broken\nGiven\n message m = \"Bonjour\"@{fr=\"Salut\"}\nWhen\nThen\n";
+    let diags = check(invalid_header, None);
+    assert!(diags.iter().any(|d| d.code.starts_with("E1")), "{diags:?}");
+    assert!(!diags.iter().any(|d| d.code == "E3016"), "{diags:?}");
+}
+
 /// (4) `format("…"@{…},locale=null)` takes the message overload.
 #[test]
 fn format_descriptor_with_null_locale() {
