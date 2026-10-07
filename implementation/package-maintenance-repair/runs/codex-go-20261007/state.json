@@ -53,7 +53,7 @@
         "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
         "packages/work-kernel/decisions/recovery.rs": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
       },
-      "state": "accepted narrow reduction; committing independently",
+      "state": "accepted narrow reduction; committed 414c16a",
       "agent": "/root/impl_work_numeric",
       "acceptance": "pending independent source-current review and exact qualified caller evidence",
       "review": "numeric-independent-review.json"
@@ -89,9 +89,10 @@
         "packages/ui/src/review.ts": "b01e6fa2923dae76cbd4e743b9618d891cfd07dc79060e77bec2c04d381bcfea",
         "packages/ui/src/settings.ts": "f82458311f13871649ff392368efb17fc85c17250eede1153450b5f509b8136f"
       },
-      "state": "implementation released; independent review running",
+      "state": "independently accepted extraction; committing",
       "agent": "/root/impl_ui_appearance",
-      "acceptance": "pending independent source-current review and exact qualified caller evidence"
+      "acceptance": "pending independent source-current review and exact qualified caller evidence",
+      "review": "ui-appearance-independent-review.json"
     }
   ],
   "remaining_packet_ids": [
@@ -161,7 +162,23 @@
     "files": [
       "packages/cloudflare/src/worker/main.ts"
     ],
-    "state": "ACK received; inline private shared primitive preserves static-import contract; check/review pending"
+    "state": "implementation released; independent Sol medium review running"
   },
-  "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain."
+  "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
+  "next_active_packets": [
+    {
+      "id": "TECH-W01-quote",
+      "agent": "/root/impl_work_numeric",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "state": "ACK received; exact Work decision files editing; original public/installed gates separate"
+    },
+    {
+      "id": "TECH-V02-gregorian",
+      "agent": "/root/impl_values_gregorian",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "state": "dispatched exact kinds/temporal private calendar slice"
+    }
+  ]
 }

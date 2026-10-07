@@ -29,10 +29,6 @@
 
 import type {
   AccordionProps,
-  AppearanceOrientation,
-  AppearanceSize,
-  AppearanceTone,
-  AppearanceVariant,
   CarouselProps,
   CollapseProps,
   DiffProps,
@@ -50,7 +46,8 @@ import type {
   TextValue,
   TimelineProps,
 } from "@canlang/contracts";
-import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
+import { appearanceClasses } from "./appearance.js";
+import { pickAppearance } from "./internal/appearance-props.js";
 import { renderTextValue } from "./components.js";
 import { escapeAttr, escapeHtml } from "./escape.js";
 import { message, resolveCaption } from "./messages.js";
@@ -64,34 +61,6 @@ const DEFAULT_ACCORDION_NAME = "accordion";
 
 function joinClasses(base: string, modifiers: string): string {
   return modifiers === "" ? base : `${base} ${modifiers}`;
-}
-
-/**
- * Collect every appearance key present at runtime (including undeclared
- * extras from JS callers) so appearanceClasses() judges them against the
- * word's admitted matrix: unadmitted tokens throw, never silently drop.
- */
-function pickAppearance(props: object): AppearanceOpts {
-  const record = props as Record<string, unknown>;
-  const opts: {
-    tone?: AppearanceTone;
-    size?: AppearanceSize;
-    variant?: AppearanceVariant;
-    orientation?: AppearanceOrientation;
-  } = {};
-  if (record["tone"] !== undefined) {
-    opts.tone = record["tone"] as AppearanceTone;
-  }
-  if (record["size"] !== undefined) {
-    opts.size = record["size"] as AppearanceSize;
-  }
-  if (record["variant"] !== undefined) {
-    opts.variant = record["variant"] as AppearanceVariant;
-  }
-  if (record["orientation"] !== undefined) {
-    opts.orientation = record["orientation"] as AppearanceOrientation;
-  }
-  return opts;
 }
 
 function captionOf(context: PresentationContext, value: MessageValue): string {

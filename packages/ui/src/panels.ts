@@ -33,10 +33,6 @@
  */
 
 import type {
-  AppearanceOrientation,
-  AppearanceSize,
-  AppearanceTone,
-  AppearanceVariant,
   CopyProps,
   HistoryProps,
   MessageParamValue,
@@ -46,7 +42,8 @@ import type {
   TabsProps,
 } from "@canlang/contracts";
 import { CSRF_FIELD } from "@canlang/contracts";
-import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
+import { appearanceClasses } from "./appearance.js";
+import { pickAppearance } from "./internal/appearance-props.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import { collapse } from "./groups.js";
 import {
@@ -71,34 +68,6 @@ const DEFAULT_TABS_NAME = "tabs";
 
 function joinClasses(base: string, modifiers: string): string {
   return modifiers === "" ? base : `${base} ${modifiers}`;
-}
-
-/**
- * Collect every appearance key present at runtime (including undeclared
- * extras from JS callers) so appearanceClasses() judges them against the
- * word's admitted matrix: unadmitted tokens throw, never silently drop.
- */
-function pickAppearance(props: object): AppearanceOpts {
-  const record = props as Record<string, unknown>;
-  const opts: {
-    tone?: AppearanceTone;
-    size?: AppearanceSize;
-    variant?: AppearanceVariant;
-    orientation?: AppearanceOrientation;
-  } = {};
-  if (record["tone"] !== undefined) {
-    opts.tone = record["tone"] as AppearanceTone;
-  }
-  if (record["size"] !== undefined) {
-    opts.size = record["size"] as AppearanceSize;
-  }
-  if (record["variant"] !== undefined) {
-    opts.variant = record["variant"] as AppearanceVariant;
-  }
-  if (record["orientation"] !== undefined) {
-    opts.orientation = record["orientation"] as AppearanceOrientation;
-  }
-  return opts;
 }
 
 /**
