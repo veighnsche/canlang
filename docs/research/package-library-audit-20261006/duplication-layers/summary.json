@@ -1,0 +1,36 @@
+{
+  "candidate_count": 49,
+  "dispositions": {
+    "simplify": 11,
+    "consolidate": 17,
+    "retain": 18,
+    "delete": 3
+  },
+  "conditional_change_candidates": 31,
+  "retained_counterexamples": 18,
+  "aliases": {
+    "DR08": "DC-01"
+  },
+  "duplicate_seed_groups": 67,
+  "typescript_files_screened": 313,
+  "forwarding_syntax_seeds": 433,
+  "prior_coverage_files": 395,
+  "owners_screened": [
+    "cloudflare",
+    "contracts",
+    "files",
+    "identity",
+    "interfaces",
+    "services",
+    "state",
+    "stdlib",
+    "testkit",
+    "ui",
+    "values",
+    "work",
+    "work-kernel"
+  ],
+  "repository_inputs": 459,
+  "external_inputs": 2,
+  "execution_authorized": false
+}

@@ -1,0 +1,1513 @@
+{
+  "pin": "4659b9477173e9ff423d2b4d8f1d1a19c8c2d007",
+  "method": "Exact token bodies excluding trivia; identifiers and literals preserved. Similarity seed only, not semantic equivalence. No alpha renaming or product execution.",
+  "typescript_version": "5.9.3",
+  "duplicates": [
+    {
+      "hash": "643418bbf43b3248508c5876f10093dd1483dad297563b6338a693bc631b5bf6",
+      "token_count": 82,
+      "sites": [
+        {
+          "path": "packages/interfaces/src/envelope/prepared.ts",
+          "name": "toBindingEntry",
+          "start": 90,
+          "end": 101
+        },
+        {
+          "path": "packages/interfaces/src/mcp/prepared.ts",
+          "name": "toBindingEntry",
+          "start": 95,
+          "end": 106
+        }
+      ],
+      "candidate_ids": [
+        "DR06"
+      ]
+    },
+    {
+      "hash": "f3bc94db76161146b44398f8227a44fb30ecd26cc14ee31ff4b9e82dde2d3cf8",
+      "token_count": 71,
+      "sites": [
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "name": "canonicalJson",
+          "start": 166,
+          "end": 174
+        },
+        {
+          "path": "packages/interfaces/src/http/export.ts",
+          "name": "canonicalJson",
+          "start": 120,
+          "end": 128
+        }
+      ],
+      "candidate_ids": [
+        "DC-01"
+      ]
+    },
+    {
+      "hash": "5b9d9184b319a6e385ce26aae4bbaf96c81120da43fa25a281590206b99e5ab9",
+      "token_count": 101,
+      "sites": [
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "name": "parseObjectBody",
+          "start": 311,
+          "end": 321
+        },
+        {
+          "path": "packages/interfaces/src/http/export.ts",
+          "name": "parseObjectBody",
+          "start": 284,
+          "end": 294
+        }
+      ],
+      "candidate_ids": [
+        "DR07"
+      ]
+    },
+    {
+      "hash": "0a389dbfeb3d123594a278d4c72f07fadd338c80ba615668c94dfa1043d77ee0",
+      "token_count": 87,
+      "sites": [
+        {
+          "path": "packages/interfaces/src/mcp/server.ts",
+          "name": "bearerToken",
+          "start": 94,
+          "end": 101
+        },
+        {
+          "path": "packages/interfaces/src/uploads/routes.ts",
+          "name": "bearerToken",
+          "start": 123,
+          "end": 130
+        }
+      ],
+      "candidate_ids": [
+        "DR07"
+      ]
+    },
+    {
+      "hash": "0a264984766c95dc53eab49f319fa407e222356c5d80fce29514e5e3dcd10449",
+      "token_count": 122,
+      "sites": [
+        {
+          "path": "packages/services/src/judgments/harness.ts",
+          "name": "readTextBody",
+          "start": 43,
+          "end": 61
+        },
+        {
+          "path": "packages/services/src/media/harness.ts",
+          "name": "readTextBody",
+          "start": 67,
+          "end": 85
+        },
+        {
+          "path": "packages/services/src/models/harness.ts",
+          "name": "readTextBody",
+          "start": 53,
+          "end": 71
+        },
+        {
+          "path": "packages/services/src/ports.ts",
+          "name": "readTextBody",
+          "start": 238,
+          "end": 256
+        }
+      ],
+      "candidate_ids": [
+        "DR09"
+      ]
+    },
+    {
+      "hash": "d02d3ec6f83e21952c1abd59847b199692b7eccd84464ce9d1b27b751de16cfd",
+      "token_count": 108,
+      "sites": [
+        {
+          "path": "packages/services/src/judgments/harness.ts",
+          "name": "<anonymous>",
+          "start": 44,
+          "end": 60
+        },
+        {
+          "path": "packages/services/src/media/harness.ts",
+          "name": "<anonymous>",
+          "start": 68,
+          "end": 84
+        },
+        {
+          "path": "packages/services/src/models/harness.ts",
+          "name": "<anonymous>",
+          "start": 54,
+          "end": 70
+        },
+        {
+          "path": "packages/services/src/ports.ts",
+          "name": "<anonymous>",
+          "start": 239,
+          "end": 255
+        }
+      ],
+      "candidate_ids": [
+        "DR09"
+      ]
+    },
+    {
+      "hash": "d284f09db7500a122e9e88e3e419b4dede617876811f5bc044b9f107ae2c0857",
+      "token_count": 61,
+      "sites": [
+        {
+          "path": "packages/services/src/judgments/harness.ts",
+          "name": "sendBody",
+          "start": 63,
+          "end": 78
+        },
+        {
+          "path": "packages/services/src/models/harness.ts",
+          "name": "sendBody",
+          "start": 73,
+          "end": 88
+        },
+        {
+          "path": "packages/services/src/ports.ts",
+          "name": "sendBody",
+          "start": 258,
+          "end": 273
+        }
+      ],
+      "candidate_ids": [
+        "DR09"
+      ]
+    },
+    {
+      "hash": "6730277a3d54cd7809d1b0f58a12df26b682684ee70afd28fabf1e3b9736f36e",
+      "token_count": 97,
+      "sites": [
+        {
+          "path": "packages/services/src/judgments/harness.ts",
+          "name": "<anonymous>",
+          "start": 156,
+          "end": 176
+        },
+        {
+          "path": "packages/services/src/ports.ts",
+          "name": "<anonymous>",
+          "start": 444,
+          "end": 464
+        }
+      ],
+      "candidate_ids": [
+        "DR09"
+      ]
+    },
+    {
+      "hash": "80f009e0d1d77f7260c628deaee7c863ff91940f55a071256dff074a414119f1",
+      "token_count": 88,
+      "sites": [
+        {
+          "path": "packages/state/src/migration/validate.ts",
+          "name": "getDataPath",
+          "start": 155,
+          "end": 168
+        },
+        {
+          "path": "packages/state/src/mutation/pipeline.ts",
+          "name": "getDataPath",
+          "start": 231,
+          "end": 244
+        }
+      ],
+      "candidate_ids": [
+        "DR02"
+      ]
+    },
+    {
+      "hash": "e05065387a761f6114bcbacc86c6c551dff125fa7a6910687c102c726dce65a0",
+      "token_count": 91,
+      "sites": [
+        {
+          "path": "packages/state/src/mutation/crud.ts",
+          "name": "deepFreeze",
+          "start": 51,
+          "end": 66
+        },
+        {
+          "path": "packages/state/src/mutation/models.ts",
+          "name": "deepFreeze",
+          "start": 303,
+          "end": 318
+        },
+        {
+          "path": "packages/state/src/mutation/pipeline.ts",
+          "name": "deepFreeze",
+          "start": 210,
+          "end": 225
+        },
+        {
+          "path": "packages/state/src/policy/grants.ts",
+          "name": "deepFreeze",
+          "start": 94,
+          "end": 109
+        }
+      ],
+      "candidate_ids": [
+        "DR02"
+      ]
+    },
+    {
+      "hash": "a14ea9f341a4633b591d2aa22bbb6a721a64454908cbf1f27c0e7480a04119b5",
+      "token_count": 53,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "checkNullableExpiry",
+          "start": 159,
+          "end": 170
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "checkNullableExpiry",
+          "start": 244,
+          "end": 255
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "586a91aa06665749a62ec6f70ce8669a7f51036f554617f6b8a0157188145c77",
+      "token_count": 131,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "checkJsonSafe",
+          "start": 173,
+          "end": 210
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "checkJsonSafe",
+          "start": 258,
+          "end": 295
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "f023c0e08260354a3d496b8f957231194f7a2d0498c3a72b036f035ef1240dc8",
+      "token_count": 104,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "visit",
+          "start": 175,
+          "end": 208
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "visit",
+          "start": 260,
+          "end": 293
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "e22257292c12e975d35ba3261aa3999f0250807d9e4703c7802244da428d349b",
+      "token_count": 65,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "isClosedErrorShape",
+          "start": 216,
+          "end": 225
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "isClosedErrorShape",
+          "start": 78,
+          "end": 90
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "name": "isClosedErrorShape",
+          "start": 344,
+          "end": 356
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "6f52e99902d4d387d489359c2f61a2d3b5a18c4c646e26694945434e5b8c0cde",
+      "token_count": 116,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "isStoredReceiptPayload",
+          "start": 238,
+          "end": 261
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "isStoredReceiptPayload",
+          "start": 306,
+          "end": 329
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "fb6b48bbf31d18a1c2d3a3c8d8397e30061fd12cb8b173a19da5af4b28953676",
+      "token_count": 128,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "readAssociationRow",
+          "start": 264,
+          "end": 278
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "readAssociationRow",
+          "start": 332,
+          "end": 346
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "a0c996a9d0fe57e71482b4bb2e6785f800af8555bccca18a91af6e8a61edf8ea",
+      "token_count": 106,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "readReceiptRow",
+          "start": 288,
+          "end": 314
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "readReceiptRow",
+          "start": 356,
+          "end": 382
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "9f220c579dedc094ab60e0b5a938de7b6c373cc05a2d907d847209badaae30aa",
+      "token_count": 59,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "newRow",
+          "start": 323,
+          "end": 348
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "newRow",
+          "start": 384,
+          "end": 409
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "c0cf4debd70f7b36180792556b75166101998309548e664e317826165be9c898",
+      "token_count": 78,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "withRowData",
+          "start": 357,
+          "end": 385
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "withRowData",
+          "start": 418,
+          "end": 446
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "1ab7a198c77a11f7c04a115ea73faa6a0cdb2dd466135d26fc8998a52e4553ae",
+      "token_count": 50,
+      "sites": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "name": "newAssociationRow",
+          "start": 388,
+          "end": 399
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "newAssociationRow",
+          "start": 449,
+          "end": 460
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "1be3e028f076c8c147e4c5722e189f081fc84c3702da027869cfc294513392ab",
+      "token_count": 107,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "toStoredRow",
+          "start": 96,
+          "end": 114
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "toStoredRow",
+          "start": 106,
+          "end": 124
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "923075eec1bc6acaa6a4736c1efe9ae3198e5368f0a3764c89c0d015982deba7",
+      "token_count": 51,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "fieldExpr",
+          "start": 127,
+          "end": 136
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "fieldExpr",
+          "start": 137,
+          "end": 146
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "dd15e4e4f8465f922c042b666917ad1484e2dc5acbeae5ee76f0bbfcde4db553",
+      "token_count": 211,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "compilePredicate",
+          "start": 153,
+          "end": 216
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "compilePredicate",
+          "start": 163,
+          "end": 226
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "058b27377f3988b613b841f25457f72b7e8d0530ed981bf3a77d3880ea1445d4",
+      "token_count": 83,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "compileOrder",
+          "start": 218,
+          "end": 229
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "compileOrder",
+          "start": 228,
+          "end": 239
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "e067b91c4eebd5c4a8fcd65c41f0b68cdc6af935d492e7a4324d0344dc54b9b0",
+      "token_count": 53,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "<anonymous>",
+          "start": 219,
+          "end": 224
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "<anonymous>",
+          "start": 229,
+          "end": 234
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "4196abcc04779c492a2c5bedb142918314c672743cdcd67d85130dd5e6c19800",
+      "token_count": 111,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "toReceipt",
+          "start": 373,
+          "end": 388
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "toReceipt",
+          "start": 387,
+          "end": 402
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "2c816d0f402adfab3c745e844c1b514b4a94915ebabd0dca5a995668d3db655e",
+      "token_count": 98,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "toOutboxIntent",
+          "start": 406,
+          "end": 419
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "toOutboxIntent",
+          "start": 420,
+          "end": 433
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "288ac65f693e65f774b292ef265af8f4290d77cd53ed1f1237b01ac0fd13597b",
+      "token_count": 125,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "toHistoryEntry",
+          "start": 457,
+          "end": 470
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "toHistoryEntry",
+          "start": 471,
+          "end": 484
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "2c97bff9bd4cc1120b480f86b5df5ebf0077ea4970248b51cc5cb4af43adbd00",
+      "token_count": 139,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "toStagedRow",
+          "start": 509,
+          "end": 522
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "toStagedRow",
+          "start": 523,
+          "end": 536
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "f19839387e60599d0ab642a2e9ef6428fb171385580a6dec2e25e54f18852084",
+      "token_count": 77,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "toMigrationProgress",
+          "start": 535,
+          "end": 545
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "toMigrationProgress",
+          "start": 549,
+          "end": 559
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "5526f62cd34c7af0b5b2c4151dbb52836ccdca9488f0148b596d638bc0db0157",
+      "token_count": 97,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "toMigrationFailure",
+          "start": 581,
+          "end": 594
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "toMigrationFailure",
+          "start": 586,
+          "end": 599
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "d983b70f6ba485e0e742da3cc34e618fa30487c1e5a4bcbb8cdfda4333dbe378",
+      "token_count": 119,
+      "sites": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "name": "mergePublishedColumns",
+          "start": 604,
+          "end": 627
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "name": "mergePublishedColumns",
+          "start": 614,
+          "end": 637
+        }
+      ],
+      "candidate_ids": [
+        "DR01"
+      ]
+    },
+    {
+      "hash": "02748b2acf414ddccc448f512086ceb31c9fb4b4741f50397546dbcec5b8b6ad",
+      "token_count": 245,
+      "sites": [
+        {
+          "path": "packages/ui/src/browser/export.ts",
+          "name": "digestExportError",
+          "start": 71,
+          "end": 100
+        },
+        {
+          "path": "packages/ui/src/csv/parse.ts",
+          "name": "digestBusinessError",
+          "start": 66,
+          "end": 95
+        }
+      ],
+      "candidate_ids": [
+        "DR05"
+      ]
+    },
+    {
+      "hash": "a2127811b339beeb2ec8142b6408886c34c4d2eab00d9e87c77d5dbe4d3ae08b",
+      "token_count": 134,
+      "sites": [
+        {
+          "path": "packages/ui/src/collections.ts",
+          "name": "pickAppearance",
+          "start": 819,
+          "end": 840
+        },
+        {
+          "path": "packages/ui/src/controls.ts",
+          "name": "pickAppearance",
+          "start": 100,
+          "end": 121
+        },
+        {
+          "path": "packages/ui/src/groups.ts",
+          "name": "pickAppearance",
+          "start": 74,
+          "end": 95
+        },
+        {
+          "path": "packages/ui/src/leaves.ts",
+          "name": "pickAppearance",
+          "start": 67,
+          "end": 88
+        },
+        {
+          "path": "packages/ui/src/media.ts",
+          "name": "pickAppearance",
+          "start": 62,
+          "end": 83
+        },
+        {
+          "path": "packages/ui/src/navigation.ts",
+          "name": "pickAppearance",
+          "start": 285,
+          "end": 306
+        },
+        {
+          "path": "packages/ui/src/overlays.ts",
+          "name": "pickAppearance",
+          "start": 91,
+          "end": 112
+        },
+        {
+          "path": "packages/ui/src/panels.ts",
+          "name": "pickAppearance",
+          "start": 81,
+          "end": 102
+        },
+        {
+          "path": "packages/ui/src/review.ts",
+          "name": "pickAppearance",
+          "start": 43,
+          "end": 64
+        },
+        {
+          "path": "packages/ui/src/settings.ts",
+          "name": "pickAppearance",
+          "start": 65,
+          "end": 86
+        }
+      ],
+      "candidate_ids": [
+        "DR03"
+      ]
+    },
+    {
+      "hash": "82345c1a9e67a40d07e4ee5781e64f25a08340c8e21e07f0ec784cc78b485294",
+      "token_count": 161,
+      "sites": [
+        {
+          "path": "packages/ui/src/controls.ts",
+          "name": "isValidDate",
+          "start": 128,
+          "end": 144
+        },
+        {
+          "path": "packages/ui/src/forms.ts",
+          "name": "isValidDate",
+          "start": 216,
+          "end": 232
+        }
+      ],
+      "candidate_ids": [
+        "DR04"
+      ]
+    },
+    {
+      "hash": "2c768b9e5ca66dcf6989904d3fe2ccfb23684b79472f6cbad0ab7a51638f28da",
+      "token_count": 111,
+      "sites": [
+        {
+          "path": "packages/ui/src/controls.ts",
+          "name": "intFieldValue",
+          "start": 188,
+          "end": 210
+        },
+        {
+          "path": "packages/ui/src/forms.ts",
+          "name": "intFieldValue",
+          "start": 353,
+          "end": 375
+        }
+      ],
+      "candidate_ids": [
+        "DR04"
+      ]
+    },
+    {
+      "hash": "91e903672855c275acd6b3f533faeb101f3b21ecfaa920114d2ddd9d4481572a",
+      "token_count": 72,
+      "sites": [
+        {
+          "path": "packages/ui/src/controls.ts",
+          "name": "decimalFieldValue",
+          "start": 212,
+          "end": 226
+        },
+        {
+          "path": "packages/ui/src/forms.ts",
+          "name": "decimalFieldValue",
+          "start": 377,
+          "end": 391
+        }
+      ],
+      "candidate_ids": [
+        "DR04"
+      ]
+    },
+    {
+      "hash": "e36b04ee4eca250e3cc8dd0158ee60eb4afb92fb09b005d367fe77d146e4f07b",
+      "token_count": 111,
+      "sites": [
+        {
+          "path": "packages/ui/src/controls.ts",
+          "name": "moneyFieldValue",
+          "start": 228,
+          "end": 250
+        },
+        {
+          "path": "packages/ui/src/forms.ts",
+          "name": "moneyFieldValue",
+          "start": 393,
+          "end": 415
+        }
+      ],
+      "candidate_ids": [
+        "DR04"
+      ]
+    },
+    {
+      "hash": "f500195d801e5f858614a65b881f8d0dab57dfac7ebfbf31e75afa1df06ad063",
+      "token_count": 60,
+      "sites": [
+        {
+          "path": "packages/ui/src/controls.ts",
+          "name": "dateFieldValue",
+          "start": 273,
+          "end": 282
+        },
+        {
+          "path": "packages/ui/src/forms.ts",
+          "name": "dateFieldValue",
+          "start": 428,
+          "end": 437
+        }
+      ],
+      "candidate_ids": [
+        "DR04"
+      ]
+    },
+    {
+      "hash": "edce14dbba401fe6193ab363a5c79d302f342af74447e6c11bac51785c7cef8e",
+      "token_count": 79,
+      "sites": [
+        {
+          "path": "packages/ui/src/controls.ts",
+          "name": "rawText",
+          "start": 815,
+          "end": 830
+        },
+        {
+          "path": "packages/ui/src/forms.ts",
+          "name": "rawText",
+          "start": 910,
+          "end": 925
+        }
+      ],
+      "candidate_ids": [
+        "DR04"
+      ]
+    },
+    {
+      "hash": "e041dfafc8a7a9b077d3437bffa1fd8f8f52f5cd1ae0710faaba5f1acec0bfd6",
+      "token_count": 56,
+      "sites": [
+        {
+          "path": "packages/ui/src/groups.ts",
+          "name": "idAttr",
+          "start": 115,
+          "end": 123
+        },
+        {
+          "path": "packages/ui/src/panels.ts",
+          "name": "idAttr",
+          "start": 108,
+          "end": 116
+        }
+      ],
+      "candidate_ids": [
+        "DR03"
+      ]
+    },
+    {
+      "hash": "b66b40c277e0fee8bf21817b641b7e7353d8c047cd11af8c526123f7db4998ff",
+      "token_count": 92,
+      "sites": [
+        {
+          "path": "packages/values/src/internal/schema-core.ts",
+          "name": "pushViolation",
+          "start": 266,
+          "end": 282
+        },
+        {
+          "path": "packages/values/src/internal/wire-core.ts",
+          "name": "pushViolation",
+          "start": 159,
+          "end": 175
+        }
+      ],
+      "candidate_ids": [
+        "DR11"
+      ]
+    },
+    {
+      "hash": "c4ec9cced3930f6e59598499392fc0529c1329772e0bec11085ee0574bed0c84",
+      "token_count": 65,
+      "sites": [
+        {
+          "path": "packages/values/src/kinds.ts",
+          "name": "daysInMonth",
+          "start": 86,
+          "end": 106
+        },
+        {
+          "path": "packages/values/src/temporal.ts",
+          "name": "daysInMonth",
+          "start": 62,
+          "end": 82
+        }
+      ],
+      "candidate_ids": [
+        "DR12"
+      ]
+    },
+    {
+      "hash": "6334c5db327920d6d99f25bc226fbeb37e5e8fae76db43adf3ea9016f1bf5723",
+      "token_count": 80,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/every.ts",
+          "name": "computeEverySlot",
+          "start": 85,
+          "end": 96
+        },
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "name": "computeEverySlot",
+          "start": 80,
+          "end": 91
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "a04ff120f8ee4463612fcfb2fa0d4604b8a39ae77b995e823e23597f89bbe087",
+      "token_count": 58,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/every.ts",
+          "name": "assertScope",
+          "start": 98,
+          "end": 106
+        },
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "name": "assertScope",
+          "start": 113,
+          "end": 121
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "9649a742c883a84248229f9c1b2350d00c83ad4a6c18fe2884e4bd17614528a2",
+      "token_count": 51,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/lifecycle.ts",
+          "name": "recordOutcome",
+          "start": 59,
+          "end": 129
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "name": "recordOutcome",
+          "start": 108,
+          "end": 178
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "16677930be50d39a12b30a9239c8f3f73690421fd203d9f464aea4f80252e443",
+      "token_count": 164,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/lifecycle.ts",
+          "name": "reconcileUncertain",
+          "start": 155,
+          "end": 187
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "name": "reconcileUncertain",
+          "start": 204,
+          "end": 236
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "99f0992f89f8053bea716f6ba3a9fd6aa0eb44cef1d413dfa9615841b1a6f234",
+      "token_count": 52,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "listDeadLetter",
+          "start": 33,
+          "end": 37
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "name": "listDeadLetter",
+          "start": 296,
+          "end": 300
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "4ca06bac7e45f89d8f06e03a33b1cc0f4088b52bd6acf48c7166cfc6e88a4a01",
+      "token_count": 99,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "isConsistentCompletion",
+          "start": 60,
+          "end": 76
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "name": "isConsistentCompletion",
+          "start": 326,
+          "end": 342
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "4cb237f7e400870c4da9d8125d7419bb1b555b98e82c88ed5ac023a5388ec880",
+      "token_count": 75,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "name": "toReceiptObservation",
+          "start": 111,
+          "end": 129
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "name": "toReceiptObservation",
+          "start": 378,
+          "end": 396
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "f67fbaace0bcf6ca9443ae0686293d2a2e396c50af21757cbabfcd53661654f7",
+      "token_count": 155,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "buildInventory",
+          "start": 46,
+          "end": 87
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "buildInventory",
+          "start": 53,
+          "end": 94
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "4d38faaad634265910ef5ee1f67a1a72011a807fbc7f639e33db1e06e71ac6dd",
+      "token_count": 164,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "buildWorkInventory",
+          "start": 112,
+          "end": 149
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "buildWorkInventory",
+          "start": 120,
+          "end": 157
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "9b07f0b2d589d943f2245363fc802a5b1c6ad94e2abbd1bcef7227052fa50c15",
+      "token_count": 80,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "scanDueBatch",
+          "start": 180,
+          "end": 197
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "scanDueBatch",
+          "start": 188,
+          "end": 205
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "39d212d6afdf18fa1cfca14473aa5b3e639561ac1b3fb5d700b3dbf111844a2c",
+      "token_count": 134,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "drainDueScan",
+          "start": 218,
+          "end": 237
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "drainDueScan",
+          "start": 226,
+          "end": 245
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "3778bb2d067397e7c33f84e344f1d690b8dfd93b9d907c93d10ce93c1089150b",
+      "token_count": 57,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "isClaimStale",
+          "start": 240,
+          "end": 252
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "isClaimStale",
+          "start": 248,
+          "end": 260
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "10e509e70f3accf60beed81375167b4a0c80c42abbdb2961c0e2956438318f10",
+      "token_count": 55,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "findStaleClaims",
+          "start": 255,
+          "end": 263
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "findStaleClaims",
+          "start": 263,
+          "end": 271
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "3067d672d0ce31b8e40dfcb9b2083ff915f02c858ba0b989498d8949e7e6cf25",
+      "token_count": 175,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "releaseStaleClaims",
+          "start": 283,
+          "end": 306
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "releaseStaleClaims",
+          "start": 290,
+          "end": 313
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "71d46e36154e73edd0c847d1481a4deb321c5c01f626e4d72102307d6493824c",
+      "token_count": 541,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "planRecoveryScan",
+          "start": 458,
+          "end": 534
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "planRecoveryScan",
+          "start": 466,
+          "end": 542
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "360e0c4feaef052144fa2910044baf1a737703d70dbd762d046c38943e120d2b",
+      "token_count": 78,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "isFanoutClaimStale",
+          "start": 648,
+          "end": 663
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "isFanoutClaimStale",
+          "start": 664,
+          "end": 679
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "50d6abe93bb3da8058f3befb5665a670f2a6439323bff911870d79eb26c6c99c",
+      "token_count": 109,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "isFanoutChildExhausted",
+          "start": 670,
+          "end": 690
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "isFanoutChildExhausted",
+          "start": 688,
+          "end": 708
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "deccee6843379f678a317f4f8ed8c21bd56c0b97049b728b69abe25fc3e543f0",
+      "token_count": 54,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "assertFanoutRetryPolicy",
+          "start": 692,
+          "end": 699
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "assertFanoutRetryPolicy",
+          "start": 710,
+          "end": 717
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "ce677a778bb6ce59dafa3124405d2df7d57ecb80796bdba001d1295ee2b77220",
+      "token_count": 394,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "planFanoutRecoveryScan",
+          "start": 741,
+          "end": 871
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "planFanoutRecoveryScan",
+          "start": 764,
+          "end": 894
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "d2b78c0c168a8d576e167178b094ee6a161aa5624314b36f3c778406c4c7034b",
+      "token_count": 54,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "assertKnownProgressRelation",
+          "start": 943,
+          "end": 951
+        },
+        {
+          "path": "packages/work/src/observation/association.ts",
+          "name": "assertKnownProgressRelation",
+          "start": 376,
+          "end": 384
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "bf665accf3ef7073f01b68407f964eae01c81942864531767e065905cf3e0360",
+      "token_count": 225,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "name": "planRelatedProgressResume",
+          "start": 975,
+          "end": 1019
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "name": "planRelatedProgressResume",
+          "start": 954,
+          "end": 998
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "eef42ede1da17704ddb79888b8ac32a971a9eacb682857fd3109cf05050671f2",
+      "token_count": 56,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/retry.ts",
+          "name": "assertPolicy",
+          "start": 50,
+          "end": 57
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "name": "assertPolicy",
+          "start": 84,
+          "end": 91
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "a38e8c06b1c683e28ceaaf4eef4772d6c9a7cb531bcac8f203122654f8ee3088",
+      "token_count": 213,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/retry.ts",
+          "name": "computeBackoff",
+          "start": 90,
+          "end": 112
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "name": "computeBackoff",
+          "start": 268,
+          "end": 290
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    },
+    {
+      "hash": "c2059770c35118d4a66a0d1d6dc3777d6be8d8abf65788685254ce1e99a05679",
+      "token_count": 90,
+      "sites": [
+        {
+          "path": "packages/work-kernel/src/rows.ts",
+          "name": "scheduleByKeyQuery",
+          "start": 629,
+          "end": 643
+        },
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "name": "scheduleByKeyQuery",
+          "start": 570,
+          "end": 584
+        }
+      ],
+      "candidate_ids": [
+        "DR10"
+      ]
+    }
+  ],
+  "typescript_files_screened": 313,
+  "forwarder_count": 433,
+  "forwarder_limit": "Single-return call syntax also includes callbacks and real binding/policy wrappers. This count is an inventory seed, not unnecessary-layer findings or a completeness claim."
+}
