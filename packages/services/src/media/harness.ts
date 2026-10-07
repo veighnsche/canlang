@@ -12,6 +12,7 @@
  * downloads and reconciles each outcome.
  */
 import http from 'node:http';
+import { readTextBody } from '../internal/controlled-http.js';
 import type { Socket } from 'node:net';
 
 export interface ControlledHistoryEntry {
@@ -60,28 +61,6 @@ export interface ControlledComfyServer {
   /** Prompt ids recorded via submit, in order. */
   readonly prompts: readonly string[];
   close(): Promise<void>;
-}
-
-const MAX_HARNESS_BODY = 4_000_000;
-
-function readTextBody(req: http.IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let total = 0;
-    req.on('data', (chunk: Buffer) => {
-      total += chunk.length;
-      if (total > MAX_HARNESS_BODY) {
-        reject(new Error('harness body too large'));
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      resolve(Buffer.concat(chunks).toString('utf8'));
-    });
-    req.on('error', reject);
-  });
 }
 
 function sendJson(
