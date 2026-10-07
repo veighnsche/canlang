@@ -1,4 +1,4 @@
-# Compiler responsibility coverage — audit Steps 2–7
+# Compiler responsibility coverage — audit Steps 2–8
 
 The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. Structural inventory maps duties and review scope; it does not qualify semantic correctness or test adequacy. [Step 3 workflow tracing](workflows.md) extends this same ledger with actual consumers and bounded executed witnesses. [Step 4 compatibility challenge](compatibility.md) distinguishes owning outcomes, current public byte promises, migration guards and incidental mechanisms. [Step 5 representations](representations.md) traces stage authorities, conversions, reconstructed facts and source/catalog coherence. [Step 6 integrations](integrations.md) records complete scoped library caller/adapter closures and conditional retirement results. [Step 7 syntax/recovery](syntax.md) maps finite admitted forms through stage owners and records independently corroborated recovery/meaning-loss findings.
 
@@ -97,3 +97,23 @@ be lost with compile success. Delimiter synchronization and new feature/profile
 support remain separately gated. Whole semantics and per-branch emitted execution
 are not certified; these open defects do not invalidate the finite source map.
 No compiler/package/dependency/policy change or merge/checkpoint advance occurs.
+
+## Resolution, types, effects and permissions — Step 8
+
+[Semantic findings](semantics.md) add 44 bounded duties and eight classified
+repair/qualification records to the same ledger. Resolution/imports/overloads,
+binding/inference/nullability/context, effects/authority, actual value owners,
+graph scopes, catalog availability and diagnostic aggregation have named source
+and consumer ownership, sampled witnesses and explicit gaps. Source cross-review
+and [receipt review](semantic-evidence/receipt-review.json) distinguish observed
+defects from policy disagreements, copied catalog controls and unexecuted joins.
+
+Fresh native execution has 440 selected passes, 73 retained public API inputs,
+12 graph repeats, 70 public owner calls, eight CLI calls and two emitted pure
+format functions. Nullable arrays depend incorrectly on element order; recurring
+scope misses derives; named format binding and the positional runtime signature
+fail. Owner email/temporal/data/presentation disagreements and existing graph/JEV
+gates remain visible. [Validation](semantic-validation.json) checks the joined
+ledger and captures without converting sampled execution to universal semantic
+acceptance. No production/package implementation, merge or checkpoint change
+occurs; broader Step 9 execution and later resource/oracle/product scope remain.
