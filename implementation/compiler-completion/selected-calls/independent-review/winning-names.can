@@ -1,0 +1,5 @@
+app Win
+Given
+ derive run():bool = contains(value="ABC",needle="BC")
+When
+Then

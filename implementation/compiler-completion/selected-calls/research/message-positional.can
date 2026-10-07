@@ -1,0 +1,6 @@
+app T
+Given
+ message m="Hi"@{nl="Hoi"}
+ derive g():text = format(m,null)
+When
+Then

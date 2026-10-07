@@ -1,0 +1,6 @@
+app T
+Given
+ derive f(a:text="Default"):text = a
+ derive g():text = f()
+When
+Then

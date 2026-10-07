@@ -1,0 +1,6 @@
+app T
+Given
+ contract C {a:text,b:text}
+ derive g(v:C):bool = starts_with(prefix=v.a,value=v.b)
+When
+Then

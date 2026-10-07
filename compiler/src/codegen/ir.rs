@@ -43,7 +43,7 @@ use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
     CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId, SymbolKind,
 };
-use crate::analysis::types::{ResolvedType, Scalar};
+use crate::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
 use crate::analysis::{CheckedProgram, NodeKey};
 use crate::codegen::bdd::BddSuite;
 use crate::diagnostic::Diagnostic;
@@ -998,6 +998,13 @@ pub enum IrExpr {
         target: IrCallTarget,
         args: Vec<TypedExpr>,
     },
+    /// Supplied expressions in source order, with the checked target slots.
+    /// The emitter captures only when slots reorder or omit arguments.
+    BoundCall {
+        target: IrCallTarget,
+        args: Vec<TypedExpr>,
+        slots: Vec<Option<usize>>,
+    },
     /// Binary operator (scalar-dispatched in lowering).
     Binary {
         op: IrBinOp,
@@ -1021,6 +1028,12 @@ pub enum IrExpr {
     },
     /// Inline message descriptor → `message(...)`.
     Message(IrMessage),
+    /// A named message whose checked slots reorder or use defaults.
+    MessageCall {
+        descriptor: IrMessage,
+        args: Vec<TypedExpr>,
+        params: Vec<IrMessageCallParam>,
+    },
     /// `format(c, descriptor, {locale})`.
     Format {
         descriptor: Box<TypedExpr>,
@@ -1350,6 +1363,15 @@ pub struct IrMessage {
     pub variants: Vec<(String, Option<String>)>,
     /// Typed parameters in source order.
     pub params: Vec<IrMessageParam>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IrMessageCallParam {
+    pub name: String,
+    pub type_id: String,
+    pub source: Option<usize>,
+    /// Only omitted defaults are decoded/evaluated at this call.
+    pub default: Option<TypedExpr>,
 }
 
 /// Field creation default (PR5 contract): literal defaults stay literal
@@ -2759,215 +2781,228 @@ impl<'a> Cx<'a> {
         }
     }
 
-    /// Decode a call by table-classified callee: builtin (G12 awaited),
-    /// message, role predicate, or `format`.
+    /// Consume the checker-selected target and slots. CST supplies content,
+    /// never a second overload choice or argument-name binding.
     fn decode_call(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
-        let parts = kids(node);
-        let callee = parts.iter().find(|n| is_expression(n.kind)).copied();
-        let args: Vec<(Option<String>, &SyntaxNode)> = parts
-            .iter()
-            .filter(|n| n.kind == SyntaxKind::Argument)
-            .map(|arg| {
-                let arg_parts = kids(arg);
-                if arg_parts.len() >= 3
-                    && arg_parts[0].kind == SyntaxKind::Name
-                    && self.text(arg_parts[1].span) == "="
-                {
-                    let name = name_text(self.db, arg_parts[0]);
-                    let value = arg_parts[2..]
-                        .iter()
-                        .find(|n| is_expression(n.kind))
-                        .copied();
-                    (name, value)
-                } else {
-                    let value = arg_parts.iter().find(|n| is_expression(n.kind)).copied();
-                    (None, value)
-                }
-            })
-            .filter(|(_, value)| value.is_some())
-            .map(|(name, value)| (name, value.unwrap_or(node)))
-            .collect();
-        let Some(callee) = callee else {
+        let Some(selected) = self
+            .program
+            .types
+            .selected_calls
+            .get(&NodeKey::of(node))
+            .cloned()
+        else {
             return IrExpr::Unsupported {
                 what: "call".to_string(),
-                why: "no callee".to_string(),
+                why: "checked selected-call binding is not published".to_string(),
             };
         };
-        // A2b: named arguments lower positionally for builtin
-        // catalog calls (ordered in `decode_name_call`); `format`
-        // keeps its locale carve-out, and message/role/derive
-        // calls keep the loud gap below.
-        let callee_name = callee_name(self.db, callee);
-        match callee.kind {
-            SyntaxKind::NameRef => {
-                let name = callee_name.unwrap_or_default();
-                self.decode_name_call(scope, &name, &args, ty, node.span)
-            }
-            _ => IrExpr::Unsupported {
-                what: "call".to_string(),
-                why: "only plain names are callable in expression position".to_string(),
-            },
-        }
-    }
-
-    /// Decode a call with a plain-name callee.
-    fn decode_name_call(
-        &mut self,
-        scope: &Scope,
-        name: &str,
-        args: &[(Option<String>, &SyntaxNode)],
-        ty: &ResolvedType,
-        span: Span,
-    ) -> IrExpr {
-        if name == "format" {
-            return self.decode_format_call(scope, args, ty, span);
-        }
-        let has_named = args.iter().any(|(arg_name, _)| arg_name.is_some());
-        if let Some((id, _)) = self.resolve_member(scope.module, name) {
-            // A2b: only builtin catalog calls positionalize named
-            // arguments; message/role/derive calls keep the gap.
-            if has_named {
-                return IrExpr::Unsupported {
-                    what: format!("call to {name}"),
-                    why: "named arguments have no §13 lowering".to_string(),
-                };
-            }
-            let kind = self
-                .program
-                .symbols
-                .get(id.0 as usize)
-                .map(|s| s.kind.clone());
-            match kind {
-                Some(SymbolKind::Message { .. }) => {
-                    return self.decode_message_call(scope, id, args, span);
-                }
-                Some(SymbolKind::Role) => {
-                    let person = args
-                        .first()
-                        .map(|(_, value)| Box::new(self.decode_expr(scope, value)));
-                    return IrExpr::HasRole {
-                        role: self.canonical(id),
-                        person,
-                    };
-                }
-                Some(
-                    SymbolKind::Scenario { .. }
-                    | SymbolKind::CapabilityOp { .. }
-                    | SymbolKind::CrudOp { .. }
-                    | SymbolKind::Model { .. }
-                    | SymbolKind::Contract { .. }
-                    | SymbolKind::Event { .. },
-                ) => {
-                    return IrExpr::Unsupported {
-                        what: format!("call to `{name}`"),
-                        why: "operations and nominals are not expression-callable".to_string(),
-                    };
-                }
-                Some(SymbolKind::DeriveFn { .. }) => {
-                    // Named arguments are rejected above for
-                    // resolved callees; only positional args
-                    // arrive here.
-                    return IrExpr::Call {
-                        target: IrCallTarget::DeriveFn(self.canonical(id)),
-                        args: args
-                            .iter()
-                            .map(|(_, value)| self.decode_expr(scope, value))
-                            .collect(),
-                    };
-                }
-                _ => {}
-            }
-        }
-        // Builtin call: the catalog owns the name when one is loaded;
-        // without a catalog an undeclared callee can only be a builtin
-        // (analysis owns typos via `E2001`), verified loud by `E6007`.
-        let is_builtin = match (&self.catalog, self.resolve_member(scope.module, name)) {
-            (Some(catalog), _) => catalog.is_builtin(name),
-            (None, None) => true,
-            (None, Some(_)) => false,
+        let bad_binding = || IrExpr::Unsupported {
+            what: "call".to_string(),
+            why: "checked selected-call slots do not match their owning target".to_string(),
         };
-        if !is_builtin {
-            // A2b: named arguments were rejected before target
-            // classification; keep that message for named calls.
-            if has_named {
-                return IrExpr::Unsupported {
-                    what: format!("call to {name}"),
-                    why: "named arguments have no §13 lowering".to_string(),
-                };
-            }
-            return IrExpr::Unsupported {
-                what: format!("call to `{name}`"),
-                why: "call target is not a builtin, message or role".to_string(),
-            };
-        }
-        // G12: awaited exactly when the catalog effects are state-read.
-        // Without a catalog the call is unverifiable (`E6007` fires) and
-        // lowers synchronously.
-        let awaited = self
-            .catalog
-            .and_then(|catalog| catalog.lookup(name))
-            .and_then(|entry| entry.effects)
-            .is_some_and(|effects| effects == Effects::StateRead);
-        // A2b: named arguments lower positionally in catalog
-        // signature order; without an orderable signature the loud
-        // gap stays (analysis owns unknown names via `E3005`).
-        let ordered: Vec<&SyntaxNode> = if has_named {
-            let Some(ordered) = self.order_builtin_args(name, args) else {
-                return IrExpr::Unsupported {
-                    what: format!("call to {name}"),
-                    why: "named arguments have no §13 lowering".to_string(),
-                };
-            };
-            ordered
-        } else {
-            args.iter().map(|(_, value)| *value).collect()
-        };
-        self.builtins_seen.push(ReferencedBuiltin {
-            id: name.to_string(),
-            span,
-        });
-        self.g13_seen.insert(name.to_string());
-        IrExpr::Call {
-            target: IrCallTarget::Builtin {
-                id: name.to_string(),
-                awaited,
-            },
-            args: ordered
+        let supplied: Vec<_> = selected.slots.iter().flatten().copied().collect();
+        if supplied.len() != selected.arguments.len()
+            || supplied
                 .iter()
-                .map(|value| self.decode_expr(scope, value))
-                .collect(),
+                .any(|&slot| slot >= selected.arguments.len())
+            || supplied.iter().copied().collect::<HashSet<_>>().len() != supplied.len()
+            || selected
+                .arguments
+                .iter()
+                .any(|key| self.node(key).is_none())
+        {
+            return bad_binding();
         }
-    }
-
-    /// A2b: order builtin call arguments positionally per the
-    /// catalog signature — positionals fill the next unfilled
-    /// parameter in order, named fill by name (mirrors analysis
-    /// `bind_arguments`). `None` when there is no catalog, no
-    /// arity-matching overload, or an unknown/duplicate name.
-    fn order_builtin_args<'n>(
-        &self,
-        name: &str,
-        args: &[(Option<String>, &'n SyntaxNode)],
-    ) -> Option<Vec<&'n SyntaxNode>> {
-        let overloads = self.catalog?.overloads(name)?;
-        let overload = overloads.iter().find(|o| o.params.len() == args.len())?;
-        let mut slots: Vec<Option<&SyntaxNode>> = vec![None; overload.params.len()];
-        for (arg_name, value) in args {
-            match arg_name {
-                None => {
-                    let next = slots.iter().position(|s| s.is_none())?;
-                    slots[next] = Some(*value);
+        match selected.target {
+            SelectedCallTarget::Builtin { id, overload } => {
+                let Some(entry) = self.catalog.and_then(|catalog| catalog.lookup(&id)) else {
+                    return bad_binding();
+                };
+                let Some(signature) = self
+                    .catalog
+                    .and_then(|catalog| catalog.overloads(&id))
+                    .and_then(|overloads| overloads.get(overload))
+                else {
+                    return bad_binding();
+                };
+                if signature.params.len() != selected.slots.len()
+                    || selected.slots.iter().any(Option::is_none)
+                {
+                    return bad_binding();
                 }
-                Some(arg_name) => {
-                    let idx = overload.params.iter().position(|p| p.name == *arg_name)?;
-                    if slots[idx].is_some() {
-                        return None;
+                // Localized format remains the separately gated context/facade
+                // seam. Keep its existing behavior until those owners join.
+                if id == "format"
+                    && signature
+                        .params
+                        .first()
+                        .is_some_and(|p| p.name == "descriptor")
+                {
+                    let args: Vec<_> = kids(node)
+                        .iter()
+                        .filter(|arg| arg.kind == SyntaxKind::Argument)
+                        .filter_map(|arg| {
+                            let parts = kids(arg);
+                            let named = parts.len() >= 3
+                                && parts[0].kind == SyntaxKind::Name
+                                && self.text(parts[1].span) == "=";
+                            let name = named.then(|| name_text(self.db, parts[0])).flatten();
+                            let value = parts
+                                .iter()
+                                .skip(if named { 2 } else { 0 })
+                                .find(|n| is_expression(n.kind))
+                                .copied()?;
+                            Some((name, value))
+                        })
+                        .collect();
+                    return self.decode_format_call(scope, &args, ty, node.span);
+                }
+                let awaited = entry.effects == Some(Effects::StateRead);
+                self.builtins_seen.push(ReferencedBuiltin {
+                    id: id.clone(),
+                    span: node.span,
+                });
+                self.g13_seen.insert(id.clone());
+                let args = selected
+                    .arguments
+                    .iter()
+                    .map(|key| self.decode_anchored(scope, key, "call argument"))
+                    .collect();
+                Self::selected_call_expr(
+                    IrCallTarget::Builtin { id, awaited },
+                    args,
+                    selected.slots,
+                )
+            }
+            SelectedCallTarget::DeriveFn(id) => {
+                let Some(SymbolKind::DeriveFn { params, .. }) =
+                    self.program.symbols.get(id.0 as usize).map(|s| &s.kind)
+                else {
+                    return bad_binding();
+                };
+                if params.len() != selected.slots.len() {
+                    return bad_binding();
+                }
+                for (param, slot) in params.iter().zip(&selected.slots) {
+                    if slot.is_none()
+                        && self
+                            .param_data(id, *param)
+                            .and_then(|p| p.default)
+                            .is_none()
+                    {
+                        return bad_binding();
                     }
-                    slots[idx] = Some(*value);
+                }
+                let args = selected
+                    .arguments
+                    .iter()
+                    .map(|key| self.decode_anchored(scope, key, "call argument"))
+                    .collect();
+                Self::selected_call_expr(
+                    IrCallTarget::DeriveFn(self.canonical(id)),
+                    args,
+                    selected.slots,
+                )
+            }
+            SelectedCallTarget::Message(id) => {
+                let Some(data) = self.program.effects.messages.get(&id).cloned() else {
+                    return bad_binding();
+                };
+                if data.params.len() != selected.slots.len() {
+                    return bad_binding();
+                }
+                let args: Vec<_> = selected
+                    .arguments
+                    .iter()
+                    .map(|key| self.decode_anchored(scope, key, "message argument"))
+                    .collect();
+                let mut descriptor = self.decode_message_data(&data);
+                let direct = selected
+                    .slots
+                    .iter()
+                    .enumerate()
+                    .all(|(i, slot)| *slot == Some(i));
+                let mut params = Vec::new();
+                for (param, source) in data.params.iter().zip(selected.slots) {
+                    let name = self.local_name(param.param);
+                    let type_id = self
+                        .program
+                        .types
+                        .symbol_types
+                        .get(&param.param)
+                        .map(|ty| self.type_id(ty))
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let default = if source.is_none() {
+                        let Some(key) = &param.default else {
+                            return bad_binding();
+                        };
+                        Some(self.decode_anchored(
+                            &Scope::module(data.module),
+                            key,
+                            "message parameter default",
+                        ))
+                    } else {
+                        None
+                    };
+                    if direct {
+                        descriptor.params.push(IrMessageParam {
+                            name,
+                            type_id,
+                            value: args[source.expect("direct slots")].clone(),
+                        });
+                    } else {
+                        params.push(IrMessageCallParam {
+                            name,
+                            type_id,
+                            source,
+                            default,
+                        });
+                    }
+                }
+                if direct {
+                    IrExpr::Message(descriptor)
+                } else {
+                    IrExpr::MessageCall {
+                        descriptor,
+                        args,
+                        params,
+                    }
+                }
+            }
+            SelectedCallTarget::Role(id) => {
+                if !matches!(
+                    self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
+                    Some(SymbolKind::Role)
+                ) || selected.slots != [Some(0)]
+                {
+                    return bad_binding();
+                }
+                IrExpr::HasRole {
+                    role: self.canonical(id),
+                    person: Some(Box::new(self.decode_anchored(
+                        scope,
+                        &selected.arguments[0],
+                        "role argument",
+                    ))),
                 }
             }
         }
-        slots.into_iter().collect()
+    }
+
+    fn selected_call_expr(
+        target: IrCallTarget,
+        args: Vec<TypedExpr>,
+        slots: Vec<Option<usize>>,
+    ) -> IrExpr {
+        if slots.len() == args.len() && slots.iter().enumerate().all(|(i, slot)| *slot == Some(i)) {
+            IrExpr::Call { target, args }
+        } else {
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots,
+            }
+        }
     }
 
     /// Decode a `format(descriptor, locale?)` call.
@@ -3005,49 +3040,6 @@ impl<'a> Cx<'a> {
         };
         let _ = ty;
         IrExpr::Format { descriptor, locale }
-    }
-
-    /// Decode a message call: descriptor plus typed parameter values.
-    fn decode_message_call(
-        &mut self,
-        scope: &Scope,
-        id: SymbolId,
-        args: &[(Option<String>, &SyntaxNode)],
-        span: Span,
-    ) -> IrExpr {
-        let data = self.program.effects.messages.get(&id).cloned();
-        let Some(data) = data else {
-            return IrExpr::Unsupported {
-                what: format!("call to {}", self.canonical(id)),
-                why: "message row is not in the analysis tables".to_string(),
-            };
-        };
-        let mut descriptor = self.decode_message_data(&data);
-        // Positional fill first, then named (the parser owns order).
-        let mut positional = args.iter().filter(|(name, _)| name.is_none());
-        for param in &data.params {
-            let name = self.local_name(param.param);
-            let value = args
-                .iter()
-                .find(|(arg_name, _)| arg_name.as_deref() == Some(name.as_str()))
-                .map(|(_, value)| *value)
-                .or_else(|| positional.next().map(|(_, value)| *value));
-            let Some(value) = value else { continue };
-            let type_id = self
-                .program
-                .types
-                .symbol_types
-                .get(&param.param)
-                .map(|ty| self.type_id(ty))
-                .unwrap_or_else(|| "unknown".to_string());
-            descriptor.params.push(IrMessageParam {
-                name,
-                type_id,
-                value: self.decode_expr(scope, value),
-            });
-        }
-        let _ = span;
-        IrExpr::Message(descriptor)
     }
 
     /// Canonical type id for a resolved type (best-effort, total: unknown
@@ -3457,7 +3449,7 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
     let mut work = vec![expr];
     while let Some(current) = work.pop() {
         match &current.expr {
-            IrExpr::Call { target, args } => {
+            IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
                 if matches!(
                     target,
                     IrCallTarget::Builtin { awaited: true, .. }
@@ -3489,6 +3481,10 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
                 work.extend(query.select.iter().map(|v| v.as_ref()));
             }
             IrExpr::Message(message) => work.extend(message.params.iter().map(|p| &p.value)),
+            IrExpr::MessageCall { args, params, .. } => {
+                work.extend(args);
+                work.extend(params.iter().filter_map(|param| param.default.as_ref()));
+            }
             IrExpr::Format { descriptor, .. } => work.push(descriptor),
             IrExpr::HasRole { person, .. } => work.extend(person.iter().map(|v| v.as_ref())),
             IrExpr::Lambda { body, .. } => work.push(body),
@@ -8845,7 +8841,7 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
                 collect_s_refs(&base.expr, out);
             }
         }
-        IrExpr::Call { args, .. } => {
+        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
             for arg in args {
                 collect_s_refs(&arg.expr, out);
             }
@@ -8881,6 +8877,14 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
             }
         }
         IrExpr::DeliveryRead { record, .. } => collect_s_refs(&record.expr, out),
+        IrExpr::MessageCall { args, params, .. } => {
+            for value in args
+                .iter()
+                .chain(params.iter().filter_map(|param| param.default.as_ref()))
+            {
+                collect_s_refs(&value.expr, out);
+            }
+        }
         IrExpr::Message(message) => {
             for param in &message.params {
                 collect_s_refs(&param.value.expr, out);

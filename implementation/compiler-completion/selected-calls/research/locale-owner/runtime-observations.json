@@ -1,0 +1,88 @@
+[
+  {
+    "id": "actual-canonical-versus-handler-carriers",
+    "canonical": {
+      "app": "Dutch",
+      "team": {
+        "teamId": "team",
+        "timezone": "Europe/Brussels"
+      }
+    },
+    "handlerKeys": [
+      "caller",
+      "store",
+      "clock",
+      "memberships",
+      "preferences"
+    ],
+    "handlerHasTeam": false,
+    "handlerHasAppDefault": false,
+    "scope": "Actual state buildContext public export and actual Cloudflare built internal createContext. No canonical scenario success claim."
+  },
+  {
+    "id": "actual-generated-selected-app-registry",
+    "definition": {
+      "id": "Dutch",
+      "uses": [
+        "Shared"
+      ],
+      "compositions": {
+        "German": {
+          "uses": [
+            "Shared"
+          ]
+        }
+      },
+      "packages": {
+        "Dutch": {
+          "roles": {}
+        },
+        "German": {
+          "roles": {}
+        },
+        "Shared": {
+          "roles": {}
+        }
+      },
+      "bindings": {},
+      "contracts": {},
+      "events": {},
+      "capabilities": {},
+      "models": {},
+      "preferences": {},
+      "operations": {},
+      "pages": [],
+      "disabled": []
+    }
+  },
+  {
+    "id": "actual-cloudflare-shared-pure-call",
+    "outcome": {
+      "ok": false,
+      "error": "format needs a text template or a message descriptor",
+      "mapped": {
+        "source": "/Users/vince/Projects/canlang/implementation/compiler-completion/selected-calls/research/locale-owner/locale-shared.can",
+        "line": 10,
+        "column": 16,
+        "name": "Shared.g"
+      }
+    },
+    "scope": "Production emitted artifact through actual public Cloudflare invokeCallable and actual format imports; direct pure callable only, not canonical scenario admission."
+  },
+  {
+    "id": "actual-values-owner-default-differential",
+    "Dutch": {
+      "text": "Hallo",
+      "locale": "nl"
+    },
+    "German": {
+      "text": "Hallo Deutsch",
+      "locale": "de"
+    },
+    "sourceFallback": {
+      "text": "Bonjour",
+      "locale": "fr"
+    },
+    "scope": "Actual facade owner controls with explicit options; not claimed generated adapter behavior."
+  }
+]

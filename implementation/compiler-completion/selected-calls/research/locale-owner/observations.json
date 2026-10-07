@@ -1,0 +1,42 @@
+[
+  {
+    "id": "locale-simple",
+    "exit": 0,
+    "diagnostics": [],
+    "modules": [
+      "$can$m$4475746368.mjs"
+    ]
+  },
+  {
+    "id": "locale-shared",
+    "exit": 0,
+    "diagnostics": [],
+    "modules": [
+      "$can$m$4475746368.mjs",
+      "$can$m$4765726d616e.mjs",
+      "$can$m$536861726564.mjs"
+    ]
+  },
+  {
+    "id": "locale-conflicting-composition",
+    "exit": 0,
+    "diagnostics": [],
+    "modules": [
+      "$can$m$436f6d62696e6564.mjs",
+      "$can$m$4475746368.mjs",
+      "$can$m$4765726d616e.mjs",
+      "$can$m$536861726564.mjs"
+    ]
+  },
+  {
+    "id": "locale-identical-composition",
+    "exit": 0,
+    "diagnostics": [],
+    "modules": [
+      "$can$m$436f6d62696e6564.mjs",
+      "$can$m$4475746368.mjs",
+      "$can$m$4475746368416c736f.mjs",
+      "$can$m$536861726564.mjs"
+    ]
+  }
+]

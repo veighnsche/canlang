@@ -1,0 +1,1306 @@
+diff --git a/compiler/src/analysis/types.rs b/compiler/src/analysis/types.rs
+index 2dc2e17b..dfdca11f 100644
+--- a/compiler/src/analysis/types.rs
++++ b/compiler/src/analysis/types.rs
+@@ -372,9 +372,34 @@ fn record_name(tables: &ResolveTables, module: ModuleId, id: SymbolId) -> String
+     }
+ }
+ 
+-/// Types per symbol and per typed CST node.
++/// Checked expression-call owner.
++#[derive(Debug, Clone)]
++pub enum SelectedCallTarget {
++    /// The winning overload in the cohort-owned producer catalog.
++    Builtin {
++        id: String,
++        overload: usize,
++    },
++    DeriveFn(SymbolId),
++    Message(SymbolId),
++    Role(SymbolId),
++}
++
++/// One checked call binding. Slots are in declaration order; supplied
++/// indexes refer to `arguments` in source order. `None` is an omitted
++/// declaration default, never a catalog default or an explicit null.
++#[derive(Debug, Clone)]
++pub struct SelectedCall {
++    pub target: SelectedCallTarget,
++    pub arguments: Vec<NodeKey>,
++    pub slots: Vec<Option<usize>>,
++}
++
++/// Types and selected bindings per symbol and typed CST node.
+ #[derive(Debug, Clone, Default)]
+ pub struct TypeTable {
++    /// Selected call authority consumed by IR without rebinding arguments.
++    pub selected_calls: HashMap<NodeKey, SelectedCall>,
+     /// Name references with a lexical value binding. Retained for IR so
+     /// enum-valued locals are not reconstructed as case spellings.
+     pub bound_names: HashSet<NodeKey>,
+@@ -13627,18 +13652,20 @@ impl<'a> Typer<'a> {
+             // their `nonempty`/`ordered` twins, which would be dead under
+             // first-match (every nonempty domain also inhabits the
+             // general shape). Ties keep catalog order.
+-            let mut best: Option<(&SigOverload, ResolvedType, usize, Trial)> = None;
+-            for overload in &overloads {
++            let mut best: Option<(usize, ResolvedType, usize, Trial, Vec<usize>)> = None;
++            for (index, overload) in overloads.iter().enumerate() {
+                 let mut trial = Trial::default();
+-                if let Some(result) = self.try_overload(cx, overload, args, &typed, &mut trial) {
++                if let Some((result, slots)) =
++                    self.try_overload(cx, overload, args, &typed, &mut trial)
++                {
+                     let score: usize = overload
+                         .params
+                         .iter()
+                         .map(|param| Self::overload_specificity_count(&param.ty))
+                         .sum();
+-                    let replace = best.as_ref().is_none_or(|(_, _, held, _)| score > *held);
++                    let replace = best.as_ref().is_none_or(|(_, _, held, _, _)| score > *held);
+                     if replace {
+-                        best = Some((overload, result, score, trial));
++                        best = Some((index, result, score, trial, slots));
+                     }
+                     continue;
+                 }
+@@ -13649,12 +13676,32 @@ impl<'a> Typer<'a> {
+                     cases_fail = trial.cases_fail;
+                 }
+             }
+-            if let Some((overload, result, _, trial)) = best {
++            if let Some((index, result, _, trial, slots)) = best {
+                 for (key, ty) in &trial.claimed {
+                     self.types.resolved_cases.insert(*key);
+                     self.types.node_types.insert(*key, ty.clone());
+                 }
+-                return self.finish_builtin_call(cx, overload, id, args, &typed, result);
++                self.types.selected_calls.insert(
++                    NodeKey::of(node),
++                    SelectedCall {
++                        target: SelectedCallTarget::Builtin {
++                            id: id.to_string(),
++                            overload: index,
++                        },
++                        arguments: args.iter().map(|arg| NodeKey::of(arg.value)).collect(),
++                        slots: slots.iter().copied().map(Some).collect(),
++                    },
++                );
++                let ordered_args: Vec<_> = slots.iter().map(|&slot| args[slot].clone()).collect();
++                let ordered_types: Vec<_> = slots.iter().map(|&slot| typed[slot].clone()).collect();
++                return self.finish_builtin_call(
++                    cx,
++                    &overloads[index],
++                    id,
++                    &ordered_args,
++                    &ordered_types,
++                    result,
++                );
+             }
+             // Failure precedence: precise literal shape (`E3001`) >
+             // precise case expectation (`E3005`) > generic mismatch
+@@ -13915,6 +13962,13 @@ impl<'a> Typer<'a> {
+         let Some(bound) = bound else {
+             return ResolvedType::Error;
+         };
++        self.publish_decl_call(
++            node,
++            SelectedCallTarget::DeriveFn(id),
++            &params,
++            args,
++            &bound,
++        );
+         for (param, arg) in &bound {
+             let expected = self.decl_type(*param);
+             let actual = self.expr(cx, arg.value, Some(expected.clone()));
+@@ -13950,6 +14004,7 @@ impl<'a> Typer<'a> {
+         let Some(bound) = bound else {
+             return ResolvedType::Error;
+         };
++        self.publish_decl_call(node, SelectedCallTarget::Message(id), &params, args, &bound);
+         for (param, arg) in &bound {
+             let expected = self.decl_type(*param);
+             let actual = self.expr(cx, arg.value, Some(expected.clone()));
+@@ -13997,7 +14052,7 @@ impl<'a> Typer<'a> {
+         if actual.is_error() {
+             return ResolvedType::Error;
+         }
+-        match &actual {
++        let result = match &actual {
+             ResolvedType::Scalar(Scalar::User) | ResolvedType::Scalar(Scalar::Member) => {
+                 ResolvedType::Scalar(Scalar::Bool)
+             }
+@@ -14016,7 +14071,49 @@ impl<'a> Typer<'a> {
+                 let _ = callee;
+                 ResolvedType::Error
+             }
++        };
++        if !result.is_error() {
++            self.types.selected_calls.insert(
++                NodeKey::of(node),
++                SelectedCall {
++                    target: SelectedCallTarget::Role(id),
++                    arguments: vec![NodeKey::of(args[0].value)],
++                    slots: vec![Some(0)],
++                },
++            );
+         }
++        result
++    }
++
++    fn publish_decl_call(
++        &mut self,
++        node: &SyntaxNode,
++        target: SelectedCallTarget,
++        params: &[SymbolId],
++        args: &[CallArg],
++        bound: &[(SymbolId, CallArg)],
++    ) {
++        let slots = params
++            .iter()
++            .map(|param| {
++                bound
++                    .iter()
++                    .find(|(id, _)| id == param)
++                    .map(|(_, supplied)| {
++                        args.iter()
++                            .position(|arg| NodeKey::of(arg.node) == NodeKey::of(supplied.node))
++                            .expect("bound argument came from this call")
++                    })
++            })
++            .collect();
++        self.types.selected_calls.insert(
++            NodeKey::of(node),
++            SelectedCall {
++                target,
++                arguments: args.iter().map(|arg| NodeKey::of(arg.value)).collect(),
++                slots,
++            },
++        );
+     }
+ 
+     /// Bind call arguments to parameters: positionals fill in order,
+@@ -14203,7 +14300,7 @@ impl<'a> Typer<'a> {
+         args: &[CallArg],
+         typed: &[ResolvedType],
+         trial: &mut Trial,
+-    ) -> Option<ResolvedType> {
++    ) -> Option<(ResolvedType, Vec<usize>)> {
+         if overload.params.len() != args.len() {
+             return None;
+         }
+@@ -14235,7 +14332,13 @@ impl<'a> Typer<'a> {
+                 return None;
+             }
+         }
+-        Some(self.subst_shape(&overload.result, trial))
++        Some((
++            self.subst_shape(&overload.result, trial),
++            slots
++                .into_iter()
++                .map(|slot| slot.expect("arity checked"))
++                .collect(),
++        ))
+     }
+ 
+     /// Match one argument against a signature shape, binding `T/O/S/K`
+@@ -15173,34 +15276,13 @@ impl Trial {
+     }
+ }
+ 
+-/// Reproduce `try_overload` binding for one parameter: the named
+-/// argument wins, otherwise the positional landing on its slot.
++/// Access a post-match argument already ordered by the winning slots.
+ fn bound_arg<'x, 'n>(
+     overload: &SigOverload,
+     args: &'x [CallArg<'n>],
+     name: &str,
+ ) -> Option<&'x CallArg<'n>> {
+-    if let Some(arg) = args.iter().find(|a| a.name.as_deref() == Some(name)) {
+-        return Some(arg);
+-    }
+-    let target = overload.params.iter().position(|p| p.name == name)?;
+-    let mut slots: Vec<Option<usize>> = vec![None; overload.params.len()];
+-    for (index, arg) in args.iter().enumerate() {
+-        match &arg.name {
+-            None => {
+-                let slot = slots.iter_mut().find(|s| s.is_none())?;
+-                *slot = Some(index);
+-            }
+-            Some(want) => {
+-                let position = overload.params.iter().position(|p| &p.name == want)?;
+-                if slots[position].is_some() {
+-                    return None;
+-                }
+-                slots[position] = Some(index);
+-            }
+-        }
+-    }
+-    slots[target].map(|index| &args[index])
++    args.get(overload.params.iter().position(|p| p.name == name)?)
+ }
+ 
+ /// Whether a type inhabits the group-key (`K`) class: group-key
+diff --git a/compiler/src/codegen/ir.rs b/compiler/src/codegen/ir.rs
+index a3ae8654..b2f5c398 100644
+--- a/compiler/src/codegen/ir.rs
++++ b/compiler/src/codegen/ir.rs
+@@ -43,7 +43,7 @@ use crate::analysis::migrate_check::{self, OwnerModelView};
+ use crate::analysis::resolve::{
+     CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId, SymbolKind,
+ };
+-use crate::analysis::types::{ResolvedType, Scalar};
++use crate::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
+ use crate::analysis::{CheckedProgram, NodeKey};
+ use crate::codegen::bdd::BddSuite;
+ use crate::diagnostic::Diagnostic;
+@@ -998,6 +998,13 @@ pub enum IrExpr {
+         target: IrCallTarget,
+         args: Vec<TypedExpr>,
+     },
++    /// Supplied expressions in source order, with the checked target slots.
++    /// The emitter captures only when slots reorder or omit arguments.
++    BoundCall {
++        target: IrCallTarget,
++        args: Vec<TypedExpr>,
++        slots: Vec<Option<usize>>,
++    },
+     /// Binary operator (scalar-dispatched in lowering).
+     Binary {
+         op: IrBinOp,
+@@ -1021,6 +1028,12 @@ pub enum IrExpr {
+     },
+     /// Inline message descriptor → `message(...)`.
+     Message(IrMessage),
++    /// A named message whose checked slots reorder or use defaults.
++    MessageCall {
++        descriptor: IrMessage,
++        args: Vec<TypedExpr>,
++        params: Vec<IrMessageCallParam>,
++    },
+     /// `format(c, descriptor, {locale})`.
+     Format {
+         descriptor: Box<TypedExpr>,
+@@ -1352,6 +1365,15 @@ pub struct IrMessage {
+     pub params: Vec<IrMessageParam>,
+ }
+ 
++#[derive(Debug, Clone)]
++pub struct IrMessageCallParam {
++    pub name: String,
++    pub type_id: String,
++    pub source: Option<usize>,
++    /// Only omitted defaults are decoded/evaluated at this call.
++    pub default: Option<TypedExpr>,
++}
++
+ /// Field creation default (PR5 contract): literal defaults stay literal
+ /// `default` values; nonliteral defaults lower to a typed
+ /// `default(c,{parent})` callable over creation context only (the second
+@@ -2759,215 +2781,228 @@ impl<'a> Cx<'a> {
+         }
+     }
+ 
+-    /// Decode a call by table-classified callee: builtin (G12 awaited),
+-    /// message, role predicate, or `format`.
++    /// Consume the checker-selected target and slots. CST supplies content,
++    /// never a second overload choice or argument-name binding.
+     fn decode_call(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
+-        let parts = kids(node);
+-        let callee = parts.iter().find(|n| is_expression(n.kind)).copied();
+-        let args: Vec<(Option<String>, &SyntaxNode)> = parts
+-            .iter()
+-            .filter(|n| n.kind == SyntaxKind::Argument)
+-            .map(|arg| {
+-                let arg_parts = kids(arg);
+-                if arg_parts.len() >= 3
+-                    && arg_parts[0].kind == SyntaxKind::Name
+-                    && self.text(arg_parts[1].span) == "="
+-                {
+-                    let name = name_text(self.db, arg_parts[0]);
+-                    let value = arg_parts[2..]
+-                        .iter()
+-                        .find(|n| is_expression(n.kind))
+-                        .copied();
+-                    (name, value)
+-                } else {
+-                    let value = arg_parts.iter().find(|n| is_expression(n.kind)).copied();
+-                    (None, value)
+-                }
+-            })
+-            .filter(|(_, value)| value.is_some())
+-            .map(|(name, value)| (name, value.unwrap_or(node)))
+-            .collect();
+-        let Some(callee) = callee else {
++        let Some(selected) = self
++            .program
++            .types
++            .selected_calls
++            .get(&NodeKey::of(node))
++            .cloned()
++        else {
+             return IrExpr::Unsupported {
+                 what: "call".to_string(),
+-                why: "no callee".to_string(),
++                why: "checked selected-call binding is not published".to_string(),
+             };
+         };
+-        // A2b: named arguments lower positionally for builtin
+-        // catalog calls (ordered in `decode_name_call`); `format`
+-        // keeps its locale carve-out, and message/role/derive
+-        // calls keep the loud gap below.
+-        let callee_name = callee_name(self.db, callee);
+-        match callee.kind {
+-            SyntaxKind::NameRef => {
+-                let name = callee_name.unwrap_or_default();
+-                self.decode_name_call(scope, &name, &args, ty, node.span)
+-            }
+-            _ => IrExpr::Unsupported {
+-                what: "call".to_string(),
+-                why: "only plain names are callable in expression position".to_string(),
+-            },
+-        }
+-    }
+-
+-    /// Decode a call with a plain-name callee.
+-    fn decode_name_call(
+-        &mut self,
+-        scope: &Scope,
+-        name: &str,
+-        args: &[(Option<String>, &SyntaxNode)],
+-        ty: &ResolvedType,
+-        span: Span,
+-    ) -> IrExpr {
+-        if name == "format" {
+-            return self.decode_format_call(scope, args, ty, span);
++        let bad_binding = || IrExpr::Unsupported {
++            what: "call".to_string(),
++            why: "checked selected-call slots do not match their owning target".to_string(),
++        };
++        let supplied: Vec<_> = selected.slots.iter().flatten().copied().collect();
++        if supplied.len() != selected.arguments.len()
++            || supplied
++                .iter()
++                .any(|&slot| slot >= selected.arguments.len())
++            || supplied.iter().copied().collect::<HashSet<_>>().len() != supplied.len()
++            || selected
++                .arguments
++                .iter()
++                .any(|key| self.node(key).is_none())
++        {
++            return bad_binding();
+         }
+-        let has_named = args.iter().any(|(arg_name, _)| arg_name.is_some());
+-        if let Some((id, _)) = self.resolve_member(scope.module, name) {
+-            // A2b: only builtin catalog calls positionalize named
+-            // arguments; message/role/derive calls keep the gap.
+-            if has_named {
+-                return IrExpr::Unsupported {
+-                    what: format!("call to {name}"),
+-                    why: "named arguments have no §13 lowering".to_string(),
++        match selected.target {
++            SelectedCallTarget::Builtin { id, overload } => {
++                let Some(entry) = self.catalog.and_then(|catalog| catalog.lookup(&id)) else {
++                    return bad_binding();
+                 };
+-            }
+-            let kind = self
+-                .program
+-                .symbols
+-                .get(id.0 as usize)
+-                .map(|s| s.kind.clone());
+-            match kind {
+-                Some(SymbolKind::Message { .. }) => {
+-                    return self.decode_message_call(scope, id, args, span);
++                let Some(signature) = self
++                    .catalog
++                    .and_then(|catalog| catalog.overloads(&id))
++                    .and_then(|overloads| overloads.get(overload))
++                else {
++                    return bad_binding();
++                };
++                if signature.params.len() != selected.slots.len()
++                    || selected.slots.iter().any(Option::is_none)
++                {
++                    return bad_binding();
+                 }
+-                Some(SymbolKind::Role) => {
+-                    let person = args
++                // Localized format remains the separately gated context/facade
++                // seam. Keep its existing behavior until those owners join.
++                if id == "format"
++                    && signature
++                        .params
+                         .first()
+-                        .map(|(_, value)| Box::new(self.decode_expr(scope, value)));
+-                    return IrExpr::HasRole {
+-                        role: self.canonical(id),
+-                        person,
+-                    };
++                        .is_some_and(|p| p.name == "descriptor")
++                {
++                    let args: Vec<_> = kids(node)
++                        .iter()
++                        .filter(|arg| arg.kind == SyntaxKind::Argument)
++                        .filter_map(|arg| {
++                            let parts = kids(arg);
++                            let named = parts.len() >= 3
++                                && parts[0].kind == SyntaxKind::Name
++                                && self.text(parts[1].span) == "=";
++                            let name = named.then(|| name_text(self.db, parts[0])).flatten();
++                            let value = parts
++                                .iter()
++                                .skip(if named { 2 } else { 0 })
++                                .find(|n| is_expression(n.kind))
++                                .copied()?;
++                            Some((name, value))
++                        })
++                        .collect();
++                    return self.decode_format_call(scope, &args, ty, node.span);
+                 }
+-                Some(
+-                    SymbolKind::Scenario { .. }
+-                    | SymbolKind::CapabilityOp { .. }
+-                    | SymbolKind::CrudOp { .. }
+-                    | SymbolKind::Model { .. }
+-                    | SymbolKind::Contract { .. }
+-                    | SymbolKind::Event { .. },
+-                ) => {
+-                    return IrExpr::Unsupported {
+-                        what: format!("call to `{name}`"),
+-                        why: "operations and nominals are not expression-callable".to_string(),
+-                    };
++                let awaited = entry.effects == Some(Effects::StateRead);
++                self.builtins_seen.push(ReferencedBuiltin {
++                    id: id.clone(),
++                    span: node.span,
++                });
++                self.g13_seen.insert(id.clone());
++                let args = selected
++                    .arguments
++                    .iter()
++                    .map(|key| self.decode_anchored(scope, key, "call argument"))
++                    .collect();
++                Self::selected_call_expr(
++                    IrCallTarget::Builtin { id, awaited },
++                    args,
++                    selected.slots,
++                )
++            }
++            SelectedCallTarget::DeriveFn(id) => {
++                let Some(SymbolKind::DeriveFn { params, .. }) =
++                    self.program.symbols.get(id.0 as usize).map(|s| &s.kind)
++                else {
++                    return bad_binding();
++                };
++                if params.len() != selected.slots.len() {
++                    return bad_binding();
++                }
++                for (param, slot) in params.iter().zip(&selected.slots) {
++                    if slot.is_none()
++                        && self
++                            .param_data(id, *param)
++                            .and_then(|p| p.default)
++                            .is_none()
++                    {
++                        return bad_binding();
++                    }
+                 }
+-                Some(SymbolKind::DeriveFn { .. }) => {
+-                    // Named arguments are rejected above for
+-                    // resolved callees; only positional args
+-                    // arrive here.
+-                    return IrExpr::Call {
+-                        target: IrCallTarget::DeriveFn(self.canonical(id)),
+-                        args: args
+-                            .iter()
+-                            .map(|(_, value)| self.decode_expr(scope, value))
+-                            .collect(),
++                let args = selected
++                    .arguments
++                    .iter()
++                    .map(|key| self.decode_anchored(scope, key, "call argument"))
++                    .collect();
++                Self::selected_call_expr(
++                    IrCallTarget::DeriveFn(self.canonical(id)),
++                    args,
++                    selected.slots,
++                )
++            }
++            SelectedCallTarget::Message(id) => {
++                let Some(data) = self.program.effects.messages.get(&id).cloned() else {
++                    return bad_binding();
++                };
++                if data.params.len() != selected.slots.len() {
++                    return bad_binding();
++                }
++                let args: Vec<_> = selected
++                    .arguments
++                    .iter()
++                    .map(|key| self.decode_anchored(scope, key, "message argument"))
++                    .collect();
++                let mut descriptor = self.decode_message_data(&data);
++                let direct = selected
++                    .slots
++                    .iter()
++                    .enumerate()
++                    .all(|(i, slot)| *slot == Some(i));
++                let mut params = Vec::new();
++                for (param, source) in data.params.iter().zip(selected.slots) {
++                    let name = self.local_name(param.param);
++                    let type_id = self
++                        .program
++                        .types
++                        .symbol_types
++                        .get(&param.param)
++                        .map(|ty| self.type_id(ty))
++                        .unwrap_or_else(|| "unknown".to_string());
++                    let default = if source.is_none() {
++                        let Some(key) = &param.default else {
++                            return bad_binding();
++                        };
++                        Some(self.decode_anchored(
++                            &Scope::module(data.module),
++                            key,
++                            "message parameter default",
++                        ))
++                    } else {
++                        None
+                     };
++                    if direct {
++                        descriptor.params.push(IrMessageParam {
++                            name,
++                            type_id,
++                            value: args[source.expect("direct slots")].clone(),
++                        });
++                    } else {
++                        params.push(IrMessageCallParam {
++                            name,
++                            type_id,
++                            source,
++                            default,
++                        });
++                    }
++                }
++                if direct {
++                    IrExpr::Message(descriptor)
++                } else {
++                    IrExpr::MessageCall {
++                        descriptor,
++                        args,
++                        params,
++                    }
+                 }
+-                _ => {}
+             }
+-        }
+-        // Builtin call: the catalog owns the name when one is loaded;
+-        // without a catalog an undeclared callee can only be a builtin
+-        // (analysis owns typos via `E2001`), verified loud by `E6007`.
+-        let is_builtin = match (&self.catalog, self.resolve_member(scope.module, name)) {
+-            (Some(catalog), _) => catalog.is_builtin(name),
+-            (None, None) => true,
+-            (None, Some(_)) => false,
+-        };
+-        if !is_builtin {
+-            // A2b: named arguments were rejected before target
+-            // classification; keep that message for named calls.
+-            if has_named {
+-                return IrExpr::Unsupported {
+-                    what: format!("call to {name}"),
+-                    why: "named arguments have no §13 lowering".to_string(),
+-                };
++            SelectedCallTarget::Role(id) => {
++                if !matches!(
++                    self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
++                    Some(SymbolKind::Role)
++                ) || selected.slots != [Some(0)]
++                {
++                    return bad_binding();
++                }
++                IrExpr::HasRole {
++                    role: self.canonical(id),
++                    person: Some(Box::new(self.decode_anchored(
++                        scope,
++                        &selected.arguments[0],
++                        "role argument",
++                    ))),
++                }
+             }
+-            return IrExpr::Unsupported {
+-                what: format!("call to `{name}`"),
+-                why: "call target is not a builtin, message or role".to_string(),
+-            };
+-        }
+-        // G12: awaited exactly when the catalog effects are state-read.
+-        // Without a catalog the call is unverifiable (`E6007` fires) and
+-        // lowers synchronously.
+-        let awaited = self
+-            .catalog
+-            .and_then(|catalog| catalog.lookup(name))
+-            .and_then(|entry| entry.effects)
+-            .is_some_and(|effects| effects == Effects::StateRead);
+-        // A2b: named arguments lower positionally in catalog
+-        // signature order; without an orderable signature the loud
+-        // gap stays (analysis owns unknown names via `E3005`).
+-        let ordered: Vec<&SyntaxNode> = if has_named {
+-            let Some(ordered) = self.order_builtin_args(name, args) else {
+-                return IrExpr::Unsupported {
+-                    what: format!("call to {name}"),
+-                    why: "named arguments have no §13 lowering".to_string(),
+-                };
+-            };
+-            ordered
+-        } else {
+-            args.iter().map(|(_, value)| *value).collect()
+-        };
+-        self.builtins_seen.push(ReferencedBuiltin {
+-            id: name.to_string(),
+-            span,
+-        });
+-        self.g13_seen.insert(name.to_string());
+-        IrExpr::Call {
+-            target: IrCallTarget::Builtin {
+-                id: name.to_string(),
+-                awaited,
+-            },
+-            args: ordered
+-                .iter()
+-                .map(|value| self.decode_expr(scope, value))
+-                .collect(),
+         }
+     }
+ 
+-    /// A2b: order builtin call arguments positionally per the
+-    /// catalog signature — positionals fill the next unfilled
+-    /// parameter in order, named fill by name (mirrors analysis
+-    /// `bind_arguments`). `None` when there is no catalog, no
+-    /// arity-matching overload, or an unknown/duplicate name.
+-    fn order_builtin_args<'n>(
+-        &self,
+-        name: &str,
+-        args: &[(Option<String>, &'n SyntaxNode)],
+-    ) -> Option<Vec<&'n SyntaxNode>> {
+-        let overloads = self.catalog?.overloads(name)?;
+-        let overload = overloads.iter().find(|o| o.params.len() == args.len())?;
+-        let mut slots: Vec<Option<&SyntaxNode>> = vec![None; overload.params.len()];
+-        for (arg_name, value) in args {
+-            match arg_name {
+-                None => {
+-                    let next = slots.iter().position(|s| s.is_none())?;
+-                    slots[next] = Some(*value);
+-                }
+-                Some(arg_name) => {
+-                    let idx = overload.params.iter().position(|p| p.name == *arg_name)?;
+-                    if slots[idx].is_some() {
+-                        return None;
+-                    }
+-                    slots[idx] = Some(*value);
+-                }
++    fn selected_call_expr(
++        target: IrCallTarget,
++        args: Vec<TypedExpr>,
++        slots: Vec<Option<usize>>,
++    ) -> IrExpr {
++        if slots.len() == args.len() && slots.iter().enumerate().all(|(i, slot)| *slot == Some(i)) {
++            IrExpr::Call { target, args }
++        } else {
++            IrExpr::BoundCall {
++                target,
++                args,
++                slots,
+             }
+         }
+-        slots.into_iter().collect()
+     }
+ 
+     /// Decode a `format(descriptor, locale?)` call.
+@@ -3007,49 +3042,6 @@ impl<'a> Cx<'a> {
+         IrExpr::Format { descriptor, locale }
+     }
+ 
+-    /// Decode a message call: descriptor plus typed parameter values.
+-    fn decode_message_call(
+-        &mut self,
+-        scope: &Scope,
+-        id: SymbolId,
+-        args: &[(Option<String>, &SyntaxNode)],
+-        span: Span,
+-    ) -> IrExpr {
+-        let data = self.program.effects.messages.get(&id).cloned();
+-        let Some(data) = data else {
+-            return IrExpr::Unsupported {
+-                what: format!("call to {}", self.canonical(id)),
+-                why: "message row is not in the analysis tables".to_string(),
+-            };
+-        };
+-        let mut descriptor = self.decode_message_data(&data);
+-        // Positional fill first, then named (the parser owns order).
+-        let mut positional = args.iter().filter(|(name, _)| name.is_none());
+-        for param in &data.params {
+-            let name = self.local_name(param.param);
+-            let value = args
+-                .iter()
+-                .find(|(arg_name, _)| arg_name.as_deref() == Some(name.as_str()))
+-                .map(|(_, value)| *value)
+-                .or_else(|| positional.next().map(|(_, value)| *value));
+-            let Some(value) = value else { continue };
+-            let type_id = self
+-                .program
+-                .types
+-                .symbol_types
+-                .get(&param.param)
+-                .map(|ty| self.type_id(ty))
+-                .unwrap_or_else(|| "unknown".to_string());
+-            descriptor.params.push(IrMessageParam {
+-                name,
+-                type_id,
+-                value: self.decode_expr(scope, value),
+-            });
+-        }
+-        let _ = span;
+-        IrExpr::Message(descriptor)
+-    }
+-
+     /// Canonical type id for a resolved type (best-effort, total: unknown
+     /// shapes yield `unknown` rather than failing the build).
+     fn type_id(&self, ty: &ResolvedType) -> String {
+@@ -3457,7 +3449,7 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
+     let mut work = vec![expr];
+     while let Some(current) = work.pop() {
+         match &current.expr {
+-            IrExpr::Call { target, args } => {
++            IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                 if matches!(
+                     target,
+                     IrCallTarget::Builtin { awaited: true, .. }
+@@ -3489,6 +3481,10 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
+                 work.extend(query.select.iter().map(|v| v.as_ref()));
+             }
+             IrExpr::Message(message) => work.extend(message.params.iter().map(|p| &p.value)),
++            IrExpr::MessageCall { args, params, .. } => {
++                work.extend(args);
++                work.extend(params.iter().filter_map(|param| param.default.as_ref()));
++            }
+             IrExpr::Format { descriptor, .. } => work.push(descriptor),
+             IrExpr::HasRole { person, .. } => work.extend(person.iter().map(|v| v.as_ref())),
+             IrExpr::Lambda { body, .. } => work.push(body),
+@@ -8845,7 +8841,7 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
+                 collect_s_refs(&base.expr, out);
+             }
+         }
+-        IrExpr::Call { args, .. } => {
++        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
+             for arg in args {
+                 collect_s_refs(&arg.expr, out);
+             }
+@@ -8881,6 +8877,14 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
+             }
+         }
+         IrExpr::DeliveryRead { record, .. } => collect_s_refs(&record.expr, out),
++        IrExpr::MessageCall { args, params, .. } => {
++            for value in args
++                .iter()
++                .chain(params.iter().filter_map(|param| param.default.as_ref()))
++            {
++                collect_s_refs(&value.expr, out);
++            }
++        }
+         IrExpr::Message(message) => {
+             for param in &message.params {
+                 collect_s_refs(&param.value.expr, out);
+diff --git a/compiler/src/codegen/js.rs b/compiler/src/codegen/js.rs
+index ddea4e7e..d58322cb 100644
+--- a/compiler/src/codegen/js.rs
++++ b/compiler/src/codegen/js.rs
+@@ -1723,6 +1723,11 @@ impl<'a> Emitter<'a> {
+                 }
+             }
+             IrExpr::Call { target, args } => self.lower_call(target, args, span),
++            IrExpr::BoundCall {
++                target,
++                args,
++                slots,
++            } => self.lower_bound_call(target, args, slots, span),
+             IrExpr::Binary { .. } => self.lower_binary_tree(expr),
+             IrExpr::Unary { op, operand } => self.lower_unary(*op, operand, span),
+             IrExpr::Array(items) => {
+@@ -1778,6 +1783,11 @@ impl<'a> Emitter<'a> {
+                 )
+             }
+             IrExpr::Message(message) => self.lower_message(message),
++            IrExpr::MessageCall {
++                descriptor,
++                args,
++                params,
++            } => self.lower_message_call(descriptor, args, params),
+             IrExpr::Format { descriptor, locale } => {
+                 if self.in_hook() {
+                     return self.hook_gap(
+@@ -1834,23 +1844,64 @@ impl<'a> Emitter<'a> {
+     /// from their owning package module as `await op(c, ...)`. `trim/1`
+     /// lowers to the `<arg>.trim()` method per the oracle corpus.
+     fn lower_call(&mut self, target: &IrCallTarget, args: &[TypedExpr], span: Span) -> String {
++        if matches!(target, IrCallTarget::Builtin { id, .. } if id == "trim") && args.len() == 1 {
++            let arg = self.lower_expr(&args[0]);
++            return format!("{}.trim()", parenthesize_operand(&arg, &args[0].expr));
++        }
++        let parts: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
++        self.lower_call_rendered(target, &parts, span, true)
++    }
++
++    /// Source values evaluate left to right outside a synchronous capture.
++    /// Await the target result outside that capture; reordering adds no Promise.
++    fn lower_bound_call(
++        &mut self,
++        target: &IrCallTarget,
++        args: &[TypedExpr],
++        slots: &[Option<usize>],
++        span: Span,
++    ) -> String {
++        let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
++        let capture = binding_ident("a", &self.binding_seq.to_string());
++        self.binding_seq += 1;
++        let ordered: Vec<_> = slots
++            .iter()
++            .map(|slot| match slot {
++                Some(index) => format!("{capture}[{index}]"),
++                None => "void 0".to_string(),
++            })
++            .collect();
++        let call = self.lower_call_rendered(target, &ordered, span, false);
++        let awaited = matches!(
++            target,
++            IrCallTarget::Builtin { awaited: true, .. }
++                | IrCallTarget::DeriveFn(_)
++                | IrCallTarget::CapabilityOp(_)
++        );
++        format!(
++            "{}(({capture})=>{call})([{}])",
++            if awaited { "await " } else { "" },
++            values.join(",")
++        )
++    }
++
++    fn lower_call_rendered(
++        &mut self,
++        target: &IrCallTarget,
++        parts: &[String],
++        span: Span,
++        await_result: bool,
++    ) -> String {
+         match target {
+             IrCallTarget::Builtin { id, awaited } => {
+-                // `trim(value)` is the one method-shaped builtin in the
+-                // oracle corpus (`x.trim()`); every other builtin is a
+-                // plain function call.
+-                if id == "trim" && args.len() == 1 {
+-                    let arg = self.lower_expr(&args[0]);
+-                    return format!("{}.trim()", parenthesize_operand(&arg, &args[0].expr));
+-                }
+                 self.stdlib.insert(id.clone());
+                 self.builtins.push(ReferencedBuiltin {
+                     id: id.clone(),
+                     span,
+                 });
+-                let parts: Vec<String> = args.iter().map(|a| self.lower_expr(a)).collect();
++                let parts = parts.to_vec();
+                 let call = format!("{}({})", id, parts.join(","));
+-                if *awaited {
++                if *awaited && await_result {
+                     format!("await {call}")
+                 } else {
+                     call
+@@ -1875,10 +1926,15 @@ impl<'a> Emitter<'a> {
+                         return self.throw_expr(&format!("unknown derive {canonical}"));
+                     }
+                 };
+-                let parts: Vec<String> = args.iter().map(|a| self.lower_expr(a)).collect();
++                let parts = parts.to_vec();
+                 let mut all = vec!["c".to_string()];
+                 all.extend(parts);
+-                format!("await {}({})", name, all.join(","))
++                format!(
++                    "{}{}({})",
++                    if await_result { "await " } else { "" },
++                    name,
++                    all.join(",")
++                )
+             }
+             IrCallTarget::CapabilityOp(canonical) => {
+                 if self.in_hook() {
+@@ -1907,10 +1963,15 @@ impl<'a> Emitter<'a> {
+                 };
+                 let path = format!("./{}", module_path(&module));
+                 self.relative.entry(path).or_default().insert(local.clone());
+-                let parts: Vec<String> = args.iter().map(|a| self.lower_expr(a)).collect();
++                let parts = parts.to_vec();
+                 let mut all = vec!["c".to_string()];
+                 all.extend(parts);
+-                format!("await {}({})", local, all.join(","))
++                format!(
++                    "{}{}({})",
++                    if await_result { "await " } else { "" },
++                    local,
++                    all.join(",")
++                )
+             }
+         }
+     }
+@@ -2669,6 +2730,53 @@ impl<'a> Emitter<'a> {
+         }
+     }
+ 
++    fn lower_message_call(
++        &mut self,
++        descriptor: &IrMessage,
++        args: &[TypedExpr],
++        params: &[crate::codegen::ir::IrMessageCallParam],
++    ) -> String {
++        let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
++        let capture = binding_ident("a", &self.binding_seq.to_string());
++        self.binding_seq += 1;
++        self.enter_scope();
++        let mut declarations = String::new();
++        let mut bound = descriptor.clone();
++        let mut awaited = false;
++        for param in params {
++            let value = match param.source {
++                Some(index) => format!("{capture}[{index}]"),
++                None => {
++                    let default = param.default.as_ref().expect("checked omitted default");
++                    awaited |= expr_uses_async(default);
++                    self.lower_expr(default)
++                }
++            };
++            let name = self.bind(&param.name);
++            declarations.push_str(&format!("const {name}={value};"));
++            bound.params.push(crate::codegen::ir::IrMessageParam {
++                name: param.name.clone(),
++                type_id: param.type_id.clone(),
++                value: TypedExpr::new(
++                    IrExpr::Name(name),
++                    ResolvedType::Unknown,
++                    args.first()
++                        .map(|arg| arg.span)
++                        .or_else(|| param.default.as_ref().map(|value| value.span))
++                        .unwrap_or(Span::new(crate::source::SourceId(0), 0, 0)),
++                ),
++            });
++        }
++        let body = self.lower_message(&bound);
++        self.exit_scope();
++        format!(
++            "{}({}({capture})=>{{{declarations}return {body};}})([{}])",
++            if awaited { "await " } else { "" },
++            if awaited { "async" } else { "" },
++            values.join(",")
++        )
++    }
++
+     /// Lower a display message: `message(source, {locales})`, or the
+     /// three-argument parameterized form preserving typed parameters.
+     pub fn lower_message(&mut self, message: &IrMessage) -> String {
+@@ -3571,7 +3679,9 @@ fn page_uses_preferences(page: &IrPage) -> bool {
+         match &expr.expr {
+             IrExpr::Name(name) => name == "preferences",
+             IrExpr::Member { base, .. } => expr_uses(base),
+-            IrExpr::Call { args, .. } => args.iter().any(expr_uses),
++            IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
++                args.iter().any(expr_uses)
++            }
+             IrExpr::Binary { left, right, .. } => expr_uses(left) || expr_uses(right),
+             IrExpr::Unary { operand, .. } => expr_uses(operand),
+             IrExpr::Array(items) => items.iter().any(expr_uses),
+@@ -3590,6 +3700,10 @@ fn page_uses_preferences(page: &IrPage) -> bool {
+             }
+             IrExpr::DeliveryRead { record, .. } => expr_uses(record),
+             IrExpr::Message(message) => message.params.iter().any(|p| expr_uses(&p.value)),
++            IrExpr::MessageCall { args, params, .. } => args
++                .iter()
++                .chain(params.iter().filter_map(|p| p.default.as_ref()))
++                .any(expr_uses),
+             IrExpr::Format { descriptor, .. } => expr_uses(descriptor),
+             IrExpr::HasRole { person, .. } => person.as_ref().is_some_and(|p| expr_uses(p)),
+             IrExpr::Lambda { body, .. } => expr_uses(body),
+@@ -5832,12 +5946,28 @@ impl<'a> Emitter<'a> {
+             let export = if item.exported { "export " } else { "" };
+             match expr {
+                 Some(expr) => {
++                    let mut defaults = String::new();
++                    for (id, name) in params.iter().zip(signature.iter().skip(1)) {
++                        if let IrItemKind::Param {
++                            default: Some(default),
++                            ..
++                        } = &self.ir.items[id.0 as usize].kind.clone()
++                        {
++                            let value = match default {
++                                IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
++                                    self.lower_expr(expr)
++                                }
++                            };
++                            defaults
++                                .push_str(&format!("if({name}===undefined){{{name}={value};}}"));
++                        }
++                    }
+                     let body_text = self.lower_expr(expr);
+                     out.push(
+                         item.span,
+                         Some(item.canonical.clone()),
+                         &format!(
+-                            "{export}async function {name}({}){{return {body_text};}}",
++                            "{export}async function {name}({}){{{defaults}return {body_text};}}",
+                             signature.join(",")
+                         ),
+                     );
+diff --git a/compiler/tests/codegen.rs b/compiler/tests/codegen.rs
+index 905b886c..78b50b64 100644
+--- a/compiler/tests/codegen.rs
++++ b/compiler/tests/codegen.rs
+@@ -636,10 +636,26 @@ fn golden_teamtasks_structure() {
+         "selectors"
+     );
+     assert!(
+-        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>format("),
+-        "observations"
++        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(() => { throw new Error(\"call has no lowering\"); })()"),
++        "unchecked observation stays loud:\n{suite}"
++    );
++    let missing: Vec<_> = diags
++        .iter()
++        .filter(|d| {
++            d.code == "E6008"
++                && d.message == "cannot lower call: checked selected-call binding is not published"
++        })
++        .collect();
++    assert_eq!(
++        missing.len(),
++        1,
++        "untyped BDD format observation: {diags:?}"
++    );
++    let span = missing[0].primary;
++    assert_eq!(
++        &db.get(id).unwrap().text[span.start as usize..span.end as usize],
++        "format(task_count(count(Todo)),locale=\"nl\")"
+     );
+-    assert!(suite.contains("{locale:\"nl\"})"), "format locale");
+     assert!(
+         suite.contains("values:async(c,s)=>([\"members\",true,1n])"),
+         "first row values:\n{suite}"
+@@ -672,7 +688,7 @@ fn golden_teamtasks_structure() {
+     }
+     // Codegen diagnostics: zero E6006 (every emission-needed position
+     // is checked and bridged), zero E6007 (the golden catalog verifies
+-    // every referenced builtin), and two E6008 for catalog UI
++    // every referenced builtin), and three E6008: the untyped BDD call and catalog UI
+     // factories with no §13 lowering (`tooltip`/`collapse`;
+     // `breadcrumbs`/`input`/`textarea`/`pagination` lower now, and
+     // A2b closed `delete`).
+@@ -701,7 +717,7 @@ fn golden_teamtasks_structure() {
+     );
+     assert_eq!(
+         diags.iter().filter(|d| d.code == "E6008").count(),
+-        2,
++        3,
+         "unsupported count"
+     );
+     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
+@@ -728,8 +744,8 @@ fn golden_teamtasks_structure() {
+ 
+ /// G12: `awaited` follows the catalog `Effects` shape exactly — a
+ /// builtin call awaits if and only if its catalog effects are
+-/// `state-read`. Without a catalog the call is unverifiable (`E6007`)
+-/// and lowers synchronously.
++/// `state-read`. Without a catalog there is no selected overload; the
++/// explicit incomplete emitter preserves an E6008 throwing stub.
+ #[test]
+ fn awaited_follows_catalog_effects() {
+     let (db, id) = load_example("TeamTasks.can");
+@@ -755,22 +771,25 @@ fn awaited_follows_catalog_effects() {
+         diags.iter().all(|d| d.code != "E6007"),
+         "catalog verifies every builtin"
+     );
+-    // Without a catalog the same call lowers synchronously and loud.
++    // Without a catalog no selected binding exists; lowering fails closed.
+     let (program, result) = check_example(&db, id, None);
+     let (artifact, diags) = emit_test_only(&program, &db, &result, None);
+     assert!(
+         !artifact.modules[0].js.contains("await count("),
+-        "unverifiable calls stay sync"
++        "unchecked target is never guessed"
+     );
+     assert!(
+-        artifact.modules[0].js.contains("count("),
+-        "call still emits"
++        artifact.modules[0]
++            .js
++            .contains("(() => { throw new Error(\"call has no lowering\"); })()"),
++        "unchecked call emits a throwing stub"
+     );
+     assert!(
+-        diags
+-            .iter()
+-            .any(|d| d.code == "E6007" && d.message.contains("'count'")),
+-        "unverifiable count is a loud E6007"
++        diags.iter().any(|d| d.code == "E6008"
++            && d.message == "cannot lower call: checked selected-call binding is not published"
++            && &db.get(id).unwrap().text[d.primary.start as usize..d.primary.end as usize]
++                == "count(Todo)"),
++        "unchecked count is a loud E6008 at the owning call"
+     );
+     let _ = std::fs::remove_file(&catalog_path);
+ }
+@@ -1159,8 +1178,8 @@ fn golden_expenseflow_structure() {
+         "submit inputs"
+     );
+     assert!(
+-        submit.contains("async(c,s)=>hasRole(c,\"expenses.reviewer\",s.reviewer_one)"),
+-        "role predicate observation"
++        submit.contains("async(c,s)=>(() => { throw new Error(\"call has no lowering\"); })()"),
++        "unchecked role observation stays loud:\n{submit}"
+     );
+     assert!(
+         submit.contains("async(c,s)=>!same(s.reviewer_one,s.reviewer_two)"),
+@@ -1185,12 +1204,12 @@ fn golden_expenseflow_structure() {
+     // caller/inputs/request/error, `let` bindings through `b`, and
+     // assertions with §13 type ids.
+     assert!(
+-        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:money(25n,\"EUR\")})}"),
+-        "sequence create call"
++        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:(() => { throw new Error(\"call has no lowering\"); })()})}"),
++        "sequence create keeps unchecked money stub"
+     );
+     assert!(
+-        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>(await first(await records(c,\"expenses.Expense\",{where:($can$l$303a726f77)=>same($can$l$303a726f77.submitted_by,other)})))}"),
+-        "sequence binding"
++        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>((() => { throw new Error(\"call has no lowering\"); })())}"),
++        "untyped sequence binding keeps missing-fact stub"
+     );
+     assert!(
+         approve.contains("{operation:\"expenses.submit\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({expense:b.draft_claim})}"),
+@@ -1203,12 +1222,12 @@ fn golden_expenseflow_structure() {
+         "sequence request override with exact error"
+     );
+     assert!(
+-        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim?.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"expenses.Expense.status\"]}"),
+-        "sequence enum assertion"
++        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"unknown\"]}"),
++        "untyped sequence assertion keeps unknown metadata"
+     );
+     assert!(
+-        approve.contains("types:[\"expenses.Expense.status\",\"user?\"]"),
+-        "sequence tuple assertion types"
++        approve.contains("types:[\"unknown\",\"unknown\"]"),
++        "untyped sequence tuple metadata stays unknown"
+     );
+     assert!(
+         approve.contains("dependencies:[$can$f$72657669657765725f6f6e65,$can$f$72657669657765725f74776f],sequence:["),
+@@ -1258,8 +1277,9 @@ fn golden_expenseflow_structure() {
+     }
+     // Zero E6006 (tables and the approve sequence all bridge), zero
+     // E6007 (the golden catalog verifies every referenced builtin),
+-    // zero E6008 (every catalog factory, gate, slot and the value
+-    // query lower).
++    // Sixteen E6008 are confined to unchecked BDD calls and the assertion
++    // types that depend on their untyped lets. This partial artifact makes
++    // no runtime claim; S9-Q07 must publish those owner facts and types.
+     assert_eq!(
+         diags.iter().filter(|d| d.code == "E6006").count(),
+         0,
+@@ -1276,9 +1296,74 @@ fn golden_expenseflow_structure() {
+     );
+     assert_eq!(
+         diags.iter().filter(|d| d.code == "E6008").count(),
+-        0,
++        16,
+         "unsupported count: {diags:?}"
+     );
++    let missing: Vec<_> = diags
++        .iter()
++        .filter(|d| {
++            d.message == "cannot lower call: checked selected-call binding is not published"
++        })
++        .map(|d| {
++            assert_eq!(d.code, "E6008");
++            assert_eq!(d.primary.file, id);
++            (
++                d.primary.start,
++                d.primary.end,
++                db.get(id).unwrap().text[d.primary.start as usize..d.primary.end as usize]
++                    .to_string(),
++            )
++        })
++        .collect();
++    assert_eq!(
++        missing,
++        vec![
++            (2179, 2201, "reviewer(reviewer_one)".into()),
++            (2202, 2224, "reviewer(reviewer_two)".into()),
++            (3347, 3369, "reviewer(reviewer_one)".into()),
++            (3370, 3392, "reviewer(reviewer_two)".into()),
++            (3762, 3777, "money(25,\"EUR\")".into()),
++            (
++                3809,
++                3864,
++                "first(Expense as claim where claim.submitted_by==other)".into()
++            ),
++            (
++                4015,
++                4069,
++                "first(Expense as claim where claim.id==draft_claim.id)".into()
++            ),
++            (
++                4468,
++                4522,
++                "first(Expense as claim where claim.id==draft_claim.id)".into()
++            ),
++            (7529, 7544, "money(25,\"EUR\")".into()),
++            (7563, 7577, "money(0,\"EUR\")".into()),
++        ]
++    );
++    let downstream: Vec<_> = diags
++        .iter()
++        .filter(|d| {
++            d.message == "cannot lower sequence assertion: observation type is not resolvable"
++        })
++        .map(|d| {
++            assert_eq!(d.code, "E6008");
++            assert_eq!(d.primary.file, id);
++            (d.primary.start, d.primary.end)
++        })
++        .collect();
++    assert_eq!(
++        downstream,
++        vec![
++            (4104, 4132),
++            (4218, 4246),
++            (4556, 4583),
++            (4584, 4609),
++            (4715, 4742),
++            (4743, 4768)
++        ]
++    );
+     if let Some(node) = find_node() {
+         for module in &artifact.modules {
+             node_check(&node, &module.js, &module.path);
+@@ -7450,7 +7535,8 @@ fn a2a_action_external_targets_lower_to_schema() {
+ /// A2b named→positional: builtin calls with named arguments lower
+ /// positionally in catalog signature order (`money(minor,currency)`
+ /// here; the corpus `fold=` 4th slot takes the same path), whether
+-/// fully named out of order or mixed positional + named.
++/// fully named out of order or mixed positional + named. Reordering
++/// captures supplied values once in source order before applying slots.
+ #[test]
+ fn a2b_named_args_lower_positionally_in_signature_order() {
+     let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do\n    let a = money(currency=\"EUR\", minor=25)\n    let b = money(30, currency=\"USD\")\n Then\n";
+@@ -7461,8 +7547,8 @@ fn a2b_named_args_lower_positionally_in_signature_order() {
+     );
+     let js = &artifact.modules[0].js;
+     assert!(
+-        js.contains("money(25n,\"EUR\")"),
+-        "out-of-order named args reorder:\n{js}"
++        js.contains("(($can$a$30)=>money($can$a$30[1],$can$a$30[0]))([\"EUR\",25n])"),
++        "out-of-order named args capture source order once:\n{js}"
+     );
+     assert!(
+         js.contains("money(30n,\"USD\")"),

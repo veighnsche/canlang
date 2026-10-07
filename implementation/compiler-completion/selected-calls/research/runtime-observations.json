@@ -1,0 +1,102 @@
+{
+  "scope": "Actual production CLI artifacts and actual installed public exports; no installed facade mutation or mocked imports. Tagged values carrier cases are direct owner controls only.",
+  "observations": [
+    {
+      "id": "production-plain-positional",
+      "success": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "format needs a text template or a message descriptor"
+      }
+    },
+    {
+      "id": "production-message-positional",
+      "success": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "format needs a text template or a message descriptor"
+      }
+    },
+    {
+      "id": "production-message-dynamic",
+      "success": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "format needs a text template or a message descriptor"
+      }
+    },
+    {
+      "id": "production-message-param-default",
+      "success": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "format needs a text template or a message descriptor"
+      }
+    },
+    {
+      "id": "production-derive-default",
+      "success": true,
+      "resultKind": "undefined"
+    },
+    {
+      "id": "actual-plain-control",
+      "success": true,
+      "value": "Hi Bo"
+    },
+    {
+      "id": "actual-values-descriptor-control",
+      "success": true,
+      "value": {
+        "text": "Hoi",
+        "locale": "nl"
+      }
+    },
+    {
+      "id": "actual-values-descriptor-no-default",
+      "success": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "formatMessage appDefault must be text"
+      }
+    },
+    {
+      "id": "actual-ui-descriptor-with-options",
+      "success": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "format needs a text template or a message descriptor"
+      }
+    },
+    {
+      "id": "values-descriptor-url-param",
+      "success": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param u must be {type, value}"
+      }
+    },
+    {
+      "id": "values-tagged-date-control",
+      "success": true,
+      "value": {
+        "text": "Jan 1, 1",
+        "locale": "en"
+      }
+    },
+    {
+      "id": "values-tagged-datetime-control",
+      "success": true,
+      "value": {
+        "text": "Jan 1, 2026",
+        "locale": "en"
+      }
+    }
+  ]
+}

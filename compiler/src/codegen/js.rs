@@ -1723,6 +1723,11 @@ impl<'a> Emitter<'a> {
                 }
             }
             IrExpr::Call { target, args } => self.lower_call(target, args, span),
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots,
+            } => self.lower_bound_call(target, args, slots, span),
             IrExpr::Binary { .. } => self.lower_binary_tree(expr),
             IrExpr::Unary { op, operand } => self.lower_unary(*op, operand, span),
             IrExpr::Array(items) => {
@@ -1778,6 +1783,11 @@ impl<'a> Emitter<'a> {
                 )
             }
             IrExpr::Message(message) => self.lower_message(message),
+            IrExpr::MessageCall {
+                descriptor,
+                args,
+                params,
+            } => self.lower_message_call(descriptor, args, params),
             IrExpr::Format { descriptor, locale } => {
                 if self.in_hook() {
                     return self.hook_gap(
@@ -1834,23 +1844,64 @@ impl<'a> Emitter<'a> {
     /// from their owning package module as `await op(c, ...)`. `trim/1`
     /// lowers to the `<arg>.trim()` method per the oracle corpus.
     fn lower_call(&mut self, target: &IrCallTarget, args: &[TypedExpr], span: Span) -> String {
+        if matches!(target, IrCallTarget::Builtin { id, .. } if id == "trim") && args.len() == 1 {
+            let arg = self.lower_expr(&args[0]);
+            return format!("{}.trim()", parenthesize_operand(&arg, &args[0].expr));
+        }
+        let parts: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
+        self.lower_call_rendered(target, &parts, span, true)
+    }
+
+    /// Source values evaluate left to right outside a synchronous capture.
+    /// Await the target result outside that capture; reordering adds no Promise.
+    fn lower_bound_call(
+        &mut self,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        slots: &[Option<usize>],
+        span: Span,
+    ) -> String {
+        let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
+        let capture = binding_ident("a", &self.binding_seq.to_string());
+        self.binding_seq += 1;
+        let ordered: Vec<_> = slots
+            .iter()
+            .map(|slot| match slot {
+                Some(index) => format!("{capture}[{index}]"),
+                None => "void 0".to_string(),
+            })
+            .collect();
+        let call = self.lower_call_rendered(target, &ordered, span, false);
+        let awaited = matches!(
+            target,
+            IrCallTarget::Builtin { awaited: true, .. }
+                | IrCallTarget::DeriveFn(_)
+                | IrCallTarget::CapabilityOp(_)
+        );
+        format!(
+            "{}(({capture})=>{call})([{}])",
+            if awaited { "await " } else { "" },
+            values.join(",")
+        )
+    }
+
+    fn lower_call_rendered(
+        &mut self,
+        target: &IrCallTarget,
+        parts: &[String],
+        span: Span,
+        await_result: bool,
+    ) -> String {
         match target {
             IrCallTarget::Builtin { id, awaited } => {
-                // `trim(value)` is the one method-shaped builtin in the
-                // oracle corpus (`x.trim()`); every other builtin is a
-                // plain function call.
-                if id == "trim" && args.len() == 1 {
-                    let arg = self.lower_expr(&args[0]);
-                    return format!("{}.trim()", parenthesize_operand(&arg, &args[0].expr));
-                }
                 self.stdlib.insert(id.clone());
                 self.builtins.push(ReferencedBuiltin {
                     id: id.clone(),
                     span,
                 });
-                let parts: Vec<String> = args.iter().map(|a| self.lower_expr(a)).collect();
+                let parts = parts.to_vec();
                 let call = format!("{}({})", id, parts.join(","));
-                if *awaited {
+                if *awaited && await_result {
                     format!("await {call}")
                 } else {
                     call
@@ -1875,10 +1926,15 @@ impl<'a> Emitter<'a> {
                         return self.throw_expr(&format!("unknown derive {canonical}"));
                     }
                 };
-                let parts: Vec<String> = args.iter().map(|a| self.lower_expr(a)).collect();
+                let parts = parts.to_vec();
                 let mut all = vec!["c".to_string()];
                 all.extend(parts);
-                format!("await {}({})", name, all.join(","))
+                format!(
+                    "{}{}({})",
+                    if await_result { "await " } else { "" },
+                    name,
+                    all.join(",")
+                )
             }
             IrCallTarget::CapabilityOp(canonical) => {
                 if self.in_hook() {
@@ -1907,10 +1963,15 @@ impl<'a> Emitter<'a> {
                 };
                 let path = format!("./{}", module_path(&module));
                 self.relative.entry(path).or_default().insert(local.clone());
-                let parts: Vec<String> = args.iter().map(|a| self.lower_expr(a)).collect();
+                let parts = parts.to_vec();
                 let mut all = vec!["c".to_string()];
                 all.extend(parts);
-                format!("await {}({})", local, all.join(","))
+                format!(
+                    "{}{}({})",
+                    if await_result { "await " } else { "" },
+                    local,
+                    all.join(",")
+                )
             }
         }
     }
@@ -2667,6 +2728,53 @@ impl<'a> Emitter<'a> {
                 format!("{prefix}(c)=>{body}")
             }
         }
+    }
+
+    fn lower_message_call(
+        &mut self,
+        descriptor: &IrMessage,
+        args: &[TypedExpr],
+        params: &[crate::codegen::ir::IrMessageCallParam],
+    ) -> String {
+        let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
+        let capture = binding_ident("a", &self.binding_seq.to_string());
+        self.binding_seq += 1;
+        self.enter_scope();
+        let mut declarations = String::new();
+        let mut bound = descriptor.clone();
+        let mut awaited = false;
+        for param in params {
+            let value = match param.source {
+                Some(index) => format!("{capture}[{index}]"),
+                None => {
+                    let default = param.default.as_ref().expect("checked omitted default");
+                    awaited |= expr_uses_async(default);
+                    self.lower_expr(default)
+                }
+            };
+            let name = self.bind(&param.name);
+            declarations.push_str(&format!("const {name}={value};"));
+            bound.params.push(crate::codegen::ir::IrMessageParam {
+                name: param.name.clone(),
+                type_id: param.type_id.clone(),
+                value: TypedExpr::new(
+                    IrExpr::Name(name),
+                    ResolvedType::Unknown,
+                    args.first()
+                        .map(|arg| arg.span)
+                        .or_else(|| param.default.as_ref().map(|value| value.span))
+                        .unwrap_or(Span::new(crate::source::SourceId(0), 0, 0)),
+                ),
+            });
+        }
+        let body = self.lower_message(&bound);
+        self.exit_scope();
+        format!(
+            "{}({}({capture})=>{{{declarations}return {body};}})([{}])",
+            if awaited { "await " } else { "" },
+            if awaited { "async" } else { "" },
+            values.join(",")
+        )
     }
 
     /// Lower a display message: `message(source, {locales})`, or the
@@ -3571,7 +3679,9 @@ fn page_uses_preferences(page: &IrPage) -> bool {
         match &expr.expr {
             IrExpr::Name(name) => name == "preferences",
             IrExpr::Member { base, .. } => expr_uses(base),
-            IrExpr::Call { args, .. } => args.iter().any(expr_uses),
+            IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
+                args.iter().any(expr_uses)
+            }
             IrExpr::Binary { left, right, .. } => expr_uses(left) || expr_uses(right),
             IrExpr::Unary { operand, .. } => expr_uses(operand),
             IrExpr::Array(items) => items.iter().any(expr_uses),
@@ -3590,6 +3700,10 @@ fn page_uses_preferences(page: &IrPage) -> bool {
             }
             IrExpr::DeliveryRead { record, .. } => expr_uses(record),
             IrExpr::Message(message) => message.params.iter().any(|p| expr_uses(&p.value)),
+            IrExpr::MessageCall { args, params, .. } => args
+                .iter()
+                .chain(params.iter().filter_map(|p| p.default.as_ref()))
+                .any(expr_uses),
             IrExpr::Format { descriptor, .. } => expr_uses(descriptor),
             IrExpr::HasRole { person, .. } => person.as_ref().is_some_and(|p| expr_uses(p)),
             IrExpr::Lambda { body, .. } => expr_uses(body),
@@ -5832,12 +5946,28 @@ impl<'a> Emitter<'a> {
             let export = if item.exported { "export " } else { "" };
             match expr {
                 Some(expr) => {
+                    let mut defaults = String::new();
+                    for (id, name) in params.iter().zip(signature.iter().skip(1)) {
+                        if let IrItemKind::Param {
+                            default: Some(default),
+                            ..
+                        } = &self.ir.items[id.0 as usize].kind.clone()
+                        {
+                            let value = match default {
+                                IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
+                                    self.lower_expr(expr)
+                                }
+                            };
+                            defaults
+                                .push_str(&format!("if({name}===undefined){{{name}={value};}}"));
+                        }
+                    }
                     let body_text = self.lower_expr(expr);
                     out.push(
                         item.span,
                         Some(item.canonical.clone()),
                         &format!(
-                            "{export}async function {name}({}){{return {body_text};}}",
+                            "{export}async function {name}({}){{{defaults}return {body_text};}}",
                             signature.join(",")
                         ),
                     );

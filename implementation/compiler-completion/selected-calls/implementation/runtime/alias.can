@@ -1,0 +1,17 @@
+app Consumer
+use Provider {take as alias,m as notice}
+Given
+ derive word():text = "CONSUMER"
+ derive g():text = alias(b="B",a="A")
+ derive owner_default():text = alias(b="B")
+ derive descriptor():notice = notice(b="B")
+ derive msg():int = count([notice(b="B")])
+When
+Then
+package Provider
+ Given
+  derive word():text = "D"
+  export derive take(a:text=word(),b:text=a):text = format("{a}|{b}",{a=a,b=b})
+  export message m(a:text=word(),b:text=a)="{a}|{b}"@{}
+ When
+ Then

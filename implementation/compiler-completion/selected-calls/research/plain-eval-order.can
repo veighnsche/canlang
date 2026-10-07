@@ -1,0 +1,7 @@
+app T
+Given
+ derive a():text = "A"
+ derive b():text = "B"
+ derive g():text = format(values={n=b()},template=a())
+When
+Then

@@ -1,0 +1,1 @@
+{"saved": "implementation/compiler-completion/selected-calls/format-context-policy/jev-response-1.json", "model": "jev-1.13.0", "answers": {"format_context": {"type": "choice", "choice": "handler_scope", "confidence": 0.93, "probabilities": {"handler_scope": 0.95, "canonical_context": 0.05, "bound_factory": 0.0}}}, "usage": {"input_tokens": 718, "output_tokens": 43}}

@@ -1,0 +1,14 @@
+{
+  "compiler/src/analysis/types.rs": "3e25415436f61cecca33b263b7232f646332f40fa3e87fabf080930038d0ff07",
+  "compiler/src/codegen/ir.rs": "2644cb16e84d46c90f01f88d8a1a7cc8da4ac5a490ee7d64bad007878d17bb04",
+  "compiler/src/codegen/js.rs": "ed06577e463748474119a0e8d5714953257163842012047bc38d3a2af27247ed",
+  "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+  "packages/values/src/locale.ts": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e",
+  "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+  "packages/ui/src/messages.ts": "d731b8a2b2cd57d03be0a8f3b12c55e48cdcac498eb167b5f2a0707e360eeac5",
+  "packages/stdlib/src/index.ts": "d2820de7d5d2b24fb549e4163fe253bc0dd7dc13799b1e4f9307f5ede7ba775c",
+  "packages/contracts/src/state.ts": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+  "packages/contracts/src/presentation.ts": "8c0a790f53f463e0097443f941994a0a0b3fa450e7393fd7fa4e344e5258a507",
+  "packages/cloudflare/src/worker/assembly.ts": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11"
+}

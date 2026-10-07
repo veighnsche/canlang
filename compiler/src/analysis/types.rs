@@ -372,9 +372,34 @@ fn record_name(tables: &ResolveTables, module: ModuleId, id: SymbolId) -> String
     }
 }
 
-/// Types per symbol and per typed CST node.
+/// Checked expression-call owner.
+#[derive(Debug, Clone)]
+pub enum SelectedCallTarget {
+    /// The winning overload in the cohort-owned producer catalog.
+    Builtin {
+        id: String,
+        overload: usize,
+    },
+    DeriveFn(SymbolId),
+    Message(SymbolId),
+    Role(SymbolId),
+}
+
+/// One checked call binding. Slots are in declaration order; supplied
+/// indexes refer to `arguments` in source order. `None` is an omitted
+/// declaration default, never a catalog default or an explicit null.
+#[derive(Debug, Clone)]
+pub struct SelectedCall {
+    pub target: SelectedCallTarget,
+    pub arguments: Vec<NodeKey>,
+    pub slots: Vec<Option<usize>>,
+}
+
+/// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Selected call authority consumed by IR without rebinding arguments.
+    pub selected_calls: HashMap<NodeKey, SelectedCall>,
     /// Name references with a lexical value binding. Retained for IR so
     /// enum-valued locals are not reconstructed as case spellings.
     pub bound_names: HashSet<NodeKey>,
@@ -13627,18 +13652,20 @@ impl<'a> Typer<'a> {
             // their `nonempty`/`ordered` twins, which would be dead under
             // first-match (every nonempty domain also inhabits the
             // general shape). Ties keep catalog order.
-            let mut best: Option<(&SigOverload, ResolvedType, usize, Trial)> = None;
-            for overload in &overloads {
+            let mut best: Option<(usize, ResolvedType, usize, Trial, Vec<usize>)> = None;
+            for (index, overload) in overloads.iter().enumerate() {
                 let mut trial = Trial::default();
-                if let Some(result) = self.try_overload(cx, overload, args, &typed, &mut trial) {
+                if let Some((result, slots)) =
+                    self.try_overload(cx, overload, args, &typed, &mut trial)
+                {
                     let score: usize = overload
                         .params
                         .iter()
                         .map(|param| Self::overload_specificity_count(&param.ty))
                         .sum();
-                    let replace = best.as_ref().is_none_or(|(_, _, held, _)| score > *held);
+                    let replace = best.as_ref().is_none_or(|(_, _, held, _, _)| score > *held);
                     if replace {
-                        best = Some((overload, result, score, trial));
+                        best = Some((index, result, score, trial, slots));
                     }
                     continue;
                 }
@@ -13649,12 +13676,32 @@ impl<'a> Typer<'a> {
                     cases_fail = trial.cases_fail;
                 }
             }
-            if let Some((overload, result, _, trial)) = best {
+            if let Some((index, result, _, trial, slots)) = best {
                 for (key, ty) in &trial.claimed {
                     self.types.resolved_cases.insert(*key);
                     self.types.node_types.insert(*key, ty.clone());
                 }
-                return self.finish_builtin_call(cx, overload, id, args, &typed, result);
+                self.types.selected_calls.insert(
+                    NodeKey::of(node),
+                    SelectedCall {
+                        target: SelectedCallTarget::Builtin {
+                            id: id.to_string(),
+                            overload: index,
+                        },
+                        arguments: args.iter().map(|arg| NodeKey::of(arg.value)).collect(),
+                        slots: slots.iter().copied().map(Some).collect(),
+                    },
+                );
+                let ordered_args: Vec<_> = slots.iter().map(|&slot| args[slot].clone()).collect();
+                let ordered_types: Vec<_> = slots.iter().map(|&slot| typed[slot].clone()).collect();
+                return self.finish_builtin_call(
+                    cx,
+                    &overloads[index],
+                    id,
+                    &ordered_args,
+                    &ordered_types,
+                    result,
+                );
             }
             // Failure precedence: precise literal shape (`E3001`) >
             // precise case expectation (`E3005`) > generic mismatch
@@ -13915,6 +13962,13 @@ impl<'a> Typer<'a> {
         let Some(bound) = bound else {
             return ResolvedType::Error;
         };
+        self.publish_decl_call(
+            node,
+            SelectedCallTarget::DeriveFn(id),
+            &params,
+            args,
+            &bound,
+        );
         for (param, arg) in &bound {
             let expected = self.decl_type(*param);
             let actual = self.expr(cx, arg.value, Some(expected.clone()));
@@ -13950,6 +14004,7 @@ impl<'a> Typer<'a> {
         let Some(bound) = bound else {
             return ResolvedType::Error;
         };
+        self.publish_decl_call(node, SelectedCallTarget::Message(id), &params, args, &bound);
         for (param, arg) in &bound {
             let expected = self.decl_type(*param);
             let actual = self.expr(cx, arg.value, Some(expected.clone()));
@@ -13997,7 +14052,7 @@ impl<'a> Typer<'a> {
         if actual.is_error() {
             return ResolvedType::Error;
         }
-        match &actual {
+        let result = match &actual {
             ResolvedType::Scalar(Scalar::User) | ResolvedType::Scalar(Scalar::Member) => {
                 ResolvedType::Scalar(Scalar::Bool)
             }
@@ -14016,7 +14071,49 @@ impl<'a> Typer<'a> {
                 let _ = callee;
                 ResolvedType::Error
             }
+        };
+        if !result.is_error() {
+            self.types.selected_calls.insert(
+                NodeKey::of(node),
+                SelectedCall {
+                    target: SelectedCallTarget::Role(id),
+                    arguments: vec![NodeKey::of(args[0].value)],
+                    slots: vec![Some(0)],
+                },
+            );
         }
+        result
+    }
+
+    fn publish_decl_call(
+        &mut self,
+        node: &SyntaxNode,
+        target: SelectedCallTarget,
+        params: &[SymbolId],
+        args: &[CallArg],
+        bound: &[(SymbolId, CallArg)],
+    ) {
+        let slots = params
+            .iter()
+            .map(|param| {
+                bound
+                    .iter()
+                    .find(|(id, _)| id == param)
+                    .map(|(_, supplied)| {
+                        args.iter()
+                            .position(|arg| NodeKey::of(arg.node) == NodeKey::of(supplied.node))
+                            .expect("bound argument came from this call")
+                    })
+            })
+            .collect();
+        self.types.selected_calls.insert(
+            NodeKey::of(node),
+            SelectedCall {
+                target,
+                arguments: args.iter().map(|arg| NodeKey::of(arg.value)).collect(),
+                slots,
+            },
+        );
     }
 
     /// Bind call arguments to parameters: positionals fill in order,
@@ -14203,7 +14300,7 @@ impl<'a> Typer<'a> {
         args: &[CallArg],
         typed: &[ResolvedType],
         trial: &mut Trial,
-    ) -> Option<ResolvedType> {
+    ) -> Option<(ResolvedType, Vec<usize>)> {
         if overload.params.len() != args.len() {
             return None;
         }
@@ -14235,7 +14332,13 @@ impl<'a> Typer<'a> {
                 return None;
             }
         }
-        Some(self.subst_shape(&overload.result, trial))
+        Some((
+            self.subst_shape(&overload.result, trial),
+            slots
+                .into_iter()
+                .map(|slot| slot.expect("arity checked"))
+                .collect(),
+        ))
     }
 
     /// Match one argument against a signature shape, binding `T/O/S/K`
@@ -15173,34 +15276,13 @@ impl Trial {
     }
 }
 
-/// Reproduce `try_overload` binding for one parameter: the named
-/// argument wins, otherwise the positional landing on its slot.
+/// Access a post-match argument already ordered by the winning slots.
 fn bound_arg<'x, 'n>(
     overload: &SigOverload,
     args: &'x [CallArg<'n>],
     name: &str,
 ) -> Option<&'x CallArg<'n>> {
-    if let Some(arg) = args.iter().find(|a| a.name.as_deref() == Some(name)) {
-        return Some(arg);
-    }
-    let target = overload.params.iter().position(|p| p.name == name)?;
-    let mut slots: Vec<Option<usize>> = vec![None; overload.params.len()];
-    for (index, arg) in args.iter().enumerate() {
-        match &arg.name {
-            None => {
-                let slot = slots.iter_mut().find(|s| s.is_none())?;
-                *slot = Some(index);
-            }
-            Some(want) => {
-                let position = overload.params.iter().position(|p| &p.name == want)?;
-                if slots[position].is_some() {
-                    return None;
-                }
-                slots[position] = Some(index);
-            }
-        }
-    }
-    slots[target].map(|index| &args[index])
+    args.get(overload.params.iter().position(|p| p.name == name)?)
 }
 
 /// Whether a type inhabits the group-key (`K`) class: group-key

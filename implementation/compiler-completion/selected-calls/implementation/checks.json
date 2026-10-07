@@ -1,0 +1,27 @@
+{
+  "recorded_raw": [
+    "final-gates.log",
+    "selected-calls.log",
+    "clippy.log",
+    "email-floor.log",
+    "runtime.log"
+  ],
+  "passed_earlier_same_production_semantics": [
+    {
+      "command": "cargo test --locked --manifest-path compiler/Cargo.toml --test b4_check",
+      "passed": 281
+    },
+    {
+      "command": "cargo test --locked --manifest-path compiler/Cargo.toml --test checked_cohort --test js_binding_runtime --test state_machines",
+      "passed": 14
+    }
+  ],
+  "final_raw": {
+    "codegen": 117,
+    "selected_calls": 2,
+    "email_admission": 1,
+    "strict_clippy": "lib/bin can/selected_calls/codegen: pass",
+    "git_diff_check": "pass"
+  },
+  "no_full_suite_run": "Focused phase uses matching historical global baseline; partial BDD oracles are explicitly not runtime success."
+}

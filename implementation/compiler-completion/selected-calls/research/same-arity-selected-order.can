@@ -1,0 +1,5 @@
+app T
+Given
+ derive g():bool = starts_with(value="AB",prefix="A")
+When
+Then
