@@ -16,6 +16,16 @@ import {
   GENERATED_FORM_TYPE_FOR_KIND,
   GENERATED_REF_VERSION_SUFFIX,
 } from "@canlang/contracts";
+import {
+  isValidDate,
+  stringFieldValue,
+  intFieldValue,
+  decimalFieldValue,
+  moneyFieldValue,
+  boolFieldValue,
+  dateFieldValue,
+  rawText,
+} from "./internal/draft-values.js";
 import type {
   ActionProps,
   ActionsProps,
@@ -116,9 +126,7 @@ const STATUS_TONES: Record<string, string> = {
 };
 
 const FIELD_PATH_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const INT_RE = /^[+-]?\d+$/;
-const DECIMAL_RE = /^[+-]?(?:\d+)(?:\.\d+)?$/;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 const DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.(\d+))?$/;
 
@@ -211,24 +219,6 @@ export function formatDatetimeLocal(instant: string, timeZone: string): string {
     return found.value;
   };
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
-}
-
-function isValidDate(iso: string): boolean {
-  const parts = iso.split("-").map(Number);
-  const y = parts[0];
-  const m = parts[1];
-  const d = parts[2];
-  if (y === undefined || m === undefined || d === undefined) {
-    return false;
-  }
-  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) {
-    return false;
-  }
-  if (m < 1 || m > 12 || d < 1 || d > 31) {
-    return false;
-  }
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
 
 /** Page locale: first valid viewer preference, else the app default. */
@@ -336,104 +326,6 @@ interface WidgetResult {
    * emitted exactly once.
    */
   readonly suppressDuplicate?: boolean;
-}
-
-/** Draft-preserving string value: verbatim when present, null when absent. */
-function stringFieldValue(field: FormFieldDef): string | null {
-  const value = field.value;
-  if (value === undefined || value === null) {
-    return null;
-  }
-  if (typeof value !== "string") {
-    throw new TypeError(`field "${field.path}": type ${field.type} needs a string value`);
-  }
-  return value;
-}
-
-function intFieldValue(field: FormFieldDef): string {
-  const value = field.value;
-  if (value === undefined || value === null) {
-    return "";
-  }
-  if (typeof value === "bigint") {
-    return value.toString(10);
-  }
-  if (typeof value === "number") {
-    if (!Number.isSafeInteger(value)) {
-      throw new TypeError(
-        `field "${field.path}": type int needs a bigint, safe number or canonical int string`,
-      );
-    }
-    return String(value);
-  }
-  if (typeof value === "string" && INT_RE.test(value)) {
-    return value;
-  }
-  throw new TypeError(
-    `field "${field.path}": type int needs a bigint, safe number or canonical int string`,
-  );
-}
-
-function decimalFieldValue(field: FormFieldDef): string {
-  const value = field.value;
-  if (value === undefined || value === null) {
-    return "";
-  }
-  if (typeof value === "bigint") {
-    return value.toString(10);
-  }
-  if (typeof value === "string" && DECIMAL_RE.test(value)) {
-    return value;
-  }
-  throw new TypeError(
-    `field "${field.path}": type decimal needs a bigint or canonical decimal string`,
-  );
-}
-
-function moneyFieldValue(field: FormFieldDef): string {
-  const value = field.value;
-  if (value === undefined || value === null) {
-    return "";
-  }
-  if (typeof value === "bigint") {
-    return value.toString(10);
-  }
-  if (typeof value === "number") {
-    if (!Number.isSafeInteger(value)) {
-      throw new TypeError(
-        `field "${field.path}": type money needs a bigint, safe number or canonical minor-units string`,
-      );
-    }
-    return String(value);
-  }
-  if (typeof value === "string" && INT_RE.test(value)) {
-    return value;
-  }
-  throw new TypeError(
-    `field "${field.path}": type money needs a bigint, safe number or canonical minor-units string`,
-  );
-}
-
-function boolFieldValue(field: FormFieldDef): boolean {
-  const value = field.value;
-  if (value === undefined || value === null) {
-    return false;
-  }
-  if (typeof value !== "boolean") {
-    throw new TypeError(`field "${field.path}": type bool needs a boolean value`);
-  }
-  return value;
-}
-
-function dateFieldValue(field: FormFieldDef): string {
-  const value = field.value;
-  if (value === undefined || value === null) {
-    return "";
-  }
-  if (typeof value !== "string" || !DATE_RE.test(value) || !isValidDate(value)) {
-    throw new TypeError(`field "${field.path}": type date needs a valid YYYY-MM-DD civil date`);
-  }
-  return value;
 }
 
 function datetimeFieldValue(field: FormFieldDef, timeZone: string): string {
@@ -905,23 +797,6 @@ function formatCurrentValue(
     }
   }
   return escapeHtml(rawText(value));
-}
-
-function rawText(value: unknown): string {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
-    return String(value);
-  }
-  if (value === null || value === undefined) {
-    return "";
-  }
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
 }
 
 /** Mutation-outcome banner: pending deliveries, conflict currents, failed, unknown. */
