@@ -1077,7 +1077,7 @@ pub fn portable_source_id(path: &str, root: &Path) -> String {
 }
 
 /// Lexical `.`/`..` normalization without filesystem access: `CurDir`
-/// drops, `ParentDir` pops one kept component (leading `..` beyond the
+/// drops, `ParentDir` pops one ordinary kept component (leading `..` beyond the
 /// start is kept literally), everything else passes through.
 fn lexical_normalize(path: &Path) -> PathBuf {
     use std::path::Component::{CurDir, ParentDir};
@@ -1087,7 +1087,7 @@ fn lexical_normalize(path: &Path) -> PathBuf {
             continue;
         }
         if component == ParentDir {
-            if !out.pop() {
+            if matches!(out.components().next_back(), Some(ParentDir)) || !out.pop() {
                 out.push("..");
             }
             continue;
@@ -1218,5 +1218,50 @@ impl ReferenceAvailability {
     /// Availability as JSON (`{status}` or `{status, owner, catalog}`).
     pub fn to_json(&self) -> Json {
         reference_json(self)
+    }
+}
+
+#[cfg(test)]
+mod lexical_path_tests {
+    use super::lexical_normalize;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn lexical_normalize_preserves_leading_parents() {
+        for (input, expected) in [
+            ("..", ".."),
+            ("../..", "../.."),
+            ("../../a/../..", "../../.."),
+            ("a/../../x", "../x"),
+            ("../a/../x", "../x"),
+            ("a/../b", "b"),
+            ("./a/./b", "a/b"),
+            ("", "."),
+            (".", "."),
+            ("a/..", "."),
+        ] {
+            assert_eq!(
+                lexical_normalize(Path::new(input)),
+                PathBuf::from(expected),
+                "{input:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn lexical_normalize_preserves_literal_parents_above_absolute_root() {
+        // The existing lexical policy retains parents above `/` literally.
+        for (input, expected) in [
+            ("/a/../x", "/x"),
+            ("/../x", "/../x"),
+            ("/../../x", "/../../x"),
+        ] {
+            assert_eq!(
+                lexical_normalize(Path::new(input)),
+                PathBuf::from(expected),
+                "{input:?}"
+            );
+        }
     }
 }

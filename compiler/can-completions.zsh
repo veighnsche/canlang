@@ -30,8 +30,32 @@ _can() {
     fi
 
     local cmd="$words[2]"
+    # Ignore a separator consumed as a split option value.
+    local i takes_value=0
+    for (( i=3; i<CURRENT; i++ )); do
+        if (( takes_value )); then
+            takes_value=0
+            continue
+        fi
+        case "$words[i]" in
+            --) _files; return ;;
+            --format|--catalog|--out|--locale) takes_value=1 ;;
+        esac
+    done
+
+    # _arguments numbers operands relative to the command being completed.
+    words=("$words[2]" "${words[@]:2}")
+    (( CURRENT-- ))
     case "$cmd" in
-        check|compile|lint|policy)
+        lint)
+            _arguments \
+                '--fix[apply safe lint fixes]' \
+                '--format=[output format]:format:(json text)' \
+                '--catalog=[producer catalog]:file:_files' \
+                '(-h --help)'{-h,--help}'[show help]' \
+                '*:source file:_files -g "*.can"'
+            ;;
+        check|compile|policy)
             _arguments \
                 '--format=[output format]:format:(json text)' \
                 '--catalog=[producer catalog]:file:_files' \

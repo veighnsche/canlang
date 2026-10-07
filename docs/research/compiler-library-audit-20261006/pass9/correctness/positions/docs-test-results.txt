@@ -1,0 +1,70 @@
+$ cargo test --manifest-path compiler/Cargo.toml --jobs 1 --test docs missing_relative_roots_preserve_external_leading_parents -- --exact
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running tests/docs.rs (compiler/target/debug/deps/docs-dbf927852fe0e397)
+
+running 1 test
+test missing_relative_roots_preserve_external_leading_parents ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+
+$ cargo test --manifest-path compiler/Cargo.toml --jobs 1 --test docs relative_vs_absolute_spellings_are_identical -- --exact
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running tests/docs.rs (compiler/target/debug/deps/docs-dbf927852fe0e397)
+
+running 1 test
+test relative_vs_absolute_spellings_are_identical ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+
+$ cargo test --manifest-path compiler/Cargo.toml --jobs 1 --test docs all_spellings_of_one_input_are_identical -- --exact
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/docs.rs (compiler/target/debug/deps/docs-dbf927852fe0e397)
+
+running 1 test
+test all_spellings_of_one_input_are_identical ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.01s
+
+
+$ cargo test --manifest-path compiler/Cargo.toml --jobs 1 --test docs same_external_file_agrees_through_relative_and_absolute -- --exact
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running tests/docs.rs (compiler/target/debug/deps/docs-dbf927852fe0e397)
+
+running 1 test
+test same_external_file_agrees_through_relative_and_absolute ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+
+$ cargo test --manifest-path compiler/Cargo.toml --jobs 1 --test docs relative_symlink_spellings_match_their_target -- --exact
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/docs.rs (compiler/target/debug/deps/docs-dbf927852fe0e397)
+
+running 1 test
+test relative_symlink_spellings_match_their_target ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+
+$ cargo test --manifest-path compiler/Cargo.toml --jobs 1 --test docs external_inputs_are_marked_and_stable -- --exact
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/docs.rs (compiler/target/debug/deps/docs-dbf927852fe0e397)
+
+running 1 test
+test external_inputs_are_marked_and_stable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.01s
+
+
+$ cargo test --manifest-path compiler/Cargo.toml --jobs 1 --test docs moved_checkout_identity_covers_every_spelling -- --exact
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/docs.rs (compiler/target/debug/deps/docs-dbf927852fe0e397)
+
+running 1 test
+test moved_checkout_identity_covers_every_spelling ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+

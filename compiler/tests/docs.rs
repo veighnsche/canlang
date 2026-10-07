@@ -1587,3 +1587,19 @@ fn dotted_message_references_stay_unresolved() {
         );
     }
 }
+
+#[test]
+fn missing_relative_roots_preserve_external_leading_parents() {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let missing = format!("can-docs-p09-missing-{}-{nanos}", std::process::id());
+    for (prefix, expected) in [("..", "external:../../x"), ("../..", "external:../../../x")] {
+        let root = std::path::Path::new(prefix).join(&missing);
+        assert!(!root.exists(), "exercise the lexical fallback");
+        // Qualifies parent preservation for public relative roots; the
+        // separate absolute-external identity policy is unchanged.
+        assert_eq!(portable_source_id("../../x", &root), expected);
+    }
+}
