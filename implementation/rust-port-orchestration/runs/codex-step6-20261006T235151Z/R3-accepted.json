@@ -1,0 +1,50 @@
+{
+  "packet": "step6:R3:N06-registered-decisions",
+  "commit": "5a4e8279f7668b6ab4261bc8d0fdc5b656b12031",
+  "exact_committed_files": {
+    "packages/work-kernel/Cargo.toml": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+    "packages/work-kernel/Cargo.lock": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+    "packages/work-kernel/rust/lib.rs": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+    "packages/work-kernel/decisions/lib.rs": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+    "packages/work-kernel/conformance/registered-native.rs": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a",
+    "packages/work-kernel/conformance/registered-differential.mjs": "bdbb31eff01512d79d0ed3f4e7a41e7928e7867035d75cc06da71b8ca41574f9",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json": "560c250bf7b45cc6f38b5302037695090ef98d395248b3a117784db60efde230",
+    "packages/work-kernel/decisions/rows.rs": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+    "packages/work-kernel/decisions/receipt.rs": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+    "packages/work-kernel/decisions/recovery.rs": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+    "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+    "packages/work-kernel/decisions/numeric_text.rs": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+    "packages/work-kernel/conformance/numeric-text.contract.test.ts": "08d5ad8c3773c1fcf14dbe1d9a7a2891139ab85f0e4391e0a6d2a88dc709e0bc",
+    "packages/work-kernel/conformance/numeric-text.oracle.d.mts": "dc8dbae0939b9d88b8f14f2caf5c13224c1706c6d142ea5a8c00420010da2369"
+  },
+  "review": "review-R3.json",
+  "raw_review_sha256": "46adfd70978bd3ebb7f52c9c8b639b642dd51b2a63af2a28365a242137b9bec3",
+  "actual_gates": {
+    "native_tests": 315,
+    "ignored_dynamic_observer_separately_run": 1,
+    "preserved_rawbit_cases": 10213,
+    "preserved_caller_witnesses": 72,
+    "strict_full_package_tsc": 0,
+    "TS_runtime_tests": 445,
+    "shared_actual_Rust_TS_cases": 93,
+    "modules": 7,
+    "fmt": 0,
+    "clippy": 0,
+    "repeat_gate": {
+      "handle": 98318,
+      "exit": 0,
+      "fixed_fixture_pins": 16,
+      "stable_source_inputs": 41,
+      "fresh_emitted_leaf_hashes": 7,
+      "external_emitted_JS_input_control": "rejected before compile"
+    }
+  },
+  "accepted": "Actual registered pure decision candidate and source-pinned finite conformance harness",
+  "excluded": [
+    "W03.4 actual D1/DO controlled-producer and prepared/legacy trace gate",
+    "Full W04.4 unsampled channels/fault envelope/payload identity",
+    "Wasm/installed/backend/default production adoption"
+  ],
+  "writer_released": true,
+  "commands_released": true
+}

@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "reviewer": "step6_review_r1",
+  "baseline": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "status": "changes required for released R1 hashes; both defects independently reproduced on Node and Bun",
+  "reviewed_release_hashes": {
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-current.json": "6856aed0c2c597c4d92f9702ddcdf4ea7fb4daa6f5498423a470bfce08b4d483",
+    "packages/values/bindings/bootstrap.ts": "6b8d2feaee364a157c5b0edcc35e93acbb64a716c40ad0dab36f3cf00e3dc62b",
+    "packages/values/test/exact-bootstrap.test.ts": "74a15857d328d1e0609b6a844f570170125e1e47c0fd157155076cad9ae4d2e2",
+    "packages/values/test/exact-bootstrap.workerd.mjs": "4b40526c868db72ee744f05ba7894ddc6ce96e453fb2ba078d247bb00e111449"
+  },
+  "verification": {
+    "all_four_current_release_hashes_match": true,
+    "all_15_private_log_hashes_match": true,
+    "preserved_backend_carrier_common_generated_hashes_match": true,
+    "baseline_current_private_input_manifests_match_actual_files": true,
+    "private_snapshot_diff": [
+      "bindings/bootstrap.ts",
+      "test/exact-bootstrap.test.ts",
+      "test/exact-bootstrap.workerd.mjs"
+    ],
+    "shared_source_edits": false,
+    "git_or_index_writes": false,
+    "heavy_commands": false
+  },
+  "findings": [
+    {
+      "id": "R1-EXPORTS",
+      "priority": "P1",
+      "file": "packages/values/bindings/bootstrap.ts",
+      "lines": [
+        58,
+        71
+      ],
+      "title": "reject ABI-compatible modules without required transport exports before returning a backend",
+      "detail": "A valid native module exporting abi_version=1 and no-op __wbindgen_start only is admitted and pinned as a wasm backend. Its first add-int throws raw TypeError from generated glue because __wbindgen_free is absent. This violates wrong-exports rejection and stable startup failure rather than delayed request failure.",
+      "repro_case": "missing-transport-exports",
+      "confirmed_hosts": [
+        "Node v24.21.0",
+        "Bun v1.4.2"
+      ],
+      "required_exact_transport_exports": {
+        "memory": "memory",
+        "abi_version": "function",
+        "exact_call": "function",
+        "__wbindgen_malloc": "function",
+        "__wbindgen_realloc": "function",
+        "__wbindgen_free": "function",
+        "__wbindgen_start": "function"
+      },
+      "generated_start_import_dependency": "__wbindgen_externrefs table is used by generated __wbindgen_init_externref_table; structural_abi_version/validation_call belong to separate structural consumer and need no new acceptance claim here.",
+      "test_gap": "workerd.mjs:47-48 and :120-123 use entirely empty module, which fails at __wbindgen_start and cannot prove transport export validation after successful ABI/start."
+    },
+    {
+      "id": "R1-CALLER-COMPARISON",
+      "priority": "P2",
+      "file": "packages/values/bindings/bootstrap.ts",
+      "lines": [
+        29,
+        32
+      ],
+      "title": "avoid invoking caller-overridable every method for pinned byte equality",
+      "detail": "After bootstrap(valid), create same-length corrupt Uint8Array, set byte0=255 and corrupt.every=()=>true. bootstrap(corrupt) silently returns cached backend, and add-int yields 5. Input remains an actual Uint8Array admitted by the documented contract. Use intrinsic/private normalized comparison, retaining private immutable pin.",
+      "repro_case": "caller-overridden-every",
+      "confirmed_hosts": [
+        "Node v24.21.0",
+        "Bun v1.4.2"
+      ]
+    }
+  ],
+  "test_false_positive_risks": [
+    {
+      "file": "packages/values/test/exact-bootstrap.test.ts",
+      "lines": [
+        133,
+        142
+      ],
+      "detail": "Caller mutation test runs after first success at lines91-97, so the later bytes being mutated were never the first pinned asset. An implementation retaining the initial input reference instead of copying it can still pass this test. Add fresh-process first-input mutation control."
+    },
+    {
+      "file": "packages/values/test/exact-bootstrap.workerd.mjs",
+      "lines": [
+        125,
+        127
+      ],
+      "detail": "Missing/corrupt native loader checks assert any rejection; raw successful workerd log confirms expected missing-module and corrupt-magic errors in this release. Preserve diagnostic context when refreshing."
+    }
+  ],
+  "verified_finite_outcomes": {
+    "baseline_node_bun": "12 pass, zero fail in raw logs",
+    "current_node_bun": "15 pass, zero fail in raw logs",
+    "old_source_new_tests_node_bun": "13 pass, 2 fail: changed/corrupt assets and caller mutation; genuine red, not unrelated setup failure",
+    "old_compiled_module_node_bun": "BootstrapError missing-bytes; genuine old-input rejection",
+    "fresh_host_controls": "Compiled module and same-object reuse, distinct-module/byte representation rejection, independent ABI999 mismatch, empty-module init failure, externally initialized glue rejection; all raw Node/Bun host logs passed",
+    "workerd": "Actual owning local-run emit uses Miniflare binaryModules -> CompiledWasm; raw authorized rerun passed fresh positive isolates2, canonical Decimal instanceof/frozen/BigInt and Money frozen/BigInt, actual ABI999 and empty-module negatives, missing native module and corrupt magic native-loader errors",
+    "carriers_backend_generated_artifacts": "unchanged; verified hashes"
+  },
+  "limits": [
+    "No full exact operation registry/algorithm acceptance",
+    "No installed-package, public export, default backend, or fallback adoption acceptance",
+    "No native/structural PH2 complete profile acceptance",
+    "No new Rust source-to-generated artifact reproducibility claim",
+    "No new workerd run by reviewer; raw recorded successful owning consumer run inspected"
+  ],
+  "repro_path": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/independent-review-repro.mjs",
+  "repro_tool_chunks": {
+    "node_missing_transport_exports": "7ed61f",
+    "bun_missing_transport_exports": "0dfc6f",
+    "node_overridden_every": "8680ec",
+    "bun_overridden_every": "f83607"
+  },
+  "remaining": "Owner focused repair and renewed frozen release/evidence required before acceptance."
+}

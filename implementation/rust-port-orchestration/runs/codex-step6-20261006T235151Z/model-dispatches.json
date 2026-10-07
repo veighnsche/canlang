@@ -31,5 +31,54 @@
       "reason": "Actual Cargo/common numeric module assembly and independent native/TS decision parity per N06; reused completed high-effort handle after new spawn thread cap."
     }
   ],
-  "leaf_check_rule": "A separately dispatched fixed consumer check may use Sol medium; repeated receipt indexing may use Luna low. No available extra slot or broad whole-lane permanent goal assumed."
+  "leaf_check_rule": "A separately dispatched fixed consumer check may use Sol medium; repeated receipt indexing may use Luna low. No available extra slot or broad whole-lane permanent goal assumed.",
+  "independent_review_dispatches": [
+    {
+      "packet": "R2 independent review",
+      "agent": "/root/step6_review_r2",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Cross-file pinned oracle, effect order, private owner and adoption boundaries require Solhigh; Luna bookkeeping/Sollow leaf scan insufficient; no need Astra",
+      "checked_at_utc": "2026-10-07T00:00:24.126010+00:00",
+      "official_sources": [
+        "https://developers.openai.com/api/docs/pricing",
+        "https://developers.openai.com/api/docs/models/gpt-6.1-sol"
+      ]
+    },
+    {
+      "packet": "R1 independent review",
+      "agent": "/root/step6_review_r1",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Actual loader/module/host cross-file cached initialization uncertainty; lower efforts inadequate for fullN05join, no needAstra",
+      "checked_at_utc": "2026-10-07T00:03:18.102852+00:00",
+      "official_sources": [
+        "https://developers.openai.com/api/docs/pricing",
+        "https://developers.openai.com/api/docs/models/gpt-6.1-sol"
+      ]
+    },
+    {
+      "packet": "R3 independent review",
+      "agent": "/root/step6_review_r3",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Cross-file actual Cargo/root/immutable original TS and source-pinned repeatable-gate uncertainty; least-cost reliable Solhigh,N06 fulljoin; noAstra",
+      "checked_at_utc": "2026-10-07T00:12:21.305284+00:00",
+      "official_sources": [
+        "https://developers.openai.com/api/docs/pricing",
+        "https://developers.openai.com/api/docs/models/gpt-6.1-sol"
+      ]
+    }
+  ],
+  "bookkeeping_dispatches": [
+    {
+      "packet": "Fixed ledger receipt/count indexing",
+      "agent": "/root/step6_ledger_index",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "reason": "Explicit fixed mapping and known arithmetic/extraction,nottechnical acceptance; rootretains decisions",
+      "artifact": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/ledger-candidate.json",
+      "checked_at_utc": "2026-10-07T00:12:21.305284+00:00"
+    }
+  ]
 }

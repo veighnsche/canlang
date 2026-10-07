@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "phase": "step6_running",
-  "execution_authorized": true,
+  "phase": "step6_reviewed_slices_complete",
+  "execution_authorized": false,
   "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z",
   "roles": [
     {
@@ -11,8 +11,10 @@
       "model": "gpt-6.1-sol",
       "effort": "high",
       "ack_observed": true,
-      "status": "bootstrap_actual_consumer_repair",
-      "writer_released": false
+      "status": "independently_accepted_committed",
+      "writer_released": true,
+      "commands_released": true,
+      "commit": "188a050"
     },
     {
       "role": "R2",
@@ -21,8 +23,10 @@
       "model": "gpt-6.1-sol",
       "effort": "high",
       "ack_observed": true,
-      "status": "private_core_hook_implementation",
-      "writer_released": false
+      "status": "independently_accepted_committed",
+      "writer_released": true,
+      "commands_released": true,
+      "commit": "c16ab48"
     },
     {
       "role": "R3",
@@ -31,10 +35,12 @@
       "model": "gpt-6.1-sol",
       "effort": "high",
       "ack_observed": true,
-      "status": "real_Cargo_registration",
-      "writer_released": false,
+      "status": "independently_accepted_committed",
+      "writer_released": true,
       "reused_completed_handle": true,
-      "fresh_spawn_failed": "agent thread limit reached"
+      "fresh_spawn_failed": "agent thread limit reached",
+      "commands_released": true,
+      "commit": "5a4e827"
     }
   ],
   "native_timers": [],
@@ -44,7 +50,7 @@
   "historical_runtime": "/private/tmp/canlang-idle-20261006T041507Z/monitor.json",
   "historical_runtime_authority": "stopped evidence only; never restore or infer new identity, startup or dispatch",
   "preparation_hold": true,
-  "note": "Human step6 active finite R1/R2/R3 joins; exact owner handoff before writes; no preparation/default adoption; previous narrow releases retained.",
+  "note": "Finite step 6 source slices independently accepted and committed; full original parent/producer/default/installed gates remain open. Shared records await exact handoff.",
   "muse_native_recurring_jobs_allowed": false,
   "proposed_codex_supervision_minutes": 15,
   "executor": "Codex collaboration subagents",
@@ -59,13 +65,21 @@
     "step6:R3:N06-registered-decisions"
   ],
   "human_release_reference": "Human step6 in this chat,2026-10-07",
-  "supervisor_status": "ACTIVE",
+  "supervisor_status": "PAUSED",
   "monitor": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z/monitor.json",
-  "updated_at_utc": "2026-10-06T23:51:51.195174+00:00",
+  "updated_at_utc": "2026-10-07T00:18:08.285852+00:00",
   "future_dispatch_authorized": false,
   "previous_completed_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z",
   "source_commit": "36df46e28dc971f92a467e8543d8176e6f943483",
   "completed_packet_ids": [
-    "next:R1:N04-helper"
-  ]
+    "next:R1:N04-helper",
+    "step6:R1:N05-bootstrap-foundation",
+    "step6:R2:N05-private-validation-join",
+    "step6:R3:N06-registered-decisions"
+  ],
+  "source_commits": {
+    "R1": "188a050",
+    "R2": "c16ab48",
+    "R3": "5a4e827"
+  }
 }

@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "reviewer": "step6_review_r1",
+  "baseline": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "status": "accepted finite R1 bootstrap/actual consumer join for exact B3 released hashes; no remaining actionable defects found",
+  "reviewed_release_hashes": {
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-current.json": "6c18d3844f2887d9bca107fbff9af466ed27daea7f8f260b5a06def1476bd4a6",
+    "packages/values/bindings/bootstrap.ts": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+    "packages/values/test/exact-bootstrap.test.ts": "d89d0eefdd0a7e4076c30358cdd12e9413aee975af5dc59caede2e00520578d6",
+    "packages/values/test/exact-bootstrap.workerd.mjs": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1"
+  },
+  "previous_failed_review": {
+    "path": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/independent-review.json",
+    "sha256": "56fa0ea5b758060cb085ad3677153e6c89e86d341e143cc0d65ef1a400ff0b58",
+    "preserved": true,
+    "repro": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/independent-review-repro.mjs"
+  },
+  "artifact_selection": "B3 renewed output is b3-dist; current-dist remains prior B2 output and was not mistaken for fixed release. Private b3-input source manifest matched actual files and exact released bootstrap source hash.",
+  "verification": {
+    "all_four_current_release_hashes_match": true,
+    "all_27_private_log_hashes_match": true,
+    "preserved_backend_carrier_common_generated_hashes_match": true,
+    "b3_private_input_manifest_matches_actual_files": true,
+    "hash_check_detail": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/renewed-review-hash-checks.json",
+    "source_git_index_edits": false,
+    "heavy_workerd_duplication": false
+  },
+  "resolved_findings": [
+    {
+      "id": "R1-EXPORTS",
+      "previous_priority": "P1",
+      "repair": "Captures actual generated initSync exports; preserves external-initializer check and abi_version comparison precedence; checks callable abi_version/exact_call/__wbindgen_malloc/__wbindgen_realloc/__wbindgen_free/__wbindgen_start plus native WebAssembly.Memory and WebAssembly.Table before backend creation or pin.",
+      "independent_repro": "Same ABI1+no-op-start-only module from failed review now throws BootstrapError init-failed for missing exact_call before returning a backend on Node and Bun.",
+      "tool_chunks": {
+        "node": "aaadf1",
+        "bun": "26a16d"
+      },
+      "source": "packages/values/bindings/bootstrap.ts:79-99"
+    },
+    {
+      "id": "R1-CALLER-COMPARISON",
+      "previous_priority": "P2",
+      "repair": "Authenticates typed-array internal storage using intrinsic length getter, then makes native Uint8Array copy before comparison/instantiation/pin. Compares only private normalized bytes with indexed loop.",
+      "independent_repro": "Same equal-length corrupt Uint8Array with own every=()=>true now throws BootstrapError init-failed on Node and Bun; no cached backend returned.",
+      "tool_chunks": {
+        "node": "0f2718",
+        "bun": "aef91d"
+      },
+      "source": "packages/values/bindings/bootstrap.ts:31-44,53-63,99"
+    }
+  ],
+  "independent_fresh_first_buffer_control": {
+    "script": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/renewed-review-first-buffer.mjs",
+    "hosts": [
+      "Node v24.21.0",
+      "Bun v1.4.2"
+    ],
+    "status": "passed",
+    "tool_chunks": {
+      "node": "77c58a",
+      "bun": "ee1f36"
+    },
+    "conditions": [
+      "First bootstrap receives pristine actual module bytes with throwing own length/buffer/every/Symbol.iterator getters.",
+      "Bootstrap succeeds with zero caller-property reads.",
+      "Mutating first caller buffer byte0 to255 causes subsequent bootstrap init-failed.",
+      "Pristine bytes can still reuse private pin and original backend remains functional."
+    ],
+    "relation_to_previous_test_gap": "Closes first-initialized-buffer coverage gap; correctly recorded as extra coverage rather than a fabricated prior B2 defect."
+  },
+  "raw_receipt_review": {
+    "B3_tsc": "empty successful diagnostic log, exit0 receipt",
+    "B3_Node_Bun": "16 pass, zero fail each",
+    "B3_fresh_Node_Bun_controls": "8 passed each: compiled/same module/distinct module/representation, ABI999, empty exports, ABI1 missing transport, caller methods, first-asset mutation, caller methods/length at first bootstrap, external initialization",
+    "B2_fix_forward_red": "missing-transport-exports and caller-methods both assert Missing expected exception on Node/Bun; genuine missing rejection controls, not infrastructure failures. first-asset-mutation passes B2/B3 as documented.",
+    "baseline_old_source": "Original baseline new-test controls 13 pass/2 fail and compiled-module missing-bytes preserved from first review.",
+    "workerd_B3": "Raw owning startLocalDev -> Miniflare CompiledWasm rerun log confirms two positive fresh isolates, frozen public Decimal/BigInt and Money carriers, wrongABI/empty/missingTransport negative source controls, native missing-module and corrupt-magic loader rejection; no reviewer duplicate workerd execution."
+  },
+  "preserved_contracts": [
+    "Synchronous actual generated wasm backend, no fetch/await at bootstrap or calls.",
+    "Uint8Array and native compiled Module admitted; other BufferSource variants rejected.",
+    "Nonempty asset shape gate preserves missing-bytes; compile/copy/external init/transport export faults yield init-failed; ABI999 remains abi-mismatch before completeness faults.",
+    "Byte content reuse only versus private normalized pin; exact native module object identity reuse only; changed asset/representation/new module rejected before cached generated glue reuse.",
+    "Original generated bytes/backend/carriers and TS fallback/default selection unchanged."
+  ],
+  "remaining_findings": [],
+  "limits": [
+    "Finite structural export completeness checks validate export names/kinds, not arbitrary malicious function signatures or full semantic implementation.",
+    "No full A07.3 operation registry or algorithm acceptance.",
+    "No installed/public/default adoption or production HTTP/MCP provenance acceptance.",
+    "No new native/structural PH2 complete profile authority.",
+    "No Rust source-to-generated artifact reproducibility acceptance.",
+    "Root final combined values tsc/selected tests remain separate."
+  ]
+}

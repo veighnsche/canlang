@@ -1,0 +1,45 @@
+{
+  "tested_at_utc": "2026-10-07T00:11:43.633356+00:00",
+  "HEAD_before": "aa4315c509f80bc1eec5fd511283ca14adabe441",
+  "HEAD_after": "188a050e0297a08a95deefc1d9f4d9103a166ba4",
+  "joined_sources_current_equal": true,
+  "source_manifest_sha256": "78e5ee540d955edeabb601022ca5c7582cd969ba2e34f8e1ee29f811ed07a804",
+  "full_private_values_tsc": {
+    "handle": 91097,
+    "exit": 0,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "joined_Node_tests": {
+    "chunk": "44f6a5",
+    "exit": 0,
+    "passed": 214,
+    "suites": 43,
+    "log_sha256": "e292a7fe1faeb8e4b43ae190740dbbfec353e8ab37ab33d023972265250f6c3d"
+  },
+  "fresh_host_controls": {
+    "chunk": "b2a060",
+    "exit": 0,
+    "cases": 8,
+    "log_sha256": "03e1323acbb96b3df07ebb7cf4d01faa4bcafe8ccce1e27debae294c0461fb47"
+  },
+  "actual_workerd_consumer": "R1 B3 exact real startLocalDev receipt retained: emitted JS import closure and binary are byte-for-byte equal after R2 integration; no unnecessary duplicate Miniflare run",
+  "workerd_checked_emitted_dependency_closure": {
+    "bindings/bootstrap.js": "6609fa217b50e1b35ad678642f9764b6c8fc650d6bb2c5beb043305e73604e5c",
+    "bindings/backend.js": "10234cb848e9d1428906bdb39bccd675615a9e6e140c98cff0de3ac51d21fc0b",
+    "src/decimal.js": "76ab588810caa54fa6edbcc5647d2e090f0d01aa11de4d84fb293d27e7fcddb9",
+    "src/errors.js": "eabcb6bcbb27010168cbaee15fa120681dc2efe81e174d267704c229823e43ea",
+    "src/int.js": "8037cdec233619a684fece45b2ed9ad67d445738090d4f7ecad8cff51d5f9ab2",
+    "src/money.js": "549951ee8de3cec43d23d85a49cac758a3d9e10b9b60bc1ca10ec48ef7c17c22",
+    "src/currency-data.js": "793383f7037885cf53ea63e5b41d476c2149f9d92305ad9c9965cb580a0129c8",
+    "src/kinds.js": "f6069ed65ef37d9012d422ed8c6adf48f88fce241d88aa047734af26d22778a4",
+    "src/temporal.js": "5674cb40272776edcdab2314bf2bfa75647632a2e8028089bdc67b7cd78e9849",
+    "bindings/carriers.js": "40bd9222d062bfe95891a82bf46c0f71104d9c861f2d59eaceb246fd8b9b4ece",
+    "bindings/generated/values_semantics.js": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0"
+  },
+  "wasm_sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+  "limits": [
+    "private build+Node integration,actualworkerd proof at identical dependency bytes",
+    "no fresh Rust regeneration/installed/default/fullsemanticprofiles",
+    "foreign compiler/shared docs not built or accepted"
+  ]
+}

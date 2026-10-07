@@ -1,0 +1,21 @@
+{
+  "packet": "step6:R1:N05-bootstrap-foundation",
+  "commit": "188a050e0297a08a95deefc1d9f4d9103a166ba4",
+  "exact_committed_files": {
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-current.json": "6c18d3844f2887d9bca107fbff9af466ed27daea7f8f260b5a06def1476bd4a6",
+    "packages/values/bindings/bootstrap.ts": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+    "packages/values/test/exact-bootstrap.test.ts": "d89d0eefdd0a7e4076c30358cdd12e9413aee975af5dc59caede2e00520578d6",
+    "packages/values/test/exact-bootstrap.workerd.mjs": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1"
+  },
+  "review": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/renewed-review.json",
+  "combined_check": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/joined-values/root-joined-review.json",
+  "accepted": "A07.2 and A07.foundation finite scaffold outcome,actualNode/Bun/workerd;firstreviewdefects repaired",
+  "limits": [
+    "A07.3 full semanticoperationregistry",
+    "A04.5 andA05.3 residuals",
+    "Freshnative/Wasmregeneration",
+    "Installed/defaultadoption"
+  ],
+  "writer_released": true,
+  "commands_released": true
+}

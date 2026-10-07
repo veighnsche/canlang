@@ -45,7 +45,7 @@
   "model": "gpt-6.1-sol",
   "reasoning_effort": "high",
   "model_reason": "Known producer/ABI/private-core or actual Cargo assembly join risks; user step6 and task-specific N05/N06 allocation select Sol high.",
-  "execution_authorized": true,
+  "execution_authorized": false,
   "source_input_sha256": {
     "implementation/remaining-work/tasks.json": {
       "exists": true,
@@ -142,11 +142,17 @@
   },
   "assigned_agent": "/root/review_b_v01",
   "ack_observed": true,
-  "runtime_status": "real_Cargo_registration",
+  "runtime_status": "reviewed_finite_slice_complete",
   "dependency_lease": {
     "ryu-js": "=1.0.3; normal,no defaultfeatures",
     "serde_json": "=1.0.151; dev-only if used,default/std",
     "offline_lock_resolution": true
   },
-  "dispatcher_retry": "Fresh spawn hit thread limit; reuse available completed Solhighreview handle with actual finite new assignment ACK."
+  "dispatcher_retry": "Fresh spawn hit thread limit; reuse available completed Solhighreview handle with actual finite new assignment ACK.",
+  "writer_released": true,
+  "commands_released": true,
+  "source_commit": "5a4e827",
+  "review": "review-R3.json",
+  "scope_complete_at_packet_boundary": true,
+  "original_parent_completion_implied": false
 }
