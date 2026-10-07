@@ -1,0 +1,20 @@
+import {readFileSync,writeFileSync} from "node:fs";
+import {pathToFileURL} from "node:url";
+import {decodeMappings,lookup} from "/private/tmp/canlang-pass8-consumer/pinned/packages/cloudflare/src/runtime/sourcemap.ts";
+import {invokeCallable,findRemappedFrame} from "/private/tmp/canlang-pass8-consumer/pinned/packages/cloudflare/src/runtime/invoke.ts";
+import {formatFailureLocation} from "/Users/vince/Projects/canlang/packages/testkit/src/reporting/report.ts";
+const dir="/private/tmp/canlang-pass8-consumer";
+const map=JSON.parse(readFileSync(dir+"/compiler-map.json","utf8"));
+// Independent arithmetic decoder, no compiler decoder or codec dependency.
+const abc="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+let src=0,line=0,col=0,name=0;
+const independent=map.mappings.split(";").map((l:string)=>{let g=0;return l?l.split(",").map((s:string)=>{let fields:number[]=[],v=0,shift=0;for(const ch of s){let d=abc.indexOf(ch);if(d<0)throw Error("base64");v+=(d%32)*2**shift;if(d<32){fields.push(v%2?-(Math.floor(v/2)):Math.floor(v/2));v=0;shift=0;}else shift+=5;}g+=fields[0]!;src+=fields[1]!;line+=fields[2]!;col+=fields[3]!;return {genCol:g,src,srcLine:line,srcCol:col};}):[];});
+if(JSON.stringify(independent)!==JSON.stringify(decodeMappings(map.mappings)))throw Error("decode mismatch");
+const js='export function canApp(){return {boom};}\nfunction boom(){\nthrow new Error("coordinate failure");\n}\n';
+writeFileSync(dir+"/witness.mjs",js);
+const artifact:any={artifact_version:1,language_version:"1",tool_version:"witness",sources:[],modules:[{path:"witness.mjs",js,map}],callables:[{id:"boom",kind:"operation",module:"witness.mjs",export:"boom",member:["boom"]}],pages:[],requires:[],tests:[]};
+const asm={dir,entryUrl:pathToFileURL(dir+"/witness.mjs").href,moduleUrls:{"witness.mjs":pathToFileURL(dir+"/witness.mjs").href},sourceMaps:{"witness.mjs":map}};
+const invoked=await invokeCallable(asm,artifact,"boom",{} as any);
+const result={independent,lookup:independent.map((_:unknown,i:number)=>lookup(map,i+1,0)),invoked,report:formatFailureLocation(invoked.mapped!),hostPassThrough:findRemappedFrame("Error: x\n at boom (/tmp/coordinate.can:2:7)",["coordinate.can"])};
+if(invoked.mapped?.column!==7||invoked.mapped?.line!==1)throw Error(JSON.stringify(invoked));
+console.log(JSON.stringify(result,null,2));
