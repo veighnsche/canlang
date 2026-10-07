@@ -1,0 +1,6 @@
+{
+  "changed": [
+    "compiler/tests/lsp_typed_output.rs"
+  ],
+  "note": "equivalent chunks_exact(5) to as_chunks::<5>().0.iter() Clippy polish; copied before Linux tests compiled; no production change"
+}

@@ -1,0 +1,244 @@
+{
+  "added": [
+    {
+      "name": "lsp-types",
+      "version": "0.97.0",
+      "checksum": "53353550a17c04ac46c585feb189c2db82154fc84b79c7a66c96c2c644f66071",
+      "license": "MIT",
+      "rust_version": null,
+      "declared_features": {
+        "default": [],
+        "proposed": []
+      },
+      "archive": "/Users/vince/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/lsp-types-0.97.0.crate",
+      "linux_archive": "/private/tmp/canlang-pass5-profile/cargo-home/registry/cache/index.crates.io-1949cf8c6b5b557f/lsp-types-0.97.0.crate",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/ls/p-/lsp-types",
+      "license_files": {
+        "LICENSE": "a11232911aa0d746688b560af367728021184084eeb6328a1922d60925c5eda0"
+      }
+    },
+    {
+      "name": "fluent-uri",
+      "version": "0.1.4",
+      "checksum": "17c704e9dbe1ddd863da1e6ff3567795087b1eb201ce80d8fa81162e1516500d",
+      "license": "MIT",
+      "rust_version": null,
+      "declared_features": {
+        "default": [
+          "std"
+        ],
+        "ipv_future": [],
+        "rfc6874bis": [],
+        "std": [],
+        "unstable": []
+      },
+      "archive": "/Users/vince/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/fluent-uri-0.1.4.crate",
+      "linux_archive": "/private/tmp/canlang-pass5-profile/cargo-home/registry/cache/index.crates.io-1949cf8c6b5b557f/fluent-uri-0.1.4.crate",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/fl/ue/fluent-uri",
+      "license_files": {
+        "LICENSE": "d49f02a020f14eed5c36d743d6bc43199b137a6f5ae608328fa093d0301f7a29"
+      }
+    },
+    {
+      "name": "bitflags",
+      "version": "1.3.2",
+      "checksum": "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a",
+      "license": "MIT/Apache-2.0",
+      "rust_version": null,
+      "declared_features": {
+        "default": [],
+        "example_generated": [],
+        "rustc-dep-of-std": [
+          "core",
+          "compiler_builtins"
+        ]
+      },
+      "archive": "/Users/vince/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/bitflags-1.3.2.crate",
+      "linux_archive": "/private/tmp/canlang-pass5-profile/cargo-home/registry/cache/index.crates.io-1949cf8c6b5b557f/bitflags-1.3.2.crate",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/bi/tf/bitflags",
+      "license_files": {
+        "LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+      }
+    },
+    {
+      "name": "serde_repr",
+      "version": "0.1.21",
+      "checksum": "8d3b1629de253c70a0508c3899572da79ca359fdab27c7920ff00406df418906",
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.71",
+      "declared_features": {},
+      "archive": "/Users/vince/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.21.crate",
+      "linux_archive": "/private/tmp/canlang-pass5-profile/cargo-home/registry/cache/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.21.crate",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/se/rd/serde_repr",
+      "license_files": {
+        "LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+        "LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      }
+    }
+  ],
+  "lock_changes": [
+    {
+      "name": "bitflags",
+      "version": "1.3.2",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+    },
+    {
+      "name": "canlang-compiler",
+      "version": "0.1.0",
+      "dependencies": [
+        "lsp-types",
+        "serde",
+        "serde_json",
+        "sha2",
+        "tempfile",
+        "url"
+      ]
+    },
+    {
+      "name": "fluent-uri",
+      "version": "0.1.4",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "17c704e9dbe1ddd863da1e6ff3567795087b1eb201ce80d8fa81162e1516500d",
+      "dependencies": [
+        "bitflags 1.3.2"
+      ]
+    },
+    {
+      "name": "lsp-types",
+      "version": "0.97.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "53353550a17c04ac46c585feb189c2db82154fc84b79c7a66c96c2c644f66071",
+      "dependencies": [
+        "bitflags 1.3.2",
+        "fluent-uri",
+        "serde",
+        "serde_json",
+        "serde_repr"
+      ]
+    },
+    {
+      "name": "rustix",
+      "version": "1.1.5",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d",
+      "dependencies": [
+        "bitflags 2.13.2",
+        "errno",
+        "libc",
+        "linux-raw-sys",
+        "windows-sys"
+      ]
+    },
+    {
+      "name": "serde_repr",
+      "version": "0.1.21",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "8d3b1629de253c70a0508c3899572da79ca359fdab27c7920ff00406df418906",
+      "dependencies": [
+        "proc-macro2",
+        "quote",
+        "syn 3.0.6"
+      ]
+    }
+  ],
+  "removed": [],
+  "changed_existing_entries": [
+    {
+      "before": {
+        "name": "canlang-compiler",
+        "version": "0.1.0",
+        "dependencies": [
+          "serde",
+          "serde_json",
+          "sha2",
+          "tempfile",
+          "url"
+        ]
+      },
+      "after": {
+        "name": "canlang-compiler",
+        "version": "0.1.0",
+        "dependencies": [
+          "lsp-types",
+          "serde",
+          "serde_json",
+          "sha2",
+          "tempfile",
+          "url"
+        ]
+      }
+    },
+    {
+      "before": {
+        "name": "rustix",
+        "version": "1.1.5",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d",
+        "dependencies": [
+          "bitflags",
+          "errno",
+          "libc",
+          "linux-raw-sys",
+          "windows-sys"
+        ]
+      },
+      "after": {
+        "name": "rustix",
+        "version": "1.1.5",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d",
+        "dependencies": [
+          "bitflags 2.13.2",
+          "errno",
+          "libc",
+          "linux-raw-sys",
+          "windows-sys"
+        ]
+      }
+    }
+  ],
+  "added_packages": [
+    {
+      "name": "bitflags",
+      "version": "1.3.2",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+    },
+    {
+      "name": "fluent-uri",
+      "version": "0.1.4",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "17c704e9dbe1ddd863da1e6ff3567795087b1eb201ce80d8fa81162e1516500d",
+      "dependencies": [
+        "bitflags 1.3.2"
+      ]
+    },
+    {
+      "name": "lsp-types",
+      "version": "0.97.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "53353550a17c04ac46c585feb189c2db82154fc84b79c7a66c96c2c644f66071",
+      "dependencies": [
+        "bitflags 1.3.2",
+        "fluent-uri",
+        "serde",
+        "serde_json",
+        "serde_repr"
+      ]
+    },
+    {
+      "name": "serde_repr",
+      "version": "0.1.21",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "8d3b1629de253c70a0508c3899572da79ca359fdab27c7920ff00406df418906",
+      "dependencies": [
+        "proc-macro2",
+        "quote",
+        "syn 3.0.6"
+      ]
+    }
+  ],
+  "no_unrelated_version_upgrades": true
+}

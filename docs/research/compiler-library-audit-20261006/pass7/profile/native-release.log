@@ -1,0 +1,8 @@
+   Compiling serde_json v1.0.151
+   Compiling serde v1.0.229
+   Compiling bitflags v1.3.2
+   Compiling serde_repr v0.1.21
+   Compiling canlang-compiler v0.1.0 (/private/tmp/canlang-pass7-profile/current/compiler)
+   Compiling fluent-uri v0.1.4
+   Compiling lsp-types v0.97.0
+    Finished `release` profile [optimized] target(s) in 1m 01s

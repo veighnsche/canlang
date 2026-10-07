@@ -1,0 +1,8 @@
+{
+  "native_release": "cargo build --offline --locked --release --manifest-path /private/tmp/canlang-pass7-profile/current/compiler/Cargo.toml --target-dir /private/tmp/canlang-pass5-profile/current-native-target",
+  "linux": "docker run --rm --pull=never --platform linux/amd64 --network none -e CARGO_HOME=/cargo-home -e CARGO_BUILD_JOBS=1 -v /private/tmp/canlang-pass7-profile:/profile -v /private/tmp/canlang-pass5-profile/cargo-home:/cargo-home -v /private/tmp/canlang-pass5-profile/current-linux-target:/linux-target rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273 sh /profile/linux-final.sh",
+  "snapshot": "copy compiler excluding target/.git/.DS_Store; copy examples/ExpenseFlow.can and editors/vscode/test/lsp-capabilities.can and lsp-codeaction.can; exclude full packages/editor consumer; SHA256 all inputs and verify drift",
+  "metadata": "cargo metadata --offline --locked --filter-platform aarch64-apple-darwin --format-version 1 --manifest-path /private/tmp/canlang-pass7-profile/current/compiler/Cargo.toml",
+  "features": "cargo tree --offline --locked -e features --manifest-path /private/tmp/canlang-pass7-profile/current/compiler/Cargo.toml",
+  "linux_integration_retry": "docker run --rm --pull=never --platform linux/amd64 --network none -e CARGO_HOME=/cargo-home -e CARGO_BUILD_JOBS=1 -v /private/tmp/canlang-pass7-profile:/profile -v /private/tmp/canlang-pass5-profile/cargo-home:/cargo-home -v /private/tmp/canlang-pass5-profile/current-linux-target:/linux-target rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273 sh /profile/linux-integration.sh"
+}
