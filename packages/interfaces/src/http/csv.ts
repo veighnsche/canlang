@@ -59,6 +59,7 @@ import type {
   MutationEnvelope,
 } from '@canlang/contracts';
 import { IdentityError, assertAuthorityLive, sha256HexText } from '@canlang/identity';
+import { CsvGrammarError, parseCsvGrammar } from '@canlang/ui/csv/grammar';
 import type { HttpDeps, OperationInputShape } from '../ports.js';
 import { validateOperationId } from '../envelope/validate.js';
 import { prepareHttpPlan, runPreparedHttpPlan } from '../envelope/prepared.js';
@@ -78,9 +79,6 @@ import { OPERATION_NAME_PATTERN } from './operations.js';
 const REVIEW_PATH = '/api/csv/review';
 const COMMIT_PATH = '/api/csv/commit';
 const JSON_CONTENT_TYPE = 'application/json';
-
-/** Row ceiling per review/commit (DoS hygiene; the 1 MiB body cap bounds bytes). */
-const CSV_MAX_ROWS = 1000;
 
 /** One row's verdict: binds, fails (preserved with error), or repeats a valid row. */
 export type CsvRowStatus = 'valid' | 'invalid' | 'duplicate';
@@ -136,12 +134,12 @@ export interface CsvCommitOutcome {
   readonly rows: readonly CsvCommitRow[];
 }
 
-/** Unparseable CSV text (unterminated quote): request-level `validation`. */
+/** Unparseable CSV text: request-level `validation` with fixed safe messages. */
 export class CsvParseError extends Error {
   override readonly name = 'CsvParseError';
 }
 
-/** More data rows than `CSV_MAX_ROWS`: request-level `limit`. */
+/** More data rows than the shared grammar ceiling: request-level `limit`. */
 export class CsvTooManyRowsError extends Error {
   override readonly name = 'CsvTooManyRowsError';
 }
@@ -152,85 +150,16 @@ export interface CsvDataRow {
   readonly malformed: boolean;
 }
 
-/**
- * Parse CSV text (pure): comma-separated, CRLF/LF newlines, double-quote
- * quoting with `""` escapes (quotes may span lines); a lone CR is a
- * literal character. Blank lines are preserved as single-empty-field
- * records (flagged `malformed` against multi-column headers — only the
- * virtual record after a trailing newline is dropped); every other
- * line yields a data row, including field-count mismatches (flagged
- * `malformed`, preserved for row-level verdicts). An unterminated
- * quoted field throws `CsvParseError` (nothing is Salvageable); past
- * `CSV_MAX_ROWS` data rows throws `CsvTooManyRowsError`.
- */
+/** Shared raw CSV grammar; this wrapper preserves authoritative error classes. */
 export function parseCsvText(text: string): { header: string[]; rows: CsvDataRow[] } {
-  const records: string[][] = [];
-  let record: string[] = [];
-  let field = '';
-  let inQuotes = false;
-  let recordHadChars = false;
-  const endField = (): void => {
-    record.push(field);
-    field = '';
-  };
-  const endRecord = (): void => {
-    endField();
-    if (recordHadChars) records.push(record);
-    record = [];
-    recordHadChars = false;
-  };
-  let i = 0;
-  while (i < text.length) {
-    const char = text[i]!;
-    recordHadChars = true;
-    if (inQuotes) {
-      if (char === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i += 2;
-        } else {
-          inQuotes = false;
-          i += 1;
-        }
-      } else {
-        field += char;
-        i += 1;
-      }
-      continue;
-    }
-    if (char === '"') {
-      inQuotes = true;
-      i += 1;
-    } else if (char === ',') {
-      endField();
-      i += 1;
-    } else if (char === '\n') {
-      endRecord();
-      i += 1;
-    } else if (char === '\r' && text[i + 1] === '\n') {
-      endRecord();
-      i += 2;
-    } else {
-      field += char;
-      i += 1;
-    }
+  try {
+    const parsed = parseCsvGrammar(text);
+    return { header: [...parsed.header], rows: [...parsed.rows] };
+  } catch (error) {
+    if (!(error instanceof CsvGrammarError)) throw error;
+    if (error.kind === 'limit') throw new CsvTooManyRowsError(error.message);
+    throw new CsvParseError(error.message);
   }
-  if (inQuotes) {
-    throw new CsvParseError('Unterminated quoted field in CSV text.');
-  }
-  endRecord();
-  if (records.length === 0) {
-    throw new CsvParseError('CSV text has no header row.');
-  }
-  const header = records[0]!;
-  const data = records.slice(1);
-  if (data.length > CSV_MAX_ROWS) {
-    throw new CsvTooManyRowsError(`CSV text has ${data.length} data rows; the limit is ${CSV_MAX_ROWS}.`);
-  }
-  return {
-    header,
-    rows: data.map((cells) => ({ cells, malformed: cells.length !== header.length })),
-  };
 }
 
 /** Canonical JSON: object keys sorted recursively, so digests replay. */
@@ -301,7 +230,6 @@ export async function reviewCsvCandidates(input: {
   rows: readonly CsvDataRow[];
 }): Promise<CsvReview> {
   const plan = prepareHttpPlan(input.operation, input.shape, input.derived);
-  const seen = new Map<string, number>();
   const firstValid = new Map<string, number>();
   const rows: CsvRowReview[] = [];
   let valid = 0;
@@ -326,8 +254,8 @@ export async function reviewCsvCandidates(input: {
       const key = canonicalJson(mapped.inputs);
       const bound = mapped.error === null ? runPreparedHttpPlan(plan, mapped.inputs) : null;
       const rowError = mapped.error ?? (bound !== null && bound.ok === false ? bound.error : null);
-      if (rowError === null && seen.has(key)) {
-        const first = firstValid.get(key) ?? seen.get(key)!;
+      if (rowError === null && firstValid.has(key)) {
+        const first = firstValid.get(key)!;
         row = { index, status: 'duplicate', inputs: mapped.inputs, duplicate_of: first };
       } else if (rowError !== null) {
         row = { index, status: 'invalid', inputs: mapped.inputs, error: rowError };
@@ -335,7 +263,6 @@ export async function reviewCsvCandidates(input: {
         row = { index, status: 'valid', inputs: mapped.inputs };
         firstValid.set(key, index);
       }
-      if (!seen.has(key)) seen.set(key, index);
     }
     if (row.status === 'valid') valid += 1;
     else if (row.status === 'duplicate') duplicate += 1;
