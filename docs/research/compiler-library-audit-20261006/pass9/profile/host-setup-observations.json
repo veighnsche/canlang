@@ -1,0 +1,16 @@
+{
+  "initial_docker_image_inspect": {
+    "exit_code": 1,
+    "stderr": "permission denied while trying to connect to the docker API at unix:///Users/vince/.docker/run/docker.sock",
+    "effect": "read-only inspect stopped before Docker operation"
+  },
+  "escalated_docker_image_inspect": {
+    "exit_code": 0,
+    "image_id": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+    "descriptor_digest": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+    "descriptor_type": "application/vnd.oci.image.index.v1+json"
+  },
+  "test_retries": 0,
+  "image_pulls": 0,
+  "network_use": false
+}
