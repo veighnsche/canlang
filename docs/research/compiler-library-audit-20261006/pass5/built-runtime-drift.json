@@ -1,0 +1,5 @@
+{
+  "comparison": "initial boundary capture vs final native checks",
+  "changed_built_inputs": [],
+  "claims": "compiler source changes expected; another agent owns runtime source/plans; actual built module hashes stayed unchanged"
+}

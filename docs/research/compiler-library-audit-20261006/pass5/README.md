@@ -1,0 +1,36 @@
+# Pass5 typed JSON output
+
+Eight output families are released in small commits. The input parser/accessors, raw numeric model, LSP envelope admission and original source-map coordinates remain unchanged. The exact wire contract uses explicit typed fields, string-valued exact domain numbers, preserved authored decimal scale, omitted-vs-null/empty distinctions and preserved ordering/layout/newlines. Serde owns serialization/string scanning; a two-case Formatter retains established backspace/form-feed escape spelling. The shared generic API returns errors; closed legacy String adapters retain internal invariant/tool-error behavior.
+
+## Finite released packets
+
+| Packet | Defining writer / live caller closure | Equality and acceptance |
+| --- | --- | --- |
+| C05D | diagnostic.rs -> check/lint/fmt diagnostics; shared json.rs and public quote adapter | Full compact bytes/order/explicit arrays and one CLI LF; fixed foundation/shared tests and actual processes |
+| C05M descriptors | codegen/js.rs types/defaults/literals/models/operations -> emit metadata and artifact | Exact domain strings/scale, tags/omissions/order; byte goldens and actual unmodified modules/model defaults/message metadata |
+| C05A | codegen/artifact.rs -> compile CLI -> actual Cloudflare loaders | Exact typed envelope bytes, nested typed descriptors, qualified raw map; fresh parseArtifactText/loadArtifactFile/assertCompiledIdentity |
+| C05R | docs.rs extraction -> typed ReferenceModel -> docs stdin/public reference renderer | CamelCase/order/omission and explicit catalog/translation nulls; authored source strings, localized/empty/fallback Markdown |
+| C05P policy | policy.rs dump -> policy CLI -> actual UI sections/page | Full pretty bytes/indentation/key order; one serializer LF and two CLI LFs; source/grants and HTML consuming path |
+| C05P explain | explain.rs CodeInfo -> explain CLI | Six explicit compact fields, lowercase severity, blank strings and one CLI LF; known-code real process |
+| C05P fixes | lint/driver.rs -> CLI typed envelope and LSP action/stale-fix paths | Ordered fix/rejection bytes/all variants; final present empty fixes under --fix, absent otherwise, one LF; actual CLI/LSP |
+| C05M BDD | codegen/bdd.rs quote adapter -> emitted suites -> actual testkit | Fixed full executable output and all controls; actual loading/setup/stash/observation; operations are not executed |
+
+Individual [family contracts/receipts](families/) and permanent typed_* tests account for each owner. Public compatibility helpers remain only where live callers/tests require them; the handwritten source string encoders are gone. JS expressions/identifiers and HTML retain their owners. The two remaining structural writers are explicitly C06/C07 ordered input-model rendering and C08 source maps, not unaccounted serializer families. No new JS AST, parsing or grammar dependency was adopted.
+
+## Evidence and classified limits
+
+The final full native suite passes 1,005 tests across 44 targets, with no ignored tests and no skipped package consumers. One existing macOS set-ID-mode fixture subcase cannot establish its requested bits and loudly skips; it is unrelated to serialization. Equivalent Clippy/format polish then passes 13 affected tests, including actual reference/UI consumers. All-target Clippy with -D warnings passes. Formatting fails only on 83 pre-existing hunks, down from 88: five converted descriptor-region hunks removed and zero new hunks. Logs, comparison data, independent review and acceptance-summary.json preserve these distinctions.
+
+Actual APIs are used with existing built packages, not substitute renderer/testkit/library stubs. starting-input-manifest.json is an early boundary capture after family work began, not a pristine compiler baseline. final-input-manifest.json pins the final source/catalog/build inputs; built-runtime-drift.json records no built-input drift across these checks. Another agent independently changes package source/plans and commits on the same branch; this compiler work does not stage those changes. The isolated footprint baseline is the compiler tree at 5cf27d6, with exact release snapshots separately pinned.
+
+Three independently worded verified-context [JEV consultations](consultation/assessment.md) advise closed compiler-owned raw invariants; results are advice, not an oracle. RawValue retains exact legal lexemes, but accepts an escaped lone surrogate. Permanent witnesses establish that limit and show the existing input parser remains strict. Encoded default fragments/maps are syntax-qualified; arbitrary raw input is not validated for Unicode through this adapter. Invalid manually constructed raw syntax fails serialization/the existing invariant tool boundary instead of emitting malformed JSON.
+
+An actual production fixture with an authored large decimal default is rejected by existing E6008 lowering because the current catalog has no qualified decimal constructor. The fresh valid artifact consumer therefore qualifies decimal types/omitted defaults, exact integer-string/default controls and identity/maps. Exact authored decimal scale and money/duration strings are independently qualified by typed descriptor/artifact fixtures. This release does not claim production decimal default execution, full business operations, installed runtime/deployment or arbitrary hosts. That lowering gap is separate from output standardization and does not require a replacement audit plan.
+
+## Dependencies, hosts and release cost
+
+Pin serde1.0.229 std/derive and serde_json1.0.151 std/raw_value, defaults disabled. Four lock entries are added (itoa, memchr, serde_json, zmij), 58 -> 62 registry packages; serde/core/derive were already locked and now have explicit activated features. Published direct/additional metadata and licenses, complete feature graphs and all62 archive checksums are saved in profile/. Official docs checked October7: [Serde](https://docs.rs/serde/latest/serde/) and [serde_json](https://docs.rs/serde_json/latest/serde_json/); exact cached published Formatter/RawValue source qualifies the adapter behavior. Project Rust1.99 is executed; direct MSRV metadata is not a proven closure-wide minimum.
+
+Matching isolated baseline/current releases omit .git, report commit unknown and retain strip/opt-level-z/LTO/one-codegen-unit/panic-unwind. Native macOS arm64 grows 2,117,216 -> 2,150,544 bytes (+33,328, 1.574%). Local pinned Linux x86_64 emulation grows 2,905,600 -> 2,947,352 bytes (+41,752, 1.437%). No speed, universal size improvement or native Linux hardware/Windows claim follows. Linux image/OS/tool/source inputs and test results are recorded in profile/README.md/results.json; local build/test containers use network none and isolated source/cache mounts. Two unexplained exit137 release attempts preceded the successful retained run; no Docker settings/service changes or private uploads were made.
+
+Sol low owns released diagnostic/reference conversions; Sol medium owns other families/reviews and host qualification. Root alone integrates shared helpers/Cargo/CLI/Git. No escalation, merge, recursive audit or living-plan checkpoint advancement occurs. The existing next input/protocol/source-map packets retain their boundaries; no new broad plan is necessary.

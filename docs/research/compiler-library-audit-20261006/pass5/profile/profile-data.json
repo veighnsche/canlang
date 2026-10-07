@@ -1,0 +1,43 @@
+{
+  "baseline_commit": "5cf27d6632ed0c6e61befd3ffe7d05d18931dac2",
+  "baseline_registry_packages": 58,
+  "current_registry_packages": 62,
+  "added": [
+    "itoa@1.0.18",
+    "memchr@2.8.3",
+    "serde_json@1.0.151",
+    "zmij@1.0.23"
+  ],
+  "removed": [],
+  "verified_archives": 62,
+  "profile": {
+    "strip": true,
+    "opt-level": "z",
+    "lto": true,
+    "codegen-units": 1,
+    "panic": "unwind"
+  },
+  "typed_output_features": {
+    "serde@1.0.229": {
+      "default-features": false,
+      "features": [
+        "std",
+        "derive"
+      ]
+    },
+    "serde_json@1.0.151": {
+      "default-features": false,
+      "features": [
+        "std",
+        "raw_value"
+      ]
+    }
+  },
+  "linux_image_digest": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+  "linux_image_id": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+  "linux_platform": "linux/amd64 under Docker Desktop local emulation",
+  "linux_network": "none",
+  "source_scope": "compiler snapshots and authorized hash-pinned ExpenseFlow fixture; no packages, no .git",
+  "linux_amd64_image_id": "sha256:458b145eb2406e832adc9c9536d487c5d264401a4ce63adbeced3fe91292616c",
+  "linux_amd64_architecture": "amd64"
+}

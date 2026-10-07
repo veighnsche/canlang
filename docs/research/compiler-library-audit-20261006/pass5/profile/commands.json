@@ -1,0 +1,11 @@
+{
+  "snapshot_baseline": "git archive 5cf27d6 compiler; extract only compiler into baseline (no .git)",
+  "snapshot_current": "copy compiler excluding target and .git; refresh final codegen/js.rs; SHA-256 every file",
+  "native_baseline": "cargo build --offline --locked --release --manifest-path /private/tmp/canlang-pass5-profile/baseline/compiler/Cargo.toml --target-dir /private/tmp/canlang-pass5-profile/baseline-native-target",
+  "native_current": "cargo build --offline --locked --release --manifest-path /private/tmp/canlang-pass5-profile/current/compiler/Cargo.toml --target-dir /private/tmp/canlang-pass5-profile/current-native-target",
+  "docker_pull": "docker pull --platform linux/amd64 rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+  "docker_build": "docker run --rm --pull=never --platform linux/amd64 --network none -v /private/tmp/canlang-pass5-profile:/profile -v /private/tmp/canlang-pass5-profile/cargo-home:/cargo-home rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273 sh /profile/linux-build.sh",
+  "native_current_final": "cargo build --offline --locked --release --manifest-path /private/tmp/canlang-pass5-profile/current/compiler/Cargo.toml --target-dir /private/tmp/canlang-pass5-profile/current-native-target (current-native-final-polish-release.log)",
+  "linux_final": "docker run --name can-pass5-profile-final --pull=never --platform linux/amd64 --network none -v /private/tmp/canlang-pass5-profile:/profile -v /private/tmp/canlang-pass5-profile/cargo-home:/cargo-home rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273 sh /profile/linux-resume.sh",
+  "linux_last_runtime_target": "docker run --rm --pull=never --platform linux/amd64 --network none -e CARGO_HOME=/cargo-home -e CARGO_BUILD_JOBS=1 -v /private/tmp/canlang-pass5-profile:/profile -v /private/tmp/canlang-pass5-profile/cargo-home:/cargo-home rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273 cargo test --offline --locked --manifest-path /profile/current/compiler/Cargo.toml --target-dir /profile/current-linux-target --test typed_reference_policy_consumers -- --nocapture"
+}
