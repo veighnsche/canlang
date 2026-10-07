@@ -376,7 +376,13 @@ fn validate_expenseflow_artifact(
     // Modules: entrypoint (composed assembly) first, then packages in
     // source order.
     let paths: Vec<&str> = artifact.modules.iter().map(|m| m.path.as_str()).collect();
-    if paths != ["expenseflow.mjs", "expenses.mjs", "reporting.mjs"] {
+    if paths
+        != [
+            "$can$m$457870656e7365466c6f77.mjs",
+            "$can$m$657870656e736573.mjs",
+            "$can$m$7265706f7274696e67.mjs",
+        ]
+    {
         failures.push(format!(
             "modules {paths:?} != [expenseflow, expenses, reporting]"
         ));
@@ -394,12 +400,12 @@ fn validate_expenseflow_artifact(
         "\"expenses.Expense.create\":",
         "\"expenses.submit\":",
         "\"reporting.summarize\":",
-        "pages:[expensesPageDescriptor,reportingReportsPageDescriptor]",
-        "breadcrumbs({context:c})",
-        "badge({context:rowView,value:row.status})",
-        "slot({context:rowView,name:\"content\"",
-        "stat({context:c,values:[result.count,result.total]})",
-        "selected.map((expense)=>expense.amount)",
+        "pages:[$can$p$657870656e7365733a64657363726970746f723a2f,$can$p$7265706f7274696e673a64657363726970746f723a2f7265706f727473]",
+        "$can$u$62726561646372756d6273({context:c})",
+        "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.status})",
+        "$can$u$736c6f74({context:$can$l$313a726f7756696577,name:\"content\"",
+        "$can$u$73746174({context:c,values:[result.count,result.total]})",
+        "$can$l$31303a73656c6563746564.map(($can$l$31313a657870656e7365)=>$can$l$31313a657870656e7365.amount)",
     ] {
         if !entry.contains(marker) {
             failures.push(format!("entrypoint missing {marker:?}"));
@@ -635,7 +641,13 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
     // Modules: entrypoint (composed assembly) first, then packages in
     // source order. All three apps must be present.
     let paths: Vec<&str> = artifact.modules.iter().map(|m| m.path.as_str()).collect();
-    if paths != ["teamoffice.mjs", "teamtasks.mjs", "teamnotes.mjs"] {
+    if paths
+        != [
+            "$can$m$5465616d4f6666696365.mjs",
+            "$can$m$5465616d5461736b73.mjs",
+            "$can$m$5465616d4e6f746573.mjs",
+        ]
+    {
         failures.push(format!(
             "modules {paths:?} != [teamoffice, teamtasks, teamnotes]"
         ));
@@ -649,10 +661,10 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
     let entry = &artifact.modules[0].js;
     for marker in [
         "id:\"TeamOffice\"",
-        "\"TeamTasks.Todo\":{label:message(\"Task\",{nl:\"Taak\"})",
+        "\"TeamTasks.Todo\":{label:$can$u$6d657373616765(\"Task\",{nl:\"Taak\"})",
         "\"TeamNotes.Note\":{",
         "\"TeamTasks.Todo.create\":",
-        "pages:[TeamTasksPageDescriptor,TeamNotesNotesPageDescriptor]",
+        "pages:[$can$p$5465616d5461736b733a64657363726970746f723a2f,$can$p$5465616d4e6f7465733a64657363726970746f723a2f6e6f746573]",
     ] {
         if !entry.contains(marker) {
             failures.push(format!("entrypoint missing {marker:?}"));

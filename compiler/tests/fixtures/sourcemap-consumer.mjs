@@ -103,7 +103,7 @@ for(let offset=0;offset<=sourceBytes.length;offset++) {
   validPoints.add(`${line}:${column}`);
 }
 assert.equal(fresh.modules.length,1);
-assert.equal(fresh.modules[0].path,'shop.mjs');
+assert.equal(fresh.modules[0].path,'$can$m$53686f70.mjs');
 // Fixed frontend ownership anchors for this authored CRLF fixture. The CRUD
 // declaration's generated export remains attributed to the existing When span
 // (line5, column5); app scaffolding remains attributed to app byte zero.
