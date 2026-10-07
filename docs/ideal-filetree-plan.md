@@ -172,3 +172,5 @@ State internal/own-data.ts and storage/sqlite-codecs.ts own exact private repeat
 State storage/sqlite-codecs.ts now treats only own metadata entries as SQL columns; valid other identifiers remain bound JSON data lookups. Narrow adapter correctness is independently accepted; broader privacy/owner/replay and accumulated-source checkpoint review remain open. No owner transfer or complete checkpoint advance.
 
 Services internal/controlled-http.ts owns only identical private Node body/reply leaves for the four existing harness owners. Scenario and workerd-safe playback remain separate with their actual contracts; narrow source/declaration reduction is independently accepted. Broader lifecycle/security/installed joins and complete accumulated-source checkpoint review remain open.
+
+Interfaces http/canonical-json.ts is the single private recursive leaf for existing CSV/export hash callers; their public and policy ownership stays local. Narrow source/declaration reduction is accepted, with canonical profile limits and CSV own-key/integrity residuals retained. No complete source checkpoint advance.
