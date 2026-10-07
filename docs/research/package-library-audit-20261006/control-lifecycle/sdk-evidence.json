@@ -1,0 +1,43 @@
+{
+  "resource": "LR12",
+  "source_kind": "exact local installed primary source, not frozen Git input",
+  "version": "1.32.0",
+  "claims": [
+    {
+      "path": "packages/interfaces/node_modules/@modelcontextprotocol/sdk/dist/esm/server/webStandardStreamableHttp.js",
+      "line": 590,
+      "end": 608,
+      "claim": "JSON response mode owns unresolved response promise and request correlation."
+    },
+    {
+      "path": "packages/interfaces/node_modules/@modelcontextprotocol/sdk/dist/esm/server/webStandardStreamableHttp.js",
+      "line": 932,
+      "end": 954,
+      "claim": "Completed response resolves JSON and deletes request/response correlations; JSON branch does not call stream.cleanup. Per-request object graph can be garbage collected; no ordinary global leak inferred."
+    },
+    {
+      "path": "packages/interfaces/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js",
+      "line": 252,
+      "end": 266,
+      "claim": "Close aborts/clears request handler controllers."
+    },
+    {
+      "path": "packages/interfaces/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js",
+      "line": 338,
+      "end": 348,
+      "claim": "Handler receives a per-request signal; Can registered callback ignores second argument."
+    },
+    {
+      "path": "packages/interfaces/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js",
+      "line": 444,
+      "end": 449,
+      "claim": "Settled handler finally releases its own controller; waiting forever is a different lifecycle condition."
+    }
+  ],
+  "limits": [
+    "No SDK/Can runtime executed",
+    "No claim HTTP disconnect automatically sends protocol cancellation",
+    "No claim per-request cycle is an ordinary long-lived memory leak",
+    "Current wrapper has no explicit supported unsettled invocation cancellation/deadline/close handoff"
+  ]
+}

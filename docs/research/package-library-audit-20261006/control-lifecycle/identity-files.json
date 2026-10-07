@@ -1,0 +1,1515 @@
+{
+  "schema": "canlang.lifecycle.inventory.v1",
+  "frozen_sha": "fecf84196e38679646d221ee18aa4383ed0d0e83",
+  "scope": "identity/files resource owners and interfaces OAuth/session/upload consumers",
+  "evidence": "Source-derived unexecuted scenarios. File hash/anchor metadata verification only; no product runtime/build/test/install/network/Git/repo writes. Test/comment evidence is not policy authority. No new security mechanism adopted.",
+  "stages": {
+    "P1": "Implemented public owner primitives; tests/source calls do not prove production assembly.",
+    "P2": "Full interfaces auth/OAuth/upload callbacks/canonical file joints unmounted in interim Worker; DESIGN613-617 unimplemented bridge/adapter contracts.",
+    "P3": "Production D1 assembly, /mcp/grants issuer and identity admissions in source; actual deployment not exercised."
+  },
+  "stage_anchors": [
+    [
+      "S31",
+      1365,
+      1369
+    ],
+    [
+      "S31",
+      1051,
+      1076
+    ],
+    [
+      "S32",
+      608,
+      624
+    ],
+    [
+      "S33",
+      334,
+      339
+    ],
+    [
+      "S35",
+      613,
+      617
+    ]
+  ],
+  "sources": {
+    "S01": {
+      "path": "packages/identity/src/accounts/registration.ts",
+      "sha256": "72de65f3832a562cd8564a11063a1c14ef01e5184e8ac91c6bf22f967e7c898f",
+      "lines": 148
+    },
+    "S02": {
+      "path": "packages/identity/src/accounts/recovery.ts",
+      "sha256": "78c8589260eaea5536b2f90374d004d7664184b664b85135c7a0924da2f5e367",
+      "lines": 88
+    },
+    "S03": {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "lines": 104
+    },
+    "S04": {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "lines": 97
+    },
+    "S05": {
+      "path": "packages/identity/src/sessions/presession.ts",
+      "sha256": "f2c4cc913ea8fc3a70c7688991dd4a0a68cb05682efa433705d1654b3dda213d",
+      "lines": 71
+    },
+    "S06": {
+      "path": "packages/identity/src/sessions/csrf.ts",
+      "sha256": "b577b2619951a51f1aaccc62ae3db942a7d2237aec5f6d5c2d6d65a815040d60",
+      "lines": 41
+    },
+    "S07": {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "lines": 103
+    },
+    "S08": {
+      "path": "packages/identity/src/authentication/context.ts",
+      "sha256": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "lines": 166
+    },
+    "S09": {
+      "path": "packages/identity/src/authentication/revocation.ts",
+      "sha256": "3b18c1865f4f78cfda004b5d2bbb2959910c307c8a6a21c0c5928b15a2e5eb56",
+      "lines": 133
+    },
+    "S10": {
+      "path": "packages/identity/src/authentication/grants.ts",
+      "sha256": "56f26d214a51de1caa8cc28b6757d9319c582e26f744cfc9e81e4c1a70418df4",
+      "lines": 63
+    },
+    "S11": {
+      "path": "packages/identity/src/authentication/oauth.ts",
+      "sha256": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+      "lines": 246
+    },
+    "S12": {
+      "path": "packages/identity/src/authentication/audience.ts",
+      "sha256": "cd65de45aa5d251df01c39b300e7d783e415d8554ef1bfad8a9be5833c623158",
+      "lines": 46
+    },
+    "S13": {
+      "path": "packages/identity/src/teams/invitations.ts",
+      "sha256": "88eefc9e11d639d1bc701dc72b743aa6db5987ac85abcb189dc872a2d7550c1d",
+      "lines": 141
+    },
+    "S14": {
+      "path": "packages/identity/src/teams/membership.ts",
+      "sha256": "8297f93d24b3062dd25bdc225fb71b8973c2c2551ba307b80becfe97161b334d",
+      "lines": 43
+    },
+    "S15": {
+      "path": "packages/identity/src/teams/roles.ts",
+      "sha256": "3c7c75a62b8de6e5a61f79c38b1b0a4ee337e15d26fc3e1193d4b93d0b111d0f",
+      "lines": 77
+    },
+    "S16": {
+      "path": "packages/identity/src/teams/selection.ts",
+      "sha256": "e8acd7d1a8c01bc88bda3f9eefd7e2b8e52283fdc5ad5fb8f5692e9c9b3420f0",
+      "lines": 57
+    },
+    "S17": {
+      "path": "packages/identity/src/storage/d1.ts",
+      "sha256": "7d25f77228fdd17c2fe49684c8cbefd1f3c50acf621533dc349dedaa66a3f18f",
+      "lines": 897
+    },
+    "S18": {
+      "path": "packages/identity/src/ports.ts",
+      "sha256": "6145aef4de7dc0fabeed0a285a3dd8191c8c6f6c37d6554ca0659173a210a1bd",
+      "lines": 233
+    },
+    "S19": {
+      "path": "packages/files/src/ports.ts",
+      "sha256": "2a7cd17c0e3775e3909468eec53aa046a404dcf3d87721c083fb5158a55d7c6b",
+      "lines": 337
+    },
+    "S20": {
+      "path": "packages/files/src/upload/index.ts",
+      "sha256": "46f566043db6f6292d6a95ae125e0e51c19058cc455f9a68bd4ff56343479ca7",
+      "lines": 503
+    },
+    "S21": {
+      "path": "packages/files/src/finalize/index.ts",
+      "sha256": "eba40a06b0bd79ebac016e4f845ed6a9b2301b5de193766ca6ed7a0e4419d74a",
+      "lines": 612
+    },
+    "S22": {
+      "path": "packages/files/src/retention/index.ts",
+      "sha256": "3d953bc857123338cb0b6a999c10e296445c0700f6b4183410e48d7e8a0231bd",
+      "lines": 158
+    },
+    "S23": {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "sha256": "0c112376b97e30a41ed6db8956b5e003ccc9e16ff4c0386353e04561a504108e",
+      "lines": 90
+    },
+    "S24": {
+      "path": "packages/files/src/provenance/index.ts",
+      "sha256": "7441aab94f941b10823134e33b6c11ab48874c20a20bcab9d9c540c3ab164733",
+      "lines": 147
+    },
+    "S25": {
+      "path": "packages/files/src/bridge.ts",
+      "sha256": "01c317ba97b23ffb768cdf174f9f8fb1e6589c7695e33c9116233665770cdf3d",
+      "lines": 240
+    },
+    "S26": {
+      "path": "packages/interfaces/src/uploads/routes.ts",
+      "sha256": "fff8e55fe8aed9cea083b5b3dcd9f8d1ff9cb1072539a2c429176d65132a0e59",
+      "lines": 405
+    },
+    "S27": {
+      "path": "packages/interfaces/src/uploads/principals.ts",
+      "sha256": "c758c5cea0a20cba47b257865986bc93b639967d20caef9bfb1210afddcba383",
+      "lines": 53
+    },
+    "S28": {
+      "path": "packages/interfaces/src/uploads/kernel.ts",
+      "sha256": "b89cfaed78a3e62281a86323b04d2f344f319d60022a4f884b034c9419eec205",
+      "lines": 220
+    },
+    "S29": {
+      "path": "packages/interfaces/src/http/auth.ts",
+      "sha256": "5e373e1a88fe8ee36a27d851154e2228491fba588aed207f219ffcf73c380706",
+      "lines": 365
+    },
+    "S30": {
+      "path": "packages/interfaces/src/oauth/routes.ts",
+      "sha256": "19e9318f1dc1d3d30bd3a22f87fdf0499e4237497fd870135ae8314ba58e08ef",
+      "lines": 473
+    },
+    "S31": {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "lines": 1710
+    },
+    "S32": {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+      "lines": 629
+    },
+    "S33": {
+      "path": "packages/cloudflare/src/runtime/env-assembly.ts",
+      "sha256": "d39b218d24926884b627a30dadb5a1bf46db87cfbc1e6834b6f01ee136b95c25",
+      "lines": 339
+    },
+    "S34": {
+      "path": "packages/cloudflare/src/runtime/grant-route.ts",
+      "sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d",
+      "lines": 206
+    },
+    "S35": {
+      "path": "docs/specification/DESIGN.md",
+      "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+      "lines": 1118
+    }
+  },
+  "resources": [
+    {
+      "id": "LI01",
+      "owner": "identity accounts/users/teams",
+      "files": [
+        "S01",
+        "S17",
+        "S18"
+      ],
+      "anchors": [
+        [
+          "S01",
+          62,
+          86
+        ],
+        [
+          "S17",
+          94,
+          110
+        ],
+        [
+          "S18",
+          96,
+          111
+        ]
+      ],
+      "identity": "user/team UUID; normalized email UNIQUE; stored password hash; team timezone UTC default",
+      "lifecycle": "Normalize/policy/existing check -> hash -> unverified user -> verify token -> mail; teams create independently. No disable/user/team delete port.",
+      "invariants": [
+        "D1 normalized-email UNIQUE; unverified login refused."
+      ],
+      "failure_scenarios": [
+        "Mail fails after inserts: unverified account/token retained; registration retry conflicts before mail. Crash after user insert before token insert leaves no link. Concurrent absent-email readers: loser SQL UNIQUE, not feature conflict."
+      ],
+      "gaps": [
+        "Resend/disposal absent; no deletion policy inferred; no DDL foreign-key cascade."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-identity-account-registration",
+        "AD-email-identity",
+        "AD-identity-d1"
+      ]
+    },
+    {
+      "id": "LI02",
+      "owner": "identity passwords/temporary crypto",
+      "files": [
+        "S03",
+        "S04"
+      ],
+      "anchors": [
+        [
+          "S03",
+          25,
+          63
+        ],
+        [
+          "S03",
+          72,
+          103
+        ],
+        [
+          "S04",
+          56,
+          96
+        ]
+      ],
+      "identity": "PBKDF2 modular hash; salt16/key32/600000 iterations; temporary password UTF8 bytes/CryptoKey/derived arrays",
+      "lifecycle": "Policy -> salt -> nonextractable key/derive -> stored encoding. Verify parse/derive/native compare; temporary UTF8/key arrays/CryptoKey GC, no wipe API.",
+      "invariants": [
+        "Malformed encoding/derivation false; native faults throw; bearer hash is exact text."
+      ],
+      "failure_scenarios": [
+        "Policy fails before account effect; missing native compare before session insert. Malformed stored verifier refuses."
+      ],
+      "gaps": [
+        "GC proves no timed erasure; host primitive availability prerequisite; no new zeroization policy."
+      ],
+      "stage": "P1/P3",
+      "original_ids": [
+        "AD-identity-password",
+        "AD-password-parser",
+        "AD-token-text-hash",
+        "AD-identity-comparison"
+      ]
+    },
+    {
+      "id": "LI03",
+      "owner": "identity verification tokens",
+      "files": [
+        "S01",
+        "S17",
+        "S18"
+      ],
+      "anchors": [
+        [
+          "S01",
+          75,
+          109
+        ],
+        [
+          "S17",
+          740,
+          769
+        ],
+        [
+          "S18",
+          179,
+          188
+        ]
+      ],
+      "identity": "token_id UUID/hash UNIQUE/purpose verify_email; default24h; raw addressed-mail bearer",
+      "lifecycle": "Hash insert/mail -> purpose/live/unconsumed -> set verified -> consume. Terminal/expired row retained.",
+      "invariants": [
+        "Sequential replay refuses; wrong purpose/expiry fails before write."
+      ],
+      "failure_scenarios": [
+        "A/B live readers: both set verified and return success; conditional consume void does not report loser. Verified=true is idempotent. Crash before consume permits repeat."
+      ],
+      "gaps": [
+        "Atomic winner+side effect unresolved mechanism; no terminal-row sweep."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-verification-ttl",
+        "AD-identity-account-registration",
+        "AD-identity-atomic-gap"
+      ]
+    },
+    {
+      "id": "LI04",
+      "owner": "identity recovery/rotation cascade",
+      "files": [
+        "S02",
+        "S17"
+      ],
+      "anchors": [
+        [
+          "S02",
+          32,
+          87
+        ],
+        [
+          "S17",
+          757,
+          769
+        ],
+        [
+          "S17",
+          703,
+          713
+        ],
+        [
+          "S17",
+          812,
+          824
+        ]
+      ],
+      "identity": "recover_account token_id/hash; default1h; affected password/sessions/grants",
+      "lifecycle": "Request unknown/malformed ok; known revoke old -> new token -> mail. Recover policy/live -> password update -> consume -> recovery links -> sessions -> grants.",
+      "invariants": [
+        "Completed rotation revokes old credentials; invalid link no password write."
+      ],
+      "failure_scenarios": [
+        "Crash after password write leaves old credentials; after consume before cascade retry refuses, cannot finish. A/B token readers rotate different passwords. Concurrent requests revoke before creates: two live links. Mail throws after replacement stored."
+      ],
+      "gaps": [
+        "Atomic/recoverable cascade required; mechanism unresolved. Uniform unknown-email ok does not cover mail failure."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-identity-recovery",
+        "AD-recovery-ttl",
+        "AD-identity-atomic-gap"
+      ]
+    },
+    {
+      "id": "LI05",
+      "owner": "identity sessions/cookie copies",
+      "files": [
+        "S01",
+        "S07",
+        "S08",
+        "S09",
+        "S17",
+        "S29"
+      ],
+      "anchors": [
+        [
+          "S01",
+          118,
+          147
+        ],
+        [
+          "S07",
+          21,
+          70
+        ],
+        [
+          "S08",
+          87,
+          114
+        ],
+        [
+          "S09",
+          10,
+          27
+        ],
+        [
+          "S29",
+          184,
+          231
+        ],
+        [
+          "S17",
+          665,
+          713
+        ]
+      ],
+      "identity": "session_id/hash UNIQUE/raw can_session cookie; default7d; nullable selected-team hint",
+      "lifecycle": "Password -> durable session -> cookie. Admission live row/user; signout revoke+clear; everywhere sessions then grants. Expired/revoked rows retained.",
+      "invariants": [
+        "Exact expiry boundary denies; cookie HttpOnly/Secure default/Lax; unknown revoke idempotent."
+      ],
+      "failure_scenarios": [
+        "Response/cookie failure after insert leaves unseen live session. Logout resolve IO error catch returns ok/clear without server revoke. Everywhere crash after sessions leaves grants live."
+      ],
+      "gaps": [
+        "Cookie maxAge differs server TTL knobs; server authoritative. No sweep or external-cookie recall."
+      ],
+      "stage": "P1/P2/P3",
+      "original_ids": [
+        "AD-identity-cookie",
+        "AD-cookie-attributes",
+        "AD-session-ttl",
+        "AD-identity-revoke"
+      ]
+    },
+    {
+      "id": "LI06",
+      "owner": "identity presessions",
+      "files": [
+        "S05",
+        "S17",
+        "S29"
+      ],
+      "anchors": [
+        [
+          "S05",
+          36,
+          70
+        ],
+        [
+          "S17",
+          716,
+          737
+        ],
+        [
+          "S29",
+          177,
+          197
+        ]
+      ],
+      "identity": "UUID/hash; default10min; raw no-store descriptor token",
+      "lifecycle": "Descriptor throttle/store/no-store; login throttle/parse -> find -> DELETE -> expiry -> required credentials/login. Unpresented rows retained.",
+      "invariants": [
+        "Missing/unknown no deletion; live proof burns before bad credentials."
+      ],
+      "failure_scenarios": [
+        "A/B find before DELETE: both void deletes return true. Lost descriptor leaves expired never-presented row without sweep. Limiter refuses before consume; missing fields after consume burn."
+      ],
+      "gaps": [
+        "Atomic take required; origin/browser binding AD gap unresolved, no exploit claim."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-identity-login-presession",
+        "AD-presession-ttl",
+        "AD-presession-origin-gap",
+        "AD-identity-atomic-gap"
+      ]
+    },
+    {
+      "id": "LI07",
+      "owner": "identity derived CSRF",
+      "files": [
+        "S06",
+        "S26",
+        "S29"
+      ],
+      "anchors": [
+        [
+          "S06",
+          18,
+          41
+        ],
+        [
+          "S29",
+          224,
+          231
+        ],
+        [
+          "S26",
+          377,
+          386
+        ]
+      ],
+      "identity": "HMAC-SHA256(session bearer,can-csrf-v1); transient key/mac; no independent stored proof row",
+      "lifecycle": "Derive HMAC proof -> header/field -> expected/compare; rotation changes proof; no stored row; transient GC.",
+      "invariants": [
+        "Possession proof requires separate live session/authority."
+      ],
+      "failure_scenarios": [
+        "Prior proof cannot revive revoked admission; snapshot during long upload needs owning recheck."
+      ],
+      "gaps": [
+        "No independent disposal. Presession-origin gap separate."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-identity-credentials",
+        "AD-interfaces-auth",
+        "AD-interfaces-uploads"
+      ]
+    },
+    {
+      "id": "LI08",
+      "owner": "identity OAuth public clients",
+      "files": [
+        "S11",
+        "S17",
+        "S30"
+      ],
+      "anchors": [
+        [
+          "S11",
+          53,
+          153
+        ],
+        [
+          "S17",
+          827,
+          852
+        ],
+        [
+          "S30",
+          441,
+          473
+        ]
+      ],
+      "identity": "client_<8randombyteshex>; public identifier, name, exact registered redirect URI strings",
+      "lifecycle": "Registration bounds/URI checks -> store/respond; authorize exact URI; no edit/revoke/delete/expiry API.",
+      "invariants": [
+        "1..5 HTTPS/loopback redirects; no fragment/userinfo; public ID not secret."
+      ],
+      "failure_scenarios": [
+        "Lost response leaves unused client; retry new client. ID collision SQL error, no local retry."
+      ],
+      "gaps": [
+        "Client disposal/quota absent; not grant TTL."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-identity-oauth",
+        "AD-oauth-redirect-pkce-admission"
+      ]
+    },
+    {
+      "id": "LI09",
+      "owner": "identity OAuth authorization codes",
+      "files": [
+        "S11",
+        "S17",
+        "S30"
+      ],
+      "anchors": [
+        [
+          "S11",
+          45,
+          46
+        ],
+        [
+          "S11",
+          176,
+          197
+        ],
+        [
+          "S11",
+          223,
+          245
+        ],
+        [
+          "S17",
+          854,
+          894
+        ],
+        [
+          "S30",
+          311,
+          348
+        ],
+        [
+          "S30",
+          373,
+          419
+        ]
+      ],
+      "identity": "opaque code hash/client/user/team/redirect/S256 challenge; default10min/consumed timestamp",
+      "lifecycle": "Session/member/CSRF -> URI/challenge -> code store/redirect. Exchange live -> client/URI -> PKCE -> consume -> grant/respond; mint failure keeps code spent.",
+      "invariants": [
+        "Bad PKCE/client/URI fails before consume; valid43 S256 reachable."
+      ],
+      "failure_scenarios": [
+        "A/B pass live+PKCE: A consumes, B UPDATE zero returns void; both mint. Crash after consume before grant spends without grant; response loss after grant leaves unseen bearer. IP09 admitted44 challenge never equals43 digest; failed PKCE leaves code live until expiry."
+      ],
+      "gaps": [
+        "Atomic winner needed; lost-response/replay security compatibility choice unresolved. Issuing session not rechecked; future grant membership is. No sweep."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-identity-oauth",
+        "AD-oauth-code-ttl",
+        "AD-identity-atomic-gap",
+        "IP09"
+      ]
+    },
+    {
+      "id": "LI10",
+      "owner": "identity MCP grants",
+      "files": [
+        "S08",
+        "S09",
+        "S10",
+        "S17",
+        "S32",
+        "S34"
+      ],
+      "anchors": [
+        [
+          "S10",
+          37,
+          63
+        ],
+        [
+          "S08",
+          117,
+          165
+        ],
+        [
+          "S09",
+          30,
+          38
+        ],
+        [
+          "S17",
+          772,
+          824
+        ],
+        [
+          "S34",
+          149,
+          197
+        ],
+        [
+          "S32",
+          608,
+          624
+        ]
+      ],
+      "identity": "grant_id UUID/hash; bound user/team/client; default30days/raw bearer once",
+      "lifecycle": "Authenticated issue -> client validation -> store/respond; live grant/user/team per admission; revoke single/user/team; no refresh/sweep.",
+      "invariants": [
+        "Team bound; removed member denied even if timestamp cascade fails; hash only stored."
+      ],
+      "failure_scenarios": [
+        "Production session/member resolve then await req.json then mint: revoke/everywhere can finish before new grant is inserted. Removal before mint still denied by next membership gate. Response loss leaves unseen bearer."
+      ],
+      "gaps": [
+        "Issuer/commit fence reconciliation needed; no bypass from public export."
+      ],
+      "stage": "P1/P3",
+      "original_ids": [
+        "AD-identity-grants",
+        "AD-grant-ttl",
+        "AD-identity-live-fence",
+        "AD-identity-atomic-gap"
+      ]
+    },
+    {
+      "id": "LI11",
+      "owner": "identity invitations",
+      "files": [
+        "S13",
+        "S17"
+      ],
+      "anchors": [
+        [
+          "S13",
+          40,
+          77
+        ],
+        [
+          "S13",
+          80,
+          140
+        ],
+        [
+          "S17",
+          609,
+          662
+        ]
+      ],
+      "identity": "UUID/addressed normalized email/stored owner+role ceiling; default7days; accepted/revoked timestamps",
+      "lifecycle": "Owner check -> invite/mail; accept live -> verified addressed user -> inactive/absent member -> reactivate/create -> accept mark.",
+      "invariants": [
+        "Stored ceiling; unique(team,user); invitation ID alone insufficient."
+      ],
+      "failure_scenarios": [
+        "Crash member write before accept mark: retry Already member conflict. Different reactivation ceilings can overwrite after both inactive reads; UNIQUE not UPDATE guard. Mail failure leaves undelivered live invite."
+      ],
+      "gaps": [
+        "Atomic admission/consume/cascade needed; terminal invitation rows retained."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-identity-invitations",
+        "AD-invitation-ttl",
+        "AD-identity-membership",
+        "AD-identity-atomic-gap"
+      ]
+    },
+    {
+      "id": "LI12",
+      "owner": "identity memberships/roles/last owner",
+      "files": [
+        "S14",
+        "S15",
+        "S17",
+        "S18",
+        "S35"
+      ],
+      "anchors": [
+        [
+          "S14",
+          17,
+          42
+        ],
+        [
+          "S15",
+          34,
+          76
+        ],
+        [
+          "S17",
+          17,
+          24
+        ],
+        [
+          "S18",
+          113,
+          141
+        ],
+        [
+          "S35",
+          291,
+          291
+        ]
+      ],
+      "identity": "membership_id, unique(team,user), active/removed, owner, attributed role-grant array",
+      "lifecycle": "Provision/invite -> active; owner roles/remove. Removed row historical; reactivate fresh ceiling. Remove -> grants -> invites.",
+      "invariants": [
+        "Sequential last-owner guard; stable history ID; new admissions active."
+      ],
+      "failure_scenarios": [
+        "Two owners both see2 then demote/remove different targets ->0. Role grants read[] then [x]/[y]: lost update. Crash removed before cascade leaves invitations able to re-admit until revoke; grant admission denies."
+      ],
+      "gaps": [
+        "Known atomic-gap; DESIGN291 admitted finish vs helper strict fence needs reconciliation."
+      ],
+      "stage": "P1/P2/P3",
+      "original_ids": [
+        "AD-identity-membership",
+        "AD-identity-roles",
+        "AD-role-value-grammar",
+        "AD-identity-atomic-gap",
+        "SW-007"
+      ]
+    },
+    {
+      "id": "LI13",
+      "owner": "identity selected-team hints",
+      "files": [
+        "S08",
+        "S16",
+        "S17"
+      ],
+      "anchors": [
+        [
+          "S16",
+          17,
+          56
+        ],
+        [
+          "S08",
+          98,
+          113
+        ],
+        [
+          "S17",
+          697,
+          701
+        ]
+      ],
+      "identity": "nullable session.last_team_id; no credential/cache authority",
+      "lifecycle": "Live session/team/member -> hint write; clear live -> null; next admission resolves again.",
+      "invariants": [
+        "Hint grants nothing."
+      ],
+      "failure_scenarios": [
+        "Removal after checks saves stale hint but next admission rechecks. Two tabs last-writer."
+      ],
+      "gaps": [
+        "UI private-cache clearing outside helper; disposal with session."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-identity-team-selection",
+        "AD-identity-resolution"
+      ]
+    },
+    {
+      "id": "LI14",
+      "owner": "identity admitted contexts/live rereads",
+      "files": [
+        "S08",
+        "S09",
+        "S26"
+      ],
+      "anchors": [
+        [
+          "S08",
+          64,
+          165
+        ],
+        [
+          "S09",
+          47,
+          90
+        ],
+        [
+          "S09",
+          104,
+          132
+        ],
+        [
+          "S26",
+          143,
+          163
+        ],
+        [
+          "S26",
+          355,
+          393
+        ]
+      ],
+      "identity": "ResolvedIdentity actor/team/membership/binding/admitted_at request snapshot",
+      "lifecycle": "Injected clock -> reject dual credentials -> store reads -> snapshot. Optional current credential/member rereads; current regrant wins checkpoint.",
+      "invariants": [
+        "Read then separate write is not atomic fence."
+      ],
+      "failure_scenarios": [
+        "Upload resolves before body buffering; revocation/expiry before append still uses snapshot, no live helper call. Assert then write separately also races."
+      ],
+      "gaps": [
+        "Conditional unmounted callback; canonical writer/revision fence+DESIGN291 reconciliation unresolved."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-identity-resolution",
+        "AD-identity-live-fence",
+        "AD-identity-atomic-gap",
+        "AD-interfaces-uploads"
+      ]
+    },
+    {
+      "id": "LI15",
+      "owner": "identity D1 schema/store/host ports",
+      "files": [
+        "S17",
+        "S33"
+      ],
+      "anchors": [
+        [
+          "S17",
+          17,
+          24
+        ],
+        [
+          "S17",
+          70,
+          122
+        ],
+        [
+          "S17",
+          149,
+          154
+        ],
+        [
+          "S33",
+          321,
+          339
+        ]
+      ],
+      "identity": "ten tables/indexes; caller D1 DB/Clock/Random/Mail ports; ephemeral host statement handles",
+      "lifecycle": "Validate DB -> sequential idempotent DDL -> one-statement store. Restart durable rows; host owns DB/statements.",
+      "invariants": [
+        "Bind values+UNIQUE; partial schema ensure safely retried."
+      ],
+      "failure_scenarios": [
+        "Feature crash leaves committed prefix; expiry denies without erasure."
+      ],
+      "gaps": [
+        "No batch/transaction/take rowcount/sweep/user delete; no lifecycle backlog metrics here."
+      ],
+      "stage": "P3",
+      "original_ids": [
+        "AD-identity-d1",
+        "AD-identity-ports",
+        "AD-identity-atomic-gap"
+      ]
+    },
+    {
+      "id": "LF01",
+      "owner": "files upload intents/slots/retry index",
+      "files": [
+        "S19",
+        "S20",
+        "S26",
+        "S35"
+      ],
+      "anchors": [
+        [
+          "S19",
+          55,
+          81
+        ],
+        [
+          "S20",
+          254,
+          281
+        ],
+        [
+          "S20",
+          309,
+          390
+        ],
+        [
+          "S26",
+          200,
+          245
+        ],
+        [
+          "S35",
+          607,
+          609
+        ]
+      ],
+      "identity": "intent_id port-minted; global retry upload_id; op/field/args/name/declared size/receiver; five state variants",
+      "lifecycle": "Bind -> shape/absent slot/size/url/cap -> retry lookup -> duplicate/conflict or mint/clone/open put; content/final or reject/expire.",
+      "invariants": [
+        "Foreign/context drift refused; finalization not business acceptance."
+      ],
+      "failure_scenarios": [
+        "Shared clients both retry-absent can mint/put twice; no CAS/unique put. Lost response retries grant. Expired duplicate still returns old grant; append then refuses."
+      ],
+      "gaps": [
+        "Full writable schema/context/current authority P2. Global retry scope unresolved; no delete/cursor port."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-files-upload",
+        "AD-files-port-contract",
+        "AD-interfaces-uploads"
+      ]
+    },
+    {
+      "id": "LF02",
+      "owner": "files staging/chunks/counts",
+      "files": [
+        "S20",
+        "S21",
+        "S26"
+      ],
+      "anchors": [
+        [
+          "S20",
+          155,
+          178
+        ],
+        [
+          "S20",
+          402,
+          502
+        ],
+        [
+          "S26",
+          248,
+          291
+        ],
+        [
+          "S21",
+          185,
+          193
+        ]
+      ],
+      "identity": "u_<intent_id>.part; receivedBytes vs declaredSize; actual content/digest",
+      "lifecycle": "Live-owned-open -> count bounds -> blob append -> count/put; partial kept; invalid/oversize/expiry delete/reset. Complete count==declared then actual MIME/policy cap.",
+      "invariants": [
+        "Foreign/closed before write; missing counted staging rejects; detected type wins."
+      ],
+      "failure_scenarios": [
+        "Persistent copy-returning metadata: declared1/count0/text, append A persists blob then crash before count put; retry A ->AA/count1; complete count1==1 and actual2<=cap accepts; finalize metadata size1 but digest/blob AA. Memory aliases not crash proof. HTTP partial PUT A lost-response retry blindly appends; declared2 can complete AA rather than AB."
+      ],
+      "gaps": [
+        "Blob/count/declaration and chunk replay need guarded durable append mechanism; shared races require multiple clients, not same-isolate sync interleave."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-files-upload",
+        "AD-file-magic-scope",
+        "AD-file-digest-encoding",
+        "AD-interfaces-uploads"
+      ]
+    },
+    {
+      "id": "LF03",
+      "owner": "files finalized immutable bytes/metadata",
+      "files": [
+        "S19",
+        "S21",
+        "S24"
+      ],
+      "anchors": [
+        [
+          "S21",
+          133,
+          210
+        ],
+        [
+          "S19",
+          89,
+          96
+        ],
+        [
+          "S24",
+          142,
+          146
+        ]
+      ],
+      "identity": "opaque file ref, f_<ref>.bin, frozen file/provenance/time, mutable lifecycle row",
+      "lifecycle": "Complete/digest -> mint/freeze -> finalblob write -> staging remove -> files put -> intent final/ref put; repeat stable ref even tombstone.",
+      "invariants": [
+        "Digest conflicts before writes; retry never resurrects bytes."
+      ],
+      "failure_scenarios": [
+        "Crash after final write before row untracked blob; after staging remove before row retry conflict; after file row before intent row orphan ref undiscovered. Multiple-store-owner reads can mint twice."
+      ],
+      "gaps": [
+        "Atomic/recoverable cross-store phases required; mechanism unresolved."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-files-finalization",
+        "AD-files-provenance",
+        "AD-files-port-contract"
+      ]
+    },
+    {
+      "id": "LF04",
+      "owner": "files provider slots/verified events",
+      "files": [
+        "S21",
+        "S24",
+        "S35"
+      ],
+      "anchors": [
+        [
+          "S21",
+          219,
+          269
+        ],
+        [
+          "S21",
+          397,
+          398
+        ],
+        [
+          "S21",
+          539,
+          609
+        ],
+        [
+          "S24",
+          57,
+          81
+        ],
+        [
+          "S24",
+          102,
+          133
+        ],
+        [
+          "S35",
+          615,
+          617
+        ]
+      ],
+      "identity": "provider adapter/delivery/path retry; event source/adapter/occurrence/field/item; receiver provenance",
+      "lifecycle": "Provider retry intent/prefix resume/final; event validated verified-caller provenance/bytes -> mint -> blob -> row. Authentic ingress external.",
+      "invariants": [
+        "Provider prefix drift conflicts unchanged; collected/rejected retry no replacement."
+      ],
+      "failure_scenarios": [
+        "Repeated event occurrence/item directly mints twice, no dedup map. Crash blob before row untracked bytes. adapter a:b/delivery c and adapter a/delivery b:c same provider retry text."
+      ],
+      "gaps": [
+        "Occurrence dedup/conflict/correlation owning ingress P2; retry encoding compatibility unresolved."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-files-provider-output",
+        "AD-files-provenance",
+        "AD-file-retry-encoding"
+      ]
+    },
+    {
+      "id": "LF05",
+      "owner": "files attachment links/read/download",
+      "files": [
+        "S21",
+        "S22",
+        "S28",
+        "S35"
+      ],
+      "anchors": [
+        [
+          "S21",
+          278,
+          345
+        ],
+        [
+          "S21",
+          360,
+          383
+        ],
+        [
+          "S22",
+          141,
+          157
+        ],
+        [
+          "S35",
+          580,
+          580
+        ],
+        [
+          "S35",
+          601,
+          601
+        ],
+        [
+          "S28",
+          181,
+          220
+        ]
+      ],
+      "identity": "single attachedRecord string plus ref/exact app-team-owner-principal tuple",
+      "lifecycle": "State/owner authorize -> attached/recordRef; state/exact-owner reads; receipt availability summary. No detach/refcount/download route.",
+      "invariants": [
+        "ID alone no read; foreign/collected/missing bytes null."
+      ],
+      "failure_scenarios": [
+        "Live row missing blob: files-only authorize and attach succeed, bytes read null. Attach A then B overwrites sole attachedRecord. Foreign collected ref expired before owner check: bounded existence distinction, no bypass claimed."
+      ],
+      "gaps": [
+        "Canonical record/field readable reuse/download/destination/shared-reference release P2 per DESIGN580/601."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-files-attachment-read",
+        "AD-files-port-contract",
+        "AD-interfaces-uploads"
+      ]
+    },
+    {
+      "id": "LF06",
+      "owner": "files expiry/GC/replay tombstones",
+      "files": [
+        "S19",
+        "S21",
+        "S22",
+        "S35"
+      ],
+      "anchors": [
+        [
+          "S22",
+          68,
+          157
+        ],
+        [
+          "S21",
+          138,
+          157
+        ],
+        [
+          "S21",
+          330,
+          375
+        ],
+        [
+          "S19",
+          134,
+          146
+        ],
+        [
+          "S35",
+          580,
+          580
+        ]
+      ],
+      "identity": "open/complete intent expiry; finalized/attached/orphaned/expired row; finalizedAt-based horizons; retained summary/retry metadata",
+      "lifecycle": "Explicit retention validate/now/listAll: due intent delete staging+expired; due final delete+expired or unattached delete+orphan. Terminal rows retained; receipt live+blob only.",
+      "invariants": [
+        "Attached skips orphan horizon, not retention; remove idempotent; no resurrection."
+      ],
+      "failure_scenarios": [
+        "Crash delete before stateput leaves live metadata/no bytes; next pass can finish, attach gate meanwhile passes. No installed driver found; no read/attach clock check, overdue object usable before sweep."
+      ],
+      "gaps": [
+        "Required stable resumable batches/current-owner lifetime/shared blockers/release-before-delete/backlog absent. No exact erasure-second promise."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-files-retention",
+        "AD-file-retention-clock",
+        "AD-files-attachment-read"
+      ]
+    },
+    {
+      "id": "LF07",
+      "owner": "files FS root/temp/path/handles",
+      "files": [
+        "S19",
+        "S23"
+      ],
+      "anchors": [
+        [
+          "S23",
+          1,
+          11
+        ],
+        [
+          "S23",
+          39,
+          89
+        ],
+        [
+          "S19",
+          158,
+          175
+        ]
+      ],
+      "identity": "caller absolute rootDir; safe flat keys; per-call OS descriptors/read buffers",
+      "lifecycle": "Caller absolute root mkdir -> safe key -> sync IO; OS per-call handles; copied reads; blob remove; no root/tempdir dispose.",
+      "invariants": [
+        "Traversal string denied; ENOENT null, other IO faults throw; local API not R2 binding."
+      ],
+      "failure_scenarios": [
+        "Malicious local root/key symlink can follow outside target despite safe key (local-control prerequisite, not HTTP traversal). Crash lacks metadata transaction/fsync guarantee."
+      ],
+      "gaps": [
+        "Caller temp-root cleanup/trust and durability profile; test teardown not product guarantee."
+      ],
+      "stage": "P1",
+      "original_ids": [
+        "AD-files-fs-storage",
+        "AD-files-port-contract"
+      ]
+    },
+    {
+      "id": "LF08",
+      "owner": "files quota/reservation capability",
+      "files": [
+        "S19",
+        "S20",
+        "S35"
+      ],
+      "anchors": [
+        [
+          "S19",
+          99,
+          155
+        ],
+        [
+          "S20",
+          347,
+          389
+        ],
+        [
+          "S20",
+          421,
+          436
+        ],
+        [
+          "S35",
+          599,
+          609
+        ]
+      ],
+      "identity": "per-transfer maxBytes; no aggregate quota ledger/reservation ID/lease in ports",
+      "lifecycle": "Per-intent declaration/count/actual-byte cap; no quota reservation ledger created/released here.",
+      "invariants": [
+        "Transfer cap is not aggregate reservation."
+      ],
+      "failure_scenarios": [
+        "Many valid open intents accumulate storage; future concurrent quota checks need guarded reserve. Untracked blobs escape metadata-only accounting."
+      ],
+      "gaps": [
+        "Required quota/orphan owner P2; mechanism/lease/accounting not selected."
+      ],
+      "stage": "P2",
+      "original_ids": [
+        "AD-files-upload",
+        "AD-files-port-contract"
+      ]
+    },
+    {
+      "id": "LF09",
+      "owner": "files principals/bridge-origin/upload auth joint",
+      "files": [
+        "S25",
+        "S26",
+        "S27",
+        "S28",
+        "S31",
+        "S35"
+      ],
+      "anchors": [
+        [
+          "S25",
+          99,
+          160
+        ],
+        [
+          "S25",
+          165,
+          239
+        ],
+        [
+          "S27",
+          26,
+          52
+        ],
+        [
+          "S28",
+          165,
+          220
+        ],
+        [
+          "S26",
+          143,
+          163
+        ],
+        [
+          "S26",
+          355,
+          393
+        ],
+        [
+          "S31",
+          1051,
+          1076
+        ],
+        [
+          "S35",
+          613,
+          617
+        ]
+      ],
+      "identity": "runtime-derived ReceivingContext tuple; normalized HTTPS BridgeOrigin; request authorization snapshot",
+      "lifecycle": "Bridge resolves per call; interface usesFiles -> grant/session audience/live identity -> sessionCSRF -> runtime receiver -> kernel delegation.",
+      "invariants": [
+        "No body-appointed identity; null/foreign deny; safe HTTPS origin; host fallback."
+      ],
+      "failure_scenarios": [
+        "Team switch changes tuple; snapshot before body outlives revocation. Caller-claim resolver would violate port contract, not prove live binding."
+      ],
+      "gaps": [
+        "Full authority/schema/R2/attachment/download/retention P2. Interim Worker refuses configured kernel without identity joint; no public-upload bypass."
+      ],
+      "stage": "P1/P2",
+      "original_ids": [
+        "AD-files-bridge",
+        "AD-interfaces-uploads",
+        "AD-files-attachment-read"
+      ]
+    }
+  ],
+  "controls_and_limits": [
+    "Identity per-method SQL/UNIQUE is not whole-feature atomicity; expiry is logical, not erasure. Files sync one-isolate calls cannot internally interleave; shared races require multiple clients/processes. Test maps alias objects and prove no crash persistence.",
+    "Durable metadata copy-returning seams explicitly prerequisite for file crash scenarios; FS bytes restart independently. No production R2 binder/retention schedule inferred. No auth bypass from helper/test export; public API/default/compiler ownership retained.",
+    "External browser/mail/provider copies and host sockets separately owned; no local timed-erasure guarantee."
+  ],
+  "coverage": {
+    "source_refs": [
+      "S03",
+      "S02",
+      "S01",
+      "S12",
+      "S08",
+      "S10",
+      "S11",
+      "S09",
+      "S18",
+      "S07",
+      "S06",
+      "S05",
+      "S04",
+      "S17",
+      "S13",
+      "S14",
+      "S15",
+      "S16",
+      "S25",
+      "S21",
+      "S19",
+      "S24",
+      "S22",
+      "S23",
+      "S20",
+      "S28",
+      "S27",
+      "S26"
+    ],
+    "other_scoped_sources": [
+      {
+        "path": "packages/identity/src/authentication/t16b-context.test.ts",
+        "sha256": "a839b605a2e17dda2171b13305b658567e8d1eb113ed11d337ae5b74b905466a"
+      },
+      {
+        "path": "packages/identity/src/authentication/t32b-revocation.test.ts",
+        "sha256": "74de2e90788dba97bfdd9fa7887973a9be9ddf14bdf16c31ad98be9273f0a265"
+      },
+      {
+        "path": "packages/identity/src/distribution.ts",
+        "sha256": "b80bc671dc80c3fbaa1c86dcd920f2347620603d4a18ad012aff5a8d19aae1ee"
+      },
+      {
+        "path": "packages/identity/src/index.ts",
+        "sha256": "05d683037a72bbac78477e7bdd554d0f64769aae36a2ee3ecff704a083472f17"
+      },
+      {
+        "path": "packages/identity/src/sessions/comparison-node.ts",
+        "sha256": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37"
+      },
+      {
+        "path": "packages/identity/src/sessions/comparison-worker.ts",
+        "sha256": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68"
+      },
+      {
+        "path": "packages/identity/src/sessions/comparison.ts",
+        "sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db"
+      },
+      {
+        "path": "packages/identity/src/testing.ts",
+        "sha256": "7419c5ca51bd0bc315a75e12b6d9ac06792f3180ae6d8de81dfe84db8db6660b"
+      },
+      {
+        "path": "packages/files/src/catalog.ts",
+        "sha256": "51cfbb1f9435b3bfb33296960f4618ff937cd3a6016baafd44395b3893408923"
+      },
+      {
+        "path": "packages/files/src/distribution.ts",
+        "sha256": "534d191aa4cad70f6e0b0059e26c0aa19117ae6c3dd67887c3c6fe70777273be"
+      },
+      {
+        "path": "packages/files/src/index.ts",
+        "sha256": "34872aaa3e9f6dc56d091fbc162353b30bd42d21bf8d98f44bf05d8bbfba9570"
+      },
+      {
+        "path": "packages/files/src/scenarios.ts",
+        "sha256": "7c93152807b44dd9785d21c3e197a2b41ed1b53d9721e4a6fb0d2412888f6570"
+      }
+    ],
+    "other_classification": "comparison host selectors and index/distribution/catalog exports have no separate owned lifecycle; testing.ts and t16/t32 tests are scenario evidence only; files scenarios.ts deliberately empty inventory. No source omitted."
+  },
+  "omissions": [
+    "All40 scoped src TS mapped. Test behavior not exhaustively audited/executed. Root owns HTTP reader/instrumentation/export/print/CSV/MCP outer lifecycles, inherited file coverage and docs/Git; external host/provider lifetime outside owner."
+  ]
+}

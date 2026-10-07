@@ -1,0 +1,461 @@
+{
+  "schema": "canlang-lifecycle-independent-source-challenge-v1",
+  "freeze": "fecf84196e38679646d221ee18aa4383ed0d0e83",
+  "evidence": "Prior conclusions visible; independent source challenge, not cleanroom. All witnesses unexecuted. No tests/runtime/build/install/network/Git/repository edits/new design acceptance. Existing fixtures read as counterevidence only.",
+  "anchors": "[source ID, verified one-based line]; whole-file SHA256 below",
+  "reviews": [
+    {
+      "id": "GAP-L01",
+      "conclusion": "Source-supported scheduler starvation; scope qualification strengthened. No independent-copy persistence prerequisite for this algorithmic witness.",
+      "minimal_witness": {
+        "preconditions": "Frozen fanout with ordered child row IDs a<b; a completed, b running and provably stale under inclusive age; pageLimit=1,maxDrives=1; correct sorted bounded store query; no external releases/deletions. Child IDs here mean row ordering, not arbitrary domain record labels.",
+        "interleaving": [
+          "Every runSchedulerTurn calls release with cursor:null; release page is only a, skips completed, returns done:false,cursor:a; turn discards those continuation fields.",
+          "Drive sweep obeys returned cursor: a replays; next page b is held because state running (staleness is not checked in driveChild); next empty page gives done:true but progress incomplete.",
+          "Caller resweeps from null while work remains: release again sees only a. b remains stale-running indefinitely absent another recovery actor."
+        ],
+        "exact_observation": "released=[] on every turn; b driven status held/detail running-held; full-cohort progress remains incomplete, not falsely completed."
+      },
+      "counterevidence": [
+        "releaseStaleFanoutClaims itself accepts cursor and returns honest cursor/done; a caller that separately advances that API across all pages can release b. It is not a helper bug.",
+        "Turn drive cursor accurately resumes processed rows; fresh running claims intentionally held. Do not blame drive-page honesty or require live claims to be cancelled.",
+        "External owner can perform full release sweeps, increase pageLimit beyond prefix, or remove terminal prefix. Those can remedy witness, but turn API neither exposes release continuation nor demonstrates such worker ownership.",
+        "Current test sweepToTerminal resets driving cursor only after done and checks progress; bounded finite loop is existing test source, not fresh witness execution."
+      ],
+      "permitted_ownership": "Independent fair release driver is permitted, provided actual owner retains/advances its cursor and has eventual full frozen-row coverage. No choice of cursor persistence store, filtering schema or sweep schedule made.",
+      "required_fix_or_gate": "Integrated scheduler must maintain full stale-claim coverage independent of terminal prefix (retain release continuation or equivalent proven driver). Preserve honest progress, bounded turn/page work and fresh-claim holding.",
+      "scope": "Current TS exported scheduler + injected F7 serving surface; composition proves callability, not mounted deployment or incident. Memory and durable ordered-query stores both can exhibit stable-prefix starvation.",
+      "original_ids": [
+        "SW-061",
+        "SW-082",
+        "T34-F4",
+        "T34-F7"
+      ],
+      "anchors": [
+        [
+          "runtime",
+          7109
+        ],
+        [
+          "runtime",
+          7455
+        ],
+        [
+          "runtime",
+          7471
+        ],
+        [
+          "runtime",
+          7501
+        ],
+        [
+          "runtime",
+          7526
+        ],
+        [
+          "runtime",
+          6884
+        ],
+        [
+          "runtime",
+          6920
+        ],
+        [
+          "fanoutrows",
+          531
+        ],
+        [
+          "fanoutrows",
+          575
+        ],
+        [
+          "f7test",
+          407
+        ],
+        [
+          "assembly",
+          1518
+        ],
+        [
+          "resolution",
+          25
+        ]
+      ]
+    },
+    {
+      "id": "GAP-L03",
+      "conclusion": "Source-supported stale body/guard snapshot across fresh admission and retries for unversioned record input. Atomic fresh fence does not retroactively enroll pre-admission A.",
+      "minimal_witness": {
+        "preconditions": "Live authorized member; compatible child operation record input versioned:false (present in current F7 fixture); valid claimed child/owner/checkpoint. store.load returns independent row copy A(version1,flag:true). Body can derive schema-valid attributed effects from supplied row without writing that domain row.",
+        "interleaving": [
+          "At runtime7160 load A; separate supported commit writes B(version2,flag:false) before canonical invoke starts. A remains independent old copy. Claim/fresh authority succeed (child-row version check is not a domain-row version check).",
+          "Canonical admit reads newer revision, loads/enrolls B and passes current membership/version policy. execute(call) discards call at7223; body(child,A,{operationId}) at7224 sees true.",
+          "Valid body effects plus current fanout outcome/checkpoint rows commit at B-era revision if no later intervening write. An outbox-only/domain-read decision is not forced to assert A.version.",
+          "If a fence conflict occurs later, invoke re-admits current rows and reruns same execute closure, still A; no assignment reloads domainRow."
+        ],
+        "exact_observation": "Body/claim readSnapshot may see A despite admitted call.recordRefs containing B. Source proves stale supplied input; business outcome depends on body. No claim arbitrary body effect bypasses schema/linkage/auth checks."
+      },
+      "counterevidence": [
+        "Canonical invoke truly reads revision first, reloads/enrolls references, live-authority revalidates, and atomically commits child effects/outcome/checkpoint. Those controls remain.",
+        "If childOperation requires versioned:true, runtime supplies only {id}; validation rejects before execute. Witness must explicitly use admitted unversioned profile, not every operation. refInput comment says version-fenced but implementation/current fixture disagree with broad interpretation.",
+        "Current countingBody fixture writes domain row with expectedVersion:A.version. If B changed, storage version fencing refuses that stale write; cannot use this fixture as successful stale overwrite witness.",
+        "Caller may independently load current state in readSnapshot/body or return domain writes/guards tied to current dependencies. Such a caller can avoid stale data, but body API passes A and does not receive AdmittedCall; extra reads must enroll within each fresh attempt to carry current-state proof.",
+        "State memory load already jsonCopies; D1 load constructs fresh StoredRow. Durable persistence not logically required for a controlled interleaving; independent snapshot semantics are required for A to remain stale. No real concurrent incident reproduced."
+      ],
+      "permitted_ownership": "Use admitted reference row for each execution pass or reload/enroll inside its fresh scope; caller-controlled snapshot cannot be treated as current merely because thunk runs later. No new policy on always-versioned refs or body outputs adopted.",
+      "required_fix_or_gate": "Current body/guard dependencies at demand must correspond to every child execution attempt. Test pre-admission A->B and retry A->B with effects that do not otherwise fence A via domain write; retain live authority, atomicity and trace order.",
+      "scope": "Current TS injected F7 driver/ports, not proof every generated handler or deployed worker uses the vulnerable body form. Persistent independent-copy ports are realistic; memory copy semantics suffice for source-derived scenario.",
+      "original_ids": [
+        "SW-004",
+        "SW-079",
+        "SW-080",
+        "T32b",
+        "T34-F7"
+      ],
+      "anchors": [
+        [
+          "runtime",
+          6407
+        ],
+        [
+          "runtime",
+          6417
+        ],
+        [
+          "runtime",
+          6612
+        ],
+        [
+          "runtime",
+          7160
+        ],
+        [
+          "runtime",
+          7181
+        ],
+        [
+          "runtime",
+          7184
+        ],
+        [
+          "runtime",
+          7223
+        ],
+        [
+          "runtime",
+          7224
+        ],
+        [
+          "runtime",
+          7227
+        ],
+        [
+          "runtime",
+          7277
+        ],
+        [
+          "invoke",
+          186
+        ],
+        [
+          "invoke",
+          215
+        ],
+        [
+          "invoke",
+          311
+        ],
+        [
+          "invoke",
+          342
+        ],
+        [
+          "admission",
+          42
+        ],
+        [
+          "admission",
+          316
+        ],
+        [
+          "admission",
+          371
+        ],
+        [
+          "admission",
+          422
+        ],
+        [
+          "admission",
+          636
+        ],
+        [
+          "f7test",
+          313
+        ],
+        [
+          "f7test",
+          441
+        ],
+        [
+          "memory",
+          489
+        ],
+        [
+          "d1",
+          636
+        ],
+        [
+          "resolution",
+          20
+        ]
+      ]
+    },
+    {
+      "id": "LF02",
+      "conclusion": "Conditional source-supported blob/count drift at direct upload append/complete and HTTP content route. Strong provider-output resume control narrows scope. No implemented durable metadata/blob pair or incident established.",
+      "minimal_witness": {
+        "preconditions": "Authorized open intent declaredSize1,receivedBytes0,text/plain; effective maxBytes>=2. Intent metadata persists independently and get returns a detached copy; blob append persists separately. Both survive interruption and no combined atomic binding rolls append back.",
+        "interleaving": [
+          "appendUploadContent(\"A\") persists blob A at434; interruption/throw before count put436 leaves durable count0. In-memory aliased metadata is not evidence of this crash window.",
+          "Retry same chunk A reads detached persisted count0; guard0+1<=declared1 allows; blob becomes AA, metadata count1 persists.",
+          "complete checks metadata count1==declared1 then reads actual AA. checkContent accepts plain text length2 under policy cap>=2 but does not compare actual2 to declared/count1; record bytesDigest becomes sha256(AA),state complete.",
+          "Authorized finalization with actual recorded digest rechecks digest, then freezes sizeBytes:receivedBytes1 while immutable content/digest refers to AA length2."
+        ],
+        "exact_observation": "complete returns accepted check.sizeBytes2; finalized metadata sizeBytes1 and digest/blob AA, under stated independent durable port assumptions."
+      },
+      "counterevidence": [
+        "IntentStore/FinalizedStore header declares real lane-3 binding stages rows atomically with owner fence; memory stores are explicitly non-durable/non-atomic doubles. No combined persistent binding found/proven here; an atomic blob+metadata owner could prevent precondition.",
+        "FsBlobStore is real local journey persistence but explicitly not production R2 binding. It alone does not prove durable intent rows or multi-process shared runtime.",
+        "Synchronous append helper has no internal await; two calls in one JS isolate do not interleave its statements ordinarily. Witness is failure/restart or independent shared-port context, not imaginary scheduler preemption.",
+        "TestOnlyMemoryIntentStore.get returns same object; successful receivedBytes mutation before put can already appear in memory. This is not independent durable-copy proof.",
+        "finalizeProviderOutput585-588 checks staged.length===received and exact original-byte prefix before append: the same crash drift refuses conflict there. Therefore LF02 is not a universal provider-output finalization vulnerability.",
+        "Missing counted staging, normal overdeclared append and actual policy cap failures already refuse. Native/plain-byte MIME validation and finalized digest recheck remain controls."
+      ],
+      "permitted_ownership": "Atomic count+blob owner binding, idempotent offset/journal append or consistent guarded recovery can prevent drift. Mechanism choice not made; copy-returning persistent metadata is a scenario prerequisite, not a new port API requirement.",
+      "required_fix_or_gate": "At direct completion/finalization, actual stored length must agree with received and declared length before usable immutable file. Crash after blob append/before metadata persistence cannot produce size/digest/content disagreement. Prove on actual independent persistent ports, not aliases.",
+      "separate_put_retry_limit": "HTTP content route appends body then completes after every append; no offset/chunk identity exposed. Lost partial PUT then blind repeat can append again even without crash, but caller retry semantics/whole-file replacement/resume contract requires explicit decision. Do not collapse that question into the required length-agreement fix or assert all retries are promised idempotent.",
+      "scope": "Supported TS append/complete APIs and authenticated HTTP adapter if injected matching kernel; production atomic/R2 join unresolved. ProviderOutput resume guard excludes its open-transfer path from basic retry witness.",
+      "original_ids": [
+        "AD-files-upload",
+        "AD-file-magic-scope",
+        "AD-file-digest-encoding",
+        "AD-interfaces-uploads"
+      ],
+      "anchors": [
+        [
+          "upload",
+          402
+        ],
+        [
+          "upload",
+          424
+        ],
+        [
+          "upload",
+          434
+        ],
+        [
+          "upload",
+          436
+        ],
+        [
+          "upload",
+          470
+        ],
+        [
+          "upload",
+          480
+        ],
+        [
+          "upload",
+          490
+        ],
+        [
+          "upload",
+          155
+        ],
+        [
+          "finalize",
+          164
+        ],
+        [
+          "finalize",
+          189
+        ],
+        [
+          "finalize",
+          198
+        ],
+        [
+          "finalize",
+          577
+        ],
+        [
+          "finalize",
+          585
+        ],
+        [
+          "fileports",
+          12
+        ],
+        [
+          "fileports",
+          16
+        ],
+        [
+          "fileports",
+          130
+        ],
+        [
+          "fileports",
+          293
+        ],
+        [
+          "fsblob",
+          4
+        ],
+        [
+          "fsblob",
+          50
+        ],
+        [
+          "routes",
+          269
+        ],
+        [
+          "routes",
+          286
+        ],
+        [
+          "design",
+          599
+        ],
+        [
+          "design",
+          608
+        ]
+      ]
+    }
+  ],
+  "sources": {
+    "runtime": {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+    },
+    "fanoutrows": {
+      "path": "packages/state/src/fanout/tables.ts",
+      "sha256": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae"
+    },
+    "admission": {
+      "path": "packages/state/src/invocation/admission.ts",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6"
+    },
+    "invoke": {
+      "path": "packages/state/src/invocation/invoke.ts",
+      "sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670"
+    },
+    "memory": {
+      "path": "packages/state/src/storage/memory.ts",
+      "sha256": "89ba826037d7162e8f642a4bb97de3d07eca04b2ae00c14969746567643b94f8"
+    },
+    "d1": {
+      "path": "packages/state/src/storage/d1.ts",
+      "sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45"
+    },
+    "f7test": {
+      "path": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "sha256": "8636320772fbf995fd66bf122678d14a9047d996ab6b2502f761454abbba0c2d"
+    },
+    "assembly": {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628"
+    },
+    "resolution": {
+      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "sha256": "b4a310ce2e3d9eccbc2d6a8c98381d531897ff0ce76feaed84a3d84490d59d05"
+    },
+    "upload": {
+      "path": "packages/files/src/upload/index.ts",
+      "sha256": "46f566043db6f6292d6a95ae125e0e51c19058cc455f9a68bd4ff56343479ca7"
+    },
+    "finalize": {
+      "path": "packages/files/src/finalize/index.ts",
+      "sha256": "eba40a06b0bd79ebac016e4f845ed6a9b2301b5de193766ca6ed7a0e4419d74a"
+    },
+    "fileports": {
+      "path": "packages/files/src/ports.ts",
+      "sha256": "2a7cd17c0e3775e3909468eec53aa046a404dcf3d87721c083fb5158a55d7c6b"
+    },
+    "fsblob": {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "sha256": "0c112376b97e30a41ed6db8956b5e003ccc9e16ff4c0386353e04561a504108e"
+    },
+    "routes": {
+      "path": "packages/interfaces/src/uploads/routes.ts",
+      "sha256": "fff8e55fe8aed9cea083b5b3dcd9f8d1ff9cb1072539a2c429176d65132a0e59"
+    },
+    "design": {
+      "path": "docs/specification/DESIGN.md",
+      "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9"
+    }
+  },
+  "input_hash_checks": [
+    {
+      "source": "runtime",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "fanoutrows",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "admission",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "invoke",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "memory",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "d1",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "f7test",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "assembly",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "upload",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "finalize",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "fileports",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "fsblob",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "routes",
+      "matches_input_packet_hash": true
+    },
+    {
+      "source": "design",
+      "matches_input_packet_hash": true
+    }
+  ]
+}

@@ -1,0 +1,1170 @@
+{
+  "schema": "canlang-lifecycle-state-work/v1",
+  "pin": "fecf84196e38679646d221ee18aa4383ed0d0e83",
+  "status": "source-derived unexecuted planning; no fresh acceptance",
+  "scope": "Work/work-kernel/State resource lifecycles plus owning F7/dispatch/recovery/transaction joins in Cloudflare runtime. Parent owns broader file coverage/caches/UI/values/testkit.",
+  "sources": {
+    "ports": {
+      "path": "packages/work/src/ports.ts",
+      "sha256": "70a65508156c6c01ce9aa09341036f92274bbe9bdc122390751bd0d2d59c44fe"
+    },
+    "dispatch": {
+      "path": "packages/work/src/dispatch/index.ts",
+      "sha256": "aca8c5b3b72dfca2c7b7085bbb7d0d8d8fd6e3836b88813d1ea76e730b94bfb7"
+    },
+    "intent": {
+      "path": "packages/work/src/intent/index.ts",
+      "sha256": "d1d81a088df85d848eed4bc67ac810d50b2a13961693579b8dcacd2933646995"
+    },
+    "event": {
+      "path": "packages/work/src/event/index.ts",
+      "sha256": "25114e4933a6850f5f5cc623ce243d10d250c2a5c3623343ff6780b551229d6c"
+    },
+    "schedule": {
+      "path": "packages/work/src/schedule/index.ts",
+      "sha256": "85fc30267d72ce6aa442f18192d0817f028fd6cbc7e32047b46f3bb96a2eaf78"
+    },
+    "every": {
+      "path": "packages/work/src/schedule/every.ts",
+      "sha256": "1f9757d565c93384b12757e86fce184e603062aba8c8e6be0c940219fd700b30"
+    },
+    "retry": {
+      "path": "packages/work/src/receipt/index.ts",
+      "sha256": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816"
+    },
+    "recovery": {
+      "path": "packages/work/src/recovery/index.ts",
+      "sha256": "870fed2d65118b4b77ce42df4bf0ef655d93ab9a062eff25761bb4df07e3e67f"
+    },
+    "rows": {
+      "path": "packages/work/src/kernel/tables.ts",
+      "sha256": "10bde1f6281574b277fa6b795157c72c40471a12e46c32490b4774e1aea220e7"
+    },
+    "commands": {
+      "path": "packages/work/src/kernel/commands.ts",
+      "sha256": "3638d31b51317dd3b3fdd2a2935e21044c82ef1a9b63afd6dbfdebe65b3b3c7c"
+    },
+    "observation": {
+      "path": "packages/work/src/observation/observation.ts",
+      "sha256": "9ea46b591b0854146d3df0c9676b689ccde1d8df7349d745b4100d9325292a03"
+    },
+    "association": {
+      "path": "packages/work/src/observation/association.ts",
+      "sha256": "1f655e8417cbe636764e01dd01f85b122560cb4cad867c6d0658486224fca67f"
+    },
+    "observeports": {
+      "path": "packages/work/src/observation/ports.ts",
+      "sha256": "23061afc6796d81c60d56013ff396ef8235d777a6aa34e8dbf95adbc48a73740"
+    },
+    "facts": {
+      "path": "packages/work-kernel/src/facts.ts",
+      "sha256": "d10518896028ef5243d066fab4938fcb3657b0b85a90feea680a9dfdaeb6c61a"
+    },
+    "refs": {
+      "path": "packages/work-kernel/bindings/host-values.ts",
+      "sha256": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26"
+    },
+    "native": {
+      "path": "packages/work-kernel/decisions/lib.rs",
+      "sha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509"
+    },
+    "invoke": {
+      "path": "packages/state/src/invocation/invoke.ts",
+      "sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670"
+    },
+    "admission": {
+      "path": "packages/state/src/invocation/admission.ts",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6"
+    },
+    "context": {
+      "path": "packages/state/src/invocation/context.ts",
+      "sha256": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f"
+    },
+    "replay": {
+      "path": "packages/state/src/invocation/replay.ts",
+      "sha256": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36"
+    },
+    "transact": {
+      "path": "packages/state/src/ports/transact.ts",
+      "sha256": "20ebcc4792bc145d60d16210d19dfec45bb6a1d0961b86973d3bea6b6a01a902"
+    },
+    "system": {
+      "path": "packages/state/src/ports/system.ts",
+      "sha256": "85a496859cf838ed2fb24439d1679e799f6e898dfad13d8e59577626418428f7"
+    },
+    "read": {
+      "path": "packages/state/src/ports/read.ts",
+      "sha256": "a69f85d0095ea1f55711a72b30e419449bb13bba452d949a6a5182ec0b3863e9"
+    },
+    "pipeline": {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "sha256": "1160f08db792ebe64c1c48829e6e3be8df436c3019fb47e87746c9e5ac3c39b9"
+    },
+    "effects": {
+      "path": "packages/state/src/effects/staging.ts",
+      "sha256": "e5526973013ddefe2dbe19baafd3f8c20b00378258eea0a84482265ae73313c7"
+    },
+    "d1": {
+      "path": "packages/state/src/storage/d1.ts",
+      "sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45"
+    },
+    "do": {
+      "path": "packages/state/src/storage/durable-object.ts",
+      "sha256": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956"
+    },
+    "memory": {
+      "path": "packages/state/src/storage/memory.ts",
+      "sha256": "89ba826037d7162e8f642a4bb97de3d07eca04b2ae00c14969746567643b94f8"
+    },
+    "schema": {
+      "path": "packages/state/src/storage/schema.ts",
+      "sha256": "2a64ec108ea971c72be75c7c7bc1c8a16566bdcb81cf75178fb564a490468520"
+    },
+    "receiptrows": {
+      "path": "packages/state/src/receipt/tables.ts",
+      "sha256": "d9d6ec727d3ee80bc7b2036c934ad75df6a58afabeb6fa9e428b21705136230d"
+    },
+    "receiptjoin": {
+      "path": "packages/state/src/receipt/join.ts",
+      "sha256": "1246a8fa0aac1f4b53512050d8e32c33cae98b843717e7de92fac3b71dc6471d"
+    },
+    "grants": {
+      "path": "packages/state/src/receipt/grants.ts",
+      "sha256": "e67bcc93376bfd614374a07937b59c5e577b1260c7b2f293c2aa0773569c2a6f"
+    },
+    "loader": {
+      "path": "packages/state/src/receipt/observer-loader.ts",
+      "sha256": "add53ef3e6b23068e20a8b51d39c8150a1d0cd78d782cbcd3b2d2816159e1523"
+    },
+    "cohort": {
+      "path": "packages/state/src/fanout/cohort.ts",
+      "sha256": "2b4c324a68e83a412a0abbb082e4ad9a01e214ae7588dd79eab851ccaba05ed0"
+    },
+    "fanoutrows": {
+      "path": "packages/state/src/fanout/tables.ts",
+      "sha256": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae"
+    },
+    "membership": {
+      "path": "packages/state/src/fanout/membership.ts",
+      "sha256": "2b92b84a6e9bb37b27df64278b6c62985145d3589b9af150852cb2ab2a8e50f8"
+    },
+    "lifecycle": {
+      "path": "packages/state/src/fanout/lifecycle.ts",
+      "sha256": "451e1c290611b80f28692cf4873d03897881b7f3e14c399d8a8b140c1a4f0f78"
+    },
+    "outcome": {
+      "path": "packages/state/src/fanout/outcome.ts",
+      "sha256": "cc319f783b6621ccfe2079eb41ec94b436e1e64c9330afd36b7f0df1f7b457af"
+    },
+    "progress": {
+      "path": "packages/state/src/fanout/progress.ts",
+      "sha256": "a63bd42cd0d882b864b79124fb16aeca895cde234d6faff579ddb0aa92cd51a6"
+    },
+    "mstage": {
+      "path": "packages/state/src/migration/stage.ts",
+      "sha256": "3d23206dd84067e06fdd16fff4d2ab80d6e9977f9a035444b92dc305a824e138"
+    },
+    "mactivate": {
+      "path": "packages/state/src/migration/activate.ts",
+      "sha256": "e53bdba577d705b228244aedab4f9a2000e40e53b8eb748ec196e4aec4b1bee4"
+    },
+    "mrecover": {
+      "path": "packages/state/src/migration/recover.ts",
+      "sha256": "bbea00e7662a56971795a85eaa0fa871b6d1fd25279e25c54243d05bd9188153"
+    },
+    "mretain": {
+      "path": "packages/state/src/migration/retain.ts",
+      "sha256": "80118be1886eb28093ac9c6532995163d2bb47191404951a4580e9ab32158f09"
+    },
+    "mindex": {
+      "path": "packages/state/src/migration/index.ts",
+      "sha256": "f307483b18eac6f740a5273a868bd961a5f35e1435a2d96b95cdd3f4c5563660"
+    },
+    "query": {
+      "path": "packages/state/src/query/engine.ts",
+      "sha256": "9d8b5f499dd04f72a71511af3761c53051f2df5476174e40627eb91ada337a83"
+    },
+    "runtime": {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+    },
+    "contracts": {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89"
+    },
+    "wplan": {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "sha256": "282e0ab9af9d8b95a5c1841aa095bfb504f460ee1cc5b2db3823512f79747e93"
+    },
+    "f7test": {
+      "path": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "sha256": "8636320772fbf995fd66bf122678d14a9047d996ab6b2502f761454abbba0c2d"
+    },
+    "f5test": {
+      "path": "packages/state/src/fanout/t34-f5-admission.test.ts",
+      "sha256": "c1f60a9c852ab9770d8fab3850919bbac6cefef7260ea7a884520aabae6e05fb"
+    },
+    "fencetest": {
+      "path": "packages/state/src/invocation/t32b-wire.test.ts",
+      "sha256": "004f9f7b0cdd834a06ba6fde9277c7ccbedf41d0c2cc020e6d27db2f8ffa785c"
+    },
+    "storagetest": {
+      "path": "packages/state/src/storage/data-plane-durable.test.ts",
+      "sha256": "b9e70f8b0aceaf1ab348aee4e18b894352f4a0a4a7ae35a344d8d0ecc94cd457"
+    }
+  },
+  "anchors_format": "files entries are source keys resolving exact path/SHA256 in sources; anchors source-key:1-based-line. Scenarios unexecuted, other fields valid. Stage current TS means owning callable source, not every deployment wiring.",
+  "resources": [
+    {
+      "id": "LSW-01",
+      "owner": "State storage adapters",
+      "files": [
+        "schema",
+        "d1",
+        "do",
+        "memory",
+        "transact"
+      ],
+      "anchors": [
+        "schema:1",
+        "d1:666",
+        "d1:879",
+        "do:76",
+        "do:1175",
+        "transact:53",
+        "d1:880"
+      ],
+      "identity": "one owner primary revision; fence_log expected+1 PK",
+      "lifecycle": {
+        "create": "ensureSchema dense0",
+        "use": "read/check versions -> D1 batch or DO transactionSync",
+        "terminal": "commit bumps1; failure rolls back",
+        "disposal": "no ledger purge"
+      },
+      "invariants": [
+        "All writers use dense monotone fence; failed SQL batch/transaction rolls back all arrays."
+      ],
+      "failure_scenarios": [
+        "Two R writers: one commits, other fully rolls back.",
+        "Pruned old fence_log key can admit stale revision/reset; no purge casually."
+      ],
+      "stage": "current TS",
+      "disposition": "SQL substrate owns transaction release; all writers must fence.",
+      "original_ids": [
+        "SW-002",
+        "SW-003",
+        "S2",
+        "W07.1"
+      ]
+    },
+    {
+      "id": "LSW-02",
+      "owner": "State mutation executor",
+      "files": [
+        "pipeline",
+        "effects"
+      ],
+      "anchors": [
+        "pipeline:295",
+        "pipeline:315",
+        "pipeline:659",
+        "pipeline:720",
+        "pipeline:1398",
+        "effects:1"
+      ],
+      "identity": "per-attempt row overlay; committed-before unique reservations; history entries",
+      "lifecycle": {
+        "create": "per-attempt overlay/defaults",
+        "use": "source-order hooks/refs/invariants",
+        "terminal": "return effects or throw",
+        "disposal": "discard overlay on retry"
+      },
+      "invariants": [
+        "Hook/body retries can repeat callbacks; staged rows/history/uniques commit together."
+      ],
+      "failure_scenarios": [
+        "Later hook throws: staged earlier rows discarded.",
+        "External callback action is not undone by storage rollback."
+      ],
+      "stage": "current TS",
+      "disposition": "Keep host callbacks and staged effects; no external rollback.",
+      "original_ids": [
+        "SW-019",
+        "SW-028",
+        "SW-033",
+        "SW-046",
+        "S5",
+        "W03.4"
+      ]
+    },
+    {
+      "id": "LSW-03",
+      "owner": "State invoke/admission",
+      "files": [
+        "invoke",
+        "admission",
+        "context",
+        "replay"
+      ],
+      "anchors": [
+        "invoke:142",
+        "invoke:186",
+        "invoke:199",
+        "invoke:213",
+        "invoke:285",
+        "invoke:331",
+        "admission:323",
+        "context:67"
+      ],
+      "identity": "receipt namespace app/owner/principal/operation/operationId and supplied-input hash",
+      "lifecycle": {
+        "create": "frozen now + receipt lookup",
+        "use": "replay or fresh execution",
+        "terminal": "success/rejected receipt; bug unreceipted",
+        "disposal": "durable receipts, no purge"
+      },
+      "invariants": [
+        "3 fence attempts; replay before age/auth/body; rich rejection now, code/message replay."
+      ],
+      "failure_scenarios": [
+        "Crash after commit: exact envelope replays without body.",
+        "StateError records empty rejection; bug remains unreceipted."
+      ],
+      "stage": "current TS",
+      "disposition": "Replay/result projection scope remains limited.",
+      "original_ids": [
+        "SW-007",
+        "SW-008",
+        "SW-010",
+        "SW-011",
+        "SW-012",
+        "SW-028",
+        "S3",
+        "T32b"
+      ]
+    },
+    {
+      "id": "LSW-04",
+      "owner": "State fresh fence scopes and live authority",
+      "files": [
+        "admission",
+        "invoke",
+        "read",
+        "query"
+      ],
+      "anchors": [
+        "admission:508",
+        "admission:639",
+        "admission:709",
+        "invoke:299",
+        "query:660",
+        "admission:631"
+      ],
+      "identity": "owner checkpoint R plus enrolled membership/record/query/imported-parent dependencies",
+      "lifecycle": {
+        "create": "fresh owner revision",
+        "use": "enroll + live by/guards",
+        "terminal": "conflict retries; forbidden voids",
+        "disposal": "per-call scope"
+      },
+      "invariants": [
+        "Fresh child scope; eventual cannot authorize; trusted still asserts revision."
+      ],
+      "failure_scenarios": [
+        "Revoked before revalidation: success voids.",
+        "GAP-L02: revoke after live check before batch remains open."
+      ],
+      "stage": "current TS",
+      "disposition": "GAP-L02: already-fenced revocation race unresolved.",
+      "original_ids": [
+        "SW-004",
+        "SW-006",
+        "T32b",
+        "W03.4"
+      ]
+    },
+    {
+      "id": "LSW-05",
+      "owner": "State privileged system registry",
+      "files": [
+        "system",
+        "commands",
+        "transact"
+      ],
+      "anchors": [
+        "system:144",
+        "system:173",
+        "commands:190",
+        "transact:271"
+      ],
+      "identity": "registered unique command name; caller operationId; command-owned row lineage",
+      "lifecycle": {
+        "create": "unique registry + cloned args",
+        "use": "read-only command stage",
+        "terminal": "single receiptless commit",
+        "disposal": "registry owner lifetime"
+      },
+      "invariants": [
+        "Stage context has readers only; caller operationId alone does not ensure generic replay."
+      ],
+      "failure_scenarios": [
+        "Same ID command is not generic receipt replay.",
+        "Fence conflict reports busy, no registry retry."
+      ],
+      "stage": "current TS",
+      "disposition": "Command lineage, not generic receipt replay.",
+      "original_ids": [
+        "SW-042",
+        "S6",
+        "T24b"
+      ]
+    },
+    {
+      "id": "LSW-06",
+      "owner": "State/Work joined outbox staging",
+      "files": [
+        "intent",
+        "commands",
+        "transact",
+        "effects"
+      ],
+      "anchors": [
+        "intent:123",
+        "intent:295",
+        "commands:1143",
+        "transact:206",
+        "runtime:4438"
+      ],
+      "identity": "obx identity operation/source/index; L3 outbox + work.dispatch same intentId",
+      "lifecycle": {
+        "create": "freeze request + stage guard",
+        "use": "assert lifecycle/outbox linkage",
+        "terminal": "one fenced commit or none",
+        "disposal": "ack retains row"
+      },
+      "invariants": [
+        "Exact lifecycle/outbox linkage, except explicit guard-false row-only skip; marker != commit."
+      ],
+      "failure_scenarios": [
+        "Crash before join: no dispatchable half.",
+        "Foreign duplicate origin/verdict rejects."
+      ],
+      "stage": "current TS",
+      "disposition": "Keep actual owning join; marker helper not durable.",
+      "original_ids": [
+        "SW-039",
+        "SW-051",
+        "SW-052",
+        "T24a",
+        "T24b",
+        "W06"
+      ]
+    },
+    {
+      "id": "LSW-07",
+      "owner": "Work durable dispatch claim + TS driver",
+      "files": [
+        "commands",
+        "dispatch",
+        "runtime"
+      ],
+      "anchors": [
+        "commands:190",
+        "commands:237",
+        "commands:288",
+        "commands:507",
+        "dispatch:174",
+        "runtime:4744",
+        "runtime:4796"
+      ],
+      "identity": "opaque claimId on one intent; claim generation stamped claimedAt",
+      "lifecycle": {
+        "create": "fenced winning claim",
+        "use": "guard/fence -> provider",
+        "terminal": "exact claim record or stale release",
+        "disposal": "no abort/deadline handle"
+      },
+      "invariants": [
+        "Exact held claim gates recording; availability/guard/authority order depends on operation scope."
+      ],
+      "failure_scenarios": [
+        "Guard throws after claim: held for recovery.",
+        "Late old provider response after reclaim: recording refuses."
+      ],
+      "stage": "current TS",
+      "disposition": "Lease expiry is not provider cancellation.",
+      "original_ids": [
+        "SW-057",
+        "SW-058",
+        "SW-059",
+        "T24b",
+        "W03.4"
+      ]
+    },
+    {
+      "id": "LSW-08",
+      "owner": "Provider outcome/retry/reconciliation owner",
+      "files": [
+        "retry",
+        "runtime"
+      ],
+      "anchors": [
+        "retry:108",
+        "retry:204",
+        "retry:268",
+        "runtime:4830",
+        "runtime:4890",
+        "runtime:5013"
+      ],
+      "identity": "original intent/provider identity; attempt count and durable firstAttemptAtMs",
+      "lifecycle": {
+        "create": "provider after gate",
+        "use": "classify + retry/reconcile",
+        "terminal": "ack terminal; retain uncertain",
+        "disposal": "no provider timeout"
+      },
+      "invariants": [
+        "Uncertain != failure; stable identity/first-attempt horizon; no provider timeout/cancel implied."
+      ],
+      "failure_scenarios": [
+        "Accepted then crash pre-record: provider dedup/reconcile needed.",
+        "Unsettled provider await owns no enforced deadline."
+      ],
+      "stage": "current TS",
+      "disposition": "Require provider idempotency/reconcile contract; no certainty invented.",
+      "original_ids": [
+        "SW-059",
+        "SW-061",
+        "SW-092",
+        "T24b",
+        "W07.1"
+      ]
+    },
+    {
+      "id": "LSW-09",
+      "owner": "Work occurrence receipt owner",
+      "files": [
+        "event",
+        "commands",
+        "ports"
+      ],
+      "anchors": [
+        "event:47",
+        "event:99",
+        "commands:622",
+        "ports:114"
+      ],
+      "identity": "stable occurrenceId, not event path",
+      "lifecycle": {
+        "create": "first current-state handler",
+        "use": "duplicate bypasses body",
+        "terminal": "receipt or thrown transient",
+        "disposal": "durable lineage required"
+      },
+      "invariants": [
+        "Handler once-only requires atomic owner admission, not final receipt put-if-absent alone."
+      ],
+      "failure_scenarios": [
+        "Two receipt misses may both execute without owner serialization.",
+        "Throw retries same ID with current reload."
+      ],
+      "stage": "current TS",
+      "disposition": "Handler atomic admission remains owner obligation.",
+      "original_ids": [
+        "SW-053",
+        "SW-087",
+        "SW-091",
+        "W06"
+      ]
+    },
+    {
+      "id": "LSW-10",
+      "owner": "Work keyed schedule and supersession owner",
+      "files": [
+        "schedule",
+        "commands",
+        "ports"
+      ],
+      "anchors": [
+        "schedule:120",
+        "schedule:190",
+        "commands:779",
+        "commands:870",
+        "ports:28"
+      ],
+      "identity": "app/owner/package key; fresh occurrence per replacement; exact originOccurrence lineage",
+      "lifecycle": {
+        "create": "freeze then mint identity",
+        "use": "replace/cancel + pending marks",
+        "terminal": "accepted work may finish",
+        "disposal": "retain lineage"
+      },
+      "invariants": [
+        "Only pending predecessor/intents supersede; schedule/business/marks require one owner fence."
+      ],
+      "failure_scenarios": [
+        "Invalid clone fails before prior schedule mutation.",
+        "ID/new-put throws after earlier direct mutations: requires durable staging."
+      ],
+      "stage": "current TS",
+      "disposition": "Sequential helpers are not durable transaction proof.",
+      "original_ids": [
+        "SW-054",
+        "SW-063",
+        "SW-087",
+        "T24a",
+        "W03.4"
+      ]
+    },
+    {
+      "id": "LSW-11",
+      "owner": "Work recurring slot tracker",
+      "files": [
+        "every",
+        "commands"
+      ],
+      "anchors": [
+        "every:80",
+        "every:129",
+        "commands:944"
+      ],
+      "identity": "evr logical app/handler/scope/owner/slot; every/v1 durable tracker",
+      "lifecycle": {
+        "create": "new scope starts next slot",
+        "use": "coalesce missed + dedup ticks",
+        "terminal": "monotone stored slot",
+        "disposal": "no root recurrence"
+      },
+      "invariants": [
+        "IDs stable across releases; slot advance and occurrence need owning durability lineage."
+      ],
+      "failure_scenarios": [
+        "Previous>=slot admits nothing.",
+        "Separate slot/occurrence commits create crash gap; join required."
+      ],
+      "stage": "current TS",
+      "disposition": "Tracker alone is not joined recurring delivery.",
+      "original_ids": [
+        "SW-056",
+        "SW-063",
+        "W04.3",
+        "W06"
+      ]
+    },
+    {
+      "id": "LSW-12",
+      "owner": "Recovery planner and owner acts",
+      "files": [
+        "recovery",
+        "commands",
+        "runtime"
+      ],
+      "anchors": [
+        "recovery:188",
+        "recovery:226",
+        "recovery:466",
+        "commands:1247",
+        "runtime:5089",
+        "runtime:5213"
+      ],
+      "identity": "opaque page cursor; retained intent/claim/evidence; one sweep now",
+      "lifecycle": {
+        "create": "bounded recover + scan",
+        "use": "plan then current acts",
+        "terminal": "separate fenced acts",
+        "disposal": "discard sweep-local facts"
+      },
+      "invariants": [
+        "Branch-demand evidence; current acts reread; sweep commits separately."
+      ],
+      "failure_scenarios": [
+        "Changed current evidence blocks planned requeue.",
+        "Later sweep failure leaves earlier fenced acts durable."
+      ],
+      "stage": "current TS",
+      "disposition": "Keep act-time authority and callback traces.",
+      "original_ids": [
+        "SW-061",
+        "SW-062",
+        "W03.4",
+        "W07.1"
+      ]
+    },
+    {
+      "id": "LSW-13",
+      "owner": "Receipt association/progress/terminal notification",
+      "files": [
+        "association",
+        "receiptrows"
+      ],
+      "anchors": [
+        "association:271",
+        "association:447",
+        "association:530",
+        "receiptrows:402"
+      ],
+      "identity": "locator/model/record/field -> deliveryId and monotone revision; approved relation universe",
+      "lifecycle": {
+        "create": "matching association/receipt",
+        "use": "validate progress/relation",
+        "terminal": "terminal once; replay no notification",
+        "disposal": "summary/content separate"
+      },
+      "invariants": [
+        "Matching delivery/revision; terminal immutable; returned notification not durable delivery."
+      ],
+      "failure_scenarios": [
+        "Equal-revision terminal replay emits no new notification.",
+        "Crash between row persistence and notification needs owning delivery proof."
+      ],
+      "stage": "current TS",
+      "disposition": "Notification value is not durable delivery proof.",
+      "original_ids": [
+        "SW-066",
+        "SW-070",
+        "SW-073",
+        "T26",
+        "W06"
+      ]
+    },
+    {
+      "id": "LSW-14",
+      "owner": "State receipt read/grant/content snapshot",
+      "files": [
+        "receiptjoin",
+        "grants",
+        "observation",
+        "observeports",
+        "loader"
+      ],
+      "anchors": [
+        "receiptjoin:259",
+        "receiptjoin:327",
+        "grants:157",
+        "grants:220",
+        "observation:334",
+        "loader:8",
+        "runtime:3100"
+      ],
+      "identity": "one locator read; each selected leaf grant; contentRef/expiry; optional loader module URL",
+      "lifecycle": {
+        "create": "revision/rows/live grants",
+        "use": "authorize selected leaves",
+        "terminal": "observed/denied/null",
+        "disposal": "no refill/subscription"
+      },
+      "invariants": [
+        "Grant all selected leaves before presence; expiry null never refills; exact absent loader only."
+      ],
+      "failure_scenarios": [
+        "Exact expiry withholds content without replay.",
+        "Multi-read span requires surrounding revalidation for spend."
+      ],
+      "stage": "current TS",
+      "disposition": "No subscription owner; surrounding fence matters.",
+      "original_ids": [
+        "SW-067",
+        "SW-068",
+        "SW-069",
+        "SW-074",
+        "T25",
+        "W06"
+      ]
+    },
+    {
+      "id": "LSW-15",
+      "owner": "State frozen fanout membership/admission cursor",
+      "files": [
+        "membership",
+        "cohort",
+        "fanoutrows"
+      ],
+      "anchors": [
+        "membership:282",
+        "membership:320",
+        "membership:383",
+        "membership:427",
+        "membership:739",
+        "fanoutrows:331"
+      ],
+      "identity": "fanout(sourceOccurrence,handler,cohort); complete frozen canonical member set; chunk cursor",
+      "lifecycle": {
+        "create": "fenced complete identity set",
+        "use": "first chunk then resume",
+        "terminal": "cursor null when admitted",
+        "disposal": "intent immutable, retained"
+      },
+      "invariants": [
+        "Late inserts excluded; immutable frozen set; page bounds != cohort bounds."
+      ],
+      "failure_scenarios": [
+        "Crash first chunk: resume original frozen members.",
+        "Duplicate freeze replays stored set, not new cutoff."
+      ],
+      "stage": "current TS",
+      "disposition": "Page bounds do not bound total frozen-set memory.",
+      "original_ids": [
+        "SW-075",
+        "SW-076",
+        "SW-077",
+        "SW-082",
+        "T34-F2",
+        "T34-F5"
+      ]
+    },
+    {
+      "id": "LSW-16",
+      "owner": "Fanout child live lifecycle/claim/body facts",
+      "files": [
+        "lifecycle",
+        "runtime",
+        "admission"
+      ],
+      "anchors": [
+        "lifecycle:66",
+        "runtime:6539",
+        "runtime:7109",
+        "runtime:7160",
+        "runtime:7184",
+        "runtime:7224",
+        "admission:709"
+      ],
+      "identity": "fanout-child source/handler/record; current domain row and fresh child scope",
+      "lifecycle": {
+        "create": "current lifecycle + claim",
+        "use": "body in fresh invocation",
+        "terminal": "terminal replay or stale-held",
+        "disposal": "old domain snapshot currently reused"
+      },
+      "invariants": [
+        "Current child authority; deletion needs proof, failed lookup is unknown, never deleted."
+      ],
+      "failure_scenarios": [
+        "History deletion skips; read failure unknown fails.",
+        "GAP-L03 old A body after fresh B admission may stage stale-fact effects."
+      ],
+      "stage": "current TS",
+      "disposition": "GAP-L03: reload/enroll current row per retry.",
+      "original_ids": [
+        "SW-004",
+        "SW-079",
+        "SW-080",
+        "T32b",
+        "T34-F7",
+        "W03.4"
+      ]
+    },
+    {
+      "id": "LSW-17",
+      "owner": "Fanout terminal outcome + checkpoint atomic unit",
+      "files": [
+        "outcome",
+        "transact",
+        "invoke",
+        "runtime"
+      ],
+      "anchors": [
+        "outcome:140",
+        "outcome:259",
+        "transact:328",
+        "invoke:562",
+        "runtime:7236",
+        "runtime:7269"
+      ],
+      "identity": "child terminal record plus same-fanout completed-set/checkpoint version",
+      "lifecycle": {
+        "create": "stage outcome/checkpoint",
+        "use": "assert joined atomic unit",
+        "terminal": "durable together or rollback",
+        "disposal": "no child/checkpoint removal"
+      },
+      "invariants": [
+        "Terminal child covered by same-fanout checkpoint in one batch; inserts cannot fake completion."
+      ],
+      "failure_scenarios": [
+        "Crash after unit: replay prevents repeated committed effects.",
+        "GAP-L04 outcomeA/coverA plus unrelated checkpointB is admitted."
+      ],
+      "stage": "current TS",
+      "disposition": "GAP-L04: converse coverage per checkpoint needed.",
+      "original_ids": [
+        "SW-040",
+        "SW-041",
+        "SW-079",
+        "T34-F5",
+        "T34-F7"
+      ]
+    },
+    {
+      "id": "LSW-18",
+      "owner": "Fanout stale release/scheduler cursors",
+      "files": [
+        "fanoutrows",
+        "runtime"
+      ],
+      "anchors": [
+        "fanoutrows:531",
+        "fanoutrows:575",
+        "runtime:6861",
+        "runtime:7109",
+        "runtime:7455",
+        "runtime:7501",
+        "runtime:7501"
+      ],
+      "identity": "separate all-child release page and drive page; running updated age",
+      "lifecycle": {
+        "create": "release + drive pages",
+        "use": "filter stale; process bounded slice",
+        "terminal": "drive continuation honest",
+        "disposal": "release cursor discarded"
+      },
+      "invariants": [
+        "Turn cap != cohort; fresh running held; helper exposes release continuation."
+      ],
+      "failure_scenarios": [
+        "GAP-L01 completed a then stale-running b, pageLimit1: b remains held forever.",
+        "Release contention skips honestly."
+      ],
+      "stage": "current TS",
+      "disposition": "GAP-L01: coverage-preserving release continuation needed.",
+      "original_ids": [
+        "SW-061",
+        "SW-082",
+        "T34-F4",
+        "T34-F7"
+      ]
+    },
+    {
+      "id": "LSW-19",
+      "owner": "Fanout progress/cancellation projection",
+      "files": [
+        "progress",
+        "runtime"
+      ],
+      "anchors": [
+        "progress:43",
+        "progress:125",
+        "runtime:7532",
+        "runtime:7580"
+      ],
+      "identity": "frozen member count + child states; optional provider opaque cancellation token",
+      "lifecycle": {
+        "create": "count frozen members",
+        "use": "project attention/cancel provider",
+        "terminal": "terminal when all settled",
+        "disposal": "cancel never rewrites rows"
+      },
+      "invariants": [
+        "Missing child pending; failures terminal attention; absent cancel contract refuses."
+      ],
+      "failure_scenarios": [
+        "Missing row pending; all-failed is attention.",
+        "Cancel throws/stalls; paged counts not atomic snapshot."
+      ],
+      "stage": "current TS",
+      "disposition": "Aggregation is not an atomic snapshot.",
+      "original_ids": [
+        "SW-080",
+        "SW-082",
+        "M8",
+        "T34-F7"
+      ]
+    },
+    {
+      "id": "LSW-20",
+      "owner": "State migration shadow/progress/failure/installed pointer",
+      "files": [
+        "mstage",
+        "mactivate",
+        "mrecover",
+        "mretain",
+        "mindex"
+      ],
+      "anchors": [
+        "mstage:115",
+        "mactivate:114",
+        "mactivate:231",
+        "mactivate:404",
+        "mactivate:781",
+        "mrecover:187",
+        "mindex:178"
+      ],
+      "identity": "migrationId shadow rows+staged/publish cursors; owner installed snapshot digest; retained intent IDs",
+      "lifecycle": {
+        "create": "shadow + cursors",
+        "use": "validate -> publish chunks",
+        "terminal": "fenced active flip/failed leg",
+        "disposal": "prepublish abort; forward resume"
+      },
+      "invariants": [
+        "Publish atomic per chunk only; installed flip fenced; retained IDs reverified pending."
+      ],
+      "failure_scenarios": [
+        "Crash publishing: forward-only cursor resume.",
+        "Activation abort/missing failure/predecessor evidence refuses."
+      ],
+      "stage": "current TS",
+      "disposition": "Chunk publication is forward-only, not whole atomicity.",
+      "original_ids": [
+        "SW-043",
+        "SW-044",
+        "SW-046",
+        "SW-049",
+        "SW-050",
+        "S7",
+        "B3"
+      ]
+    },
+    {
+      "id": "LSW-21",
+      "owner": "Proposed Work host call-local payload references",
+      "files": [
+        "refs",
+        "facts",
+        "native"
+      ],
+      "anchors": [
+        "refs:64",
+        "refs:101",
+        "refs:130",
+        "refs:167",
+        "refs:190",
+        "facts:195",
+        "native:1"
+      ],
+      "identity": "callToken+monotone u32 index; bounded live Map slots",
+      "lifecycle": {
+        "create": "bounded token/index Map",
+        "use": "demand resolve/clone",
+        "terminal": "settled exit finally cleanup",
+        "disposal": "abort disposes; no callback interrupt"
+      },
+      "invariants": [
+        "Call-local bounded refs; original clone failure; abort does not interrupt callback."
+      ],
+      "failure_scenarios": [
+        "Disposed/cross-token ref rejects; clone failure cleans finally.",
+        "Reused token/index lacks unique issuer proof; callback may continue after abort."
+      ],
+      "stage": "candidate only",
+      "disposition": "W03/W05/installed/whole-call gates still required.",
+      "original_ids": [
+        "W03.2",
+        "W03.4",
+        "W05",
+        "W07"
+      ]
+    },
+    {
+      "id": "LSW-22",
+      "owner": "Owner retention/lifetime/limits; absent quota/subscriptions",
+      "files": [
+        "schema",
+        "query",
+        "rows",
+        "membership",
+        "loader"
+      ],
+      "anchors": [
+        "schema:40",
+        "query:799",
+        "rows:613",
+        "membership:68",
+        "loader:1"
+      ],
+      "identity": "durable rows/history/receipts/fence ledger; explicit result/page/attempt limits",
+      "lifecycle": {
+        "create": "durable store records",
+        "use": "limits/read expiry",
+        "terminal": "logical terminal != deletion",
+        "disposal": "no quota/subscription/purge owner"
+      },
+      "invariants": [
+        "No fabricated fixed cohort quota; cleanup must preserve replay/fence/lifetime obligations."
+      ],
+      "failure_scenarios": [
+        "Deleting receipt in retry horizon risks reexecution.",
+        "Attempt/page caps do not stop hung provider/body."
+      ],
+      "stage": "current TS",
+      "disposition": "Retention/expiry/quotas/deadlines not newly decided.",
+      "original_ids": [
+        "SW-019",
+        "SW-082",
+        "SW-089",
+        "SW-090",
+        "SW-091"
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "id": "GAP-L01",
+      "resources": [
+        "LSW-18"
+      ],
+      "witness": "a completed then b stale-running, pageLimit1; release restarts null, drive b held; caller discards release cursor/done",
+      "fix": "Keep/advance independent release continuation or equivalent full stale-claim coverage; verify all frozen rows eventually visited regardless of terminal prefix.",
+      "authority": "SW-082 fair resumable progress; existing same outcome, no new policy"
+    },
+    {
+      "id": "GAP-L02",
+      "resources": [
+        "LSW-04"
+      ],
+      "witness": "live revocation after revalidateCommitForFence returns and before SQL batch starts/finishes",
+      "fix": "Needs scoped storage/authority atomicity evidence or unresolved design decision; source expressly leaves this race open. No policy selected.",
+      "authority": "admission:631-632 explicitly unresolved; SW-004/006 adopted checkpoint requirement"
+    },
+    {
+      "id": "GAP-L03",
+      "resources": [
+        "LSW-16"
+      ],
+      "witness": "A(flagtrue) loaded7160; B(flagfalse) commits before invoke admission;7223 discards call and7224 body seesA, can stage outbox without domain write/version assertion; retries reuseA",
+      "fix": "Use admitted current record or reload+enroll current row inside every execution attempt; claim snapshot must be current at demand. Preserve trace.",
+      "authority": "SW-004/079/080 current per-child facts; T32/T34-F7"
+    },
+    {
+      "id": "GAP-L04",
+      "resources": [
+        "LSW-17"
+      ],
+      "witness": "terminalchildA/checkpointAcover plus checkpointBupdate without terminalB passes global terminalOutcomes.length>0 check",
+      "fix": "Converse assertion needs per-checkpoint outcome coverage before broad atomic-join claim; preserve cursor-only plain-store maintenance.",
+      "authority": "known SW-041 observed permissiveness vs SW-040/079 required atomic child unit"
+    }
+  ],
+  "scenario_sources": [
+    {
+      "anchors": [
+        "f7test:513",
+        "f7test:558",
+        "f7test:763",
+        "f7test:818",
+        "f7test:872"
+      ],
+      "meaning": "claim/record races, crash restart and retry horizon scenarios; source only, not executed credit"
+    },
+    {
+      "anchors": [
+        "f5test:215",
+        "f5test:260",
+        "f5test:296",
+        "fencetest:156",
+        "storagetest:429"
+      ],
+      "meaning": "fresh child scope, sibling revocation, replay and rollback scenario sources; not fresh tests"
+    }
+  ],
+  "negative_controls": [
+    "Async != atomic; storage cannot roll back external effects.",
+    "Native registration != JS demand/ABI/adoption/authority proof.",
+    "Replay, rejected bookkeeping and terminal truth have distinct rules.",
+    "Supersession/lease expiry cannot cancel accepted provider work.",
+    "Page/attempt caps != cohort quota or wall-clock deadline."
+  ],
+  "omissions": "Parent owns UI/runtime caches/values/testkit and all-file coverage. No Work/State subscriptions or generic quota owner found. Resources enumerated; not exhaustive line coverage.",
+  "checks": "Static source/required-behavior/plan reads and stdlib file SHA256 only; no repo edits/Git operations, builds/tests/runtime/compile/install/network/schedules/JEV. Audit JSON only; compiler preserved.",
+  "simplification": "Keep one owner fence and staged effects; State owns admission/storage/authority, Work pure decisions propose. Preserve separate replay, provider uncertainty and terminal transitions. Close demonstrated caller gaps before extracting only qualified callback-free leaves with complete-call benefit."
+}
