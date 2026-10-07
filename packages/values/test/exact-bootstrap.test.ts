@@ -9,7 +9,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Decimal } from "../src/decimal.js";
 import { ValueError } from "../src/errors.js";
-import { makeDate, makeMoney } from "../src/kinds.js";
+import { isDatetime, isDateValue, isMoney, makeDate, makeDatetime, makeMoney } from "../src/kinds.js";
+import { reconstruct, tag } from "../bindings/carriers.js";
 import { tsBackend, wasmBackend } from "../bindings/backend.js";
 import { BootstrapError, bootstrapWasm } from "../bindings/bootstrap.js";
 
@@ -19,6 +20,22 @@ const wasmBytes = () =>
   new Uint8Array(
     readFileSync(join(here, "..", "bindings", "generated", "values_semantics_bg.wasm")),
   );
+
+describe("public carrier reconstruction", () => {
+  it("retains constructor identity, frozen parts and BigInt", () => {
+    const decimal = reconstruct(tag(new Decimal(12345678901234567890n, 3)));
+    assert.ok(decimal instanceof Decimal);
+    assert.equal(decimal.coef, 12345678901234567890n);
+    const money = reconstruct(tag(makeMoney(123n, "USD")));
+    const date = reconstruct(tag(makeDate(2024, 2, 29)));
+    const datetime = reconstruct(tag(makeDatetime(1709164800000n)));
+    assert.ok(isMoney(money));
+    assert.ok(isDateValue(date));
+    assert.ok(isDatetime(datetime));
+    assert.equal((datetime as ReturnType<typeof makeDatetime>).ms, 1709164800000n);
+    for (const value of [decimal, money, date, datetime]) assert.ok(Object.isFrozen(value));
+  });
+});
 
 describe("ts backend without bootstrap", () => {
   it("answers smoke ops synchronously with no glue built", () => {
@@ -88,6 +105,8 @@ describe("wasm bootstrap", () => {
     assert.ok(Object.isFrozen(sum));
     const money = wasm.call("add-money", [makeMoney(100n, "USD"), makeMoney(25n, "USD")]);
     assert.deepEqual(money, { kind: "money", minor: 125n, currency: "USD" });
+    assert.ok(isMoney(money));
+    assert.ok(Object.isFrozen(money));
   });
 
   it("supports repeated bootstrap with working backends", () => {
@@ -97,6 +116,42 @@ describe("wasm bootstrap", () => {
     const second = bootstrapWasm(wasmBytes());
     assert.equal(first.call("add-int", [2n, 3n]), 5n);
     assert.equal(second.call("add-int", [3n, 4n]), 7n);
+  });
+
+  it("rejects changed or corrupt assets after initialization", () => {
+    const wasm = bootstrapWasm(wasmBytes());
+    for (const bytes of [new Uint8Array([0, 1, 2, 3]), new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])]) {
+      assert.throws(() => bootstrapWasm(bytes), (err: unknown) => {
+        assert.ok(err instanceof BootstrapError);
+        assert.equal(err.code, "init-failed");
+        return true;
+      });
+    }
+    assert.equal(wasm.call("add-int", [4n, 5n]), 9n);
+  });
+
+  it("pins a private byte copy against caller mutation", () => {
+    const bytes = wasmBytes();
+    bootstrapWasm(bytes);
+    bytes[0] = 255;
+    assert.throws(() => bootstrapWasm(bytes), (err: unknown) => {
+      assert.ok(err instanceof BootstrapError);
+      assert.equal(err.code, "init-failed");
+      return true;
+    });
+    assert.equal(bootstrapWasm(wasmBytes()).call("add-int", [4n, 6n]), 10n);
+  });
+
+  it("does not delegate pinned-byte comparison to caller methods", () => {
+    const bytes = wasmBytes();
+    bytes[0] = 255;
+    bytes.every = () => true;
+    bytes[Symbol.iterator] = () => { throw new Error("caller iterator must not execute"); };
+    assert.throws(() => bootstrapWasm(bytes), (err: unknown) => {
+      assert.ok(err instanceof BootstrapError);
+      assert.equal(err.code, "init-failed");
+      return true;
+    });
   });
 
   it("fails ABI-mismatched glue at construction", () => {

@@ -1,0 +1,431 @@
+{
+  "schema_version": 1,
+  "task_ids": [
+    "ports:A07.2",
+    "ports:A07.foundation"
+  ],
+  "run_id": "codex-step6-20261006T235151Z",
+  "base": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "status": "finite repaired bootstrap/carrier foundation checks passed; renewed independent review pending; full A07.3 and installed/default adoption remain unaccepted",
+  "changed_source_sha256": {
+    "packages/values/bindings/bootstrap.ts": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+    "packages/values/test/exact-bootstrap.test.ts": "d89d0eefdd0a7e4076c30358cdd12e9413aee975af5dc59caede2e00520578d6",
+    "packages/values/test/exact-bootstrap.workerd.mjs": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1"
+  },
+  "preserved_carrier_backend_sha256": {
+    "packages/values/bindings/backend.ts": "4863a9b9f30c4551a6220a44caaa03094a643f51f71088de5ef613b7a34508fa",
+    "packages/values/bindings/carriers.ts": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0"
+  },
+  "snapshot": {
+    "baseline": "strict tracked base source archive supplied by root; baseline-input-hashes.json",
+    "current": "strict base plus three repaired R1 files; b3-input-hashes.json, no R2 source incorporated",
+    "R2_sources": "not included in R1 acceptance; separate R2 slice retains its own validation"
+  },
+  "bootstrap_contract": {
+    "ABI": 1,
+    "startup_codes": [
+      "missing-bytes",
+      "init-failed",
+      "abi-mismatch"
+    ],
+    "inputs": "non-empty Uint8Array bytes or native precompiled WebAssembly.Module; other BufferSource variants refused",
+    "repeat": "identical byte content compared against a private copy, or same native module object identity; changed asset/representation fails init-failed before cached generated glue reuse",
+    "outside_initializer": "first bootstrap requires actual generated initSync input consumption; an already externally initialized singleton fails init-failed",
+    "sync": "no per-call await/fetch, no retry into TS; same-instance backends remain synchronous",
+    "startup_export_check": {
+      "precedence": "actual initSync input consumption, ABI check, exact transport export completeness, backend return and private pin",
+      "functions": [
+        "abi_version",
+        "exact_call",
+        "__wbindgen_malloc",
+        "__wbindgen_realloc",
+        "__wbindgen_free",
+        "__wbindgen_start"
+      ],
+      "native_objects": [
+        "memory: WebAssembly.Memory",
+        "__wbindgen_externrefs: WebAssembly.Table"
+      ],
+      "failure": "init-failed before any backend/pin is returned"
+    },
+    "private_bytes": "native typed-array storage check and native typed-array copy before comparison/init/pin; indexed comparison never invokes caller every/iterator/length/buffer methods"
+  },
+  "baseline": {
+    "tsc_exit": 0,
+    "node": {
+      "exit": 0,
+      "pass": 12,
+      "fail": 0
+    },
+    "bun": {
+      "exit": 0,
+      "pass": 12,
+      "fail": 0
+    }
+  },
+  "current": {
+    "tsc_exit": 0,
+    "node": {
+      "exit": 0,
+      "pass": 16,
+      "fail": 0
+    },
+    "bun": {
+      "exit": 0,
+      "pass": 16,
+      "fail": 0
+    },
+    "fresh_host_controls": [
+      "compiled module/same-object repeat/different-object refusal",
+      "actual independent ABI999 module => abi-mismatch",
+      "actual empty compiled module => init-failed",
+      "ABI1/start-only missing exact transport exports => init-failed",
+      "caller-overridden every/iterator on corrupt equal-length bytes => init-failed",
+      "fresh process first supplied asset mutation rejected; original backend/private pin stays working",
+      "first supplied asset own length/iterator overrides do not control native byte copying",
+      "direct generated initSync before bootstrap => init-failed"
+    ],
+    "fresh_host_count_per_host": 8
+  },
+  "old_source_regressions": {
+    "node": {
+      "exit": 1,
+      "pass": 13,
+      "fail": 2
+    },
+    "bun": {
+      "exit": 1,
+      "pass": 13,
+      "fail": 2
+    },
+    "failures": [
+      "changed/corrupt valid asset after successful bootstrap silently accepted",
+      "caller-mutated bytes after successful bootstrap silently accepted"
+    ],
+    "compiled_module": "Node/Bun both exit1: original bootstrap returns missing-bytes instead of accepting actual compiled module"
+  },
+  "host_versions": {
+    "node": "v24.21.0",
+    "bun": "1.4.2",
+    "miniflare": "4.20260730.0",
+    "workerd": "1.20260730.1",
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O"
+  },
+  "workerd": {
+    "scope": "actual owning startLocalDev producer compiles this source privately; actual Miniflare binaryModules maps exact artifact as CompiledWasm; values bootstrap/generated glue/native binary consumer",
+    "producer_source": "packages/cloudflare/src/dev/local-run.ts",
+    "producer_sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+    "producer_emit_exit": 0,
+    "first_sandbox_attempt": {
+      "exit": 1,
+      "error": "listen EPERM 127.0.0.1 before Worker proof",
+      "log": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/workerd.log"
+    },
+    "actual_authorized_rerun": {
+      "exit": 0,
+      "tool_chunk": "2ca416",
+      "sandbox": "require_escalated approved for evidenced local loopback requirement",
+      "command": "CAN_VALUES_DIST=/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-dist CAN_LOCAL_RUN=/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/local-run-dist/dev/local-run.js node /private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-input/test/exact-bootstrap.workerd.mjs",
+      "log": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-workerd-escalated.log"
+    },
+    "fresh_positive_isolates": 2,
+    "module_count": 13,
+    "positive": "add-int/date-to-epoch-days/add-decimal/add-money; public Decimal instanceof, frozen Decimal/Money, BigInt parts; same-module bootstrap repeat; corrupt new startup asset rejected after success",
+    "negative": [
+      "independent ABI999 CompiledWasm returns abi-mismatch",
+      "empty CompiledWasm exports return init-failed",
+      "ABI1/start-only CompiledWasm with missing exact transport exports returns init-failed",
+      "missing binary module rejected by native loader",
+      "corrupt binary magic rejected by native loader"
+    ],
+    "producer_reused": "previous exact separately compiled source/emit unchanged; no Cloudflare edits"
+  },
+  "pinned_artifacts": {
+    "inventory_sha256": "528bd710b2cd8fedaf95486baf94f03635b92efa0567e0e05e9c1e39558d75eb",
+    "files": {
+      "values_semantics.d.ts": {
+        "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+        "bytes": 2184
+      },
+      "values_semantics.js": {
+        "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+        "bytes": 7869
+      },
+      "values_semantics_bg.wasm": {
+        "sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+        "bytes": 622216
+      },
+      "values_semantics_bg.wasm.d.ts": {
+        "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+        "bytes": 643
+      }
+    },
+    "validation": "all four artifacts digest/byte-length checked before private staging; committed actual artifact used, generated files untouched",
+    "limits": "no fresh Rust regeneration/source-to-generated reproducibility claim; prior A07.1 scaffold credit preserved"
+  },
+  "common_module_handoff": {
+    "scope": "existing V03.4/V03.5 narrow structural scaffold; read-only release, no new profile or full PH2 lifetime/default authority",
+    "sha256": {
+      "packages/values/bindings/src/lib.rs": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+      "packages/values/bindings/src/exact.rs": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+      "packages/values/bindings/src/validation.rs": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+      "packages/values/bindings/validation.ts": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+      "packages/values/semantics/src/lib.rs": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+      "packages/values/semantics/src/profiles.rs": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+      "packages/values/bindings/generated/BUILD.json": "528bd710b2cd8fedaf95486baf94f03635b92efa0567e0e05e9c1e39558d75eb",
+      "packages/values/bindings/generated/values_semantics.js": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "packages/values/bindings/generated/values_semantics.d.ts": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "packages/values/bindings/generated/values_semantics_bg.wasm": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+      "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932"
+    }
+  },
+  "commands": [
+    {
+      "name": "b3-node",
+      "command": [
+        "node",
+        "--test",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-dist/test/exact-bootstrap.test.js"
+      ],
+      "CAN_VALUES_DIST": null,
+      "exit": 0
+    },
+    {
+      "name": "b3-node-module",
+      "command": [
+        "node",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-input/test/exact-bootstrap.workerd.mjs",
+        "--host-only"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-dist",
+      "exit": 0
+    },
+    {
+      "name": "b2-node-missing-transport-exports",
+      "command": [
+        "node",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-input/test/exact-bootstrap.workerd.mjs",
+        "--host-case=missing-transport-exports"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist",
+      "exit": 1
+    },
+    {
+      "name": "b2-node-caller-methods",
+      "command": [
+        "node",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-input/test/exact-bootstrap.workerd.mjs",
+        "--host-case=caller-methods"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist",
+      "exit": 1
+    },
+    {
+      "name": "b2-node-first-asset-mutation",
+      "command": [
+        "node",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-input/test/exact-bootstrap.workerd.mjs",
+        "--host-case=first-asset-mutation"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist",
+      "exit": 0
+    },
+    {
+      "name": "b3-bun",
+      "command": [
+        "bun",
+        "test",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-dist/test/exact-bootstrap.test.js"
+      ],
+      "CAN_VALUES_DIST": null,
+      "exit": 0
+    },
+    {
+      "name": "b3-bun-module",
+      "command": [
+        "bun",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-input/test/exact-bootstrap.workerd.mjs",
+        "--host-only"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-dist",
+      "exit": 0
+    },
+    {
+      "name": "b2-bun-missing-transport-exports",
+      "command": [
+        "bun",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-input/test/exact-bootstrap.workerd.mjs",
+        "--host-case=missing-transport-exports"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist",
+      "exit": 1
+    },
+    {
+      "name": "b2-bun-caller-methods",
+      "command": [
+        "bun",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-input/test/exact-bootstrap.workerd.mjs",
+        "--host-case=caller-methods"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist",
+      "exit": 1
+    },
+    {
+      "name": "b2-bun-first-asset-mutation",
+      "command": [
+        "bun",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-input/test/exact-bootstrap.workerd.mjs",
+        "--host-case=first-asset-mutation"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist",
+      "exit": 0
+    }
+  ],
+  "historical_evidence": {
+    "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-20261006.json",
+    "sha256": "7df24791fd0aa97af2ba018a99f6818798b18c4409c79559198a0b03a1372bbd",
+    "status": "unchanged malformed JSON: extra data at character1133; superseded only for current finite acceptance"
+  },
+  "limits": [
+    "A04.5 unpaired UTF16/truncation gaps unchanged",
+    "A05.3 residual temporal work unchanged",
+    "full A07.3 registry not assembled or accepted",
+    "V03.4/V03.5 existing narrow scaffold only; no new producer/profile/PH2 complete authority/default registry migration",
+    "installed package/public export/default-backend adoption and production HTTP501/MCP provenance gates remain separate",
+    "no compiler/root/bun.lock/API-default changes; no Git/index writes"
+  ],
+  "private_logs_sha256": {
+    "b2-bun-caller-methods.log": "405f9240281a93e05e6c7295f1c7810518537a3f74a7bb505ed97bc9e79f8924",
+    "b2-bun-first-asset-mutation.log": "4fadbf1f22a53c49d8ffd58aed275449b5f9cff9bc24f45545f48bae1bacae6b",
+    "b2-bun-missing-transport-exports.log": "32d220b7dbd0a7339d37894c74de09ae01ace56f2d9d88f6929bf71881fce475",
+    "b2-node-caller-methods.log": "61cc2b163d53e4597830bb3c4d611eaf6bb624955a83efd225f65f3092ca522e",
+    "b2-node-first-asset-mutation.log": "6841d60e3d25998adf5a2ec19af32eaced4231b11d77b54d9686758fba0b2e07",
+    "b2-node-missing-transport-exports.log": "ee300109b8309867af775d0ee98dd45e4758edbdbb1fae22a569ded04d5d5b9a",
+    "b3-bun-module.log": "fd1a61deccc884ffa2eb437ac54cbf8c06259cc6e33e0b48a0735afdb35f01c6",
+    "b3-bun.log": "022839193c76046684e5cfd95291c5266e0ce267a0d480ce6940e37f7bee67b5",
+    "b3-node-module.log": "03e1323acbb96b3df07ebb7cf4d01faa4bcafe8ccce1e27debae294c0461fb47",
+    "b3-node.log": "d4d404beee42b237513bac5fc640cf42d4855f9ae7c433f11b94128bde2c5295",
+    "b3-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "b3-workerd-escalated.log": "610b3d71e766b56ace8ca818cac807a9241c24c4e2337213ab762071e8abe2e6",
+    "baseline-bun-module.log": "6fc38216dc0373bde097b2990b04c9235d09eed58bc900c9cc4852502c543807",
+    "baseline-bun-regression.log": "e6443eb506e4f0c51f6a6e82a7d40d8a5e856d44869921925fcc372df5fc97b8",
+    "baseline-bun.log": "2e42219882296dd67b4ec323c63921f8b7729cd708f2c2dd3fe2fd32ac7549a2",
+    "baseline-node-module.log": "f0fbf34ff39fbe60bf5990ed2671cbab3ff0fab034254f50ad76af6d082124a7",
+    "baseline-node-regression.log": "e2fd76090ee1b0660104ff9475f8af17a63d78419fae37c131c8e2d996c8826c",
+    "baseline-node.log": "156b0add17fce5606de96e40c54096f5ca9335c27895d46f1a07e304185778e0",
+    "baseline-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "current-bun-module.log": "b175c34590fa39e0cbd1b6952e8a79b9757751b9f754e794428776f660bfe0b2",
+    "current-bun.log": "928e92a5d6df8e688215ae36710b5ef3a43466fc40304640d7cbf61563df2d91",
+    "current-node-module.log": "c4a4add9577abea413c2075d4fe77b7c28886fd7f3c64a1d31898b0e63e0df73",
+    "current-node.log": "37fd8dead2b327aa4d98632bf37e546ee75a6cdfe0db8de80a5143160c06712f",
+    "current-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "local-run-tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "workerd-escalated.log": "20a8b40702e8250a8d37f509f2c226eaa9c6ad3847ffdfedf4618f01fd5688e5",
+    "workerd.log": "d7e60c1f1ba2ffd899d60cc51a4d18f55e7c86ebbe0a45475d0a8fdfcda0833f"
+  },
+  "writer_release": "R1 repaired four-file slice frozen and released to root for renewed independent review/commit; B3 command slot released; common/generated/Rust writers untouched",
+  "previous_B2_commands": [
+    {
+      "name": "current-node",
+      "command": [
+        "node",
+        "--test",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist/test/exact-bootstrap.test.js"
+      ],
+      "CAN_VALUES_DIST": null,
+      "exit": 0
+    },
+    {
+      "name": "current-node-module",
+      "command": [
+        "node",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-input/test/exact-bootstrap.workerd.mjs",
+        "--host-only"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist",
+      "exit": 0
+    },
+    {
+      "name": "baseline-node-regression",
+      "command": [
+        "node",
+        "--test",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/baseline-regression-dist/test/exact-bootstrap.test.js"
+      ],
+      "CAN_VALUES_DIST": null,
+      "exit": 1
+    },
+    {
+      "name": "baseline-node-module",
+      "command": [
+        "node",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-input/test/exact-bootstrap.workerd.mjs",
+        "--host-case=compiled"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/baseline-dist",
+      "exit": 1
+    },
+    {
+      "name": "current-bun",
+      "command": [
+        "bun",
+        "test",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist/test/exact-bootstrap.test.js"
+      ],
+      "CAN_VALUES_DIST": null,
+      "exit": 0
+    },
+    {
+      "name": "current-bun-module",
+      "command": [
+        "bun",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-input/test/exact-bootstrap.workerd.mjs",
+        "--host-only"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-dist",
+      "exit": 0
+    },
+    {
+      "name": "baseline-bun-regression",
+      "command": [
+        "bun",
+        "test",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/baseline-regression-dist/test/exact-bootstrap.test.js"
+      ],
+      "CAN_VALUES_DIST": null,
+      "exit": 1
+    },
+    {
+      "name": "baseline-bun-module",
+      "command": [
+        "bun",
+        "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/current-input/test/exact-bootstrap.workerd.mjs",
+        "--host-case=compiled"
+      ],
+      "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/baseline-dist",
+      "exit": 1
+    }
+  ],
+  "fix_forward_review": {
+    "received_report": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/independent-review.json",
+    "received_report_sha256": "56fa0ea5b758060cb085ad3677153e6c89e86d341e143cc0d65ef1a400ff0b58",
+    "received_repro": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/independent-review-repro.mjs",
+    "previous_release": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b2-final-release.json",
+    "previous_current_evidence": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b2-bootstrap-current.json",
+    "confirmed_old_B2_red_cases": [
+      "ABI1/start-only missing transport returned backend then raw TypeError",
+      "caller-overridden every accepted corrupt bytes and reused cached backend"
+    ],
+    "B2_old_source_controls": "new assertion cases missing-transport-exports and caller-methods exit1 on Node/Bun; first-asset-mutation exit0 on B2 and B3 because it is additional coverage, not an invented previous defect",
+    "B3_tsc": {
+      "exit": 0,
+      "session": 53221,
+      "log": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/b3-tsc.log"
+    },
+    "B3_focused": {
+      "exit": 0,
+      "tool_chunk": "bab924"
+    },
+    "renewed_review": "requested after frozen hash release"
+  }
+}
