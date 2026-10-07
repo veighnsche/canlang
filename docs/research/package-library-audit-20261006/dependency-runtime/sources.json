@@ -1,0 +1,1717 @@
+{
+  "freeze": "ff05e4dcb8c0947b02afc48b0f3b7a4b53e62a76",
+  "observed_head": "27127be047cc03646d32c10b66a1e672896037f8",
+  "records": [
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "category": "workspace-source",
+      "bytes": 62748,
+      "packets": [
+        "cloudflare",
+        "values-work",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "category": "workspace-source",
+      "bytes": 17588,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "category": "workspace-source",
+      "bytes": 12176,
+      "packets": [
+        "cloudflare",
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "category": "workspace-source",
+      "bytes": 5985,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/package-assets.ts",
+      "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+      "category": "workspace-source",
+      "bytes": 6745,
+      "packets": [
+        "cloudflare",
+        "values-work",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/producer-files.ts",
+      "sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+      "category": "workspace-source",
+      "bytes": 870,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383",
+      "category": "workspace-source",
+      "bytes": 8501,
+      "packets": [
+        "cloudflare",
+        "values-work",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "sha256": "d479c648351dc2b13116d4f96bb83817f80fefbd472a95f24d77bf17048a442e",
+      "category": "workspace-source",
+      "bytes": 4457,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable.ts",
+      "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3",
+      "category": "workspace-source",
+      "bytes": 5760,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+      "category": "workspace-source",
+      "bytes": 24710,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8",
+      "category": "workspace-source",
+      "bytes": 9584,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/release/manifest.ts",
+      "sha256": "0f1253522b0ee681173f788700835facdeb3bd2028daf2a461b75f1dc4c8a48d",
+      "category": "workspace-source",
+      "bytes": 6729,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/upgrade/apply.ts",
+      "sha256": "167c77f7be30b29a3cbc37125d112208472ccf504a7f70e70e45e9d3aff73cca",
+      "category": "workspace-source",
+      "bytes": 7854,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "category": "workspace-source",
+      "bytes": 6534,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "category": "workspace-source",
+      "bytes": 319853,
+      "packets": [
+        "cloudflare",
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/package.json",
+      "sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+      "category": "workspace-source",
+      "bytes": 3427,
+      "packets": [
+        "cloudflare",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "bun.lock",
+      "sha256": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+      "category": "workspace-source",
+      "bytes": 72925,
+      "packets": [
+        "cloudflare",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/scripts/build-preparation.mjs",
+      "sha256": "04e95cbea4ea0be19a3f6da6aefc2744df2a535650b32e8f44a48e7c923c1981",
+      "category": "workspace-source",
+      "bytes": 4042,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/scripts/package-preparation.mjs",
+      "sha256": "7126578ef2cbefbd42d9862485faeca5440cd4718b464eccd21b31803e2e73fb",
+      "category": "workspace-source",
+      "bytes": 5937,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "category": "workspace-source",
+      "bytes": 1097388,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@jridgewell+sourcemap-codec@1.6.0/node_modules/@jridgewell/sourcemap-codec/package.json",
+      "sha256": "ac7afd57294dbee1f891ca797e19e405340f2cd6031808e6d3845fec60a5b43f",
+      "category": "local-installed",
+      "bytes": 2185,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/miniflare@4.20260730.0/node_modules/miniflare/package.json",
+      "sha256": "f0025bdc4b9b70199ea393572c23ca35ea58efa3d81b270f19f5e8c8d27771f4",
+      "category": "local-installed",
+      "bytes": 4175,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/miniflare@4.20260730.0/node_modules/miniflare/dist/src/index.js",
+      "sha256": "25f0935c66e24b503a64561e77625b1dd163995ce2177485e3be48d05bde7d45",
+      "category": "local-installed",
+      "bytes": 4462496,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "package.json",
+      "sha256": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+      "category": "workspace-source",
+      "bytes": 3750,
+      "packets": [
+        "cloudflare",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/index.ts",
+      "sha256": "a70f7ed1df1459334d9065428aeb0b2bb00bc94f8d3630a6980c2d54a82665db",
+      "category": "workspace-source",
+      "bytes": 308,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "category": "workspace-source",
+      "bytes": 6362,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+      "category": "workspace-source",
+      "bytes": 25506,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/worker/entry.ts",
+      "sha256": "106bfa11b9075dca53d4f4933497e5cb382d317471278d4f90c56402bad1580f",
+      "category": "workspace-source",
+      "bytes": 1238,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+      "category": "workspace-source",
+      "bytes": 4434,
+      "packets": [
+        "cloudflare",
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/installed.ts",
+      "sha256": "512b47b2785c452ff500e9331783833ed4064bd26c9ffe1dc37f0c34d3ce34b1",
+      "category": "workspace-source",
+      "bytes": 4918,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/release/stamp.ts",
+      "sha256": "d731f609c69be92b2fce043e8670b08a40da5c4f23dd72f0647e33d628be6863",
+      "category": "workspace-source",
+      "bytes": 6346,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "scripts/build-package.mjs",
+      "sha256": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+      "category": "workspace-source",
+      "bytes": 2057,
+      "packets": [
+        "cloudflare",
+        "browser-interfaces",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "scripts/run-tasks.mjs",
+      "sha256": "3e055c26a0130829843f52cf5ddbf6b45e32bbc7a8a4d0124d8db2a8b107cc37",
+      "category": "workspace-source",
+      "bytes": 1995,
+      "packets": [
+        "cloudflare",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "scripts/pack-release.mjs",
+      "sha256": "f7f22dc79a36a6a6a1c37fa0264d5aaef1e2731aa27c5019fa67eff88b8cb169",
+      "category": "workspace-source",
+      "bytes": 7019,
+      "packets": [
+        "cloudflare",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "scripts/verify-installed-worker.mjs",
+      "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443",
+      "category": "workspace-source",
+      "bytes": 16239,
+      "packets": [
+        "cloudflare",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "scripts/verify-installed-types.mjs",
+      "sha256": "e342511eda8e25b80514d9fe6c3d5195a2cdd45d95b2e7a669d9a50416daebce",
+      "category": "workspace-source",
+      "bytes": 12782,
+      "packets": [
+        "cloudflare",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6",
+      "category": "workspace-source",
+      "bytes": 20682,
+      "packets": [
+        "cloudflare",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/state/src/receipt/observer-loader.ts",
+      "sha256": "add53ef3e6b23068e20a8b51d39c8150a1d0cd78d782cbcd3b2d2816159e1523",
+      "category": "workspace-source",
+      "bytes": 470,
+      "packets": [
+        "cloudflare",
+        "values-work"
+      ]
+    },
+    {
+      "path": "docs/install.md",
+      "sha256": "c3ba7b7d77fcb454ce9530f0bfdf78866fd38b854a5b630e32da8ea3071ea028",
+      "category": "workspace-source",
+      "bytes": 3561,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "docs/ideal-filetree-plan.md",
+      "sha256": "3609caae5d95d48468f0e08f4fd6765d7a4e9035b9fc43f6d866dbef0fd343f8",
+      "category": "workspace-source",
+      "bytes": 30676,
+      "packets": [
+        "cloudflare",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "implementation/turbo-scheduling/evidence/final-acceptance/README.md",
+      "sha256": "c27146572a6762ccdb0ecdac08c138e15924a03e67794fe3e2de6dfd7b95afa1",
+      "category": "workspace-source",
+      "bytes": 6476,
+      "packets": [
+        "cloudflare",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "implementation/turbo-scheduling/evidence/final-acceptance/cache/snapshot.json",
+      "sha256": "f665f041aaca4e056bde784b3f87f7af3ed5110b077eb957df8a4b72dce30293",
+      "category": "workspace-source",
+      "bytes": 174564,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/preparation/Cargo.toml",
+      "sha256": "7b0ae8cb004ba26524d3733b55a94e1d966fd5671221917e4c72415462816128",
+      "category": "workspace-source",
+      "bytes": 343,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/preparation/Cargo.lock",
+      "sha256": "5760d15ea1d15e7003382d4be593d7c3690655c0c3b4b36f63e630dae729d33f",
+      "category": "workspace-source",
+      "bytes": 4892,
+      "packets": [
+        "cloudflare",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/preparation/rust-toolchain.toml",
+      "sha256": "ff13c9224217a4ccd63320d8b89cc82d7fa64da14a627e499f9f18db4c6602d0",
+      "category": "workspace-source",
+      "bytes": 31,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/tsconfig.json",
+      "sha256": "8288e51cec217797ce3fcb51b33f70f55c705b4eefbc4d530fa28c4706ed781b",
+      "category": "workspace-source",
+      "bytes": 183,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "tsconfig.base.json",
+      "sha256": "56d05912029f16842996d66df2e6fc4279950a243874a794d9ff2e13e220ded8",
+      "category": "workspace-source",
+      "bytes": 583,
+      "packets": [
+        "cloudflare",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/workerd@1.20260730.1/node_modules/workerd/package.json",
+      "sha256": "5edae90469333c86e194a75358e80dbe5b1d3c259860794850e53ce8f240f762",
+      "category": "local-installed",
+      "bytes": 676,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/workerd@1.20260730.1/node_modules/workerd/install.js",
+      "sha256": "4c2ab468b5cc6926467cd1a4e8fe29fc177f0b5a1bb9607e00541fdf7c574d78",
+      "category": "local-installed",
+      "bytes": 9267,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/package.json",
+      "sha256": "e2978955f1e20cce7a22ed5daea0bed7e7d8e0a0e1b8fe170773dd15787a51b3",
+      "category": "local-installed",
+      "bytes": 6511,
+      "packets": [
+        "cloudflare",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js",
+      "sha256": "8b4fbdc0d0bbdc9ad74f385c41c0152d85445187f47cfc3941ff0d2a14a2696e",
+      "category": "local-installed",
+      "bytes": 20763,
+      "packets": [
+        "cloudflare",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js",
+      "sha256": "7ea9524fcde13f9bcb7ce4d1867fd28c7844b6311b43e3a816bb019a3b61e445",
+      "category": "local-installed",
+      "bytes": 53923,
+      "packets": [
+        "cloudflare",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/server/webStandardStreamableHttp.js",
+      "sha256": "8ac6b6a32299f840377721c55ba4b938dd90158a415c8ccf09ce3cdda131897d",
+      "category": "local-installed",
+      "bytes": 46208,
+      "packets": [
+        "cloudflare",
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/dev/row-scope.ts",
+      "sha256": "e291abb4f1b5d171f9f1949b1e8f30c4590377128c6d069ba56c8db235208183",
+      "category": "workspace-source",
+      "bytes": 3077,
+      "packets": [
+        "cloudflare"
+      ]
+    },
+    {
+      "path": "packages/values/package.json",
+      "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "category": "workspace-source",
+      "bytes": 2763,
+      "packets": [
+        "values-work",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/values/Cargo.toml",
+      "sha256": "083c91d33d9cf5c36b0c61e0e8f86b80bf1208bcf3202d681a77a52939e6efee",
+      "category": "workspace-source",
+      "bytes": 129,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/Cargo.lock",
+      "sha256": "653260b64e40898068cfed2728bb348d26284fe5af983ab3bf38d9d2aa57ebbe",
+      "category": "workspace-source",
+      "bytes": 5792,
+      "packets": [
+        "values-work",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/values/semantics/Cargo.toml",
+      "sha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+      "category": "workspace-source",
+      "bytes": 535,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+      "category": "workspace-source",
+      "bytes": 34328,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/semantics/src/profiles.rs",
+      "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+      "category": "workspace-source",
+      "bytes": 24589,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/Cargo.toml",
+      "sha256": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450",
+      "category": "workspace-source",
+      "bytes": 334,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "category": "workspace-source",
+      "bytes": 4241,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "sha256": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "category": "workspace-source",
+      "bytes": 4847,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/carriers.ts",
+      "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "category": "workspace-source",
+      "bytes": 4712,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "sha256": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+      "category": "workspace-source",
+      "bytes": 3836,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/plans.ts",
+      "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+      "category": "workspace-source",
+      "bytes": 5905,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/validation.ts",
+      "sha256": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+      "category": "workspace-source",
+      "bytes": 2213,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/src/lib.rs",
+      "sha256": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+      "category": "workspace-source",
+      "bytes": 511,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/src/exact.rs",
+      "sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+      "category": "workspace-source",
+      "bytes": 845,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/src/validation.rs",
+      "sha256": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+      "category": "workspace-source",
+      "bytes": 982,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/scripts/build-semantics.mjs",
+      "sha256": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71",
+      "category": "workspace-source",
+      "bytes": 3983,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/scripts/stage-semantics.mjs",
+      "sha256": "7103d8d25dd579eef418420a427d1acb8ab444aceeaf24cc4f0a1d3f41c486a8",
+      "category": "workspace-source",
+      "bytes": 1617,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/src/index.ts",
+      "sha256": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "category": "workspace-source",
+      "bytes": 863,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/src/distribution.ts",
+      "sha256": "d42f490fe465f366cef6be65adc2514bcf6e7a0e3ff6c5a3bc85cb03cdae94fb",
+      "category": "workspace-source",
+      "bytes": 225,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "sha256": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+      "category": "workspace-source",
+      "bytes": 41368,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "sha256": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+      "category": "workspace-source",
+      "bytes": 8733,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/test/exact-bootstrap.workerd.mjs",
+      "sha256": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1",
+      "category": "workspace-source",
+      "bytes": 8580,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/dist/src/index.js",
+      "sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+      "category": "local-emitted",
+      "bytes": 630,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/dist/bindings/backend.js",
+      "sha256": "10234cb848e9d1428906bdb39bccd675615a9e6e140c98cff0de3ac51d21fc0b",
+      "category": "local-emitted",
+      "bytes": 2990,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/dist/bindings/bootstrap.js",
+      "sha256": "c2261ac93d6c23cd30094834072674d43b2a1cc9eeb82fff303ffbc36e1a5bf8",
+      "category": "local-emitted",
+      "bytes": 1604,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/stdlib/src/index.ts",
+      "sha256": "6cdeadfd7ee2ffed08b80196a3bfe5e98236b02af95f8fa2028c1214cb210cee",
+      "category": "workspace-source",
+      "bytes": 5102,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work/package.json",
+      "sha256": "c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906",
+      "category": "workspace-source",
+      "bytes": 3220,
+      "packets": [
+        "values-work",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/work/src/index.ts",
+      "sha256": "fae16a63bb36b3a55f0272518d139077751b819f68e6c36043c258594e6248e3",
+      "category": "workspace-source",
+      "bytes": 517,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work/src/distribution.ts",
+      "sha256": "534d191aa4cad70f6e0b0059e26c0aa19117ae6c3dd67887c3c6fe70777273be",
+      "category": "workspace-source",
+      "bytes": 147,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work/src/intent/index.ts",
+      "sha256": "d1d81a088df85d848eed4bc67ac810d50b2a13961693579b8dcacd2933646995",
+      "category": "workspace-source",
+      "bytes": 14366,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work/src/schedule/every.ts",
+      "sha256": "1f9757d565c93384b12757e86fce184e603062aba8c8e6be0c940219fd700b30",
+      "category": "workspace-source",
+      "bytes": 6188,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work/src/receipt/index.ts",
+      "sha256": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816",
+      "category": "workspace-source",
+      "bytes": 14884,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work/src/observation/association.ts",
+      "sha256": "1f655e8417cbe636764e01dd01f85b122560cb4cad867c6d0658486224fca67f",
+      "category": "workspace-source",
+      "bytes": 22411,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work/src/observation/observation.ts",
+      "sha256": "9ea46b591b0854146d3df0c9676b689ccde1d8df7349d745b4100d9325292a03",
+      "category": "workspace-source",
+      "bytes": 17435,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/package.json",
+      "sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+      "category": "workspace-source",
+      "bytes": 1405,
+      "packets": [
+        "values-work",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/tsconfig.json",
+      "sha256": "be538f73951bafb9b1a89fa55702abfbceab4adb06e2c5e8f869207d57e22bab",
+      "category": "workspace-source",
+      "bytes": 561,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/Cargo.toml",
+      "sha256": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+      "category": "workspace-source",
+      "bytes": 281,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/Cargo.lock",
+      "sha256": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+      "category": "workspace-source",
+      "bytes": 2850,
+      "packets": [
+        "values-work",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/src/index.ts",
+      "sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+      "category": "workspace-source",
+      "bytes": 726,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/src/distribution.ts",
+      "sha256": "b80bc671dc80c3fbaa1c86dcd920f2347620603d4a18ad012aff5a8d19aae1ee",
+      "category": "workspace-source",
+      "bytes": 162,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/src/facts.ts",
+      "sha256": "d10518896028ef5243d066fab4938fcb3657b0b85a90feea680a9dfdaeb6c61a",
+      "category": "workspace-source",
+      "bytes": 7577,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/rust/lib.rs",
+      "sha256": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+      "category": "workspace-source",
+      "bytes": 403,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/decisions/lib.rs",
+      "sha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+      "category": "workspace-source",
+      "bytes": 514,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+      "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
+      "category": "historical",
+      "bytes": 38309,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
+      "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7",
+      "category": "historical",
+      "bytes": 1456,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+      "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
+      "category": "historical",
+      "bytes": 2932,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+      "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
+      "category": "historical",
+      "bytes": 3848,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
+      "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555",
+      "category": "historical",
+      "bytes": 1649,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/work-readiness.json",
+      "sha256": "f14cb92b3e1c8ff2745f5570e4c610b76d2b77f94ea22ad3af469f8a949dee25",
+      "category": "historical",
+      "bytes": 3790,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/work-installed-readiness.json",
+      "sha256": "b29edd6f51420afc668b2522ed04b350b00474686251902088bdb8337ceccf12",
+      "category": "historical",
+      "bytes": 5063,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
+      "sha256": "d61e2fc7e89cf46295ca2122308027db6bdb4e3fd54a198477d230479cf02091",
+      "category": "historical",
+      "bytes": 1535,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
+      "sha256": "9f90272eab38c1a0f9cebd99c981fe4804610967fe975249b9792e34282ad514",
+      "category": "historical",
+      "bytes": 10482,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-current.json",
+      "sha256": "6c18d3844f2887d9bca107fbff9af466ed27daea7f8f260b5a06def1476bd4a6",
+      "category": "historical",
+      "bytes": 20126,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/generated/BUILD.json",
+      "sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+      "category": "current-generated",
+      "bytes": 985,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics.js",
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "category": "current-generated",
+      "bytes": 7869,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics.d.ts",
+      "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "category": "current-generated",
+      "bytes": 2184,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+      "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+      "category": "current-generated",
+      "bytes": 653133,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts",
+      "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "category": "current-generated",
+      "bytes": 643,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/dist/bindings/generated/BUILD.json",
+      "sha256": "528bd710b2cd8fedaf95486baf94f03635b92efa0567e0e05e9c1e39558d75eb",
+      "category": "local-emitted",
+      "bytes": 985,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/dist/bindings/generated/values_semantics.js",
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "category": "local-emitted",
+      "bytes": 7869,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/dist/bindings/generated/values_semantics.d.ts",
+      "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "category": "local-emitted",
+      "bytes": 2184,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/dist/bindings/generated/values_semantics_bg.wasm",
+      "sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+      "category": "local-emitted",
+      "bytes": 622216,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/values/dist/bindings/generated/values_semantics_bg.wasm.d.ts",
+      "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "category": "local-emitted",
+      "bytes": 643,
+      "packets": [
+        "values-work"
+      ]
+    },
+    {
+      "path": "packages/ui/package.json",
+      "sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "category": "workspace-source",
+      "bytes": 1747,
+      "packets": [
+        "browser-interfaces",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/identity/package.json",
+      "sha256": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "category": "workspace-source",
+      "bytes": 1629,
+      "packets": [
+        "browser-interfaces",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/interfaces/package.json",
+      "sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+      "category": "workspace-source",
+      "bytes": 2137,
+      "packets": [
+        "browser-interfaces",
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/ui/src/index.ts",
+      "sha256": "e84a76c8b9585f03d5c87288a8d0e6d2ce2418146c65759e14e9c8be33e50369",
+      "category": "workspace-source",
+      "bytes": 7773,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/src/index.ts",
+      "sha256": "05d683037a72bbac78477e7bdd554d0f64769aae36a2ee3ecff704a083472f17",
+      "category": "workspace-source",
+      "bytes": 899,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/index.ts",
+      "sha256": "afa4236f123cfc58cc612dace8e94b3605769c27d0ad924a16b16d6a3cf63ef9",
+      "category": "workspace-source",
+      "bytes": 1140,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/src/distribution.ts",
+      "sha256": "e8c9fc9c6c413a64fcbc088d69661c4dcce0b68286c1acadc1e36aa8e3f33194",
+      "category": "workspace-source",
+      "bytes": 214,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/scripts/build-browser.mjs",
+      "sha256": "c0cb5e7e1ae2dfae3285813546ca613e3b84f7335fe0b453b25bb0cb3536ee0f",
+      "category": "workspace-source",
+      "bytes": 7013,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "category": "workspace-source",
+      "bytes": 2662,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "category": "workspace-source",
+      "bytes": 7779,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "category": "workspace-source",
+      "bytes": 22419,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "category": "workspace-source",
+      "bytes": 3685,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "category": "workspace-source",
+      "bytes": 3462,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "category": "workspace-source",
+      "bytes": 307,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-node.ts",
+      "sha256": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "category": "workspace-source",
+      "bytes": 153,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-worker.ts",
+      "sha256": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "category": "workspace-source",
+      "bytes": 447,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "category": "workspace-source",
+      "bytes": 3612,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/csrf.ts",
+      "sha256": "b577b2619951a51f1aaccc62ae3db942a7d2237aec5f6d5c2d6d65a815040d60",
+      "category": "workspace-source",
+      "bytes": 1500,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/src/ports.ts",
+      "sha256": "6145aef4de7dc0fabeed0a285a3dd8191c8c6f6c37d6554ca0659173a210a1bd",
+      "category": "workspace-source",
+      "bytes": 8336,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/src/browser/bootstrap.ts",
+      "sha256": "fd2653db365a154785a2d8e8677b3213e41aff2d493d3d6346c7e103cf5f4fda",
+      "category": "workspace-source",
+      "bytes": 13295,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/src/browser/polling.ts",
+      "sha256": "ad1128ee754ce52073bc539dcc508016751f6851dffcf1f2d78b50d6d17da88c",
+      "category": "workspace-source",
+      "bytes": 9259,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/src/client.ts",
+      "sha256": "11a100466b0cb9d591d7ae8bfc0611ead3bb9396b20a75582406d992902ac6db",
+      "category": "workspace-source",
+      "bytes": 24663,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/src/csv/confirm.ts",
+      "sha256": "58b9c1bcb9ad935b57c50a038bed8d6c7448f1bc740798630fa6827696864d1e",
+      "category": "workspace-source",
+      "bytes": 18795,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/src/messages.ts",
+      "sha256": "d731b8a2b2cd57d03be0a8f3b12c55e48cdcac498eb167b5f2a0707e360eeac5",
+      "category": "workspace-source",
+      "bytes": 39421,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/src/shell.ts",
+      "sha256": "9a123b4ca0affe2503045fd8d6e16f415c5c7beaa0588b334276dc8a751f8f30",
+      "category": "workspace-source",
+      "bytes": 14821,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/assets.ts",
+      "sha256": "9d42a8d50079e812714c21198d9b73b50d0bbbbfe5d8e8058e1816551ee9c862",
+      "category": "workspace-source",
+      "bytes": 5446,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/dist/src/sessions/tokens.js",
+      "sha256": "c729df81610bd58cffa74cf0d56dc23b27b59f1a43f8b923d5d9e47c67ce190a",
+      "category": "local-installed",
+      "bytes": 4253,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/identity/dist/src/sessions/cookies.js",
+      "sha256": "51e52c3686ddde8f3e5a7b1c02e8667c8b2daafef1a8174fd6232135d37a1d00",
+      "category": "local-installed",
+      "bytes": 2514,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/dist/src/csv/parse.js",
+      "sha256": "0f386aa1ad469f71c7599e1e7a2510b589d468642701d856a4a61b46c2e5cd6d",
+      "category": "local-installed",
+      "bytes": 8292,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/dist/browser/manifest.json",
+      "sha256": "0326ccf0b131a5e3b19120e9d4fd4947f91aca7a06f01de52f2f01aafb3222ef",
+      "category": "local-installed",
+      "bytes": 622,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/dist/browser/bootstrap.js",
+      "sha256": "e26a1833631bd3b94ca2d690c74fe654c9a1a071b188d402f3b0d8c96ae59cd0",
+      "category": "local-installed",
+      "bytes": 10300,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/dist/browser/polling.js",
+      "sha256": "f47f6a1087745b50d20bf723fee0a23599a6fbe2f13a52d7557ee7d24ef066d7",
+      "category": "local-installed",
+      "bytes": 6057,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/ui/dist/browser/can-style.css",
+      "sha256": "5cdb8bf94708637e24d344062333cb68b4efbf06b284a5f16200c54eecf46333",
+      "category": "local-installed",
+      "bytes": 1155983,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js",
+      "sha256": "962836b0f8dad85bcd398ad3ddb5ba81a7c7530c706955aa846dd8dfc02dd6a9",
+      "category": "local-installed",
+      "bytes": 73271,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/server/requestBody.js",
+      "sha256": "26f505ecc3270e105d3eedfe82897a9b2e8ec2487cd8f382f6749beba71206df",
+      "category": "local-installed",
+      "bytes": 2303,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/validation/ajv-provider.js",
+      "sha256": "1893726b2b43d0688e8c37ce48b3c5f87a55eb93ca370433f882ae81c09c491a",
+      "category": "local-installed",
+      "bytes": 2814,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js",
+      "sha256": "66b539b003646258b9d82c382f2832836291e4ce2b0a37e253cfdc1222dafde1",
+      "category": "local-installed",
+      "bytes": 7423,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js",
+      "sha256": "c639ae841e53d32479cd8e4df2f373400cfe9b44bba072cafdf34a7235990dfa",
+      "category": "local-installed",
+      "bytes": 1833,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "implementation/installed-worker-assets/README.md",
+      "sha256": "0226fa365fb01f5daac9188e57f1ed3ae60d888fa3b142b928e396c7f1a293b6",
+      "category": "historical",
+      "bytes": 4822,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/library-fit/assessments.md",
+      "sha256": "ae701dfb6420c3e85d3f0fe59d5ee11e3833c10df985d6f10358a66f3aedb7d8",
+      "category": "historical",
+      "bytes": 98899,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/zod/package.json",
+      "sha256": "a046ed85fa09571dba539fee9ef236152d12dabd1f229b014ec3bd2ebaad9000",
+      "category": "local-installed",
+      "bytes": 4142,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/ajv/package.json",
+      "sha256": "1f9033ee5a6515e7d76938b7072941862d1ed228a6879cc7fe10cdeb75107989",
+      "category": "local-installed",
+      "bytes": 4405,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/ajv-formats/package.json",
+      "sha256": "402fb4bcfa457f0226813f3976ac42839dd619907c075c108efba8600d7edb69",
+      "category": "local-installed",
+      "bytes": 1897,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/zod-to-json-schema/package.json",
+      "sha256": "1f78f7c62913083878cd5bb0e9d10b8f5893d5799bbe1295068046707c24de3c",
+      "category": "local-installed",
+      "bytes": 2968,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/ajv/dist/compile/index.js",
+      "sha256": "05b34da22814f3787bfa3ac68dad59c9047f56e55a607e0a20719ebf5afe69ac",
+      "category": "local-installed",
+      "bytes": 10046,
+      "packets": [
+        "browser-interfaces"
+      ]
+    },
+    {
+      "path": "packages/contracts/package.json",
+      "sha256": "77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3",
+      "category": "workspace-source",
+      "bytes": 1064,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/files/package.json",
+      "sha256": "fb7e88d7cef8bf0ccaee3990901b99751dad6575f2ab78ed13867b535a58ca7c",
+      "category": "workspace-source",
+      "bytes": 2383,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/services/package.json",
+      "sha256": "160607d0145fa9f3b39568a64c17bbbcbdded562ee75d231d8e3046df9dcab7e",
+      "category": "workspace-source",
+      "bytes": 3147,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/state/package.json",
+      "sha256": "cb41b927046a074cad9e267fd4eba6f630a0aad7157d333b0efe3dca9e37aa52",
+      "category": "workspace-source",
+      "bytes": 8566,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/stdlib/package.json",
+      "sha256": "1f5dda9a1bc0390590943772e7665e357e1337e705bb15c825c40eb2fcf5883b",
+      "category": "workspace-source",
+      "bytes": 1242,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/testkit/package.json",
+      "sha256": "d4836564d2f24cb9181944e53f1c37596af4ca88c61bd117252ffa0b368b2ced",
+      "category": "workspace-source",
+      "bytes": 2007,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "packages/testkit/conformance/ports/loader-smoke/Cargo.lock",
+      "sha256": "51e092b31b795e421a5030741d3a6e639f45f7dc0f2522eac41bb6e48d4b1b85",
+      "category": "workspace-source",
+      "bytes": 156,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "turbo.json",
+      "sha256": "2f908d0dfa6b20fb38ae182a66eeaf564da6007d4404299032dbf3fe5df2d2b4",
+      "category": "workspace-source",
+      "bytes": 2379,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/manifest.json",
+      "sha256": "9cd905dc05e9ccbcfaf1143aea1b4f10ded535631bd5c432e58724540c6375d4",
+      "category": "local-release-artifact",
+      "bytes": 12181,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "dist-manifest.json",
+      "sha256": "a722a47f74b29f8d89065d6c35b7ade5d00d2488b221a434e267426e62fb8efe",
+      "category": "local-release-artifact",
+      "bytes": 408547,
+      "packets": [
+        "root-inventory"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/cloudflare-0.1.0.tgz",
+      "sha256": "1410532684f10a5bcdceb20d4c6436163a7d8debb4cccabe25506feb7a835445",
+      "category": "local-release-artifact",
+      "bytes": 478622,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/contracts-0.1.0.tgz",
+      "sha256": "ff844fea131f44fb0723812088b5288cb136975f733c369c9901ec04bcd59d40",
+      "category": "local-release-artifact",
+      "bytes": 105380,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/files-0.0.0.tgz",
+      "sha256": "5a96e5e621d7c9b9ab1aa7af9184e5f7d5a0539e0455cbbdcba2c40446cb936f",
+      "category": "local-release-artifact",
+      "bytes": 61465,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/identity-0.1.0.tgz",
+      "sha256": "cf8be268a69f3d1c3ce6e5adb969bcc5f964c7e537b24d247b18b393833e9cb7",
+      "category": "local-release-artifact",
+      "bytes": 81120,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/interfaces-0.1.0.tgz",
+      "sha256": "49b78be866b83b6270c4043fead53f83c145c486c52f29eb13ea4594807347b4",
+      "category": "local-release-artifact",
+      "bytes": 390144,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/services-0.0.0.tgz",
+      "sha256": "4f082d81e000f9c2a5723f2acb071a11a52c06c723d52812257c0db55a805766",
+      "category": "local-release-artifact",
+      "bytes": 124573,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/state-0.1.0.tgz",
+      "sha256": "36550d383cf33dda7fd47aa3b33ba9ad8790dc3cc5b5894e8e1b370116858dbf",
+      "category": "local-release-artifact",
+      "bytes": 643908,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/stdlib-0.1.0.tgz",
+      "sha256": "3ef34b977b70ca6468567cca5d842739e3354cff5ed8a940867c3264f27ae926",
+      "category": "local-release-artifact",
+      "bytes": 8347,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/testkit-0.1.0.tgz",
+      "sha256": "fd2a0ca45c82d5994cdaad95fb14bdbeb1d00713a4de9089579b1b4e0d54e61e",
+      "category": "local-release-artifact",
+      "bytes": 55534,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/ui-0.1.0.tgz",
+      "sha256": "96aa5c64febb8d9debb5cd5f2b3ac8759dbe3e19529069b2fc0cbb0c4ef607d5",
+      "category": "local-release-artifact",
+      "bytes": 550466,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/values-0.1.0.tgz",
+      "sha256": "08c840566f80c5a2bf111f6dcfc9eee6e0f67c00323299cd79ffe0ba9ef04683",
+      "category": "local-release-artifact",
+      "bytes": 507560,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/work-0.0.0.tgz",
+      "sha256": "14edd8f34f0d5e4d121489bd0d49f39567994a6abbfa024eed047caf9275ceab",
+      "category": "local-release-artifact",
+      "bytes": 321654,
+      "packets": [
+        "root-packed"
+      ]
+    },
+    {
+      "path": "output/release-artifacts/work-kernel-0.1.0.tgz",
+      "sha256": "4a5242ba17b2336fb4a89afe068897e226242f67c51b93d342e9df0462f17649",
+      "category": "local-release-artifact",
+      "bytes": 73464,
+      "packets": [
+        "root-packed"
+      ]
+    }
+  ],
+  "limits": "Per-file identity. Source/historical/local-installed/local-emitted/ignored release artifacts distinct; matching hashes are not runtime acceptance."
+}

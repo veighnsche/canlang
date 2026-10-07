@@ -1,0 +1,818 @@
+{
+  "manifest_sha256": "9cd905dc05e9ccbcfaf1143aea1b4f10ded535631bd5c432e58724540c6375d4",
+  "dist_manifest_matches": true,
+  "packages": [
+    {
+      "name": "@canlang/cloudflare",
+      "tarball": "cloudflare-0.1.0.tgz",
+      "expected_sha256": "1410532684f10a5bcdceb20d4c6436163a7d8debb4cccabe25506feb7a835445",
+      "actual_sha256": "1410532684f10a5bcdceb20d4c6436163a7d8debb4cccabe25506feb7a835445",
+      "bytes": 478622,
+      "source_manifest_matches": false,
+      "members": 214,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0",
+        "@canlang/interfaces": "0.1.0",
+        "miniflare": "4.20260730.0",
+        "@canlang/identity": "0.1.0",
+        "@canlang/state": "0.1.0",
+        "@canlang/work": "0.0.0",
+        "@canlang/ui": "0.1.0",
+        "@canlang/stdlib": "0.1.0",
+        "@canlang/values": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.js"
+        },
+        "./worker": {
+          "types": "./dist/worker/entry.d.ts",
+          "default": "./dist/worker/entry.js"
+        },
+        "./runtime/artifact": {
+          "types": "./dist/runtime/artifact.d.ts",
+          "default": "./dist/runtime/artifact.js"
+        },
+        "./deploy/compat": {
+          "types": "./dist/deploy/compat.d.ts",
+          "default": "./dist/deploy/compat.js"
+        },
+        "./worker/assembly": {
+          "types": "./dist/worker/assembly.d.ts",
+          "default": "./dist/worker/assembly.js"
+        },
+        "./runtime/modules": {
+          "types": "./dist/runtime/modules.d.ts",
+          "default": "./dist/runtime/modules.js"
+        },
+        "./runtime/mcp-registry": {
+          "types": "./dist/runtime/mcp-registry.d.ts",
+          "default": "./dist/runtime/mcp-registry.js"
+        },
+        "./deploy/bundle": {
+          "types": "./dist/deploy/bundle.d.ts",
+          "default": "./dist/deploy/bundle.js"
+        },
+        "./dev/local-run": {
+          "types": "./dist/dev/local-run.d.ts",
+          "default": "./dist/dev/local-run.js"
+        },
+        "./runtime/stdlib": {
+          "types": "./dist/runtime/stdlib.d.ts",
+          "default": "./dist/runtime/stdlib.js"
+        },
+        "./dev/row-scope": {
+          "types": "./dist/dev/row-scope.d.ts",
+          "default": "./dist/dev/row-scope.js"
+        },
+        "./worker/main": {
+          "types": "./dist/worker/main.d.ts",
+          "default": "./dist/worker/main.js"
+        },
+        "./deploy/package-assets": {
+          "types": "./dist/deploy/package-assets.d.ts",
+          "default": "./dist/deploy/package-assets.js"
+        },
+        "./deploy/producer-files": {
+          "types": "./dist/deploy/producer-files.d.ts",
+          "default": "./dist/deploy/producer-files.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/contracts",
+      "tarball": "contracts-0.1.0.tgz",
+      "expected_sha256": "ff844fea131f44fb0723812088b5288cb136975f733c369c9901ec04bcd59d40",
+      "actual_sha256": "ff844fea131f44fb0723812088b5288cb136975f733c369c9901ec04bcd59d40",
+      "bytes": 105380,
+      "source_manifest_matches": true,
+      "members": 66,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {},
+      "packed_exports": {
+        ".": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.js"
+        },
+        "./distribution": {
+          "types": "./dist/distribution.d.ts",
+          "default": "./dist/distribution.js"
+        },
+        "./values": {
+          "types": "./dist/values.d.ts",
+          "default": "./dist/values.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/files",
+      "tarball": "files-0.0.0.tgz",
+      "expected_sha256": "5a96e5e621d7c9b9ab1aa7af9184e5f7d5a0539e0455cbbdcba2c40446cb936f",
+      "actual_sha256": "5a96e5e621d7c9b9ab1aa7af9184e5f7d5a0539e0455cbbdcba2c40446cb936f",
+      "bytes": 61465,
+      "source_manifest_matches": true,
+      "members": 90,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0",
+        "@canlang/services": "0.0.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./bridge": {
+          "types": "./dist/src/bridge.d.ts",
+          "default": "./dist/src/bridge.js"
+        },
+        "./catalog": {
+          "types": "./dist/src/catalog.d.ts",
+          "default": "./dist/src/catalog.js"
+        },
+        "./ports": {
+          "types": "./dist/src/ports.d.ts",
+          "default": "./dist/src/ports.js"
+        },
+        "./scenarios": {
+          "types": "./dist/src/scenarios.d.ts",
+          "default": "./dist/src/scenarios.js"
+        },
+        "./upload/fs-blob-store": {
+          "types": "./dist/src/upload/fs-blob-store.d.ts",
+          "default": "./dist/src/upload/fs-blob-store.js"
+        },
+        "./finalize": {
+          "types": "./dist/src/finalize/index.d.ts",
+          "default": "./dist/src/finalize/index.js"
+        },
+        "./provenance": {
+          "types": "./dist/src/provenance/index.d.ts",
+          "default": "./dist/src/provenance/index.js"
+        },
+        "./retention": {
+          "types": "./dist/src/retention/index.d.ts",
+          "default": "./dist/src/retention/index.js"
+        },
+        "./upload": {
+          "types": "./dist/src/upload/index.d.ts",
+          "default": "./dist/src/upload/index.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/identity",
+      "tarball": "identity-0.1.0.tgz",
+      "expected_sha256": "cf8be268a69f3d1c3ce6e5adb969bcc5f964c7e537b24d247b18b393833e9cb7",
+      "actual_sha256": "cf8be268a69f3d1c3ce6e5adb969bcc5f964c7e537b24d247b18b393833e9cb7",
+      "bytes": 81120,
+      "source_manifest_matches": false,
+      "members": 136,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./testing": {
+          "types": "./dist/src/testing.d.ts",
+          "default": "./dist/src/testing.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/interfaces",
+      "tarball": "interfaces-0.1.0.tgz",
+      "expected_sha256": "49b78be866b83b6270c4043fead53f83c145c486c52f29eb13ea4594807347b4",
+      "actual_sha256": "49b78be866b83b6270c4043fead53f83c145c486c52f29eb13ea4594807347b4",
+      "bytes": 390144,
+      "source_manifest_matches": true,
+      "members": 310,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0",
+        "@canlang/identity": "0.1.0",
+        "@canlang/ui": "0.1.0",
+        "@canlang/values": "0.1.0",
+        "@modelcontextprotocol/sdk": "1.32.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        },
+        "./testing": {
+          "types": "./dist/src/testing.d.ts",
+          "default": "./dist/src/testing.js"
+        },
+        "./http/form-errors": {
+          "types": "./dist/src/http/formErrors.d.ts",
+          "default": "./dist/src/http/formErrors.js"
+        },
+        "./uploads/kernel": {
+          "types": "./dist/src/uploads/kernel.d.ts",
+          "default": "./dist/src/uploads/kernel.js"
+        },
+        "./mcp/server": {
+          "types": "./dist/src/mcp/server.d.ts",
+          "default": "./dist/src/mcp/server.js"
+        },
+        "./http/operations": {
+          "types": "./dist/src/http/operations.d.ts",
+          "default": "./dist/src/http/operations.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/services",
+      "tarball": "services-0.0.0.tgz",
+      "expected_sha256": "4f082d81e000f9c2a5723f2acb071a11a52c06c723d52812257c0db55a805766",
+      "actual_sha256": "4f082d81e000f9c2a5723f2acb071a11a52c06c723d52812257c0db55a805766",
+      "bytes": 124573,
+      "source_manifest_matches": true,
+      "members": 106,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./catalog": {
+          "types": "./dist/src/catalog.d.ts",
+          "default": "./dist/src/catalog.js"
+        },
+        "./http/client": {
+          "types": "./dist/src/http/client.d.ts",
+          "default": "./dist/src/http/client.js"
+        },
+        "./http/errors": {
+          "types": "./dist/src/http/errors.d.ts",
+          "default": "./dist/src/http/errors.js"
+        },
+        "./http/pagination": {
+          "types": "./dist/src/http/pagination.d.ts",
+          "default": "./dist/src/http/pagination.js"
+        },
+        "./judgments/harness": {
+          "types": "./dist/src/judgments/harness.d.ts",
+          "default": "./dist/src/judgments/harness.js"
+        },
+        "./judgments/systemone": {
+          "types": "./dist/src/judgments/systemone.d.ts",
+          "default": "./dist/src/judgments/systemone.js"
+        },
+        "./mail/adapter": {
+          "types": "./dist/src/mail/adapter.d.ts",
+          "default": "./dist/src/mail/adapter.js"
+        },
+        "./mail/redact": {
+          "types": "./dist/src/mail/redact.d.ts",
+          "default": "./dist/src/mail/redact.js"
+        },
+        "./media/comfyui": {
+          "types": "./dist/src/media/comfyui.d.ts",
+          "default": "./dist/src/media/comfyui.js"
+        },
+        "./media/harness": {
+          "types": "./dist/src/media/harness.d.ts",
+          "default": "./dist/src/media/harness.js"
+        },
+        "./media/mapping": {
+          "types": "./dist/src/media/mapping.d.ts",
+          "default": "./dist/src/media/mapping.js"
+        },
+        "./models/harness": {
+          "types": "./dist/src/models/harness.d.ts",
+          "default": "./dist/src/models/harness.js"
+        },
+        "./models/ollama": {
+          "types": "./dist/src/models/ollama.d.ts",
+          "default": "./dist/src/models/ollama.js"
+        },
+        "./ports": {
+          "types": "./dist/src/ports.d.ts",
+          "default": "./dist/src/ports.js"
+        },
+        "./scenarios": {
+          "types": "./dist/src/scenarios.d.ts",
+          "default": "./dist/src/scenarios.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/state",
+      "tarball": "state-0.1.0.tgz",
+      "expected_sha256": "36550d383cf33dda7fd47aa3b33ba9ad8790dc3cc5b5894e8e1b370116858dbf",
+      "actual_sha256": "36550d383cf33dda7fd47aa3b33ba9ad8790dc3cc5b5894e8e1b370116858dbf",
+      "bytes": 643908,
+      "source_manifest_matches": true,
+      "members": 491,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./catalog": {
+          "types": "./dist/src/catalog.d.ts",
+          "default": "./dist/src/catalog.js"
+        },
+        "./effects/staging": {
+          "types": "./dist/src/effects/staging.d.ts",
+          "default": "./dist/src/effects/staging.js"
+        },
+        "./errors": {
+          "types": "./dist/src/errors.d.ts",
+          "default": "./dist/src/errors.js"
+        },
+        "./fanout/cohort": {
+          "types": "./dist/src/fanout/cohort.d.ts",
+          "default": "./dist/src/fanout/cohort.js"
+        },
+        "./fanout/lifecycle": {
+          "types": "./dist/src/fanout/lifecycle.d.ts",
+          "default": "./dist/src/fanout/lifecycle.js"
+        },
+        "./fanout/membership": {
+          "types": "./dist/src/fanout/membership.d.ts",
+          "default": "./dist/src/fanout/membership.js"
+        },
+        "./fanout/outcome": {
+          "types": "./dist/src/fanout/outcome.d.ts",
+          "default": "./dist/src/fanout/outcome.js"
+        },
+        "./fanout/progress": {
+          "types": "./dist/src/fanout/progress.d.ts",
+          "default": "./dist/src/fanout/progress.js"
+        },
+        "./fanout/tables": {
+          "types": "./dist/src/fanout/tables.d.ts",
+          "default": "./dist/src/fanout/tables.js"
+        },
+        "./internal/json": {
+          "types": "./dist/src/internal/json.d.ts",
+          "default": "./dist/src/internal/json.js"
+        },
+        "./invocation/admission": {
+          "types": "./dist/src/invocation/admission.d.ts",
+          "default": "./dist/src/invocation/admission.js"
+        },
+        "./invocation/context": {
+          "types": "./dist/src/invocation/context.d.ts",
+          "default": "./dist/src/invocation/context.js"
+        },
+        "./invocation/invoke": {
+          "types": "./dist/src/invocation/invoke.d.ts",
+          "default": "./dist/src/invocation/invoke.js"
+        },
+        "./invocation/prepared-inputs": {
+          "types": "./dist/src/invocation/prepared-inputs.d.ts",
+          "default": "./dist/src/invocation/prepared-inputs.js"
+        },
+        "./invocation/registry": {
+          "types": "./dist/src/invocation/registry.d.ts",
+          "default": "./dist/src/invocation/registry.js"
+        },
+        "./invocation/replay": {
+          "types": "./dist/src/invocation/replay.d.ts",
+          "default": "./dist/src/invocation/replay.js"
+        },
+        "./migration/activate": {
+          "types": "./dist/src/migration/activate.d.ts",
+          "default": "./dist/src/migration/activate.js"
+        },
+        "./migration/mapper": {
+          "types": "./dist/src/migration/mapper.d.ts",
+          "default": "./dist/src/migration/mapper.js"
+        },
+        "./migration/recover": {
+          "types": "./dist/src/migration/recover.d.ts",
+          "default": "./dist/src/migration/recover.js"
+        },
+        "./migration/retain": {
+          "types": "./dist/src/migration/retain.d.ts",
+          "default": "./dist/src/migration/retain.js"
+        },
+        "./migration/stage": {
+          "types": "./dist/src/migration/stage.d.ts",
+          "default": "./dist/src/migration/stage.js"
+        },
+        "./migration/transition": {
+          "types": "./dist/src/migration/transition.d.ts",
+          "default": "./dist/src/migration/transition.js"
+        },
+        "./migration/validate": {
+          "types": "./dist/src/migration/validate.d.ts",
+          "default": "./dist/src/migration/validate.js"
+        },
+        "./mutation/crud": {
+          "types": "./dist/src/mutation/crud.d.ts",
+          "default": "./dist/src/mutation/crud.js"
+        },
+        "./mutation/models": {
+          "types": "./dist/src/mutation/models.d.ts",
+          "default": "./dist/src/mutation/models.js"
+        },
+        "./mutation/pipeline": {
+          "types": "./dist/src/mutation/pipeline.d.ts",
+          "default": "./dist/src/mutation/pipeline.js"
+        },
+        "./mutation/t18-shop.artifact": {
+          "types": "./dist/src/mutation/t18-shop.artifact.d.ts",
+          "default": "./dist/src/mutation/t18-shop.artifact.js"
+        },
+        "./policy/grants": {
+          "types": "./dist/src/policy/grants.d.ts",
+          "default": "./dist/src/policy/grants.js"
+        },
+        "./policy/roles": {
+          "types": "./dist/src/policy/roles.d.ts",
+          "default": "./dist/src/policy/roles.js"
+        },
+        "./ports/read": {
+          "types": "./dist/src/ports/read.d.ts",
+          "default": "./dist/src/ports/read.js"
+        },
+        "./ports/system": {
+          "types": "./dist/src/ports/system.d.ts",
+          "default": "./dist/src/ports/system.js"
+        },
+        "./ports/transact": {
+          "types": "./dist/src/ports/transact.d.ts",
+          "default": "./dist/src/ports/transact.js"
+        },
+        "./query/engine": {
+          "types": "./dist/src/query/engine.d.ts",
+          "default": "./dist/src/query/engine.js"
+        },
+        "./receipt/grants": {
+          "types": "./dist/src/receipt/grants.d.ts",
+          "default": "./dist/src/receipt/grants.js"
+        },
+        "./receipt/join": {
+          "types": "./dist/src/receipt/join.d.ts",
+          "default": "./dist/src/receipt/join.js"
+        },
+        "./receipt/tables": {
+          "types": "./dist/src/receipt/tables.d.ts",
+          "default": "./dist/src/receipt/tables.js"
+        },
+        "./storage/d1": {
+          "types": "./dist/src/storage/d1.d.ts",
+          "default": "./dist/src/storage/d1.js"
+        },
+        "./storage/durable-object": {
+          "types": "./dist/src/storage/durable-object.d.ts",
+          "default": "./dist/src/storage/durable-object.js"
+        },
+        "./storage/memory": {
+          "types": "./dist/src/storage/memory.d.ts",
+          "default": "./dist/src/storage/memory.js"
+        },
+        "./storage/port": {
+          "types": "./dist/src/storage/port.d.ts",
+          "default": "./dist/src/storage/port.js"
+        },
+        "./storage/schema": {
+          "types": "./dist/src/storage/schema.d.ts",
+          "default": "./dist/src/storage/schema.js"
+        },
+        "./invocation": {
+          "types": "./dist/src/invocation/index.d.ts",
+          "default": "./dist/src/invocation/index.js"
+        },
+        "./migration": {
+          "types": "./dist/src/migration/index.d.ts",
+          "default": "./dist/src/migration/index.js"
+        },
+        "./mutation": {
+          "types": "./dist/src/mutation/index.d.ts",
+          "default": "./dist/src/mutation/index.js"
+        },
+        "./ports": {
+          "types": "./dist/src/ports/index.d.ts",
+          "default": "./dist/src/ports/index.js"
+        },
+        "./query": {
+          "types": "./dist/src/query/index.d.ts",
+          "default": "./dist/src/query/index.js"
+        },
+        "./storage": {
+          "types": "./dist/src/storage/index.d.ts",
+          "default": "./dist/src/storage/index.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        },
+        "./receipt": {
+          "types": "./dist/src/receipt/index.d.ts",
+          "default": "./dist/src/receipt/index.js"
+        },
+        "./receipt/observer-loader": {
+          "types": "./dist/src/receipt/observer-loader.d.ts",
+          "default": "./dist/src/receipt/observer-loader.js"
+        },
+        "./testing/fanout/test-driver": {
+          "types": "./dist/test/fanout/test-driver.d.ts",
+          "default": "./dist/test/fanout/test-driver.js"
+        },
+        "./testing/invocation/fixtures": {
+          "types": "./dist/test/invocation/fixtures.d.ts",
+          "default": "./dist/test/invocation/fixtures.js"
+        },
+        "./testing/query/fixtures": {
+          "types": "./dist/test/query/fixtures.d.ts",
+          "default": "./dist/test/query/fixtures.js"
+        },
+        "./testing/mutation/fixtures": {
+          "types": "./dist/test/mutation/fixtures.d.ts",
+          "default": "./dist/test/mutation/fixtures.js"
+        },
+        "./testing/storage/do-test-worker": "./test/storage/do-test-worker.js"
+      }
+    },
+    {
+      "name": "@canlang/stdlib",
+      "tarball": "stdlib-0.1.0.tgz",
+      "expected_sha256": "3ef34b977b70ca6468567cca5d842739e3354cff5ed8a940867c3264f27ae926",
+      "actual_sha256": "3ef34b977b70ca6468567cca5d842739e3354cff5ed8a940867c3264f27ae926",
+      "bytes": 8347,
+      "source_manifest_matches": true,
+      "members": 14,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/values": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/testkit",
+      "tarball": "testkit-0.1.0.tgz",
+      "expected_sha256": "fd2a0ca45c82d5994cdaad95fb14bdbeb1d00713a4de9089579b1b4e0d54e61e",
+      "actual_sha256": "fd2a0ca45c82d5994cdaad95fb14bdbeb1d00713a4de9089579b1b4e0d54e61e",
+      "bytes": 55534,
+      "source_manifest_matches": true,
+      "members": 66,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/cloudflare": "0.1.0",
+        "@canlang/contracts": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.js"
+        },
+        "./runner/dispatch": {
+          "types": "./dist/runner/dispatch.d.ts",
+          "default": "./dist/runner/dispatch.js"
+        },
+        "./runner/steps": {
+          "types": "./dist/runner/steps.d.ts",
+          "default": "./dist/runner/steps.js"
+        },
+        "./fixtures/b2-storage": {
+          "types": "./dist/fixtures/b2-storage.d.ts",
+          "default": "./dist/fixtures/b2-storage.js"
+        },
+        "./fixtures/playback": {
+          "types": "./dist/fixtures/playback.d.ts",
+          "default": "./dist/fixtures/playback.js"
+        },
+        "./fixtures/b2-delivery": {
+          "types": "./dist/fixtures/b2-delivery.d.ts",
+          "default": "./dist/fixtures/b2-delivery.js"
+        },
+        "./fixtures/b2-revocation": {
+          "types": "./dist/fixtures/b2-revocation.d.ts",
+          "default": "./dist/fixtures/b2-revocation.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/ui",
+      "tarball": "ui-0.1.0.tgz",
+      "expected_sha256": "96aa5c64febb8d9debb5cd5f2b3ac8759dbe3e19529069b2fc0cbb0c4ef607d5",
+      "actual_sha256": "96aa5c64febb8d9debb5cd5f2b3ac8759dbe3e19529069b2fc0cbb0c4ef607d5",
+      "bytes": 550466,
+      "source_manifest_matches": false,
+      "members": 247,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        },
+        "./browser/export": {
+          "types": "./dist/src/browser/export.d.ts",
+          "default": "./dist/src/browser/export.js"
+        },
+        "./browser/print": {
+          "types": "./dist/src/browser/print.d.ts",
+          "default": "./dist/src/browser/print.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/values",
+      "tarball": "values-0.1.0.tgz",
+      "expected_sha256": "08c840566f80c5a2bf111f6dcfc9eee6e0f67c00323299cd79ffe0ba9ef04683",
+      "actual_sha256": "08c840566f80c5a2bf111f6dcfc9eee6e0f67c00323299cd79ffe0ba9ef04683",
+      "bytes": 507560,
+      "source_manifest_matches": true,
+      "members": 229,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        },
+        "./bindings/backend": {
+          "types": "./dist/bindings/backend.d.ts",
+          "default": "./dist/bindings/backend.js"
+        },
+        "./bindings/bootstrap": {
+          "types": "./dist/bindings/bootstrap.d.ts",
+          "default": "./dist/bindings/bootstrap.js"
+        },
+        "./bindings/carriers": {
+          "types": "./dist/bindings/carriers.d.ts",
+          "default": "./dist/bindings/carriers.js"
+        },
+        "./bindings/owned-input": {
+          "types": "./dist/bindings/owned-input.d.ts",
+          "default": "./dist/bindings/owned-input.js"
+        },
+        "./bindings/plans": {
+          "types": "./dist/bindings/plans.d.ts",
+          "default": "./dist/bindings/plans.js"
+        },
+        "./bindings/validation": {
+          "types": "./dist/bindings/validation.d.ts",
+          "default": "./dist/bindings/validation.js"
+        },
+        "./bindings/generated/values_semantics.js": {
+          "types": "./dist/bindings/generated/values_semantics.d.ts",
+          "default": "./dist/bindings/generated/values_semantics.js"
+        },
+        "./bindings/generated/values_semantics_bg.wasm": "./dist/bindings/generated/values_semantics_bg.wasm",
+        "./bindings/generated/BUILD.json": "./dist/bindings/generated/BUILD.json",
+        "./conformance/v1/values.json": "./conformance/v1/values.json"
+      }
+    },
+    {
+      "name": "@canlang/work",
+      "tarball": "work-0.0.0.tgz",
+      "expected_sha256": "14edd8f34f0d5e4d121489bd0d49f39567994a6abbfa024eed047caf9275ceab",
+      "actual_sha256": "14edd8f34f0d5e4d121489bd0d49f39567994a6abbfa024eed047caf9275ceab",
+      "bytes": 321654,
+      "source_manifest_matches": true,
+      "members": 226,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0",
+        "@canlang/state": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./catalog": {
+          "types": "./dist/src/catalog.d.ts",
+          "default": "./dist/src/catalog.js"
+        },
+        "./kernel/commands": {
+          "types": "./dist/src/kernel/commands.d.ts",
+          "default": "./dist/src/kernel/commands.js"
+        },
+        "./kernel/tables": {
+          "types": "./dist/src/kernel/tables.d.ts",
+          "default": "./dist/src/kernel/tables.js"
+        },
+        "./observation/association": {
+          "types": "./dist/src/observation/association.d.ts",
+          "default": "./dist/src/observation/association.js"
+        },
+        "./observation/observation": {
+          "types": "./dist/src/observation/observation.d.ts",
+          "default": "./dist/src/observation/observation.js"
+        },
+        "./observation/ports": {
+          "types": "./dist/src/observation/ports.d.ts",
+          "default": "./dist/src/observation/ports.js"
+        },
+        "./ports": {
+          "types": "./dist/src/ports.d.ts",
+          "default": "./dist/src/ports.js"
+        },
+        "./schedule/every": {
+          "types": "./dist/src/schedule/every.d.ts",
+          "default": "./dist/src/schedule/every.js"
+        },
+        "./dispatch": {
+          "types": "./dist/src/dispatch/index.d.ts",
+          "default": "./dist/src/dispatch/index.js"
+        },
+        "./event": {
+          "types": "./dist/src/event/index.d.ts",
+          "default": "./dist/src/event/index.js"
+        },
+        "./intent": {
+          "types": "./dist/src/intent/index.d.ts",
+          "default": "./dist/src/intent/index.js"
+        },
+        "./receipt": {
+          "types": "./dist/src/receipt/index.d.ts",
+          "default": "./dist/src/receipt/index.js"
+        },
+        "./recovery": {
+          "types": "./dist/src/recovery/index.d.ts",
+          "default": "./dist/src/recovery/index.js"
+        },
+        "./schedule": {
+          "types": "./dist/src/schedule/index.d.ts",
+          "default": "./dist/src/schedule/index.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        }
+      }
+    },
+    {
+      "name": "@canlang/work-kernel",
+      "tarball": "work-kernel-0.1.0.tgz",
+      "expected_sha256": "4a5242ba17b2336fb4a89afe068897e226242f67c51b93d342e9df0462f17649",
+      "actual_sha256": "4a5242ba17b2336fb4a89afe068897e226242f67c51b93d342e9df0462f17649",
+      "bytes": 73464,
+      "source_manifest_matches": true,
+      "members": 73,
+      "unsafe_members": [],
+      "packed_runtime_dependencies": {
+        "@canlang/contracts": "0.1.0"
+      },
+      "packed_exports": {
+        ".": {
+          "types": "./dist/src/index.d.ts",
+          "default": "./dist/src/index.js"
+        },
+        "./distribution": {
+          "types": "./dist/src/distribution.d.ts",
+          "default": "./dist/src/distribution.js"
+        }
+      }
+    }
+  ]
+}

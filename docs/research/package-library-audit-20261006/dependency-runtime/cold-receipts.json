@@ -1,0 +1,290 @@
+{
+  "source_checkpoint": "27127be047cc03646d32c10b66a1e672896037f8",
+  "artifact_profile": "Existing hash-verified release tarballs physically unpacked outside checkout; external dependencies absent. No package installation, build, registry access or dependency rewriting. Current generated Values bytes copied separately for pure ABI startup. Fresh explicit Node executable, minimal environment, FS permission denies checkout; each child exits after its single result. Not application lifecycle or host performance qualification.",
+  "root": "/private/tmp/canlang-runtime-audit-dm4sek1p",
+  "node_executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+  "probe_sha256": "5261ca01a5caaf2027f039af2fd0c555c10e2ac81d9893c2d9e3fcbea6bb51b3",
+  "cases": [
+    {
+      "status": "refused",
+      "code": "ERR_MODULE_NOT_FOUND",
+      "name": "Error",
+      "message": "Cannot find package 'miniflare' imported from /private/tmp/canlang-runtime-audit-dm4sek1p/node_modules/@canlang/cloudflare/dist/dev/local-run.js",
+      "mode": "import",
+      "specifier": "@canlang/cloudflare",
+      "elapsed_ms": 3.586,
+      "node": "v24.21.0",
+      "exit_code": 1,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 62,
+      "mode": "import",
+      "specifier": "@canlang/contracts",
+      "elapsed_ms": 4.381,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 45,
+      "mode": "import",
+      "specifier": "@canlang/files",
+      "elapsed_ms": 6.255,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 74,
+      "mode": "import",
+      "specifier": "@canlang/identity",
+      "elapsed_ms": 5.333,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "refused",
+      "code": "ERR_MODULE_NOT_FOUND",
+      "name": "Error",
+      "message": "Cannot find package '@modelcontextprotocol/sdk' imported from /private/tmp/canlang-runtime-audit-dm4sek1p/node_modules/@canlang/interfaces/dist/src/mcp/server.js",
+      "mode": "import",
+      "specifier": "@canlang/interfaces",
+      "elapsed_ms": 35.364,
+      "node": "v24.21.0",
+      "exit_code": 1,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 64,
+      "mode": "import",
+      "specifier": "@canlang/services",
+      "elapsed_ms": 13.885,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 42,
+      "mode": "import",
+      "specifier": "@canlang/state",
+      "elapsed_ms": 16.024,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 140,
+      "mode": "import",
+      "specifier": "@canlang/stdlib",
+      "elapsed_ms": 7.868,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "refused",
+      "code": "ERR_MODULE_NOT_FOUND",
+      "name": "Error",
+      "message": "Cannot find package 'miniflare' imported from /private/tmp/canlang-runtime-audit-dm4sek1p/node_modules/@canlang/cloudflare/dist/dev/local-run.js",
+      "mode": "import",
+      "specifier": "@canlang/testkit",
+      "elapsed_ms": 6.646,
+      "node": "v24.21.0",
+      "exit_code": 1,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 161,
+      "mode": "import",
+      "specifier": "@canlang/ui",
+      "elapsed_ms": 9.589,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 155,
+      "mode": "import",
+      "specifier": "@canlang/values",
+      "elapsed_ms": 6.867,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 134,
+      "mode": "import",
+      "specifier": "@canlang/work",
+      "elapsed_ms": 9.538,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 8,
+      "mode": "import",
+      "specifier": "@canlang/work-kernel",
+      "elapsed_ms": 1.738,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "refused",
+      "code": "ERR_PACKAGE_PATH_NOT_EXPORTED",
+      "name": "Error",
+      "message": "Package subpath './csv/grammar' is not defined by \"exports\" in /private/tmp/canlang-runtime-audit-dm4sek1p/node_modules/@canlang/ui/package.json imported from /private/tmp/canlang-runtime-audit-dm4sek1p/probe-v2.mjs",
+      "mode": "import",
+      "specifier": "@canlang/ui/csv/grammar",
+      "elapsed_ms": 0.179,
+      "node": "v24.21.0",
+      "exit_code": 1,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "exports": 1,
+      "mode": "import",
+      "specifier": "@canlang/cloudflare/worker",
+      "elapsed_ms": 0.87,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "called",
+      "result": "3",
+      "mode": "values-call",
+      "specifier": "packed",
+      "elapsed_ms": 7.831,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "called",
+      "abi": 1,
+      "response": {
+        "ok": true,
+        "value": {
+          "t": "bigint",
+          "v": "3"
+        }
+      },
+      "mode": "wasm",
+      "specifier": "packed",
+      "elapsed_ms": 10.492,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "called",
+      "abi": 1,
+      "response": {
+        "ok": true,
+        "value": {
+          "t": "bigint",
+          "v": "3"
+        }
+      },
+      "mode": "wasm",
+      "specifier": "current",
+      "elapsed_ms": 4.081,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "called",
+      "backend": "wasm",
+      "result": "3",
+      "mode": "bootstrap",
+      "specifier": "valid",
+      "elapsed_ms": 6.444,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "refused",
+      "code": "missing-bytes",
+      "name": "BootstrapError",
+      "message": "wasm bootstrap needs non-empty module bytes",
+      "mode": "bootstrap",
+      "specifier": "missing",
+      "elapsed_ms": 3.163,
+      "node": "v24.21.0",
+      "exit_code": 1,
+      "stderr": ""
+    },
+    {
+      "status": "refused",
+      "code": "init-failed",
+      "name": "BootstrapError",
+      "message": "wasm instantiation failed: WebAssembly.Module(): expected 4 bytes, fell off end @+0",
+      "mode": "bootstrap",
+      "specifier": "corrupt",
+      "elapsed_ms": 3.138,
+      "node": "v24.21.0",
+      "exit_code": 1,
+      "stderr": ""
+    },
+    {
+      "status": "refused",
+      "code": "missing-bytes",
+      "name": "BootstrapError",
+      "message": "wasm bootstrap needs non-empty module bytes",
+      "mode": "bootstrap",
+      "specifier": "precompiled",
+      "elapsed_ms": 3.761,
+      "node": "v24.21.0",
+      "exit_code": 1,
+      "stderr": ""
+    },
+    {
+      "status": "called",
+      "backend": "wasm",
+      "result": "3",
+      "mode": "bootstrap",
+      "specifier": "valid-then-corrupt",
+      "elapsed_ms": 5.939,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "loaded",
+      "mode": "no-webassembly",
+      "specifier": "packed",
+      "elapsed_ms": 3.003,
+      "node": "v24.21.0",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "status": "refused",
+      "code": "ERR_ACCESS_DENIED",
+      "name": "Error",
+      "message": "Access to this API has been restricted. Use --allow-fs-read to manage permissions.",
+      "mode": "repo-denied",
+      "specifier": "guard",
+      "elapsed_ms": 0.358,
+      "node": "v24.21.0",
+      "exit_code": 1,
+      "stderr": ""
+    }
+  ]
+}

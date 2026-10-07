@@ -1,0 +1,168 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "check": "186 indexed current file/asset identities",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "tracked source/generated/historical identities at source freeze",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "no source paths misclassify dist/dependencies",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "49 unique matrix IDs and explicit evidence stages",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "13 unique risks preserve planning gate",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "source/primary-library anchor bounds",
+      "passed": true,
+      "detail": {
+        "positions": 371,
+        "errors": []
+      }
+    },
+    {
+      "check": "consolidated risk evidence references exist",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "all13 owners and lock-stage limit",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "13 tarball hashes and safe member inventory",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "3 source manifest deltas retained",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "probe script byte identity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "25 scoped cases10/13 partial fixture roots",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "negative checkout read guard",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "both raw Wasm one-vector cases",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "3 gather cases/refusals are separate",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "scope retains implementation/acceptance/policy gates",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link execution-matrix.jsonl",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link upgrade-risks.jsonl",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link dependency-inventory.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link sources.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link packed-inventory.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link cold-receipts.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link asset-receipts.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link counter-review.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link packets/cloudflare.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link packets/values-work.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link packets/browser-interfaces.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local link verification.json",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "limits": "Metadata/source identity and finite receipt consistency; no build/install/runtime re-execution or whole product acceptance.",
+  "verified_at_utc": "2026-10-07T14:28:52.775140+00:00",
+  "audit_document_sha256": {
+    "README.md": "bfdeabcf1921a7f7aae3d566c688cf832653162552e08b5c2ea6de121b915f27",
+    "asset-probe.mjs": "c86bc59529a778ce5869b5d06c22ecdb111aac7be30c63453a319f927f40e59b",
+    "asset-receipts.json": "eae599acac06e2756147d20d7c5a81b8437092a9230334a2988a81a600625cfe",
+    "cold-probe.mjs": "5261ca01a5caaf2027f039af2fd0c555c10e2ac81d9893c2d9e3fcbea6bb51b3",
+    "cold-receipts.json": "925b949b2eab53c98745fce9047d0d99edc08612a15a8960dae62607e3db32ff",
+    "counter-review.md": "afbf67e2204fd0871b20e2efaf955484ddadfb15f02b1b55b0359002a0c38671",
+    "dependency-inventory.json": "82243e49fffba4615f1e2daf5e67a7de3bcf138b8250736a1d9d58ed626af3e7",
+    "execution-matrix.jsonl": "dd4727b1ee50efadb45c42ebfb6e5ab774a52fba3c427c843a766bd42f6fe9e3",
+    "packed-inventory.json": "3012103409dc811b31acd780d4d9cf3e30d4d81aac8fa7912a03fd6adc9a297c",
+    "packets/browser-interfaces.json": "42749402b697290c6bca6ca93ffac7eef8bbc169af92717efdedd234487548ca",
+    "packets/cloudflare.json": "524a1894f1af7c2af012d34707f8be8f164ec50eb762c140be5dc9e2f7fa75a1",
+    "packets/values-work.json": "6c55a71617ebca45bfc266ec5053e799c429dde0c74e4a98bfd6a8528933b39e",
+    "scope.json": "3a219ae35af7766a091dbde9e794f32565f4d922c5c6632cc4251a6e73a41a03",
+    "sources.json": "e41904e63f775f791cfea8ee365becf030b9f8a67910013d57be3e3d469bbeaf",
+    "upgrade-risks.jsonl": "c3468c80242bbbdc11c2635b9bd8939b5da28bcc525b5749f5caa395e20a8259",
+    "verify.py": "5d463d30e7fed1aa823b7017bef747da54aaa61f3744911d61347ec9544d8962"
+  }
+}
