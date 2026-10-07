@@ -1109,3 +1109,9 @@ Sol medium writer/review. Four fixed complete layout/CLI fixtures plus two unit 
 **Accepted implementation (C05P-explain):** Borrowed six-field ordered DTOs preserve compact code/title/severity/explanation/example_valid/example_invalid, empty strings and controls, lowercase severity, no serializer newline and one CLI newline. Catalog entries and text rendering are unchanged.
 
 Sol medium writer/review. Three fixed/full CLI fixtures plus three unit tests pass. Known E1001 runs through the fresh actual binary; independent fixed output is the oracle. See the [family contract and receipt](../research/compiler-library-audit-20261006/pass5/families/explain.md) for scope and boundaries. Input admission stays unchanged; no package edits, merge or living-plan checkpoint advancement by this packet.
+
+### 2026-10-07 — compiler typed JSON fixes
+
+**Accepted implementation (C05P-fixes):** Typed fix/rejection DTOs preserve ordered fields, all variants, source hashes/spans, caller list order, empty replacements and controls. CLI lint --fix extends DiagnosticResult with a typed flattened envelope and final fixes field; no byte-string splicing remains. Without --fix, fixes is absent; with --fix an empty list remains present. Collection/application/stale/overlap rules and one CLI newline remain.
+
+Sol medium writer/review; root CLI integration. Four fixed fixtures and the new hermetic empty-fix real binary witness pass. Existing b3_s4 four tests pass, including actual deterministic nonempty fix JSON and real LSP stale edit/codeAction lifecycle; 29 lint tests passed in focused writer qualification. See the [family contract and receipt](../research/compiler-library-audit-20261006/pass5/families/fixes.md) for scope and boundaries. Input admission stays unchanged; no package edits, merge or living-plan checkpoint advancement by this packet.

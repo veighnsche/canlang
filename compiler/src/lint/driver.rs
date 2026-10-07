@@ -40,10 +40,9 @@
 
 use crate::analysis::Catalog;
 use crate::analysis::CheckedProgram;
-use crate::diagnostic::{Diagnostic, push_json_str};
+use crate::diagnostic::Diagnostic;
 use crate::source::{SourceDb, SourceId, Span};
 use std::collections::HashSet;
-use std::fmt::Write as _;
 
 use super::rules::{self, Finding, RuleCtx};
 
@@ -335,47 +334,97 @@ pub fn apply_fixes(text: &str, sha256: &str, fixes: &[LintFix]) -> Result<String
     Ok(current)
 }
 
+#[derive(serde::Serialize)]
+struct FixSpan {
+    start: u32,
+    end: u32,
+}
+
+impl From<Span> for FixSpan {
+    fn from(span: Span) -> Self {
+        Self {
+            start: span.start,
+            end: span.end,
+        }
+    }
+}
+
+impl serde::Serialize for LintFix {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(serde::Serialize)]
+        struct FixWire<'a> {
+            rule: &'a str,
+            title: &'a str,
+            file: u32,
+            span: FixSpan,
+            expected_sha256: &'a str,
+            replacement: &'a str,
+        }
+        FixWire {
+            rule: self.rule,
+            title: &self.title,
+            file: self.file.0,
+            span: self.span.into(),
+            expected_sha256: &self.expected_sha256,
+            replacement: &self.replacement,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl serde::Serialize for FixRejected {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(serde::Serialize)]
+        #[serde(tag = "reason", rename_all = "snake_case")]
+        enum Detail<'a> {
+            Stale { expected: &'a str, found: &'a str },
+            SpanInvalid { start: u32, end: u32, len: usize },
+            Overlap { first: FixSpan, second: FixSpan },
+        }
+        #[derive(serde::Serialize)]
+        struct Rejection<'a> {
+            status: &'static str,
+            #[serde(flatten)]
+            detail: Detail<'a>,
+        }
+        let detail = match self {
+            Self::Stale { expected, found } => Detail::Stale { expected, found },
+            Self::SpanInvalid { start, end, len } => Detail::SpanInvalid {
+                start: *start,
+                end: *end,
+                len: *len,
+            },
+            Self::Overlap { first, second } => Detail::Overlap {
+                first: (*first).into(),
+                second: (*second).into(),
+            },
+        };
+        Rejection {
+            status: "rejected",
+            detail,
+        }
+        .serialize(serializer)
+    }
+}
+
 /// Render one fix as compact single-line JSON with fixed key order:
 ///
 /// `{"rule":..,"title":..,"file":N,"span":{"start":N,"end":N},"expected_sha256":..,"replacement":..}`
 ///
 /// `file` is the numeric [`SourceId`] resolvable through the envelope's
-/// `sources` array. String escaping reuses
-/// [`push_json_str`](crate::diagnostic::push_json_str), matching the
-/// diagnostic envelope. This is the agent fix-JSON shape consumed by
-/// `can lint --fix --format=json` and (via the demo/test drivers) by
-/// downstream authoring-join work: keep the key order stable.
+/// `sources` array. String escaping uses the shared typed JSON adapter,
+/// matching the diagnostic envelope. This is the agent fix-JSON shape
+/// consumed by `can lint --fix --format=json` and downstream authoring
+/// work: keep the key order stable.
 pub fn fix_to_json(fix: &LintFix) -> String {
-    let mut out = String::new();
-    out.push_str("{\"rule\":");
-    push_json_str(&mut out, fix.rule);
-    out.push_str(",\"title\":");
-    push_json_str(&mut out, &fix.title);
-    let _ = write!(
-        out,
-        ",\"file\":{},\"span\":{{\"start\":{},\"end\":{}}},\"expected_sha256\":",
-        fix.file.0, fix.span.start, fix.span.end
-    );
-    push_json_str(&mut out, &fix.expected_sha256);
-    out.push_str(",\"replacement\":");
-    push_json_str(&mut out, &fix.replacement);
-    out.push('}');
-    out
+    crate::json::to_compact_string(fix).expect("lint fix JSON serialization invariant")
 }
 
 /// Render fixes as a compact JSON array (`[]` when empty). Callers pass
 /// [`collect_fixes`] output, which is already in deterministic
 /// `(file, start, end, rule)` order; this function preserves slice order.
 pub fn fixes_to_json(fixes: &[LintFix]) -> String {
-    let mut out = String::from("[");
-    for (i, fix) in fixes.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str(&fix_to_json(fix));
-    }
-    out.push(']');
-    out
+    crate::json::to_compact_string(fixes).expect("lint fixes JSON serialization invariant")
 }
 
 /// Render a refusal as compact single-line JSON with fixed key order:
@@ -387,30 +436,7 @@ pub fn fixes_to_json(fixes: &[LintFix]) -> String {
 /// Agents detect staleness from `"reason":"stale"` plus the two hashes;
 /// nothing here is silent.
 pub fn rejected_to_json(rejected: &FixRejected) -> String {
-    let mut out = String::new();
-    match rejected {
-        FixRejected::Stale { expected, found } => {
-            out.push_str("{\"status\":\"rejected\",\"reason\":\"stale\",\"expected\":");
-            push_json_str(&mut out, expected);
-            out.push_str(",\"found\":");
-            push_json_str(&mut out, found);
-            out.push('}');
-        }
-        FixRejected::SpanInvalid { start, end, len } => {
-            let _ = write!(
-                out,
-                "{{\"status\":\"rejected\",\"reason\":\"span_invalid\",\"start\":{start},\"end\":{end},\"len\":{len}}}"
-            );
-        }
-        FixRejected::Overlap { first, second } => {
-            let _ = write!(
-                out,
-                "{{\"status\":\"rejected\",\"reason\":\"overlap\",\"first\":{{\"start\":{},\"end\":{}}},\"second\":{{\"start\":{},\"end\":{}}}}}",
-                first.start, first.end, second.start, second.end
-            );
-        }
-    }
-    out
+    crate::json::to_compact_string(rejected).expect("lint rejection JSON serialization invariant")
 }
 
 fn check_span(text: &str, span: Span) -> Result<(), FixRejected> {
