@@ -1,8 +1,8 @@
-# Compiler responsibility coverage — audit Step 2
+# Compiler responsibility coverage — audit Steps 2–3
 
-The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. This step maps duties and review scope; it does not qualify semantic correctness, test adequacy or complete workflows.
+The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. Structural inventory maps duties and review scope; it does not qualify semantic correctness or test adequacy. [Step 3 workflow tracing](workflows.md) extends this same ledger with actual consumers and bounded executed witnesses.
 
-Compiler source remains pinned to `1fd07722090fe70228a6b661e3c6e136275ca84b`. The observation head is `16def5f95f51dbfb158d0ac086323ac256ee1c6d`; intervening commits changed documentation. All 107 compiler file hashes match the [Step 1 inventory](../baseline-verification/compiler-inventory.jsonl). Dependency/catalog/runtime/toolchain inputs and earlier executed evidence remain in [Step 1](../baseline-verification/README.md). The additional 31 supporting interface files have hashes in the ledger. They are narrow cross-owner references, not a new package/editor audit.
+Compiler source remains pinned to `1fd07722090fe70228a6b661e3c6e136275ca84b`. The Step 2 inventory observation head is `16def5f95f51dbfb158d0ac086323ac256ee1c6d`; intervening commits changed documentation. All 107 compiler file hashes match the [Step 1 inventory](../baseline-verification/compiler-inventory.jsonl). Dependency/catalog/runtime/toolchain inputs and earlier executed evidence remain in [Step 1](../baseline-verification/README.md). The additional 31 supporting interface files have hashes in the ledger. They are narrow cross-owner references, not a new package/editor audit.
 
 | Inventory | Mapped scope |
 | --- | --- |
@@ -40,16 +40,23 @@ The `.can` fixtures are authoring-chain inputs: `AuthoringDemo.can` belongs to `
 
 ## Coverage states and remaining scope
 
-The ledger's scope row defines separate structural, workflow, semantic, independent-mapping and target-allocation states. Each path inherits them; interfaces remain indexed/untraced. There is no uncovered tracked path, but there is substantial unreviewed behavior:
+The ledger's scope row defines separate structural, workflow, semantic, independent-mapping and target-allocation states. Each path inherits them. Step 3 adds workflow references and 18 consumer-route records; a reference is navigation, not an assertion that every responsibility band or API branch is qualified. There is no uncovered tracked path, but there is substantial unreviewed behavior:
 
-- Trace real CLI/library/editor/generated-output workflows and complete caller closure in Step 3. Existing Step 1 consumer receipts retain their bounded scope.
+- Use the [Step 3 routes and gaps](workflows.md) to review owning contracts and semantic branches. Actual CLI/library/editor/generated-output endpoints are source-traced, with bounded execution separate; the original application and installed-release prerequisites remain open.
 - Review owning contracts and public preconditions, including source/checked/catalog pairing, carrier fields/variants/trait callbacks, raw JSON/IDs, exact Can values, URI identity, coordinates and output order. An exported helper is not automatically a frozen compatibility obligation.
 - Review semantic branches, incomplete/recovery behavior, authority/evaluation order and resource/lifecycle/host policies in later steps. Documented guarantees are claims until their witnesses are qualified.
 - Assess test independence and coverage, optional prerequisite skips, macro-generated tests, mocks and actual consumer execution. Test names and API calls only identify intended witnesses.
 - Reconcile task recipes/CI headers with executable steps and qualify declared profiles separately. Package/editor sources remain with their owners.
 
-The ignored `compiler/target/` tree contains generated build/cache artifacts, whose provenance is handled by Step 1 receipts. The ignored `.DS_Store` is OS metadata. Neither is omitted compiler implementation. Independent inventory review is accepted; semantic/workflow states remain open. The current [validation receipt](validation.json) checks exact path equality, hashes, all bands/anchors, test links and supporting interface pins.
+The ignored `compiler/target/` tree contains generated build/cache artifacts, whose provenance is handled by Step 1 receipts. The ignored `.DS_Store` is OS metadata. Neither is omitted compiler implementation. Independent inventory review is accepted; semantic acceptance and the Step 3 consumer gaps remain open. The [Step 2 validation receipt](validation.json) preserves its historical ledger hash. [Current extended-ledger validation](workflow-validation.json) checks exact paths, hashes, bands/API/interface anchors, workflow anchors, input pins, slice joins and evidence links.
 
 Luna low mapped paths/test families; Sol medium mapped technical boundaries and large-test bands. Root integrated the ledger and coordinates the single documentation writer. Future packets must release one writer per defining file; `types.rs`, `cli.rs`, shared JSON/serializers and Cargo changes require serialized ownership. Escalation was unnecessary.
 
 The [existing living plan](../../../ideal-filetree-plan.md) and [compiler review](../../../ideal-filetree-plan/reviews/compiler.md) remain the canonical target/ownership map. This is current compiler-scoped coverage evidence. Historical ranges in that plan are not reused as current coverage, no architectural allocation is selected here, and its merge checkpoint remains unchanged.
+
+
+## Workflow coverage — Step 3
+
+[Workflow navigation](workflows.md) covers all 15 named CLI commands and public module families in 18 routes, including five platform forwarding paths and actual downstream artifact/BDD/docs/policy/editor consumers. The authoritative ledger retains 322 current source anchors and 85 source-trace input pins. Independent economical cross-review and final artifact challenge are captured in [workflow review](workflow-review.json).
+
+Fresh focused native replay reports 209 passes across 15 harnesses with one mode `4750` body skip. Separate receipts record 39 actual-compiler LSP capability checks, 11 freshly compiled/mocked extension startup checks and actual built-platform help/error/staging/count/verdict/refusal probes. Source and emitted runtime inputs are pinned separately; no package rebuild, GUI, positive generated-suite/workerd test, installed-release or remote apply qualification is inferred. Client versions, generated test execution, report endpoints, subprocess/replacement policies and library provenance remain explicit next-step contract/semantic questions.

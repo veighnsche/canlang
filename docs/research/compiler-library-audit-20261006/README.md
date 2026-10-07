@@ -14,7 +14,9 @@ The proposed [compiler correctness, ownership and simplicity audit](compiler-cor
 
 [Audit Step 1 is executed](baseline-verification/README.md): current inputs and category counts are pinned, historical receipts are classified, and a fresh native debug build plus six-test consumer replay qualifies its bounded scope. The evidence ledger preserves current/full-suite/product/host and temporal-provenance limits.
 
-[Audit Step 2 is executed](responsibility-map/README.md): one coverage ledger accounts for every tracked compiler path, large-file responsibility bands, named API declarations, test/fixture roles and tool/editor/runtime interfaces. Fresh independent review accepts structural inventory; workflow tracing and semantic/test-adequacy audit remain open.
+[Audit Step 2 is executed](responsibility-map/README.md): one coverage ledger accounts for every tracked compiler path, large-file responsibility bands, named API declarations, test/fixture roles and tool/editor/runtime interfaces. Fresh independent review accepts structural inventory; semantic/test-adequacy audit remains open.
+
+[Audit Step 3 is executed](responsibility-map/workflows.md): the same ledger traces checking, emission, transforms/reports, generated tests, editor behavior, all five platform forwarding paths and public library families through actual consumers. Economical independent cross-review accepts bounded source/control-flow scope. Fresh native replay reports 209/15 harness passes with one permission-body skip, plus real-compiler capability and freshly compiled/mocked extension checks. Staging, test execution, active/applied verdicts and original/installed application acceptance remain distinct; no implementation or policy changes land here.
 
 | Pass | Declared outcome / reference |
 | --- | --- |
