@@ -1,0 +1,61 @@
+path	line	expression	responsibility_ids	resolution_scope
+packages/cloudflare/src/runtime/invoke.ts	326	moduleUrl	CF-canonical-mutation,CF-canonical-policy,CF-canonical-read,CF-diagnostics,CF-dispatch-driver,CF-dispatch-staging,CF-fanout-driving,CF-fanout-staging,CF-selected-receipt	Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/invoke.ts	1262	specifier	CF-canonical-mutation,CF-canonical-policy,CF-canonical-read,CF-diagnostics,CF-dispatch-driver,CF-dispatch-staging,CF-fanout-driving,CF-fanout-staging,CF-selected-receipt	Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/invoke.ts	1659	url	CF-canonical-mutation,CF-canonical-policy,CF-canonical-read,CF-diagnostics,CF-dispatch-driver,CF-dispatch-staging,CF-fanout-driving,CF-fanout-staging,CF-selected-receipt	Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/invoke.ts	1722	url	CF-canonical-mutation,CF-canonical-policy,CF-canonical-read,CF-diagnostics,CF-dispatch-driver,CF-dispatch-staging,CF-fanout-driving,CF-fanout-staging,CF-selected-receipt	Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t16b-canonical.test.ts	735	url		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t16b-canonical.test.ts	791	url		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t16b-canonical.test.ts	1073	url		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts	942	url		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts	1225	url		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts	88	"workSpecifier(""kernel/commands.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts	89	"workSpecifier(""kernel/tables.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts	90	"workSpecifier(""recovery/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts	91	"workSpecifier(""receipt/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts	87	"workSpecifier(""kernel/commands.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts	88	"workSpecifier(""kernel/tables.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts	89	"workSpecifier(""recovery/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts	90	"workSpecifier(""receipt/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts	429	"workSpecifier(""kernel/commands.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts	430	"workSpecifier(""kernel/tables.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts	431	"workSpecifier(""receipt/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts	445	"workSpecifier(""dispatch/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts	559	url		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare.test.ts	371	url		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare.test.ts	723	"workSpecifier(""kernel/commands.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare.test.ts	724	"workSpecifier(""kernel/tables.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare.test.ts	725	"workSpecifier(""receipt/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare.test.ts	752	"workSpecifier(""dispatch/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t32b-cloudflare.test.ts	1671	url		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t34-f7-fanout.test.ts	199	"workSpecifier(""kernel/tables.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t34-f7-fanout.test.ts	200	"workSpecifier(""dispatch/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/runtime/t34-f7-fanout.test.ts	201	"workSpecifier(""recovery/index.ts"")"		Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/worker/assembly.ts	687	url	CF-dispatch-composition,CF-fanout-composition,CF-worker-composition	Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/worker/assembly.ts	819	specifier	CF-dispatch-composition,CF-fanout-composition,CF-worker-composition	Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/src/worker/main.ts	257	specifier	CF-worker-main	Manual loader/entry-chain trace in map; dynamic artifact target remains input-dependent
+packages/cloudflare/test/http-operations-route.test.ts	333	moduleUrl		Test/conformance/verification support; not a product reachability claim
+packages/cloudflare/test/modules.test.ts	82	assembled.entryUrl		Test/conformance/verification support; not a product reachability claim
+packages/testkit/src/runner/loader.ts	238	moduleUrl	testkit-runner	Public test-support loader; target depends on admitted artifact URL
+packages/values/conformance/numeric-text.oracle.mjs	68	pathToFileURL(path.join(path.resolve(dist),filename)).href		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	28	"join(dist, ""int.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	29	"join(dist, ""decimal.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	30	"join(dist, ""money.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	31	"join(dist, ""kinds.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	32	"join(dist, ""temporal.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	33	"join(dist, ""array.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	34	"join(dist, ""wire.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	35	"join(dist, ""currency-data.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	36	"join(dist, ""errors.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/ports/exact/differential.mjs	37	"join(dist, ""errors.js"")"		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/string-escape.oracle.mjs	77	pathToFileURL(path.join(stage, 'src/wire.js'))		Test/conformance/verification support; not a product reachability claim
+packages/values/conformance/string-escape.oracle.mjs	77	pathToFileURL(path.join(stage, 'src/kinds.js'))		Test/conformance/verification support; not a product reachability claim
+packages/values/test/exact-bootstrap.workerd.mjs	38	bootstrapURL		Test/conformance/verification support; not a product reachability claim
+packages/values/test/exact-bootstrap.workerd.mjs	79	"pathToFileURL(join(dist, ""bindings/generated/values_semantics.js"")).href"		Test/conformance/verification support; not a product reachability claim
+packages/values/test/exact-bootstrap.workerd.mjs	94	pathToFileURL(localRun).href		Test/conformance/verification support; not a product reachability claim
+packages/work-kernel/conformance/registered-differential.mjs	75	pathToFileURL(join(tsRoot,'src',`${leaf}.js`)).href		Test/conformance/verification support; not a product reachability claim
+scripts/verify-installed-worker.mjs	59	ownerModule(`@canlang/${name}/distribution`)		Test/conformance/verification support; not a product reachability claim
+scripts/verify-installed-worker.mjs	114	pathToFileURL(join(output, glueKey))		Test/conformance/verification support; not a product reachability claim
+scripts/verify-installed-worker.mjs	116	ownerModule('@canlang/values/bindings/backend')		Test/conformance/verification support; not a product reachability claim
+scripts/verify-installed-worker.mjs	119	ownerModule('@canlang/state/receipt')		Test/conformance/verification support; not a product reachability claim
+scripts/verify-turbo-cache.mjs	219	pathToFileURL(join(workspace, 'scripts', 'run-tasks.mjs'))		Test/conformance/verification support; not a product reachability claim
+tests/e2e/fixtures/example-hooks.ts	31	specifier		Test/conformance/verification support; not a product reachability claim

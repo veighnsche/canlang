@@ -1,0 +1,834 @@
+{
+  "ref": "851352d5225f0d707246eba7da81482087566994",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "medium",
+  "scope": "Bounded source/caller/index challenges, not complete behavior qualification",
+  "reviews": {
+    "cross-review-values": {
+      "ref": "851352d5225f0d707246eba7da81482087566994",
+      "reviewed": "/private/tmp/canlang-responsibility-adapters.json",
+      "scope": "Bounded independent read-only challenge of HTTP/auth/files joins, browser start/assets/shell and services adoption; no product execution",
+      "verdict": "Strong adoption-gap claims supported; no contradictory production constructor/mount found. Clarify observed test callers and indirect shell call evidence.",
+      "confirmations": [
+        {
+          "ids": [
+            "interfaces-http-operation",
+            "interfaces-router",
+            "interfaces-auth",
+            "interfaces-uploads"
+          ],
+          "claim": "HTTP operations are mounted through loaded handler factory; full router is separate. Auth returns explicit interim response; files use interim matcher/rejection.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 1347,
+              "note": "factory(deps)(req,op) real operation handler call"
+            },
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 1365,
+              "note": "Auth and files select interim paths"
+            },
+            {
+              "path": "packages/interfaces/src/http/routes.ts",
+              "line": 124,
+              "note": "Full createHttpHandler only has test constructions in index"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "interfaces-file-kernel-binding",
+            "interfaces-ingress"
+          ],
+          "claim": "Real op deps contain throwing file kernel/ingress seams, not durable binding. Kernel module deliberately wraps caller-supplied functions.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 1326,
+              "note": "file kernel maxBytes/create/append/complete/finalize unjoined stubs"
+            },
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 1334,
+              "note": "ingress bindings/verifier/sink throw unjoined"
+            },
+            {
+              "path": "packages/interfaces/src/uploads/kernel.ts",
+              "line": 193,
+              "note": "createFileKernel validates and wraps injected bindings"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "ui-browser-bootstrap",
+            "ui-build-assets",
+            "interfaces-assets"
+          ],
+          "claim": "Copied bootstrap/polling resources do not prove serving or initialization. Explicit start installs client lifecycle; no product start call/mount observed.",
+          "evidence": [
+            {
+              "path": "packages/ui/scripts/build-browser.mjs",
+              "line": 53,
+              "note": "Only bootstrap.js/polling.js copied"
+            },
+            {
+              "path": "packages/ui/src/browser/bootstrap.ts",
+              "line": 297,
+              "note": "Explicit startBrowserClient entry"
+            },
+            {
+              "path": "packages/interfaces/src/index.ts",
+              "line": 16,
+              "note": "Routes exported; assets handler absent from complete barrel"
+            },
+            {
+              "path": "packages/interfaces/package.json",
+              "line": 13,
+              "note": "No assets export subpath"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "services-mail",
+            "services-model",
+            "services-judgments",
+            "services-media"
+          ],
+          "claim": "Public lifecycle adapters exist, but indexed external constructors are tests. Python JEV is a distinct transport; services scenario import by files is type-only.",
+          "evidence": [
+            {
+              "path": "packages/files/src/scenarios.ts",
+              "line": 24,
+              "note": "ScenarioTable type-reference only"
+            },
+            {
+              "path": "packages/services/package.json",
+              "line": 43,
+              "note": "Explicit adapter/harness subpaths provide public exposure"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "ui-shell"
+          ],
+          "claim": "Full shell rendering requires explicit shell data. Compiler generated page calls omit that argument; current Worker invokes descriptors with interim context and serves raw returned HTML.",
+          "evidence": [
+            {
+              "path": "packages/ui/src/shell.ts",
+              "line": 202,
+              "note": "Throws when full render lacks shell"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 3337,
+              "note": "Emits renderPage(c, descriptor, builder) without shell"
+            },
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 1421,
+              "note": "Descriptor render callback call"
+            },
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 1440,
+              "note": "No-shell raw HTML response"
+            }
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "severity": "precision",
+          "ids": [
+            "interfaces-router",
+            "interfaces-file-kernel-binding",
+            "services-mail",
+            "services-model",
+            "services-judgments",
+            "services-media"
+          ],
+          "issue": "Several rows say public-api-no-observed-in-repo-call with empty callers despite observed in-repo test constructions. Their prose correctly excludes product adoption, but literal status/caller lists lose actual test callers.",
+          "recommendation": "Record representative test calls and use test-only-observed-call with public_api_status retaining export obligations, or explicitly define this status as no observed production call. Do not mark APIs dead.",
+          "evidence": [
+            {
+              "path": "packages/interfaces/test/http-pages.test.ts",
+              "line": 142,
+              "symbol": "createHttpHandler",
+              "kind": "call-or-construction"
+            },
+            {
+              "path": "packages/cloudflare/test/assembly.test.ts",
+              "line": 764,
+              "symbol": "createFileJourneyKernel",
+              "kind": "call-or-construction"
+            },
+            {
+              "path": "packages/services/test/mail-adapter.test.ts",
+              "line": 44,
+              "symbol": "EmailV1Adapter",
+              "kind": "call-or-construction"
+            },
+            {
+              "path": "packages/services/test/judgments-systemone.test.ts",
+              "line": 39,
+              "symbol": "SystemOneAdapter",
+              "kind": "call-or-construction"
+            },
+            {
+              "path": "packages/files/test/provider-output.test.ts",
+              "line": 650,
+              "symbol": "ComfyUINativeAdapter",
+              "kind": "call-or-construction"
+            }
+          ]
+        },
+        {
+          "severity": "precision",
+          "ids": [
+            "ui-shell"
+          ],
+          "issue": "The Worker match.render caller is an indirect descriptor callback, not a direct public renderPage caller; ordinary generated non-partial descriptors will reach shell-missing throw before host response. Existing limits point to this correctly, but the source consequence is stronger than merely no end-to-end evidence.",
+          "recommendation": "Keep conditional production classification; identify descriptor callback as indirect generated-route evidence and spell out source-level full-page failure condition. No implementation authorized.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 1421,
+              "note": "match.render(context,bindings)"
+            },
+            {
+              "path": "packages/interfaces/src/http/pages.ts",
+              "line": 307,
+              "note": "Full/partial descriptor render before host shell wrapping"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 3337,
+              "note": "Generated function provides no shell argument"
+            }
+          ]
+        },
+        {
+          "severity": "minor",
+          "ids": [
+            "identity-public-surface",
+            "interfaces-public-surface",
+            "ui-public-surface",
+            "services-public-surface",
+            "files-public-surface"
+          ],
+          "issue": "Type-contract status for executable package barrels blurs runtime export assembly with erased type definitions. It does not invalidate adoption limits, but values/contracts audit separately distinguishes barrel responsibilities.",
+          "recommendation": "Represent export assembly as executable public surface responsibility, with caller status based on known loading/staging rather than type-contract alone. This is classification consistency, not a missing product join.",
+          "evidence": [
+            {
+              "path": "packages/interfaces/src/index.ts",
+              "line": 6,
+              "note": "Runtime export-star assembly"
+            },
+            {
+              "path": "packages/ui/src/index.ts",
+              "line": 61,
+              "note": "Public renderPage runtime export"
+            }
+          ]
+        }
+      ],
+      "limits": [
+        "Frozen source was read through current shared checkout, using root fixed-ref guarantee; no Git operation performed.",
+        "Caller index does not resolve all dynamic namespace imports or indirect injected callbacks; manual Worker routes and public manifests reviewed for this bounded challenge.",
+        "No claim of new installed execution, source rebuild, browser launch, durable upload or provider network run.",
+        "HOLD preserved; only requested cross-review JSON written."
+      ]
+    },
+    "cross-review-adapters": {
+      "ref": "851352d5225f0d707246eba7da81482087566994",
+      "scope": "Bounded independent read-only challenge of five state/work/values chains; no execution/build/install/Git performed.",
+      "reviews": [
+        {
+          "ids": [
+            "S-invoke",
+            "S-read-invoke"
+          ],
+          "verdict": "supported-with-chain-qualification",
+          "finding": "Dynamic producer loading is genuine execution source, not merely import reachability. Mutation calls loaded.producers.invoke.invoke; ordinary canonical reads instantiate createReadInvoker and then call its closure. The direct invokeRead call at runtime/invoke.ts:2820 is scenario readModel, not the ordinary top-level read entry.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 907,
+              "note": "Mounted invoker mutation calls dynamically loaded invokeMutationCanonical."
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 1290,
+              "note": "Loads/shape-checks eight state producer namespaces from variable specifiers."
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 2906,
+              "note": "Actual canonical state mutation invocation."
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3493,
+              "note": "Ordinary read constructs createReadInvoker; per-call bound closure invokes state read."
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 2820,
+              "note": "Direct loaded invokeRead is nested scenario readModel path."
+            }
+          ],
+          "qualification": "Retain production-observed-source. Full interfaces pages/export are separate conditional callback consumers; current worker interim page path is anonymous/throwing query and export is unmounted. No authenticated installed canonical read/mutation claim follows from empty-artifact MCP401."
+        },
+        {
+          "ids": [
+            "S-receipt-read",
+            "W-observe"
+          ],
+          "verdict": "supported",
+          "finding": "Selected receipt routes from invokeReadCanonical through state owner/grant/fence join with injected observer preferred. Default observer absence fallback is exact-module-only and resolves real @canlang/work/receipt function exports; broken/missing nested dependencies cannot silently fall back. Worker vendor rewriting maps state but does not map/stage work receipt.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3336,
+              "note": "Absent state observer branch calls loadWorkReceiptFns after dynamic work receipt load."
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3422,
+              "note": "Selected receipt passes owner-schema/policy/store plus resolved observer to state join."
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3481,
+              "note": "Receipt.read branches into invokeSelectedReceiptRead."
+            },
+            {
+              "path": "packages/work/src/receipt/index.ts",
+              "line": 412,
+              "note": "Real public owner loader returns observation/progress/consistency functions; no filesystem or source-tree magic."
+            },
+            {
+              "path": "packages/cloudflare/src/deploy/bundle.ts",
+              "line": 458,
+              "note": "Runtime mapping explicitly includes state receipt/state prefix; work receipt remains unmapped."
+            }
+          ],
+          "qualification": "conditional-production accurate. Cloudflare comment calls fallback TEST-ONLY but owning loader is public implemented API; describe default installed join as unresolved, not nonexistent or dead. No receipt observer injection in assembly buildInvoker opts was observed."
+        },
+        {
+          "ids": [
+            "K-native",
+            "K-ts-retry",
+            "K-host"
+          ],
+          "verdict": "supported",
+          "finding": "Work kernel Cargo registration exposes pure namespaced Rust decision candidates, but no production transport/backend/Wasm/installed-consumer join. TS neutral extraction likewise has no state/work/cloudflare production import; donors retain execution callers.",
+          "evidence": [
+            {
+              "path": "packages/work-kernel/decisions/lib.rs",
+              "line": 6,
+              "note": "Explicitly no production transport/backend selection/authority."
+            },
+            {
+              "path": "packages/work-kernel/rust/lib.rs",
+              "line": 1,
+              "note": "Registration preserves independent producer, transport, backend, Wasm and consumer gates."
+            },
+            {
+              "path": "packages/work-kernel/src/retry.ts",
+              "line": 1,
+              "note": "Extracted retry implementation candidate, not owner runtime swap."
+            }
+          ],
+          "qualification": "prototype-unadopted is accurate and does not mean implementations lack public/internal candidate APIs or conformance callers. Inline cfg(test) Cargo smoke excluded from production adoption."
+        },
+        {
+          "ids": [
+            "values-backend-wasm",
+            "values-bootstrap",
+            "values-rust-transport",
+            "values-generated-binding"
+          ],
+          "verdict": "supported",
+          "finding": "Explicit supplied-byte/module bootstrap invokes generated initSync then wasmBackend; wasmBackend actually invokes glue.exact_call with tagged JSON. TS backend smoke table has six fixed operations while Wasm backend forwards arbitrary registered native operation names. Ordinary values int APIs still implement TS directly and do not call bootstrap/backend. Asset gather is optional staging only.",
+          "evidence": [
+            {
+              "path": "packages/values/bindings/backend.ts",
+              "line": 32,
+              "note": "Six-operation TS scaffold registry."
+            },
+            {
+              "path": "packages/values/bindings/backend.ts",
+              "line": 100,
+              "note": "Explicit Wasm call serializes tagged request and invokes exact_call."
+            },
+            {
+              "path": "packages/values/bindings/bootstrap.ts",
+              "line": 79,
+              "note": "Explicit initSync invocation consumes privately copied supplied bytes/module."
+            },
+            {
+              "path": "packages/values/src/int.ts",
+              "line": 32,
+              "note": "Ordinary addInt executes bigint arithmetic/int64 directly."
+            },
+            {
+              "path": "scripts/verify-installed-worker.mjs",
+              "line": 118,
+              "note": "Outside-checkout harness performs explicit staged Wasm add-int smoke; source is not proof of execution this turn."
+            }
+          ],
+          "qualification": "conditional-production/generated-staged accurate; six-op limitation applies TS comparison scaffold/qualified witness, not a literal Wasm dispatch allowlist. No default TS operator Rust adoption."
+        },
+        {
+          "ids": [
+            "values-generated-binding",
+            "values-bootstrap",
+            "values-backend-wasm",
+            "S-invoke"
+          ],
+          "verdict": "supported-with-finite-receipt-limit",
+          "finding": "Existing step9 receipt source pins and committed glue/Wasm match current inspected bytes. Independent broader comparison found 74 selected non-generated values .ts/.rs source pins all matching, and generated digests equal reported values. Existing qualification is six-operation exact installed scaffold, not structural validation/full-handler/default backend adoption.",
+          "evidence": [
+            {
+              "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+              "line": 1,
+              "note": "Receipt explicitly retains A07.3/A08/V02.6/V06-V08 and production/default adoption gaps; six-op whole-call measurement scope."
+            },
+            {
+              "path": "packages/values/bindings/generated/values_semantics.js",
+              "line": 1,
+              "note": "Current SHA256 f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0 matches reported receipt."
+            },
+            {
+              "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+              "line": 1,
+              "note": "Current SHA256 f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81 matches reported receipt."
+            },
+            {
+              "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
+              "line": 1,
+              "note": "Controlled identity/CSV memory/scripted handler and empty-artifact MCP401 production boot explicitly bounded."
+            }
+          ],
+          "qualification": "Retain narrow historical source-equal finite receipt reference; never promote installed artifact presence or unauthenticated MCP boot to state/work execution. No new execution was performed."
+        }
+      ],
+      "required_corrections": [],
+      "recommended_qualifications": [
+        "Clarify S-read-invoke direct call at line2820 is nested readModel; ordinary top-level entry uses bound createReadInvoker closure.",
+        "Mark full interfaces pages/export caller branches conditional/unmounted when displaying S-read chain; mounted MCP source supports overall production-observed-source.",
+        "Owning work receipt loader is public real API despite Cloudflare fallback TEST-ONLY comment. Default Worker receipt binding unresolved rather than absent implementation."
+      ],
+      "unresolved": [
+        "No concrete authenticated outside-checkout canonical state/read/receipt execution was inspected.",
+        "No public downstream consumer inventory beyond provided repository/finite receipt evidence.",
+        "Current work-kernel parity candidates have no owning production Rust selection or Wasm route."
+      ]
+    },
+    "cross-review-cloudflare": {
+      "ref": "851352d5225f0d707246eba7da81482087566994",
+      "scope": "Bounded source-only challenge of CLI/backend/asset/default worker/dispatch/fanout and caller claims; no repository edits or product commands",
+      "reviews": [
+        {
+          "ids": [
+            "CF-cli",
+            "CF-ts-build",
+            "CF-ts-deploy",
+            "CF-native-selection",
+            "CF-native-host-protocol"
+          ],
+          "verdict": "supported",
+          "finding": "Normal platform CLI delegates build/deploy to TypeScript prepared host. Native selector/job APIs are explicit separate exports; no normal CLI native backend selection observed.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/cli/platform.ts",
+              "line": 394,
+              "note": "runPreparedBuild call"
+            },
+            {
+              "path": "packages/cloudflare/src/cli/platform.ts",
+              "line": 404,
+              "note": "runPreparedDeploy call"
+            },
+            {
+              "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+              "line": 220,
+              "note": "TS route delegates plain buildDeployBundle"
+            },
+            {
+              "path": "packages/cloudflare/src/preparation/host.ts",
+              "line": 429,
+              "note": "TS deploy writes plain bundle"
+            },
+            {
+              "path": "packages/cloudflare/src/preparation/host.ts",
+              "line": 510,
+              "note": "Explicit selectBackend function"
+            },
+            {
+              "path": "packages/cloudflare/src/preparation/host.ts",
+              "line": 548,
+              "note": "Explicit runNativeJob function"
+            }
+          ],
+          "qualification": "Production-observed-source for TS command routing; prototype-unadopted for native adoption remains appropriate. No commands executed."
+        },
+        {
+          "ids": [
+            "CF-asset-bundle"
+          ],
+          "verdict": "supported",
+          "finding": "Assets-enabled bundle API explicitly gathers supplied package selection and keeps browser resources outside Worker modules. Plain CLI build/write do not select it.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/deploy/bundle.ts",
+              "line": 1235,
+              "note": "Comment: assets do not select/initialize backend"
+            },
+            {
+              "path": "packages/cloudflare/src/deploy/bundle.ts",
+              "line": 1276,
+              "note": "buildDeployBundleWithAssets explicit entry"
+            },
+            {
+              "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+              "line": 220,
+              "note": "Default plain bundle call"
+            },
+            {
+              "path": "packages/cloudflare/src/preparation/host.ts",
+              "line": 429,
+              "note": "Default plain writer"
+            }
+          ],
+          "qualification": "conditional-production and staged resources/explicit Wasm smoke scope retained. Browser resource bytes do not imply mounted route/bootstrap/polling."
+        },
+        {
+          "ids": [
+            "CF-canonical-read",
+            "CF-canonical-mutation"
+          ],
+          "verdict": "supported-with-chain-qualification",
+          "finding": "Mounted operation invoker reaches real state dynamically. Ordinary read constructs createReadInvoker and calls reader; direct state invokeRead at line2820 is nested scenario readModel, not top-level read serving.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 940,
+              "note": "Canonical read invocation"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3493,
+              "note": "createReadInvoker factory"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3499,
+              "note": "reader closure call"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 2820,
+              "note": "Nested scenario readModel invokes state directly"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 2906,
+              "note": "Mutation calls actual state invoke"
+            }
+          ],
+          "qualification": "Use precise bound-reader chain. Full interfaces pages/export callbacks are conditional/unmounted; mounted MCP suffices for source observation but empty-artifact MCP401 does not prove authenticated state/read execution."
+        },
+        {
+          "ids": [
+            "CF-selected-receipt"
+          ],
+          "verdict": "supported-with-wording-correction",
+          "finding": "Receipt.read branch performs state selected join. Absent state observer falls back to real public work/receipt loader, despite Cloudflare comment labelling fallback TEST-ONLY. Claiming compatible work progress observation must not imply applyRelatedProgress/cancel/resume executes.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3481,
+              "note": "Receipt.read routes invokeSelectedReceiptRead"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3336,
+              "note": "loadWorkReceiptFns actual fallback call"
+            },
+            {
+              "path": "packages/work/src/receipt/index.ts",
+              "line": 412,
+              "note": "Public real owner loader returns funcs"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3284,
+              "note": "Historic TEST-ONLY comment does not change owning public API status"
+            },
+            {
+              "path": "packages/cloudflare/src/deploy/bundle.ts",
+              "line": 458,
+              "note": "State specifier mappings; no work receipt vendor mapping"
+            }
+          ],
+          "qualification": "Replace No test-only work loader is adopted as production with Work loader is public implemented API; Node source integration exists; default Worker vendor/observer binding unresolved. Keep conditional-production."
+        },
+        {
+          "ids": [
+            "CF-dispatch-staging",
+            "CF-dispatch-driver",
+            "CF-fanout-staging",
+            "CF-fanout-driving",
+            "CF-dispatch-composition",
+            "CF-fanout-composition"
+          ],
+          "verdict": "correction-required",
+          "finding": "Report says real state/work dynamic producers for dispatch and fanout. The actual dynamic loaders import state producers only. Work command arrays/planners/provider functions arrive injected through registry/options; source comments naming work donors are not imports or proven default driver adoption. The only @canlang/work dynamic specifier in invoke.ts is receipt fallback.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3629,
+              "note": "loadDispatchSystemProducers loads state system and transact only"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 3659,
+              "note": "createWorkerDispatchRegistry accepts already-composed command array"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 4444,
+              "note": "stageDispatchBatch invokes supplied opts.registry.run"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 5651,
+              "note": "loadFanoutStateProducers loads state table/cohort/membership/outcome/lifecycle/progress/staging/transact/invoke/storage modules"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 2965,
+              "note": "Only WORK_RECEIPT_SPECIFIER @canlang/work path"
+            },
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 1473,
+              "note": "workCommands injected"
+            },
+            {
+              "path": "packages/cloudflare/src/worker/assembly.ts",
+              "line": 1530,
+              "note": "Fanout serving segments injected"
+            }
+          ],
+          "correction": "Change dispatch responsibility/chain to dynamically load state registry/join producers and execute supplied work command registry. Change fanout state/work chain to actual state producer auto-load plus explicit injected work/provider ports. Remove Dynamic @canlang/work imports have no work vendor bundle target from dispatch limit; it applies to receipt only. Keep default driver/scheduler and concrete work owner adoption unproved."
+        },
+        {
+          "ids": [
+            "CF-local-host"
+          ],
+          "verdict": "supported-with-caller-precision",
+          "finding": "Local runtime factory is genuinely invoked, but current caller field is only source import. Cite call at row-scope line76 after CLI line361 instead.",
+          "evidence": [
+            {
+              "path": "packages/cloudflare/src/cli/platform.ts",
+              "line": 361,
+              "note": "createLocalRowScope call"
+            },
+            {
+              "path": "packages/cloudflare/src/dev/row-scope.ts",
+              "line": 76,
+              "note": "startLocalDev call"
+            }
+          ],
+          "qualification": "Existing executed=0 row loader gap remains accurate."
+        },
+        {
+          "ids": [
+            "CF-dist-integrity"
+          ],
+          "verdict": "correction-required",
+          "finding": "scripts/verify-installed-worker.mjs line1 is not an actual release/manifest.ts caller. Actual manifest producer/verification has root release:manifest/release:verify commands and packaging source that executes dist/release/manifest.js --verify.",
+          "evidence": [
+            {
+              "path": "package.json",
+              "line": 19,
+              "note": "release:manifest declared CLI"
+            },
+            {
+              "path": "package.json",
+              "line": 20,
+              "note": "release:verify declared CLI"
+            },
+            {
+              "path": "scripts/pack-release.mjs",
+              "line": 38,
+              "note": "stamp and manifest verification subprocess"
+            },
+            {
+              "path": "packages/cloudflare/src/release/manifest.ts",
+              "line": 150,
+              "note": "manifestMain selects write/verify"
+            },
+            {
+              "path": "packages/cloudflare/src/release/manifest.ts",
+              "line": 165,
+              "note": "Direct invoked module runs manifestMain"
+            }
+          ],
+          "correction": "Replace installed verifier caller field with exact root script declarations and scripts/pack-release actual subprocess. Production-observed-source release tooling is defensible; conditional support classification also valid if command selection retained. Do not describe unrelated installed bundle hash assertions as invocation of manifest owner."
+        }
+      ],
+      "required_corrections": [
+        "Change dispatch responsibility/chain to dynamically load state registry/join producers and execute supplied work command registry. Change fanout state/work chain to actual state producer auto-load plus explicit injected work/provider ports. Remove Dynamic @canlang/work imports have no work vendor bundle target from dispatch limit; it applies to receipt only. Keep default driver/scheduler and concrete work owner adoption unproved.",
+        "Replace installed verifier caller field with exact root script declarations and scripts/pack-release actual subprocess. Production-observed-source release tooling is defensible; conditional support classification also valid if command selection retained. Do not describe unrelated installed bundle hash assertions as invocation of manifest owner."
+      ],
+      "coverage": {
+        "expected_baseline_cloudflare_candidates": 54,
+        "covered_baseline_candidates": 54,
+        "missing": [],
+        "barrel_index_status": "packages/cloudflare/src/index.ts is now covered in report reviewed (root addition already present)"
+      },
+      "own_report_update": "state-work JSON refined ordinary createReadInvoker closure versus nested scenario direct invokeRead; marked full pages/export conditional/unmounted and owning work fallback public real API despite historic TEST-ONLY comment",
+      "unresolved": [
+        "No authenticated installed default Worker mutation/read/receipt/work workflow executed in review.",
+        "Default injected dispatch/fanout loops and real producer registrations remain unproved.",
+        "Finite historical source-equal receipts must retain input/handler/operation limits."
+      ]
+    },
+    "index-review": {
+      "ref": "851352d5225f0d707246eba7da81482087566994",
+      "verdict": "usable conservative lexical/import evidence index with documented manual-resolution gaps; no current pin/export-mapping bug found",
+      "tool_sha256": {
+        "docs/research/package-library-audit-20261006/responsibility-callers/index-inputs.py": "6dbe0d80391e3b82b175e14e70b393c564558a11cd3c9633765dee467bca68a9",
+        "docs/research/package-library-audit-20261006/responsibility-callers/index-callers.cjs": "e2e58847aae857bf06d6b4bc0292db5f186b21fd66067f781890b03bf0f13801"
+      },
+      "pin": {
+        "generator": "Reads git tree/cat-file blobs at resolved commit; --ref override exposed and result records actual ref; TypeScript version 5.9.3 required",
+        "review_method": "No Git/build/test/install used. Compared 735 current readable source hashes against pinned index; all match. Generator Git pin logic inspected only. Tool files live outside indexed scopes and are separately hashed, not implied pinned to source ref.",
+        "matching_hashes": 735,
+        "hash_mismatches": 0,
+        "code_files": 707,
+        "json_manifest_config_files": 28
+      },
+      "graph_counts": {
+        "edges": 4295,
+        "uses": 55596,
+        "unresolved_dynamic_imports": 60,
+        "package_export_keys": 156,
+        "unmapped_export_targets": 0,
+        "unmapped_edges_with_targets": 21
+      },
+      "synthetic_controls": {
+        "method": "One ephemeral stdin JSON packet to existing node indexer; no files/product tests emitted",
+        "pass": [
+          "Named alias fn() and new fn() attributed to original export.",
+          "Lexically shadowed parameter fn() omitted from import uses.",
+          "Mixed import type Thing recorded type-reference; value reference remains value-reference.",
+          "Namespace ns.original() recorded member call.",
+          "Const dynamic import(source) resolves ./leaf.js; shadowed function parameter source remains unresolved.",
+          "Package exports types/default both map correctly from dist/leaf.{d.ts,js} through rootDir src.",
+          "Known non-code public/icon.svg maps to physical asset despite exclusion from code entries."
+        ],
+        "limitations_confirmed": [
+          "ns.deep.original() records deep value-reference, not full member call; ns[\"original\"]() records namespace value-reference.",
+          "(0, fn)() records fn value-reference; alias/callback/property forwarding not followed.",
+          "require(\"./leaf.js\") produces no import edge.",
+          "dist/foo.mjs and dist/foo.d.mts fail to map rootDir/src/foo.mts; wildcard exports not substituted."
+        ]
+      },
+      "findings": [
+        {
+          "id": "R1",
+          "severity": "limitation",
+          "description": "Binding association uses TypeChecker lexical symbols with noLib/noResolve; this handles aliases/shadowing, but is not semantic type resolution or runtime reachability. Namespace/property aliases, callbacks, nested members, destructuring of dynamic module namespace and reexport symbol transit require manual tracing.",
+          "current_effect": "60 unresolved dynamic imports include real Cloudflare loadProducerModule(specifier); work test dynamic loaders also unresolved. No production-observed status should be inferred solely from edge/use."
+        },
+        {
+          "id": "R2",
+          "severity": "limitation",
+          "description": "Generated string contents/template modules are not reparsed. 21 unresolved target edges include cloudflare worker/main.ts generated siblings artifact.js/mcp-handler.js/http-operations.js/derived-inputs.js and expense demo obsolete nested dist layouts.",
+          "current_effect": "Target null does not mean dead/missing public asset or no generated module; inspect emitter/bundler/root command chains."
+        },
+        {
+          "id": "R3",
+          "severity": "latent bug",
+          "description": "sourceTarget does not preserve .mts/.cts conversions under emitted rootDir mapping; d.mts/d.cts map to .ts and root foo.mjs only tests .ts. Also excludes .cts/.tsx/.jsx inputs and lacks extensionless/index and wildcard-import/export matching.",
+          "current_effect": "All actual declared package exports currently map; no wildcard package exports in this pinned snapshot. No current baseline candidate loss except intentionally omitted Rust.",
+          "correction": "Before using index beyond current snapshot, add explicit .mjs->.mts/.d.mts->.mts/.cjs->.cts/.d.cts->.cts candidates both direct and root; resolve wildcard/extensionless forms or expose them unresolved."
+        },
+        {
+          "id": "R4",
+          "severity": "limitation",
+          "description": "Configuration extraction reads direct compilerOptions rootDir/outDir, without extends merging or TypeScript output-root inference. Conditions are flattened alternatives, not Node condition precedence selection; types/default targets must remain separate.",
+          "current_effect": "Current package export mapping has zero null targets, so no demonstrated current error; do not count both conditions as separate executed calls."
+        },
+        {
+          "id": "R5",
+          "severity": "limitation",
+          "description": "No Rust sources/call graph and no execution of installed consumer or proof of source-equal built outputs; source hashes establish source pin only. CommonJS require/import-equals and dynamic namespace binding uses not indexed.",
+          "current_effect": "51 Rust baseline implementation candidates require responsibility receipts/source inspection; require examples are tooling/conformance dependencies, while authored stdlib require is an ordinary guard and must not be confused with CJS."
+        }
+      ],
+      "coverage": {
+        "baseline_implementation_candidates": 348,
+        "indexed_source_hash_candidates": 297,
+        "unindexed_candidates": 51,
+        "unindexed_languages": {
+          "rs": 51
+        },
+        "available_agent_reports": {
+          "canlang-responsibility-cross-review-adapters.json": {
+            "paths": 0,
+            "baseline_implementation_paths": 0,
+            "support_or_nonbaseline_paths": 0,
+            "responsibilities": 0
+          },
+          "canlang-responsibility-values.json": {
+            "paths": 99,
+            "baseline_implementation_paths": 76,
+            "support_or_nonbaseline_paths": 23,
+            "responsibilities": 90
+          },
+          "canlang-responsibility-state-work.json": {
+            "paths": 87,
+            "baseline_implementation_paths": 87,
+            "support_or_nonbaseline_paths": 0,
+            "responsibilities": 59
+          },
+          "canlang-responsibility-cross-review-values.json": {
+            "paths": 0,
+            "baseline_implementation_paths": 0,
+            "support_or_nonbaseline_paths": 0,
+            "responsibilities": 0
+          },
+          "canlang-responsibility-adapters.json": {
+            "paths": 147,
+            "baseline_implementation_paths": 131,
+            "support_or_nonbaseline_paths": 16,
+            "responsibilities": 106
+          }
+        },
+        "union_report_baseline_candidates": 294,
+        "missing_report_baseline_candidates": 54,
+        "missing_report_owner_counts": {
+          "cloudflare": 54
+        },
+        "note": "Three reports cover 294/348 baseline candidates; remaining 54 are exactly cloudflare root-owned scope still being assembled. Values report coverage includes contracts/stdlib, support fixtures/native assets; extra paths do not inflate baseline count."
+      },
+      "required_review_controls": [
+        "Keep direct source callers, optional/injected harness callers, public APIs, recipient-test calls, generated staging and installed execution separately classified.",
+        "Use actual import symbol use instead of substring matching; inspect function factories and variable dynamic loader callers manually.",
+        "Count baseline coverage by exact set intersection, and account for Rust separately.",
+        "Preserve original T08/T26 unproved production/installed bounds; source-equal receipt output is not executed consumer proof."
+      ]
+    }
+  },
+  "resolution": "Precision corrections applied to observed test callers, executable barrels, generated render boundary, canonical read factory chain, injected work/state producer distinction and release-manifest command callers. Index conservatism remains explicit."
+}
