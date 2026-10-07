@@ -10,6 +10,8 @@ The [Pass10 final receipt](pass10/README.md) integrates selected core substituti
 
 The user's clarified production-reduction goal remains open beyond that frozen correctness qualification. The [bounded reduction ledger](production-reduction/README.md) requires smaller complete implementation closures at equivalent outcomes and records the first checked 51-line LSP projection reduction. Tests/metadata growth and binary footprint do not substitute for that measure.
 
+The proposed [compiler correctness, ownership and simplicity audit](compiler-correctness-simplicity-audit.md) broadens the next review beyond utility callers: complete responsibility/workflow coverage, compatibility obligations, semantic authority, generated execution, editor lifecycle, resource limits and test-oracle quality. It specifies sixteen ordered steps and economical allocations, with a planning exit before implementation. Its preparation corrects the aggregate line-count method; it is not a completed whole-compiler audit or a second living plan.
+
 | Pass | Declared outcome / reference |
 | --- | --- |
 |0 |[Released contracts and witnesses](pass0/README.md) |
