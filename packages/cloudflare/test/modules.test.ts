@@ -114,4 +114,35 @@ describe("assembleModules", () => {
       /"main\.js".*"\.\/missing\.js"/,
     );
   });
+  it("uses literal import records and preserves prose, attributes and dynamic options", async () => {
+    const { stdlibUrl, uiUrl } = stubProducers();
+    const workDir = mkdtempSync(join(tmpdir(), "b1-literals-"));
+    const js = [
+      'const prose = "from \\\"unresolved-prose\\\"";',
+      '// import "unresolved-comment";',
+      'const matcher = /import("unresolved-regex")/;',
+      'import { stdlibMarker } from "@canlang/stdlib" with { type: "javascript" };',
+      'export const load = () => import(/* keep */ `@canlang/ui`, { with: { type: "javascript" } });',
+      '',
+    ].join("\n");
+    const assembled = await assembleModules({ artifact: artifact([module("main.js", js)]), sourcePath: "literal.artifact.json" }, { uiUrl, workDir, stdlibUrl });
+    const written = readFileSync(join(workDir, "main.js"), "utf8");
+    expect(written).toContain('const prose = "from \\\"unresolved-prose\\\"";');
+    expect(written).toContain('// import "unresolved-comment";');
+    expect(written).toContain('/import("unresolved-regex")/');
+    expect(written).toContain(`from "${stdlibUrl}" with { type: "javascript" }`);
+    expect(written).toContain(`import(/* keep */ \`${uiUrl}\`, { with: { type: "javascript" } })`);
+    expect(assembled.sourceMaps?.["main.js"]).toBeDefined();
+  });
+
+  it.each([
+    ['import(which);', /nonliteral dynamic import/],
+    ['import source x from "./x.js";', /unsupported import kind/],
+    ['import("./missing.js");', /no such artifact module/],
+  ])("refuses unsupported or dangling imports before writing", async (js, error) => {
+    const { stdlibUrl, uiUrl } = stubProducers();
+    const workDir = join(mkdtempSync(join(tmpdir(), "b1-invalid-")), "unwritten");
+    await expect(assembleModules({ artifact: artifact([module("main.js", js as string)]), sourcePath: "invalid.artifact.json" }, { uiUrl, workDir, stdlibUrl })).rejects.toThrow(error as RegExp);
+  });
+
 });
