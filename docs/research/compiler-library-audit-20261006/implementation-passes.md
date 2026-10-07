@@ -1,8 +1,10 @@
-# Proposed compiler library replacement passes
+# Compiler library replacement passes
 
 Repair demonstrated compiler errors first, then replace standardized mechanisms through qualified adapters. The compiler continues to own Can grammar, permissions, effects, exact value policy and lowering. Success means fewer duplicated standard implementations with faithful supported behavior; it is not a target dependency count.
 
 This is the detailed execution proposal accompanying the [audit](README.md), pinned to `309644a6881909d8dba32560bc6711f67e00a7ab`. Refresh affected source and evidence before implementation. The pass numbers below are local planning labels, not new canonical task IDs, accepted completion statuses or releases to the package Rust-port workers.
+
+**Execution update, 2026-10-07:** the [final Pass 10 receipt](pass10/README.md) qualifies the selected core substitutions and links every packet's implemented contract/consumer evidence. The audit's [completion table](README.md#implementation-and-qualification-status) is the current scope ledger; the original preparation/instructions below remain historical planning context. Locale replacement failed its profile gate, conditional mechanisms retain/defer separately, and T37/FP.QUALIFY/FP.INSTALLED-RELEASE remain open. The pass labels do not replace canonical product or package task identities.
 
 ## Pass 0 Establish the contracts and regression witnesses
 
@@ -156,6 +158,8 @@ Rowan, Salsa and a JS AST/printer migration are separate architectural projects.
 
 ## Pass 10 Qualify the final compiler and retire obsolete paths
 
+**Qualified at the selected compiler scope, 2026-10-07:** [final evidence and independent review](pass10/README.md) record 1,048 passing tests, required fmt/all-target Clippy/public recipes, matched native/Linux release footprints, actual current/fresh-installed consumers, predecessor retirement and explicit unresolved product/policy boundaries. No merge or living checkpoint advancement occurred.
+
 **Delegation reminder:** Luna low/medium for checks and receipts; Sol medium for substantive review. Follow the [researched task allocation](model-allocation-20261007.md#pass-10) and justify escalation.
 
 **Priority and effort:** required completion of the selected core substitutions, with consumer scope matched to the changed boundaries.
@@ -217,4 +221,4 @@ T15 supplies affected descriptor compatibility; T37/FP.QUALIFY and FP.INSTALLED-
 
 The [package Rust-port execution plan](../../../implementation/RUST-PORT-EXECUTION-PLAN.md) explicitly excludes compiler changes. Preserve its 230 identities, R1–R4 allocation, native preparation HOLD and private values-core boundaries. No new master migration, deployment topology or language syntax is selected by this sequence.
 
-This planning round changes no compiler/runtime source, manifests, dependencies, canonical task statuses or living checkpoint. The audit's prior product checks remain historical evidence; none was rerun to produce this sequence. Preparation consisted of source/plan reads and independent sequencing challenge, followed by local link, baseline and documentation checks.
+The original planning round changed no compiler/runtime source, manifests, dependencies, canonical task statuses or living checkpoint. It reran no product checks to produce the sequence; preparation consisted of source/plan reads and independent sequencing challenge, followed by local link, baseline and documentation checks. Later implementation and qualification are recorded in the linked receipts, without rewriting that historical evidence or completing unrelated product tasks.
