@@ -8,59 +8,69 @@
   "normative_sources": {
     "BASE": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/specification.md",
-      "version": "LSP3.17.x",
+      "version": "LSP 3.17.x",
       "section": "Base protocol; $ notifications/cancellation; request ordering; text sync kinds",
       "summary": "Each processed request gets a response; notifications have no response. $ notifications may be ignored by synchronous implementations; cancellation still needs a response if detected. Full sync sends complete content. Capabilities delimit support."
     },
     "INIT": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/general/initialize.md",
-      "version": "LSP3.17.x",
+      "version": "LSP 3.17.x",
       "section": "initialize",
       "summary": "Before initialize requests get -32002 and notifications except exit drop. Initialize only once; client sends nothing further until response. Required processId/rootUri/capabilities. Non-null parent process disappearing should cause exit."
     },
     "INITIALIZED": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_includes/messages/3.17/initialized.md",
-      "version": "LSP3.17.x",
+      "version": "LSP 3.17.x",
       "summary": "Client sends initialized once after initialize response and before other traffic. Server may use it for registration."
     },
     "OPEN": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/textDocument/didOpen.md",
-      "version": "LSP3.17.x",
+      "version": "LSP 3.17.x",
       "summary": "Client owns opened text; server must not read it via URI. Duplicate unbalanced opens violate client obligation; close/open changes language ownership."
     },
     "CHANGE": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/textDocument/didChange.md",
-      "version": "LSP3.17.x",
+      "version": "LSP 3.17.x",
       "summary": "Change requires prior open. Content changes apply in arrival/array order; version refers to resulting state. Full event carries text without range."
     },
     "VERSION": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/types/versionedTextDocumentIdentifier.md",
-      "version": "LSP3.17.x",
+      "version": "LSP 3.17.x",
       "summary": "Client change version increases including undo/redo, need not be consecutive. No normative server stale-version rejection mechanism specified here."
     },
     "CLOSE": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/textDocument/didClose.md",
-      "version": "LSP3.17.x",
+      "version": "LSP 3.17.x",
       "summary": "Ownership returns away from client when closed; open/close balanced. Supported server features are not intrinsically restricted to opened documents by the protocol."
     },
     "DIAGNOSTICS": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/language/publishDiagnostics.md",
-      "version": "LSP3.17.x",
+      "version": "LSP 3.17.x",
       "section": "publishDiagnostics",
       "summary": "Server owns clearing diagnostics. VS Code single-file rule clears on close; project servers may retain/recompute. Changed empty result must push empty array; newly pushed result replaces prior result. Version support is a client capability."
     },
     "SHUTDOWN": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_includes/messages/3.17/shutdown.md",
-      "version": "LSP3.17.x",
+      "version": "LSP 3.17.x",
       "summary": "Shutdown replies null without exiting. Client sends no further messages except exit; requests after shutdown error InvalidRequest."
     },
     "EXIT": {
       "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_includes/messages/3.17/exit.md",
-      "version": "LSP3.17.x",
-      "summary": "Exit chooses0 when shutdown previously received, otherwise1."
+      "version": "LSP 3.17.x",
+      "summary": "Exit chooses 0 when shutdown was previously received, otherwise 1."
+    },
+    "REFERENCES": {
+      "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/language/references.md",
+      "version": "LSP 3.17.x",
+      "summary": "referencesProvider supports project-wide symbol references; ReferenceContext.includeDeclaration controls declaration inclusion."
+    },
+    "WORKSPACE_EDIT": {
+      "url": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/types/workspaceEdit.md",
+      "version": "LSP 3.17.x",
+      "summary": "Clients lacking both documentChanges and resourceOperations support only plain TextEdits in changes. Versioned carrier support is a client capability."
     }
   },
-  "source_retrieval_limit": "Official rendered LSP3.17 page returned navigation shell; actual official gh-pages markdown source/included message files read via web. No full specification conformance claim. URLs point maintained3.17 sources, version not invented SHA pin.",
+  "source_retrieval_limit": "Official rendered LSP 3.17 page returned navigation shell; actual official gh-pages markdown source/included message files read via web. No full specification conformance claim. URLs point maintained3.17 sources, version not invented SHA pin.",
   "finite_duties": [
     {
       "id": "ES-01",
@@ -92,7 +102,7 @@
       "caller_closure": [
         "Server new PreInit -> initialize request -> Ready capabilities -> initialized no-op"
       ],
-      "actual_supported_behavior": "Single valid initialize moves directly Ready; repeat initialize errors. UTF16, Full sync, hover/completion/definition/references/rename/full semanticTokens/codeAction advertised. rootUri/workspaceFolders/client schemas not stored; initialized does no registration.",
+      "actual_supported_behavior": "Single valid initialize moves directly Ready; repeat initialize errors. UTF16, Full sync, hover/completion/definition/references/rename/full semanticTokens/codeAction advertised. rootUri/workspaceFolders/client schemas not stored; initialized does no registration. processId is validated but not stored or monitored; a non-null parent disappearing cannot itself trigger exit.",
       "independent_expected_witness": "Preinit requests -32002; valid initialize response then initialized, document operations; repeat init -32600. No advertised workspaceFolders/project symbol/dynamic registration/pull diagnostics/incremental sync.",
       "authority_ids": [
         "INIT",
@@ -102,7 +112,7 @@
       "inspected_regressions": [
         "server.rs:1299\u20131339; lsp_typed_output.rs:129\u2013139,311 onward"
       ],
-      "limits": "initialized ordering is client precondition; server accepting data before initialized is not independently shown protocol violation. Current custom client sends processId/rootUri null."
+      "limits": "initialized ordering is client precondition; server accepting data before initialized is not independently shown protocol violation. Current custom client sends processId/rootUri null. Official parent-exit guidance uses should; the bundled client uses null. Root process review owns any orphan-parent witness."
     },
     {
       "id": "ES-03",
@@ -163,7 +173,7 @@
       "inspected_regressions": [
         "server.rs:1531\u20131556; lsp_typed_output.rs:465\u2013541"
       ],
-      "limits": "Client must increase version; illegal repeated/decreasing versions are not valid-client protocol correctness witnesses. Finite i32 bound from input contract; no generation/epoch number apart fromversion."
+      "limits": "Client must increase version; illegal repeated/decreasing versions are not valid-client protocol correctness witnesses. Finite i32 bound from input contract; no generation/epoch number apart from version."
     },
     {
       "id": "ES-06",
@@ -175,13 +185,14 @@
         "handle_json sync enqueues -> pump drains VecDeque -> docs.get(uri) version equality -> diagnostics"
       ],
       "actual_supported_behavior": "Queue entries contain only URI/version; superseded different version or absent doc skips. No actual background task/future/thread; pump calls backend synchronously. Same-version queued entries each recompute latest text.",
-      "independent_expected_witness": "Public batch openv1/changev2/changev3 before pump publishes onlyv3; close before pump skips all. Public close/reopen same URI+version before pump invokes new buffer twice (old epoch entry resurrected).",
+      "independent_expected_witness": "Public batch open v1/change v2/change v3 before pump publishes only v3; close before pump skips all. Public close/reopen same URI + version before pump invokes new buffer twice (old epoch entry resurrected).",
       "authority_ids": [
         "VERSION",
         "DIAGNOSTICS"
       ],
       "inspected_regressions": [
-        "server.rs:1531\u20131556"
+        "server.rs:1531\u20131556",
+        "compiler/tests/ide.rs:755\u2013769 (real backend, public batch v1/v2 before pump; recipe inspected only)"
       ],
       "limits": "Epoch/repeated-version bug lead is duplicate current work/public promised stale cancellation gap, not publication of old bytes; production pumps each message and normally cannot create such batch. pending_count is only queue introspection, not active async work count."
     },
@@ -202,7 +213,8 @@
         "CHANGE"
       ],
       "inspected_regressions": [
-        "lsp_typed_output.rs:266\u2013310,465\u2013541"
+        "lsp_typed_output.rs:266\u2013310,465\u2013541",
+        "compiler/tests/ide.rs:732\u2013751 (real backend publish E3002; recipe inspected only)"
       ],
       "limits": "Emitter carries coherent diagnostics supplied by backend; external trait implementors can hand wrong file spans. Client filtering/version use is another owner; no source-map/runtime correctness inference."
     },
@@ -235,19 +247,20 @@
         "compiler/src/ide/queries.rs:220\u2013241"
       ],
       "caller_closure": [
-        "request -> docs currentid -> RealAnalysis trait method -> fresh Snapshot analyze -> typed output"
+        "request -> docs current id -> RealAnalysis trait method -> fresh Snapshot analyze -> typed output"
       ],
-      "actual_supported_behavior": "Each supported data request reads current synchronized open doc and returns before later input read; no persistent Snapshot/query cache. Unknown docs usually InvalidParams; rename returnsnull. references context includeDeclaration validated but not passed tobackend.",
+      "actual_supported_behavior": "Each supported data request reads current synchronized open doc and returns before later input read; no persistent Snapshot/query cache. Unknown docs usually InvalidParams; rename returns null. references context includeDeclaration validated but not passed to backend.",
       "independent_expected_witness": "Open/change/request barriers query latest text; known URI after close has controlled error/null outcomes. Rename edit version equals current live document; query locations remain single-file.",
       "authority_ids": [
         "BASE",
         "CHANGE",
-        "OPEN"
+        "OPEN",
+        "REFERENCES"
       ],
       "inspected_regressions": [
         "lsp_typed_output.rs:311\u2013541; ide.rs query tests read previously in Step5/Step10"
       ],
-      "limits": "No async stale request machinery; client can still change during blocking request and must avoid applying stale result. includeDeclaration semantics issue belongs feature contract, recorded navigation not newly executed. No disk project query for closedfiles."
+      "limits": "No asynchronous stale request machinery. Supported includeDeclaration false is now independently witnessed to return declaration in root server-options receipts; no disk project query for closed files. Actual GUI interpretation is separate."
     },
     {
       "id": "ES-10",
@@ -259,16 +272,17 @@
       "caller_closure": [
         "fresh snapshot -> hash-filter lint fix -> byte ranges -> current version -> WorkspaceEdit"
       ],
-      "actual_supported_behavior": "Rename current file edits carry liveversion; lint actions filter source id/hash/range then package byURI with known live versions (unknown cross-doc versionnull). Server offers edits, does not apply source mutations.",
+      "actual_supported_behavior": "Rename current file edits carry live version; lint actions filter source id/hash/range then package by URI with known live versions (unknown cross-doc version null). Server offers edits, does not apply source mutations.",
       "independent_expected_witness": "Increasing edit changes queried action/rename byte/UTF16 ranges and version; fake backend multiURI groups keep URI and known/null versions.",
       "authority_ids": [
         "VERSION",
-        "BASE"
+        "BASE",
+        "WORKSPACE_EDIT"
       ],
       "inspected_regressions": [
         "lsp_typed_output.rs:238\u2013264,465\u2013541; Step10 fix source/receipts"
       ],
-      "limits": "Client workspace edit application may discard wireversion; client owner must verify. Server application atomicity/fence not implemented. Fresh current-hash/coherent carriers preconditions from earlier representationaudit."
+      "limits": "Root server-options witnesses rename documentChanges even when corresponding client capability is absent: carrier negotiation defect, separate from client wire-version application. No GUI edit application or server mutation atomicity proof; lint-action carrier shares emitter but was not independently probed here."
     },
     {
       "id": "ES-11",
@@ -299,7 +313,7 @@
       "caller_closure": [
         "Ready shutdown -> Shutdown null response; later requests InvalidRequest; exit -> exited/code -> run loop stop"
       ],
-      "actual_supported_behavior": "Postshutdown ordinary notifications dropped, all requests except special initialize reject. Valid exit code0 aftershutdown,1 otherwise; no source cleanup needed at process exit. Public handle_json can still be called after exited flag; pump lacks lifecycle guard.",
+      "actual_supported_behavior": "Postshutdown ordinary notifications dropped, all requests except special initialize reject. Valid exit code 0 after shutdown,1 otherwise; no source cleanup needed at process exit. Public handle_json can still be called after exited flag; pump lacks lifecycle guard.",
       "independent_expected_witness": "Valid initialize/shutdown/exit0; direct exit1; repeatshutdown/postshutdown request errors. Public queued-open -> shutdown -> pump may still publish; inventory boundary not a proven normative requirement.",
       "authority_ids": [
         "SHUTDOWN",
@@ -309,7 +323,7 @@
       "inspected_regressions": [
         "server.rs:1284\u20131316,1520\u20131529; lsp_admission.rs:633\u2013687"
       ],
-      "limits": "Production pump after each sync leaves no pending task by subsequentshutdown normally. EOF without exit uses default selected code rather than normative exitnotification logic. Signal handling separate rootprocessreview."
+      "limits": "Production pump after each sync leaves no pending task by subsequent shutdown normally. EOF without exit uses default selected code rather than normative exit notification logic. Signal handling separate root process review."
     },
     {
       "id": "ES-13",
@@ -330,27 +344,28 @@
       "inspected_regressions": [
         "lsp_admission.rs transcript helper98 onward; transport unit tests"
       ],
-      "limits": "No claim connection state actually resets despite sourcecomment. Resource/header policy gaps and OS signals owned root; stable std no signal handler. Bodycap does not limit retained sources or total session traffic."
+      "limits": "No claim connection state actually resets despite source comment. Resource/header policy gaps and OS signals owned root; stable std no signal handler. Body cap does not limit retained sources or total session traffic."
     },
     {
       "id": "ES-14",
       "duty": "Catalog lifetime and workspace invalidation policy",
       "defining_declarations": [
-        "compiler/src/lsp/server.rs:243\u2013271,1027\u20131033,1155\u20131163"
+        "compiler/src/lsp/server.rs:243\u2013271,1027\u20131033,1155\u20131163",
+        "compiler/src/cli.rs:220\u2013221,356"
       ],
       "caller_closure": [
-        "run_stdio RealAnalysis::from_process once -> env CAN_CATALOG/process cwd discovery -> immutable backendcatalog"
+        "run_stdio RealAnalysis::from_process once -> env CAN_CATALOG/process cwd discovery -> immutable backend catalog"
       ],
-      "actual_supported_behavior": "Catalog/version/load errors captured once. rootUri/rootPath/workspaceFolders/initializationOptions not consumed; no didChangeConfiguration/watchedfiles/save reload or perroot catalog. Server capabilities omit workspace support.",
-      "independent_expected_witness": "Start catalogA in processcwd, then modify catalog/sendwatched/config notifications; existing backend remainsA. New process loadsB. Multi-root initialize does not alter lookup.",
+      "actual_supported_behavior": "Catalog/version/load errors captured once. rootUri/rootPath/workspaceFolders/initializationOptions not consumed; no didChangeConfiguration/watched files/save reload or per-root catalog. Server capabilities omit workspace support. CLI can lsp dispatches run_stdio and rejects --catalog; catalog selection is through process environment/discovery.",
+      "independent_expected_witness": "Start catalog A in process cwd, then modify catalog/send watched/config notifications; existing backend remains A. New process loads B. Multi-root initialize does not alter lookup.",
       "authority_ids": [
         "INIT",
         "BASE"
       ],
       "inspected_regressions": [
-        "catalog loader integration tests navigation; actual client.ts545\u2013563 nullroot"
+        "catalog loader integration tests navigation; actual client.ts545\u2013563 null root"
       ],
-      "limits": "Unsupported project invalidation/multi-root gap, not advertised capability regression. User requested desired workspaces require separate future policy decision; no invented API. Client serverPath restart may refresh processcatalog, not liveinvalidator."
+      "limits": "Unsupported project invalidation/multi-root gap, not advertised capability regression. User requested desired workspaces require separate future policy decision; no invented API. Client serverPath restart may refresh process catalog, not live invalidator."
     },
     {
       "id": "ES-15",
@@ -360,18 +375,19 @@
         "compiler/src/ide/queries.rs:225\u2013241"
       ],
       "caller_closure": [
-        "Snapshot singlefile check_program(db,[file]) +resolve_program[(file,tree)] -> current URI locations"
+        "Snapshot single file check_program(db,[file]) +resolve_program[(file,tree)] -> current URI locations"
       ],
-      "actual_supported_behavior": "Open multiple docs shares retained db but each query/check sees singlefile program. Cross-file imports/references/rename are not tracked; samefile multiple package modules remainpossible. No dependency graph or workspace file load.",
-      "independent_expected_witness": "Two files provider export and consumer use: openboth still cannot bindcrossfile; CLI analyzejoint may work. Source history lint scans other buffers but does not confercrossfile resolution.",
+      "actual_supported_behavior": "Open multiple docs shares retained db but each query/check sees single file program. Cross-file imports/references/rename are not tracked; same-file multiple package modules remain possible. No dependency graph or workspace file load.",
+      "independent_expected_witness": "Open a provider file with exported declaration and a separate consumer file importing it. Opening both does not enable cross-file binding; a joint CLI analysis may resolve them. Historical lint traversal does not enable cross-file semantic resolution.",
       "authority_ids": [
         "OPEN",
-        "BASE"
+        "BASE",
+        "REFERENCES"
       ],
       "inspected_regressions": [
-        "ide.rs:954\u2013964 import within single snapshot; existing integration evidence at declaredscope"
+        "ide.rs:954\u2013964 import within single snapshot; existing integration evidence at declared scope"
       ],
-      "limits": "Single-file limitation explicit backendcontract; no generalized multi-root/cross-file support claim from trait DocLocation possiblyother URI or shared SourceDb."
+      "limits": "Backend explicitly limits analysis to one file; trait cross-URI locations and shared SourceDb do not prove project support. However referencesProvider is advertised and official references are project-wide: absent workspace capabilities do not erase that broader promise. Root valid joint-CLI versus both-open LSP import contrast confirms current bounded scope."
     },
     {
       "id": "ES-16",
@@ -382,17 +398,17 @@
         "compiler/src/lint/driver.rs:466\u2013483"
       ],
       "caller_closure": [
-        "every RealAnalysis query new Snapshot; diagnostics/actions call lint run_with_files -> every SourceDb revision parse/check"
+        "Every RealAnalysis query creates a Snapshot; diagnostics/actions call lint run_with_files, parsing and running lint rules over every retained SourceDb revision with the current CheckedProgram."
       ],
-      "actual_supported_behavior": "Snapshot parses once directly, check_program reparses, resolve_program does ownresolve; no revision cache. Diagnostics and actions lint all db.iter historical/closed files then filtercurrent file results.",
-      "independent_expected_witness": "N distinct text revisions retainN entries; diagnostic at revisionN traversesN lint sources; equalcontent livechange no new source. Timing/RSS cannot substitute for direct traversal source proof.",
+      "actual_supported_behavior": "Snapshot parses directly, check_program reparses current file, resolve_program resolves current tree; no revision cache. Diagnostics/actions parse and lint historical/closed files then filter current-file results. Historical files are not each typechecked.",
+      "independent_expected_witness": "N distinct text revisions retain N entries; diagnostic at revision N traverses N lint sources; equal-content live change no new source. Timing/RSS cannot substitute for direct traversal source proof.",
       "authority_ids": [
         "DIAGNOSTICS"
       ],
       "inspected_regressions": [
         "Step5 repeated frontend/caller evidence reused; source.rs tests; server.rs1531\u20131556"
       ],
-      "limits": "Potential long-session cost/adoptiongap, not stale old diagnostics emitted afterfilter. Fake backend db.len proves retention, not RealAnalysis timings; root resourcewitness must use actual backend to measurehistorycost."
+      "limits": "History-scaled source work and direct retention observed with delegated RealAnalysis; timing is one-host observational, not isolated lint cost or measured RSS. No stale old diagnostic leak/crash/exhaustion shown."
     },
     {
       "id": "ES-17",
@@ -402,10 +418,10 @@
         "compiler/src/source.rs:26\u201373"
       ],
       "caller_closure": [
-        "distinctopen/change -> appendonly SourceDb; close only docs.remove; reopen no liveid -> new SourceDbadd"
+        "distinctopen/change -> appendonly SourceDb; close only docs.remove; reopen no live id -> new SourceDb add"
       ],
-      "actual_supported_behavior": "Distinct edited text snapshots persist forsession; equaltext only deduplicates againstlive OpenDoc; repeated close/reopen identicaltext stillappends. pending deque drained bypump but SourceDb/by_path not compacted.",
-      "independent_expected_witness": "Count backend-observed db.len over increasing changed buffers, thenclose/reopen; count remains afterclose and increases reopen. Inspect oldid stillsamebytes/currentdoc pointerfresh.",
+      "actual_supported_behavior": "Distinct edited-text snapshots persist for the session; equal text only deduplicates against the live OpenDoc; repeated close/reopen with identical text still appends. The pending deque drains through pump, while SourceDb/by_path are not compacted.",
+      "independent_expected_witness": "Count backend-observed db.len over increasing changed buffers, thenclose/reopen; count remains after close and increases reopen. Inspect old id stillsame bytes/current doc pointer fresh.",
       "authority_ids": [
         "OPEN",
         "CLOSE"
@@ -413,16 +429,49 @@
       "inspected_regressions": [
         "server.rs:1531\u20131556; source immutable revision tests"
       ],
-      "limits": "No boundedmemory contract/APIclaimed; compaction explicitly future sourcecomment. Root process/RSS expected witness must define workloads/limits; no crash/overflow/exhaustion execution byworker."
+      "limits": "No boundedmemory contract/APIclaimed; compaction explicitly future source comment. Root process/RSS expected witness must define workloads/limits; no crash/overflow/exhaustion execution byworker."
     }
   ],
   "early_leads": [
-    "ES-08 close missing diagnosticclear; actual client locallyclears",
-    "ES-06 public batching reopen same version epoch resurfaces obsolete queueentry; nooldbytes",
-    "ES-16/17 retained history and actual lint allrevisions traversal",
-    "ES-05 same/decreasingversion client violation robustness, not mandatory rejection",
-    "ES-14/15 processcatalog/noinvalidation/singlefile explicitunsupportedscope"
+    "ES-08 close omits diagnostic clear; actual client clears locally",
+    "ES-06 public batching with same-version reopen reuses obsolete queue entry; no old bytes published",
+    "ES-16/17 retained history and actual lint traversal of all revisions",
+    "ES-05 same/decreasing version is invalid-client robustness, not mandatory rejection",
+    "ES-14/15 process catalog, no invalidation, and single-file analysis are explicit unsupported scope"
   ],
   "reuse_limits": "Step4 admission/editor/correlation guards; Step5 coherent carrier/repeatedanalysis distinctions; Step10 payload/coordinate/fix scopes reused at declaredlimits only. Root owns new runtime/process/resource receipts and acceptance.",
-  "cross_review_status": "awaiting root process/resource evidence; remain available; do not infer fresh witnesses from inspected regressionrecipes"
+  "cross_review_status": "complete: final root process/resource receipts and options controls reviewed in review-process.json/.md; no worker execution",
+  "root_receipt_cross_review": {
+    "status": "complete; detailed final review-process.json/.md supersedes interim scope",
+    "inspected": [
+      "probe.rs",
+      "run.py",
+      "public-batch.stdout",
+      "public-retention.stdout",
+      "process.py",
+      "process-cases.json",
+      "process-observations.json",
+      "process-execution.json",
+      "execution.json",
+      "review-server.json"
+    ],
+    "observer_corrections": [
+      "Initial public initializer omitted processId/rootUri: batch had no callbacks and retention panicked. Corrected observer asserts successful initialize.",
+      "Initial catalog/cross-file sessions omitted required initializer fields; corrected sessions assert initialize success.",
+      "Initial package contrast source was syntactically invalid; corrected contrast CLI exits 0 with no errors.",
+      "Root preserved failed receipts in attempt1."
+    ],
+    "qualified_outcomes": [
+      "Public batch has two queue entries and two reopened-current-text publications, same current SourceId/hash; no stale old bytes. Public pump after shutdown emits queued v2; production per-frame pump ordering differs.",
+      "RealAnalysis observer reports 96 retained distinct sources (791031 text bytes); 32 equal-text changes remain at 96; identical-text reopen appends source 97 (799271 bytes). Source is authoritative for historical lint traversal; timing is a single-host observation, not isolated lint cost or RSS.",
+      "Catalog session initializes successfully, uses cwd catalog for both roots, ignores invalidation, and a fresh process sees missing lower as E2001.",
+      "Valid joint CLI source set exits 0 without errors; both-open single-file LSP yields E2005 import errors. Definition and broad reference semantics require exact returned results/contract qualification.",
+      "Valid lifecycle wire confirms bad source diagnostics then repair empty, close removes queryable doc, shutdown/exit ordering, and synchronous cancellation does not interrupt.",
+      "Reopen wire has no intervening server empty clear after bad-doc close; bundled client clears locally."
+    ],
+    "remaining_limits": [
+      "No GUI reproduction, workload benchmark, measured RSS leak/crash, parent-monitor or signal witness, or actual asynchronous stale analysis proven.",
+      "Version robustness sessions use client-invalid nonincreasing changes."
+    ]
+  }
 }

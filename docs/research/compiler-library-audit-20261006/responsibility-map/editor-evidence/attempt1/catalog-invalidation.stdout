@@ -1,0 +1,9 @@
+Content-Length: 86
+
+{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"bad initialize parameters"}}Content-Length: 80
+
+{"jsonrpc":"2.0","id":2,"error":{"code":-32600,"message":"not a JSON-RPC call"}}Content-Length: 80
+
+{"jsonrpc":"2.0","id":3,"error":{"code":-32600,"message":"not a JSON-RPC call"}}Content-Length: 78
+
+{"jsonrpc":"2.0","id":99,"error":{"code":-32002,"message":"initialize first"}}

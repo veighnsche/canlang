@@ -1,0 +1,726 @@
+{
+  "schema": 1,
+  "scope": "Actual framed binary, paired valid requests; no client GUI or edit application",
+  "pins": [
+    {
+      "path": "compiler/target/debug/can",
+      "sha256": "f4684bab824791d2a46a950d0db0661c80f3ca16b5e381db066e8d2be028476a"
+    },
+    {
+      "path": "editors/vscode/test/lsp-capabilities.can",
+      "sha256": "85aa43ee466489cac94812f6623bd77265e1b605a686d8e344c62d20cba0cd01"
+    },
+    {
+      "path": "packages/values/dist/catalog.json",
+      "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/server-options.py",
+      "sha256": "d615314b1ee6cc96bb0abfa297d183c6a6d611a4856bc1feddbb1d09aeccf09a"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/process.py",
+      "sha256": "6539e315b90045bd7dc9a6ec5e54a33cb3c9d472b8a4dc37206d5f319f7e23de"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/run.py",
+      "sha256": "0169ed8cf616136483fcad00ba8c48c0e4cacab314c0a38f8bedef6a1ee25a33"
+    }
+  ],
+  "fixture": {
+    "source": "app Tasks\nGiven\n Todo { title:text }\nWhen\n scenario complete(task:Todo) by=members\n  do\n   let label=task.title\n   set task {title=label}\nThen\n",
+    "sha256": "85aa43ee466489cac94812f6623bd77265e1b605a686d8e344c62d20cba0cd01",
+    "version": 1,
+    "position": {
+      "line": 6,
+      "character": 13
+    },
+    "declaration_position": {
+      "line": 4,
+      "character": 19
+    }
+  },
+  "controls": {
+    "cli_exit": 0,
+    "cli_diagnostics": [],
+    "both_initializations_successful": true,
+    "both_real_source_diagnostics_clean": true
+  },
+  "expectations": {
+    "references_false": "Omit declaration while true includes it; official ReferenceContext.includeDeclaration contract",
+    "rename_absent": "Plain changes carrier when documentChanges/resourceOperations unsupported",
+    "rename_supported": "Versioned documentChanges allowed when documentChanges true"
+  },
+  "normative_urls": {
+    "references": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/language/references.md",
+    "workspace_edit": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/types/workspaceEdit.md"
+  },
+  "observations": [
+    {
+      "id": "server-options-absent",
+      "initialization_success": true,
+      "source_diagnostics": [],
+      "capabilities_input": {},
+      "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+      "position": {
+        "line": 6,
+        "character": 13
+      },
+      "declaration_position": {
+        "line": 4,
+        "character": 19
+      },
+      "references_true": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": [
+          {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 19
+              },
+              "end": {
+                "line": 4,
+                "character": 23
+              }
+            }
+          },
+          {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 13
+              },
+              "end": {
+                "line": 6,
+                "character": 17
+              }
+            }
+          }
+        ]
+      },
+      "references_false": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": [
+          {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 19
+              },
+              "end": {
+                "line": 4,
+                "character": 23
+              }
+            }
+          },
+          {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 13
+              },
+              "end": {
+                "line": 6,
+                "character": 17
+              }
+            }
+          }
+        ]
+      },
+      "rename": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": {
+          "documentChanges": [
+            {
+              "textDocument": {
+                "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+                "version": 1
+              },
+              "edits": [
+                {
+                  "range": {
+                    "start": {
+                      "line": 4,
+                      "character": 19
+                    },
+                    "end": {
+                      "line": 4,
+                      "character": 23
+                    }
+                  },
+                  "newText": "job"
+                },
+                {
+                  "range": {
+                    "start": {
+                      "line": 6,
+                      "character": 13
+                    },
+                    "end": {
+                      "line": 6,
+                      "character": 17
+                    }
+                  },
+                  "newText": "job"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "references_equal": true,
+      "false_includes_declaration": true,
+      "rename_carrier": "documentChanges",
+      "frames": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "diagnostics": [],
+            "version": 1
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "result": [
+            {
+              "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+              "range": {
+                "start": {
+                  "line": 4,
+                  "character": 19
+                },
+                "end": {
+                  "line": 4,
+                  "character": 23
+                }
+              }
+            },
+            {
+              "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+              "range": {
+                "start": {
+                  "line": 6,
+                  "character": 13
+                },
+                "end": {
+                  "line": 6,
+                  "character": 17
+                }
+              }
+            }
+          ]
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "result": [
+            {
+              "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+              "range": {
+                "start": {
+                  "line": 4,
+                  "character": 19
+                },
+                "end": {
+                  "line": 4,
+                  "character": 23
+                }
+              }
+            },
+            {
+              "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+              "range": {
+                "start": {
+                  "line": 6,
+                  "character": 13
+                },
+                "end": {
+                  "line": 6,
+                  "character": 17
+                }
+              }
+            }
+          ]
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 5,
+          "result": {
+            "documentChanges": [
+              {
+                "textDocument": {
+                  "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+                  "version": 1
+                },
+                "edits": [
+                  {
+                    "range": {
+                      "start": {
+                        "line": 4,
+                        "character": 19
+                      },
+                      "end": {
+                        "line": 4,
+                        "character": 23
+                      }
+                    },
+                    "newText": "job"
+                  },
+                  {
+                    "range": {
+                      "start": {
+                        "line": 6,
+                        "character": 13
+                      },
+                      "end": {
+                        "line": 6,
+                        "character": 17
+                      }
+                    },
+                    "newText": "job"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 99,
+          "result": null
+        }
+      ]
+    },
+    {
+      "id": "server-options-versioned",
+      "initialization_success": true,
+      "source_diagnostics": [],
+      "capabilities_input": {
+        "workspace": {
+          "workspaceEdit": {
+            "documentChanges": true
+          }
+        }
+      },
+      "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+      "position": {
+        "line": 6,
+        "character": 13
+      },
+      "declaration_position": {
+        "line": 4,
+        "character": 19
+      },
+      "references_true": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": [
+          {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 19
+              },
+              "end": {
+                "line": 4,
+                "character": 23
+              }
+            }
+          },
+          {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 13
+              },
+              "end": {
+                "line": 6,
+                "character": 17
+              }
+            }
+          }
+        ]
+      },
+      "references_false": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": [
+          {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 19
+              },
+              "end": {
+                "line": 4,
+                "character": 23
+              }
+            }
+          },
+          {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "range": {
+              "start": {
+                "line": 6,
+                "character": 13
+              },
+              "end": {
+                "line": 6,
+                "character": 17
+              }
+            }
+          }
+        ]
+      },
+      "rename": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": {
+          "documentChanges": [
+            {
+              "textDocument": {
+                "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+                "version": 1
+              },
+              "edits": [
+                {
+                  "range": {
+                    "start": {
+                      "line": 4,
+                      "character": 19
+                    },
+                    "end": {
+                      "line": 4,
+                      "character": 23
+                    }
+                  },
+                  "newText": "job"
+                },
+                {
+                  "range": {
+                    "start": {
+                      "line": 6,
+                      "character": 13
+                    },
+                    "end": {
+                      "line": 6,
+                      "character": 17
+                    }
+                  },
+                  "newText": "job"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "references_equal": true,
+      "false_includes_declaration": true,
+      "rename_carrier": "documentChanges",
+      "frames": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "textDocument/publishDiagnostics",
+          "params": {
+            "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+            "diagnostics": [],
+            "version": 1
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "result": [
+            {
+              "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+              "range": {
+                "start": {
+                  "line": 4,
+                  "character": 19
+                },
+                "end": {
+                  "line": 4,
+                  "character": 23
+                }
+              }
+            },
+            {
+              "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+              "range": {
+                "start": {
+                  "line": 6,
+                  "character": 13
+                },
+                "end": {
+                  "line": 6,
+                  "character": 17
+                }
+              }
+            }
+          ]
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "result": [
+            {
+              "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+              "range": {
+                "start": {
+                  "line": 4,
+                  "character": 19
+                },
+                "end": {
+                  "line": 4,
+                  "character": 23
+                }
+              }
+            },
+            {
+              "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+              "range": {
+                "start": {
+                  "line": 6,
+                  "character": 13
+                },
+                "end": {
+                  "line": 6,
+                  "character": 17
+                }
+              }
+            }
+          ]
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 5,
+          "result": {
+            "documentChanges": [
+              {
+                "textDocument": {
+                  "uri": "file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can",
+                  "version": 1
+                },
+                "edits": [
+                  {
+                    "range": {
+                      "start": {
+                        "line": 4,
+                        "character": 19
+                      },
+                      "end": {
+                        "line": 4,
+                        "character": 23
+                      }
+                    },
+                    "newText": "job"
+                  },
+                  {
+                    "range": {
+                      "start": {
+                        "line": 6,
+                        "character": 13
+                      },
+                      "end": {
+                        "line": 6,
+                        "character": 17
+                      }
+                    },
+                    "newText": "job"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 99,
+          "result": null
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "name": "server-options-cli-control",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-options-_ym4cp4f/options.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0247,
+      "stdout": "server-options-cli-control.stdout",
+      "stdout_sha256": "ca79bd84e8e24201b464426ec5e0471e5fad84279ee4ceb3363c8482fabb96e7",
+      "stderr": "server-options-cli-control.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "server-options-absent",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0099,
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      },
+      "stdin": "server-options-absent.stdin",
+      "stdout": "server-options-absent.stdout",
+      "stderr": "server-options-absent.stderr",
+      "stdin_sha256": "7ea8990533e5302115719ede7ea70664165fffd68ff0523005deae497513d3d2",
+      "stdout_sha256": "0fa68e873065ae5b7a3f95a6acdc4afd57c4a627c2229c9bd4e92fc41d06443b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "server-options-versioned",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0074,
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      },
+      "stdin": "server-options-versioned.stdin",
+      "stdout": "server-options-versioned.stdout",
+      "stderr": "server-options-versioned.stderr",
+      "stdin_sha256": "054c25def9a1cc772e8895e05ef5275940abe0a23b48c2e3bf2c651d72e67acd",
+      "stdout_sha256": "0fa68e873065ae5b7a3f95a6acdc4afd57c4a627c2229c9bd4e92fc41d06443b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "summary": {
+    "references_false_includes_declaration": true,
+    "references_true_false_equal": true,
+    "rename_carrier_both": [
+      "documentChanges",
+      "documentChanges"
+    ]
+  }
+}

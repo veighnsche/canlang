@@ -1,0 +1,1 @@
+{"after_shutdown_publications":[],"same_version_reopen_pending":0,"same_version_reopen_publications":[],"scope":"public delayed pump; production pumps after each frame, so no actual async stale result proven","stats":[]}

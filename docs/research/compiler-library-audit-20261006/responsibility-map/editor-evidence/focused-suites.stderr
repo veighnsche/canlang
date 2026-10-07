@@ -1,0 +1,20 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.70s
+     Running tests/authoring.rs (compiler/target/debug/deps/authoring-d007f01d6ce3750e)
+     Running tests/b3_authoring_join.rs (compiler/target/debug/deps/b3_authoring_join-8f3fe800ff8e1939)
+     Running tests/b3_s4.rs (compiler/target/debug/deps/b3_s4-8fb5aec04ae0981a)
+     Running tests/ide.rs (compiler/target/debug/deps/ide-a74d562d867072bf)
+     Running tests/lsp_admission.rs (compiler/target/debug/deps/lsp_admission-77cfc5af8bcd8d76)
+strict JSON process case: leading zero
+strict JSON process case: missing integer
+strict JSON process case: missing fraction
+strict JSON process case: missing exponent
+strict JSON process case: leading plus
+strict JSON process case: lone high surrogate value
+strict JSON process case: lone low surrogate value
+strict JSON process case: lone high surrogate key
+strict JSON process case: lone low surrogate key
+strict JSON process case: invalid Unicode escape
+strict JSON process case: unescaped control value
+strict JSON process case: unescaped control key
+     Running tests/lsp_typed_output.rs (compiler/target/debug/deps/lsp_typed_output-ea71e66763901e8c)

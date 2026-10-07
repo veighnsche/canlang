@@ -1,0 +1,17 @@
+Content-Length: 107
+
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}Content-Length: 52
+
+{"jsonrpc":"2.0","method":"initialized","params":{}}Content-Length: 299
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/p.can","languageId":"can","version":1,"text":"package p\n Given\n  export M {a:int}\n  policy M read=members\n When\n Then\n"}}}Content-Length: 286
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/app.can","languageId":"can","version":1,"text":"app T uses=[p,q]\npackage q\n use p {M}\n Given\n When\n Then\n"}}}Content-Length: 63
+
+{"jsonrpc":"2.0","id":2,"method":"unknown/barrier","params":{}}Content-Length: 228
+
+{"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/app.can"},"position":{"line":2,"character":8}}}Content-Length: 59
+
+{"jsonrpc":"2.0","id":99,"method":"shutdown","params":null}Content-Length: 47
+
+{"jsonrpc":"2.0","method":"exit","params":null}

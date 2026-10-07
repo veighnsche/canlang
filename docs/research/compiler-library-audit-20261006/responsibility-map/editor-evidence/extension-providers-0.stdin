@@ -1,0 +1,19 @@
+Content-Length: 845
+
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"textDocument":{"synchronization":{"didSave":true},"publishDiagnostics":{"versionSupport":true},"hover":{"contentFormat":["markdown","plaintext"]},"completion":{"completionItem":{"documentationFormat":["markdown","plaintext"]}},"definition":{"linkSupport":false},"references":{},"rename":{"prepareSupport":false},"semanticTokens":{"formats":["relative"],"requests":{"full":true},"tokenTypes":["namespace","type","class","interface","enum","struct","parameter","variable","property","enumMember","event","function","method","keyword","comment","string","number","operator"],"tokenModifiers":["declaration","documentation","defaultLibrary","readonly"]},"codeAction":{"codeActionLiteralSupport":{"codeActionKind":{"valueSet":["quickfix"]}}}}}}}Content-Length: 52
+
+{"jsonrpc":"2.0","method":"initialized","params":{}}Content-Length: 297
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///Users/vince/Projects/canlang/step11.can","languageId":"can","version":1,"text":"app T\nGiven\n Todo {title:text}\nWhen\n scenario s(task:Todo) read=true -> text by=members\n  do return task.title\nThen\n"}}}Content-Length: 180
+
+{"jsonrpc":"2.0","id":2,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///Users/vince/Projects/canlang/step11.can"},"position":{"line":5,"character":12}}}Content-Length: 192
+
+{"jsonrpc":"2.0","id":3,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///Users/vince/Projects/canlang/step11.can"},"position":{"line":2,"character":2},"newName":"Task"}}Content-Length: 306
+
+{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///Users/vince/Projects/canlang/step11.can","version":2},"contentChanges":[{"text":"app T\nGiven\n Different {title:text}\nWhen\n scenario s(task:Todo) read=true -> text by=members\n  do return task.title\nThen\n"}]}}Content-Length: 174
+
+{"jsonrpc":"2.0","id":4,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///Users/vince/Projects/canlang/step11.can"},"position":{"line":2,"character":2}}}Content-Length: 58
+
+{"jsonrpc":"2.0","id":5,"method":"shutdown","params":null}Content-Length: 47
+
+{"jsonrpc":"2.0","method":"exit","params":null}

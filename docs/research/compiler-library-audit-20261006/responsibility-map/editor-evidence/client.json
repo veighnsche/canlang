@@ -1,0 +1,205 @@
+{
+  "schema": 1,
+  "step": 11,
+  "lane": "client",
+  "scope": "Planning/source evidence only; no execution by this lane. Root executes controlled probes and suites.",
+  "baseline": {
+    "compiler": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+    "assignment_head": "64e09759"
+  },
+  "path_shorthand": {
+    "client.ts": "editors/vscode/src/client.ts",
+    "extension.ts": "editors/vscode/src/extension.ts",
+    "server.rs": "compiler/src/lsp/server.rs",
+    "queries.rs": "compiler/src/ide/queries.rs",
+    "ide.rs": "compiler/tests/ide.rs",
+    "DIAGNOSTICS.md": "implementation/DIAGNOSTICS.md"
+  },
+  "pins": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e"
+    },
+    {
+      "path": "editors/vscode/src/client.ts",
+      "sha256": "048b44dce7fc1ba5bba80985ba3b4710c392993f2b03d8db19fd0a48072063af"
+    },
+    {
+      "path": "editors/vscode/src/extension.ts",
+      "sha256": "916ccb65410f7f55e1b4ffe5a3e9a1e0294d6fba11abb3ffd802515103da86b6"
+    },
+    {
+      "path": "editors/vscode/README.md",
+      "sha256": "30ff13b98e2f5d6ef29b0c2bfefbe086af833f5638fc16ae2639b563546f500f"
+    },
+    {
+      "path": "editors/vscode/package.json",
+      "sha256": "d694dfe9dba595ed336fb4754bf1c7bee43391cfa06d517a1b1a7ef0be661571"
+    },
+    {
+      "path": "editors/vscode/test/server-startup.cjs",
+      "sha256": "4e6330d7b7ab04021e090740c1c4ac3b352637cae79f9a4fbd0e61eb01300fca"
+    },
+    {
+      "path": "editors/vscode/test/lsp-capabilities.cjs",
+      "sha256": "be0e752842e6a7ceac983c051188ba6b78d5d6bf16c7b2580995138e06c1ce09"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "sha256": "79c53edb9ba35b411e48d7d0064776dfbb4b8b622f748dbb13d3958cb9f78743"
+    },
+    {
+      "path": "compiler/src/lsp/output.rs",
+      "sha256": "8b9a350c847dcc326007ca08108fc8a986cb5f0089b2438a22a8b04f33ee0a0b"
+    },
+    {
+      "path": "compiler/src/ide/queries.rs",
+      "sha256": "070e6a13702a5da87bd1da5b1ec92ee27361d682cf31849c37502076556215d8"
+    },
+    {
+      "path": "compiler/tests/ide.rs",
+      "sha256": "b1279200fae3b6fa750561b4dcc9eb391b0010c3fc5b89555d92d319f2a9b932"
+    },
+    {
+      "path": "implementation/DIAGNOSTICS.md",
+      "sha256": "90f6233569bc999149dc09b4a7dc239d8f99860de14c2da2c7cea1c331231061"
+    }
+  ],
+  "contracts": {
+    "lsp_base": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/specification.md",
+    "initialize": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/general/initialize.md",
+    "workspace_edit": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/types/workspaceEdit.md",
+    "text_document_edit": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/types/textDocumentEdit.md",
+    "vscode_api": "https://raw.githubusercontent.com/microsoft/vscode/1.91.0/src/vscode-dts/vscode.d.ts",
+    "publish_diagnostics": "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/language/publishDiagnostics.md"
+  },
+  "duties": [
+    {
+      "id": "EC01",
+      "source": "client.ts:465-578 start/isRunning/serverCapabilities; extension.ts:357-407 startClient",
+      "caller_consumer": "activate -> spawn can lsp -> initialize -> initialized -> replay open documents",
+      "authority": "LSP initialize first-message ordering; README separate binary prerequisite",
+      "witness": "server-startup.cjs:101-126 mocked spawn/registration; lsp-capabilities.cjs initialization direct binary",
+      "result": "One process; isRunning becomes true before initialize response, so listeners/providers can send pre-initialization messages; initialize RPC error resolves null and still sends initialized.",
+      "gap": "No initialize timeout, protocol-error rejection, handshake-state gate, or real-host startup witness."
+    },
+    {
+      "id": "EC02",
+      "source": "client.ts:683-717 didOpen/didChange/didSave; extension.ts:444-465 document listeners",
+      "caller_consumer": "VSCode documents -> full UTF-8 framed notifications -> server document store",
+      "authority": "server full-sync capability; LSP full synchronization; project source-version promise",
+      "witness": "server-startup.cjs:143-171 mocked full-text changes; lsp-capabilities.cjs real didOpen",
+      "result": "Authored document.version and URI.toString transmitted; full text on change, URI only on save. No local version/open registry.",
+      "gap": "No fresh client incremental/non-ASCII/unsaved version witness; didSave presently ignored server-side."
+    },
+    {
+      "id": "EC03",
+      "source": "client.ts:839-896 onPublishDiagnostics; compiler/src/lsp/output.rs typed diagnostics",
+      "caller_consumer": "notification -> VSCode diagnostic collection",
+      "authority": "DIAGNOSTICS.md:25 source-version promise; initialize advertises versionSupport",
+      "witness": "server-startup.cjs:153-171 sequential versions only; ide.rs:755 server stale suppression",
+      "result": "Range/message validation and severity/code/source conversion; ignores params.version, accepts old versions and notifications for closed/unknown documents.",
+      "gap": "Source-confirmed missing stale/closed filtering; root controlled client probe requested. Server stale suppression alone does not validate client boundary."
+    },
+    {
+      "id": "EC04",
+      "source": "client.ts:719-729 didClose; 666-681 finish; extension.ts:467-471 close listener",
+      "caller_consumer": "close -> notification and collection.delete; process exit -> dispose",
+      "authority": "LSP document lifecycle; project no stale buffer diagnostics",
+      "witness": "server-startup.cjs child-exit/reopen control",
+      "result": "Close deletes current diagnostics; finish once-guards process error/exit, clears collection, resolves pending null.",
+      "gap": "Late publish after close can recreate diagnostics; no URI equivalence normalization/closed-document set."
+    },
+    {
+      "id": "EC05",
+      "source": "client.ts:584-586 request,731-837 transport/correlation,899-906 failAllPending",
+      "caller_consumer": "all providers -> numeric request ID -> pending resolver",
+      "authority": "LSP JSON-RPC response/error and cancellation contracts",
+      "witness": "lsp-capabilities.cjs own transport bypasses this client; startup mocks limited",
+      "result": "Numeric IDs correlate independent replies; duplicate/unmatched ignored; errors become null; no token cancellation or ordinary timeout. UTF-8 Content-Length codec present.",
+      "gap": "No client error propagation, cancelled-request cleanup, stale response guard, disconnect-on-stdout-end handling; malformed envelope/URI can throw. Resource/framing limits also server-review lane."
+    },
+    {
+      "id": "EC06",
+      "source": "extension.ts:86-95 request;164-352 all provider methods",
+      "caller_consumer": "VSCode CancellationToken -> provider -> client request -> host result",
+      "authority": "DIAGNOSTICS.md:25 cancel stale; LSP cancellation recommendation permits synchronous server ignore",
+      "witness": "lsp-capabilities.cjs seven direct-server features",
+      "result": "Provider tokens unused; no $/cancelRequest, captured version or replacement-client guard. Delayed result can be returned after edit/restart.",
+      "gap": "Must distinguish recommendation/project gap from universal LSP MUST cancellation; no GUI stale-result certification."
+    },
+    {
+      "id": "EC07",
+      "source": "extension.ts:98-162 toTextEdit/toWorkspaceEdit;272-287 rename;316-352 actions",
+      "caller_consumer": "server versioned edits -> unversioned WorkspaceEdit -> VSCode host applies",
+      "authority": "DIAGNOSTICS.md:29 reject stale fixes; LSP TextDocumentEdit version purpose",
+      "witness": "lsp-capabilities.cjs:267-285 rename shape; compiler/tests/ide.rs:911 backend fix application",
+      "result": "documentChanges.textDocument.version discarded; malformed individual edits skipped; resource operations unsupported; both changes and documentChanges processed. Providers return edits, no workspace.applyEdit call.",
+      "gap": "Root probe stale document version before conversion/application requested. Server content-hash safety at computation is not safety after async client delivery; no actual-host apply receipt."
+    },
+    {
+      "id": "EC08",
+      "source": "extension.ts:187-221 completionProvider; client.ts:94-120 ambient CompletionItemKind",
+      "caller_consumer": "LSP CompletionItem.kind -> vscode CompletionItem.kind direct numeric cast",
+      "authority": "official vscode 1.91 CompletionItemKind enum; LSP wire completion kinds",
+      "witness": "lsp-capabilities.cjs:214-216 asserts wire Class7 Variable6 Keyword14",
+      "result": "Host Class6 Variable5 Keyword13 differ: direct cast assigns wrong host kinds. Also drops completion metadata beyond label/kind.",
+      "gap": "Source/API defect, root controlled provider probe requested; does not certify visible GUI icons."
+    },
+    {
+      "id": "EC09",
+      "source": "extension.ts:164-185 hover;223-270 definitions/references;289-314 tokens;316-352 actions",
+      "caller_consumer": "protocol payload projections -> host constructors",
+      "authority": "README advertised seven providers; negotiated token legend",
+      "witness": "server-startup.cjs registration mocks; lsp-capabilities.cjs feature roundtrips bypass projections",
+      "result": "Hover contents retained but range dropped; location arrays supported; tokens copied to Uint32Array, resultId dropped; quickfix title/edit retained; action context diagnostics sent empty.",
+      "gap": "Semantic numbers above u32 wrap; no quintuple/legend validation; unsupported protocol optional fields omitted. Current server subset mostly fits, needs host behavior evidence."
+    },
+    {
+      "id": "EC10",
+      "source": "client.ts:593-681 stop/finish; extension.ts:410-417 restartServer,484-488 deactivate",
+      "caller_consumer": "restart/config/deactivate -> shutdown -> exit -> kill fallback",
+      "authority": "LSP shutdown/exit sequence; README restart command",
+      "witness": "server-startup.cjs exit/reopen mock, not graceful lifecycle",
+      "result": "Two-second shutdown and exit fallbacks; intentional stop suppresses onExit; deactivate starts stop but returns void. Restarts not serialized.",
+      "gap": "No awaited host deactivation, concurrent restart/open race prevention, pipe-close recovery or real-host crash restart witness; root child harness requested."
+    },
+    {
+      "id": "EC11",
+      "source": "extension.ts:357-372 cwd selection,472-478 config; client.ts:544-570 initialize; server.rs:254-268 RealAnalysis::from_process",
+      "caller_consumer": "active Can owning local folder else first local folder -> child cwd -> load_catalog once",
+      "authority": "catalog producer ownership; README configuration scope",
+      "witness": "server-startup.cjs:101-113 six cwd mocks",
+      "result": "rootUri null, no workspaceFolders; inherited CAN_CATALOG/process cwd used; only serverPath/trace changes restart. No folder/catalog file watchers.",
+      "gap": "Catalog mutations not reloaded until new process; multi-root docs share selected catalog; workspace-folder changes and nonfile roots unsupported beyond cwd fallback. No per-root catalog promise established."
+    },
+    {
+      "id": "EC12",
+      "source": "server.rs:270-273 snapshot,285-430 query consumers; queries.rs:225-241 Snapshot::analyze",
+      "caller_consumer": "open SourceDb -> check_program &[file] and resolve one tree -> host locations/edits",
+      "authority": "DIAGNOSTICS.md:25 explicitly current-document; query ownership",
+      "witness": "ide.rs:951 import_member_resolves_to_export SAME FILE; direct LSP fixture one file",
+      "result": "Each request checks one document; open database does not create workspace module graph; definitions/references/rename filter to current file.",
+      "gap": "Cross-file imports/workspace rename not implemented; same-file module witness must not be promoted to cross-file support."
+    },
+    {
+      "id": "EC13",
+      "source": "client.ts:683-729 authored URI;839-895 parse diagnostics; extension.ts:115-162,223-247 Uri.parse; server.rs:1138 URI path conversion",
+      "caller_consumer": "host URI identity -> server exact string key -> host URI constructors",
+      "authority": "LSP DocumentUri identity; server exact URI/path roundtrip policy",
+      "witness": "server-startup.cjs only simple file URI; root server admission lane",
+      "result": "No client canonical URI registry; remote documents accepted selector despite cwd local-only; parsing external URI can throw.",
+      "gap": "Equivalent spellings, fragments, encoded paths, remote URI and close/reopen identity need controlled probes; no claimed remote filesystem support."
+    },
+    {
+      "id": "EC14",
+      "source": "editors/vscode/README.md;package.json;test/server-startup.cjs;test/lsp-capabilities.cjs",
+      "caller_consumer": "documentation/package feature claims -> extension -> actual host",
+      "authority": "README VSCode1.91+/compatible Cursor and seven features",
+      "witness": "Mock startup plus direct native LSP suite are distinct existing witnesses",
+      "result": "Package wires activation/providers; zero dependency ambient API declarations; binary separately installed. No real VSCode/Cursor GUI run in inspected witnesses.",
+      "gap": "Host activation, icons, diagnostics rendering, cancellation, edit application and packaged install remain distinct acceptance work; root packaging lane owns distribution."
+    }
+  ],
+  "execution_status": "Await root receipt joins; referenced existing tests sampled as source only, not rerun by lane."
+}

@@ -1,0 +1,1018 @@
+{
+  "scope": "Receipt/control/inventory verification, not intended-contract success or whole compiler certification",
+  "checks": [
+    {
+      "check": "unchanged baseline compiler/.gitignore",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/A2B-COMPOSITE-UNIQUE-CONVENTION.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/A2B-NAMED-ARGS-CONVENTION.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/A2B-ROUTING.json",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/A2B-UI-NODE-FACTORY-CONVENTION.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/A5-T08-PARITY-PROPOSAL.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/B4-G-NONHOOK-CONTEXT-BINDINGS.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/Cargo.lock",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/Cargo.toml",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/README.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/build.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/can-completions.bash",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/can-completions.fish",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/can-completions.zsh",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/analysis/catalog.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/analysis/check.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/analysis/effects.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/analysis/examples.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/analysis/migrate_check.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/analysis/mod.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/analysis/resolve.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/analysis/types.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/cli.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/codegen/artifact.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/codegen/bdd.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/codegen/ir.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/codegen/js.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/codegen/mod.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/codegen/sourcemap.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/diagnostic.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/docs.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/explain.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/format.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/ide/fixes.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/ide/mod.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/ide/queries.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/ide/tokens.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/json.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/lib.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/lint/driver.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/lint/mod.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/lint/rules.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/lsp/mod.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/lsp/output.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/lsp/server.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/lsp/transport.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/lsp/uri.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/main.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/policy.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/source.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/syntax/cst.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/syntax/layout.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/syntax/lexer.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/syntax/mod.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/src/syntax/parser.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/analysis.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/authoring.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b1_join.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b3_authoring_join.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b3_i5.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b3_migrate.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b3_s4.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b4_check.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b4_examples.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b4_parse.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b4_resolve.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b4_setparent.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/b4_witness.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/catalog_input_contract.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/catalog_producer_runtime.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/check.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/codegen.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/common/lsp_driver.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/completion_contract.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/data/AuthoringDemo.can",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/data/s4_fix.can",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/docs.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/effects.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/exe.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/file_ownership.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/fixtures/completion-contract/zsh.py",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/fixtures/sourcemap-consumer.mjs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/format.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/foundation.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/ide.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/json_input_contract.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/lint.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/lsp_admission.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/lsp_typed_output.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/mcp_p1.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/mcp_p4.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/sourcemap_contract.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/string_payload_runtime.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/syntax.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_artifact.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_artifact_consumer.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_bdd.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_descriptors.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_diagnostics_cli.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_explain.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_fixes.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_fixes_cli.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_json.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_policy.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_reference_policy_consumers.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/typed_references.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline compiler/tests/value_admission.rs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline AGENTS.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline docs/specification/GRAMMAR.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline implementation/DIAGNOSTICS.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline editors/vscode/src/client.ts",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline editors/vscode/src/extension.ts",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline editors/vscode/package.json",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline editors/vscode/README.md",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline editors/vscode/test/server-startup.cjs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline editors/vscode/test/lsp-capabilities.cjs",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline packages/values/dist/catalog.json",
+      "verified": true
+    },
+    {
+      "check": "unchanged baseline docs/research/compiler-library-audit-20261006/model-allocation-20261007.md",
+      "verified": true
+    },
+    {
+      "check": "execution.json/rustc-version/stdout",
+      "verified": true
+    },
+    {
+      "check": "execution.json/rustc-version/stderr",
+      "verified": true
+    },
+    {
+      "check": "execution.json/cargo-version/stdout",
+      "verified": true
+    },
+    {
+      "check": "execution.json/cargo-version/stderr",
+      "verified": true
+    },
+    {
+      "check": "execution.json/node-version/stdout",
+      "verified": true
+    },
+    {
+      "check": "execution.json/node-version/stderr",
+      "verified": true
+    },
+    {
+      "check": "execution.json/fresh-build/stdout",
+      "verified": true
+    },
+    {
+      "check": "execution.json/fresh-build/stderr",
+      "verified": true
+    },
+    {
+      "check": "execution.json/compile-probe/stdout",
+      "verified": true
+    },
+    {
+      "check": "execution.json/compile-probe/stderr",
+      "verified": true
+    },
+    {
+      "check": "execution.json/public-batch/stdout",
+      "verified": true
+    },
+    {
+      "check": "execution.json/public-batch/stderr",
+      "verified": true
+    },
+    {
+      "check": "execution.json/public-retention/stdout",
+      "verified": true
+    },
+    {
+      "check": "execution.json/public-retention/stderr",
+      "verified": true
+    },
+    {
+      "check": "execution.json/focused-suites/stdout",
+      "verified": true
+    },
+    {
+      "check": "execution.json/focused-suites/stderr",
+      "verified": true
+    },
+    {
+      "check": "execution.json/lsp-unit/stdout",
+      "verified": true
+    },
+    {
+      "check": "execution.json/lsp-unit/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/lifecycle/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/lifecycle/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/lifecycle/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/cancel-sync/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/cancel-sync/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/cancel-sync/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/invalid-version-robustness/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/invalid-version-robustness/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/invalid-version-robustness/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/reopen/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/reopen/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/reopen/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/early-exit/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/early-exit/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/early-exit/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/clean-disconnect/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/clean-disconnect/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/clean-disconnect/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/torn-header/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/torn-header/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/torn-header/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/torn-body/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/torn-body/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/torn-body/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/catalog-invalidation/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/catalog-invalidation/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/catalog-invalidation/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/catalog-restart/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/catalog-restart/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/catalog-restart/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/cross-file-cli-check/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/cross-file-cli-check/stderr",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/cross-file-server/stdin",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/cross-file-server/stdout",
+      "verified": true
+    },
+    {
+      "check": "process-execution.json/cross-file-server/stderr",
+      "verified": true
+    },
+    {
+      "check": "client-execution.json/typescript-version/stdout",
+      "verified": true
+    },
+    {
+      "check": "client-execution.json/typescript-version/stderr",
+      "verified": true
+    },
+    {
+      "check": "client-execution.json/compile-client/stdout",
+      "verified": true
+    },
+    {
+      "check": "client-execution.json/compile-client/stderr",
+      "verified": true
+    },
+    {
+      "check": "client-execution.json/client-startup/stdout",
+      "verified": true
+    },
+    {
+      "check": "client-execution.json/client-startup/stderr",
+      "verified": true
+    },
+    {
+      "check": "client-execution.json/actual-client/stdout",
+      "verified": true
+    },
+    {
+      "check": "client-execution.json/actual-client/stderr",
+      "verified": true
+    },
+    {
+      "check": "server-options.json/server-options-cli-control/stdout",
+      "verified": true
+    },
+    {
+      "check": "server-options.json/server-options-cli-control/stderr",
+      "verified": true
+    },
+    {
+      "check": "server-options.json/server-options-absent/stdin",
+      "verified": true
+    },
+    {
+      "check": "server-options.json/server-options-absent/stdout",
+      "verified": true
+    },
+    {
+      "check": "server-options.json/server-options-absent/stderr",
+      "verified": true
+    },
+    {
+      "check": "server-options.json/server-options-versioned/stdin",
+      "verified": true
+    },
+    {
+      "check": "server-options.json/server-options-versioned/stdout",
+      "verified": true
+    },
+    {
+      "check": "server-options.json/server-options-versioned/stderr",
+      "verified": true
+    },
+    {
+      "check": "Cargo reported library /Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+      "verified": true
+    },
+    {
+      "check": "Cargo reported library /Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+      "verified": true
+    },
+    {
+      "check": "fresh can binary",
+      "verified": true
+    },
+    {
+      "check": "seven selected harness results",
+      "verified": true
+    },
+    {
+      "check": "128 native passes",
+      "verified": true
+    },
+    {
+      "check": "zero selected failures/ignored",
+      "verified": true
+    },
+    {
+      "check": "97 unit filter exclusions",
+      "verified": true
+    },
+    {
+      "check": "11 existing startup mock passes",
+      "verified": true
+    },
+    {
+      "check": "12 process observations",
+      "verified": true
+    },
+    {
+      "check": "declared exit lifecycle",
+      "verified": true
+    },
+    {
+      "check": "declared exit cancel-sync",
+      "verified": true
+    },
+    {
+      "check": "declared exit invalid-version-robustness",
+      "verified": true
+    },
+    {
+      "check": "declared exit reopen",
+      "verified": true
+    },
+    {
+      "check": "declared exit early-exit",
+      "verified": true
+    },
+    {
+      "check": "declared exit clean-disconnect",
+      "verified": true
+    },
+    {
+      "check": "declared exit torn-header",
+      "verified": true
+    },
+    {
+      "check": "declared exit torn-body",
+      "verified": true
+    },
+    {
+      "check": "successful initialization catalog-invalidation",
+      "verified": true
+    },
+    {
+      "check": "successful initialization catalog-restart",
+      "verified": true
+    },
+    {
+      "check": "successful initialization cross-file-server",
+      "verified": true
+    },
+    {
+      "check": "successful initialization reopen",
+      "verified": true
+    },
+    {
+      "check": "successful initialization lifecycle",
+      "verified": true
+    },
+    {
+      "check": "successful initialization cancel-sync",
+      "verified": true
+    },
+    {
+      "check": "malformed source E1006 then repair clear",
+      "verified": true
+    },
+    {
+      "check": "close/reopen lacks intervening server clear",
+      "verified": true
+    },
+    {
+      "check": "catalog captured for both roots and after mutation",
+      "verified": true
+    },
+    {
+      "check": "restart reloads changed catalog",
+      "verified": true
+    },
+    {
+      "check": "CLI crossfile clean control",
+      "verified": true
+    },
+    {
+      "check": "LSP crossfile unsupported contrast",
+      "verified": true
+    },
+    {
+      "check": "public epoch duplicates current content",
+      "verified": true
+    },
+    {
+      "check": "public queued work after shutdown",
+      "verified": true
+    },
+    {
+      "check": "129 delegated actual analyses",
+      "verified": true
+    },
+    {
+      "check": "retention drain",
+      "verified": true
+    },
+    {
+      "check": "96 distinct sources and text bytes",
+      "verified": true
+    },
+    {
+      "check": "identical live content reuses source",
+      "verified": true
+    },
+    {
+      "check": "closed reopen adds same text revision",
+      "verified": true
+    },
+    {
+      "check": "retention clean current source",
+      "verified": true
+    },
+    {
+      "check": "references false retains declaration",
+      "verified": true
+    },
+    {
+      "check": "unnegotiated edit carrier",
+      "verified": true
+    },
+    {
+      "check": "4 real client child sessions and9 observations",
+      "verified": true
+    },
+    {
+      "check": "client-diagnostics-0 actual input frames",
+      "verified": true
+    },
+    {
+      "check": "client-diagnostics-0 actual output frames",
+      "verified": true
+    },
+    {
+      "check": "extension-providers-0 actual input frames",
+      "verified": true
+    },
+    {
+      "check": "extension-providers-0 actual output frames",
+      "verified": true
+    },
+    {
+      "check": "extension-providers-1 actual input frames",
+      "verified": true
+    },
+    {
+      "check": "extension-providers-1 actual output frames",
+      "verified": true
+    },
+    {
+      "check": "client-death-0 actual input frames",
+      "verified": true
+    },
+    {
+      "check": "client-death-0 actual output frames",
+      "verified": true
+    },
+    {
+      "check": "delayed stale diagnostic installed",
+      "verified": true
+    },
+    {
+      "check": "late closed diagnostic installed",
+      "verified": true
+    },
+    {
+      "check": "versioned rename fence discarded",
+      "verified": true
+    },
+    {
+      "check": "completion API enums differ",
+      "verified": true
+    },
+    {
+      "check": "cancelled provider offers result",
+      "verified": true
+    },
+    {
+      "check": "client stop lifecycle positive",
+      "verified": true
+    },
+    {
+      "check": "manual restart current replay",
+      "verified": true
+    },
+    {
+      "check": "cooperative deactivate exit",
+      "verified": true
+    },
+    {
+      "check": "undelivered response on child death",
+      "verified": true
+    },
+    {
+      "check": "31 unique bounded duties",
+      "verified": true
+    }
+  ],
+  "verified": 245,
+  "nonverified": 0,
+  "command_stream_hash_checks": 69,
+  "compiler_paths_unchanged": 107,
+  "selected_native_harness_passes": 128,
+  "existing_startup_mock_passes": 11,
+  "framed_processes": 17,
+  "CLI_controls": 2,
+  "public_analysis_calls": 129,
+  "client_observations": 9,
+  "duties": 31,
+  "unmet_contracts": [
+    "old/closed diagnostic rejection",
+    "versioned edit currentness",
+    "completion enum conversion",
+    "provider cancellation",
+    "server diagnostic clear on close",
+    "includeDeclaration:false",
+    "workspace edit capability negotiation"
+  ],
+  "qualification_gates": [
+    "cross-file/workspace/catalog support",
+    "public batched scheduling epoch/shutdown",
+    "startup/host timeout/race coverage",
+    "bounded history ownership/representative workloads"
+  ],
+  "limits": [
+    "selective host API stand-ins, no GUI/actual edit application",
+    "no interrupted in-flight server analysis",
+    "no RSS/crash/exhaustion/benchmark/other-host claim",
+    "no full suite/release/installed-original app closure",
+    "failed first observations excluded; originals retained"
+  ]
+}

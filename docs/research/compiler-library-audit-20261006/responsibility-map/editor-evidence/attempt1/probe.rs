@@ -26,8 +26,7 @@ fn close(u:&str)->Value{note("textDocument/didClose",json!({"textDocument":{"uri
 fn change(u:&str,v:i32,text:&str)->Value{note("textDocument/didChange",json!({"textDocument":{"uri":u,"version":v},"contentChanges":[{"text":text}]}))}
 fn main(){
  let mode=std::env::args().nth(1).unwrap();let stats=Arc::new(Mutex::new(Vec::new()));let mut s=Server::new(Observed{real:RealAnalysis::new(None),stats:stats.clone()});
- let initialized=send(&mut s,json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}));
- assert!(initialized[0]["result"]["capabilities"].is_object(),"initialize must succeed before lifecycle witnesses");
+ send(&mut s,json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}));
  let a="app T\nGiven\n Item {title:text}\nWhen\nThen\n";let b="app T\nGiven\n Item {title:text,amount:int}\nWhen\nThen\n";let u="untitled:epoch";
  if mode=="batch"{
   send(&mut s,open(u,1,a));send(&mut s,close(u));send(&mut s,open(u,1,b));let pending=s.pending_count();let notes=s.pump();

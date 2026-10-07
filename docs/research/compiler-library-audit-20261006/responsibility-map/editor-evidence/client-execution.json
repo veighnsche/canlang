@@ -1,0 +1,102 @@
+{
+  "commands": [
+    {
+      "name": "typescript-version",
+      "argv": [
+        "node",
+        "/Users/vince/Projects/canlang/node_modules/.bun/typescript@5.9.3/node_modules/typescript/lib/tsc.js",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 5.4872,
+      "stdout": "typescript-version.stdout",
+      "stdout_sha256": "4985b444236c5acdb5b850e5d754975e130eed5b033c53f201cdf471e83d7f13",
+      "stderr": "typescript-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "compile-client",
+      "argv": [
+        "node",
+        "/Users/vince/Projects/canlang/node_modules/.bun/typescript@5.9.3/node_modules/typescript/lib/tsc.js",
+        "--strict",
+        "--target",
+        "es2022",
+        "--module",
+        "commonjs",
+        "--lib",
+        "es2022",
+        "--typeRoots",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-client-sp28js0o/empty",
+        "--outDir",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-client-sp28js0o/out",
+        "--rootDir",
+        "/Users/vince/Projects/canlang/editors/vscode/src",
+        "/Users/vince/Projects/canlang/editors/vscode/src/extension.ts",
+        "/Users/vince/Projects/canlang/editors/vscode/src/client.ts"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 6.8653,
+      "stdout": "compile-client.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "compile-client.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "client-startup",
+      "argv": [
+        "node",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-client-sp28js0o/test/server-startup.cjs"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 4.9046,
+      "stdout": "client-startup.stdout",
+      "stdout_sha256": "1e7d6a431d911e0f9fcc9d702466aa9b07860b2bf830cd32bac32598b3c5589b",
+      "stderr": "client-startup.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "actual-client",
+      "argv": [
+        "node",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-probe.cjs",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-client-sp28js0o/out",
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "/Users/vince/Projects/canlang",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 11.4932,
+      "stdout": "actual-client.stdout",
+      "stdout_sha256": "00e6583250c6dce7f49734eba5dbe85f408e0a28b3c1be66231df734fbf0394c",
+      "stderr": "actual-client.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    }
+  ],
+  "typescript_package": {
+    "path": "/Users/vince/Projects/canlang/node_modules/.bun/typescript@5.9.3/node_modules/typescript/package.json",
+    "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6"
+  },
+  "compiled": [
+    {
+      "name": "client.js",
+      "sha256": "47a8de28f1dfaec38b22436aa4432d3d095cca213a44401e938db18bc0e2e03f",
+      "bytes": 20987
+    },
+    {
+      "name": "extension.js",
+      "sha256": "472240bb06e7529b691cc4b62618c0871f6192b3ce0ff22c59ce4c46e5bbdcf9",
+      "bytes": 16221
+    }
+  ],
+  "binary_sha256": "f4684bab824791d2a46a950d0db0661c80f3ca16b5e381db066e8d2be028476a",
+  "exit": 0,
+  "source_policy": "original TS compiled to temporary output, test copied unchanged; no editor source/output modification"
+}

@@ -1,0 +1,13 @@
+Content-Length: 613
+
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"positionEncoding":"utf-16","textDocumentSync":1,"hoverProvider":true,"completionProvider":{},"definitionProvider":true,"referencesProvider":true,"codeActionProvider":true,"renameProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":["namespace","type","class","interface","enum","struct","parameter","variable","property","enumMember","event","function","method","keyword","comment","string","number","operator"],"tokenModifiers":["declaration","documentation","defaultLibrary","readonly"]},"full":true}},"serverInfo":{"name":"can","version":"0.1.0"}}}Content-Length: 203
+
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/p.can","diagnostics":[],"version":1}}Content-Length: 551
+
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-92zs4d8v/root-a/app.can","diagnostics":[{"range":{"start":{"line":0,"character":4},"end":{"line":0,"character":5}},"severity":1,"code":"E2005","source":"can","message":"app 'T' selects unknown member 'p'"},{"range":{"start":{"line":2,"character":5},"end":{"line":2,"character":6}},"severity":1,"code":"E2005","source":"can","message":"import provider 'p' names no known app or package"}],"version":1}}Content-Length: 93
+
+{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"unknown method 'unknown/barrier'"}}Content-Length: 36
+
+{"jsonrpc":"2.0","id":3,"result":[]}Content-Length: 39
+
+{"jsonrpc":"2.0","id":99,"result":null}

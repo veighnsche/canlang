@@ -1,0 +1,24 @@
+[
+  {
+    "attempt": 1,
+    "kind": "invalid audit initializer",
+    "scope": "Public probe and three interactive process sessions omitted required processId/rootUri fields",
+    "effect": "Admission failed; empty queue/catalog/cross-file observations unqualified; retention observer panicked, not compiler",
+    "correction": "Supply required initialize fields and assert successful capabilities response before exercising dependent work",
+    "original": "attempt1/"
+  },
+  {
+    "attempt": 1,
+    "kind": "malformed audit source",
+    "scope": "cross-file CLI control",
+    "effect": "Package sections lacked required indentation; app-level import placement rejected; control exit10 is not cross-file failure",
+    "correction": "Split the already syntax-qualified semantic import/export fixture; assert joint CLI clean before comparing LSP",
+    "original": "attempt1/cross-file-cli-check.stdout"
+  },
+  {
+    "attempt": 2,
+    "kind": "audit-script indentation error",
+    "effect": "Python parse rejected correction before any process execution",
+    "correction": "Restore with-block indentation; barriers use explicit object params instead of invalid null envelope"
+  }
+]

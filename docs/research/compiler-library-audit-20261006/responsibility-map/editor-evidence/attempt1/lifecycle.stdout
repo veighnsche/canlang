@@ -1,0 +1,17 @@
+Content-Length: 77
+
+{"jsonrpc":"2.0","id":0,"error":{"code":-32002,"message":"initialize first"}}Content-Length: 613
+
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"positionEncoding":"utf-16","textDocumentSync":1,"hoverProvider":true,"completionProvider":{},"definitionProvider":true,"referencesProvider":true,"codeActionProvider":true,"renameProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":["namespace","type","class","interface","enum","struct","parameter","variable","property","enumMember","event","function","method","keyword","comment","string","number","operator"],"tokenModifiers":["declaration","documentation","defaultLibrary","readonly"]},"full":true}},"serverInfo":{"name":"can","version":"0.1.0"}}}Content-Length: 291
+
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"untitled:Step11-é😀","diagnostics":[{"range":{"start":{"line":2,"character":20},"end":{"line":2,"character":21}},"severity":1,"code":"E1006","source":"can","message":"unknown string escape `\\q`"}],"version":1}}Content-Length: 131
+
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"untitled:Step11-é😀","diagnostics":[],"version":2}}Content-Length: 97
+
+{"jsonrpc":"2.0","id":3,"result":{"contents":{"kind":"markdown","value":"**T.Item** — model"}}}Content-Length: 93
+
+{"jsonrpc":"2.0","id":4,"error":{"code":-32602,"message":"unknown document or bad position"}}Content-Length: 38
+
+{"jsonrpc":"2.0","id":5,"result":null}Content-Length: 80
+
+{"jsonrpc":"2.0","id":6,"error":{"code":-32600,"message":"server is shut down"}}

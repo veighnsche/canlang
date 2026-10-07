@@ -1,0 +1,237 @@
+{
+  "commands": [
+    {
+      "name": "lifecycle",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.3879,
+      "stdout": "lifecycle.stdout",
+      "stdout_sha256": "d681b150cfa5f3eb7d9f433af8331b191ef10cf4ffbdc04c47ef4b66b55b1277",
+      "stderr": "lifecycle.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin": "lifecycle.stdin",
+      "stdin_sha256": "a32766ea626fc40f1c8065d7f6b54e9917c6cf98da5fb8802ab2d2f05324bc58",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "cancel-sync",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0096,
+      "stdout": "cancel-sync.stdout",
+      "stdout_sha256": "51fedea63db5561c72523ba118975f7003ca2a32dd52c91e5430cbe29453e0c5",
+      "stderr": "cancel-sync.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin": "cancel-sync.stdin",
+      "stdin_sha256": "8d16574b3a0508c6077a25bec1ef43a7e2161ba858c3e74fc7bdfc59abeb1d1a",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "invalid-version-robustness",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0105,
+      "stdout": "invalid-version-robustness.stdout",
+      "stdout_sha256": "0b74d2f03f5a6b0c3a51321d6739558c2f673b4a97153bca64fdd0a0cb69a620",
+      "stderr": "invalid-version-robustness.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin": "invalid-version-robustness.stdin",
+      "stdin_sha256": "1ece368c14df4242f30fa3b1c3d250ff993138f2037d0552cb08b64bfcf243e7",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "reopen",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0063,
+      "stdout": "reopen.stdout",
+      "stdout_sha256": "81aa958ca97a1e8e38263f03641e7f70880ecef1b3668d02c60ef566fe259841",
+      "stderr": "reopen.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin": "reopen.stdin",
+      "stdin_sha256": "ed5b1efe7db383975bc239d7639d00188d4cf8d221b09e73d61a69614b49c580",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "early-exit",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 1,
+      "elapsed_seconds": 0.0049,
+      "stdout": "early-exit.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "early-exit.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin": "early-exit.stdin",
+      "stdin_sha256": "c0d0238149da22d3e204ee5da1269814a8925b711dc91fa989fad992c67f6c7f",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "clean-disconnect",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0058,
+      "stdout": "clean-disconnect.stdout",
+      "stdout_sha256": "a7a322957cd6c678ad3afea59caf55a633c5d323fc02c93e4bf408bc72424d67",
+      "stderr": "clean-disconnect.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin": "clean-disconnect.stdin",
+      "stdin_sha256": "1c16b3bbe797b6746a6339765337d441e168077a0c98dfbd8333b644105e9faf",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "torn-header",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0048,
+      "stdout": "torn-header.stdout",
+      "stdout_sha256": "300f38000f58fdcaa592839ca011a50d74f182bc3ce6eaa6e1795c77b073786f",
+      "stderr": "torn-header.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin": "torn-header.stdin",
+      "stdin_sha256": "fbefc4a9b07598ab271c3d0f99192ffa015751beb0d372046ab0c8d16c040e2e",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "torn-body",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.0076,
+      "stdout": "torn-body.stdout",
+      "stdout_sha256": "300f38000f58fdcaa592839ca011a50d74f182bc3ce6eaa6e1795c77b073786f",
+      "stderr": "torn-body.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin": "torn-body.stdin",
+      "stdin_sha256": "b3b728709ef14972732f73fc8e4d2536dd4589cf75ea57e2c4f7d49cc27d4f5f",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-invalidation",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-nqf80viy/root-a",
+      "exit": 1,
+      "elapsed_seconds": 0.0286,
+      "environment_overrides": {
+        "CAN_CATALOG": null
+      },
+      "stdin": "catalog-invalidation.stdin",
+      "stdout": "catalog-invalidation.stdout",
+      "stderr": "catalog-invalidation.stderr",
+      "stdin_sha256": "dd663b75e6dfe318671b39e955b8f4e1883036848c044ce3dfea0ae448022b50",
+      "stdout_sha256": "1497b58d73f9283cf5a7492ce6448365ab6f029c6b6de7cbb3abb088a72d11de",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "catalog-restart",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-nqf80viy/root-a",
+      "exit": 1,
+      "elapsed_seconds": 0.0064,
+      "environment_overrides": {
+        "CAN_CATALOG": null
+      },
+      "stdin": "catalog-restart.stdin",
+      "stdout": "catalog-restart.stdout",
+      "stderr": "catalog-restart.stderr",
+      "stdin_sha256": "e95e59c84d7a0dc88d983d90069960fba16a7f3d04925bfb7ef7c514d871ce73",
+      "stdout_sha256": "25b469f1cbb7aaef72560ab30f1ee5298e72390046788ab0c94f9e955135c808",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cross-file-cli-check",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-nqf80viy/root-a/p.can",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-nqf80viy/root-a/app.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 10,
+      "elapsed_seconds": 0.0059,
+      "stdout": "cross-file-cli-check.stdout",
+      "stdout_sha256": "a1f8753229b49718df80fc4e0b9f144e729b2288855286a23ee72bec4f81ab41",
+      "stderr": "cross-file-cli-check.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cross-file-server",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "lsp"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 1,
+      "elapsed_seconds": 0.0059,
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      },
+      "stdin": "cross-file-server.stdin",
+      "stdout": "cross-file-server.stdout",
+      "stderr": "cross-file-server.stderr",
+      "stdin_sha256": "4d811f51bd7cf399d70ffc2fbdcb2ed20ca19055bbc87d488e9fc98e0535d7e6",
+      "stdout_sha256": "59702b5afaf92964c97f9514a1d7a7711aeeed774d13ef164eeec6980afe3561",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "binary": {
+    "path": "compiler/target/debug/can",
+    "sha256": "f4684bab824791d2a46a950d0db0661c80f3ca16b5e381db066e8d2be028476a"
+  },
+  "scope": "actual framed processes, controlled valid catalog changes and CLI contrast; no extension GUI"
+}

@@ -1,0 +1,17 @@
+Content-Length: 75
+
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}Content-Length: 52
+
+{"jsonrpc":"2.0","method":"initialized","params":{}}Content-Length: 294
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-nqf80viy/root-a/p.can","languageId":"can","version":1,"text":"package p\nGiven\n export M {a:int}\n policy M read=members\nWhen\nThen\n"}}}Content-Length: 341
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-nqf80viy/root-a/app.can","languageId":"can","version":1,"text":"app T uses=[p]\nuse p {M}\nGiven\nWhen\n scenario read(item:M) read=true -> int by=members\n  do return item.a\nThen\n"}}}Content-Length: 65
+
+{"jsonrpc":"2.0","id":2,"method":"unknown/barrier","params":null}Content-Length: 229
+
+{"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step11-roots-nqf80viy/root-a/app.can"},"position":{"line":4,"character":20}}}Content-Length: 59
+
+{"jsonrpc":"2.0","id":99,"method":"shutdown","params":null}Content-Length: 47
+
+{"jsonrpc":"2.0","method":"exit","params":null}

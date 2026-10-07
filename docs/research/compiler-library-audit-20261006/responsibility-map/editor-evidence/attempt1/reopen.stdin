@@ -1,0 +1,17 @@
+Content-Length: 107
+
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}Content-Length: 52
+
+{"jsonrpc":"2.0","method":"initialized","params":{}}Content-Length: 203
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"untitled:Step11-é😀","languageId":"can","version":1,"text":"app T\nGiven\n Item {title:text=\"\\q\"}\nWhen\nThen\n"}}}Content-Length: 109
+
+{"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"untitled:Step11-é😀"}}}Content-Length: 65
+
+{"jsonrpc":"2.0","id":2,"method":"unknown/barrier","params":null}Content-Length: 195
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"untitled:Step11-é😀","languageId":"can","version":1,"text":"app T\nGiven\n Item {title:text}\nWhen\nThen\n"}}}Content-Length: 59
+
+{"jsonrpc":"2.0","id":99,"method":"shutdown","params":null}Content-Length: 47
+
+{"jsonrpc":"2.0","method":"exit","params":null}
