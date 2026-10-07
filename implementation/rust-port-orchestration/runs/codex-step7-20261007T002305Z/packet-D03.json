@@ -1,0 +1,18 @@
+{
+  "role": "D03",
+  "agent": "/root/step7_maps",
+  "packet_id": "step7:D03",
+  "model": "gpt-6.1-sol",
+  "effort": "high",
+  "write_files": [
+    "packages/cloudflare/test/raw-source-map-contract.test.ts",
+    "packages/cloudflare/test/fixtures/raw-source-map-contract.json"
+  ],
+  "execution_authorized": true,
+  "gate": "actual candidate E01 compatibility gate; runtime source lease withheld pending verdict",
+  "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03",
+  "writer_released": false,
+  "command_released": false,
+  "status": "dispatched",
+  "ack_observed": true
+}

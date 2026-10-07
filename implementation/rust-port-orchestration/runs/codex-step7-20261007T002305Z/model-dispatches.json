@@ -1,0 +1,36 @@
+{
+  "checked_at": "2026-10-07T00:24:27.408601+00:00",
+  "skill": "/Users/vince/.codex/skills/model-selection/SKILL.md",
+  "official_sources": [
+    "https://developers.openai.com/api/docs/pricing",
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol"
+  ],
+  "actual_dispatcher_support_confirmed": true,
+  "dispatches": [
+    {
+      "role": "D02",
+      "agent": "/root/step7_imports",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Full lexical/edit/error compatibility and planned intentional policy changes; a lower-effort pure mechanical adapter is not yet fully frozen by actual upstream qualification.",
+      "choice_is_inference": true
+    },
+    {
+      "role": "D03",
+      "agent": "/root/step7_maps",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Known codec/trace disagreements across numeric, fault, order and raw identity channels; needs full compatibility and simplification judgment.",
+      "choice_is_inference": true
+    },
+    {
+      "role": "R3",
+      "agent": "/root/step7_delivery",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Cross-file dependency/host closures, synchronous public entry and shared consumer seams require high-risk integration checks.",
+      "choice_is_inference": true
+    }
+  ],
+  "api_cost_not_subscription_usage": true
+}

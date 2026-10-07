@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "phase": "step6_reviewed_slices_complete",
-  "execution_authorized": false,
+  "phase": "step7_running",
+  "execution_authorized": true,
   "global_orchestrator": "Codex for package programme",
   "independent_reviewer": "Codex",
   "main_integrator": "Codex for package releases; independent compiler agent retains its own authority",
@@ -16,7 +16,7 @@
   },
   "cadence": {
     "root_minutes": 15,
-    "root_automation_status": "PAUSED",
+    "root_automation_status": "ACTIVE",
     "scheduled_controller": "Codex only",
     "local_recurring_jobs_allowed": false,
     "active_turn_completion_route": "collaboration messages and completion; no timer wait for ready work",
@@ -128,8 +128,12 @@
   "first_packet_queue": "implementation/rust-port-orchestration/packets.json",
   "planning_checkpoint_step3": "implementation/rust-port-orchestration/first-packets-20261007/README.md",
   "first_packet_queue_verification": "implementation/rust-port-orchestration/first-packets-20261007/verification.json",
-  "activation_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z",
-  "active_authorized_packet_ids": [],
+  "activation_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z",
+  "active_authorized_packet_ids": [
+    "step7:D02",
+    "step7:D03",
+    "step7:R3"
+  ],
   "completed_packet_ids": [
     "first:R1:N02-values-number-maintenance",
     "first:R2:V01-consumed-owner-contracts",
@@ -141,5 +145,6 @@
   ],
   "future_dispatch_authorized": false,
   "updated_at_utc": "2026-10-07T00:18:08.285852+00:00",
-  "supervisor_status": "PAUSED"
+  "supervisor_status": "PAUSED",
+  "human_release_reference": "Human step7 finite import/map adapter work,2026-10-07"
 }
