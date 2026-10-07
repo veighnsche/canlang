@@ -1,0 +1,12 @@
+{
+  "checked_at_utc": "2026-10-07T09:39:59.668394+00:00",
+  "pinned_file_rows_checked": 139,
+  "changed_since_initial_snapshot": [
+    "docs/research/compiler-library-audit-20261006/compiler-correctness-simplicity-audit.md"
+  ],
+  "expected_documentation_change": "Step1 executed-status annotation; all other available pinned file hashes unchanged.",
+  "runtime_dist_digests_checked": 13,
+  "compiler_and_packages_diff_from_baseline": [],
+  "raw_whitespace": "Preserved byte-for-byte; raw stdout may have trailing blank lines. Documentation/JSON whitespace checked separately.",
+  "scope": "Baseline/evidence packet checks; no general compiler semantic qualification."
+}
