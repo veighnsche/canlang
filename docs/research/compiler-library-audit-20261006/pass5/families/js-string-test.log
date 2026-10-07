@@ -1,0 +1,8 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.76s
+     Running unittests src/lib.rs (/private/tmp/canlang-compiler-pass5/debug/deps/canlang_compiler-6b1fd30d695e38e5)
+
+running 1 test
+test codegen::js::string_tests::fixed_string_bytes_cover_every_control_unicode_and_quotes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 108 filtered out; finished in 0.00s

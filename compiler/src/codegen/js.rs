@@ -33,7 +33,17 @@ use crate::codegen::ir::{
 };
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
+use serde::ser::{SerializeMap, SerializeStruct};
+use serde::{Serialize, Serializer};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+
+fn descriptor_json(value: &(impl Serialize + ?Sized)) -> String {
+    crate::json::to_compact_string(value).expect("descriptor JSON serialization invariant")
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
 
 /// One emitted line and the `.can` span it maps to.
 #[derive(Debug, Clone)]
@@ -163,28 +173,25 @@ pub enum JsMcpField {
 /// `file[]`, `enum(a,b)`, nominal refs — catalog.rs mapping rules),
 /// never a re-interpretation: T04b ratifies any structured leaf
 /// vocabulary, and verbatim leaves derive it without loss.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct JsNominalLeaf {
     /// Leaf field name in producer order.
     pub name: String,
     /// Verbatim T13c declared kind spelling.
+    #[serde(rename = "type")]
     pub declared: String,
 }
 
 impl JsNominalLeaf {
-    /// Compact JSON per `artifact.ts` `ArtifactNominalLeaf`.
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        format!(
-            "{{\"name\":{},\"type\":{}}}",
-            js_string(&self.name),
-            js_string(&self.declared)
-        )
+        descriptor_json(self)
     }
 }
 
 /// One T13 provider-result nominal with its T13c leaves (JSON shape
 /// of `ArtifactNominalResult`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct JsNominalResult {
     /// Source nominal name (T13c source spelling, e.g. `ImageRun` —
     /// never a TS wire alias).
@@ -194,17 +201,9 @@ pub struct JsNominalResult {
 }
 
 impl JsNominalResult {
-    /// Compact JSON per `artifact.ts` `ArtifactNominalResult`.
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        format!(
-            "{{\"name\":{},\"fields\":[{}]}}",
-            js_string(&self.name),
-            self.fields
-                .iter()
-                .map(JsNominalLeaf::to_json)
-                .collect::<Vec<_>>()
-                .join(",")
-        )
+        descriptor_json(self)
     }
 }
 
@@ -229,15 +228,9 @@ pub struct JsDeliveryDescriptor {
 }
 
 impl JsDeliveryDescriptor {
-    /// Compact JSON per `artifact.ts` `ArtifactDeliveryDescriptor`.
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        format!(
-            "{{\"kind\":\"delivery\",\"capability\":{},\"operation\":{},\"version\":{},\"result\":{}}}",
-            js_string(&self.capability),
-            js_string(&self.operation),
-            self.version,
-            self.result.to_json()
-        )
+        descriptor_json(self)
     }
 }
 
@@ -271,40 +264,16 @@ pub fn delivery_descriptor(capability: &str, op: &StdOperation) -> Option<JsDeli
 }
 
 impl JsMcpField {
-    /// Compact JSON per `artifact.ts` `ArtifactOperationField`.
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        match self {
-            JsMcpField::Ref {
-                model,
-                require_version,
-            } => format!(
-                "{{\"kind\":\"ref\",\"model\":{},\"requireVersion\":{}}}",
-                js_string(model),
-                require_version
-            ),
-            JsMcpField::String => "{\"kind\":\"string\"}".to_string(),
-            JsMcpField::Integer => "{\"kind\":\"integer\"}".to_string(),
-            JsMcpField::Decimal => "{\"kind\":\"decimal\"}".to_string(),
-            JsMcpField::Money => "{\"kind\":\"money\"}".to_string(),
-            JsMcpField::Datetime => "{\"kind\":\"datetime\"}".to_string(),
-            JsMcpField::Boolean => "{\"kind\":\"boolean\"}".to_string(),
-            JsMcpField::File => "{\"kind\":\"file\"}".to_string(),
-            JsMcpField::Enum { values } => format!(
-                "{{\"kind\":\"enum\",\"values\":[{}]}}",
-                values
-                    .iter()
-                    .map(|v| js_string(v))
-                    .collect::<Vec<_>>()
-                    .join(",")
-            ),
-            JsMcpField::Delivery(descriptor) => descriptor.to_json(),
-        }
+        descriptor_json(self)
     }
 }
 
 /// One T18 closed-set server initializer (JSON shape of
 /// `artifact.ts` `ArtifactServerInit`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum JsServerInit {
     /// `server=actor`: the invoking actor as a wire `{id}` user value.
     Actor,
@@ -347,18 +316,9 @@ pub enum JsFieldDefault {
 }
 
 impl JsFieldDefault {
-    /// Compact JSON per `artifact.ts` `ArtifactFieldDefault`.
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        match self {
-            JsFieldDefault::Literal(json) => format!("{{\"kind\":\"literal\",\"value\":{json}}}"),
-            JsFieldDefault::Parent { path } => {
-                format!("{{\"kind\":\"parent\",\"path\":{}}}", js_string(path))
-            }
-            JsFieldDefault::Server(init) => {
-                format!("{{\"kind\":\"server\",\"init\":{}}}", init.to_json())
-            }
-            JsFieldDefault::Derived => "{\"kind\":\"derived\"}".to_string(),
-        }
+        descriptor_json(self)
     }
 }
 
@@ -407,9 +367,9 @@ pub fn js_field_default(
     match default {
         None => None,
         Some(IrDefault::Literal(value)) => literal_json(value).map(JsFieldDefault::Literal),
-        Some(IrDefault::Computed { expr, .. }) => parent_path(expr).map(|path| JsFieldDefault::Parent {
-            path,
-        }),
+        Some(IrDefault::Computed { expr, .. }) => {
+            parent_path(expr).map(|path| JsFieldDefault::Parent { path })
+        }
     }
 }
 
@@ -426,36 +386,73 @@ pub fn js_field_default(
 /// general calls, queries — is not a literal. Mirrors the L2 wire
 /// encoding (`packages/values/src/wire.ts`); T18 decodes with it.
 pub fn literal_json(expr: &TypedExpr) -> Option<String> {
+    wire_literal(expr).map(|value| descriptor_json(&value))
+}
+
+// This tree never introduces binary floating point or sorts authored object keys.
+enum WireLiteral {
+    String(String),
+    Bool(bool),
+    Null,
+    Money { minor: String, currency: String },
+    Array(Vec<WireLiteral>),
+    Object(Vec<(String, WireLiteral)>),
+}
+
+impl Serialize for WireLiteral {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::String(value) => value.serialize(serializer),
+            Self::Bool(value) => value.serialize(serializer),
+            Self::Null => serializer.serialize_unit(),
+            Self::Money { minor, currency } => {
+                let mut state = serializer.serialize_struct("Money", 2)?;
+                state.serialize_field("minor", minor)?;
+                state.serialize_field("currency", currency)?;
+                state.end()
+            }
+            Self::Array(items) => items.serialize(serializer),
+            Self::Object(entries) => {
+                let mut map = serializer.serialize_map(Some(entries.len()))?;
+                for (key, value) in entries {
+                    map.serialize_entry(key, value)?;
+                }
+                map.end()
+            }
+        }
+    }
+}
+
+fn wire_literal(expr: &TypedExpr) -> Option<WireLiteral> {
     match &expr.expr {
-        IrExpr::Int(value) => Some(js_string(&value.to_string())),
-        IrExpr::Decimal(spelling) => Some(js_string(spelling)),
-        IrExpr::Text(value) => Some(js_string(value)),
-        IrExpr::Bool(value) => Some(value.to_string()),
-        IrExpr::Null => Some("null".to_string()),
-        IrExpr::Money { minor, currency } => Some(format!(
-            "{{\"minor\":{},\"currency\":{}}}",
-            js_string(&minor.to_string()),
-            js_string(currency)
-        )),
-        IrExpr::DurationMs(ms) => Some(js_string(&ms.to_string())),
-        IrExpr::Date(value) | IrExpr::Datetime(value) => Some(js_string(value)),
+        IrExpr::Int(value) => Some(WireLiteral::String(value.to_string())),
+        IrExpr::Decimal(spelling) => Some(WireLiteral::String(spelling.clone())),
+        IrExpr::Text(value) => Some(WireLiteral::String(value.clone())),
+        IrExpr::Bool(value) => Some(WireLiteral::Bool(*value)),
+        IrExpr::Null => Some(WireLiteral::Null),
+        IrExpr::Money { minor, currency } => Some(WireLiteral::Money {
+            minor: minor.to_string(),
+            currency: currency.clone(),
+        }),
+        IrExpr::DurationMs(ms) => Some(WireLiteral::String(ms.to_string())),
+        IrExpr::Date(value) | IrExpr::Datetime(value) => Some(WireLiteral::String(value.clone())),
         IrExpr::Array(items) => {
             let mut parts = Vec::with_capacity(items.len());
             for item in items {
-                parts.push(literal_json(item)?);
+                parts.push(wire_literal(item)?);
             }
-            Some(format!("[{}]", parts.join(",")))
+            Some(WireLiteral::Array(parts))
         }
         IrExpr::Object(entries) => {
             let mut parts = Vec::with_capacity(entries.len());
             for (key, value) in entries {
-                parts.push(format!("{}:{}", js_string(key), literal_json(value)?));
+                parts.push((key.clone(), wire_literal(value)?));
             }
-            Some(format!("{{{}}}", parts.join(",")))
+            Some(WireLiteral::Object(parts))
         }
         IrExpr::Unary { op, operand } if *op == IrUnOp::Neg => match &operand.expr {
-            IrExpr::Int(value) => Some(js_string(&value.checked_neg()?.to_string())),
-            IrExpr::Decimal(spelling) => Some(js_string(&format!("-{spelling}"))),
+            IrExpr::Int(value) => Some(WireLiteral::String(value.checked_neg()?.to_string())),
+            IrExpr::Decimal(spelling) => Some(WireLiteral::String(format!("-{spelling}"))),
             _ => None,
         },
         IrExpr::Call { target, args } => {
@@ -471,17 +468,16 @@ pub fn literal_json(expr: &TypedExpr) -> Option<String> {
                     let (IrExpr::Int(m), IrExpr::Text(c)) = (&minor.expr, &currency.expr) else {
                         return None;
                     };
-                    Some(format!(
-                        "{{\"minor\":{},\"currency\":{}}}",
-                        js_string(&m.to_string()),
-                        js_string(c)
-                    ))
+                    Some(WireLiteral::Money {
+                        minor: m.to_string(),
+                        currency: c.clone(),
+                    })
                 }
                 ("date" | "datetime", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
                     let IrExpr::Text(value) = &single.expr else {
                         return None;
                     };
-                    Some(js_string(value))
+                    Some(WireLiteral::String(value.clone()))
                 }
                 _ => None,
             }
@@ -538,33 +534,9 @@ pub struct JsOperationField {
 }
 
 impl JsOperationField {
-    /// Compact JSON per `artifact.ts` `ArtifactOperationInput`. The
-    /// `nullable`/`array`/`default`/`description` members render only
-    /// when meaningful (additive: singular non-nullable default-less
-    /// undescribed inputs are byte-identical to P1/D03).
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        let mut out = format!(
-            "{{\"name\":{},\"field\":{},\"required\":{}",
-            js_string(&self.name),
-            self.field.to_json(),
-            self.required
-        );
-        if self.nullable {
-            out.push_str(",\"nullable\":true");
-        }
-        if let Some(required) = self.array_required {
-            out.push_str(&format!(",\"array\":{{\"required\":{required}}}"));
-        }
-        if let Some(default) = &self.default {
-            out.push_str(",\"default\":");
-            out.push_str(&default.to_json());
-        }
-        if let Some(description) = &self.description {
-            out.push_str(",\"description\":");
-            out.push_str(&js_string(description));
-        }
-        out.push('}');
-        out
+        descriptor_json(self)
     }
 }
 
@@ -583,19 +555,9 @@ pub struct JsOperation {
 }
 
 impl JsOperation {
-    /// Compact JSON per `artifact.ts` `ArtifactOperation`.
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        format!(
-            "{{\"name\":{},\"kind\":\"{}\",\"description\":{},\"inputs\":{{\"fields\":[{}]}}}}",
-            js_string(&self.name),
-            self.kind.as_str(),
-            js_string(&self.description),
-            self.inputs
-                .iter()
-                .map(JsOperationField::to_json)
-                .collect::<Vec<_>>()
-                .join(",")
-        )
+        descriptor_json(self)
     }
 }
 
@@ -611,14 +573,7 @@ fn has_duplicate_names(inputs: &[JsOperationField]) -> bool {
 /// Compact JSON array of operation descriptors, shared by the artifact
 /// envelope and the `canApp()` registry literal (one renderer, no drift).
 pub fn operations_json(operations: &[JsOperation]) -> String {
-    format!(
-        "[{}]",
-        operations
-            .iter()
-            .map(JsOperation::to_json)
-            .collect::<Vec<_>>()
-            .join(",")
-    )
+    descriptor_json(operations)
 }
 
 /// One stored-model field type tag (JSON shape of `ArtifactModelFieldType`).
@@ -633,7 +588,9 @@ pub fn operations_json(operations: &[JsOperation]) -> String {
 #[derive(Debug, Clone)]
 pub enum JsModelFieldType {
     /// Stored-record reference: canonical target model.
-    Ref { model: String },
+    Ref {
+        model: String,
+    },
     String,
     Integer,
     Decimal,
@@ -642,7 +599,9 @@ pub enum JsModelFieldType {
     Boolean,
     File,
     /// Anonymous enum: case spellings in declaration order.
-    Enum { values: Vec<String> },
+    Enum {
+        values: Vec<String>,
+    },
     /// T15b provider delivery: a T14c typed `std` receipt (shared
     /// [`JsDeliveryDescriptor`] shape with [`JsMcpField::Delivery`]).
     Delivery(JsDeliveryDescriptor),
@@ -655,44 +614,15 @@ pub enum JsModelFieldType {
     Json,
     Bytes,
     /// Honest fallback: `type_id` is the source type id.
-    Other { type_id: String },
+    Other {
+        type_id: String,
+    },
 }
 
 impl JsModelFieldType {
-    /// Compact JSON per `artifact.ts` `ArtifactModelFieldType`.
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        match self {
-            JsModelFieldType::Ref { model } => {
-                format!("{{\"kind\":\"ref\",\"model\":{}}}", js_string(model))
-            }
-            JsModelFieldType::String => "{\"kind\":\"string\"}".to_string(),
-            JsModelFieldType::Integer => "{\"kind\":\"integer\"}".to_string(),
-            JsModelFieldType::Decimal => "{\"kind\":\"decimal\"}".to_string(),
-            JsModelFieldType::Money => "{\"kind\":\"money\"}".to_string(),
-            JsModelFieldType::Datetime => "{\"kind\":\"datetime\"}".to_string(),
-            JsModelFieldType::Boolean => "{\"kind\":\"boolean\"}".to_string(),
-            JsModelFieldType::File => "{\"kind\":\"file\"}".to_string(),
-            JsModelFieldType::Enum { values } => format!(
-                "{{\"kind\":\"enum\",\"values\":[{}]}}",
-                values
-                    .iter()
-                    .map(|v| js_string(v))
-                    .collect::<Vec<_>>()
-                    .join(",")
-            ),
-            JsModelFieldType::Date => "{\"kind\":\"date\"}".to_string(),
-            JsModelFieldType::Duration => "{\"kind\":\"duration\"}".to_string(),
-            JsModelFieldType::Secret => "{\"kind\":\"secret\"}".to_string(),
-            JsModelFieldType::User => "{\"kind\":\"user\"}".to_string(),
-            JsModelFieldType::Member => "{\"kind\":\"member\"}".to_string(),
-            JsModelFieldType::Json => "{\"kind\":\"json\"}".to_string(),
-            JsModelFieldType::Bytes => "{\"kind\":\"bytes\"}".to_string(),
-            JsModelFieldType::Delivery(descriptor) => descriptor.to_json(),
-            JsModelFieldType::Other { type_id } => format!(
-                "{{\"kind\":\"other\",\"type\":{}}}",
-                js_string(type_id)
-            ),
-        }
+        descriptor_json(self)
     }
 }
 
@@ -718,38 +648,14 @@ pub struct JsModelField {
 }
 
 impl JsModelField {
-    /// Compact JSON per `artifact.ts` `ArtifactModelField`. `required`
-    /// and `serverOnly` always render (L3-mirrored); `nullable`/`array`/
-    /// `default`/`description` render only when meaningful.
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        let mut out = format!(
-            "{{\"name\":{},\"field\":{},\"required\":{},\"serverOnly\":{}",
-            js_string(&self.name),
-            self.field.to_json(),
-            self.required,
-            self.server_only
-        );
-        if self.nullable {
-            out.push_str(",\"nullable\":true");
-        }
-        if let Some(required) = self.array_required {
-            out.push_str(&format!(",\"array\":{{\"required\":{required}}}"));
-        }
-        if let Some(default) = &self.default {
-            out.push_str(",\"default\":");
-            out.push_str(&default.to_json());
-        }
-        if let Some(description) = &self.description {
-            out.push_str(",\"description\":");
-            out.push_str(&js_string(description));
-        }
-        out.push('}');
-        out
+        descriptor_json(self)
     }
 }
 
 /// One stored model descriptor (JSON shape of `ArtifactModel`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct JsModel {
     /// Canonical model identity.
     pub name: String,
@@ -757,47 +663,27 @@ pub struct JsModel {
     pub fields: Vec<JsModelField>,
     /// What a caller-asked remove does: `archive` (default), `remove`
     /// (declared) or `none` (no enabled delete operation).
+    #[serde(rename = "deleteMode")]
     pub delete_mode: String,
     /// Unique keys in source order (empty omits the member).
+    #[serde(rename = "uniqueKeys", skip_serializing_if = "Vec::is_empty")]
     pub unique_keys: Vec<String>,
     /// Canonical parent model, for `in Parent` children.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
     /// Whether the model is app-scoped (`in app`).
+    #[serde(
+        rename = "scope",
+        skip_serializing_if = "is_false",
+        serialize_with = "serialize_app_scope"
+    )]
     pub scope_app: bool,
 }
 
 impl JsModel {
-    /// Compact JSON per `artifact.ts` `ArtifactModel`.
+    /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
-        let mut out = format!(
-            "{{\"name\":{},\"fields\":[{}],\"deleteMode\":{}",
-            js_string(&self.name),
-            self.fields
-                .iter()
-                .map(JsModelField::to_json)
-                .collect::<Vec<_>>()
-                .join(","),
-            js_string(&self.delete_mode)
-        );
-        if !self.unique_keys.is_empty() {
-            out.push_str(&format!(
-                ",\"uniqueKeys\":[{}]",
-                self.unique_keys
-                    .iter()
-                    .map(|k| js_string(k))
-                    .collect::<Vec<_>>()
-                    .join(",")
-            ));
-        }
-        if let Some(parent) = &self.parent {
-            out.push_str(",\"parent\":");
-            out.push_str(&js_string(parent));
-        }
-        if self.scope_app {
-            out.push_str(",\"scope\":\"app\"");
-        }
-        out.push('}');
-        out
+        descriptor_json(self)
     }
 }
 
@@ -805,14 +691,219 @@ impl JsModel {
 /// envelope (the runtime reads the richer `appDefinition.models` member;
 /// descriptors stay one format).
 pub fn models_json(models: &[JsModel]) -> String {
-    format!(
-        "[{}]",
-        models
-            .iter()
-            .map(JsModel::to_json)
-            .collect::<Vec<_>>()
-            .join(",")
-    )
+    descriptor_json(models)
+}
+
+impl Serialize for JsDeliveryDescriptor {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("Delivery", 5)?;
+        state.serialize_field("kind", "delivery")?;
+        state.serialize_field("capability", &self.capability)?;
+        state.serialize_field("operation", &self.operation)?;
+        state.serialize_field("version", &self.version)?;
+        state.serialize_field("result", &self.result)?;
+        state.end()
+    }
+}
+
+// Borrowed wire adapters keep descriptor tags and member order explicit.
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+enum FieldTag<'a> {
+    Ref {
+        model: &'a str,
+        #[serde(rename = "requireVersion", skip_serializing_if = "Option::is_none")]
+        require_version: Option<bool>,
+    },
+    String,
+    Integer,
+    Decimal,
+    Money,
+    Datetime,
+    Boolean,
+    File,
+    Enum {
+        values: &'a [String],
+    },
+    Date,
+    Duration,
+    Secret,
+    User,
+    Member,
+    Json,
+    Bytes,
+    Other {
+        #[serde(rename = "type")]
+        type_id: &'a str,
+    },
+}
+
+impl Serialize for JsMcpField {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let tag = match self {
+            Self::Ref {
+                model,
+                require_version,
+            } => FieldTag::Ref {
+                model,
+                require_version: Some(*require_version),
+            },
+            Self::String => FieldTag::String,
+            Self::Integer => FieldTag::Integer,
+            Self::Decimal => FieldTag::Decimal,
+            Self::Money => FieldTag::Money,
+            Self::Datetime => FieldTag::Datetime,
+            Self::Boolean => FieldTag::Boolean,
+            Self::File => FieldTag::File,
+            Self::Enum { values } => FieldTag::Enum { values },
+            Self::Delivery(value) => return value.serialize(serializer),
+        };
+        tag.serialize(serializer)
+    }
+}
+
+impl Serialize for JsModelFieldType {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let tag = match self {
+            Self::Ref { model } => FieldTag::Ref {
+                model,
+                require_version: None,
+            },
+            Self::String => FieldTag::String,
+            Self::Integer => FieldTag::Integer,
+            Self::Decimal => FieldTag::Decimal,
+            Self::Money => FieldTag::Money,
+            Self::Datetime => FieldTag::Datetime,
+            Self::Boolean => FieldTag::Boolean,
+            Self::File => FieldTag::File,
+            Self::Enum { values } => FieldTag::Enum { values },
+            Self::Date => FieldTag::Date,
+            Self::Duration => FieldTag::Duration,
+            Self::Secret => FieldTag::Secret,
+            Self::User => FieldTag::User,
+            Self::Member => FieldTag::Member,
+            Self::Json => FieldTag::Json,
+            Self::Bytes => FieldTag::Bytes,
+            Self::Other { type_id } => FieldTag::Other { type_id },
+            Self::Delivery(value) => return value.serialize(serializer),
+        };
+        tag.serialize(serializer)
+    }
+}
+
+impl Serialize for JsFieldDefault {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        #[serde(tag = "kind", rename_all = "lowercase")]
+        enum DefaultWire<'a> {
+            Literal {
+                value: &'a serde_json::value::RawValue,
+            },
+            Parent {
+                path: &'a str,
+            },
+            Server {
+                init: JsServerInit,
+            },
+            Derived,
+        }
+        match self {
+            Self::Literal(json) => {
+                let raw = serde_json::from_str::<&serde_json::value::RawValue>(json)
+                    .map_err(serde::ser::Error::custom)?;
+                DefaultWire::Literal { value: raw }.serialize(serializer)
+            }
+            Self::Parent { path } => DefaultWire::Parent { path }.serialize(serializer),
+            Self::Server(init) => DefaultWire::Server { init: *init }.serialize(serializer),
+            Self::Derived => DefaultWire::Derived.serialize(serializer),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct ArrayMarker {
+    required: bool,
+}
+
+impl Serialize for JsOperationField {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct(
+            "OperationField",
+            3 + usize::from(self.nullable)
+                + usize::from(self.array_required.is_some())
+                + usize::from(self.default.is_some())
+                + usize::from(self.description.is_some()),
+        )?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("field", &self.field)?;
+        state.serialize_field("required", &self.required)?;
+        if self.nullable {
+            state.serialize_field("nullable", &true)?;
+        }
+        if let Some(required) = self.array_required {
+            state.serialize_field("array", &ArrayMarker { required })?;
+        }
+        if let Some(default) = &self.default {
+            state.serialize_field("default", default)?;
+        }
+        if let Some(description) = &self.description {
+            state.serialize_field("description", description)?;
+        }
+        state.end()
+    }
+}
+
+impl Serialize for JsModelField {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct(
+            "ModelField",
+            4 + usize::from(self.nullable)
+                + usize::from(self.array_required.is_some())
+                + usize::from(self.default.is_some())
+                + usize::from(self.description.is_some()),
+        )?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("field", &self.field)?;
+        state.serialize_field("required", &self.required)?;
+        state.serialize_field("serverOnly", &self.server_only)?;
+        if self.nullable {
+            state.serialize_field("nullable", &true)?;
+        }
+        if let Some(required) = self.array_required {
+            state.serialize_field("array", &ArrayMarker { required })?;
+        }
+        if let Some(default) = &self.default {
+            state.serialize_field("default", default)?;
+        }
+        if let Some(description) = &self.description {
+            state.serialize_field("description", description)?;
+        }
+        state.end()
+    }
+}
+
+impl Serialize for JsOperation {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct Inputs<'a> {
+            fields: &'a [JsOperationField],
+        }
+        let mut state = serializer.serialize_struct("Operation", 4)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("kind", self.kind.as_str())?;
+        state.serialize_field("description", &self.description)?;
+        state.serialize_field(
+            "inputs",
+            &Inputs {
+                fields: &self.inputs,
+            },
+        )?;
+        state.end()
+    }
+}
+
+fn serialize_app_scope<S: Serializer>(_: &bool, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str("app")
 }
 
 /// Production modules plus link metadata.
@@ -984,24 +1075,10 @@ fn sanitize_ident(name: &str) -> String {
     out
 }
 
-/// Render a JS double-quoted string literal with minimal escapes.
+/// Quote string values through the shared byte-compatible JSON adapter.
+/// Expressions, identifiers and HTML embedding have separate owners.
 fn js_string(value: &str) -> String {
-    let mut out = String::from("\"");
-    for c in value.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                out.push_str(&format!("\\u{:04x}", c as u32));
-            }
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
+    crate::json::to_compact_string(value).expect("JS string JSON serialization invariant")
 }
 
 /// Lowercase server factories allowed in UI positions (oracle corpus).
@@ -5784,5 +5861,24 @@ fn object_key(key: &str) -> String {
         key.to_string()
     } else {
         js_string(key)
+    }
+}
+
+#[cfg(test)]
+mod string_tests {
+    use super::js_string;
+
+    #[test]
+    fn fixed_string_bytes_cover_every_control_unicode_and_quotes() {
+        let controls: String = (0u8..32).map(char::from).collect();
+        assert_eq!(
+            js_string(&controls),
+            r#""\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008\t\n\u000b\u000c\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f""#,
+        );
+        assert_eq!(js_string(""), r#""""#);
+        assert_eq!(
+            js_string("'\"\\/é😀\u{7f}\u{2028}\u{2029}"),
+            "\"'\\\"\\\\/é😀\u{7f}\u{2028}\u{2029}\"",
+        );
     }
 }
