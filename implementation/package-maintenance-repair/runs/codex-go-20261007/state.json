@@ -529,7 +529,7 @@
     },
     "DEL-D01": {
       "planning_status": "ready",
-      "state": "independently accepted exact extraction; scoped commit pending; current assembly qualification still open",
+      "state": "independently accepted exact shared TS phase extraction; committing narrow slice",
       "files": [
         "packages/cloudflare/src/preparation/build-adapter.ts",
         "packages/cloudflare/src/preparation/host.ts",
@@ -552,7 +552,23 @@
         "DD009 fresh/stale emit/packed archive qualification; production Work receipt observer absent",
         "Human-held native preparation/release"
       ],
-      "reviewer": "/root/review_numeric_reduction"
+      "reviewer": "/root/review_numeric_reduction",
+      "review": "delivery-build-independent-review.json",
+      "readable_production_reduction": 136,
+      "full_closure_reduction": 139,
+      "acceptance_limit": "Frozen controls certify recorded distributions only; current full assembly/source-emitted/packed/receipt observer and native HOLD remain open",
+      "source_pins": {
+        "packages/cloudflare/src/preparation/build-adapter.ts": "4b9427f6368fdb33bf4ebeb1701829bd902f819f478220e3273f5f52797c0377",
+        "packages/cloudflare/src/preparation/host.ts": "9cee47bd72fadbc28426c955f627bf3b01798552e84d3faf861e1fb66822b21a",
+        "packages/cloudflare/src/deploy/bundle.ts": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+        "scripts/build-package.mjs": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+        "packages/cloudflare/test/preparation-shared-phases.test.ts": "26919e33f67b84ae80318c5eba405502bf56803811945300bb5558878d6c39f8"
+      },
+      "residuals": [
+        "Pre-existing entry-file write failure before try leaves temporary directory in old/new owners; DEL-D03 lifecycle gate remains",
+        "Current dependency entries/vendor distributions differ from frozen phase/CLI profile; no source-current full assembly acceptance",
+        "Function aliases now share defining function identity/name, explicitly compatible type/call contract only"
+      ]
     },
     "DEL-D02": {
       "planning_status": "ready",
@@ -951,7 +967,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T20:25:36.336241+00:00",
+  "updated_utc": "2026-10-07T20:27:50.642301+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
