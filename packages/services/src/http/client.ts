@@ -221,25 +221,25 @@ async function fetchWithRedirects(
       return { response, url };
     }
     const location = response.headers.get('location');
+    // Without another hop, the normal bounded status reader owns the body.
+    if (location === null) return { response, url };
     try {
-      await response.arrayBuffer();
+      await readBoundedBytes(response, config.maxBodyBytes, response.status);
     } catch (err) {
+      if (err instanceof HttpBodyLimitError) throw err;
       if (timedOut()) {
         throw new HttpTransportError('timeout');
       }
       if (request.signal?.aborted === true) {
         throw err;
       }
-      // Drained body is best effort; the hop below is what matters.
+      // Other drain failures remain best effort; preserve redirect policy.
     }
     if (timedOut()) {
       throw new HttpTransportError('timeout');
     }
     if (request.signal?.aborted === true) {
       throw signal.reason;
-    }
-    if (location === null) {
-      return { response, url };
     }
     const next = new URL(location, url);
     if (next.origin !== baseOrigin) {
