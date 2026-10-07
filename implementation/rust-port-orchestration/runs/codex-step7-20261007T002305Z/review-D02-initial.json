@@ -1,0 +1,135 @@
+{
+  "reviewer": "independent Sol high D02 leaf review",
+  "verdict": "changes_required",
+  "scope_acceptance": "withheld until P1 Unicode lexical recognition fault is repaired and independently rechecked; unrelated implemented semantics probed successfully",
+  "scope": [
+    "packages/cloudflare/src/deploy/module-imports.ts",
+    "packages/cloudflare/test/module-imports-contract.test.ts",
+    "packages/cloudflare/test/fixtures/import-policy-contract.json",
+    "implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z/D02-owner.json",
+    "private D02 raw source/oracle/host evidence"
+  ],
+  "source_sha256": {
+    "packages/cloudflare/src/deploy/module-imports.ts": "8ea2a1b6ac3cbdf44ce431dc9badf2751f02864bf9a3b9d5c02b5021bcb4efbe",
+    "packages/cloudflare/test/module-imports-contract.test.ts": "425816d0efcf1eeaf7fb0b06587ea9bbce81a580368dc0aa41ca5c509c1ad8d6",
+    "packages/cloudflare/test/fixtures/import-policy-contract.json": "e440cb116363db87e2669e5bba0a4ae02909f303d5584cb84415346380bbbc4a"
+  },
+  "owner_record_sha256": "e92f82984d3d199bf3a29cf465ca764308f401b62cf5b35e7334372537d1bcd5",
+  "verified": {
+    "owner_source_and_raw_evidence_pins": true,
+    "baseline_and_D02_copies": true,
+    "actual_R3_release_closure": true,
+    "frozen_fixture_sources_count": 41,
+    "original_raw_vitest_discovered_files": 1,
+    "original_raw_vitest_passed_tests": 50,
+    "new_fixed_probes_passed_per_Node24_and_Bun": 17,
+    "independent_missing_lexer_missing_codec_wrong_export_controls": 6,
+    "negative_failure_boundary": "ESM resolution before any leaf API invocation; assertion negative detected at independent assertion boundary",
+    "unicode_syntax_controls": {
+      "count": 46,
+      "native_node24_valid": 46,
+      "policy_bypass_count": 36
+    },
+    "unicode_context_controls": 11
+  },
+  "findings": [
+    {
+      "id": "D02-R1",
+      "severity": "P1",
+      "title": "Valid Unicode whitespace hides imports and bypasses artifact policy",
+      "file": "packages/cloudflare/src/deploy/module-imports.ts",
+      "line": 96,
+      "evidence": [
+        "independent-review-work/initial-failed-probes-node.json",
+        "independent-review-work/initial-failed-probes-bun.json",
+        "independent-review-work/whitespace.json",
+        "independent-review-work/whitespace-baseline-differential.json",
+        "independent-review-work/unicode-contexts.json"
+      ],
+      "reproduction": "scanModuleImports(\"\\uFEFFimport \\\"bare\\\";\", \"m.js\") returns []; validateArtifactModuleImports succeeds. import\\u2003\\\"bare\\\"; and //x\\u2028import \\\"bare\\\"; also bypass. rewriteModuleImports leaves producer imports untouched. Native Node --check accepts every one of the 46 whitespace prefix/gap controls; 36 bypasses were observed.",
+      "baseline_regression": "Exact baseline adapter refuses the BOM, Unicode keyword-gap and U+2028 prefix cases with existing complete unresolvable-import envelope; candidate accepts them. This is outside intentional false-text corrections.",
+      "related_literal_fault": "import(\\u2003\\\"bare\\\"); is valid literal dynamic import but candidate classifies it computed and emits nonliteral-dynamic refusal.",
+      "required_repair_constraints": [
+        "Recognize ECMAScript Unicode whitespace and U+2028/U+2029 line-comment termination at the lexer boundary.",
+        "Keep actual literal Unicode bytes, raw spelling and decoded module identity unchanged; do not globally normalize strings/templates/regex text.",
+        "Preserve all original UTF16 statement/content/argument spans, parser offsets and edited-map coordinates, including non-BMP prefixes.",
+        "Keep selected pinned synchronous minimal/js parse entry; no async init, new full scanner or regex import fallback.",
+        "Keep parser-first, group-order, trusted dynamic_unchecked, no mapper calls before refusals, no-edit exact bytes and opaque map fields.",
+        "Add positive/negative coverage for prefixes, keyword gaps, dynamic argument gaps, comments, literal Unicode identity, false-text Unicode and map position."
+      ]
+    }
+  ],
+  "successful_focused_semantics": [
+    "decoded escaped and CRLF continuation literals",
+    "raw source/path and unchanged escape bytes",
+    "original astral/lone-surrogate spans",
+    "nested expression imports with false text ignored",
+    "artifact computed/source-defer refusal before mapper calls",
+    "parser fault normalized from actual lexer idx before mapper calls",
+    "group and cross-module precedence",
+    "duplicate membership without added gate",
+    "no query/percent/extension resolution",
+    "safe escaping and empty literal insertion",
+    "new-to-old hires UTF16 columns after multiple length-changing edits and line-continuation removal",
+    "opaque file/sources exact without sourceContent/rangeMappings"
+  ],
+  "residual": [
+    "D04 caller adoption/composition and exact original map serialization are outside this leaf review.",
+    "Full buildDeployBundle/assembleModules producer/fs ordering, path preflight/no partial write, duplicate overwrite layering, binary late-link and legacy CJS guard remain owning consumer gates.",
+    "No installed public deploy entry, whole app, browser CSP or real Worker acceptance is claimed by this review.",
+    "No fresh unchanged 50-case Vitest or broad build rerun; existing raw counts/hash were inspected and independent probes added."
+  ],
+  "writes": "private review evidence only; no product, Git, shared cache or shared dist writes",
+  "pending_handles": [],
+  "heavy_slot_released": true,
+  "commands": [
+    {
+      "command": "node compile.mjs",
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-review-work",
+      "purpose": "transpile exact source to fresh private leaf only"
+    },
+    {
+      "command": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node probes.mjs",
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-review-work",
+      "exit_code": 0,
+      "count": 17
+    },
+    {
+      "command": "/Users/vince/.bun/bin/bun probes.mjs",
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-review-work",
+      "exit_code": 0,
+      "count": 17
+    },
+    {
+      "command": "node whitespace.mjs",
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-review-work",
+      "exit_code": 0,
+      "nested_commands": "absolute Node24 --check for all 46 exact generated source strings"
+    },
+    {
+      "command": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node contexts.mjs",
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/independent-review-work",
+      "exit_code": 0,
+      "nested_commands": "absolute Node24 --check for all 11 exact context source strings"
+    }
+  ],
+  "evidence_sha256": {
+    "independent-review-work/whitespace.json": "8adf6fb223717b6f8ca0ae78e65fb454c108e6d3bc7bf8a06d37367d461e305b",
+    "independent-review-work/probes-bun.json": "1373d932fbe93e2aa4a51b0e4c6cf9aaae65c6a961b2d2ac0b7bd68870148931",
+    "independent-review-work/syntax-control.mjs": "25266b7612b28312d82168ad15e081fa0d51e5dce08d8124e58cab500471b70e",
+    "independent-review-work/contexts.mjs": "eaf5582a99fe5f6b0d6bf981749b55c6bc092a713b11471074898d623da13b30",
+    "independent-review-work/probes.mjs": "ec473de3c8ad4bea4588f221b2cbce7d878457b2bd49b230f9bfff28af338625",
+    "independent-review-work/leaf.mjs": "7d254bce56e69ac05e3f8319e6306f660c99d074b35522c799cdf532b8f19720",
+    "independent-review-work/context-syntax.mjs": "fe54fb333cd444fbdea18ad7d5aec8786054307bba912f9aa828c64e5b8b5851",
+    "independent-review-work/whitespace.mjs": "65a1ff3f2110896fd4ae031a84cdaa493819afde610d963f4a12f7c30e71196d",
+    "independent-review-work/probes-node.json": "7c1b2a1244beaf9ba8637fbb2b7a8a89a5cfda229b7f65d0759a7e0e142455fc",
+    "independent-review-work/whitespace-baseline-differential.json": "517ec3f126a61f3ba4d7e5f21b41260ccd92c656fe90bdebcfbec3484f704ecf",
+    "independent-review-work/package.json": "6dc1b06d6b093e9cccb20bee06a93836eee0420ae26803ca2ce4065d82f070d1",
+    "independent-review-work/unicode-contexts.json": "ed45338f6efd9bd7ce13e0dc205e0c3de1a534f692612819792a4988546339ca",
+    "independent-review-work/initial-failed-probes-bun.json": "afb7c08bfd4ce9456827f61fb2894bb0184c82d85e6a1ffc02c676e3decf2216",
+    "independent-review-work/initial-failed-probes-node.json": "01fc99e1c0010e459b374179bcd7419644a2bf95898f67f3674a48971bb683c4",
+    "independent-review-work/verification.json": "cb4f5165c2092e009eb3b1c2d90a63f62c689d755eaefa967293ea3ce854dc86",
+    "independent-review-work/compile.mjs": "5fb3157ee9c03c96544c9692dd370530c2e01ce6e51344a1289f674a67691f02",
+    "independent-review-work/independent-negative-hosts.json": "92550bda91cfdc7a6c4d173454a96442f0b75ab5d128e568dbf3282f5f449a0a"
+  }
+}

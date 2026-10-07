@@ -1,0 +1,52 @@
+{
+  "owner": "D03 map child",
+  "run_id": "codex-step7-20261007T002305Z",
+  "base": "70fe33e2655afa0a4b91fb17853a84d7727edebe",
+  "status": "qualified_preserving_source_ready_pending_independent_review_and_R3_delivery",
+  "runtime_untouched": false,
+  "released_files": [
+    {
+      "path": "packages/cloudflare/test/raw-source-map-contract.test.ts",
+      "sha256": "879771aa9af09b49593dc41901b04de56091655a1d4d6b9fcaf9282277108f90"
+    },
+    {
+      "path": "packages/cloudflare/test/fixtures/raw-source-map-contract.json",
+      "sha256": "9099f386c64d25a8f848125213c18620aba5a13e4e520fe0f3219f08ebdca23a"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113"
+    }
+  ],
+  "original_runtime_sha256": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+  "released_runtime_sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+  "evidence": {
+    "root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03",
+    "manifest_sha256": "a00b46e1b7cf70cb3f3a5a4b75235052c4d57856e0a0c88307dc6cd93d215f0d",
+    "comparison_sha256": "518f5e666d41c0837bdacd0e6f9726926de6c0bfef4876cfbcba48ace2e67f14",
+    "host_closure_sha256": "9f52e4a7148476b39f70a4e2b68b9d18a06e352804166b29c147975684e10a9e"
+  },
+  "tests": {
+    "actual_current_mapper_before": 284,
+    "actual_current_mapper_after": 284,
+    "candidate_fixed_decode_per_host": 277,
+    "candidate_fixed_lookup_per_host": 910,
+    "candidate_stress_maps_per_host": 4171,
+    "candidate_stress_lookups_per_host": 16684,
+    "hosts": [
+      "Node24.21.0",
+      "Bun1.4.2"
+    ]
+  },
+  "residual": [
+    "R3 exact dependency manifest/lock delivery",
+    "independent review",
+    "affected original sourcemap invoke suite and installed Worker/browser closure where claimed"
+  ],
+  "write_lease_released": true,
+  "command_slot_released": true,
+  "active_handles": [],
+  "source_write_ack_pending": false,
+  "native_preparation": "HOLD",
+  "root_ACK": "Explicit root ACK in session released runtime adapter-only write lease"
+}

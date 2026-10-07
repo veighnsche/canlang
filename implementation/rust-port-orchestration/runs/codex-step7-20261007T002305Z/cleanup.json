@@ -1,0 +1,9 @@
+{
+  "owner": "Codex",
+  "all_live_handles_released": true,
+  "private_root_retained": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z",
+  "reason": "Exact raw proof/reproduction and source-current review handoff",
+  "pending_cleanup": "Only run-owned disposable build/test copies after evidence retention handoff; preserve raw witnesses/pins/published tarballs and all foreign/shared resources",
+  "foreign_or_shared_resources_deleted": false,
+  "no_native_timers_or_Muse_processes_started": true
+}

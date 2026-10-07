@@ -6,13 +6,16 @@
   "effort": "high",
   "write_files": [
     "packages/cloudflare/test/raw-source-map-contract.test.ts",
-    "packages/cloudflare/test/fixtures/raw-source-map-contract.json"
+    "packages/cloudflare/test/fixtures/raw-source-map-contract.json",
+    "packages/cloudflare/src/runtime/sourcemap.ts"
   ],
-  "execution_authorized": true,
-  "gate": "actual candidate E01 compatibility gate; runtime source lease withheld pending verdict",
+  "execution_authorized": false,
+  "gate": "Accepted bounded preserving decoder/dependency/written Worker closure; no D04/tarball/native credit",
   "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03",
-  "writer_released": false,
-  "command_released": false,
-  "status": "dispatched",
-  "ack_observed": true
+  "writer_released": true,
+  "command_released": true,
+  "status": "independently_accepted_and_committed",
+  "ack_observed": true,
+  "runtime_lease_authorized": true,
+  "commit": "d078e9f"
 }

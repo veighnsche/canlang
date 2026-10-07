@@ -1,0 +1,62 @@
+{
+  "completed_at_utc": "2026-10-07T00:53:42.049768+00:00",
+  "phase": "finite_step7_completed",
+  "source_commits": {
+    "D03+R3": "d078e9f",
+    "D02-leaf": "688b866"
+  },
+  "accepted_packets": [
+    "step7:D02 (repaired pure leaf)",
+    "step7:D03 (preserving numeric decoding adapter)",
+    "step7:R3 (dependency and written Worker codec closure)"
+  ],
+  "independent_reviews": [
+    "review-D02-initial.json (failed, retained)",
+    "review-D02.json (renewed accepted)",
+    "review-D03.json",
+    "review-R3.json"
+  ],
+  "root_joined_check": "joined-source-check.json",
+  "checks": {
+    "affected_import_map_suites": "409/409 in3suites",
+    "existing_delivery_consumers": "71/71 in4suites",
+    "source_typecheck_and_final_private_full_emit": "exit0",
+    "actual_hosts": "Node24.21.0/Bun1.4.2 cold synchronous entry and native Unicode map checks",
+    "written_Worker": "153explicitmodules; real mapper raw/numeric controls; DBauth401boot; missing/corruptcodec startuprefused",
+    "independent_D02": "All initial46Unicode+11contexts repaired;82caseprobes,18literalidentities perhost,354mapUTF16points and12nativehostthrows",
+    "source_current_reuse": "53unchanged existing emittedJS; only unadopted hostimportleaf changed, absent Workergraph"
+  },
+  "original_ledger": {
+    "unchanged_from_baseline": true,
+    "sha256": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e",
+    "identities": 333,
+    "required_remaining": 234,
+    "no_original_status_or_dependency_advancement": true
+  },
+  "remaining_gates": [
+    "D04 import caller adoption, source-map composition and derived fallback diagnostics",
+    "D02 separator-dense parse budget and existing Bun raw-surrogate path residual remain explicit",
+    "Standalone installed package/browser qualification and broader installed/default/native/Wasm gates",
+    "Original T08/T26 and source-current whole workflow/receipt/authority/durable acceptance",
+    "Values full registry/profile/lifetime and actual work prepared producer/consumer trace gates",
+    "Native preparation/native-release HUMAN HOLD",
+    "Shared DECISIONS/filetree writer handoff; no merge/checkpoint advancement"
+  ],
+  "economical_dispatches": "model-dispatches.json (Solhigh full known-risk compatibility/integration; Luna low finite ledger extraction)",
+  "writer_and_command_handles_released": true,
+  "supervisor": {
+    "id": "canlang-challenge-implementation",
+    "status": "PAUSED",
+    "interval_minutes": 15,
+    "supported_tool_update_verified": true
+  },
+  "future_dispatch_authorized": false,
+  "publication_or_push_or_deployment": false,
+  "cleanup_owner": "Codex",
+  "cleanup_policy": "Retain compact committed reports plus exact private raw proofs/outputs for reproducibility and handoff; no shared or foreign resource cleanup",
+  "build_in_public": {
+    "png": "output/build-in-public/canlang-step7-sourcemaps-d078e9f-20261007.png",
+    "tweet": "output/build-in-public/canlang-step7-sourcemaps-d078e9f-20261007.txt",
+    "published": false
+  }
+}

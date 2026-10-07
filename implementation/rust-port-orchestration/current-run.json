@@ -4,6 +4,165 @@
   "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z",
   "base": "70fe33e2655afa0a4b91fb17853a84d7727edebe",
   "source_pins": {
+    "packages/cloudflare/package.json": "f8d1483482dde2a5b333d35196584e4b61c9985c9825249a4aba9e9716d51252",
+    "bun.lock": "aec35229030b460af533a1aee3b95581f0eab7cc82a166ea00fbb871d8bc1a4a",
+    "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+    "packages/cloudflare/src/deploy/bundle.ts": "ad64a7974ecd4b245f2c58d8edf8a243e8f9a4df939b026178cc590a330b34fb",
+    "packages/cloudflare/src/runtime/modules.ts": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230",
+    "packages/cloudflare/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "packages/cloudflare/src/runtime/invoke.ts": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+    "packages/cloudflare/test/modules.test.ts": "2c9f319c5ffec8d490bd199d372724dd240886dffc95358328c30fe942c47ba3",
+    "packages/cloudflare/test/deploy-bundle.test.ts": "6c006032979736f8d72660fc920c7f1fea69c987993e55e4054b14ae76a39b63",
+    "packages/cloudflare/test/deploy-package-assets.test.ts": "41b9ea6dc9ce4598b76be010f5cfb3a5d4a9e59022e5c60c08609de9768a0110",
+    "packages/cloudflare/test/sourcemap.test.ts": "8dea333cf3bbf89c89186f69a47ba5810dfd5730da85a9d6e031b694c9c2011b",
+    "implementation/remaining-work/tasks.json": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e",
+    "packages/cloudflare/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+    "packages/cloudflare/test/module-imports-contract.test.ts": "e2e455bd302963491d01b3c34de532742b92120c2d0c725e6d3a57a04fc5d912",
+    "packages/cloudflare/test/fixtures/import-policy-contract.json": "222da767ca3334adc43d81a9c5d508d7fc8e904462378dbb98d506a28dc41c80",
+    "packages/cloudflare/test/raw-source-map-contract.test.ts": "879771aa9af09b49593dc41901b04de56091655a1d4d6b9fcaf9282277108f90",
+    "packages/cloudflare/test/fixtures/raw-source-map-contract.json": "9099f386c64d25a8f848125213c18620aba5a13e4e520fe0f3219f08ebdca23a"
+  },
+  "execution_authorized": false,
+  "human_release": "Human step7 finite import/map packets in this chat",
+  "preparation_hold": true,
+  "future_dispatch_authorized": false,
+  "schema_version": 1,
+  "phase": "step7_completed_finite_scope",
+  "roles": [
+    {
+      "role": "D02",
+      "agent": "/root/step7_imports",
+      "packet_id": "step7:D02",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "write_files": [
+        "packages/cloudflare/src/deploy/module-imports.ts",
+        "packages/cloudflare/test/module-imports-contract.test.ts",
+        "packages/cloudflare/test/fixtures/import-policy-contract.json"
+      ],
+      "execution_authorized": false,
+      "gate": "Finite source-ready import leaf; productioncaller adoption partial until D04",
+      "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02",
+      "writer_released": true,
+      "command_released": true,
+      "status": "independently_accepted_and_committed",
+      "ack_observed": true,
+      "commit": "688b866"
+    },
+    {
+      "role": "D03",
+      "agent": "/root/step7_maps",
+      "packet_id": "step7:D03",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "write_files": [
+        "packages/cloudflare/test/raw-source-map-contract.test.ts",
+        "packages/cloudflare/test/fixtures/raw-source-map-contract.json",
+        "packages/cloudflare/src/runtime/sourcemap.ts"
+      ],
+      "execution_authorized": false,
+      "gate": "Accepted finite preserving decoder and actual staged dependency closure; broader installed/host gates separate",
+      "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03",
+      "writer_released": true,
+      "command_released": true,
+      "status": "independently_accepted_and_committed",
+      "ack_observed": true,
+      "commit": "d078e9f"
+    },
+    {
+      "role": "R3",
+      "agent": "/root/step7_delivery",
+      "packet_id": "step7:R3",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "write_files": [
+        "packages/cloudflare/package.json",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/test/deploy-bundle.test.ts"
+      ],
+      "execution_authorized": false,
+      "gate": "Accepted finite preserving decoder and actual staged dependency closure; broader installed/host gates separate",
+      "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3",
+      "writer_released": true,
+      "command_released": true,
+      "status": "independently_accepted_and_committed",
+      "ack_observed": true,
+      "commit": "d078e9f"
+    }
+  ],
+  "supervisor_status": "PAUSED",
+  "previous_completed_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z",
+  "executor": "Codex collaboration subagents",
+  "native_timers": [],
+  "foreign_writer": "Independent compiler agent retains compiler/ and dirty shared documentation; preserved",
+  "updated_at_utc": "2026-10-07T00:53:42.049768+00:00",
+  "material_progress": {
+    "D02": "Independent renewed Unicode/literal/refusal/map review accepted actual repaired source and root joinedcompile; committed688b866; D04 callers held.",
+    "D03": "Independent numeric/order/raw identity differential accepted and committed d078e9f.",
+    "R3": "Independent dependency integrity and 153-module written Worker codec closure accepted and committed d078e9f."
+  },
+  "heavy_grants": [
+    {
+      "owner": "/root/step7_review_imports",
+      "slot": 1,
+      "scope": "Renewed independent import leaf review private checks",
+      "released": true
+    },
+    {
+      "owner": "Codex",
+      "slot": 2,
+      "scope": "Final private joined source typecheck/emit and byte freshness",
+      "released": true,
+      "handle": "session90154",
+      "result": "exit0; currentprivate full Cloudflare emit;53unchanged existing JS and only unadopted import leaf changed"
+    }
+  ],
+  "review": {
+    "D03": {
+      "accepted_source": true,
+      "report_sha256": "25d962dc7ec7a50219d71e7a309eded38df1894892afc875799314b1cdbb77ef",
+      "closure_review_pending": false,
+      "commit": "d078e9f"
+    },
+    "D02": {
+      "status": "independently_accepted_repaired_finite_leaf",
+      "finding": "P1 valid ECMAScript Unicode whitespace/line terminator imports are omitted/misclassified by pinned lexer",
+      "initial_report_sha256": "3653c67deda49ecd1e70bafdcb0c533e34b2c0a3f154d6aa93a5e987a2fd3a6a",
+      "repair_scope": "Original3leaf files and privateevidence only",
+      "delivery_attempts": [
+        "Initialfollowupblockedactivecapacity; no startupinferred",
+        "Sameowner followupafterD03reviewcompletion actuallyACKed/started"
+      ],
+      "report_sha256": "1137c1aa1cd002593586ae1bcbf2fd79ad1e91f0465c98261a9cffb8919419a3",
+      "commit": "688b866",
+      "remaining_actionable_findings": []
+    },
+    "R3": {
+      "status": "independently_accepted_bounded_D03_delivery_dependency_join",
+      "report_sha256": "ee8c908fa05c6c1e9b6a04defa221c4f7dd137bde4c5d64b584cde256534dd59",
+      "commit": "d078e9f",
+      "controls": "Wrongversion/export, malformedmanifest, physicallymissingpackage/manifest/ESM and real syntaxcorrupt Worker refused; 71actualconsumertests."
+    }
+  },
+  "source_commits": {
+    "D03+R3": "d078e9f",
+    "D02-leaf": "688b866"
+  },
+  "root_joined_check": "joined-source-check.json",
+  "pending_handles": [],
+  "active_writer_leases": [],
+  "completion_reference": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z/completion.json",
+  "remaining_gates": [
+    "D04 import caller adoption, source-map composition and derived fallback diagnostics",
+    "D02 separator-dense parse budget and existing Bun raw-surrogate path residual remain explicit",
+    "Standalone installed package/browser qualification and broader installed/default/native/Wasm gates",
+    "Original T08/T26 and source-current whole workflow/receipt/authority/durable acceptance",
+    "Values full registry/profile/lifetime and actual work prepared producer/consumer trace gates",
+    "Native preparation/native-release HUMAN HOLD",
+    "Shared DECISIONS/filetree writer handoff; no merge/checkpoint advancement"
+  ],
+  "runtime_lifecycle_note": "All finite owners/reviewers released source and command handles. A residual R3 pending_init collaboration handle was interrupted after accepted closure; no startup or work was inferred.",
+  "baseline_source_pins": {
     "packages/cloudflare/package.json": "5a24f4fcd94013cedf1acedab37dd1a4f57cf47c1b4a15e0fcac70e719a4b07c",
     "bun.lock": "28eeb481d3b6ce420b1ccc6573581572b47da25a0b8eb5ff833d1143e5cc4c19",
     "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
@@ -17,72 +176,5 @@
     "packages/cloudflare/test/sourcemap.test.ts": "8dea333cf3bbf89c89186f69a47ba5810dfd5730da85a9d6e031b694c9c2011b",
     "implementation/remaining-work/tasks.json": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e"
   },
-  "execution_authorized": true,
-  "human_release": "Human step7 finite import/map packets in this chat",
-  "preparation_hold": true,
-  "future_dispatch_authorized": false,
-  "schema_version": 1,
-  "phase": "step7_running",
-  "roles": [
-    {
-      "role": "D02",
-      "agent": "/root/step7_imports",
-      "packet_id": "step7:D02",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "write_files": [
-        "packages/cloudflare/src/deploy/module-imports.ts",
-        "packages/cloudflare/test/module-imports-contract.test.ts",
-        "packages/cloudflare/test/fixtures/import-policy-contract.json"
-      ],
-      "execution_authorized": true,
-      "gate": "frozen decoded_compat pure import/edit adapter and installed pinned host entries",
-      "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02",
-      "writer_released": false,
-      "command_released": false,
-      "status": "acknowledged_preparing_source_or_private_dependencies",
-      "ack_observed": true
-    },
-    {
-      "role": "D03",
-      "agent": "/root/step7_maps",
-      "packet_id": "step7:D03",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "write_files": [
-        "packages/cloudflare/test/raw-source-map-contract.test.ts",
-        "packages/cloudflare/test/fixtures/raw-source-map-contract.json"
-      ],
-      "execution_authorized": true,
-      "gate": "actual candidate E01 compatibility gate; runtime source lease withheld pending verdict",
-      "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D03",
-      "writer_released": false,
-      "command_released": false,
-      "status": "acknowledged_preparing_source_or_private_dependencies",
-      "ack_observed": true
-    },
-    {
-      "role": "R3",
-      "agent": "/root/step7_delivery",
-      "packet_id": "step7:R3",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "write_files": [
-        "packages/cloudflare/package.json"
-      ],
-      "execution_authorized": true,
-      "gate": "sole finite dependency/delivery join; rootlock/bundle/modules reserved but writer release pending",
-      "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/R3",
-      "writer_released": false,
-      "command_released": false,
-      "status": "acknowledged_preparing_source_or_private_dependencies",
-      "ack_observed": true
-    }
-  ],
-  "supervisor_status": "ACTIVE",
-  "previous_completed_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z",
-  "executor": "Codex collaboration subagents",
-  "native_timers": [],
-  "foreign_writer": "Independent compiler agent retains compiler/ and dirty shared documentation; preserved",
-  "updated_at_utc": "2026-10-07T00:25:42.435268+00:00"
+  "source_pins_role": "Exact accepted current package inputs; baseline_source_pins preserves pre-step7 inputs."
 }
