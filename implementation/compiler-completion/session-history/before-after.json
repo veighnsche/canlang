@@ -1,0 +1,39 @@
+{
+  "batch": {
+    "publications": 1,
+    "shutdown_publications": 0
+  },
+  "retention": {
+    "before": 49,
+    "after": 1,
+    "before_text_bytes": 52519,
+    "after_text_bytes": 1072,
+    "same_analysis_calls": true,
+    "closed_pump_notifications": 0
+  },
+  "closure": {
+    "historical_lint_files_before": [
+      0
+    ],
+    "historical_lint_files_after": [],
+    "current_sources_after": [
+      2,
+      2,
+      1
+    ],
+    "public_standalone_retained_sources": 25,
+    "prior_checked_owner_codes": [
+      [],
+      [],
+      [
+        "E6011"
+      ]
+    ]
+  },
+  "multi": {
+    "last_sources_before": 36,
+    "last_sources_after": 3,
+    "last_text_bytes_after": 24744,
+    "pending_after_pump": 0
+  }
+}

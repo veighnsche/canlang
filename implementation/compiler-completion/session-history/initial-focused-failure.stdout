@@ -1,0 +1,86 @@
+
+running 8 tests
+test originally_nonexistent_selected_id_cannot_become_checked_by_append ... ok
+test catalog_absence_is_part_of_the_checked_owner_contract ... ok
+test selected_nonzero_sources_and_caller_order_are_preserved ... ok
+test complete_gate_and_test_only_acknowledgment_are_separate_from_cohort ... ok
+test swapped_source_numbering_refuses_and_rechecking_restores_ownership ... ok
+test owner_moves_catalog_clone_and_immutable_append_preserve_old_semantics_and_inventory ... ok
+test owned_control_and_foreign_equal_ids_spans_or_hashes ... ok
+test changed_or_independently_reloaded_catalog_requires_rechecking ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 32 tests
+test default_config_is_recommended_without_fixes_or_catalog ... ok
+test fix_flag_off_offers_nothing ... ok
+test deprecated_ignores_shadowed_and_nonbuiltin ... ok
+test deprecated_warns_on_deprecated_call ... ok
+test empty_description_invalid ... ok
+test comment_preserving_removal_uses_existing_atomic_fix_guards ... ok
+test duplicate_description_invalid ... ok
+test deprecated_silent_without_catalog_data ... ok
+test fix_narrows_redundant_safe_access ... ok
+test fix_refuses_stale_and_invalid ... ok
+test description_valid_cases ... ok
+test fix_removes_unreachable_statement ... ok
+test redundant_null_invalid ... ok
+test rule_codes_resolve_in_explain_catalog ... ok
+test rule_table_is_consistent ... ok
+test fixes_apply_as_batch ... ok
+test unreachable_after_return_is_analysis_error_not_lint ... ok
+test redundant_null_valid_nullable_receiver ... ok
+test shadow_warns_with_opt_in_only ... ok
+test unreachable_require_false_semicolon_sequence_has_no_fix ... ok
+test shadow_valid_cases ... ok
+test unreachable_warns_after_require_false ... ok
+test unreachable_removal_refuses_descriptions_and_malformed_inline_comments ... ok
+test unreachable_valid_cases ... ok
+test unused_let_invalid ... ok
+test unused_alias_collection_descendant_scope ... ok
+test unused_alias_invalid ... ok
+test unused_let_suppressed_by_shadowing ... ok
+test unused_alias_valid ... ok
+test unused_let_valid_reads ... ok
+test unreachable_removal_preserves_comment_lines_and_siblings ... ok
+test corpus_noise_assessment ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.82s
+
+
+running 8 tests
+test public_queued_work_does_not_revive_after_close_or_shutdown ... ok
+test real_close_clears_and_reopen_publishes_only_new_buffer ... ok
+test real_version_increment_requeries_current_source_and_edits ... ok
+test real_all_output_families_crlf_and_supplementary_utf16 ... ok
+test real_diagnostics_keep_valid_siblings_after_a_parse_error ... ok
+test real_opaque_uri_identities_keep_notifications_locations_and_edit_routing ... ok
+test real_clean_rename_includes_mutation_targets_and_rechecks ... ok
+test real_supported_reference_option_and_edit_capability_profiles ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+
+running 4 tests
+test remapped_queued_work_keeps_current_fifo_and_cannot_revive_stale_ids ... ok
+test standalone_immutable_ids_and_exact_lint_selection_survive_history ... ok
+test real_stdio_distinct_edits_close_and_reopen_use_current_text ... FAILED
+test live_documents_bound_history_and_keep_uri_aliases_distinct ... ok
+
+failures:
+
+---- real_stdio_distinct_edits_close_and_reopen_use_current_text stdout ----
+
+thread 'real_stdio_distinct_edits_close_and_reopen_use_current_text' (1690497) panicked at tests/session_history.rs:331:5:
+assertion failed: repaired.iter().any(|n|
+        n["params"]["version"] == 25 &&
+            n["params"]["diagnostics"] == json!([]))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    real_stdio_distinct_edits_close_and_reopen_use_current_text
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

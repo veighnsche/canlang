@@ -1,0 +1,91 @@
+{
+  "implementation_source_pins": {
+    "compiler/src/lsp/server.rs": {
+      "sha256": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+      "expected_sha256": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+      "match": true
+    },
+    "compiler/src/lint/driver.rs": {
+      "sha256": "567a6a43ade59d553e7ebe1634c7a436a0ad1c9a9ed44cbda442951d9de79d96",
+      "expected_sha256": "567a6a43ade59d553e7ebe1634c7a436a0ad1c9a9ed44cbda442951d9de79d96",
+      "match": true
+    },
+    "compiler/tests/session_history.rs": {
+      "sha256": "17746cf664363255e05cd479eca0aecec26efca3b42ccaa31aebb23945628658",
+      "expected_sha256": "17746cf664363255e05cd479eca0aecec26efca3b42ccaa31aebb23945628658",
+      "match": true
+    }
+  },
+  "author_log_receipt_checks": [
+    {
+      "path": "implementation/compiler-completion/session-history/focused.stdout",
+      "sha256": "2d7f347b26d4152682a01cf63afe2267ea92580089cd129afcfdfe374bde8793",
+      "matches_receipt": true
+    },
+    {
+      "path": "implementation/compiler-completion/session-history/focused.stderr",
+      "sha256": "21c23908d55690b67810f6574d7d5f44c24f4ece2ae3c50f9cb72e1a865986bf",
+      "matches_receipt": true
+    },
+    {
+      "path": "implementation/compiler-completion/session-history/session-focused.stdout",
+      "sha256": "182d05428ccb77370ee64b8e9f451ca11cd4b4995837774a04bccd4309fba017",
+      "matches_receipt": true
+    },
+    {
+      "path": "implementation/compiler-completion/session-history/session-focused.stderr",
+      "sha256": "7f4d4ae4da4f06b18e7a153e916f1ee7cf9faacfdb18675723eaed73acc9ae3c",
+      "matches_receipt": true
+    },
+    {
+      "path": "implementation/compiler-completion/session-history/lsp-unit.stdout",
+      "sha256": "3df98c971d9fb6ccdbcfb527640e53bc57c4c7eb67fee4ea6f6e8c069a3dbf0b",
+      "matches_receipt": true
+    },
+    {
+      "path": "implementation/compiler-completion/session-history/lsp-unit.stderr",
+      "sha256": "fed92b5bc467b77a36578d7333e7d0c342fd6993e2c504c65d6c8987c3b1b4c8",
+      "matches_receipt": true
+    },
+    {
+      "path": "implementation/compiler-completion/session-history/clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_receipt": true
+    },
+    {
+      "path": "implementation/compiler-completion/session-history/clippy.stderr",
+      "sha256": "c0613fda4550f0d0fd07836286484ba7a5ac5c1b6ffc9b7a6d2561b711309ea0",
+      "matches_receipt": true
+    },
+    {
+      "path": "implementation/compiler-completion/session-history/current-build.stdout",
+      "sha256": "7804f110e5faad3528b4b6e922a51ef741e6eb6aa05891139b17b414079cbcff",
+      "matches_receipt": true
+    },
+    {
+      "path": "implementation/compiler-completion/session-history/current-build.stderr",
+      "sha256": "5bf6d3c38d6e778e45f0a975c32d0609a48942c6d931c647edd04f432965c5cc",
+      "matches_receipt": true
+    }
+  ],
+  "archive_pin_checks": {
+    "/private/tmp/can-session-independent-review/libcanlang_compiler.rlib": true,
+    "/private/tmp/can-session-independent-review/libserde_json-5d66d1a0fe38a533.rlib": true,
+    "/private/tmp/can-session-independent-review/lint-aa1c794f11be4578": true,
+    "/private/tmp/can-session-independent-review/checked_cohort-71a015d860e3fdcb": true,
+    "/private/tmp/can-session-independent-review/lsp_typed_output-ea71e66763901e8c": true,
+    "/private/tmp/can-session-independent-review/session_history-43a345cc0ad61c22": true,
+    "/private/tmp/can-session-independent-review/canlang_compiler-8bc9585627feb9a7": true,
+    "/private/tmp/can-session-independent-review/can": true
+  },
+  "dependency_archive_pin_count": 150,
+  "all_dependency_pins_match": true,
+  "focus_pass_counts": {
+    "session_history": 4,
+    "lint": 32,
+    "checked_cohort": 8,
+    "lsp_typed_output": 8,
+    "lsp-unit": 30
+  },
+  "total_focused_passed": 82
+}

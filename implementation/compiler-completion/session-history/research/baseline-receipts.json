@@ -1,0 +1,50 @@
+{
+  "probe_sha256": "a112fdfd979e2267881b803905313b8aec8f90fd4515255a20c5bdcfc2defdf7",
+  "compile_argv": [
+    "rustc",
+    "--edition=2024",
+    "implementation/compiler-completion/session-history/research/probe.rs",
+    "--extern",
+    "canlang_compiler=/private/tmp/can-session-history-target/debug/libcanlang_compiler.rlib",
+    "--extern",
+    "serde_json=/private/tmp/can-session-history-target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+    "-L",
+    "dependency=/private/tmp/can-session-history-target/debug/deps",
+    "-o",
+    "/private/tmp/can-session-history-probe"
+  ],
+  "probe_commands": [
+    {
+      "argv": [
+        "/private/tmp/can-session-history-probe",
+        "batch"
+      ],
+      "exit": 0,
+      "seconds": 0.2789750099182129
+    },
+    {
+      "argv": [
+        "/private/tmp/can-session-history-probe",
+        "retention"
+      ],
+      "exit": 0,
+      "seconds": 0.0827629566192627
+    },
+    {
+      "argv": [
+        "/private/tmp/can-session-history-probe",
+        "closure"
+      ],
+      "exit": 0,
+      "seconds": 0.006818056106567383
+    },
+    {
+      "argv": [
+        "/private/tmp/can-session-history-probe",
+        "multi"
+      ],
+      "exit": 0,
+      "seconds": 0.07460999488830566
+    }
+  ]
+}

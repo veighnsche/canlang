@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "An editor session synchronously calls an analysis backend with a borrowed shared source database and current source ID. IDs denote immutable bytes only within their database owner; callers cannot hold the borrowed session database through a mutation. The session currently accumulates distinct revisions. Its callbacks can see all open documents, although supported analysis selects one file. Queued publication checks URI/version/source identity and close cancels document jobs. Separate public compilation owners are immutable append-only and may be retained; checked programs authenticate their original owner and ordered file selection. A moderate edit probe confirms retained text growth, and the lint driver visits old files outside the checked selection. The repair must bound session-owned obsolete data, restrict lint to checked files, preserve public held owners and callback signatures, and preserve pending publication and reopen behavior without expanding project analysis.",
+    "questions": {
+      "ownership": {
+        "type": "choice",
+        "instructions": "For these verified abstract semantics, which ownership alternative is most suitable overall? Balance compatibility, task identity, resource behavior and long-term maintenance; do not privilege a smaller incomplete patch.",
+        "criteria": {
+          "live_owner": "Fresh session-only storage after distinct changes and close contains exactly live texts. Deterministically remap document IDs and all still-current queued jobs; cancel stale jobs before numeric ID aliasing. External immutable databases are untouched. Trades zero retained history and narrow production scope against repeated live-document cloning/hashing.",
+          "reclamation_api": "Build an immutable snapshot storage abstraction with generational IDs and retained leases. Migrate live documents/queued jobs and compatibility callers; reclaim only snapshots whose leases have ended, preserving public legacy owners and checked provenance. Trades reduced live-set copying against new API complexity and larger compatibility closure.",
+          "bounded_history": "Keep append-only obsolete session texts until a specified revision ceiling, then rebuild from live texts and remap valid work. Preserve external owners. Trades fewer rebuilds against threshold policy, bounded but unnecessary retained data, and counter/remapping maintenance."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "ownership": {
+        "type": "choice",
+        "choice": "reclamation_api",
+        "confidence": 0.16,
+        "probabilities": {
+          "live_owner": 0.35,
+          "reclamation_api": 0.44,
+          "bounded_history": 0.21
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 683,
+      "output_tokens": 46
+    }
+  }
+}

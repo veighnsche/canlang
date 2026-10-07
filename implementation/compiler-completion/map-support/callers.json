@@ -1,0 +1,173 @@
+{
+  "scope": "all compiler Rust excluding target; lexical references include declarations and test callers, function names nearest lexical declarations",
+  "references": [
+    {
+      "file": "compiler/tests/sourcemap_contract.rs",
+      "line": 76,
+      "nearest_function": "byte_point_maps_reach_independent_decoder_and_current_consumers",
+      "text": "let coordinate = sourcemap::build(&module.path, &db, &module.lines);"
+    },
+    {
+      "file": "compiler/tests/sourcemap_contract.rs",
+      "line": 96,
+      "nearest_function": "byte_point_maps_reach_independent_decoder_and_current_consumers",
+      "text": "let snapshots = sourcemap::build("
+    },
+    {
+      "file": "compiler/tests/sourcemap_contract.rs",
+      "line": 102,
+      "nearest_function": "byte_point_maps_reach_independent_decoder_and_current_consumers",
+      "text": "let no_lines = sourcemap::build(\"empty.mjs\", &SourceDb::new(), &[]);"
+    },
+    {
+      "file": "compiler/tests/sourcemap_contract.rs",
+      "line": 122,
+      "nearest_function": "byte_point_maps_reach_independent_decoder_and_current_consumers",
+      "text": "let wire = sourcemap::to_json(&coordinate);"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 119,
+      "nearest_function": "assert_sourcemap_valid",
+      "text": "fn assert_sourcemap_valid("
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 126,
+      "nearest_function": "assert_sourcemap_valid",
+      "text": "let lines = sourcemap::decode_mappings(&m.map.mappings).expect(\"mappings decode\");"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 671,
+      "nearest_function": "golden_teamtasks_structure",
+      "text": "assert_sourcemap_valid(&artifact, i, &db, &module.path);"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 1248,
+      "nearest_function": "golden_expenseflow_structure",
+      "text": "assert_sourcemap_valid(&artifact, i, &db, &module.path);"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 3244,
+      "nearest_function": "sourcemap_mappings_round_trip",
+      "text": "let map = sourcemap::build(\"a.mjs\", &db, &module.lines);"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 3249,
+      "nearest_function": "sourcemap_mappings_round_trip",
+      "text": "let lines = sourcemap::decode_mappings(&map.mappings).expect(\"decode\");"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 3268,
+      "nearest_function": "sourcemap_mappings_round_trip",
+      "text": "assert!(sourcemap::decode_mappings(\";;;,,,\").is_err());"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 3269,
+      "nearest_function": "sourcemap_mappings_round_trip",
+      "text": "assert!(sourcemap::decode_mappings(\"!\").is_err());"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 3622,
+      "nearest_function": "sourcemap_emitted_fixture_plain_snippet",
+      "text": "let map = sourcemap::build(\"plain.mjs\", &db, &module.lines);"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 3629,
+      "nearest_function": "sourcemap_emitted_fixture_plain_snippet",
+      "text": "let lines = sourcemap::decode_mappings(&map.mappings).expect(\"decode\");"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 3646,
+      "nearest_function": "sourcemap_emitted_fixture_plain_snippet",
+      "text": "let json = sourcemap::to_json(&map);"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 4890,
+      "nearest_function": "t15a_example_separation",
+      "text": "assert_sourcemap_valid(&artifact, index, &db, &module.path);"
+    },
+    {
+      "file": "compiler/tests/codegen.rs",
+      "line": 6102,
+      "nearest_function": "t31_hook_run_shape",
+      "text": "assert_sourcemap_valid(&artifact, 0, &db, \"t31-hook\");"
+    },
+    {
+      "file": "compiler/src/codegen/artifact.rs",
+      "line": 243,
+      "nearest_function": "assemble",
+      "text": "map: sourcemap::build(&js.entry.path, db, &js.entry.lines),"
+    },
+    {
+      "file": "compiler/src/codegen/artifact.rs",
+      "line": 249,
+      "nearest_function": "assemble",
+      "text": "map: sourcemap::build(&package.path, db, &package.lines),"
+    },
+    {
+      "file": "compiler/src/codegen/artifact.rs",
+      "line": 309,
+      "nearest_function": "assemble",
+      "text": "map: sourcemap::build(&t.module.path, db, &t.module.lines),"
+    },
+    {
+      "file": "compiler/src/codegen/sourcemap.rs",
+      "line": 155,
+      "nearest_function": "decode_mappings",
+      "text": "pub fn decode_mappings(mappings: &str) -> Result<Vec<Vec<DecodedSegment>>, String> {"
+    },
+    {
+      "file": "compiler/src/codegen/sourcemap.rs",
+      "line": 268,
+      "nearest_function": "duplicate_paths_keep_snapshot_ids_and_byte_columns",
+      "text": "let decoded = decode_mappings(&map.mappings).unwrap();"
+    },
+    {
+      "file": "compiler/src/codegen/sourcemap.rs",
+      "line": 305,
+      "nearest_function": "empty_and_missing_sources_keep_names_and_generated_rows",
+      "text": "for row in decode_mappings(&map.mappings).unwrap() {"
+    },
+    {
+      "file": "compiler/src/codegen/sourcemap.rs",
+      "line": 329,
+      "nearest_function": "compatibility_rows_and_unsorted_segments_remain_in_authored_order",
+      "text": "decode_mappings(\"\").unwrap(),"
+    },
+    {
+      "file": "compiler/src/codegen/sourcemap.rs",
+      "line": 332,
+      "nearest_function": "compatibility_rows_and_unsorted_segments_remain_in_authored_order",
+      "text": "let rows = decode_mappings(\";G,D;;AAAA;AAAAA;\").unwrap();"
+    },
+    {
+      "file": "compiler/src/codegen/sourcemap.rs",
+      "line": 358,
+      "nearest_function": "malformed_numeric_and_delta_overflow_return_errors",
+      "text": "assert!(decode_mappings(bad).is_err(), \"accepted {bad:?}\");"
+    },
+    {
+      "file": "compiler/src/codegen/sourcemap.rs",
+      "line": 361,
+      "nearest_function": "malformed_numeric_and_delta_overflow_return_errors",
+      "text": "assert!(decode_mappings(&format!(\"{large},{large},{large}\")).is_err());"
+    },
+    {
+      "file": "compiler/src/codegen/sourcemap.rs",
+      "line": 366,
+      "nearest_function": "malformed_numeric_and_delta_overflow_return_errors",
+      "text": "assert!(decode_mappings(&format!(\"{segment};{segment};{segment}\")).is_err());"
+    }
+  ]
+}

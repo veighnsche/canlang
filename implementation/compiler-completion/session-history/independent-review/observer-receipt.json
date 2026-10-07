@@ -1,0 +1,24 @@
+{
+  "compile_argv": [
+    "rustc",
+    "--edition=2024",
+    "implementation/compiler-completion/session-history/independent-review/observer.rs",
+    "--extern",
+    "canlang_compiler=/private/tmp/can-session-independent-review/libcanlang_compiler.rlib",
+    "--extern",
+    "serde_json=/private/tmp/can-session-independent-review/libserde_json-5d66d1a0fe38a533.rlib",
+    "-L",
+    "dependency=/private/tmp/can-session-independent-review/deps",
+    "-o",
+    "/private/tmp/can-session-independent-review/observer"
+  ],
+  "compile_exit": 0,
+  "compile_seconds": 0.5019871670010616,
+  "observer_sha256": "4032d067e12368a11ae6979f6d6df1e6cefcf42bc9bca77e8591a137a15300a7",
+  "run_argv": [
+    "/private/tmp/can-session-independent-review/observer"
+  ],
+  "run_exit": 0,
+  "run_seconds": 0.44648870899982285,
+  "binary_sha256": "f6471fd2fcd39a7a56d7c82e6558f0eb9da8da41b62b6828f5fb8f20bb408866"
+}

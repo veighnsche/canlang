@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "A synchronous editor owns a private source database. Source identifiers are local to one immutable append-only database owner. Callbacks borrow that owner and the current identifier; they cannot retain the borrow across edits. The shared view currently includes open documents and past revisions. Queries analyze only the selected document. Queued diagnostics use URI, version and source identity to reject superseded work; close cancels its tasks. Public compiler users can retain an independent database and checked program; checked lowering requires the original owner and exact selected identifiers. Modest repeated distinct edits demonstrably grow stored snapshots; lint also traverses historical database entries instead of checked selections. Preserve public database immutability, current callback signatures, all-live-document callback view, queue currentness and supported single-document analysis. Minimize historical storage and unrelated lint work without adding workspace analysis. Each option must lint only selected checked sources and keep old independent owners valid.",
+    "questions": {
+      "ownership": {
+        "type": "choice",
+        "instructions": "Which complete ownership policy best satisfies these same requirements with the least maintenance burden and resource cost? Choose one, accounting for live-set copy cost, API migration and threshold complexity equally.",
+        "criteria": {
+          "live_owner": "Replace only the editor-private database on distinct source changes and close with a fresh owner containing every live document. Remap all current document IDs and queued current work atomically; discard stale tasks before ID reuse. No history retained by the editor. Public independent append-only owners remain unchanged. Costs copy/hash every live document on replacement and requires an explicit callback owner-lifetime contract.",
+          "reclamation_api": "Introduce generation-aware snapshot handles and explicit retained-owner leases in source storage, migrate editor documents and queues to those handles, reclaim only unleased history. Keep legacy immutable ID owners compatible and checked lowering tied to the exact retained owner. Costs a broader storage/API and caller migration; can avoid copying unaffected live texts.",
+          "bounded_history": "Retain immutable history inside the private session up to a fixed revision budget, then replace it with a fresh all-live owner and atomically remap current docs/tasks. Keep public independent owners unchanged. Costs threshold/counter policy and bounded historical overhead; reduces copying frequency but keeps unnecessary revisions until threshold."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "ownership": {
+        "type": "choice",
+        "choice": "reclamation_api",
+        "confidence": 0.33,
+        "probabilities": {
+          "bounded_history": 0.22,
+          "live_owner": 0.23,
+          "reclamation_api": 0.55
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 733,
+      "output_tokens": 46
+    }
+  }
+}
