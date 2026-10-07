@@ -311,7 +311,7 @@ export interface FanoutChildJoinOutcome {
  * - Outcome/checkpoint co-commit: every TERMINAL child update's
  *   recordId appears in a SAME-FANOUT checkpoint update's staged
  *   completed set in the same batch, and every checkpoint update
- *   co-occurs with at least one terminal child update. An outcome
+ *   co-occurs with at least one SAME-FANOUT terminal child update. An outcome
  *   without checkpoint cover, or a checkpoint advance without its
  *   outcome, is refused — never acknowledged unfinished, never
  *   checkpointed apart.
@@ -417,6 +417,7 @@ export function assertFanoutChildJoin(batch: CommitBatch): void {
       continue;
     }
   }
+  const coveredFanoutIds = new Set<string>();
   for (const outcome of terminalOutcomes) {
     const cover = checkpointCovers.get(outcome.fanoutId);
     if (cover === undefined || !cover.has(outcome.recordId)) {
@@ -426,13 +427,16 @@ export function assertFanoutChildJoin(batch: CommitBatch): void {
           'has no same-fanout checkpoint cover in this batch.',
       );
     }
+    coveredFanoutIds.add(outcome.fanoutId);
   }
-  if (checkpointCovers.size > 0 && terminalOutcomes.length === 0) {
-    throw new StateError(
-      'validation',
-      'Fanout child join: checkpoint updates carry no terminal outcome in this batch ' +
-        '(cursor-only maintenance uses the plain store port).',
-    );
+  for (const fanoutId of checkpointCovers.keys()) {
+    if (!coveredFanoutIds.has(fanoutId)) {
+      throw new StateError(
+        'validation',
+        `Fanout child join: checkpoint updates carry no terminal outcome for ${JSON.stringify(fanoutId)} in this batch ` +
+          '(cursor-only maintenance uses the plain store port).',
+      );
+    }
   }
 }
 

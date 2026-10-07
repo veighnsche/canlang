@@ -190,3 +190,5 @@ State validated declaration attachments retain typed secrecy; canonical host own
 Cloudflare preparation uses the defining deploy build/catalog functions via compatibility aliases, with short host delegation. Narrow full-closure reduction is independently accepted; function identity/name differences, old dependency-profile controls, entry-write lifecycle residual and receipt/installed/native gates remain explicit. No complete checkpoint advance.
 
 Interfaces CSV commit preserves source-row effect/result order after admission, resolving selected operation IDs without reordering the caller batch. Narrow mounted correction is independently accepted; consent, own-key/grammar and replay-security remain separate owners/gates. No complete checkpoint advance.
+
+State child-join port now enforces the same-fanout converse before store submission; actual memory/D1/DO commit/refusal/rollback controls independently accept the narrow invariant. Scheduler pagination and fresh admitted effects remain runtime obligations; broader original compiled/durable/restart gates and complete checkpoint stay open.
