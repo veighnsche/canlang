@@ -11,3 +11,12 @@ Independent Sol high challenge corrected seven concrete queue defects and found 
 Defining owners remain the existing package owners; root owns this planning registry and living-plan/decision refresh. Compiler source/docs/tests remain with the foreign compiler agent, and only released inputs may be consumed. No live writer acknowledgment or lease is claimed. Exact shared Interfaces/State/Cloudflare files have short future handoffs; canonical L3 already orders retained replay correctly, so IP07 targets the actual Interfaces guards.
 
 No implementation, product execution, active plan completion, merge, complete checkpoint advance, timer launch, publication or deployment occurred.
+
+
+## 2026-10-07 — Economical package repair delegation (planning only)
+
+**Accepted allocation policy; proposed dispatch settings:** use the least expensive supported reliable model/effort for each finite packet, including retries and required review. [Per-packet settings](model-allocation.md) separate coding, independent local review and specified records/fixtures across all 48 packets. The 20 ready recipes select Luna medium 4, Sol low 5, Sol medium 10 and Sol high 1. Sol high remains assigned to actual unresolved ABI/authority/lifecycle/resource/installed joins; Astra is reserved for existing required critical or evidenced consequential stages. Model and effort are rechecked at dispatch, with compact context and concrete escalation rather than broad repeated prompts.
+
+**Evidence and limits:** official model-selection, reasoning and pricing guidance informed the choices; this is a risk-informed starting allocation, not measured model performance or a savings forecast. Independent Sol medium metadata review corrected the review-only final packet's escalation and then verified all 48 settings. Thirty-seven metadata/source checks pass. Ordinary local review does not satisfy approval-pending or required critical Astra gates; matching-source scope can reuse accepted evidence without duplicate reviews.
+
+**Preserved scope:** the technical queue projection is unchanged. Task identities/status/prerequisites/files/acceptance, held native preparation, foreign compiler ownership and living filetree checkpoint stay intact. This applies only to future delegated packets; no product execution, timer, paid model experiment, backend cutover, publication or implementation authorization.
