@@ -1,0 +1,433 @@
+{
+  "scope": "Current-source bounded native debug/release arithmetic consumer qualification",
+  "source_pins": {
+    "compiler/src/analysis/resolve.rs": "5538730df14427cf308d5785d722e5dacbf8ba99c98ca43b6fea309ddf8773a3",
+    "compiler/src/analysis/types.rs": "1d15148f53566841b9e7253c8a3a616b4fd31a1bc9ad8457d0aed49ddc19c8cc",
+    "compiler/src/codegen/ir.rs": "fa4f619e27c9b95864c4bae545323baa079925f073476cfae7ff0bf77fbc94f3",
+    "compiler/src/codegen/js.rs": "a691584450b0f0c5a0457f10461e23a231226da7daa5fa62eeadab9abf8a97ed",
+    "compiler/tests/flat_expression_runtime.rs": "5b37024b24fb1e92842b15db1323b96d385ac27a6d96471d494b0e98631806d2"
+  },
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "observer_sha256": "46fce4fc60644e6a9f815ff60db3680e47040ef2e95aff669c69be003490ba4d",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "node": "v24.21.0",
+  "limits": [
+    "Child core0; arithmetic/stage/runtime30s each; build/test300s",
+    "No allocator/RSS/exhaustion or universal depth/other-host claim",
+    "Full scenario runtime remains gated by missing real stdlib require/hasRole exports",
+    "Runtime sums use the debug lowered expression and real stdlib; permanent tests also execute unmodified compiled derive modules",
+    "Async long-tree IIFE adds a Promise continuation; tested operand order/once/laziness, not arbitrary cross-task microtask equivalence"
+  ],
+  "binary_pins": {
+    "compiler/target/debug/can": "27d6e6a9485f59f3f8db67c9fe1b0d586139a45b786dd3fff812ceefcba52535",
+    "compiler/target/debug/libcanlang_compiler.rlib": "8976b50a99eb6a37a21650b82f6459364cbf260064e353a0c88f58832c440110",
+    "compiler/target/release/can": "e708dc5d36ac6ef66ff56e00d305080d2cc5b11936aec04487215a939c4e6aa7"
+  },
+  "observer_binary_sha256": "68d6b28acef4cde1aa5dec337cfcce54111375406b6d9df72a153f4c097209e0",
+  "authored_source_pins": {
+    "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-64.can": "e8af709524eb520cd6d861646c3aaf97248e5b7a9807f04ba0c9d240f4d974a0",
+    "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-512.can": "80683ea2ea25ad66cfc7ad3a33e33aae2ddd23d9731954e6a71b55db93b28827",
+    "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-1024.can": "21a3fc16d97f2865aa9d1501fa8ecae6859003e932a61b6119b1eb2fb6a0ca8c",
+    "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-2048.can": "331a09ca070132f926b051f885a50c5406d437011c63949cc48fff1ecbc634ee",
+    "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-3000.can": "a25d5ac5829b51afdbfecc74e2665bde5874594a91d096d6be1aecc5684db329"
+  },
+  "logical3000_source_sha256": "5c256fa20b087d3e7fa022eb698e329f6bd82035a8ea714e901c973459efbe68",
+  "results": [
+    {
+      "name": "debug-build",
+      "command": [
+        "cargo",
+        "build",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--bin",
+        "can"
+      ],
+      "exit": 0,
+      "seconds": 0.191,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "debug-build.stdout",
+      "stderr_sha256": "2b34696728dc82b03cbf6311d7e3a6a41658bbde097834c3010a78bc82842c1a",
+      "stderr_bytes": 72,
+      "stderr": "debug-build.stderr"
+    },
+    {
+      "name": "observer-build",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/flat-stack/stages.rs",
+        "--extern",
+        "canlang_compiler=compiler/target/debug/libcanlang_compiler.rlib",
+        "-L",
+        "dependency=compiler/target/debug/deps",
+        "-o",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages"
+      ],
+      "exit": 0,
+      "seconds": 2.68,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "observer-build.stdout",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr": "observer-build.stderr"
+    },
+    {
+      "name": "debug-all-64",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-64.can",
+        "all"
+      ],
+      "exit": 0,
+      "seconds": 0.289,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "debug-all-64.stdout",
+      "stderr_sha256": "d7665ef736e2bb43015d6eeeccc8ddf36a4b40c14d0b62e2eac5d969665768e9",
+      "stderr_bytes": 116,
+      "stderr": "debug-all-64.stderr"
+    },
+    {
+      "name": "debug-all-512",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-512.can",
+        "all"
+      ],
+      "exit": 0,
+      "seconds": 0.07,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "debug-all-512.stdout",
+      "stderr_sha256": "d7665ef736e2bb43015d6eeeccc8ddf36a4b40c14d0b62e2eac5d969665768e9",
+      "stderr_bytes": 116,
+      "stderr": "debug-all-512.stderr"
+    },
+    {
+      "name": "debug-all-1024",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-1024.can",
+        "all"
+      ],
+      "exit": 0,
+      "seconds": 0.24,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "debug-all-1024.stdout",
+      "stderr_sha256": "d7665ef736e2bb43015d6eeeccc8ddf36a4b40c14d0b62e2eac5d969665768e9",
+      "stderr_bytes": 116,
+      "stderr": "debug-all-1024.stderr"
+    },
+    {
+      "name": "debug-lower-1024",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-1024.can",
+        "lower"
+      ],
+      "exit": 0,
+      "seconds": 0.241,
+      "stdout_sha256": "dec7ca48a4558e93365bc096d5ec5252db2aa88bc03bbf3797f9a4ac338aa5fa",
+      "stdout_bytes": 71487,
+      "stderr_sha256": "e580afe1ce02f8ae07c149d25dc9cec9c88c4b89dfa78f08cdd7fb3e3669748a",
+      "stderr_bytes": 170
+    },
+    {
+      "name": "node-sum-1024",
+      "command": [
+        "node",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/1024.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.048,
+      "stdout_sha256": "4f71bb761ace37c88826cd8cc1c948e1cf5b5d0cd153dc651a6efdb3dfb9f2b1",
+      "stdout_bytes": 5,
+      "stdout": "node-sum-1024.stdout",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr": "node-sum-1024.stderr"
+    },
+    {
+      "name": "debug-all-2048",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-2048.can",
+        "all"
+      ],
+      "exit": 0,
+      "seconds": 0.888,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "debug-all-2048.stdout",
+      "stderr_sha256": "d7665ef736e2bb43015d6eeeccc8ddf36a4b40c14d0b62e2eac5d969665768e9",
+      "stderr_bytes": 116,
+      "stderr": "debug-all-2048.stderr"
+    },
+    {
+      "name": "debug-lower-2048",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-2048.can",
+        "lower"
+      ],
+      "exit": 0,
+      "seconds": 0.924,
+      "stdout_sha256": "96a627df99a74aa556caabbbeec8e1461b355c37af44b3ef95ecc404b6b7396a",
+      "stdout_bytes": 145215,
+      "stderr_sha256": "2a8a50fb15a62fa701d1359ba960840f2e7a383817748ceda81f8048a5e8c2f6",
+      "stderr_bytes": 171
+    },
+    {
+      "name": "node-sum-2048",
+      "command": [
+        "node",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/2048.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.038,
+      "stdout_sha256": "3ed26e56eb4e40cb4d731e5e170955b7d03de05ec5486ef291e950aa119ba250",
+      "stdout_bytes": 5,
+      "stdout": "node-sum-2048.stdout",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr": "node-sum-2048.stderr"
+    },
+    {
+      "name": "debug-all-3000",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-3000.can",
+        "all"
+      ],
+      "exit": 0,
+      "seconds": 1.967,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "debug-all-3000.stdout",
+      "stderr_sha256": "d7665ef736e2bb43015d6eeeccc8ddf36a4b40c14d0b62e2eac5d969665768e9",
+      "stderr_bytes": 116,
+      "stderr": "debug-all-3000.stderr"
+    },
+    {
+      "name": "debug-lower-3000",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-3000.can",
+        "lower"
+      ],
+      "exit": 0,
+      "seconds": 1.98,
+      "stdout_sha256": "9b4c994cf350c5a919bf9567793cb8fab0f742b148f5cac74c52cdfa438f8685",
+      "stdout_bytes": 213759,
+      "stderr_sha256": "ccf65ba3ef58591354a007867fde2fe9a621ca4d7b1039a08034f0f890156828",
+      "stderr_bytes": 171
+    },
+    {
+      "name": "node-sum-3000",
+      "command": [
+        "node",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/3000.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.04,
+      "stdout_sha256": "f5aee7df0c39c9481508d69657ba4a0d39b7198bf97969ad11d50207a7f60228",
+      "stdout_bytes": 5,
+      "stdout": "node-sum-3000.stdout",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr": "node-sum-3000.stderr"
+    },
+    {
+      "name": "debug-clone-3000",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-3000.can",
+        "clone"
+      ],
+      "exit": 0,
+      "seconds": 1.931,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "debug-clone-3000.stdout",
+      "stderr_sha256": "8439029e7b25ffc3319276dc4ef5d24699caa683759ad8b35a4deb260202ca45",
+      "stderr_bytes": 139,
+      "stderr": "debug-clone-3000.stderr"
+    },
+    {
+      "name": "debug-logical-3000",
+      "command": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/stages",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-flat-final-4fjbbgyz/logical-3000.can",
+        "all"
+      ],
+      "exit": 0,
+      "seconds": 23.18,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "debug-logical-3000.stdout",
+      "stderr_sha256": "d7665ef736e2bb43015d6eeeccc8ddf36a4b40c14d0b62e2eac5d969665768e9",
+      "stderr_bytes": 116,
+      "stderr": "debug-logical-3000.stderr"
+    },
+    {
+      "name": "focused-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--test",
+        "flat_expression_runtime",
+        "--test",
+        "b4_check",
+        "--test",
+        "b4_resolve",
+        "--test",
+        "b4_witness",
+        "--test",
+        "codegen"
+      ],
+      "exit": 0,
+      "seconds": 52.585,
+      "stdout_sha256": "36d32b55e4c728faea07fbc9f343fa11cc0a6e805bf96699da89e9200fd399ce",
+      "stdout_bytes": 19645,
+      "stdout": "focused-tests.stdout",
+      "stderr_sha256": "7fb05fc083329c63fa9bff523c49fb4f3f0596830a7d8de08d00e558ff449437",
+      "stderr_bytes": 617,
+      "stderr": "focused-tests.stderr"
+    },
+    {
+      "name": "release-build",
+      "command": [
+        "cargo",
+        "build",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--release",
+        "--bin",
+        "can"
+      ],
+      "exit": 0,
+      "seconds": 27.801,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout": "release-build.stdout",
+      "stderr_sha256": "95491fe105a43537983c09b74744ecd7da1b385f8c16bfba33c2ea143c06cee1",
+      "stderr_bytes": 141,
+      "stderr": "release-build.stderr"
+    },
+    {
+      "name": "release-check-1024",
+      "command": [
+        "compiler/target/release/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "packages/values/dist/catalog.json",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-1024.can"
+      ],
+      "exit": 0,
+      "seconds": 0.214,
+      "stdout_sha256": "70537b9598de45a86b4fbfc0117c2ff557fece7419a87a7710e8b6240ba2311d",
+      "stdout_bytes": 336,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "release-compile-1024",
+      "command": [
+        "compiler/target/release/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "packages/values/dist/catalog.json",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-1024.can"
+      ],
+      "exit": 0,
+      "seconds": 0.062,
+      "stdout_sha256": "2de611d36679b02bbc4ddd6e48f2143adb0be238933239a663844c902ee01371",
+      "stdout_bytes": 75387,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "release-check-2048",
+      "command": [
+        "compiler/target/release/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "packages/values/dist/catalog.json",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-2048.can"
+      ],
+      "exit": 0,
+      "seconds": 0.171,
+      "stdout_sha256": "c633e66f0147e3446892947d58d09c2c078f0f995e8889d52f63ff1731569412",
+      "stdout_bytes": 336,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "release-compile-2048",
+      "command": [
+        "compiler/target/release/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "packages/values/dist/catalog.json",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-2048.can"
+      ],
+      "exit": 0,
+      "seconds": 0.223,
+      "stdout_sha256": "c14c75a04143440adbccc458cedf1aad9a69552920edbb4dafcaebe235fc821f",
+      "stdout_bytes": 151163,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "release-check-3000",
+      "command": [
+        "compiler/target/release/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "packages/values/dist/catalog.json",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-3000.can"
+      ],
+      "exit": 0,
+      "seconds": 0.361,
+      "stdout_sha256": "9b4204e8cf4730ea0f657bba6c11d6fec8c920ce9a18429b58e1dbac1edbbca1",
+      "stdout_bytes": 336,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "release-compile-3000",
+      "command": [
+        "compiler/target/release/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "packages/values/dist/catalog.json",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-3000.can"
+      ],
+      "exit": 0,
+      "seconds": 0.447,
+      "stdout_sha256": "a15011a77940a43a061f885ef7d8f877c7531d098c3e361a94d35e8a8477979c",
+      "stdout_bytes": 221611,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    }
+  ]
+}

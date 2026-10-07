@@ -3065,49 +3065,84 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode a binary operator (comparison, logic, arithmetic, `in`).
-    fn decode_binary(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
-        let parts = kids(node);
-        let mut operands = parts.iter().filter(|n| is_expression(n.kind));
-        let (left, right) = (operands.next(), operands.next());
-        let op = parts.iter().find_map(|n| match n.kind {
-            SyntaxKind::Name | SyntaxKind::Punct => Some(self.text(n.span)),
-            _ => None,
-        });
-        let (Some(left), Some(right), Some(op)) = (left, right, op) else {
-            return IrExpr::Unsupported {
-                what: "binary operator".to_string(),
-                why: "missing operands or operator".to_string(),
-            };
-        };
-        let op = match op {
-            "+" => IrBinOp::Add,
-            "-" => IrBinOp::Sub,
-            "*" => IrBinOp::Mul,
-            "/" => IrBinOp::Div,
-            "%" => IrBinOp::Mod,
-            "==" => IrBinOp::Eq,
-            "!=" => IrBinOp::Ne,
-            "<" => IrBinOp::Lt,
-            "<=" => IrBinOp::Le,
-            ">" => IrBinOp::Gt,
-            ">=" => IrBinOp::Ge,
-            "and" => IrBinOp::And,
-            "or" => IrBinOp::Or,
-            "??" => IrBinOp::Coalesce,
-            "in" => IrBinOp::In,
-            _ => {
-                return IrExpr::Unsupported {
-                    what: format!("binary operator `{op}`"),
-                    why: "no §13 lowering exists".to_string(),
-                };
-            }
-        };
-        let _ = ty;
-        IrExpr::Binary {
-            op,
-            left: Box::new(self.decode_expr(scope, left)),
-            right: Box::new(self.decode_expr(scope, right)),
+    fn decode_binary(&mut self, scope: &Scope, node: &SyntaxNode, _ty: &ResolvedType) -> IrExpr {
+        enum Work<'n> {
+            Eval(&'n SyntaxNode),
+            Finish(&'n SyntaxNode, IrBinOp),
         }
+        let mut work = vec![Work::Eval(node)];
+        let mut values = Vec::new();
+        while let Some(step) = work.pop() {
+            let current = match step {
+                Work::Finish(current, op) => {
+                    let right = values.pop().expect("binary right operand");
+                    let left = values.pop().expect("binary left operand");
+                    values.push(TypedExpr::new(
+                        IrExpr::Binary {
+                            op,
+                            left: Box::new(left),
+                            right: Box::new(right),
+                        },
+                        self.node_type(current),
+                        current.span,
+                    ));
+                    continue;
+                }
+                Work::Eval(current) => current,
+            };
+            if current.kind != SyntaxKind::Binary {
+                values.push(self.decode_expr(scope, current));
+                continue;
+            }
+            let parts = kids(current);
+            let mut operands = parts.iter().filter(|n| is_expression(n.kind));
+            let (left, right) = (operands.next(), operands.next());
+            let op = parts.iter().find_map(|n| match n.kind {
+                SyntaxKind::Name | SyntaxKind::Punct => Some(self.text(n.span)),
+                _ => None,
+            });
+            let (Some(left), Some(right), Some(op)) = (left, right, op) else {
+                values.push(self.unsupported_expr(
+                    "binary operator",
+                    "missing operands or operator",
+                    self.node_type(current),
+                    current.span,
+                ));
+                continue;
+            };
+            let op = match op {
+                "+" => IrBinOp::Add,
+                "-" => IrBinOp::Sub,
+                "*" => IrBinOp::Mul,
+                "/" => IrBinOp::Div,
+                "%" => IrBinOp::Mod,
+                "==" => IrBinOp::Eq,
+                "!=" => IrBinOp::Ne,
+                "<" => IrBinOp::Lt,
+                "<=" => IrBinOp::Le,
+                ">" => IrBinOp::Gt,
+                ">=" => IrBinOp::Ge,
+                "and" => IrBinOp::And,
+                "or" => IrBinOp::Or,
+                "??" => IrBinOp::Coalesce,
+                "in" => IrBinOp::In,
+                _ => {
+                    values.push(TypedExpr::new(
+                        IrExpr::Unsupported {
+                            what: format!("binary operator `{op}`"),
+                            why: "no §13 lowering exists".to_string(),
+                        },
+                        self.node_type(current),
+                        current.span,
+                    ));
+                    continue;
+                }
+            };
+            work.push(Work::Finish(current, op));
+            work.push(Work::Eval(right));
+            work.push(Work::Eval(left));
+        }
+        values.pop().expect("binary expression result").expr
     }
 
     /// Decode a query: model domains lower through `records()` with
@@ -3377,55 +3412,58 @@ fn callee_name(db: &SourceDb, callee: &SyntaxNode) -> Option<String> {
 /// Whether an expression awaits (state-read builtins, capability calls,
 /// delivery reads): rule functions wrap `async` exactly then.
 pub fn expr_uses_async(expr: &TypedExpr) -> bool {
-    match &expr.expr {
-        IrExpr::Call { target, args } => {
-            matches!(
-                target,
-                IrCallTarget::Builtin { awaited: true, .. }
-                    | IrCallTarget::CapabilityOp(_)
-                    | IrCallTarget::DeriveFn(_)
-            ) || args.iter().any(expr_uses_async)
+    let mut work = vec![expr];
+    while let Some(current) = work.pop() {
+        match &current.expr {
+            IrExpr::Call { target, args } => {
+                if matches!(
+                    target,
+                    IrCallTarget::Builtin { awaited: true, .. }
+                        | IrCallTarget::CapabilityOp(_)
+                        | IrCallTarget::DeriveFn(_)
+                ) {
+                    return true;
+                }
+                work.extend(args);
+            }
+            IrExpr::DeliveryRead { .. } => return true,
+            IrExpr::Member { base, .. } => work.push(base),
+            IrExpr::Binary { left, right, .. } => {
+                work.push(right);
+                work.push(left);
+            }
+            IrExpr::Unary { operand, .. } => work.push(operand),
+            IrExpr::Array(items) => work.extend(items),
+            IrExpr::Object(entries) => work.extend(entries.iter().map(|(_, value)| value)),
+            IrExpr::Query(query) => {
+                match &query.domain {
+                    IrQueryDomain::Model(_) => return true,
+                    IrQueryDomain::Value { base, .. } => work.push(base),
+                }
+                work.extend(query.parent.iter().map(|v| v.as_ref()));
+                work.extend(query.where_pred.iter().map(|v| v.as_ref()));
+                work.extend(query.limit.iter().map(|v| v.as_ref()));
+                work.extend(query.archived.iter().map(|v| v.as_ref()));
+                work.extend(query.select.iter().map(|v| v.as_ref()));
+            }
+            IrExpr::Message(message) => work.extend(message.params.iter().map(|p| &p.value)),
+            IrExpr::Format { descriptor, .. } => work.push(descriptor),
+            IrExpr::HasRole { person, .. } => work.extend(person.iter().map(|v| v.as_ref())),
+            IrExpr::Lambda { body, .. } => work.push(body),
+            IrExpr::Int(_)
+            | IrExpr::Decimal(_)
+            | IrExpr::Text(_)
+            | IrExpr::Bool(_)
+            | IrExpr::Null
+            | IrExpr::Money { .. }
+            | IrExpr::DurationMs(_)
+            | IrExpr::Date(_)
+            | IrExpr::Datetime(_)
+            | IrExpr::Name(_)
+            | IrExpr::Unsupported { .. } => {}
         }
-        IrExpr::DeliveryRead { .. } => true,
-        IrExpr::Member { base, .. } => expr_uses_async(base),
-        IrExpr::Binary { left, right, .. } => expr_uses_async(left) || expr_uses_async(right),
-        IrExpr::Unary { operand, .. } => expr_uses_async(operand),
-        IrExpr::Array(items) => items.iter().any(expr_uses_async),
-        IrExpr::Object(entries) => entries.iter().any(|(_, v)| expr_uses_async(v)),
-        IrExpr::Query(query) => {
-            // A model query always awaits its `records()` call; a value
-            // query awaits exactly when its base does. The
-            // sub-expression checks stay OR-ed for nested async.
-            let domain_async = match &query.domain {
-                IrQueryDomain::Model(_) => true,
-                IrQueryDomain::Value { base, .. } => expr_uses_async(base),
-            };
-            domain_async
-                || query.parent.as_ref().is_some_and(|p| expr_uses_async(p))
-                || query
-                    .where_pred
-                    .as_ref()
-                    .is_some_and(|p| expr_uses_async(p))
-                || query.limit.as_ref().is_some_and(|p| expr_uses_async(p))
-                || query.archived.as_ref().is_some_and(|p| expr_uses_async(p))
-                || query.select.as_ref().is_some_and(|p| expr_uses_async(p))
-        }
-        IrExpr::Message(message) => message.params.iter().any(|p| expr_uses_async(&p.value)),
-        IrExpr::Format { descriptor, .. } => expr_uses_async(descriptor),
-        IrExpr::HasRole { person, .. } => person.as_ref().is_some_and(|p| expr_uses_async(p)),
-        IrExpr::Lambda { body, .. } => expr_uses_async(body),
-        IrExpr::Int(_)
-        | IrExpr::Decimal(_)
-        | IrExpr::Text(_)
-        | IrExpr::Bool(_)
-        | IrExpr::Null
-        | IrExpr::Money { .. }
-        | IrExpr::DurationMs(_)
-        | IrExpr::Date(_)
-        | IrExpr::Datetime(_)
-        | IrExpr::Name(_)
-        | IrExpr::Unsupported { .. } => false,
     }
+    false
 }
 
 /// Decode a guard: role gates (canonical or predicate spelling),
