@@ -9,6 +9,6 @@ The user has authorized finishing the remaining compiler tasks. Use the [recorde
 | ED-R09 | Accepted bounded startup/shutdown and failed-write ownership; [independent review](editor-lifecycle/independent-review-corrected.json). |
 | FAIL-R05 | Accepted handoff cleanup and finite duplex I/O; [independent review](renderer-lifecycle/independent-review.json). Broader lifecycle qualification remains open. |
 
-OUT-R04 comment preservation and remaining FAIL-R05 executable failure profiles are in progress. Concrete enum/member and compact membership-order gaps remain open under SEM-R08/S9-Q02.
+OUT-R04 [comment preservation](comment-preservation/independent-review.md), FAIL-R05 [fallible panic reporting](process-boundaries/independent-review/review.md), and the concrete SEM-R08/S9-Q02 [enum/member and membership-order corrections](enum-membership/review.md) are accepted at their recorded scopes. Broader joins and profiles stay open. FAIL-R03 frame admission is in progress.
 
 This run has performed no merge or living-plan checkpoint advance.
