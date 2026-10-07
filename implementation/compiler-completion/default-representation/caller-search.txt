@@ -1,0 +1,62 @@
+compiler/tests/typed_artifact.rs:5:    JsFieldDefault, JsMcpField, JsModel, JsModelField, JsModelFieldType, JsOperation,
+compiler/tests/typed_artifact.rs:83:                default: Some(JsFieldDefault::Literal("null".into())),
+compiler/tests/typed_artifact.rs:106:            default: Some(JsFieldDefault::Literal(
+compiler/src/codegen/js.rs:306:pub enum JsFieldDefault {
+compiler/src/codegen/js.rs:320:impl JsFieldDefault {
+compiler/src/codegen/js.rs:356:/// encode via [`literal_json`]; computed defaults map only when they
+compiler/src/codegen/js.rs:362:pub fn js_field_default(
+compiler/src/codegen/js.rs:365:) -> Option<JsFieldDefault> {
+compiler/src/codegen/js.rs:367:        return Some(JsFieldDefault::Server(js_server_init(server)));
+compiler/src/codegen/js.rs:371:        Some(IrDefault::Literal(value)) => literal_json(value).map(JsFieldDefault::Literal),
+compiler/src/codegen/js.rs:373:            parent_path(expr).map(|path| JsFieldDefault::Parent { path })
+compiler/src/codegen/js.rs:390:pub fn literal_json(expr: &TypedExpr) -> Option<String> {
+compiler/src/codegen/js.rs:531:    pub default: Option<JsFieldDefault>,
+compiler/src/codegen/js.rs:647:    pub default: Option<JsFieldDefault>,
+compiler/src/codegen/js.rs:813:impl Serialize for JsFieldDefault {
+compiler/src/codegen/js.rs:4976:                                default: js_field_default(default.as_ref(), None),
+compiler/src/codegen/js.rs:5104:                                    default: js_field_default(default.as_ref(), None),
+compiler/src/codegen/js.rs:5401:                default: Some(JsFieldDefault::Derived),
+compiler/src/codegen/js.rs:5450:            default: js_field_default(default.as_ref(), server.as_ref()),
+compiler/src/codegen/js.rs:5470:        let Some(JsFieldDefault::Literal(initial_json)) = js_field_default(default.as_ref(), None)
+compiler/tests/codegen.rs:3994:fn t15a_literal_json_exactness() {
+compiler/tests/codegen.rs:4004:    assert_eq!(js::literal_json(&int_lit(0)).as_deref(), Some("\"0\""));
+compiler/tests/codegen.rs:4006:        js::literal_json(&int_lit(1_000_000_000_000_000_000)).as_deref(),
+compiler/tests/codegen.rs:4016:    assert_eq!(js::literal_json(&neg).as_deref(), Some("\"-3\""));
+compiler/tests/codegen.rs:4019:    assert_eq!(js::literal_json(&dec).as_deref(), Some("\"1.50\""));
+compiler/tests/codegen.rs:4030:    assert_eq!(js::literal_json(&neg_dec).as_deref(), Some("\"-0.5\""));
+compiler/tests/codegen.rs:4031:    assert_eq!(js::literal_json(&text_lit("a")).as_deref(), Some("\"a\""));
+compiler/tests/codegen.rs:4033:        js::literal_json(&typed(IrExpr::Bool(true), bool_ty.clone())).as_deref(),
+compiler/tests/codegen.rs:4037:        js::literal_json(&typed(IrExpr::Null, ResolvedType::Null)).as_deref(),
+compiler/tests/codegen.rs:4048:        js::literal_json(&money).as_deref(),
+compiler/tests/codegen.rs:4052:    assert_eq!(js::literal_json(&duration).as_deref(), Some("\"30000\""));
+compiler/tests/codegen.rs:4054:    assert_eq!(js::literal_json(&date).as_deref(), Some("\"2026-10-01\""));
+compiler/tests/codegen.rs:4060:        js::literal_json(&datetime).as_deref(),
+compiler/tests/codegen.rs:4072:    assert_eq!(js::literal_json(&array).as_deref(), Some("[\"1\",\"b\"]"));
+compiler/tests/codegen.rs:4087:        js::literal_json(&object).as_deref(),
+compiler/tests/codegen.rs:4102:        js::literal_json(&money_call).as_deref(),
+compiler/tests/codegen.rs:4116:        js::literal_json(&date_call).as_deref(),
+compiler/tests/codegen.rs:4121:    assert_eq!(js::literal_json(&name), None);
+compiler/tests/codegen.rs:4132:    assert_eq!(js::literal_json(&member), None);
+compiler/tests/codegen.rs:4143:    assert_eq!(js::literal_json(&trim_call), None);
+compiler/tests/codegen.rs:4152:    assert_eq!(js::literal_json(&partial), None);
+compiler/tests/codegen.rs:4200:    assert!(js::js_field_default(None, None).is_none());
+compiler/tests/codegen.rs:4202:        js::js_field_default(Some(&IrDefault::Literal(int_lit(7))), None).expect("literal maps");
+compiler/tests/codegen.rs:4214:    let parent = js::js_field_default(
+compiler/tests/codegen.rs:4225:        js::js_field_default(
+compiler/tests/codegen.rs:4235:    let server = js::js_field_default(None, Some(&IrServer::Actor)).expect("server maps");
+compiler/tests/codegen.rs:4239:    let both = js::js_field_default(Some(&IrDefault::Literal(int_lit(1))), Some(&IrServer::Now))
+compiler/tests/codegen.rs:7066:        js::js_field_default(None, Some(&IrServer::Now))
+compiler/tests/typed_descriptors.rs:57:    input.default = Some(JsFieldDefault::Literal(
+compiler/tests/typed_descriptors.rs:137:        JsFieldDefault::Parent {
+compiler/tests/typed_descriptors.rs:143:    assert_eq!(JsFieldDefault::Derived.to_json(), r#"{"kind":"derived"}"#);
+compiler/tests/typed_descriptors.rs:151:            JsFieldDefault::Server(init).to_json(),
+compiler/tests/typed_descriptors.rs:156:    assert!(serde_json::to_string(&JsFieldDefault::Literal("invalid".into())).is_err());
+compiler/tests/typed_descriptors.rs:184:    model.fields[0].default = Some(JsFieldDefault::Literal("null".into()));
+compiler/tests/typed_descriptors.rs:219:        literal_json(&literal).unwrap(),
+compiler/tests/typed_descriptors.rs:228:        assert_eq!(literal_json(&expr(value)).unwrap(), expected);
+compiler/tests/typed_descriptors.rs:239:    assert_eq!(literal_json(&neg(IrExpr::Int(42))), Some("\"-42\"".into()));
+compiler/tests/typed_descriptors.rs:241:        literal_json(&neg(IrExpr::Decimal("1.500".into()))),
+compiler/tests/typed_descriptors.rs:244:    assert_eq!(literal_json(&neg(IrExpr::Int(i128::MIN))), None);
+compiler/tests/typed_descriptors.rs:246:        literal_json(&expr(IrExpr::Array(vec![expr(IrExpr::Name("x".into()))]))),
+compiler/tests/typed_descriptors.rs:259:        literal_json(&call(
+compiler/tests/typed_descriptors.rs:267:            literal_json(&call(id, vec![expr(IrExpr::Text("stamp".into()))])),

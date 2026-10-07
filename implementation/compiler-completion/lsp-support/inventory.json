@@ -1,0 +1,466 @@
+{
+  "scope": "read-only production audit; declarations count signature through closing brace, excluding preceding derive/doc lines",
+  "public_declarations": {
+    "compiler/src/lsp/mod.rs": [
+      {
+        "line": 7,
+        "declaration": "pub mod server;"
+      },
+      {
+        "line": 8,
+        "declaration": "pub mod transport;"
+      }
+    ],
+    "compiler/src/lsp/server.rs": [
+      {
+        "line": 32,
+        "declaration": "pub struct TextPos {"
+      },
+      {
+        "line": 34,
+        "declaration": "    pub line: u32,"
+      },
+      {
+        "line": 36,
+        "declaration": "    pub character: u32,"
+      },
+      {
+        "line": 41,
+        "declaration": "pub struct LspRange {"
+      },
+      {
+        "line": 43,
+        "declaration": "    pub start: TextPos,"
+      },
+      {
+        "line": 45,
+        "declaration": "    pub end: TextPos,"
+      },
+      {
+        "line": 50,
+        "declaration": "pub struct CompletionItem {"
+      },
+      {
+        "line": 52,
+        "declaration": "    pub label: String,"
+      },
+      {
+        "line": 56,
+        "declaration": "    pub kind: Option<String>,"
+      },
+      {
+        "line": 96,
+        "declaration": "pub struct DocLocation {"
+      },
+      {
+        "line": 98,
+        "declaration": "    pub uri: String,"
+      },
+      {
+        "line": 100,
+        "declaration": "    pub range: LspRange,"
+      },
+      {
+        "line": 105,
+        "declaration": "pub struct TextEdit {"
+      },
+      {
+        "line": 107,
+        "declaration": "    pub range: LspRange,"
+      },
+      {
+        "line": 109,
+        "declaration": "    pub new_text: String,"
+      },
+      {
+        "line": 114,
+        "declaration": "pub struct FileEdit {"
+      },
+      {
+        "line": 116,
+        "declaration": "    pub uri: String,"
+      },
+      {
+        "line": 118,
+        "declaration": "    pub range: LspRange,"
+      },
+      {
+        "line": 120,
+        "declaration": "    pub new_text: String,"
+      },
+      {
+        "line": 125,
+        "declaration": "pub struct CodeAction {"
+      },
+      {
+        "line": 127,
+        "declaration": "    pub title: String,"
+      },
+      {
+        "line": 129,
+        "declaration": "    pub kind: String,"
+      },
+      {
+        "line": 131,
+        "declaration": "    pub edits: Vec<FileEdit>,"
+      },
+      {
+        "line": 144,
+        "declaration": "pub trait LanguageAnalysis {"
+      },
+      {
+        "line": 175,
+        "declaration": "pub struct StubAnalysis;"
+      },
+      {
+        "line": 237,
+        "declaration": "pub struct RealAnalysis {"
+      },
+      {
+        "line": 246,
+        "declaration": "    pub fn new(catalog: Option<Catalog>) -> Self {"
+      },
+      {
+        "line": 257,
+        "declaration": "    pub fn from_process() -> Self {"
+      },
+      {
+        "line": 526,
+        "declaration": "pub struct Server<A: LanguageAnalysis> {"
+      },
+      {
+        "line": 539,
+        "declaration": "    pub fn new(analysis: A) -> Self {"
+      },
+      {
+        "line": 553,
+        "declaration": "    pub fn exited(&self) -> bool {"
+      },
+      {
+        "line": 558,
+        "declaration": "    pub fn exit_code(&self) -> i32 {"
+      },
+      {
+        "line": 563,
+        "declaration": "    pub fn pending_count(&self) -> usize {"
+      },
+      {
+        "line": 570,
+        "declaration": "    pub fn handle_json(&mut self, message: &Json) -> Vec<String> {"
+      },
+      {
+        "line": 590,
+        "declaration": "    pub fn pump(&mut self) -> Vec<String> {"
+      },
+      {
+        "line": 1188,
+        "declaration": "pub fn uri_to_path(uri: &str) -> String {"
+      },
+      {
+        "line": 1205,
+        "declaration": "pub fn run_stdio() -> i32 {"
+      }
+    ],
+    "LanguageAnalysis_complete_signature": "pub trait LanguageAnalysis {\n    /// Full-document diagnostics for the current text.\n    fn diagnostics(&self, db: &SourceDb, id: SourceId) -> Vec<Diagnostic>;\n    /// Hover markdown for a position, if any.\n    fn hover(&self, db: &SourceDb, id: SourceId, pos: TextPos) -> Option<String>;\n    /// Completion items for a position.\n    fn completions(&self, db: &SourceDb, id: SourceId, pos: TextPos) -> Vec<CompletionItem>;\n    /// Go-to-definition targets for a position.\n    fn definition(&self, db: &SourceDb, id: SourceId, uri: &str, pos: TextPos) -> Vec<DocLocation>;\n    /// Reference locations for a position.\n    fn references(&self, db: &SourceDb, id: SourceId, uri: &str, pos: TextPos) -> Vec<DocLocation>;\n    /// Rename edits for a position and new name.\n    fn rename(&self, db: &SourceDb, id: SourceId, pos: TextPos, new_name: &str) -> Vec<TextEdit>;\n    /// Raw semantic-token data array (`[line, col, len, type, mods, ...]`).\n    fn semantic_tokens(&self, db: &SourceDb, id: SourceId) -> Vec<u32>;\n    /// Code actions for a range.\n    fn code_actions(\n        &self,\n        db: &SourceDb,\n        id: SourceId,\n        uri: &str,\n        range: LspRange,\n    ) -> Vec<CodeAction>;\n}",
+    "compiler/src/lsp/transport.rs": [
+      {
+        "line": 8,
+        "declaration": "pub use crate::json::{Json, MAX_JSON_DEPTH, ParseError, parse, render};"
+      },
+      {
+        "line": 12,
+        "declaration": "pub const MAX_MESSAGE_BYTES: usize = 64 << 20;"
+      },
+      {
+        "line": 17,
+        "declaration": "pub const MAX_HEADER_BYTES: usize = 64 << 10;"
+      },
+      {
+        "line": 32,
+        "declaration": "pub fn read_message<R: BufRead>(reader: &mut R) -> io::Result<Option<Vec<u8>>> {"
+      },
+      {
+        "line": 160,
+        "declaration": "pub fn write_message<W: Write>(writer: &mut W, body: &[u8]) -> io::Result<()> {"
+      },
+      {
+        "line": 167,
+        "declaration": "pub mod error_code {"
+      },
+      {
+        "line": 169,
+        "declaration": "    pub const PARSE: i64 = -32700;"
+      },
+      {
+        "line": 171,
+        "declaration": "    pub const INVALID_REQUEST: i64 = -32600;"
+      },
+      {
+        "line": 173,
+        "declaration": "    pub const METHOD_NOT_FOUND: i64 = -32601;"
+      },
+      {
+        "line": 175,
+        "declaration": "    pub const INVALID_PARAMS: i64 = -32602;"
+      },
+      {
+        "line": 177,
+        "declaration": "    pub const INTERNAL: i64 = -32603;"
+      },
+      {
+        "line": 179,
+        "declaration": "    pub const SERVER_NOT_INITIALIZED: i64 = -32002;"
+      },
+      {
+        "line": 187,
+        "declaration": "pub struct RpcCall {"
+      },
+      {
+        "line": 189,
+        "declaration": "    pub id: Option<Json>,"
+      },
+      {
+        "line": 191,
+        "declaration": "    pub method: String,"
+      },
+      {
+        "line": 193,
+        "declaration": "    pub params: Option<Json>,"
+      },
+      {
+        "line": 198,
+        "declaration": "pub struct RpcCallError {"
+      },
+      {
+        "line": 200,
+        "declaration": "    pub id: Option<Json>,"
+      },
+      {
+        "line": 205,
+        "declaration": "pub(crate) fn integer_value(value: &Json) -> Option<i32> {"
+      },
+      {
+        "line": 261,
+        "declaration": "pub(crate) fn valid_id(value: &Json) -> bool {"
+      },
+      {
+        "line": 266,
+        "declaration": "pub fn parse_call(message: &Json) -> Result<RpcCall, RpcCallError> {"
+      },
+      {
+        "line": 310,
+        "declaration": "pub fn response_ok(id: &Json, result: Json) -> String {"
+      },
+      {
+        "line": 320,
+        "declaration": "pub fn response_err(id: Option<&Json>, code: i64, message: &str) -> String {"
+      },
+      {
+        "line": 337,
+        "declaration": "pub fn notification(method: &str, params: Json) -> String {"
+      }
+    ],
+    "compiler/src/json.rs": [
+      {
+        "line": 18,
+        "declaration": "pub fn to_compact_string<T: serde::Serialize + ?Sized>(\n    value: &T,\n) -> Result<String, serde_json::Error> {"
+      },
+      {
+        "line": 25,
+        "declaration": "pub(crate) fn to_string_with_formatter<\n    T: serde::Serialize + ?Sized,\n    F: serde_json::ser::Formatter,\n>(\n    value: &T,\n    formatter: F,\n) -> Result<String, serde_json::Error> {"
+      },
+      {
+        "line": 39,
+        "declaration": "pub(crate) fn write_compatible_escape<W: ?Sized + std::io::Write>(\n    writer: &mut W,\n    escape: serde_json::ser::CharEscape,\n) -> std::io::Result<()> {"
+      },
+      {
+        "line": 63,
+        "declaration": "pub const MAX_JSON_DEPTH: usize = 64;"
+      },
+      {
+        "line": 70,
+        "declaration": "pub enum Json {"
+      },
+      {
+        "line": 87,
+        "declaration": "    pub fn get(&self, key: &str) -> Option<&Json> {"
+      },
+      {
+        "line": 95,
+        "declaration": "    pub fn as_str(&self) -> Option<&str> {"
+      },
+      {
+        "line": 103,
+        "declaration": "    pub fn as_bool(&self) -> Option<bool> {"
+      },
+      {
+        "line": 111,
+        "declaration": "    pub fn as_i64(&self) -> Option<i64> {"
+      },
+      {
+        "line": 124,
+        "declaration": "    pub fn as_arr(&self) -> Option<&[Json]> {"
+      },
+      {
+        "line": 134,
+        "declaration": "pub struct ParseError {"
+      },
+      {
+        "line": 136,
+        "declaration": "    pub offset: usize,"
+      },
+      {
+        "line": 138,
+        "declaration": "    pub message: String,"
+      },
+      {
+        "line": 150,
+        "declaration": "pub fn parse(text: &str) -> Result<Json, ParseError> {"
+      },
+      {
+        "line": 336,
+        "declaration": "pub fn render(value: &Json) -> String {"
+      }
+    ]
+  },
+  "target_counts": [
+    {
+      "file": "compiler/src/lsp/transport.rs",
+      "symbol": "pub fn response_ok",
+      "start": 310,
+      "end": 316,
+      "physical_declaration_lines": 7
+    },
+    {
+      "file": "compiler/src/lsp/transport.rs",
+      "symbol": "pub fn response_err",
+      "start": 320,
+      "end": 334,
+      "physical_declaration_lines": 15
+    },
+    {
+      "file": "compiler/src/lsp/transport.rs",
+      "symbol": "pub fn notification",
+      "start": 337,
+      "end": 343,
+      "physical_declaration_lines": 7
+    },
+    {
+      "file": "compiler/src/lsp/server.rs",
+      "symbol": "pub struct TextPos",
+      "start": 32,
+      "end": 37,
+      "physical_declaration_lines": 6
+    },
+    {
+      "file": "compiler/src/lsp/server.rs",
+      "symbol": "pub struct LspRange",
+      "start": 41,
+      "end": 46,
+      "physical_declaration_lines": 6
+    },
+    {
+      "file": "compiler/src/lsp/output.rs",
+      "symbol": "pub(super) fn range",
+      "start": 44,
+      "end": 49,
+      "physical_declaration_lines": 6
+    }
+  ],
+  "render_target_total": 29,
+  "carrier_target_total": 18,
+  "selected_pins": {
+    "compiler/Cargo.toml": {
+      "sha256": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+      "frozen_sha256": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+      "matches_frozen": true
+    },
+    "compiler/Cargo.lock": {
+      "sha256": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+      "frozen_sha256": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+      "matches_frozen": true
+    },
+    "compiler/src/lib.rs": {
+      "sha256": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+      "frozen_sha256": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+      "matches_frozen": true
+    },
+    "compiler/src/lsp/mod.rs": {
+      "sha256": "722f436d11ac0cfdbf0a04ed958f7c75c86e31d98118adcdb6b0fba6fe11421e",
+      "frozen_sha256": "722f436d11ac0cfdbf0a04ed958f7c75c86e31d98118adcdb6b0fba6fe11421e",
+      "matches_frozen": true
+    },
+    "compiler/src/lsp/output.rs": {
+      "sha256": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c",
+      "frozen_sha256": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c",
+      "matches_frozen": true
+    },
+    "compiler/src/lsp/server.rs": {
+      "sha256": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+      "frozen_sha256": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+      "matches_frozen": true
+    },
+    "compiler/src/lsp/transport.rs": {
+      "sha256": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987",
+      "frozen_sha256": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987",
+      "matches_frozen": true
+    },
+    "compiler/src/lsp/uri.rs": {
+      "sha256": "3e7cf29690c1a257085d35f04b6dc50d0fb3255911ac6c5fdaf37e471245a08f",
+      "frozen_sha256": "3e7cf29690c1a257085d35f04b6dc50d0fb3255911ac6c5fdaf37e471245a08f",
+      "matches_frozen": true
+    },
+    "compiler/src/json.rs": {
+      "sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+      "frozen_sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+      "matches_frozen": true
+    },
+    "compiler/src/diagnostic.rs": {
+      "sha256": "2a27b52767a5f99af4b69853c5f924be5edd32b2b082abad68a65f1e6b37bc2d",
+      "frozen_sha256": "2a27b52767a5f99af4b69853c5f924be5edd32b2b082abad68a65f1e6b37bc2d",
+      "matches_frozen": true
+    },
+    "compiler/src/source.rs": {
+      "sha256": "7188ed986a95ca47696f0286eccba5ecc5198cea0b596a7412472999fe4bbda9",
+      "frozen_sha256": "7188ed986a95ca47696f0286eccba5ecc5198cea0b596a7412472999fe4bbda9",
+      "matches_frozen": true
+    },
+    "compiler/src/ide/queries.rs": {
+      "sha256": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5",
+      "frozen_sha256": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5",
+      "matches_frozen": true
+    },
+    "compiler/tests/lsp_admission.rs": {
+      "sha256": "b5a8d3f4fd35f421585c899e6f9f5720a2764a27c0469fe523442a3ba29f083e",
+      "frozen_sha256": "b5a8d3f4fd35f421585c899e6f9f5720a2764a27c0469fe523442a3ba29f083e",
+      "matches_frozen": true
+    },
+    "compiler/tests/lsp_frame_reader.rs": {
+      "sha256": "79f85a4dc8c39cf40b71c90a3bfe25d1ebf45a2d96b6a45f1112084c47129a74",
+      "frozen_sha256": "79f85a4dc8c39cf40b71c90a3bfe25d1ebf45a2d96b6a45f1112084c47129a74",
+      "matches_frozen": true
+    },
+    "compiler/tests/lsp_typed_output.rs": {
+      "sha256": "2ade57e0df122a34e3f1dff4c341bbe708e1462f73136304ccd0afeb8bbedb90",
+      "frozen_sha256": "2ade57e0df122a34e3f1dff4c341bbe708e1462f73136304ccd0afeb8bbedb90",
+      "matches_frozen": true
+    },
+    "compiler/tests/common/lsp_driver.rs": {
+      "sha256": "2956f76f2e78315f7b35e8ecb189042a6276e6935047b50ad1047a0d585092cb",
+      "frozen_sha256": "2956f76f2e78315f7b35e8ecb189042a6276e6935047b50ad1047a0d585092cb",
+      "matches_frozen": true
+    }
+  },
+  "all_frozen_manifest_current_drift": [
+    "compiler/src/codegen/js.rs",
+    "compiler/tests/codegen.rs"
+  ],
+  "receipt_pins": {
+    "implementation/compiler-completion/integration-after-bindings/after-message-coverage/full-suite.log": "d46afc90aa819acad189b102475f2385981632aab25d362354ecfff0c25d574a",
+    "implementation/compiler-completion/integration-after-bindings/after-message-coverage/clippy.log": "312e866f30ccf9edbe1260b835f1c382f21fe663ec3a8b4f248e06c95968960f",
+    "implementation/compiler-completion/integration-after-bindings/after-message-coverage/before-compiler-inputs.json": "5aa13d1e8ae8134079cb87b795da7506c6345fdf8e25531b401d5631c2858b1c",
+    "implementation/compiler-completion/integration-after-bindings/after-message-coverage/profile-accounting/final-run.json": "59846cb38d9dca03edda7eda682af2a63b7bf8250a1099d5ae794abf83739760"
+  },
+  "selected_test_body_count": 40,
+  "raw_search_exit": 0
+}

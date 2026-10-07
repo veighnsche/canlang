@@ -1,0 +1,48 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--locked",
+    "--offline",
+    "--test",
+    "decimal_runtime",
+    "--test",
+    "typed_descriptors",
+    "--test",
+    "typed_artifact",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 0,
+  "log_sha256": "5cc2766ae9a938ade7739fb83e8b0c4eed91834394d6c4f2e82956bae9cf6880",
+  "selected_final_pins": {
+    "compiler/src/codegen/js.rs": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+    "compiler/src/codegen/ir.rs": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+    "compiler/src/analysis/types.rs": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+    "packages/values/dist/src/decimal.js": "76ab588810caa54fa6edbcc5647d2e090f0d01aa11de4d84fb293d27e7fcddb9",
+    "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+    "packages/stdlib/src/index.ts": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09",
+    "packages/stdlib/dist/src/index.js": "0aff4dc3cbd6da5dd9896e547ccee05d8e13b54e2d76956e0d2e175568e21293",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "compiler/tests/codegen.rs": "a0717776903d4dfaca52876d91b66be506116b588a3dbcd424a97582681cda9a",
+    "compiler/tests/decimal_runtime.rs": "f84ca05db37c182d5a964d4432cd3a6ded5ddcc67ead5ad4d39814cb6289b6b5",
+    "selected.can": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+    "execute.mjs": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+    "compiler/tests/fixtures/decimal-runtime/source.can": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+    "compiler/tests/fixtures/decimal-runtime/execute.mjs": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250"
+  },
+  "source_inputs_unchanged": true,
+  "scope": "Fresh relocated permanent Decimal fixture2checks plus existing6typeddescriptor+2typedartifact checks; real Node/public package body availability and explicit default metadata limits remain.",
+  "body_accounting": {
+    "decimal_runtime": 2,
+    "typed_artifact": 2,
+    "typed_descriptors": 6,
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0,
+    "optional_body_skips": 0
+  }
+}

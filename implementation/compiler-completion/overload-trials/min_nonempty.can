@@ -1,0 +1,5 @@
+app T
+Given
+ derive g():int = min([1,2])
+When
+Then

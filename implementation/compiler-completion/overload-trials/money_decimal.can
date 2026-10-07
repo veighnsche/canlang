@@ -1,0 +1,5 @@
+app T
+Given
+ derive g():money = money(1.5,"EUR")
+When
+Then

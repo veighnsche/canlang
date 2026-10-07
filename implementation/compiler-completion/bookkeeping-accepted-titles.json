@@ -19,5 +19,10 @@
   "2026-10-08 — Date and datetime have distinct ICU requirements (accepted bounded)",
   "2026-10-08 — Retain public descriptor and fix fragments (accepted retention)",
   "2026-10-08 — Qualify the integrated native compiler after bounded repairs (accepted profile)",
-  "2026-10-08 — Empty named message signatures still cover placeholders (accepted bounded)"
+  "2026-10-08 — Empty named message signatures still cover placeholders (accepted bounded)",
+  "2026-10-08 — Exact Decimal expressions use the existing constructor (accepted bounded)",
+  "2026-10-08 — Retain public LSP builders and source position carriers (accepted distinct retentions)",
+  "2026-10-08 — Retain the public encoded artifact default carrier (accepted retention)",
+  "2026-10-08 — Bound overload-trial conclusions to actual consumers (accepted qualification)",
+  "2026-10-08 — Refresh native compiler qualification after Decimal lowering (accepted profile)"
 ]

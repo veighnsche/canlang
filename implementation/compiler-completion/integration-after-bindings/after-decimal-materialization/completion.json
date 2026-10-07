@@ -1,0 +1,25 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--locked",
+    "--offline",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 0,
+  "log_sha256": "f4a8c2d6a2bdf0019f7476599ba078c4d5f206ab56fd8b358c23495182a8f5d3",
+  "passed": 1154,
+  "failed": 0,
+  "ignored": 0,
+  "test_binary_runs": 66,
+  "result_summaries": 67,
+  "nonzero_summaries": 65,
+  "empty_summaries": 2,
+  "optional_body_skip_lines": [
+    "SKIP mode 4750: this host did not retain the requested fixture bits"
+  ],
+  "end_head": "06bc25d1dd12fec6bd1f66502f93b09dddab1b06"
+}

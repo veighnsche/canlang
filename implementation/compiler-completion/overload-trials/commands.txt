@@ -1,0 +1,8 @@
+Initial inspection used git rev-parse HEAD; rg on compiler/src/analysis/types.rs and existing selected-call evidence; sed of selected trial ranges. Two incorrect initial path/glob searches returned errors; no resulting mutation.
+
+Exact public harness command, run from /Users/vince/Projects/canlang:
+cargo run --offline --manifest-path implementation/compiler-completion/overload-trials/harness/Cargo.toml --target-dir implementation/compiler-completion/overload-trials/target > implementation/compiler-completion/overload-trials/qualification.stdout 2> implementation/compiler-completion/overload-trials/qualification.stderr
+
+Attempt 1 receipt: attempt-1.stdout/stderr. It stopped on an incorrect control expectation: Invalid/Zone passes the compiler shape-only timezone admission. The invalid control was changed to whitespace-bearing not a zone; no producer fixture/catalog/source was altered. Second run exit 0.
+
+Generated target build tree removed after recording executable hash; Cargo.lock, source, raw stdout/stderr and catalog snapshot preserved.

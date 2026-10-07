@@ -1,0 +1,36 @@
+{
+  "status": "verified_private_cli_and_exact_fixture_compile",
+  "executable": "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+  "executable_sha256": "b2608559e9af0e934a0727faad1d31aee43528cb87a9359f3576a6d8b3db3a7e",
+  "version_stdout": "can 0.1.0 (commit 0134ebb0; language 1.0; schema 1)",
+  "source_commit": "0134ebb01b978831e07e6428bd15512de75e610a",
+  "compiler_input_manifest": "integration-after-bindings/after-decimal-materialization/before-compiler-inputs.json",
+  "compiler_input_manifest_sha256": "6451a206cc8ff88ecb6e441704fb461a976a74b00e6685c9ecb3c4e8c5d5898b",
+  "named_compiler_inputs": 121,
+  "named_inputs_unchanged_during_copy_and_compile": true,
+  "build_attribution": "Root owns shared Cargo test build from the frozen121input source snapshot; compilation completed and tests executing before CLI copy. Hash matches shared executable before/after copy. Git metadata/build inputs observed separately; no private rebuild or claim of arbitrary producer graph equivalence.",
+  "fixture_source": "compiler/tests/state_machines.rs::compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui rawImages fixture, copied without source rewriting.",
+  "fixture": "/private/tmp/can-compiler-0134ebb0-page-handoff/Images.can",
+  "fixture_sha256": "960ba9a4bf278ecd4e22769a5c4830868cb68b1a83673511017cd42cdc50987e",
+  "catalog": "packages/values/dist/catalog.json",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "compile_command": [
+    "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+    "compile",
+    "--format=json",
+    "--catalog",
+    "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+    "/private/tmp/can-compiler-0134ebb0-page-handoff/Images.can"
+  ],
+  "compile_exit_code": 0,
+  "compile_artifact": "/private/tmp/can-compiler-0134ebb0-page-handoff/artifact.json",
+  "compile_artifact_sha256": "b72b27edc8df17942d832f3d1f5dcb0ab8ca803388cc71564b1af68990707950",
+  "permission_scope": "Finite existingImages fixture source\u2192CompileArtifact.sources/pages\u2192unchanged generatedmodule/export\u2192descriptor.poll/render at package owner. Private output only; no compiler source/build/shared target mutation. Query/store.load/fixed poll token are test-context, not authority/browser/cache/mount/deployment qualification.",
+  "native_suite_status": "Completed1154pass/0fail/0ignored; namedinputs unchanged and metadata HEAD movement recorded separately. Frozen private executable/hash remain unchanged.",
+  "additional_evidence_use": {
+    "fixture": "New private VerifiedContext.can member projection/comparison fixture permitted as a separate source/actual-runtime experiment; preserve original Images and historical witnesses.",
+    "scope": "Read-only compiler operation via frozen private CLI and pinned catalog; private sources/artifacts/modules/results only. No compiler/package source edits, rebuild/shared target mutation or new context/public scalar/permission policy.",
+    "consumer_requirement": "Use actual admitted canonical call.context and actual public constructors/comparators. Record existing actor/caller, operation/name/id/source, team and clock carrier mismatches or refusals; do not invent trusted metadata, replace emitted expressions, silently coerce clock/context values or claim authority/browser/deployed behavior.",
+    "default_join": "Accepted artifact String/default support retention and bounded native Decimal constructor are documented in default-representation/independent-review/review.md and temporal-values/decimal-materialization/independent-review/REVIEW.md. Native metadata-to-wire-schema refusal is a precondition observation; production default/hydration/admission remains unestablished and broader references stay open. No new default/codec representation or State patch is selected."
+  }
+}
