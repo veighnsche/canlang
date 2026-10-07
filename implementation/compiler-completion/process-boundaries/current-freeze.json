@@ -1,0 +1,38 @@
+{
+  "head": "e284d1426d15dcac840bca537b928034f825242a",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "pins": {
+    "compiler/src/main.rs": "0ffc541bd55a96f5d3779eb59b0e7ef3e0ef119956ec8363af13942c1c46f610",
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "compiler/tests/process_boundaries.rs": "64f3be20ed41ecf9d9d5e745ec9d3bd1bbb0a28652948bb14aa4422664db8842",
+    "compiler/tests/exe.rs": "e27860b8d6727dd70690479da8db38df05ced1d9a6cf1d5964df9a0708ffc83a",
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "implementation/compiler-completion/process-boundaries/verify.py": "e46a5927c43bdda8aca8301881ad0bf585d92c7ac3e79c600144562877bbeae0"
+  },
+  "checks": [
+    {
+      "command": "cargo build --manifest-path compiler/Cargo.toml --locked --offline --bin can --target-dir /private/tmp/can-process-boundaries-target",
+      "code": 0,
+      "profile": "native debug initial baseline"
+    },
+    {
+      "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline --test process_boundaries --test exe --target-dir /private/tmp/can-process-boundaries-target",
+      "code": 0,
+      "passed": 14,
+      "tests": {
+        "exe": 11,
+        "process_boundaries": 3
+      }
+    },
+    {
+      "command": "python3 implementation/compiler-completion/process-boundaries/verify.py /private/tmp/can-process-boundaries-target/debug/can implementation/compiler-completion/process-boundaries/current.json --expect-repaired",
+      "code": 0,
+      "observations": 21
+    },
+    {
+      "command": "rustfmt --check --edition 2024 compiler/src/main.rs compiler/tests/process_boundaries.rs",
+      "code": 0
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "verdict": "accept bounded main unwind-hook stderr repair; no production blocker",
+  "checks": [
+    {
+      "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline --test process_boundaries --test exe --target-dir /private/tmp/can-process-boundaries-target",
+      "exit_code": 0,
+      "passed": {
+        "process_boundaries": 3,
+        "exe": 11
+      }
+    },
+    {
+      "command": "python3 implementation/compiler-completion/process-boundaries/independent-review/probe.py",
+      "exit_code": 0,
+      "observations": 22
+    },
+    {
+      "command": "python3 implementation/compiler-completion/process-boundaries/verify.py /private/tmp/can-process-boundaries-target/debug/can implementation/compiler-completion/process-boundaries/independent-review/author-probe-replay.json --expect-repaired",
+      "exit_code": 0,
+      "observations": 21
+    }
+  ],
+  "frozen_relevant_sources_match": {
+    "compiler/src/main.rs": true,
+    "compiler/src/cli.rs": true,
+    "compiler/tests/process_boundaries.rs": true,
+    "compiler/tests/exe.rs": true,
+    "compiler/Cargo.toml": true,
+    "compiler/Cargo.lock": true,
+    "implementation/compiler-completion/process-boundaries/verify.py": true
+  },
+  "evidence_pins": {
+    "author-probe-replay.json": "3c775b359913183a11f1f8806eb2e82eff5cbf905dc8ff2db9a1bb1d74304774",
+    "probe.py": "e46f4ea87833e3dad8792b164cb1fb97d0dce10c06ac1e56c3eaac162da3ea6b",
+    "raw.json": "5014182867c70c112ca19241448ad849d0d2a417914cf4405ce28b2a03232351",
+    "review.md": "2c19c6a1f2a89e463bb616a8eba04858aeeba769c7396f21b4f881a7ea7ab240",
+    "sigchld-observation.json": "678564d300d425996e5bf0b418a84ef28fe945c781566e00a39ac23a5df7142d"
+  },
+  "limitations": [
+    "historical author binary and independently rebuilt binary are distinct pinned builds",
+    "original-main baseline links same reviewed current library; no pristine historical repository build",
+    "SIGCHLD ignore did not establish wait failure",
+    "no actual wait-error or pipe-read-error qualification; no renderer re-audit or full application claim"
+  ]
+}

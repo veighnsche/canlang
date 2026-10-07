@@ -1,0 +1,8 @@
+{
+  "head": "e67990bea304dd198e7d693be0722f348bdf3210",
+  "pins": {
+    "compiler/src/main.rs": "5e8cd0e926e46ea407ced9032706d07a3d608d1a5720f44d3f21eb0ccf688bdd",
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64"
+  }
+}

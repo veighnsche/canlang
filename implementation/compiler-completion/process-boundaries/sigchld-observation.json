@@ -1,0 +1,17 @@
+{
+  "name": "thin-inherited-sigchld-ignore",
+  "args": [
+    "run"
+  ],
+  "stdout_sink": "capture",
+  "stderr_sink": "capture",
+  "code": 37,
+  "stdout_bytes": 3,
+  "stderr_bytes": 3,
+  "stdout_sha256": "762069bc07a6e1b5df123a5ae7bd91c10daa04694fbaa17fba0cd6a8dcce8f22",
+  "stderr_sha256": "d9eb253e06987fa74a5d3189f73d9f7a8104cca786fafbb52bc9555972f5477f",
+  "stderr": "err",
+  "child_alive_after_return": false,
+  "inherited_sigchld": "SIG_IGN",
+  "wait_error_hypothesis": "Inherited SIGCHLD ignore may make wait fail; outcome retained without assuming ECHILD"
+}
