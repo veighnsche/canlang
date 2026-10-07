@@ -1,0 +1,5 @@
+PASS real client current/stale/closed/reopen diagnostics and repair clears
+PASS all seven actual providers suppress pre-cancelled calls
+PASS actual type, variable and keyword completion host identities
+PASS all seven providers suppress stale revisions and settle live cancellation
+PASS host stand-in applies current wire-version rename/action edits with Unicode/CRLF ranges

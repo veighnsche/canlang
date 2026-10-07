@@ -6,7 +6,9 @@ The user has authorized finishing the remaining compiler tasks. Use the [recorde
 | --- | --- |
 | FAIL-R04 | Accepted native build metadata correction; [independent review](build-metadata/independent-review.json). |
 | FAIL-R01 | In progress: native-debug ladder repaired; larger generated Node expressions still need consumer closure. |
-| ED-R09 | In progress: startup/shutdown repairs and finite actual-process qualification. |
+| ED-R09 | Accepted bounded startup/shutdown and failed-write ownership; [independent review](editor-lifecycle/independent-review-corrected.json). |
 | FAIL-R05 | Accepted handoff cleanup and finite duplex I/O; [independent review](renderer-lifecycle/independent-review.json). Broader lifecycle qualification remains open. |
+
+OUT-R04 comment preservation and remaining FAIL-R05 executable failure profiles are in progress.
 
 This run has performed no merge or living-plan checkpoint advance.

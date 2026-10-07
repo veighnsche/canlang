@@ -1,0 +1,11 @@
+PASS current Can document folder
+PASS first local folder when editor is not Can
+PASS unowned Can document
+PASS remote owner falls back to local workspace
+PASS no workspace preserves process cwd
+PASS remote-only workspace preserves process cwd
+PASS activation registers document/config listeners and quick fixes
+PASS strict public API mock rejects the previous activation typo
+PASS change notifications and published diagnostic clearing
+PASS reopen uses the newly opened Can document
+PASS existing three-argument callers preserve process cwd

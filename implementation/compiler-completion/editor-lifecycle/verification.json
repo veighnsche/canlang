@@ -1,0 +1,89 @@
+{
+  "scope": "ED-R09 finite editor lifecycle",
+  "checks": [
+    {
+      "command": [
+        "node_modules/.bin/tsc",
+        "--strict",
+        "--target",
+        "es2022",
+        "--module",
+        "commonjs",
+        "--lib",
+        "es2022",
+        "--typeRoots",
+        "editors/vscode/.empty-typeroot",
+        "--outDir",
+        "editors/vscode/out",
+        "--rootDir",
+        "editors/vscode/src",
+        "editors/vscode/src/extension.ts",
+        "editors/vscode/src/client.ts"
+      ],
+      "exit": 0,
+      "output": "check-0.txt",
+      "pass_groups": 0
+    },
+    {
+      "command": [
+        "node",
+        "editors/vscode/test/client-lifecycle.cjs"
+      ],
+      "exit": 0,
+      "output": "check-1.txt",
+      "pass_groups": 14
+    },
+    {
+      "command": [
+        "node",
+        "editors/vscode/test/client-lifecycle-process.cjs"
+      ],
+      "exit": 0,
+      "output": "check-2.txt",
+      "pass_groups": 6
+    },
+    {
+      "command": [
+        "node",
+        "editors/vscode/test/server-startup.cjs"
+      ],
+      "exit": 0,
+      "output": "check-3.txt",
+      "pass_groups": 11
+    },
+    {
+      "command": [
+        "node",
+        "editors/vscode/test/client-currentness.cjs"
+      ],
+      "exit": 0,
+      "output": "check-4.txt",
+      "pass_groups": 5
+    }
+  ],
+  "files": {
+    "editors/vscode/src/client.ts": "bd58d0078350212b0dd7f7de4255a227f7a17fca5989517cd1fd45bbce7890a2",
+    "editors/vscode/src/extension.ts": "8cab194f407951acf0bd3f8d47e904e315bb4fe6b6b8083ab00fc0ff16681645",
+    "editors/vscode/test/server-startup.cjs": "2a6a3a4cc06af4c9fba1bc2de3f13e270650832d0924ed6fe25161f81a630afa",
+    "editors/vscode/test/client-lifecycle.cjs": "43638e3cb8389e8b2a4f8376d45acd67dcccede00cf0f88bb8997f323da8ebfb",
+    "editors/vscode/test/client-lifecycle-process.cjs": "d4c37131169e56bbf9c449c22bd5247d96982cb8ac5d11d18f2ba541740224a1"
+  },
+  "node": "v24.21.0",
+  "python": "Python 3.14.7",
+  "platform": "Darwin arm64",
+  "actual_can_binary_sha256": "d64430705c62463c373c83251840ea9d33154b3a01108f92412cc2b7e5180f44",
+  "baseline": {
+    "revision": "108e81c388f3e7757b1e480a1b86a4c2cc28c5e7",
+    "files": {
+      "editors/vscode/src/client.ts": "c0b650c36587c06ae3f0f6f134e7927d0670b9ca45de51f4c5d0d4d7e7692fcf",
+      "editors/vscode/src/extension.ts": "c961c485e9204dd055549be0f9b176047c7a4207d664706e26b64cacef827152"
+    },
+    "observer": "before-observe.cjs",
+    "result": "before.json",
+    "compile_output": "/tmp/can-editor-lifecycle-before/out"
+  },
+  "review_repairs": [
+    "stop cancels pending work immediately before shutdown request",
+    "synchronous failed writes retire transport and unsent document ownership; initiating requests reject"
+  ]
+}

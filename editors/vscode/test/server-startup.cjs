@@ -89,7 +89,7 @@ function startup({ folders, document, owner }, transformExtension = (source) => 
     };
     let source = fs.readFileSync(path.join(__dirname, '..', 'out', `${name}.js`), 'utf8');
     if (name === 'extension') source = transformExtension(source);
-    vm.runInNewContext(source, { exports, require: requireMock, setTimeout, clearTimeout });
+    vm.runInNewContext(source, { exports, require: requireMock, setTimeout: () => 0, clearTimeout: () => {} });
     return exports;
   };
   client = load('client');
@@ -99,6 +99,7 @@ function startup({ folders, document, owner }, transformExtension = (source) => 
   return { launch, handlers, providers, diagnosticUpdates, children, client, channel };
 }
 
+async function main() {
 for (const [name, setup, cwd] of [
   ['current Can document folder', { folders: [first, second], document: canDocument, owner: second }, second.uri.fsPath],
   ['first local folder when editor is not Can', { folders: [remote, first], document: { languageId: 'json' }, owner: second }, first.uri.fsPath],
@@ -141,6 +142,8 @@ const publish = (message) => {
 };
 const initialize = child.messages.find((message) => message.method === 'initialize');
 publish({ jsonrpc: '2.0', id: initialize.id, result: { capabilities: {} } });
+await Promise.resolve();
+await Promise.resolve();
 const uri = 'file:///workspace/first/diagnostics.can';
 const changedDocument = {
   languageId: 'can', version: 2, uri: { toString: () => uri },
@@ -171,7 +174,13 @@ assert.equal(live.diagnosticUpdates.at(-1).uri.toString(), uri);
 assert.equal(live.diagnosticUpdates.at(-1).diagnostics.length, 0);
 console.log('PASS change notifications and published diagnostic clearing');
 
-state.children[0].emit('exit', 1);
+const readyChild = state.children[0];
+const readyBody = JSON.stringify({ jsonrpc: '2.0', id: readyChild.messages[0].id, result: { capabilities: {} } });
+readyChild.stdout.emit('data', `Content-Length: ${Buffer.byteLength(readyBody)}\r\n\r\n${readyBody}`);
+await Promise.resolve();
+await Promise.resolve();
+await Promise.resolve();
+readyChild.emit('exit', 1);
 state.handlers.Open(canDocument);
 assert.equal(state.launch().options.cwd, second.uri.fsPath, 'reopen uses the newly opened Can document');
 console.log('PASS reopen uses the newly opened Can document');
@@ -179,3 +188,6 @@ console.log('PASS reopen uses the newly opened Can document');
 new state.client.CanLanguageClient(serverPath, state.channel, false).start();
 assert.deepEqual(state.launch().options, {}, 'existing three-argument callers preserve process cwd');
 console.log('PASS existing three-argument callers preserve process cwd');
+
+}
+main().catch((error) => { console.error(error); process.exitCode = 1; });

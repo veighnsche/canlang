@@ -30,6 +30,8 @@ import type { Json } from './client';
 const vscodeApi = require('vscode');
 
 let client: CanLanguageClient | null = null;
+let active = false;
+let restarting: Promise<void> | null = null;
 
 interface LspPosition {
   line: number;
@@ -385,11 +387,13 @@ function codeActionProvider(): vscode.CodeActionProvider {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  active = true;
   const channel = vscodeApi.window.createOutputChannel('Can');
 
   const startClient = (
     document: vscode.TextDocument | undefined = vscodeApi.window.activeTextEditor?.document,
   ): void => {
+    if (!active || client) { return; }
     const config = vscodeApi.workspace.getConfiguration('can');
     const serverPath = config.get<string>('serverPath', 'can');
     const trace = config.get<boolean>('traceServer', false);
@@ -406,9 +410,8 @@ export function activate(context: vscode.ExtensionContext): void {
     client = canClient;
 
     canClient.onExit = (code: number | null) => {
-      if (client === canClient) {
-        client = null;
-      }
+      if (client !== canClient) { return; }
+      client = null;
       vscodeApi.window.showErrorMessage(
         `Can language server exited (code ${code === null ? 'unknown' : code}). ` +
           'Check the Can output channel; reopen a .can file or run `Can: Restart Language Server` to retry.',
@@ -429,9 +432,8 @@ export function activate(context: vscode.ExtensionContext): void {
         }
       },
       (reason: unknown) => {
-        if (client === canClient) {
-          client = null;
-        }
+        if (client !== canClient) { return; }
+        client = null;
         vscodeApi.window.showErrorMessage(
           `Could not start the Can language server ('${serverPath} lsp'): ${String(reason)}. ` +
             'Set can.serverPath to your can binary.',
@@ -441,12 +443,14 @@ export function activate(context: vscode.ExtensionContext): void {
   };
 
   const restartServer = (): Promise<void> => {
+    if (restarting) { return restarting; }
     const stopping = client;
     client = null;
     const stopped = stopping ? stopping.stop() : Promise.resolve();
-    return stopped.then(() => {
+    restarting = stopped.then(() => {
       startClient();
-    });
+    }).finally(() => { restarting = null; });
+    return restarting;
   };
 
   startClient();
@@ -484,7 +488,7 @@ export function activate(context: vscode.ExtensionContext): void {
         // Restart-on-reopen: the previous server died (or never started).
         // Starting now re-announces every open document once the handshake
         // completes, so no explicit didOpen is needed here.
-        startClient(doc);
+        if (!restarting) { startClient(doc); }
       }
     }),
     vscodeApi.workspace.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
@@ -514,8 +518,9 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 }
 
-export function deactivate(): void {
-  const stopping = client ? client.stop() : null;
+export function deactivate(): Promise<void> {
+  active = false;
+  const stopping = client ? client.stop() : Promise.resolve();
   client = null;
-  void stopping;
+  return Promise.all([stopping, restarting]).then(() => undefined);
 }

@@ -1,0 +1,25 @@
+[
+  {
+    "case": "stop immediately cancels pre-existing request",
+    "settledBeforeAdvancingClock": true
+  },
+  {
+    "case": "separate shutdown request still responds and cooperative exit finishes stop",
+    "kills": []
+  },
+  {
+    "case": "failed document write retires unsent and prior ownership, pending work and admission",
+    "ownsUnsentRevision": false,
+    "ownsPreviousRevision": false,
+    "cancelledImmediately": true,
+    "kills": [
+      "SIGKILL"
+    ]
+  },
+  {
+    "case": "failed initiating request rejects; older request cancels; later death/error disposes once",
+    "initiatingRequestRejected": true,
+    "priorRequestValue": null,
+    "disposalCount": 1
+  }
+]

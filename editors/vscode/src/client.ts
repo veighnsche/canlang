@@ -301,7 +301,7 @@ declare global {
       stdout: StdioPipe | null;
       stderr: StdioPipe | null;
       on(event: string, listener: (...args: unknown[]) => void): void;
-      kill(): void;
+      kill(signal?: string): void;
     }
     export function spawn(
       command: string,
@@ -463,7 +463,7 @@ function takeUtf8Prefix(text: string, length: number): string | null {
 
 /** Thin wrapper around a `can lsp` stdio child process. */
 export class CanLanguageClient {
-  /** Fired when the server process exits or fails to spawn. */
+  /** Fired once when an initialized server dies; startup failures reject start(). */
   onExit: ((code: number | null) => void) | null = null;
 
   private child: child_process.ChildProcess | null = null;
@@ -480,7 +480,10 @@ export class CanLanguageClient {
   private nextDocumentVersion = 1;
   /** Raw `initialize` result (server capabilities + serverInfo), once known. */
   private capabilities: Json = null;
-  private started = false;
+  private ready = false;
+  private startup: Promise<void> | null = null;
+  private shutdown: Promise<void> | null = null;
+  private stopped: (() => void) | null = null;
   /** Child has exited or failed; the instance is spent, never reused. */
   private finished = false;
   /** Graceful `stop()` in flight; suppresses the `onExit` callback. */
@@ -495,26 +498,25 @@ export class CanLanguageClient {
 
   /** True while the server child is attached and usable. */
   private isRunning(): boolean {
-    return this.started && !this.finished && this.child !== null;
+    return this.ready && !this.finished && this.child !== null;
   }
 
   /** Spawn the server and complete the initialize handshake. */
   start(): Promise<void> {
-    if (this.finished) {
+    if (this.finished || this.stopping) {
       return Promise.reject(
         new Error('can lsp client is shut down; create a new CanLanguageClient'),
       );
     }
-    if (this.started) {
-      return Promise.resolve();
+    if (this.startup) {
+      return this.startup;
     }
-    this.started = true;
     this.diagnostics = vscodeApi.languages.createDiagnosticCollection('can');
     let child: child_process.ChildProcess;
     try {
       child = childProcessApi.spawn(this.serverPath, ['lsp'], { cwd: this.cwd });
     } catch (err) {
-      this.started = false;
+      this.finished = true;
       if (this.diagnostics) {
         this.diagnostics.dispose();
         this.diagnostics = null;
@@ -525,10 +527,12 @@ export class CanLanguageClient {
     }
     this.child = child;
     if (child.stdin) {
-      // Dropped writes after death surface here; log instead of crashing
-      // the host on an unhandled 'error'.
+      // A broken transport cannot serve pending work. Retire it without
+      // leaving an unhandled stream error in the extension host.
       child.stdin.on('error', (err: unknown) => {
         this.channel.appendLine(`can lsp stdin error: ${String(err)}`);
+        this.finish(null);
+        child.kill('SIGKILL');
       });
     }
     if (child.stdout) {
@@ -548,7 +552,7 @@ export class CanLanguageClient {
     child.on('exit', (code: unknown) => {
       this.finish(typeof code === 'number' ? code : null);
     });
-    return this.sendRequest('initialize', {
+    const initialized = this.sendRequest('initialize', {
       processId: null,
       rootUri: null,
       capabilities: {
@@ -572,10 +576,40 @@ export class CanLanguageClient {
           },
         },
       },
-    }).then((result) => {
-      this.capabilities = result;
-      this.sendNotification('initialized', {});
     });
+    let timer: unknown;
+    this.startup = new Promise<void>((resolve, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error('can lsp initialize timed out after 10 seconds'));
+      }, 10000);
+      initialized.then((result) => {
+        if (this.finished || this.stopping || !isRecord(result) ||
+            !isRecord(result['capabilities'])) {
+          reject(new Error('can lsp initialize failed'));
+          return;
+        }
+        this.capabilities = result;
+        if (!this.writeFrame(JSON.stringify({ jsonrpc: '2.0', method: 'initialized', params: {} }))) {
+          reject(new Error('can lsp initialized write failed'));
+          return;
+        }
+        if (this.finished) {
+          reject(new Error('can lsp initialized write failed'));
+          return;
+        }
+        this.ready = true;
+        resolve();
+      }, reject);
+    }).catch((reason: unknown) => {
+      clearTimeout(timer);
+      if (!this.finished && !this.stopping) {
+        this.finish(null);
+        child.kill('SIGKILL');
+      }
+      throw reason;
+    });
+    this.startup.then(() => clearTimeout(timer), () => clearTimeout(timer));
+    return this.startup;
   }
 
   /** Raw `initialize` result (`{ capabilities, serverInfo }`); null before. */
@@ -590,7 +624,8 @@ export class CanLanguageClient {
    * treat null as "no result").
    */
   request(method: string, params: Json): Promise<Json> {
-    return this.sendRequest(method, params);
+    return this.isRunning() ? this.sendRequest(method, params) :
+      Promise.reject(new Error(`can lsp is not ready (request ${method})`));
   }
 
   /** All providers share document lifetime, revision and cancellation checks. */
@@ -635,11 +670,17 @@ export class CanLanguageClient {
    * that ignores `exit`.
    */
   stop(): Promise<void> {
+    if (this.shutdown) {
+      return this.shutdown;
+    }
     const child = this.child;
     this.child = null;
-    this.started = false;
+    this.ready = false;
     this.documents.clear();
     this.stopping = true;
+    // Ordinary work loses admission immediately, independently of the
+    // child's shutdown acknowledgement or exit deadline.
+    this.failAllPending();
     const dispose = (): void => {
       if (this.diagnostics) {
         this.diagnostics.dispose();
@@ -648,6 +689,7 @@ export class CanLanguageClient {
       this.stopping = false;
     };
     if (!child || this.finished) {
+      this.finish(null);
       dispose();
       return Promise.resolve();
     }
@@ -666,7 +708,7 @@ export class CanLanguageClient {
       }
     };
     const id = this.nextId++;
-    return new Promise<void>((resolve) => {
+    this.shutdown = new Promise<void>((resolve) => {
       let settled = false;
       let timer: unknown = null;
       const done = (kill: boolean): void => {
@@ -676,14 +718,18 @@ export class CanLanguageClient {
         settled = true;
         clearTimeout(timer);
         this.pending.delete(id);
+        this.stopped = null;
         if (kill) {
-          child.kill();
+          child.kill('SIGKILL');
         }
+        this.finish(null);
         dispose();
         resolve();
       };
+      this.stopped = () => done(false);
       timer = setTimeout(() => done(true), 2000);
       this.pending.set(id, () => {
+        if (settled || this.finished) { return; }
         writeRaw(JSON.stringify({ jsonrpc: '2.0', method: 'exit', params: null }));
         if (child.stdin) {
           try {
@@ -700,6 +746,7 @@ export class CanLanguageClient {
         done(true);
       }
     });
+    return this.shutdown;
   }
 
   /**
@@ -712,18 +759,20 @@ export class CanLanguageClient {
     if (this.finished) {
       return;
     }
+    const wasReady = this.ready;
     this.finished = true;
+    this.ready = false;
     this.child = null;
-    this.started = false;
     this.documents.clear();
     this.failAllPending();
     if (this.diagnostics) {
       this.diagnostics.dispose();
       this.diagnostics = null;
     }
-    if (!this.stopping && this.onExit) {
+    if (wasReady && !this.stopping && this.onExit) {
       this.onExit(code);
     }
+    this.stopped?.();
   }
 
   didOpen(document: vscode.TextDocument): void {
@@ -795,7 +844,7 @@ export class CanLanguageClient {
         resolve(result);
       };
       this.pending.set(id, settle);
-      if (!this.writeFrame(body)) {
+      if (!this.writeFrame(body, id)) {
         this.pending.delete(id);
         reject(new Error(`can lsp is not running (request ${method})`));
         return;
@@ -821,7 +870,7 @@ export class CanLanguageClient {
     this.writeFrame(body);
   }
 
-  private writeFrame(body: string): boolean {
+  private writeFrame(body: string, failedRequestId?: number): boolean {
     if (this.trace) {
       this.channel.appendLine(`--> ${body}`);
     }
@@ -836,6 +885,16 @@ export class CanLanguageClient {
       stdin.write(`Content-Length: ${utf8Length(body)}\r\n\r\n${body}`);
     } catch (err) {
       this.channel.appendLine(`can lsp write failed: ${String(err)}`);
+      // A failed write never establishes the revision we just attempted
+      // to publish. Retire its transport and every document owner rather
+      // than allowing queries/edits against unsent text. The initiating
+      // request rejects below; other pending requests settle as no result.
+      if (failedRequestId !== undefined) {
+        this.pending.delete(failedRequestId);
+      }
+      const child = this.child;
+      this.finish(null);
+      child?.kill('SIGKILL');
       return false;
     }
     return true;
@@ -969,10 +1028,8 @@ export class CanLanguageClient {
   }
 
   /**
-   * Settle every pending request with null. Note an async spawn failure
-   * also lands here (via the 'error' handler), so the `initialize` request
-   * resolves instead of rejecting and `start()` resolves too — harmless
-   * because the user-visible failure still surfaces through `onExit`.
+   * Settle every pending request with null. Startup treats null as failure;
+   * already initialized providers treat it as no result.
    */
   private failAllPending(): void {
     for (const resolve of this.pending.values()) {

@@ -1,0 +1,6 @@
+PASS OS delayed initialize and cooperative shutdown exit 0
+PASS OS error cleanup reaches SIGKILL and reaps child
+PASS OS timeout cleanup reaches SIGKILL and reaps child
+PASS OS stubborn cleanup reaches SIGKILL and reaps child
+PASS OS write-close cleanup reaches SIGKILL and reaps child
+PASS OS crash reopen uses fresh child and current document text

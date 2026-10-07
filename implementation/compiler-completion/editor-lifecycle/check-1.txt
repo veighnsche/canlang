@@ -1,0 +1,14 @@
+PASS delayed initialization gates traffic and shares handshake
+PASS synchronous spawn failure rejects and spends client
+PASS stop during handshake rejects startup and clears both deadlines
+PASS rpc-error initialization rejects and disposes once
+PASS spawn-error initialization rejects and disposes once
+PASS timeout initialization rejects and disposes once
+PASS write-error initialization rejects and disposes once
+PASS cooperative stop settles requests and owns bounded cleanup
+PASS no-shutdown stop settles requests and owns bounded cleanup
+PASS no-exit stop settles requests and owns bounded cleanup
+PASS failed-write stop settles requests and owns bounded cleanup
+PASS synchronous failed request write rejects and retires client
+PASS failed change write retires unsent revision and pending work immediately
+PASS delayed replay, overlapping restarts, crash reopen and deactivation
