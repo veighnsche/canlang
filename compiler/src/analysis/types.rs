@@ -4901,8 +4901,7 @@ impl<'a> Typer<'a> {
         for (file, tree) in trees {
             let text = self.text(*file).to_string();
             for child in kids(tree) {
-                if !matches!(child.kind, SyntaxKind::App | SyntaxKind::Package) || has_error(child)
-                {
+                if !matches!(child.kind, SyntaxKind::App | SyntaxKind::Package) {
                     continue;
                 }
                 let Some(module) = module_of_node(self.tables, &text, child) else {
@@ -12398,8 +12397,8 @@ impl<'a> Typer<'a> {
             match &element_ty {
                 None => element_ty = Some(ty),
                 Some(first) => {
-                    let (a, _) = strip_nullable(first);
-                    let (b, _) = strip_nullable(&ty);
+                    let (a, first_nullable) = strip_nullable(first);
+                    let (b, nullable) = strip_nullable(&ty);
                     if !loose_equal(&a, &b) {
                         if cx.strict {
                             self.diags.push(Diagnostic::error(
@@ -12413,6 +12412,8 @@ impl<'a> Typer<'a> {
                             ));
                         }
                         bad = true;
+                    } else if nullable && !first_nullable {
+                        element_ty = Some(ty);
                     }
                 }
             }
