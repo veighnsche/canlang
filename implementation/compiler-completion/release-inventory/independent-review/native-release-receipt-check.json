@@ -1,0 +1,32 @@
+{
+  "receipt_sha256": "a99af48604c18544e45962260d752b875d81eeaf0f507b745bd80a33230f7e88",
+  "source_pins_checked": 5,
+  "mismatches": [
+    "compiler/src/analysis/types.rs",
+    "compiler/src/codegen/ir.rs",
+    "compiler/src/codegen/js.rs",
+    "compiler/tests/flat_expression_runtime.rs"
+  ],
+  "release_row": {
+    "name": "release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--locked",
+      "--offline",
+      "--release",
+      "--bin",
+      "can"
+    ],
+    "exit": 0,
+    "seconds": 27.801,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_bytes": 0,
+    "stdout": "release-build.stdout",
+    "stderr_sha256": "95491fe105a43537983c09b74744ecd7da1b385f8c16bfba33c2ea143c06cee1",
+    "stderr_bytes": 141,
+    "stderr": "release-build.stderr"
+  }
+}

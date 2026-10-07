@@ -1,0 +1,10 @@
+{
+  "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+  "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+  "compiler/README.md": "4bfd5e4764ba0f1e25093f3f8c66015a310e78765c2950fa3aec04e01ba52624",
+  ".github/workflows/release.yml": "4b53efe348150ef76a01c939e83d5f3b0f439359f71c80ee5fea9c33c6102045",
+  "docs/research/compiler-library-audit-20261006/resumption/audit-costs-and-oracles.md": "43a6c027f14ea4ffeddc376d4a0e0b53e373fb54632e72c7b24637c2c15324bf",
+  "docs/research/compiler-library-audit-20261006/resumption/release-receipt.json": "868424981b887dd9b2d515410fc47a3f9d1f96119e9ae1350d81936f6ed0e29c",
+  "docs/research/compiler-library-audit-20261006/pass10/profile/results.json": "0897892065976643bdd76215288fe463f4e5ebfdf360a375b49e971c2c905d51",
+  "implementation/compiler-completion/flat-stack/release-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

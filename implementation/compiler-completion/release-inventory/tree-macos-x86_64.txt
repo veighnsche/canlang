@@ -1,0 +1,146 @@
+canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+├── lsp-types v0.97.0
+│   ├── bitflags v1.3.2
+│   ├── fluent-uri v0.1.4
+│   │   └── bitflags v1.3.2
+│   ├── serde v1.0.229
+│   │   ├── serde_core v1.0.229
+│   │   └── serde_derive v1.0.229 (proc-macro)
+│   │       ├── proc-macro2 v1.0.107
+│   │       │   └── unicode-ident v1.0.26
+│   │       ├── quote v1.0.47
+│   │       │   └── proc-macro2 v1.0.107 (*)
+│   │       └── syn v3.0.6
+│   │           ├── proc-macro2 v1.0.107 (*)
+│   │           ├── quote v1.0.47 (*)
+│   │           └── unicode-ident v1.0.26
+│   ├── serde_json v1.0.151
+│   │   ├── itoa v1.0.18
+│   │   ├── memchr v2.8.3
+│   │   ├── serde_core v1.0.229
+│   │   └── zmij v1.0.23
+│   └── serde_repr v0.1.21 (proc-macro)
+│       ├── proc-macro2 v1.0.107 (*)
+│       ├── quote v1.0.47 (*)
+│       └── syn v3.0.6 (*)
+├── serde v1.0.229 (*)
+├── serde_json v1.0.151 (*)
+├── sha2 v0.10.9
+│   ├── cfg-if v1.0.5
+│   ├── cpufeatures v0.2.17
+│   └── digest v0.10.7
+│       ├── block-buffer v0.10.4
+│       │   └── generic-array v0.14.7
+│       │       └── typenum v1.20.1
+│       │       [build-dependencies]
+│       │       └── version_check v0.9.5
+│       └── crypto-common v0.1.7
+│           ├── generic-array v0.14.7 (*)
+│           └── typenum v1.20.1
+├── sourcemap v9.3.2
+│   ├── base64-simd v0.8.0
+│   │   ├── outref v0.5.2
+│   │   └── vsimd v0.8.0
+│   ├── bitvec v1.1.1
+│   │   ├── funty v2.0.0
+│   │   ├── radium v0.7.0
+│   │   ├── tap v1.0.1
+│   │   └── wyz v0.5.1
+│   │       └── tap v1.0.1
+│   ├── data-encoding v2.11.1
+│   ├── debugid v0.8.0
+│   │   ├── serde v1.0.229 (*)
+│   │   └── uuid v1.27.0
+│   ├── if_chain v1.0.3
+│   ├── rustc-hash v2.1.3
+│   ├── serde v1.0.229 (*)
+│   ├── serde_json v1.0.151 (*)
+│   ├── unicode-id-start v1.5.0
+│   └── url v2.5.8
+│       ├── form_urlencoded v1.2.2
+│       │   └── percent-encoding v2.3.2
+│       ├── idna v1.1.0
+│       │   ├── idna_adapter v1.2.2
+│       │   │   ├── icu_normalizer v2.3.0
+│       │   │   │   ├── icu_collections v2.3.0
+│       │   │   │   │   ├── displaydoc v0.2.7 (proc-macro)
+│       │   │   │   │   │   ├── proc-macro2 v1.0.107 (*)
+│       │   │   │   │   │   ├── quote v1.0.47 (*)
+│       │   │   │   │   │   └── syn v3.0.6 (*)
+│       │   │   │   │   ├── potential_utf v0.1.6
+│       │   │   │   │   │   └── zerovec v0.11.8
+│       │   │   │   │   │       ├── yoke v0.8.3
+│       │   │   │   │   │       │   ├── stable_deref_trait v1.2.1
+│       │   │   │   │   │       │   ├── yoke-derive v0.8.2 (proc-macro)
+│       │   │   │   │   │       │   │   ├── proc-macro2 v1.0.107 (*)
+│       │   │   │   │   │       │   │   ├── quote v1.0.47 (*)
+│       │   │   │   │   │       │   │   ├── syn v2.0.119
+│       │   │   │   │   │       │   │   │   ├── proc-macro2 v1.0.107 (*)
+│       │   │   │   │   │       │   │   │   ├── quote v1.0.47 (*)
+│       │   │   │   │   │       │   │   │   └── unicode-ident v1.0.26
+│       │   │   │   │   │       │   │   └── synstructure v0.13.2
+│       │   │   │   │   │       │   │       ├── proc-macro2 v1.0.107 (*)
+│       │   │   │   │   │       │   │       ├── quote v1.0.47 (*)
+│       │   │   │   │   │       │   │       └── syn v2.0.119 (*)
+│       │   │   │   │   │       │   └── zerofrom v0.1.8
+│       │   │   │   │   │       │       └── zerofrom-derive v0.1.8 (proc-macro)
+│       │   │   │   │   │       │           ├── proc-macro2 v1.0.107 (*)
+│       │   │   │   │   │       │           ├── quote v1.0.47 (*)
+│       │   │   │   │   │       │           ├── syn v3.0.6 (*)
+│       │   │   │   │   │       │           └── synstructure v0.14.0
+│       │   │   │   │   │       │               ├── proc-macro2 v1.0.107 (*)
+│       │   │   │   │   │       │               ├── quote v1.0.47 (*)
+│       │   │   │   │   │       │               └── syn v3.0.6 (*)
+│       │   │   │   │   │       ├── zerofrom v0.1.8 (*)
+│       │   │   │   │   │       └── zerovec-derive v0.11.6 (proc-macro)
+│       │   │   │   │   │           ├── proc-macro2 v1.0.107 (*)
+│       │   │   │   │   │           ├── quote v1.0.47 (*)
+│       │   │   │   │   │           └── syn v3.0.6 (*)
+│       │   │   │   │   ├── utf8_iter v1.0.4
+│       │   │   │   │   ├── yoke v0.8.3 (*)
+│       │   │   │   │   ├── zerofrom v0.1.8 (*)
+│       │   │   │   │   └── zerovec v0.11.8 (*)
+│       │   │   │   ├── icu_normalizer_data v2.3.0
+│       │   │   │   ├── icu_provider v2.3.1
+│       │   │   │   │   ├── displaydoc v0.2.7 (proc-macro) (*)
+│       │   │   │   │   ├── icu_locale_core v2.3.0
+│       │   │   │   │   │   ├── displaydoc v0.2.7 (proc-macro) (*)
+│       │   │   │   │   │   ├── litemap v0.8.3
+│       │   │   │   │   │   ├── tinystr v0.8.4
+│       │   │   │   │   │   │   ├── displaydoc v0.2.7 (proc-macro) (*)
+│       │   │   │   │   │   │   └── zerovec v0.11.8 (*)
+│       │   │   │   │   │   ├── writeable v0.6.4
+│       │   │   │   │   │   └── zerovec v0.11.8 (*)
+│       │   │   │   │   ├── writeable v0.6.4
+│       │   │   │   │   ├── yoke v0.8.3 (*)
+│       │   │   │   │   ├── zerofrom v0.1.8 (*)
+│       │   │   │   │   ├── zerotrie v0.2.5
+│       │   │   │   │   │   ├── displaydoc v0.2.7 (proc-macro) (*)
+│       │   │   │   │   │   ├── yoke v0.8.3 (*)
+│       │   │   │   │   │   └── zerofrom v0.1.8 (*)
+│       │   │   │   │   └── zerovec v0.11.8 (*)
+│       │   │   │   ├── smallvec v1.16.2
+│       │   │   │   └── zerovec v0.11.8 (*)
+│       │   │   └── icu_properties v2.3.0
+│       │   │       ├── displaydoc v0.2.7 (proc-macro) (*)
+│       │   │       ├── icu_collections v2.3.0 (*)
+│       │   │       ├── icu_locale_core v2.3.0 (*)
+│       │   │       ├── icu_properties_data v2.3.0
+│       │   │       ├── icu_provider v2.3.1 (*)
+│       │   │       ├── zerotrie v0.2.5 (*)
+│       │   │       └── zerovec v0.11.8 (*)
+│       │   ├── smallvec v1.16.2
+│       │   └── utf8_iter v1.0.4
+│       └── percent-encoding v2.3.2
+├── tempfile v3.27.0
+│   ├── fastrand v2.5.0
+│   ├── getrandom v0.4.3
+│   │   ├── cfg-if v1.0.5
+│   │   └── libc v0.2.190
+│   ├── once_cell v1.21.4
+│   └── rustix v1.1.5
+│       ├── bitflags v2.13.2
+│       ├── errno v0.3.14
+│       │   └── libc v0.2.190
+│       └── libc v0.2.190
+└── url v2.5.8 (*)

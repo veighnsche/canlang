@@ -1,0 +1,10 @@
+# Commands run from repository root unless noted. No network/download/build invoked by this inventory.
+rustc -Vv
+rustup show
+rustup target list --installed
+(cd compiler && cargo tree --offline --locked -e normal,build) > tree-host.txt  # exit 0
+(cd compiler && cargo tree --offline --locked --target aarch64-apple-darwin -e normal,build) > tree-macos-arm64.txt  # exit 0
+(cd compiler && cargo tree --offline --locked --target x86_64-apple-darwin -e normal,build) > tree-macos-x86_64.txt  # exit 0; informational only, not an advertised release target
+(cd compiler && cargo tree --offline --locked --target x86_64-unknown-linux-gnu -e normal,build)  # exit 101: missing cached linux-raw-sys 0.12.1; offline prevents fetch
+(cd compiler && cargo metadata --offline --locked --format-version 1)  # could not extract cached futures-core 0.3.34 into protected global Cargo source dir
+(cd compiler && cargo test --locked --no-run --message-format=json)  # same futures-core extraction failure; no build performed
