@@ -1,0 +1,30 @@
+    Blocking waiting for file lock on build directory
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.16s
+     Running tests/typed_json.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_json-886eb823fb8368ed)
+
+running 4 tests
+test typed_order_omission_null_and_exact_strings ... ok
+test qualified_raw_fragments_preserve_exact_scalar_spellings ... ok
+test serialization_errors_are_reported_without_fallback_output ... ok
+test raw_value_is_not_a_unicode_scalar_validator_and_input_parser_stays_strict ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/typed_policy.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_policy-685061b45198ee7e)
+
+running 4 tests
+test empty_dump_has_one_serializer_newline ... ok
+test multiple_records_empty_nested_arrays_and_omitted_options ... ok
+test populated_dump_preserves_controls_blanks_and_inline_arrays ... ok
+test real_cli_keeps_the_existing_second_trailing_newline ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests/typed_reference_policy_consumers.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_reference_policy_consumers-74627cd53931abc5)
+
+running 2 tests
+test fresh_policy_cli_enters_actual_policy_sections_and_html_page ... ok
+test fresh_docs_cli_and_extracted_typed_json_enter_public_markdown_renderer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s

@@ -189,7 +189,8 @@ fn real_cli_keeps_the_existing_second_trailing_newline() {
     assert!(
         output.status.success(),
         "stderr={} stdout={}",
-        String::from_utf8_lossy(&output.stderr), String::from_utf8_lossy(&output.stdout)
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
     );
     assert_eq!(
         String::from_utf8(output.stdout).unwrap(),

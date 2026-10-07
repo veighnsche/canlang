@@ -22,12 +22,15 @@ fn typed_order_omission_null_and_exact_strings() {
         decimal: "12345678901234567890.1200",
         duration: "9223372036854775807",
     };
-    assert_eq!(to_compact_string(&value).unwrap(), concat!(
-        "{\"z\":\"\\u0008\\u000c\\n\\r\\t\\\"\\\\/é😀\u{2028}\u{2029}\",",
-        "\"explicit_null\":null,\"empty\":\"\",",
-        "\"decimal\":\"12345678901234567890.1200\",",
-        "\"duration\":\"9223372036854775807\"}"
-    ));
+    assert_eq!(
+        to_compact_string(&value).unwrap(),
+        concat!(
+            "{\"z\":\"\\u0008\\u000c\\n\\r\\t\\\"\\\\/é😀\u{2028}\u{2029}\",",
+            "\"explicit_null\":null,\"empty\":\"\",",
+            "\"decimal\":\"12345678901234567890.1200\",",
+            "\"duration\":\"9223372036854775807\"}"
+        )
+    );
 }
 
 #[test]
@@ -38,22 +41,44 @@ fn serialization_errors_are_reported_without_fallback_output() {
             Err(serde::ser::Error::custom("independent failure witness"))
         }
     }
-    assert_eq!(to_compact_string(&Failing).unwrap_err().to_string(), "independent failure witness");
+    assert_eq!(
+        to_compact_string(&Failing).unwrap_err().to_string(),
+        "independent failure witness"
+    );
 }
 
 #[test]
 fn qualified_raw_fragments_preserve_exact_scalar_spellings() {
     #[derive(Serialize)]
-    struct Wrapped<'a> { value: &'a serde_json::value::RawValue }
-    for raw in ["null", "-0", "1e0", "1.0", "1e999999", "\"12345678901234567890.1200\"", "{\"minor\":\"9223372036854775807\",\"currency\":\"EUR\"}"] {
+    struct Wrapped<'a> {
+        value: &'a serde_json::value::RawValue,
+    }
+    for raw in [
+        "null",
+        "-0",
+        "1e0",
+        "1.0",
+        "1e999999",
+        "\"12345678901234567890.1200\"",
+        "{\"minor\":\"9223372036854775807\",\"currency\":\"EUR\"}",
+    ] {
         let value = serde_json::from_str::<&serde_json::value::RawValue>(raw).unwrap();
-        assert_eq!(to_compact_string(&Wrapped { value }).unwrap(), format!("{{\"value\":{raw}}}"));
+        assert_eq!(
+            to_compact_string(&Wrapped { value }).unwrap(),
+            format!("{{\"value\":{raw}}}")
+        );
     }
     let huge = "9".repeat(400);
     let value = serde_json::from_str::<&serde_json::value::RawValue>(&huge).unwrap();
-    assert_eq!(to_compact_string(&Wrapped { value }).unwrap(), format!("{{\"value\":{huge}}}"));
+    assert_eq!(
+        to_compact_string(&Wrapped { value }).unwrap(),
+        format!("{{\"value\":{huge}}}")
+    );
     for invalid in ["not-json", "01", "[1,]", "null null", "{"] {
-        assert!(serde_json::from_str::<&serde_json::value::RawValue>(invalid).is_err(), "{invalid}");
+        assert!(
+            serde_json::from_str::<&serde_json::value::RawValue>(invalid).is_err(),
+            "{invalid}"
+        );
     }
 }
 

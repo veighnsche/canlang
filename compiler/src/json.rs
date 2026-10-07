@@ -21,7 +21,10 @@ pub fn to_compact_string<T: serde::Serialize + ?Sized>(
 }
 
 /// Serializer-family layout adapters delegate value emission to serde_json.
-pub(crate) fn to_string_with_formatter<T: serde::Serialize + ?Sized, F: serde_json::ser::Formatter>(
+pub(crate) fn to_string_with_formatter<
+    T: serde::Serialize + ?Sized,
+    F: serde_json::ser::Formatter,
+>(
     value: &T,
     formatter: F,
 ) -> Result<String, serde_json::Error> {
