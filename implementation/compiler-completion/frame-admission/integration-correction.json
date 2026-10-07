@@ -1,0 +1,13 @@
+{
+  "scope": "Root geometric header correction after first independent review",
+  "unchanged_support": "64KiB complete headers;64MiB bodies;equal-only duplicates;framing-failure closure;clean/torn EOF lifecycle and complete-body parse recovery",
+  "reviewed_transport_sha256": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987",
+  "reviewed_reader_test_sha256": "79f85a4dc8c39cf40b71c90a3bfe25d1ebf45a2d96b6a45f1112084c47129a74",
+  "permanent_regression": "one_byte_header_reads_do_not_allocate_for_every_byte",
+  "owning_reader_suite_passed": 11,
+  "independent_acceptance": "independent-review/final-receipt.json",
+  "observed_independent_header_requests_before": 65515,
+  "observed_independent_header_requests_after": 11,
+  "measurement_limit": "Requested allocation sizes/counts, not RSS or actual cumulative memory",
+  "strict_clippy": "Original four JS warnings corrected. Integrated rerun reached active delimiter-recovery layout.rs and failed its unrelated single_match warning; owner notified, failed log retained. No green claim; owning frame review accepted independently."
+}

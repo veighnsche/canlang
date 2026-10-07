@@ -1,0 +1,450 @@
+{
+  "binary_path": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+  "binary_sha256": "33235b2506c5a514db60e9d1c469522c3436070bdb5c286feb2d79fd4acd0ca4",
+  "timeout_seconds": 5,
+  "output_limit_per_pipe": 32768,
+  "controls": [
+    {
+      "label": "separator crosses cap after shutdown",
+      "input_len": 65909,
+      "input_sha256": "fa67a74390e21dbded7eacaee373d8b8b147aa3bdd9165f5605fa7ac9611525a",
+      "stdin_held_open_until_exit": true,
+      "directory_stdin": false,
+      "exit": 1,
+      "elapsed_seconds": 0.3465,
+      "stdout_wire_hex": "436f6e74656e742d4c656e6774683a203632300d0a0d0a7b226a736f6e727063223a22322e30222c226964223a22c3a9f09f9880222c22726573756c74223a7b226361706162696c6974696573223a7b22706f736974696f6e456e636f64696e67223a227574662d3136222c2274657874446f63756d656e7453796e63223a312c22686f76657250726f7669646572223a747275652c22636f6d706c6574696f6e50726f7669646572223a7b7d2c22646566696e6974696f6e50726f7669646572223a747275652c227265666572656e63657350726f7669646572223a747275652c22636f6465416374696f6e50726f7669646572223a747275652c2272656e616d6550726f7669646572223a747275652c2273656d616e746963546f6b656e7350726f7669646572223a7b226c6567656e64223a7b22746f6b656e5479706573223a5b226e616d657370616365222c2274797065222c22636c617373222c22696e74657266616365222c22656e756d222c22737472756374222c22706172616d65746572222c227661726961626c65222c2270726f7065727479222c22656e756d4d656d626572222c226576656e74222c2266756e6374696f6e222c226d6574686f64222c226b6579776f7264222c22636f6d6d656e74222c22737472696e67222c226e756d626572222c226f70657261746f72225d2c22746f6b656e4d6f64696669657273223a5b226465636c61726174696f6e222c22646f63756d656e746174696f6e222c2264656661756c744c696272617279222c22726561646f6e6c79225d7d2c2266756c6c223a747275657d7d2c22736572766572496e666f223a7b226e616d65223a2263616e222c2276657273696f6e223a22302e312e30227d7d7d436f6e74656e742d4c656e6774683a2033380d0a0d0a7b226a736f6e727063223a22322e30222c226964223a322c22726573756c74223a6e756c6c7d",
+      "responses": [
+        {
+          "jsonrpc": "2.0",
+          "id": "é😀",
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": null
+        }
+      ],
+      "stderr_hex": ""
+    },
+    {
+      "label": "exact cap bare LF unicode and pipelined shutdown",
+      "input_len": 65771,
+      "input_sha256": "7cc1abfc9c43276b41d519f31e7660ffb32bb2003e6b8171518cfb4c782d9166",
+      "stdin_held_open_until_exit": false,
+      "directory_stdin": false,
+      "exit": 0,
+      "elapsed_seconds": 0.0089,
+      "stdout_wire_hex": "436f6e74656e742d4c656e6774683a203632300d0a0d0a7b226a736f6e727063223a22322e30222c226964223a22c3a9f09f9880222c22726573756c74223a7b226361706162696c6974696573223a7b22706f736974696f6e456e636f64696e67223a227574662d3136222c2274657874446f63756d656e7453796e63223a312c22686f76657250726f7669646572223a747275652c22636f6d706c6574696f6e50726f7669646572223a7b7d2c22646566696e6974696f6e50726f7669646572223a747275652c227265666572656e63657350726f7669646572223a747275652c22636f6465416374696f6e50726f7669646572223a747275652c2272656e616d6550726f7669646572223a747275652c2273656d616e746963546f6b656e7350726f7669646572223a7b226c6567656e64223a7b22746f6b656e5479706573223a5b226e616d657370616365222c2274797065222c22636c617373222c22696e74657266616365222c22656e756d222c22737472756374222c22706172616d65746572222c227661726961626c65222c2270726f7065727479222c22656e756d4d656d626572222c226576656e74222c2266756e6374696f6e222c226d6574686f64222c226b6579776f7264222c22636f6d6d656e74222c22737472696e67222c226e756d626572222c226f70657261746f72225d2c22746f6b656e4d6f64696669657273223a5b226465636c61726174696f6e222c22646f63756d656e746174696f6e222c2264656661756c744c696272617279222c22726561646f6e6c79225d7d2c2266756c6c223a747275657d7d2c22736572766572496e666f223a7b226e616d65223a2263616e222c2276657273696f6e223a22302e312e30227d7d7d436f6e74656e742d4c656e6774683a2033380d0a0d0a7b226a736f6e727063223a22322e30222c226964223a322c22726573756c74223a6e756c6c7d",
+      "responses": [
+        {
+          "jsonrpc": "2.0",
+          "id": "é😀",
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": null
+        }
+      ],
+      "stderr_hex": ""
+    },
+    {
+      "label": "incomplete code point complete frame then initialize",
+      "input_len": 283,
+      "input_sha256": "a60c6896cc5b1a984d115733476a59b931e8f454dfd88aac8694554012d12ba2",
+      "stdin_held_open_until_exit": false,
+      "directory_stdin": false,
+      "exit": 0,
+      "elapsed_seconds": 0.0089,
+      "stdout_wire_hex": "436f6e74656e742d4c656e6774683a2037370d0a0d0a7b226a736f6e727063223a22322e30222c226964223a6e756c6c2c226572726f72223a7b22636f6465223a2d33323730302c226d657373616765223a22696e76616c6964205554462d38227d7d436f6e74656e742d4c656e6774683a203632300d0a0d0a7b226a736f6e727063223a22322e30222c226964223a22c3a9f09f9880222c22726573756c74223a7b226361706162696c6974696573223a7b22706f736974696f6e456e636f64696e67223a227574662d3136222c2274657874446f63756d656e7453796e63223a312c22686f76657250726f7669646572223a747275652c22636f6d706c6574696f6e50726f7669646572223a7b7d2c22646566696e6974696f6e50726f7669646572223a747275652c227265666572656e63657350726f7669646572223a747275652c22636f6465416374696f6e50726f7669646572223a747275652c2272656e616d6550726f7669646572223a747275652c2273656d616e746963546f6b656e7350726f7669646572223a7b226c6567656e64223a7b22746f6b656e5479706573223a5b226e616d657370616365222c2274797065222c22636c617373222c22696e74657266616365222c22656e756d222c22737472756374222c22706172616d65746572222c227661726961626c65222c2270726f7065727479222c22656e756d4d656d626572222c226576656e74222c2266756e6374696f6e222c226d6574686f64222c226b6579776f7264222c22636f6d6d656e74222c22737472696e67222c226e756d626572222c226f70657261746f72225d2c22746f6b656e4d6f64696669657273223a5b226465636c61726174696f6e222c22646f63756d656e746174696f6e222c2264656661756c744c696272617279222c22726561646f6e6c79225d7d2c2266756c6c223a747275657d7d2c22736572766572496e666f223a7b226e616d65223a2263616e222c2276657273696f6e223a22302e312e30227d7d7d436f6e74656e742d4c656e6774683a2033380d0a0d0a7b226a736f6e727063223a22322e30222c226964223a322c22726573756c74223a6e756c6c7d",
+      "responses": [
+        {
+          "jsonrpc": "2.0",
+          "id": null,
+          "error": {
+            "code": -32700,
+            "message": "invalid UTF-8"
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": "é😀",
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": null
+        }
+      ],
+      "stderr_hex": ""
+    },
+    {
+      "label": "invalid JSON complete frame then initialize",
+      "input_len": 280,
+      "input_sha256": "56e2218b5563b2415a6a7104af23bdd80605c9fd99e53fd223e1ece7302872c6",
+      "stdin_held_open_until_exit": false,
+      "directory_stdin": false,
+      "exit": 0,
+      "elapsed_seconds": 0.0038,
+      "stdout_wire_hex": "436f6e74656e742d4c656e6774683a2037360d0a0d0a7b226a736f6e727063223a22322e30222c226964223a6e756c6c2c226572726f72223a7b22636f6465223a2d33323730302c226d657373616765223a22696e76616c6964204a534f4e227d7d436f6e74656e742d4c656e6774683a203632300d0a0d0a7b226a736f6e727063223a22322e30222c226964223a22c3a9f09f9880222c22726573756c74223a7b226361706162696c6974696573223a7b22706f736974696f6e456e636f64696e67223a227574662d3136222c2274657874446f63756d656e7453796e63223a312c22686f76657250726f7669646572223a747275652c22636f6d706c6574696f6e50726f7669646572223a7b7d2c22646566696e6974696f6e50726f7669646572223a747275652c227265666572656e63657350726f7669646572223a747275652c22636f6465416374696f6e50726f7669646572223a747275652c2272656e616d6550726f7669646572223a747275652c2273656d616e746963546f6b656e7350726f7669646572223a7b226c6567656e64223a7b22746f6b656e5479706573223a5b226e616d657370616365222c2274797065222c22636c617373222c22696e74657266616365222c22656e756d222c22737472756374222c22706172616d65746572222c227661726961626c65222c2270726f7065727479222c22656e756d4d656d626572222c226576656e74222c2266756e6374696f6e222c226d6574686f64222c226b6579776f7264222c22636f6d6d656e74222c22737472696e67222c226e756d626572222c226f70657261746f72225d2c22746f6b656e4d6f64696669657273223a5b226465636c61726174696f6e222c22646f63756d656e746174696f6e222c2264656661756c744c696272617279222c22726561646f6e6c79225d7d2c2266756c6c223a747275657d7d2c22736572766572496e666f223a7b226e616d65223a2263616e222c2276657273696f6e223a22302e312e30227d7d7d436f6e74656e742d4c656e6774683a2033380d0a0d0a7b226a736f6e727063223a22322e30222c226964223a322c22726573756c74223a6e756c6c7d",
+      "responses": [
+        {
+          "jsonrpc": "2.0",
+          "id": null,
+          "error": {
+            "code": -32700,
+            "message": "invalid JSON"
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": "é😀",
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": null
+        }
+      ],
+      "stderr_hex": ""
+    },
+    {
+      "label": "shutdown then torn body EOF retains lifecycle",
+      "input_len": 225,
+      "input_sha256": "9d27ea8bdae144502ecbd44cc35d208204d18e60b0afedd611d712117adba3a3",
+      "stdin_held_open_until_exit": false,
+      "directory_stdin": false,
+      "exit": 0,
+      "elapsed_seconds": 0.0039,
+      "stdout_wire_hex": "436f6e74656e742d4c656e6774683a203632300d0a0d0a7b226a736f6e727063223a22322e30222c226964223a22c3a9f09f9880222c22726573756c74223a7b226361706162696c6974696573223a7b22706f736974696f6e456e636f64696e67223a227574662d3136222c2274657874446f63756d656e7453796e63223a312c22686f76657250726f7669646572223a747275652c22636f6d706c6574696f6e50726f7669646572223a7b7d2c22646566696e6974696f6e50726f7669646572223a747275652c227265666572656e63657350726f7669646572223a747275652c22636f6465416374696f6e50726f7669646572223a747275652c2272656e616d6550726f7669646572223a747275652c2273656d616e746963546f6b656e7350726f7669646572223a7b226c6567656e64223a7b22746f6b656e5479706573223a5b226e616d657370616365222c2274797065222c22636c617373222c22696e74657266616365222c22656e756d222c22737472756374222c22706172616d65746572222c227661726961626c65222c2270726f7065727479222c22656e756d4d656d626572222c226576656e74222c2266756e6374696f6e222c226d6574686f64222c226b6579776f7264222c22636f6d6d656e74222c22737472696e67222c226e756d626572222c226f70657261746f72225d2c22746f6b656e4d6f64696669657273223a5b226465636c61726174696f6e222c22646f63756d656e746174696f6e222c2264656661756c744c696272617279222c22726561646f6e6c79225d7d2c2266756c6c223a747275657d7d2c22736572766572496e666f223a7b226e616d65223a2263616e222c2276657273696f6e223a22302e312e30227d7d7d436f6e74656e742d4c656e6774683a2033380d0a0d0a7b226a736f6e727063223a22322e30222c226964223a322c22726573756c74223a6e756c6c7d",
+      "responses": [
+        {
+          "jsonrpc": "2.0",
+          "id": "é😀",
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": null
+        }
+      ],
+      "stderr_hex": ""
+    },
+    {
+      "label": "shutdown then torn header EOF retains lifecycle",
+      "input_len": 218,
+      "input_sha256": "cf098711bd911173ab3d7be82fa785eeda8b682e01dcc68b793e78f6dbc9850c",
+      "stdin_held_open_until_exit": false,
+      "directory_stdin": false,
+      "exit": 0,
+      "elapsed_seconds": 0.0038,
+      "stdout_wire_hex": "436f6e74656e742d4c656e6774683a203632300d0a0d0a7b226a736f6e727063223a22322e30222c226964223a22c3a9f09f9880222c22726573756c74223a7b226361706162696c6974696573223a7b22706f736974696f6e456e636f64696e67223a227574662d3136222c2274657874446f63756d656e7453796e63223a312c22686f76657250726f7669646572223a747275652c22636f6d706c6574696f6e50726f7669646572223a7b7d2c22646566696e6974696f6e50726f7669646572223a747275652c227265666572656e63657350726f7669646572223a747275652c22636f6465416374696f6e50726f7669646572223a747275652c2272656e616d6550726f7669646572223a747275652c2273656d616e746963546f6b656e7350726f7669646572223a7b226c6567656e64223a7b22746f6b656e5479706573223a5b226e616d657370616365222c2274797065222c22636c617373222c22696e74657266616365222c22656e756d222c22737472756374222c22706172616d65746572222c227661726961626c65222c2270726f7065727479222c22656e756d4d656d626572222c226576656e74222c2266756e6374696f6e222c226d6574686f64222c226b6579776f7264222c22636f6d6d656e74222c22737472696e67222c226e756d626572222c226f70657261746f72225d2c22746f6b656e4d6f64696669657273223a5b226465636c61726174696f6e222c22646f63756d656e746174696f6e222c2264656661756c744c696272617279222c22726561646f6e6c79225d7d2c2266756c6c223a747275657d7d2c22736572766572496e666f223a7b226e616d65223a2263616e222c2276657273696f6e223a22302e312e30227d7d7d436f6e74656e742d4c656e6774683a2033380d0a0d0a7b226a736f6e727063223a22322e30222c226964223a322c22726573756c74223a6e756c6c7d",
+      "responses": [
+        {
+          "jsonrpc": "2.0",
+          "id": "é😀",
+          "result": {
+            "capabilities": {
+              "positionEncoding": "utf-16",
+              "textDocumentSync": 1,
+              "hoverProvider": true,
+              "completionProvider": {},
+              "definitionProvider": true,
+              "referencesProvider": true,
+              "codeActionProvider": true,
+              "renameProvider": true,
+              "semanticTokensProvider": {
+                "legend": {
+                  "tokenTypes": [
+                    "namespace",
+                    "type",
+                    "class",
+                    "interface",
+                    "enum",
+                    "struct",
+                    "parameter",
+                    "variable",
+                    "property",
+                    "enumMember",
+                    "event",
+                    "function",
+                    "method",
+                    "keyword",
+                    "comment",
+                    "string",
+                    "number",
+                    "operator"
+                  ],
+                  "tokenModifiers": [
+                    "declaration",
+                    "documentation",
+                    "defaultLibrary",
+                    "readonly"
+                  ]
+                },
+                "full": true
+              }
+            },
+            "serverInfo": {
+              "name": "can",
+              "version": "0.1.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": null
+        }
+      ],
+      "stderr_hex": ""
+    },
+    {
+      "label": "non-EOF input OS error directory descriptor",
+      "input_len": 0,
+      "input_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdin_held_open_until_exit": false,
+      "directory_stdin": true,
+      "exit": 1,
+      "elapsed_seconds": 0.0086,
+      "stdout_wire_hex": "",
+      "responses": [],
+      "stderr_hex": ""
+    }
+  ]
+}

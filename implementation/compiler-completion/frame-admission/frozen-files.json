@@ -1,0 +1,22 @@
+{
+  "source_files": [
+    {
+      "path": "compiler/src/lsp/transport.rs",
+      "sha256": "b376ce60e19a1642bbc4acf79229a43fb005d4faffb585c26cbcda8ebf5018a5"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "sha256": "ebaac2788ac817f562f12d2e27cfcc2dc4f7bd7ff70edd8e039be6de053c168a"
+    },
+    {
+      "path": "compiler/tests/lsp_admission.rs",
+      "sha256": "b5a8d3f4fd35f421585c899e6f9f5720a2764a27c0469fe523442a3ba29f083e"
+    },
+    {
+      "path": "compiler/tests/lsp_frame_reader.rs",
+      "sha256": "c7d034ad5383ab572f64fffe2b1b45f60cc131a9ede0778fdc9f6b0d78de1331"
+    }
+  ],
+  "host": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+  "head_at_freeze": "e8c64bc667633f24fd99857471cc0892acf03062"
+}

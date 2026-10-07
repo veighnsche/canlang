@@ -1,0 +1,20 @@
+{
+  "source_files": [
+    {
+      "path": "compiler/src/lsp/transport.rs",
+      "sha256": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "sha256": "ebaac2788ac817f562f12d2e27cfcc2dc4f7bd7ff70edd8e039be6de053c168a"
+    },
+    {
+      "path": "compiler/tests/lsp_admission.rs",
+      "sha256": "b5a8d3f4fd35f421585c899e6f9f5720a2764a27c0469fe523442a3ba29f083e"
+    },
+    {
+      "path": "compiler/tests/lsp_frame_reader.rs",
+      "sha256": "79f85a4dc8c39cf40b71c90a3bfe25d1ebf45a2d96b6a45f1112084c47129a74"
+    }
+  ]
+}
