@@ -54,6 +54,7 @@ import type {
   RowView,
 } from '@canlang/contracts';
 import { IdentityError, assertAuthorityLive, sha256HexText } from '@canlang/identity';
+import { canonicalJson } from './canonical-json.js';
 import type { HttpDeps } from '../ports.js';
 import { buildBusinessError, fromUnknown, toHttpResponse } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
@@ -113,17 +114,6 @@ export interface ExportPage {
 /** A secret value reached the projection: fail the export closed. */
 export class SecretRefusal extends Error {
   override readonly name = 'SecretRefusal';
-}
-
-/** Canonical JSON: object keys sorted recursively, so digests replay. */
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (typeof value === 'object' && value !== null) {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
 }
 
 /** True for the contracts file value `{kind:'file', id}` (opaque id ships). */
