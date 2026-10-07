@@ -942,6 +942,26 @@ fn suite_structure_failures_keep_partial_nodes() {
 }
 
 #[test]
+fn invalid_app_header_layout_wraps_identity_and_preserves_body() {
+    let text = "app T\n unexpected\nGiven\n derive a(): int = 1\nWhen\nThen\n";
+    let (tree, diags) = assert_codes(text, &["E1200"]);
+    assert_eq!(diags_span(&diags[0]), (0, 3));
+    let app = tree
+        .children
+        .iter()
+        .find(|n| n.kind == SyntaxKind::App)
+        .unwrap();
+    assert!(app.children.iter().all(|n| n.kind != SyntaxKind::Name));
+    let header = app
+        .children
+        .iter()
+        .find(|n| n.kind == SyntaxKind::Error)
+        .unwrap();
+    assert!(has_kind(header, SyntaxKind::Name));
+    assert!(has_kind(app, SyntaxKind::Derive));
+}
+
+#[test]
 fn multiple_errors_recover_per_declaration() {
     // Three bad declarations: one diagnostic each, no cascade, and the
     // valid sibling still parses.

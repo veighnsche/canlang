@@ -33,6 +33,8 @@ declare global {
       subscriptions: Disposable[];
     }
     export interface Uri {
+      readonly scheme: string;
+      readonly fsPath: string;
       toString(): string;
     }
     export namespace Uri {
@@ -46,6 +48,9 @@ declare global {
     }
     export interface TextDocumentChangeEvent {
       document: TextDocument;
+    }
+    export interface WorkspaceFolder {
+      readonly uri: Uri;
     }
     export type Event<T> = (listener: (e: T) => void) => Disposable;
     export interface WorkspaceConfiguration {
@@ -223,6 +228,8 @@ declare global {
     }
     export namespace workspace {
       const textDocuments: TextDocument[];
+      const workspaceFolders: readonly WorkspaceFolder[] | undefined;
+      function getWorkspaceFolder(uri: Uri): WorkspaceFolder | undefined;
       function getConfiguration(section?: string): WorkspaceConfiguration;
       function onDidOpenTextDocument(listener: (doc: TextDocument) => void): Disposable;
       function onDidChangeTextDocument(
@@ -235,6 +242,7 @@ declare global {
       ): Disposable;
     }
     export namespace window {
+      const activeTextEditor: { readonly document: TextDocument } | undefined;
       function createOutputChannel(name: string): OutputChannel;
       function showErrorMessage(message: string): void;
     }
@@ -272,7 +280,7 @@ declare global {
         provider: DocumentSemanticTokensProvider,
         legend: SemanticTokensLegend,
       ): Disposable;
-      function registerCodeActionProvider(
+      function registerCodeActionsProvider(
         selector: DocumentSelector,
         provider: CodeActionProvider,
         metadata?: { providedCodeActionKinds?: CodeActionKind[] },
@@ -295,7 +303,11 @@ declare global {
       on(event: string, listener: (...args: unknown[]) => void): void;
       kill(): void;
     }
-    export function spawn(command: string, args: string[]): ChildProcess;
+    export function spawn(
+      command: string,
+      args: string[],
+      options?: { cwd?: string },
+    ): ChildProcess;
   }
 
   function require(id: 'vscode'): typeof vscode;
@@ -471,6 +483,7 @@ export class CanLanguageClient {
     private readonly serverPath: string,
     private readonly channel: vscode.OutputChannel,
     private readonly trace: boolean,
+    private readonly cwd?: string,
   ) {}
 
   /** True while the server child is attached and usable. */
@@ -492,7 +505,7 @@ export class CanLanguageClient {
     this.diagnostics = vscodeApi.languages.createDiagnosticCollection('can');
     let child: child_process.ChildProcess;
     try {
-      child = childProcessApi.spawn(this.serverPath, ['lsp']);
+      child = childProcessApi.spawn(this.serverPath, ['lsp'], { cwd: this.cwd });
     } catch (err) {
       this.started = false;
       if (this.diagnostics) {
