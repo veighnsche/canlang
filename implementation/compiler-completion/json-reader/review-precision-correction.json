@@ -1,0 +1,7 @@
+{
+  "correction": "Narrow identical numeric/map callback claim to the control decoded Event representation; raw visitor method traces may differ.",
+  "basis": "Independent reviewer confirmed lexical normalization and distinct raw callback methods. Retention still follows exact -0/exponent source-spelling loss, strict depth/surrogate behavior and lack of selected qualifying complete replacement.",
+  "production_change": false,
+  "raw_controls_unchanged": true,
+  "readme_sha256": "36b604e55b8014c33c994d213febc2dd44097e150d453c4db984ad4684ace1ff"
+}

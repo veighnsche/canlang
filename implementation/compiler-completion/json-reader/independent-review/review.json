@@ -1,0 +1,81 @@
+{
+  "decision": "ACCEPT_BOUNDED_RETAIN0",
+  "blockers": [],
+  "retained_serde_json": "=1.0.151",
+  "retained_features": [
+    "std",
+    "raw_value"
+  ],
+  "production_delta": {
+    "added": 0,
+    "removed": 0,
+    "net_removed": 0
+  },
+  "threshold_met": false,
+  "scope": "DEP-01 integration:json-reader-coupling only; exact pins and finite witnesses; not all DEP obligations or complete executable runtime qualification",
+  "controls": {
+    "commands": 8,
+    "exits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "author_finite_tests_reproduced": 28,
+    "distinct_outcome_controls": "generic duplicate maps, scale preservation, -0/exponent normalization, decoded numeric/map collision with raw callback distinction, strict second-pass surrogate rejection and deferred Unicode/depth first errors, owned SliceRead and borrowed StrRead stream offsets",
+    "production_inputs_unchanged": true,
+    "upstream_archive_matches_lock_and_inspected_source": true
+  },
+  "reviewed_packet_pins": {
+    "README.md": "36b604e55b8014c33c994d213febc2dd44097e150d453c4db984ad4684ace1ff",
+    "resolution.json": "f540163fce7fdc26dfdbe4245435368103ae58df5111d6ba3e4bfb81337d73ed",
+    "controls.json": "ad20d96da680633aa37b8d095cbe69e6e8a47449fb81bbd882a597f0d0103430",
+    "review-precision-correction.json": "8f37185c5567e8f84c03e106721773d45d09fd696a07337126e7fea570a273a5",
+    "finite.rs": "5f1a3adfa2238bab57fc587d218037de34a92f1fe2d1810bd1199a97d80cd4cf",
+    "feature-control.rs": "f14f29b055cad8c2384a6e65caf5607bbb939f4c6ce94b8686f3f26362266737",
+    "run.py": "a29c3c5075eea1edc82c299bc24eeabbe50eaa7fb9b11a8890e1818b2410224b"
+  },
+  "original_resolution_readme_hash": "49df35a8b725bba52808bde5f405a9ec5b331c4153bb3b0a58c545d36a7c5d33",
+  "precision_correction": "Original generic numeric/map collision claim narrowed to equal decoded Event representations; actual string callback modes differ. Verified corrected README against separate receipt; author raw controls/resolution preserved. Exact lexeme normalization remains independently sufficient to reject arbitrary_precision as complete replacement.",
+  "caller_inventory": "Current source has production parse sites catalog parse_catalog, LSP run_stdio through re-export, docs reference_json. Public json module and transport re-export preserve external tree/access/error/render support; no usage-based deletion credited.",
+  "historical_qualification": "Historical JSON source and JSON contract pins match; transport/server/catalog and LSP admission pins differ. Fresh reproduced source-inclusion JSON/transport tests earn only their bounded current scope; current real catalog-loader/server executable controls remain root integration responsibility.",
+  "limits": [
+    "No complete replacement patch, whole-closure alternative LOC saving, performance/allocation/build-size measurement, universal future API impossibility, complete grammar proof or external consumer guarantee claimed.",
+    "No Cargo compiler rebuild, dependency/source edit, upgrade, stress runner or fuzzer.",
+    "The first independent mixed-surrogate assertion expected trailing comma, but RawValue reports expected value; retained attempt1 and corrected to native observed category. An archive-path preflight initially used src/cache instead of registry/cache; corrected before compile, no source edit.",
+    "Author initial omitted fast_arithmetic cfg failure is harness setup evidence; corrected direct cached upstream feature build uses package build.rs native choice and does not modify upstream."
+  ],
+  "evidence_hashes": {
+    "implementation/compiler-completion/json-reader/independent-review/README.md": "f40965d9729b618d4ed72df972c15d94caf8268af8b6d41b703f5ecbe52bbddc",
+    "implementation/compiler-completion/json-reader/independent-review/arbitrary-build.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/arbitrary-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/arbitrary-control.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/arbitrary-control.stdout": "245cd6e8e4fb99cd15240c7b0ba6fdf77b32278f977899aad4f900eb319b7078",
+    "implementation/compiler-completion/json-reader/independent-review/arbitrary-library-build.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/arbitrary-library-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/attempt1/controls.json": "e75d0726ba3ca584362ad8b0df661da73cc4064b17745f0acb5009cd786a078c",
+    "implementation/compiler-completion/json-reader/independent-review/attempt1/rustc-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/attempt1/rustc-version.stdout": "352d6857968e80a6357a926ac685b9b07f77c479aaafde33e73a53945e802909",
+    "implementation/compiler-completion/json-reader/independent-review/attempt1/standard-build.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/attempt1/standard-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/attempt1/standard-control.stderr": "f409c0625412a7ec4742be86912a4e3a9e5a0d2dfbdb1bd704fbce5740bf4d0b",
+    "implementation/compiler-completion/json-reader/independent-review/attempt1/standard-control.stdout": "9ebe68ce2ecd5c7466cb4977589d1cf9ade4542df1830135e8032f0914f21f55",
+    "implementation/compiler-completion/json-reader/independent-review/author-finite-build.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/author-finite-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/author-finite-tests.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/author-finite-tests.stdout": "a526e8b3a287dd644538b0ff92a4b1ecf696b94e3e28e98c07fb8ace5621508e",
+    "implementation/compiler-completion/json-reader/independent-review/control.rs": "41b4701bc1bcc02bce27f94b383233663f1350a299a56ac3b2098080b13a198f",
+    "implementation/compiler-completion/json-reader/independent-review/controls.json": "c838ea0aea675b5b10692f24f3c281fd5c10eb7300a674903e6fcfd11b650507",
+    "implementation/compiler-completion/json-reader/independent-review/run.py": "9b917bd852e71288ba194505701c682e074e8d66a235c6b00813baee8fe227b5",
+    "implementation/compiler-completion/json-reader/independent-review/rustc-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/rustc-version.stdout": "352d6857968e80a6357a926ac685b9b07f77c479aaafde33e73a53945e802909",
+    "implementation/compiler-completion/json-reader/independent-review/standard-build.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/standard-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/standard-control.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/compiler-completion/json-reader/independent-review/standard-control.stdout": "d36849ceaa40eb6e23b597c0bb5e042e1be835dcce340af7b8c8bd02ba505cb3"
+  }
+}

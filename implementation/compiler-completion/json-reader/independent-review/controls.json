@@ -1,0 +1,187 @@
+{
+  "scope": "independent finite API/outcome executable only; no Cargo build",
+  "commands": [
+    {
+      "name": "rustc-version",
+      "argv": [
+        "rustc",
+        "--version",
+        "--verbose"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "author-finite-build",
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/json-reader/finite.rs",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "--extern",
+        "serde=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde-5f77724b6c1d8dcc.rlib",
+        "--extern",
+        "serde_json=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-abd07b5320783267.rlib",
+        "-o",
+        "/private/tmp/can-dep01-independent-myd_3dr5/finite"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "author-finite-tests",
+      "argv": [
+        "/private/tmp/can-dep01-independent-myd_3dr5/finite",
+        "--nocapture"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "standard-build",
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/json-reader/independent-review/control.rs",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "--extern",
+        "serde=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde-5f77724b6c1d8dcc.rlib",
+        "--extern",
+        "serde_json=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-abd07b5320783267.rlib",
+        "-o",
+        "/private/tmp/can-dep01-independent-myd_3dr5/standard"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "standard-control",
+      "argv": [
+        "/private/tmp/can-dep01-independent-myd_3dr5/standard"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "arbitrary-library-build",
+      "argv": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "serde_json",
+        "--crate-type",
+        "rlib",
+        "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/lib.rs",
+        "--cfg",
+        "feature=\"std\"",
+        "--cfg",
+        "feature=\"raw_value\"",
+        "--cfg",
+        "feature=\"arbitrary_precision\"",
+        "--cfg",
+        "fast_arithmetic=\"64\"",
+        "-C",
+        "metadata=dep01_independent",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "--extern",
+        "serde_core=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_core-62840b425821f844.rlib",
+        "--extern",
+        "itoa=/Users/vince/Projects/canlang/compiler/target/debug/deps/libitoa-0058ccfeb46374f7.rlib",
+        "--extern",
+        "memchr=/Users/vince/Projects/canlang/compiler/target/debug/deps/libmemchr-2fd701f973603a9e.rlib",
+        "--extern",
+        "zmij=/Users/vince/Projects/canlang/compiler/target/debug/deps/libzmij-616818dc6d449fb1.rlib",
+        "-o",
+        "/private/tmp/can-dep01-independent-myd_3dr5/libserde_json_independent.rlib"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "arbitrary-build",
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/json-reader/independent-review/control.rs",
+        "--cfg",
+        "feature=\"arbitrary_precision\"",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "--extern",
+        "serde=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde-5f77724b6c1d8dcc.rlib",
+        "--extern",
+        "serde_json=/private/tmp/can-dep01-independent-myd_3dr5/libserde_json_independent.rlib",
+        "-o",
+        "/private/tmp/can-dep01-independent-myd_3dr5/arbitrary"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "arbitrary-control",
+      "argv": [
+        "/private/tmp/can-dep01-independent-myd_3dr5/arbitrary"
+      ],
+      "exit": 0
+    }
+  ],
+  "pins_before": {
+    "AGENTS.md": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "compiler/src/json.rs": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+    "compiler/src/lsp/transport.rs": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987",
+    "compiler/src/lsp/server.rs": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+    "compiler/src/lsp/output.rs": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c",
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+    "compiler/src/docs.rs": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/tests/json_input_contract.rs": "71453aa8f6fde527103c6aa2ab79b99e0c119283322cbd508d8e00e5f081dd83",
+    "compiler/tests/catalog_input_contract.rs": "814318bfab7d9f614594b17b958a5060e0d04c4b76672189ca4053d73e05ad2d",
+    "compiler/tests/lsp_admission.rs": "b5a8d3f4fd35f421585c899e6f9f5720a2764a27c0469fe523442a3ba29f083e"
+  },
+  "upstream_pins": {
+    "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/Cargo.toml": "00b920255c320a278bf25b962b491263a19d8c90e12e4a91c1d823db71eabb2f",
+    "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/build.rs": "a681e754be844c7dbef957f5d2d00b01f37c5dca160ef1055a8d8f975697a881",
+    "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/lib.rs": "34a1ddabdcf4759d9a6c64a2e851372546d635d1a578ad902d962fef3c45de58",
+    "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/de.rs": "4998d7e252eb513be85b298e287048b4fb283882e9ba7df905f572f07200f3f3",
+    "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/read.rs": "17a2efe49e5a6937c8d7d4a5c0b9eac84453de0f86bf8e7ee421387e82341bb3",
+    "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/raw.rs": "0e6ae2ade492a3c5c090dfaf31f03ff4e54123a5a47b59def5f1b3dcc035a2e3",
+    "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/number.rs": "70b83c36286f6c58123f544f27db2b54a1135f928fe33b08b521b2997773f862"
+  },
+  "upstream_archive": {
+    "path": "/Users/vince/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151.crate",
+    "sha256": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+    "locked_checksum": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+    "source_files_match": {
+      "Cargo.toml": true,
+      "build.rs": true,
+      "src/lib.rs": true,
+      "src/de.rs": true,
+      "src/read.rs": true,
+      "src/raw.rs": true,
+      "src/number.rs": true
+    }
+  },
+  "artifact_pins": {
+    "/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde-5f77724b6c1d8dcc.rlib": "8338a91f8fd288f5b9377a7444d641a02b3f3e776edf42af7c9783e73076dd66",
+    "/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-abd07b5320783267.rlib": "dcfedab8fbf498919cabd471002ff10caec9a2c872d86450e6dc2585754fd812",
+    "/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_core-62840b425821f844.rlib": "f8e0d8d7d8387e99ed3a444640bc5dbe54a603738af7634312c14638ac91d8ad",
+    "/Users/vince/Projects/canlang/compiler/target/debug/deps/libitoa-0058ccfeb46374f7.rlib": "84124e44e8cda383d27355e0be53bfb1ce5fc5091f83eb8c2a9780e7c4a79810",
+    "/Users/vince/Projects/canlang/compiler/target/debug/deps/libmemchr-2fd701f973603a9e.rlib": "b7c87eb505586487ea432a9dc05a17843bf2beb29b3c36a7f0a9afa8c11ec7ac",
+    "/Users/vince/Projects/canlang/compiler/target/debug/deps/libzmij-616818dc6d449fb1.rlib": "5d3fce16190b82f25c0d9b8a8c65503579c5448764090e0ab07f9147469f7ff7"
+  },
+  "pins_after": {
+    "AGENTS.md": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "compiler/src/json.rs": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+    "compiler/src/lsp/transport.rs": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987",
+    "compiler/src/lsp/server.rs": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+    "compiler/src/lsp/output.rs": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c",
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+    "compiler/src/docs.rs": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/tests/json_input_contract.rs": "71453aa8f6fde527103c6aa2ab79b99e0c119283322cbd508d8e00e5f081dd83",
+    "compiler/tests/catalog_input_contract.rs": "814318bfab7d9f614594b17b958a5060e0d04c4b76672189ca4053d73e05ad2d",
+    "compiler/tests/lsp_admission.rs": "b5a8d3f4fd35f421585c899e6f9f5720a2764a27c0469fe523442a3ba29f083e"
+  },
+  "inputs_unchanged": true
+}
