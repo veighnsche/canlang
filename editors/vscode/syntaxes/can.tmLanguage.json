@@ -710,14 +710,14 @@
           }
         },
         {
-          "match": "(?:^ *|(?<=;) *|(?<=do) +)(?:let|require|create|set|delete|call|emit|send|schedule|cancel|return)(?=\\s|$)",
+          "match": "(?:^ *|(?<=;) *|(?<=do) +)(?:let|require|create|set|transition|delete|call|emit|send|schedule|cancel|return)(?=\\s|$)",
           "name": "keyword.control.effect.can"
         }
       ]
     },
     "type": {
       "begin": "(:)\\s*",
-      "end": "(?!$)(?=.)|(?<=trim|unique|=)(?=$)",
+      "end": "(?!$)(?=.)|(?<=trim|unique|machine|=)(?=$)",
       "applyEndPatternLast": true,
       "beginCaptures": {
         "1": {
@@ -820,7 +820,7 @@
               "name": "storage.modifier.type.can"
             },
             {
-              "match": "\\s*\\b(trim|unique)(?=\\s|[,})]|$)",
+              "match": "\\s*\\b(trim|unique|machine)(?=\\s|[,})]|$)",
               "captures": {
                 "1": {
                   "name": "storage.modifier.field.can"
@@ -917,7 +917,7 @@
               "name": "storage.modifier.type.can"
             },
             {
-              "match": "\\s*\\b(trim|unique)(?=\\s|[,})]|$)",
+              "match": "\\s*\\b(trim|unique|machine)(?=\\s|[,})]|$)",
               "captures": {
                 "1": {
                   "name": "storage.modifier.field.can"
@@ -989,7 +989,7 @@
               "name": "storage.modifier.type.can"
             },
             {
-              "match": "\\s*\\b(trim|unique)(?=\\s|[,})]|$)",
+              "match": "\\s*\\b(trim|unique|machine)(?=\\s|[,})]|$)",
               "captures": {
                 "1": {
                   "name": "storage.modifier.field.can"
@@ -1062,7 +1062,7 @@
               "name": "storage.modifier.type.can"
             },
             {
-              "match": "\\s*\\b(trim|unique)(?=\\s|[,})]|$)",
+              "match": "\\s*\\b(trim|unique|machine)(?=\\s|[,})]|$)",
               "captures": {
                 "1": {
                   "name": "storage.modifier.field.can"
@@ -1386,7 +1386,7 @@
               "name": "storage.modifier.type.can"
             },
             {
-              "match": "\\s*\\b(trim|unique)(?=\\s|[,})]|$)",
+              "match": "\\s*\\b(trim|unique|machine)(?=\\s|[,})]|$)",
               "captures": {
                 "1": {
                   "name": "storage.modifier.field.can"
@@ -1483,7 +1483,7 @@
               "name": "storage.modifier.type.can"
             },
             {
-              "match": "\\s*\\b(trim|unique)(?=\\s|[,})]|$)",
+              "match": "\\s*\\b(trim|unique|machine)(?=\\s|[,})]|$)",
               "captures": {
                 "1": {
                   "name": "storage.modifier.field.can"
@@ -1555,7 +1555,7 @@
               "name": "storage.modifier.type.can"
             },
             {
-              "match": "\\s*\\b(trim|unique)(?=\\s|[,})]|$)",
+              "match": "\\s*\\b(trim|unique|machine)(?=\\s|[,})]|$)",
               "captures": {
                 "1": {
                   "name": "storage.modifier.field.can"
@@ -1628,7 +1628,7 @@
               "name": "storage.modifier.type.can"
             },
             {
-              "match": "\\s*\\b(trim|unique)(?=\\s|[,})]|$)",
+              "match": "\\s*\\b(trim|unique|machine)(?=\\s|[,})]|$)",
               "captures": {
                 "1": {
                   "name": "storage.modifier.field.can"
@@ -2346,7 +2346,7 @@
           }
         },
         {
-          "match": "(?:^ *|(?<=;) *|(?<=do) +)(?:let|require|create|set|delete|call|emit|send|schedule|cancel|return)(?=\\s|$)",
+          "match": "(?:^ *|(?<=;) *|(?<=do) +)(?:let|require|create|set|transition|delete|call|emit|send|schedule|cancel|return)(?=\\s|$)",
           "name": "keyword.control.effect.can"
         },
         {
@@ -2876,7 +2876,7 @@
           }
         },
         {
-          "match": "(?:^ *|(?<=;) *|(?<=do) +)(?:let|create|set|delete|call|emit|send|schedule|cancel|return)(?=\\s|$)",
+          "match": "(?:^ *|(?<=;) *|(?<=do) +)(?:let|create|set|transition|delete|call|emit|send|schedule|cancel|return)(?=\\s|$)",
           "name": "keyword.control.effect.can"
         },
         {
@@ -4591,7 +4591,7 @@
     "field-expr-joined-tail": {
       "patterns": [
         {
-          "match": "\\s*\\b(trim|unique)(?=\\s|[,})]|$)",
+          "match": "\\s*\\b(trim|unique|machine)(?=\\s|[,})]|$)",
           "captures": {
             "1": {
               "name": "storage.modifier.field.can"

@@ -1,0 +1,45 @@
+{
+  "stage": "implementation direction advice, not behavioral acceptance",
+  "results": [
+    {
+      "request": 1,
+      "choice": "field",
+      "confidence": 0.91,
+      "probabilities": {
+        "conventions": 0.0,
+        "named": 0.06,
+        "defer": 0.01,
+        "field": 0.93
+      }
+    },
+    {
+      "request": 2,
+      "choice": "field",
+      "confidence": 0.89,
+      "probabilities": {
+        "conventions": 0.01,
+        "field": 0.92,
+        "defer": 0.07,
+        "named": 0.0
+      }
+    },
+    {
+      "request": 3,
+      "choice": "field",
+      "confidence": 0.91,
+      "probabilities": {
+        "named": 0.02,
+        "defer": 0.04,
+        "conventions": 0.01,
+        "field": 0.93
+      }
+    }
+  ],
+  "equivalence_review": "All three change only the question wording and retain identical verified context, equal outcomes and criteria. No selection disagreement; confidence is reported advice with no rationale. Earlier direction results remain uncertain.",
+  "transport": "First sandbox calls failed before any reply; preauthorized network call then saved these three successful replies.",
+  "uncertainty": [
+    "named graph reuse is not established",
+    "future hierarchy/parallel/history and entry/exit behavior remain open",
+    "complete image-provider and generic generated-form workflows not qualified"
+  ]
+}

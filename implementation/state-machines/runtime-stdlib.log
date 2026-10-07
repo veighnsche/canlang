@@ -1,0 +1,9 @@
+
+ RUN  v3.2.7 /private/tmp/canlang-state-machines
+
+ ✓ packages/cloudflare/test/runtime-stdlib.test.ts (20 tests) 198ms
+
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  21:48:23
+   Duration  530ms (transform 194ms, setup 0ms, collect 103ms, tests 198ms, environment 0ms, prepare 37ms)

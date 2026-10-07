@@ -1,0 +1,54 @@
+{
+  "request": {
+    "state": {
+      "purpose": "Advise an exploratory Can language proposal, not implementation approval. The user wonders whether seamless state machines are missing. Priorities: complete business workflows, adoption, compact AI-authored source, simplicity, owning declarations and reusable defaults. No exact syntax is selected.",
+      "observed": "ExpenseFlow has a status enum with draft default and submitted/approved/rejected cases. submit requires draft and ownership then sets submitted; approve requires submitted and reviewer authority plus no self-approval, then sets approved and decision metadata. Separate locks protect fields and terminal outcomes. The compiler has scenarios, CRUD, require, set, events, schedule/cancel but no application machine AST. Existing runtime source supplies canonical admission, provisional updates and fenced commits joining history, receipts, outbox and schedules. Complete app execution was not verified in this review.",
+      "requirements": "Compare options on the same outcomes: visible allowed lifecycle paths, typed action payloads, existing permissions and business guards, no bypass through another mutation route, atomic state and metadata updates, preserved written guard/effect order, stale version/duplicate/late-event handling, inline success/rejection examples, concise source and reusable composition. Creation, migrations, self-transitions, conditional targets and graph changes need explicit contracts. UI availability is advisory and must not disclose private decision data. External delivery is asynchronous, not exactly once.",
+      "alternatives": "A keeps enum/scenario/set and adds graph analysis/lints plus conventions; arbitrary guards/branches can make the extracted graph incomplete, with no new language promise. B adds an opt-in model-bound lifecycle whose permitted edges are owned by canonical scenarios/trusted handlers; graph metadata and enforcement reuse existing compiler and commit/runtime owners, but every write path must be covered and grammar/ordering need design. C adds reusable named machine types with a central transition definition and explicit model bindings; stronger graph reuse and central visibility, but must integrate operation identity, permissions and parameter schemas without duplicating them. All may start with flat machines; none assumes a second scheduler or runtime is required.",
+      "boundaries": "No concrete need yet establishes hierarchy, parallel regions, history, implicit entry/exit effects or automatic eventless cascades. SCXML documents such richer statechart semantics and run-to-completion; Stately documents event/guard transitions. Deferring them limits expressiveness and must remain revisable. This is a design direction decision, not evidence that one option has passed tests.",
+      "sources": [
+        "examples/ExpenseFlow.can:12,20-21,28-39",
+        "docs/specification/DESIGN.md sections 4-7",
+        "compiler/src/syntax/cst.rs:98-120",
+        "compiler/src/syntax/parser.rs:4362",
+        "packages/state/src/mutation/pipeline.ts:1144",
+        "packages/state/src/invocation/invoke.ts:309-350",
+        "https://stately.ai/docs/transitions",
+        "https://www.w3.org/TR/scxml/"
+      ]
+    },
+    "questions": {
+      "direction": {
+        "type": "choice",
+        "instructions": "Which direction should be explored first for seamless state machines in Can, given these equal requirements and current evidence?",
+        "criteria": {
+          "existing": "Strengthen existing enum/scenario authoring with graph tooling and conventions, accepting its limits until a concrete gap requires syntax.",
+          "model_lifecycle": "Design an opt-in lifecycle on a stored model field, deriving edges from canonical operation declarations and enforcing them through existing owners.",
+          "machine_type": "Design a reusable named machine type with central edges and explicit bindings into existing canonical operation and storage contracts.",
+          "defer": "Defer the architectural preference because the verified examples and unresolved contracts do not yet distinguish these alternatives."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "direction": {
+        "type": "choice",
+        "choice": "model_lifecycle",
+        "confidence": 0.53,
+        "probabilities": {
+          "model_lifecycle": 0.65,
+          "machine_type": 0.03,
+          "existing": 0.21,
+          "defer": 0.11
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1113,
+      "output_tokens": 55
+    }
+  }
+}

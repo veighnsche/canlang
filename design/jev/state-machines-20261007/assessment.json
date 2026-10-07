@@ -1,0 +1,58 @@
+{
+  "status": "proposal_only",
+  "inspection": "Current enum fields, guarded scenarios and set operations can express manual state machines. Inspected compiler has no dedicated application-machine declaration. Runtime primitives exist; complete application execution was not tested.",
+  "direction": "Explore an opt-in model-field lifecycle integrated with canonical scenarios and trusted handlers. Compare it with improved existing idioms and a reusable named machine type before adopting grammar.",
+  "consultations": [
+    {
+      "request": "request-1.json",
+      "response": "response-1.json",
+      "type": "choice",
+      "choice": "model_lifecycle",
+      "confidence": 0.53,
+      "probabilities": {
+        "model_lifecycle": 0.65,
+        "machine_type": 0.03,
+        "existing": 0.21,
+        "defer": 0.11
+      }
+    },
+    {
+      "request": "request-2.json",
+      "response": "response-2.json",
+      "type": "choice",
+      "choice": "model_lifecycle",
+      "confidence": 0.29,
+      "probabilities": {
+        "machine_type": 0.12,
+        "model_lifecycle": 0.47,
+        "existing": 0.38,
+        "defer": 0.03
+      }
+    },
+    {
+      "request": "request-3.json",
+      "response": "response-3.json",
+      "type": "choice",
+      "choice": "model_lifecycle",
+      "confidence": 0.24,
+      "probabilities": {
+        "defer": 0.23,
+        "machine_type": 0.06,
+        "existing": 0.28,
+        "model_lifecycle": 0.43
+      }
+    }
+  ],
+  "uncertainty": "All choices select model_lifecycle, but support is only 0.65/0.47/0.43 and confidence 0.53/0.29/0.24. Existing idioms receive 0.21/0.38/0.28; deferral receives 0.11/0.03/0.23. No response supplies a rationale. Re-reading the three equivalent contexts found no factual reversal; variations do not establish their cause or a robust architectural verdict. Actual before/after source witnesses and bypass/ordering semantics must distinguish the alternatives.",
+  "unresolved": [
+    "Lifecycle opt-in syntax and finite graph ownership/reuse",
+    "Creation, stored fixtures, imports and migration of existing states",
+    "Static source/target sets, branches, repeated transitions and intermediate effects",
+    "Field-write enforcement across CRUD, direct set, hooks, trusted handlers and canonical calls",
+    "Error ordering, stale versions, replay and late-event correlation including leave-and-reenter cases",
+    "Lifecycle terminality versus locks on other record fields, deletion and retention",
+    "UI graph/action disclosure and authoritative server rechecks",
+    "Scope beyond persisted business state: reusable in-memory machines and hierarchical/parallel statecharts"
+  ],
+  "verification": "Read-only source inspection and JSON/request-response checks; no compiler/runtime change or behavioral test run. No merge or living-plan checkpoint update."
+}

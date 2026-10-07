@@ -194,9 +194,25 @@ export const renderPage: RenderPageFn = async (
   children: PageChildren,
   shell?: ShellData,
 ): Promise<string> => {
+  let pollAttrs = '';
+  const contextKey = context.pollContext ?? JSON.stringify([context.pollUrl ?? context.path, context.csrfToken]);
+  const contextAttr = descriptor.poll === undefined ? '' : ` data-can-context="${escapeAttr(contextKey)}"`;
+  if (descriptor.poll !== undefined) {
+    if (typeof descriptor.poll !== 'bigint' || descriptor.poll < 1000n || descriptor.poll > 3600000n || descriptor.poll % 1000n !== 0n) {
+      throw new Error('renderPage: poll must be an integer number of seconds between 1s and 1h.');
+    }
+    const href = context.pollUrl ?? context.path;
+    if (!href.startsWith('/') || href.startsWith('//') || /[\\\s\u0000-\u001f\u007f#]/.test(href) ||
+        new URL(href, 'https://can.invalid').origin !== 'https://can.invalid' ||
+        /%(?:2f|5c|0[0-9a-f]|1[0-9a-f]|7f)/i.test(href.split('?')[0]!)) {
+      throw new Error('renderPage: poll requires a same-app page path.');
+    }
+    pollAttrs = ` data-can-poll data-can-poll-url="${escapeAttr(href)}" data-can-poll-interval="${descriptor.poll / 1000n}" data-can-poll-context="${escapeAttr(contextKey)}"`;
+  }
   const body = await renderChildren(children);
+  const main = `<main id="can-main"${contextAttr}${pollAttrs}>${body}</main>`;
   if (context.isPartial) {
-    return `<main id="can-main">${body}</main>`;
+    return main;
   }
   if (shell === undefined) {
     throw new Error("renderPage: full page render requires shell data");
@@ -239,7 +255,7 @@ export const renderPage: RenderPageFn = async (
     `<meta name="viewport" content="width=device-width, initial-scale=1">` +
     metaDescription +
     `<title>${headTitle}</title></head>` +
-    `<body class="density-${escapeAttr(context.theme.density)}">` +
+    `<body class="density-${escapeAttr(context.theme.density)}"${contextAttr}>` +
     `<div class="drawer drawer-end lg:drawer-open">` +
     `<input id="can-drawer" type="checkbox" class="drawer-toggle">` +
     `<div class="drawer-content">` +
@@ -248,7 +264,7 @@ export const renderPage: RenderPageFn = async (
     `<span class="sr-only">${openMenu}</span>` +
     `<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>` +
     `</label></div>` +
-    `<main id="can-main">${body}</main>` +
+    main +
     `</div>` +
     `<div class="drawer-side">` +
     `<label for="can-drawer" class="drawer-overlay" aria-label="${closeMenu}"></label>` +
@@ -261,6 +277,7 @@ export const renderPage: RenderPageFn = async (
     renderAccount(shell, context) +
     `</aside></div></div>` +
     renderSettings(shell, context) +
+    (descriptor.poll === undefined ? '' : '<script type="module" src="/assets/browser/bootstrap.js"></script>') +
     `</body></html>`
   );
 };

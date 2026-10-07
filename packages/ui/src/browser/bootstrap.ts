@@ -48,6 +48,7 @@ export interface DocumentLike {
   readonly activeElement: ElementLike | null;
   querySelectorAll(selectors: string): Iterable<ElementLike>;
   getElementById(id: string): ElementLike | null;
+  createElement?(tag: string): unknown;
 }
 
 /** Minimal structural element (satisfied by DOM Element and fakes). */
@@ -68,6 +69,7 @@ export interface ElementLike {
 export interface EventLike {
   readonly target: ElementLike | null;
   readonly type: string;
+  readonly persisted?: boolean;
   preventDefault(): void;
 }
 
@@ -75,7 +77,7 @@ export interface EventLike {
 export interface WindowLike {
   readonly document: DocumentLike;
   readonly visibilityState: string;
-  readonly location: { readonly hash: string };
+  readonly location: { readonly hash: string; readonly pathname?: string; readonly search?: string };
   addEventListener(type: string, listener: (event: EventLike) => void): void;
   removeEventListener(type: string, listener: (event: EventLike) => void): void;
   setTimeout(callback: () => void, ms: number): unknown;
@@ -87,6 +89,7 @@ export interface ClientInternals {
   readonly fetchImpl: SubmitFetch;
   readonly windowRef: WindowLike;
   readonly deliver?: BrowserClientOptions["deliverPollResponse"];
+  readonly document: DocumentLike;
 }
 
 /** Per-component binder: bind behavior under `root`, return an unbind. */
@@ -124,16 +127,16 @@ export interface BrowserClientOptions {
    */
   readonly onHtmxSwap?: (rescan: () => void) => () => void;
   /**
-   * Deliver a poll response body for a region. Defaults to replacing
-   * the region's content when the binder root supports it; htmx
-   * pages pass a swap-based delivery.
+   * Optional delivery adapter. The default validates the partial region
+   * and morphs its DOM, preserving edited/focused forms. Returning false
+   * stops the poll rather than painting an error or a different context.
    */
-  readonly deliverPollResponse?: (region: ElementLike, body: string, status: number) => void;
+  readonly deliverPollResponse?: (region: ElementLike, body: string, status: number) => boolean | void;
 }
 
 export interface BrowserClient {
   /** Re-scan the document for bindable regions (also runs at start). */
-  rescan(): void;
+  rescan(restartPolling?: boolean): void;
   /** Stop all regions, guards, and listeners. Terminal. */
   stop(): void;
   /** Current context key (`data-can-context` on `<body>`, "" when absent). */
@@ -143,6 +146,8 @@ export interface BrowserClient {
 interface BoundRegion {
   readonly element: ElementLike;
   readonly stop: () => void;
+  readonly binder: string;
+  readonly signature: string;
 }
 
 function parseIntervalSeconds(value: string | null): number | null {
@@ -150,10 +155,114 @@ function parseIntervalSeconds(value: string | null): number | null {
     return null;
   }
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 3600) {
     return null;
   }
   return parsed;
+}
+
+/** Native DOM capabilities used by the bounded main-region morph. */
+interface DomNode {
+  readonly nodeType: number;
+  nodeValue: string | null;
+  readonly childNodes: ArrayLike<DomNode>;
+  readonly tagName?: string;
+  readonly attributes?: Iterable<{ readonly name: string; readonly value: string }>;
+  getAttribute?(name: string): string | null;
+  setAttribute?(name: string, value: string): void;
+  removeAttribute?(name: string): void;
+  querySelector?(selector: string): DomNode | null;
+  querySelectorAll?(selector: string): Iterable<DomNode>;
+  contains?(other: unknown): boolean;
+  cloneNode(deep: boolean): DomNode;
+  insertBefore(node: DomNode, before: DomNode | null): DomNode;
+  removeChild(node: DomNode): DomNode;
+  value?: string;
+  readonly defaultValue?: string;
+  checked?: boolean;
+  readonly defaultChecked?: boolean;
+  selected?: boolean;
+  readonly defaultSelected?: boolean;
+  readonly files?: { readonly length: number } | null;
+}
+
+function formIdentity(node: DomNode): string {
+  const id = node.getAttribute?.('id') ?? '';
+  const fields = [...node.querySelectorAll?.('input[type="hidden"]') ?? []];
+  const field = (name: string) => fields.find((input) => input.getAttribute?.('name') === name)?.getAttribute?.('value') ?? '';
+  const refs = fields.filter((input) => input.getAttribute?.('name') !== 'operation_id' && /(?:\[id\]|_id)$/.test(input.getAttribute?.('name') ?? ''))
+    .map((input) => [input.getAttribute?.('name'), input.getAttribute?.('value')]).sort();
+  const handle = refs.length === 0 && id === '' ? field('action_handle') : '';
+  return JSON.stringify([id, node.getAttribute?.('action'), field('operation'), refs, handle]);
+}
+
+function compatibleNode(current: DomNode, next: DomNode): boolean {
+  if (current.nodeType !== next.nodeType || current.tagName !== next.tagName) return false;
+  const id = next.getAttribute?.('id');
+  if (id !== undefined && id !== null && current.getAttribute?.('id') !== id) return false;
+  if (['input', 'textarea', 'select'].includes(next.tagName?.toLowerCase() ?? '') &&
+      ['id', 'name', 'type'].some((name) => current.getAttribute?.(name) !== next.getAttribute?.(name))) return false;
+  if (next.tagName?.toLowerCase() === 'form' && formIdentity(current) !== formIdentity(next)) return false;
+  return true;
+}
+
+function morphNode(current: DomNode, next: DomNode, document: DocumentLike): void {
+  if (current.nodeType !== 1) { current.nodeValue = next.nodeValue; return; }
+  const tag = current.tagName?.toLowerCase();
+  const editable = (tag === 'input' && current.getAttribute?.('type') !== 'hidden') || tag === 'textarea' || tag === 'select';
+  const keepInput = editable && (document.activeElement === current as unknown as ElementLike ||
+    (current.files?.length ?? 0) > 0 ||
+    (current.defaultValue !== undefined && current.value !== current.defaultValue) ||
+    (current.defaultChecked !== undefined && current.checked !== current.defaultChecked) ||
+    [...current.querySelectorAll?.('option') ?? []].some((option) => option.selected !== option.defaultSelected));
+  const value = current.value;
+  const checked = current.checked;
+  const selected = tag === 'select'
+    ? [...(keepInput ? current : next).querySelectorAll?.('option') ?? []].filter((option) => option.selected).map((option) => option.value) : null;
+  const attributes = new Map([...next.attributes ?? []].map((attribute) => [attribute.name, attribute.value]));
+  for (const attribute of [...current.attributes ?? []]) {
+    if (!attributes.has(attribute.name)) current.removeAttribute?.(attribute.name);
+  }
+  for (const [name, value] of attributes) current.setAttribute?.(name, value);
+  const desired = Array.from(next.childNodes);
+  for (const [index, child] of desired.entries()) {
+    const anchor = current.childNodes[index] ?? null;
+    let matched: DomNode | null = null;
+    const id = child.getAttribute?.('id');
+    if (id !== undefined && id !== null) {
+      matched = Array.from(current.childNodes).find((node) => compatibleNode(node, child)) ?? null;
+    } else if (anchor !== null && compatibleNode(anchor, child)) matched = anchor;
+    if (matched === null) current.insertBefore(child.cloneNode(true), anchor);
+    else {
+      if (matched !== anchor) current.insertBefore(matched, anchor);
+      morphNode(matched, child, document);
+    }
+  }
+  while (current.childNodes.length > desired.length) {
+    const last = current.childNodes[current.childNodes.length - 1];
+    if (last !== undefined) current.removeChild(last);
+  }
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+    if (tag !== 'select' && current.getAttribute?.('type') !== 'file' && value !== undefined) current.value = keepInput ? value : next.value ?? '';
+    if (checked !== undefined) current.checked = keepInput ? checked : next.checked ?? false;
+    if (selected !== null) {
+      for (const option of current.querySelectorAll?.('option') ?? []) option.selected = selected.includes(option.value);
+    }
+  }
+}
+
+/** Accept one same-context main partial; never paint login/full-document/error HTML. */
+export function applyPollResponse(document: DocumentLike, region: ElementLike, body: string, status: number): boolean {
+  if (status < 200 || status >= 300 || /<!doctype|<\/?(?:html|head|body)(?:\s|>)/i.test(body) || document.createElement === undefined) return false;
+  const template = document.createElement('template') as { innerHTML: string; readonly content: DomNode };
+  template.innerHTML = body;
+  const significant = Array.from(template.content.childNodes).filter((node) => node.nodeType === 1 || (node.nodeValue ?? '').trim() !== '');
+  const incoming = significant[0];
+  if (significant.length !== 1 || incoming?.tagName?.toLowerCase() !== 'main' || incoming.getAttribute?.('id') !== region.getAttribute('id') ||
+      incoming.getAttribute?.('data-can-context') !== region.getAttribute('data-can-context') ||
+      incoming.getAttribute?.('data-can-poll-context') !== region.getAttribute('data-can-poll-context') || incoming.querySelector?.('script') !== null) return false;
+  morphNode(region as unknown as DomNode, incoming, document);
+  return true;
 }
 
 function bindPollRegion(
@@ -163,8 +272,9 @@ function bindPollRegion(
 ): () => void {
   const url = region.getAttribute("data-can-poll-url");
   const interval = parseIntervalSeconds(region.getAttribute("data-can-poll-interval"));
-  const context = region.getAttribute("data-can-poll-context") ?? client.contextKey();
-  if (url === null || url === "" || interval === null) {
+  const context = client.contextKey();
+  if (url === null || url === "" || interval === null || internals.windowRef.visibilityState === 'hidden' ||
+      (internals.windowRef.location.pathname !== undefined && url.split('?')[0] !== internals.windowRef.location.pathname)) {
     return () => {};
   }
   const poller = new PollRegion({
@@ -178,9 +288,13 @@ function bindPollRegion(
       key: () => client.contextKey(),
       isAlive: () => region.isConnected,
     },
-    isLoggedOut: () => region.getAttribute("data-can-logged-out") === "true",
+    isLoggedOut: () => region.getAttribute("data-can-logged-out") === "true" || internals.document.body?.getAttribute("data-can-logged-out") === "true",
     onResponse: (body, status) => {
-      internals.deliver?.(region, body, status);
+      const applied = internals.deliver === undefined
+        ? applyPollResponse(internals.document, region, body, status)
+        : internals.deliver(region, body, status);
+      if (applied !== false) client.rescan();
+      return applied;
     },
   });
   poller.start();
@@ -303,6 +417,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
   const internals: ClientInternals = {
     fetchImpl: options.fetchImpl,
     windowRef: options.window,
+    document,
     ...(options.deliverPollResponse === undefined
       ? {}
       : { deliver: options.deliverPollResponse }),
@@ -322,10 +437,21 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
   };
 
   const client: BrowserClient = {
-    contextKey: () => document.body?.getAttribute("data-can-context") ?? "",
-    rescan: () => {
+    contextKey: () => {
+      const pageKey = document.getElementById("can-main")?.getAttribute("data-can-context") ?? '';
+      const ownerKey = document.body?.getAttribute("data-can-context") ?? '';
+      const location = options.window.location;
+      return `${ownerKey}|${pageKey}|${location.pathname ?? ''}${location.search ?? ''}`;
+    },
+    rescan: (restartPolling = false) => {
       if (stopped) {
         return;
+      }
+      if (restartPolling) {
+        for (let index = bound.length - 1; index >= 0; index -= 1) {
+          const entry = bound[index];
+          if (entry?.binder === 'poll-region') { entry.stop(); bound.splice(index, 1); }
+        }
       }
       const snapshot = new Map(BINDERS);
       for (const [id, selector] of BINDER_SELECTORS) {
@@ -334,17 +460,20 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
           continue;
         }
         for (const element of document.querySelectorAll(selector)) {
-          if (bound.some((entry) => entry.element === element)) {
-            continue;
-          }
-          bound.push({ element, stop: binder(element, client, internals) });
+          const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}`;
+          const oldIndex = bound.findIndex((entry) => entry.element === element && entry.binder === id);
+          const old = bound[oldIndex];
+          if (old !== undefined && old.signature === signature) continue;
+          if (old !== undefined) { old.stop(); bound.splice(oldIndex, 1); }
+          bound.push({ element, binder: id, signature, stop: binder(element, client, internals) });
         }
       }
       // Release bindings whose elements left the document (swap
       // replacement owns the new state; stale bindings never linger).
       for (let index = bound.length - 1; index >= 0; index -= 1) {
         const entry = bound[index];
-        if (entry !== undefined && !entry.element.isConnected) {
+        if (entry !== undefined && (!entry.element.isConnected ||
+            (entry.binder === 'poll-region' && !entry.element.hasAttribute('data-can-poll')))) {
           entry.stop();
           bound.splice(index, 1);
         }
@@ -380,4 +509,94 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
   LIVE_CLIENTS.set(document as object, client);
   client.rescan();
   return client;
+}
+
+/** Browser globals are adapted here; importing this module on the server has no effects. */
+interface NativeWindow {
+  readonly document: DocumentLike & {
+    readonly visibilityState: string;
+    readonly readyState?: string;
+    addEventListener(type: string, listener: () => void): void;
+    removeEventListener(type: string, listener: () => void): void;
+  };
+  readonly location: WindowLike['location'];
+  addEventListener(type: string, listener: (event: EventLike) => void): void;
+  removeEventListener(type: string, listener: (event: EventLike) => void): void;
+  setTimeout(callback: () => void, ms: number): unknown;
+  clearTimeout(handle: unknown): void;
+  fetch(url: string, init: { readonly method: string; readonly headers: Record<string, string>; readonly credentials: string; readonly cache: string }): Promise<{
+    readonly status: number; readonly redirected?: boolean;
+    readonly headers: { get(name: string): string | null }; text(): Promise<string>;
+  }>;
+  readonly MutationObserver?: new (callback: () => void) => {
+    observe(target: unknown, options: unknown): void; disconnect(): void;
+  };
+}
+
+const NATIVE_CLIENTS = new WeakMap<object, BrowserClient>();
+
+/** Start the installed module against the real browser, including swap/navigation re-scans. */
+export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
+  const existing = NATIVE_CLIENTS.get(native.document as object);
+  if (existing !== undefined) return existing;
+  let suspended = false;
+  const windowRef: WindowLike = {
+    document: native.document, location: native.location,
+    get visibilityState() { return suspended ? "hidden" : native.document.visibilityState; },
+    addEventListener: (type, listener) => native.addEventListener(type, listener),
+    removeEventListener: (type, listener) => native.removeEventListener(type, listener),
+    setTimeout: (callback, ms) => native.setTimeout(callback, ms),
+    clearTimeout: (handle) => native.clearTimeout(handle),
+  };
+  const client = startBrowserClient({
+    window: windowRef,
+    fetchImpl: async (url, init) => {
+      const response = await native.fetch(url, { method: init.method, headers: init.headers, credentials: 'same-origin', cache: 'no-store' });
+      return { status: response.redirected === true ? 409 : response.status, headers: response.headers, text: () => response.text() };
+    },
+    onHtmxSwap: (rescan) => {
+      const listener = () => rescan();
+      native.document.addEventListener('htmx:afterSwap', listener);
+      return () => native.document.removeEventListener('htmx:afterSwap', listener);
+    },
+  });
+  const observer = native.MutationObserver === undefined ? null : new native.MutationObserver(() => client.rescan());
+  if (native.document.body !== null) observer?.observe(native.document.body, {
+    childList: true, subtree: true, attributes: true,
+    attributeFilter: ['data-can-context', 'data-can-poll', 'data-can-poll-context', 'data-can-logged-out'],
+  });
+  const navigate = () => client.rescan();
+  native.addEventListener('popstate', navigate);
+  const visible = () => client.rescan(true);
+  native.document.addEventListener('visibilitychange', visible);
+  let stopped = false;
+  const unload = () => {
+    if (stopped) return;
+    stopped = true;
+    observer?.disconnect();
+    native.removeEventListener('popstate', navigate);
+    native.removeEventListener('pagehide', pageHide);
+    native.removeEventListener('pageshow', pageShow);
+    native.document.removeEventListener('visibilitychange', visible);
+    client.stop();
+    NATIVE_CLIENTS.delete(native.document as object);
+  };
+  const pageHide = (event: EventLike) => {
+    if (event.persisted === true) { suspended = true; client.rescan(true); } else unload();
+  };
+  const pageShow = (event: EventLike) => {
+    if (event.persisted === true && !stopped) { suspended = false; client.rescan(true); }
+  };
+  native.addEventListener('pagehide', pageHide);
+  native.addEventListener('pageshow', pageShow);
+  const handle: BrowserClient = { contextKey: () => client.contextKey(), rescan: (restart) => client.rescan(restart), stop: unload };
+  NATIVE_CLIENTS.set(native.document as object, handle);
+  return handle;
+}
+
+const browser = (globalThis as unknown as { readonly window?: NativeWindow }).window;
+if (browser?.document !== undefined && typeof browser.fetch === 'function') {
+  if (browser.document.readyState === 'loading') {
+    browser.document.addEventListener('DOMContentLoaded', () => { startNativeBrowserClient(browser); });
+  } else startNativeBrowserClient(browser);
 }

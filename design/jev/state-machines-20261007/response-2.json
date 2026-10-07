@@ -1,0 +1,54 @@
+{
+  "request": {
+    "state": {
+      "purpose": "This consultation concerns a proposed language direction only. A Can user suspects effortless state-machine authoring is absent. Can targets business apps, economical AI generation, small source, straightforward ownership and reusable declarations. There is no agreed grammar and no request to build a runtime here.",
+      "observed": "In inspected ExpenseFlow source, draft/submitted/approved/rejected are enum values with draft as default. Submission checks claimant and current draft state before setting submitted. Approval checks reviewer access, submitted state and a different claimant, then writes status and decision evidence. Locks express protected and final fields elsewhere. Inspected compiler syntax covers require/set, scenarios/CRUD, event delivery and timers, without an app-machine node. State runtime files implement provisional mutation plus admission and revision-fenced history/receipt/outbox/schedule commit. This inspection does not qualify the whole sample app.",
+      "requirements": "Each candidate must be assessed against legal paths that tools can inspect; typed inputs; normal caller/source authority and domain conditions; protection from alternate writers; transactional status/evidence changes; original check/effect ordering; version conflicts, replay and delayed events; attached behavioral examples; concise and composable authoring. Initialization, upgrades, same-state edges, branch-dependent targets and changed graphs remain specifications to settle. Browser affordances cannot grant authority or reveal protected predicates. Providers keep asynchronous delivery uncertainty.",
+      "alternatives": "Option A retains existing enums and scenarios and adds inferred diagrams, diagnostics and writing guidance. Conditional code may prevent a complete graph, so it does not promise a new enforced language contract. Option B introduces a model-field lifecycle opt-in and declares its edges with the existing operations or trusted handlers, using current compiler/storage owners for checks; comprehensive mutation coverage and evaluation position are obligations. Option C defines a reusable machine type centrally and binds records and operations to it; this offers graph sharing but must avoid copied permission/signature/identity definitions. Flat initial scope is possible for every option, and none inherently requires separate execution infrastructure.",
+      "boundaries": "The reviewed workload has not established demand for nested/parallel/history states, implicit entry/exit actions or immediate cascading transitions. SCXML supplies richer statechart and event-completion semantics; Stately explains guarded event transitions. Omitting those initially restricts capability, and future evidence may change the scope. Select an investigation path rather than declare implementation correctness.",
+      "sources": [
+        "examples/ExpenseFlow.can:12,20-21,28-39",
+        "docs/specification/DESIGN.md sections 4-7",
+        "compiler/src/syntax/cst.rs:98-120",
+        "compiler/src/syntax/parser.rs:4362",
+        "packages/state/src/mutation/pipeline.ts:1144",
+        "packages/state/src/invocation/invoke.ts:309-350",
+        "https://stately.ai/docs/transitions",
+        "https://www.w3.org/TR/scxml/"
+      ]
+    },
+    "questions": {
+      "direction": {
+        "type": "choice",
+        "instructions": "On the evidence and common acceptance outcomes provided, which approach merits the first Can state-machine design investigation?",
+        "criteria": {
+          "existing": "Improve enum-and-scenario conventions and graph inspection first, keeping their acknowledged limitations unless a demonstrated need justifies new syntax.",
+          "model_lifecycle": "Explore field-owned lifecycle declarations whose edges come from canonical operations and whose enforcement belongs to the current compiler and commit path.",
+          "machine_type": "Explore a shareable named state-machine type with one edge definition and bindings to ordinary operations and record authority.",
+          "defer": "Keep the structural choice open because the present examples and outstanding semantic questions are insufficient to prefer an approach."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "direction": {
+        "type": "choice",
+        "choice": "model_lifecycle",
+        "confidence": 0.29,
+        "probabilities": {
+          "machine_type": 0.12,
+          "model_lifecycle": 0.47,
+          "existing": 0.38,
+          "defer": 0.03
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1102,
+      "output_tokens": 55
+    }
+  }
+}

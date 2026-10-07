@@ -349,6 +349,7 @@ The effect vocabulary is finite:
 | `require expr [message=expr]` | Reject without committing if false; message is literal text or a message descriptor |
 | `create Model {fields} as name` | Insert and bind a record; child inputs include `parent` |
 | `set record {fields}` | Assign named fields; no implied copies or model-name rebinding |
+| `transition record.field source -> target` | Validate and stage one operation-owned machine edge |
 | `delete record` | Apply the model's declared deletion mode; allowed only if deletion is enabled |
 | `call operation {arguments} [as name]` | Invoke a canonical operation in the same transaction/context; recheck its `by`, rules and ownership |
 | `if expr` / `else` | Indented conditional branches |
@@ -366,6 +367,40 @@ Cross-package `call` is the only way to mutate another package's model. It parti
 Every authored `require` has the same rejection semantics, including leading checks in trusted handlers. False means the safe business error, default `rule_failed`, and rollback of all provisional domain changes, events, deliveries and attachment links. A trusted business rejection is a terminal failed occurrence; transient runtime failures retry the same occurrence. Lifecycle `skipped` describes superseded/cancelled/ineligible work or a false dispatch `send when`, not a false authored `require`. Inline examples observe the ordinary business error, without committing rejected domain effects.
 
 Mutation results default to a receipt plus authorized changed-record projections. Explicit mutation returns may contain literals, input values, generated receipts, and readable record values. Private authority-derived scalars cannot leak through return values; the compiler tracks these dependencies. A deliberate privileged report uses `scenario ... read=true scope=authority -> Contract by=...`: its typed result is an explicit information grant to `by`. Ordinary `read=true` uses viewer queries, allows only pure statements, and has a required result type and return on every path. Source-scoped reports must have a description identifying the information exposed. Mutation success/failure can inherently reveal the stated operation's permitted business outcome, such as availability; it never returns hidden rows or SQL diagnostics.
+
+### Stored field state machines
+
+A stored scalar enum opts into lifecycle protection with `machine`. Its constant default is the initial state; nullable, array, server-initialized and nonstored fields cannot be machines. Existing enum fields retain ordinary `set` behavior.
+
+```can
+Given
+ Job { status:enum(idle,queued,generating,ready,failed)=idle machine }
+When
+ scenario start(job:Job) by=members
+  do
+   transition job.status queued -> generating
+Then
+ page / title="Generation" poll=2s
+  list Job
+   alert
+    require row.status==generating
+    text "Generating"
+   alert
+    require row.status==ready
+    text "Generation complete"
+```
+
+`transition record.field source -> target` executes at its written position in a mutation `do` body. Both endpoints are constant declared cases. The compiler derives graph edges with the canonical scenario or trusted-handler identity, including conditional/loop sites; identical endpoints owned by different operations remain distinct. Existing parameters, `by`, business guards, record versions and ownership rules continue to apply. Synchronous hooks, pure reads and migration mappers cannot transition. Self-transitions are permitted and count as writes.
+
+The mutation pipeline validates the edge and its operation identity, then compares the source with the current provisional field. A source mismatch is `rule_failed`; malformed or undeclared edges are `validation`. Ordinary `set`, CRUD patches, creation inputs and hook rewrites cannot assign a managed field, even to its current value. Production creation owns the initial default. Fixtures and migrations may contain any valid declared state as a stored snapshot; they neither imply that earlier edges ran nor reset an existing row. Activation validates retained and mapped states before publishing the target schema. Locks, invariants, authorized reads, deletion and retention remain independent constraints; a terminal state does not freeze other fields automatically.
+
+Ordinary record references keep their admitted version while domain field reads through the reference or an alias observe ordered provisional changes. Multiple effects on an existing row reserve one transaction version, with ordered history entries and one final committed row. A later failure rolls back every staged effect. Receipt replay and stale reference admission retain their existing owners. An explicit version or occurrence/correlation guard is still necessary for delayed completions after leaving and reentering a state; the state name alone is insufficient.
+
+Frontend state views reuse presentation `require` gates. These predicates run on the authorized row projection, so omitted fields remain unavailable. `page poll=2s` requests authorized partial HTML at the configured whole-second cadence (1s–1h) and updates the view; it preserves the selected URL query/team, editable control values and focus while applying fresh server action/version/CSRF metadata. Withdrawn controls disappear. Failed, full-document, foreign-context or stale navigation responses stop painting. Polling pauses while hidden and resumes on visibility or cached back navigation. The HTTP dispatcher owns the page shell; generated render functions return content only. Visibility is advisory and never grants permission to transition.
+
+Artifacts gate machine metadata with `state.machines@1`, including checking the loaded state producer's capability. Generated mutating scenario parameter bindings use an explicit `inputStyle="parameters"` marker and `state.parameters@1`; legacy unmarked callable envelopes remain supported. The public `transition` producer is state-owned and is exposed through the stdlib facade and the generated Cloudflare binding.
+
+This first implementation is a flat stored lifecycle. Named reusable graphs, hierarchy, parallel states, history states, entry/exit callbacks and eventless cascades remain future design work. [Generation.can](../../examples/Generation.can) is an executable lifecycle viewer and declared scenario example, not an image provider integration. The compiled end-to-end witness covers canonical invocation and projected state rendering; broader generated form/action adaptation and provider/worker delivery keep their existing qualification boundaries. Complete generated hook/lock/invariant wiring and hook-version observations are not qualified by this change; the canonical seam normalizes transaction versions after pipeline rule evaluation.
 
 ### 5.1. Inline behavior examples
 
