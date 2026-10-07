@@ -827,7 +827,7 @@
     },
     "DEL-D04": {
       "planning_status": "blocked",
-      "state": "independently accepted finite line-comment terminator correction; scoped commit prepared",
+      "state": "independently accepted finite line-comment terminator correction; committede9b166de",
       "files": [
         "packages/cloudflare/src/deploy/bundle.ts",
         "packages/cloudflare/src/deploy/module-imports.ts",
@@ -855,8 +855,9 @@
       "review": "loadability-terminators-independent-review.json",
       "root_read_released": true,
       "review_read_released": true,
-      "commit_pending": true,
-      "parent_limit": "Namespace ownership, general CommonJS binding/provenance, syntax, actual staged installed diagnostic/native qualification remain open"
+      "commit_pending": false,
+      "parent_limit": "Namespace ownership, general CommonJS binding/provenance, syntax, actual staged installed diagnostic/native qualification remain open",
+      "commit": "e9b166de"
     },
     "DEL-D05": {
       "planning_status": "deferred",
@@ -895,7 +896,7 @@
     },
     "DEL-E02": {
       "planning_status": "blocked",
-      "state": "Exact table-runner cleanup correction ACKed; finite source qualification active",
+      "state": "independently accepted finite table correction; scoped commit prepared",
       "files": [
         "packages/testkit/src/runner/table.ts",
         "packages/testkit/src/assertions/equal.ts",
@@ -912,7 +913,16 @@
         "packages/testkit/src/runner/table.ts",
         "packages/testkit/test/table-disposal.test.ts"
       ],
-      "parent_limit": "Other lifecycle/readers/cleanup/nativeheld/receipt duties remain open"
+      "parent_limit": "Other source-loader/durable isolation/resource/nativeheld/evidence cleanup duties remain open",
+      "review": "table-disposal-independent-review.json",
+      "source_pins": {
+        "packages/testkit/src/runner/table.ts": "05bd6cdf4d063f71aea65d543b02e450c5ffe621f3d65e2ea6f1de6697dc8de3",
+        "packages/testkit/test/table-disposal.test.ts": "2283c993bab6bd83abcf8b03b104fc40142912ff69c1f210f386cca0701d6ff9"
+      },
+      "writer_released": true,
+      "review_read_released": true,
+      "root_read_released": true,
+      "commit_pending": true
     },
     "REPLAY-IP07": {
       "planning_status": "ready",
@@ -1168,7 +1178,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T21:38:50.098189+00:00",
+  "updated_utc": "2026-10-07T21:45:27.908112+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",

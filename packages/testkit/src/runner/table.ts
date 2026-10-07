@@ -220,7 +220,17 @@ async function runOneRow<Scope extends RowScope>(
     };
   }
 
-  const result = await executeRow(spec, scope, userFixtures);
+  let result: TableRowResult;
+  try {
+    result = await executeRow(spec, scope, userFixtures);
+  } catch (thrown) {
+    try {
+      await scope.dispose();
+    } catch {
+      // Preserve the unexpected execution failure even if cleanup also fails.
+    }
+    throw thrown;
+  }
   try {
     await scope.dispose();
   } catch (thrown) {
