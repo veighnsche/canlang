@@ -1,0 +1,41 @@
+{
+  "checks": {
+    "manifest_count_118": true,
+    "selected_source_pins": true,
+    "receipt_pins": true,
+    "current_drift_is_js_and_codegen_tests_only": true,
+    "declaration_counts_29_and_18": true,
+    "raw_callers_reproduce_as_line_multiset": true,
+    "selected_40_historical_pass_records_reproduce": true,
+    "direct_dependency_rlib_pins": true,
+    "direct_compiles_exact_source_modules": true,
+    "direct_success_receipt_and_log": true
+  },
+  "all_checks_pass": true,
+  "current_drift": [
+    "compiler/src/codegen/js.rs",
+    "compiler/tests/codegen.rs"
+  ],
+  "linked_source_modules": [
+    "compiler/src/json.rs",
+    "compiler/src/source.rs",
+    "compiler/src/diagnostic.rs",
+    "compiler/src/lsp/transport.rs"
+  ],
+  "target_counts": [
+    7,
+    15,
+    7,
+    6,
+    6,
+    6
+  ],
+  "historical_selected_pass_records": 40,
+  "scope": "No compilation or suite rerun; independently reproduced hashes, counts, caller search and historical pass-record selection. Existing direct receipt inspected for exact source-module/local-rlib linkage. Not a new execution receipt.",
+  "limits": [
+    "The 118-input manifest excludes editor include_str fixtures used by typed-output tests.",
+    "Raw name search contains declarations, comments and unrelated names; it is not a semantic call graph.",
+    "Public textual declaration inventory includes restricted visibility and omits enum variants; source inspection supplements it.",
+    "The historical suite contains an unrelated mode-4750 body skip; selected LSP bodies have no optional skip branch."
+  ]
+}

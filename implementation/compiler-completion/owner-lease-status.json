@@ -15,7 +15,8 @@
     "flat_runtime_test_isolation": "a33cdba5; exclusive scratch ownership and six unchanged runtime bodies accepted.",
     "named_ICU_date_time_partition": "9a84d6f7; declared message date/time requirements independently accepted bounded, all other temporal joins remain open.",
     "public_descriptor_fix_support": "a590a1ea; stable interfaces retained, zero retirement/deletion credit.",
-    "named_message_slot_coverage": "bc2b7d05; empty named signatures check source/variant placeholders; structural callers preserved. Independent29focusedchecks and current1152-test integrated suite pass."
+    "named_message_slot_coverage": "bc2b7d05; empty named signatures check source/variant placeholders; structural callers preserved. Independent29focusedchecks and current1152-test integrated suite pass.",
+    "decimal_materialization": "0134ebb0; exact dotted/contextualintegral publicconstructor bounded leaf, independent acceptance;119worker+10relocatedcurrent+1formattedgolden checks and strictClippy0. Broader value/default consumers open."
   },
   "pending_releases": {
     "UI_static": "Releasedc718517a; furtherlegalcaption/genericprofiles needexactownerqualification",
@@ -29,17 +30,20 @@
     "Subject-scoped synchronousguard remains unsupported exactoriginalbehavior",
     "GenericUI profile admission/capability/image app actualconsumerworkflow notcovered by staticleaf"
   ],
-  "next_enum_dependent_input_source_slot": "No active writer in analysis/types.rs, analysis/resolve.rs or codegen/ir.rs/js.rs. Accepted leaves and integrated source freeze released; another writer needs an exact coordinated lease.",
+  "next_enum_dependent_input_source_slot": "No active compiler-completion writer or integrated source freeze; an exact coordinated new lease is required.",
   "coordination": "Package/Git coordinator foreign ownership preserved. Root makes only scoped reviewed compiler packet commits; no merge/checkpoint advance. Future compiler writers require an exact coordinated lease.",
   "pending_consumer_policy": {
     "compiler_paths": "analysis/types.rs,codegen/ir.rs,codegen/bdd.rs,codegen/js.rs",
     "status": "Future BDD consumer join held for specific consultation approval; no active writer or blanket file lease."
   },
   "integrated_run_freeze": {
-    "compiler_inputs": 118,
-    "source_writers": "None; accepted message coverage source released.",
-    "status": "Completed:1152pass/0fail/0ignored and strict all-target Clippyexit0;118compiler/1770package inputs unchanged. Source freeze released; no active compiler writer.",
+    "compiler_inputs": 121,
     "package_dist_inputs": 1770,
-    "receipt": "integration-after-bindings/after-message-coverage/profile-accounting/final-run.json"
-  }
+    "external_can_fixtures": 5,
+    "source_writers": "None; Decimal accepted at0134ebb0.",
+    "status": "Completed1154pass/0fail/0ignored, matching strictClippy0;121compiler/1770distmanifest/5externalCanfixtures unchanged. Source freeze released; no active compiler-completion writer.",
+    "start_head": "0134ebb01b978831e07e6428bd15512de75e610a",
+    "receipt": "integration-after-bindings/after-decimal-materialization/profile-accounting/final-run.json"
+  },
+  "selected_page_private_cli_handoff": "selected-page-cli-handoff.json; verified frozenCLI/exactImages compile from0134source snapshot; subsequent native1154run passed with matching inputs. Finite poll/render test-context scope only. Additional privateVerifiedContext evidence use/actual canonical carrier limits recorded in handoff; no source or context/default policy release."
 }

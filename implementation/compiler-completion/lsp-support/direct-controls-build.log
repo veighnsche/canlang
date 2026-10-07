@@ -1,0 +1,10 @@
+warning: unused imports: `MAX_JSON_DEPTH`, `ParseError`, and `parse`
+ --> /Users/vince/Projects/canlang/implementation/compiler-completion/lsp-support/../../../compiler/src/lsp/transport.rs:8:29
+  |
+8 | pub use crate::json::{Json, MAX_JSON_DEPTH, ParseError, parse, render};
+  |                             ^^^^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: 1 warning emitted
+

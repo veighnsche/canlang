@@ -1,0 +1,78 @@
+{
+  "status": "completed_native_profile",
+  "suite": {
+    "command": [
+      "cargo",
+      "test",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "log_sha256": "f4a8c2d6a2bdf0019f7476599ba078c4d5f206ab56fd8b358c23495182a8f5d3",
+    "passed": 1154,
+    "failed": 0,
+    "ignored": 0,
+    "test_binary_runs": 66,
+    "result_summaries": 67,
+    "nonzero_summaries": 65,
+    "empty_summaries": 2,
+    "optional_body_skip_lines": [
+      "SKIP mode 4750: this host did not retain the requested fixture bits"
+    ],
+    "end_head": "06bc25d1dd12fec6bd1f66502f93b09dddab1b06",
+    "log": "full-suite.log"
+  },
+  "strict_clippy": {
+    "exit_code": 0,
+    "receipt": "../../temporal-values/decimal-materialization/root-checks-final.json",
+    "log": "../../temporal-values/decimal-materialization/strict-clippy.log",
+    "log_sha256": "518d5fe74679d9efcf335d7fac32ca33ae068213da6ea85ed0121a1b49866317",
+    "qualification": "Matching accepted source/deterministic dependency scope; prior exact final check, no duplicate rerun."
+  },
+  "compiler_inputs": {
+    "manifest": "before-compiler-inputs.json",
+    "manifest_sha256": "6451a206cc8ff88ecb6e441704fb461a976a74b00e6685c9ecb3c4e8c5d5898b",
+    "count": 121,
+    "current_discovered_count": 121,
+    "added_files": [],
+    "removed_files": [],
+    "changed_files": []
+  },
+  "package_inputs": {
+    "manifest": "before-package-producers.json",
+    "manifest_sha256": "68f4fa73e9dfecc21620a79cb56f6c93552a5b2bba8b5b7f41649a44cdf2059a",
+    "count": 1770,
+    "current_discovered_count": 1770,
+    "added_files": [],
+    "removed_files": [],
+    "changed_files": []
+  },
+  "external_can_fixtures": {
+    "manifest": "before-external-can-fixtures.json",
+    "manifest_sha256": "e9ee653be57d383a2ce1318b24f3b30bcca5d7f7ed6edb97cac35d9990d35b0c",
+    "count": 5,
+    "current_discovered_count": 5,
+    "added_files": [],
+    "removed_files": [],
+    "changed_files": []
+  },
+  "provenance": {
+    "source_commit": "0134ebb0",
+    "start_head": "0134ebb01b978831e07e6428bd15512de75e610a",
+    "end_head": "06bc25d1dd12fec6bd1f66502f93b09dddab1b06",
+    "current_head": "06bc25d1dd12fec6bd1f66502f93b09dddab1b06",
+    "note": "Shared Git HEAD changed independently during run; named compiler, package dist/manifest and external Can fixture bytes remained unchanged. Git/build metadata attribution stays separate from source pins."
+  },
+  "limits": "Native finite bodies only; optional sandboxed mode4750body skipped. Actual generated test-context/adapter/Node/memory consumers retain individual owner limits; no whole goal, arbitrary user, GUI/deployed/platform authority/complete default or producer graph claim.",
+  "path_base": "Attempt directory (parent of profile-accounting); file fields are relative to that directory unless stated otherwise.",
+  "separate_native_permission_check": {
+    "receipt": "../../session-history/native-mode-qualification/receipt.json",
+    "exit_code": 0,
+    "mode_4750_body_skipped": false,
+    "interpretation": "Separate unchanged exact native test passed outside filesystem sandbox; full-suite raw skip remains preserved."
+  }
+}

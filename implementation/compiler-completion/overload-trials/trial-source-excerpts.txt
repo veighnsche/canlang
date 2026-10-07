@@ -1,0 +1,269 @@
+compiler/src/analysis/types.rs:13740-13808
+13740:         let mut typed: Vec<ResolvedType> = Vec::with_capacity(args.len());
+13741:         for arg in args {
+13742:             typed.push(self.expr(cx, arg.value, None));
+13743:         }
+13744:         let names_ok = self.check_catalog_arg_names(cx, id, args, &overloads);
+13745:         let arity_ok = self.check_catalog_arity(cx, node, id, args, &overloads);
+13746:         if names_ok && arity_ok {
+13747:             let mut literal_fail: Option<(Span, String)> = None;
+13748:             let mut cases_fail: Option<(NodeKey, Span, Vec<String>)> = None;
+13749:             // Best match wins: DESIGN §3 lists general overloads before
+13750:             // their `nonempty`/`ordered` twins, which would be dead under
+13751:             // first-match (every nonempty domain also inhabits the
+13752:             // general shape). Ties keep catalog order.
+13753:             let mut best: Option<(usize, ResolvedType, usize, Trial, Vec<usize>)> = None;
+13754:             for (index, overload) in overloads.iter().enumerate() {
+13755:                 let mut trial = Trial::default();
+13756:                 if let Some((result, slots)) =
+13757:                     self.try_overload(cx, overload, args, &typed, &mut trial)
+13758:                 {
+13759:                     let score: usize = overload
+13760:                         .params
+13761:                         .iter()
+13762:                         .map(|param| Self::overload_specificity_count(&param.ty))
+13763:                         .sum();
+13764:                     let replace = best.as_ref().is_none_or(|(_, _, held, _, _)| score > *held);
+13765:                     if replace {
+13766:                         best = Some((index, result, score, trial, slots));
+13767:                     }
+13768:                     continue;
+13769:                 }
+13770:                 if literal_fail.is_none() {
+13771:                     literal_fail = trial.literal_fail;
+13772:                 }
+13773:                 if cases_fail.is_none() {
+13774:                     cases_fail = trial.cases_fail;
+13775:                 }
+13776:             }
+13777:             if let Some((index, result, _, trial, slots)) = best {
+13778:                 for (key, ty) in &trial.claimed {
+13779:                     self.types.resolved_cases.insert(*key);
+13780:                     self.types.node_types.insert(*key, ty.clone());
+13781:                 }
+13782:                 self.types.selected_calls.insert(
+13783:                     NodeKey::of(node),
+13784:                     SelectedCall {
+13785:                         target: SelectedCallTarget::Builtin {
+13786:                             id: id.to_string(),
+13787:                             overload: index,
+13788:                         },
+13789:                         arguments: args.iter().map(|arg| NodeKey::of(arg.value)).collect(),
+13790:                         slots: slots.iter().copied().map(Some).collect(),
+13791:                     },
+13792:                 );
+13793:                 let ordered_args: Vec<_> = slots.iter().map(|&slot| args[slot].clone()).collect();
+13794:                 let ordered_types: Vec<_> = slots.iter().map(|&slot| typed[slot].clone()).collect();
+13795:                 return self.finish_builtin_call(
+13796:                     cx,
+13797:                     &overloads[index],
+13798:                     id,
+13799:                     &ordered_args,
+13800:                     &ordered_types,
+13801:                     result,
+13802:                 );
+13803:             }
+13804:             // Failure precedence: precise literal shape (`E3001`) >
+13805:             // precise case expectation (`E3005`) > generic mismatch
+13806:             // (`E3005`, suppressed when an unbound name explains it).
+13807:             if cx.strict {
+13808:                 if let Some((span, message)) = literal_fail {
+
+compiler/src/analysis/types.rs:14390-14440
+14390:     /// Try one overload: bind arguments to parameters (positional
+14391:     /// fill, then named), then match each parameter shape. Trial
+14392:     /// bindings are local; enum claims and literal re-types persist
+14393:     /// (a claim is correct whenever the expectation was).
+14394:     fn try_overload(
+14395:         &mut self,
+14396:         cx: &Ctx<'_, '_>,
+14397:         overload: &SigOverload,
+14398:         args: &[CallArg],
+14399:         typed: &[ResolvedType],
+14400:         trial: &mut Trial,
+14401:     ) -> Option<(ResolvedType, Vec<usize>)> {
+14402:         if overload.params.len() != args.len() {
+14403:             return None;
+14404:         }
+14405:         // Bind: positionals fill in order, named match by name.
+14406:         let mut slots: Vec<Option<usize>> = vec![None; overload.params.len()];
+14407:         for (index, arg) in args.iter().enumerate() {
+14408:             match &arg.name {
+14409:                 None => {
+14410:                     let slot = slots.iter_mut().find(|s| s.is_none())?;
+14411:                     *slot = Some(index);
+14412:                 }
+14413:                 Some(want) => {
+14414:                     let slot = overload
+14415:                         .params
+14416:                         .iter()
+14417:                         .position(|p| &p.name == want)
+14418:                         .and_then(|pi| slots[pi].is_none().then_some(pi))?;
+14419:                     slots[slot] = Some(index);
+14420:                 }
+14421:             }
+14422:         }
+14423:         // Match in parameter order (action targets bind before their
+14424:         // bindings objects are checked).
+14425:         for (param, slot) in overload.params.iter().zip(slots.iter().copied()) {
+14426:             let index = slot.expect("arity checked");
+14427:             let arg = &args[index];
+14428:             let actual = &typed[index];
+14429:             if !self.match_shape(cx, arg, actual, &param.ty, trial) {
+14430:                 return None;
+14431:             }
+14432:         }
+14433:         Some((
+14434:             self.subst_shape(&overload.result, trial),
+14435:             slots
+14436:                 .into_iter()
+14437:                 .map(|slot| slot.expect("arity checked"))
+14438:                 .collect(),
+14439:         ))
+14440:     }
+
+compiler/src/analysis/types.rs:14613-14705
+14613:     fn match_named(
+14614:         &mut self,
+14615:         cx: &Ctx<'_, '_>,
+14616:         arg: &CallArg,
+14617:         actual: &ResolvedType,
+14618:         name: &str,
+14619:         trial: &mut Trial,
+14620:     ) -> bool {
+14621:         if matches!(actual, ResolvedType::Unknown | ResolvedType::Opaque(_)) {
+14622:             return true;
+14623:         }
+14624:         if name == "Team" {
+14625:             return matches!(actual, ResolvedType::Team);
+14626:         }
+14627:         if name == "OperationContext" {
+14628:             return matches!(actual, ResolvedType::OperationContext);
+14629:         }
+14630:         let Some(want) = scalar_named(name) else {
+14631:             // Dotted nominals and lane-owned shapes: lenient.
+14632:             return true;
+14633:         };
+14634:         match actual {
+14635:             ResolvedType::Scalar(got) if *got == want => true,
+14636:             ResolvedType::Scalar(Scalar::Text) if want.is_validated_leaf() => {
+14637:                 self.inhabit_validated(cx, arg, want, trial)
+14638:             }
+14639:             _ => false,
+14640:         }
+14641:     }
+14642: 
+14643:     /// Inhabit a validated string-like from a text literal: valid
+14644:     /// literals re-type to the leaf; invalid ones record a precise
+14645:     /// `E3001` for the no-match path and fail the trial. Non-literal
+14646:     /// text never proves the shape (DESIGN §3).
+14647:     fn inhabit_validated(
+14648:         &mut self,
+14649:         cx: &Ctx<'_, '_>,
+14650:         arg: &CallArg,
+14651:         want: Scalar,
+14652:         trial: &mut Trial,
+14653:     ) -> bool {
+14654:         let leaf = arg.value;
+14655:         let text = string_literal_value(leaf);
+14656:         let Some(text) = text else {
+14657:             return false;
+14658:         };
+14659:         match validated_shape(want, &text) {
+14660:             None => {
+14661:                 self.record(leaf, ResolvedType::Scalar(want));
+14662:                 true
+14663:             }
+14664:             Some(problem) => {
+14665:                 trial.literal_fail.get_or_insert_with(|| {
+14666:                     (
+14667:                         tight_span(cx.text, leaf),
+14668:                         format!("`{text}` is not a valid {}: {problem}", want.as_str()),
+14669:                     )
+14670:                 });
+14671:                 false
+14672:             }
+14673:         }
+14674:     }
+14675: 
+14676:     /// Claim an unbound name as one of the expected enum cases.
+14677:     /// Wrong spellings record a precise `E3005` for the no-match path
+14678:     /// and fail the trial; bound values fail silently. The claim
+14679:     /// records `claim_as` (the expectation: catalog cases carry no
+14680:     /// owner, declared fields/parameters do).
+14681:     fn claim_enum_case(
+14682:         &mut self,
+14683:         cx: &Ctx<'_, '_>,
+14684:         value: &SyntaxNode,
+14685:         cases: &[String],
+14686:         claim_as: ResolvedType,
+14687:         trial: &mut Trial,
+14688:     ) -> bool {
+14689:         let mut current = value;
+14690:         loop {
+14691:             match current.kind {
+14692:                 SyntaxKind::Group => {
+14693:                     let Some(inner) = kids(current)
+14694:                         .iter()
+14695:                         .find(|n| is_expression(n.kind))
+14696:                         .copied()
+14697:                     else {
+14698:                         return false;
+14699:                     };
+14700:                     current = inner;
+14701:                 }
+14702:                 SyntaxKind::NameRef => {
+14703:                     let Some(spelling) = kids(current).iter().find_map(|n| name_text(n, cx.text))
+14704:                     else {
+14705:                         return false;
+
+compiler/src/analysis/types.rs:15331-15379
+15331: }
+15332: 
+15333: /// One overload trial: variable bindings plus the operation recorded
+15334: /// by an `action` target and the precise failures kept for the
+15335: /// no-match path.
+15336: #[derive(Debug, Default)]
+15337: struct Trial {
+15338:     bindings: HashMap<SigVar, ResolvedType>,
+15339:     action_op: Option<SymbolId>,
+15340:     action_bound: Option<Vec<String>>,
+15341:     literal_fail: Option<(Span, String)>,
+15342:     cases_fail: Option<(NodeKey, Span, Vec<String>)>,
+15343:     /// Enum-case claims, flushed only for the winning overload.
+15344:     claimed: Vec<(NodeKey, ResolvedType)>,
+15345: }
+15346: 
+15347: impl Trial {
+15348:     /// Fork bindings for one union arm (precise failures are shared:
+15349:     /// a failed arm's literal/case evidence still explains the call).
+15350:     fn fork(&self) -> Trial {
+15351:         Trial {
+15352:             bindings: self.bindings.clone(),
+15353:             action_op: self.action_op,
+15354:             action_bound: self.action_bound.clone(),
+15355:             literal_fail: self.literal_fail.clone(),
+15356:             cases_fail: self.cases_fail.clone(),
+15357:             claimed: self.claimed.clone(),
+15358:         }
+15359:     }
+15360: 
+15361:     /// Commit a successful arm's bindings.
+15362:     fn commit(&mut self, fork: Trial) {
+15363:         self.bindings = fork.bindings;
+15364:         self.action_op = fork.action_op;
+15365:         self.action_bound = fork.action_bound;
+15366:         self.claimed = fork.claimed;
+15367:         // Precise failures merge: keep the earliest evidence.
+15368:         if self.literal_fail.is_none() {
+15369:             self.literal_fail = fork.literal_fail;
+15370:         }
+15371:         if self.cases_fail.is_none() {
+15372:             self.cases_fail = fork.cases_fail;
+15373:         }
+15374:     }
+15375: }
+15376: 
+15377: /// Access a post-match argument already ordered by the winning slots.
+15378: fn bound_arg<'x, 'n>(
+15379:     overload: &SigOverload,

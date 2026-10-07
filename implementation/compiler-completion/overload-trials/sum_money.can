@@ -1,0 +1,5 @@
+app T
+Given
+ derive g():money = sum([money(1,"EUR")],currency="EUR")
+When
+Then

@@ -1,0 +1,5 @@
+app T
+Given
+ derive g():text = format(values={v="EUR"},template="{v}")
+When
+Then

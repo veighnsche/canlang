@@ -1,0 +1,24 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--locked",
+    "--offline",
+    "--test",
+    "file_ownership",
+    "fmt_preserves_modes_including_private_readonly_and_special_bits",
+    "--",
+    "--exact",
+    "--nocapture"
+  ],
+  "exit_code": 0,
+  "log_sha256": "cfb2598eace6b716c55e626c19decb2a96c1cb5f7e446b9484153a8e86b2192e",
+  "execution": "Unsandboxed native host qualification of unchanged exact mode-retention test, using owned temporary files only.",
+  "mode_4750_body_skipped": false,
+  "source_sha256": {
+    "compiler/tests/file_ownership.rs": "809b5e18239440cd12870bbede492947bb0bec96a15619c52c1b83a1a63fc5a7",
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94"
+  }
+}

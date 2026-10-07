@@ -1,0 +1,35 @@
+{
+  "reference": "integration:default-json-string-bridge",
+  "reviewer_allocation": "Sol 6.1 / high",
+  "risk": "high: public exact carrier and representation support",
+  "verdict": "accept",
+  "disposition": "retain_current_support",
+  "retirement_achieved": false,
+  "net_production_deletion": 0,
+  "retired_bridge_sites": 0,
+  "retained_raw_value_parse_sites": 1,
+  "conditional_minimum_net_deletion": 10,
+  "new_representation_selected": false,
+  "public_api_changed": false,
+  "verification": {
+    "six_inventory_file_pins_match": true,
+    "focused_log_hash_matches_receipt": true,
+    "three_selected_segments_match_bc2b7d05": true,
+    "fresh_focused_receipt_passed": 10,
+    "fresh_focused_receipt_failed": 0,
+    "fresh_focused_receipt_ignored": 0,
+    "fresh_focused_receipt_optional_body_skips": 0,
+    "independent_test_rerun": false
+  },
+  "evidence_qualifications": [
+    "Malformed public Literal(String) returns a Serialize error; infallible to_json panics through expect.",
+    "Server/default precedence is current source plus historical codegen coverage, not a fresh typed_descriptors assertion.",
+    "One static RawValue site is not one invocation: every enclosing literal-default serialization revalidates.",
+    "machine_for separately parses the encoded String for machine initial state and remains within a future replacement closure.",
+    "Frozen full-suite coverage is historical; reviewed representation segments are unchanged.",
+    "Node artifact-wire default controls use an explicit adapter; native Decimal metadata schema input still rejects. This does not alone establish an owning producer bug or production admission closure.",
+    "No arbitrary external-user, complete platform-default, presentation, backend-selection or bridge-performance qualification."
+  ],
+  "completion_claims_excluded": ["SEM-06", "S9-Q05"],
+  "details": "review.md"
+}

@@ -1,0 +1,31 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.39s
+     Running tests/decimal_runtime.rs (compiler/target/debug/deps/decimal_runtime-6d3d9ce6d1217f47)
+
+running 2 tests
+test decimal_range_and_adjacent_gaps_keep_diagnostics ... ok
+Decimal: source derives/scenario, nested/contextual integers, native metadata and executable defaults, artifact-wire create/null/update, scale normalization and carrier controls passed; native metadata schema input gap: {"name":"SchemaError","violations":[{"path":["contracts","Native","fields","amount","default"],"code":"type","message":"decimal has the wrong wire type","expected":"canonical decimal string","actual":"object with keys [kind, coef, scale]"}]}
+test checked_decimal_materialization_and_default_consumers ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+     Running tests/typed_artifact.rs (compiler/target/debug/deps/typed_artifact-bdd3a53d3b3f1049)
+
+running 2 tests
+test empty_artifact_has_fixed_fields_and_no_newline ... ok
+test populated_artifact_preserves_order_omissions_and_embedded_json ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/typed_descriptors.rs (compiler/target/debug/deps/typed_descriptors-1db4f47615a291e7)
+
+running 6 tests
+test exact_literal_scalars_nested_order_and_controls ... ok
+test operation_order_omissions_and_present_empty_metadata ... ok
+test nested_delivery_and_nominal_order ... ok
+test model_order_optional_members_and_array_false ... ok
+test unary_overflow_and_nonliteral_rejection_and_constructor_calls ... ok
+test all_tags_and_defaults_are_closed ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

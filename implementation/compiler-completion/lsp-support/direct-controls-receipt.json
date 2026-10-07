@@ -1,0 +1,25 @@
+{
+  "command": [
+    "rustc",
+    "--edition=2024",
+    "/Users/vince/Projects/canlang/implementation/compiler-completion/lsp-support/direct-controls.rs",
+    "-L",
+    "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+    "-o",
+    "/Users/vince/Projects/canlang/implementation/compiler-completion/lsp-support/direct-controls",
+    "--extern",
+    "serde=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde-4c5c875ebe975a8b.rlib",
+    "--extern",
+    "serde_json=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+    "--extern",
+    "sha2=/Users/vince/Projects/canlang/compiler/target/debug/deps/libsha2-e16ff241f1973b66.rlib"
+  ],
+  "build_exit": 0,
+  "dependency_rlib_sha256": {
+    "/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde-4c5c875ebe975a8b.rlib": "a13fe97bc0fa8c6a8580bed3f10457d9150f3cd4a2a61829684c99d2480fc693",
+    "/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib": "9df7249a7ee38c342a482ae8da8d164e14dd17f3749232dd0d6b4c8e43021aac",
+    "/Users/vince/Projects/canlang/compiler/target/debug/deps/libsha2-e16ff241f1973b66.rlib": "9b32adb338b069492b0b67647ff33ceee78cff39260d032b6cefd4328d8279d6"
+  },
+  "scope": "Recompiles exact current JSON, diagnostic, source and transport files, against existing pinned local dependency rlibs; no compiler/codegen or server binary is reused.",
+  "run_exit": 0
+}

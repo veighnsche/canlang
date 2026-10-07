@@ -1,0 +1,5 @@
+app T
+Given
+ derive g(d:date):datetime = local_instant(d,"12:30","not a zone",fold=earlier)
+When
+Then

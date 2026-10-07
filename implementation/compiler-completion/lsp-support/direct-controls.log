@@ -1,0 +1,1 @@
+PASS: exact helper bytes, ordered duplicate fields, raw lexemes, hand-built invalid JSON/unadmitted IDs, errors, Unicode/control escapes, UTF16/CRLF clamps, and UTF8 frame byte count

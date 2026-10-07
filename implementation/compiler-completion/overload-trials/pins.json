@@ -1,0 +1,69 @@
+{
+  "head": "cbce9a092e9bf558d83c8290e8c7d7a14001f66d",
+  "files": {
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "compiler/src/analysis/types.rs": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+    "compiler/src/analysis/mod.rs": "4bedf6bafa36bac0f0c01cdccae42ea3baabecdb0e5304a0cb8f419eee7bf7bf",
+    "compiler/src/codegen/ir.rs": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+    "packages/values/dist/src/index.js": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+    "implementation/compiler-completion/overload-trials/harness/src/main.rs": "6635b4fa1b719855293468c7af506b6cb4273727194def0b14dec14d78a4832b",
+    "implementation/compiler-completion/overload-trials/harness/Cargo.lock": "57a7802243d4fbf6ec3c5ea72c4c5af46e71a556a174aa7aded8e74e60c4e6a6"
+  },
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "initial_files": {
+    "compiler/src/analysis/types.rs": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+    "compiler/src/analysis/mod.rs": "4bedf6bafa36bac0f0c01cdccae42ea3baabecdb0e5304a0cb8f419eee7bf7bf",
+    "compiler/src/codegen/ir.rs": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "implementation/compiler-completion/overload-trials/harness/src/main.rs": "735a4da16ff88408bafe83b0e5917f01c7f7395744234680e336608847dcdf64"
+  },
+  "catalog_version": "0.1.0-lane02-draft",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
+    },
+    "./bindings/backend": {
+      "types": "./dist/bindings/backend.d.ts",
+      "default": "./dist/bindings/backend.js"
+    },
+    "./bindings/bootstrap": {
+      "types": "./dist/bindings/bootstrap.d.ts",
+      "default": "./dist/bindings/bootstrap.js"
+    },
+    "./bindings/carriers": {
+      "types": "./dist/bindings/carriers.d.ts",
+      "default": "./dist/bindings/carriers.js"
+    },
+    "./bindings/owned-input": {
+      "types": "./dist/bindings/owned-input.d.ts",
+      "default": "./dist/bindings/owned-input.js"
+    },
+    "./bindings/plans": {
+      "types": "./dist/bindings/plans.d.ts",
+      "default": "./dist/bindings/plans.js"
+    },
+    "./bindings/validation": {
+      "types": "./dist/bindings/validation.d.ts",
+      "default": "./dist/bindings/validation.js"
+    },
+    "./bindings/generated/values_semantics.js": {
+      "types": "./dist/bindings/generated/values_semantics.d.ts",
+      "default": "./dist/bindings/generated/values_semantics.js"
+    },
+    "./bindings/generated/values_semantics_bg.wasm": "./dist/bindings/generated/values_semantics_bg.wasm",
+    "./bindings/generated/BUILD.json": "./dist/bindings/generated/BUILD.json",
+    "./conformance/v1/values.json": "./conformance/v1/values.json"
+  },
+  "qualification_binary_sha256": "436d53dc0941968b9819dcad092d4fabf452f37a3716d26c1e3be9401772675f",
+  "scope": "Public check_program with unchanged current producer catalog; no runtime invocation and no successful-call corruption established"
+}

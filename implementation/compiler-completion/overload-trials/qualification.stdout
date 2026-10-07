@@ -1,0 +1,35 @@
+CASE money_int diagnostics=[]
+FACT NodeKey { file: SourceId(0), start: 40, end: 45, kind: 102 } "\"EUR\"" Scalar(Currency)
+SELECTED [(NodeKey { file: SourceId(0), start: 31, end: 46, kind: 68 }, SelectedCall { target: Builtin { id: "money", overload: 0 }, arguments: [NodeKey { file: SourceId(0), start: 38, end: 39, kind: 102 }, NodeKey { file: SourceId(0), start: 40, end: 45, kind: 102 }], slots: [Some(0), Some(1)] })]
+CASE money_decimal diagnostics=[]
+FACT NodeKey { file: SourceId(0), start: 42, end: 47, kind: 102 } "\"EUR\"" Scalar(Currency)
+SELECTED [(NodeKey { file: SourceId(0), start: 31, end: 48, kind: 68 }, SelectedCall { target: Builtin { id: "money", overload: 1 }, arguments: [NodeKey { file: SourceId(0), start: 38, end: 41, kind: 102 }, NodeKey { file: SourceId(0), start: 42, end: 47, kind: 102 }], slots: [Some(0), Some(1)] })]
+CASE money_named diagnostics=[]
+FACT NodeKey { file: SourceId(0), start: 47, end: 52, kind: 102 } "\"EUR\"" Scalar(Currency)
+SELECTED [(NodeKey { file: SourceId(0), start: 31, end: 63, kind: 68 }, SelectedCall { target: Builtin { id: "money", overload: 1 }, arguments: [NodeKey { file: SourceId(0), start: 47, end: 52, kind: 102 }, NodeKey { file: SourceId(0), start: 59, end: 62, kind: 102 }], slots: [Some(1), Some(0)] })]
+CASE format_plain diagnostics=[]
+SELECTED [(NodeKey { file: SourceId(0), start: 30, end: 70, kind: 68 }, SelectedCall { target: Builtin { id: "format", overload: 0 }, arguments: [NodeKey { file: SourceId(0), start: 45, end: 54, kind: 106 }, NodeKey { file: SourceId(0), start: 64, end: 69, kind: 102 }], slots: [Some(1), Some(0)] })]
+CASE format_null diagnostics=[]
+SELECTED [(NodeKey { file: SourceId(0), start: 49, end: 73, kind: 68 }, SelectedCall { target: Builtin { id: "format", overload: 1 }, arguments: [NodeKey { file: SourceId(0), start: 57, end: 60, kind: 68 }, NodeKey { file: SourceId(0), start: 68, end: 72, kind: 102 }], slots: [Some(0), Some(1)] }), (NodeKey { file: SourceId(0), start: 57, end: 60, kind: 68 }, SelectedCall { target: Message(SymbolId(0)), arguments: [], slots: [] })]
+CASE format_locale diagnostics=[]
+FACT NodeKey { file: SourceId(0), start: 64, end: 68, kind: 102 } "\"en\"" Scalar(Locale)
+SELECTED [(NodeKey { file: SourceId(0), start: 49, end: 84, kind: 68 }, SelectedCall { target: Builtin { id: "format", overload: 1 }, arguments: [NodeKey { file: SourceId(0), start: 64, end: 68, kind: 102 }, NodeKey { file: SourceId(0), start: 80, end: 83, kind: 68 }], slots: [Some(1), Some(0)] }), (NodeKey { file: SourceId(0), start: 80, end: 83, kind: 68 }, SelectedCall { target: Message(SymbolId(0)), arguments: [], slots: [] })]
+CASE local_good diagnostics=[]
+FACT NodeKey { file: SourceId(0), start: 65, end: 70, kind: 102 } "\"UTC\"" Scalar(Timezone)
+SELECTED [(NodeKey { file: SourceId(0), start: 40, end: 84, kind: 68 }, SelectedCall { target: Builtin { id: "local_instant", overload: 0 }, arguments: [NodeKey { file: SourceId(0), start: 55, end: 56, kind: 103 }, NodeKey { file: SourceId(0), start: 57, end: 64, kind: 102 }, NodeKey { file: SourceId(0), start: 65, end: 70, kind: 102 }, NodeKey { file: SourceId(0), start: 76, end: 83, kind: 103 }], slots: [Some(0), Some(1), Some(2), Some(3)] })]
+CASE local_bad_fold diagnostics=[Diagnostic { code: "E3005", severity: Error, message: "expected one of earlier|later", primary: Span { file: SourceId(0), start: 76, end: 82 }, related: [], tags: [] }]
+FACT NodeKey { file: SourceId(0), start: 65, end: 70, kind: 102 } "\"UTC\"" Scalar(Timezone)
+SELECTED []
+CASE local_bad_fold_named diagnostics=[Diagnostic { code: "E3005", severity: Error, message: "expected one of earlier|later", primary: Span { file: SourceId(0), start: 60, end: 66 }, related: [], tags: [] }]
+FACT NodeKey { file: SourceId(0), start: 72, end: 77, kind: 102 } "\"UTC\"" Scalar(Timezone)
+SELECTED []
+CASE local_bad_zone diagnostics=[Diagnostic { code: "E3001", severity: Error, message: "`not a zone` is not a valid timezone: whitespace is not allowed", primary: Span { file: SourceId(0), start: 65, end: 77 }, related: [], tags: [] }, Diagnostic { code: "E2001", severity: Error, message: "unresolved name 'earlier'", primary: Span { file: SourceId(0), start: 83, end: 90 }, related: [], tags: [] }]
+SELECTED []
+CASE min_nonempty diagnostics=[]
+SELECTED [(NodeKey { file: SourceId(0), start: 29, end: 40, kind: 68 }, SelectedCall { target: Builtin { id: "min", overload: 1 }, arguments: [NodeKey { file: SourceId(0), start: 34, end: 39, kind: 105 }], slots: [Some(0)] })]
+CASE sum_money diagnostics=[]
+FACT NodeKey { file: SourceId(0), start: 45, end: 50, kind: 102 } "\"EUR\"" Scalar(Currency)
+FACT NodeKey { file: SourceId(0), start: 62, end: 67, kind: 102 } "\"EUR\"" Scalar(Currency)
+SELECTED [(NodeKey { file: SourceId(0), start: 31, end: 68, kind: 68 }, SelectedCall { target: Builtin { id: "sum", overload: 3 }, arguments: [NodeKey { file: SourceId(0), start: 36, end: 52, kind: 105 }, NodeKey { file: SourceId(0), start: 62, end: 67, kind: 102 }], slots: [Some(0), Some(1)] }), (NodeKey { file: SourceId(0), start: 37, end: 51, kind: 68 }, SelectedCall { target: Builtin { id: "money", overload: 0 }, arguments: [NodeKey { file: SourceId(0), start: 43, end: 44, kind: 102 }, NodeKey { file: SourceId(0), start: 45, end: 50, kind: 102 }], slots: [Some(0), Some(1)] })]
+CASE declaration_defaults diagnostics=[]
+SELECTED [(NodeKey { file: SourceId(0), start: 80, end: 90, kind: 68 }, SelectedCall { target: DeriveFn(SymbolId(0)), arguments: [NodeKey { file: SourceId(0), start: 85, end: 89, kind: 102 }], slots: [None, Some(0)] })]

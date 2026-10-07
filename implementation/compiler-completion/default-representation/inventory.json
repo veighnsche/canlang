@@ -1,0 +1,37 @@
+{
+  "status": "current_source_inventory",
+  "reference": "integration:default-json-string-bridge",
+  "source_sha256": {
+    "compiler/src/codegen/js.rs": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+    "compiler/src/codegen/ir.rs": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+    "compiler/src/codegen/artifact.rs": "5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c",
+    "compiler/src/codegen/mod.rs": "2ba20c0dcc1c29f821f3dff62da8cba0414aa77ae3194ef9db9197eed6206e7d",
+    "compiler/tests/typed_descriptors.rs": "10812d90b8803e782b6eeda488eab4d8a817c8ee364819e90b3e1afaafd371a8",
+    "compiler/tests/typed_artifact.rs": "4f63005b8989070aab5c59afba6efa0cba8c25737f88d70ecaaeddbbe9330950"
+  },
+  "selected_segments": {
+    "public_default_surface": {
+      "sha256": "ca6ee6bddd6de624ea7b8f50a10668f359ea77c5f367844b0bb5424b1b5f3212",
+      "matches_frozen_1152_profile": true
+    },
+    "literal_tree": {
+      "sha256": "fa76effe09ee3937b826a0c92fc215564dc096456504d6d6b861387b0b96879d",
+      "matches_frozen_1152_profile": true
+    },
+    "literal_serialize": {
+      "sha256": "1752fe0c68c034bb5fc7eba2fc3bff1daf31f641b22128e9f24d562007a8a39b",
+      "matches_frozen_1152_profile": true
+    }
+  },
+  "raw_value_parse_sites_in_default_serialize": 1,
+  "public_surface": [
+    "JsFieldDefault::Literal(String)",
+    "JsFieldDefault::to_json",
+    "Serialize for JsFieldDefault",
+    "literal_json",
+    "js_field_default"
+  ],
+  "net_production_deletion": 0,
+  "retired_bridge_sites": 0,
+  "limits": "Raw member/number preservation and malformed literal rejection are public behavior; selected-segment equality is bounded historical evidence only, not complete current compiler equivalence or runtime/default/browser qualification."
+}
