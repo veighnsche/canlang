@@ -6,6 +6,8 @@ The detailed audit below preserves the **original proposals and observations** f
 
 ## Implementation and qualification status
 
+The [resumed compiler audit and repair receipt](resumption/README.md) closes the interrupted finite review and the explicitly released existing-contract repairs. Final verification reports 1,070 compiler passes, formatting and Clippy success; native-debug stack aborts, aggregate reduction and owner/application gates remain open. Historical stages below retain their original scope.
+
 The [Pass10 final receipt](pass10/README.md) integrates selected core substitutions and their actual consumer/release scope. Each accepted change has its own contracts, permanent outcome regressions and independent review; remaining conditional work does not become an implied framework migration.
 
 The user's clarified production-reduction goal remains open beyond that frozen correctness qualification. The [bounded reduction ledger](production-reduction/README.md) requires smaller complete implementation closures at equivalent outcomes and records the first checked 51-line LSP projection reduction. Tests/metadata growth and binary footprint do not substitute for that measure.
