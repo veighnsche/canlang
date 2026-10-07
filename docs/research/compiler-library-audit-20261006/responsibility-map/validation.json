@@ -1,7 +1,7 @@
 {
   "scope": "mechanical inventory consistency, not semantic correctness or execution",
   "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
-  "observed_head": "16def5f95f51dbfb158d0ac086323ac256ee1c6d",
+  "observed_head": "bd220bdd206e2109b6d605e5161158aa8cb99499",
   "compiler_diff_from_source_baseline": "",
   "paths": 107,
   "unique_paths": 107,
@@ -32,5 +32,5 @@
     "explicit #[test] count excludes macro expansion and does not predict active host harness count",
     "no builds/tests/workflow/consumer execution or semantic adequacy review in Step2"
   ],
-  "ledger_sha256": "65539c5b2cd694998628f54420f44899d62d5d0db525524a643921334c2ada69"
+  "ledger_sha256": "20f273bca4a9d53227307f6976a0cb75f34fa1d8125f657081cf58c8b1b3fe1d"
 }
