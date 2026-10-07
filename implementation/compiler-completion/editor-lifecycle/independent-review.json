@@ -1,0 +1,68 @@
+{
+  "scope": "Independent ED-R09 startup/restart/shutdown/write-failure review, first source freeze",
+  "verdict": "changes required for two reproduced requirement gaps",
+  "source_sha256": {
+    "editors/vscode/src/client.ts": "f9adbcb92ad04ee69ef65594842b162456d6e44cba9dd9704642aa5231607a48",
+    "editors/vscode/src/extension.ts": "8cab194f407951acf0bd3f8d47e904e315bb4fe6b6b8083ab00fc0ff16681645",
+    "editors/vscode/test/server-startup.cjs": "2a6a3a4cc06af4c9fba1bc2de3f13e270650832d0924ed6fe25161f81a630afa",
+    "editors/vscode/test/client-lifecycle.cjs": "1b285b8119e0ca161740d21d54b7ef04daf9f065b8f11dfe13d60a00bbcfc3ae",
+    "editors/vscode/test/client-lifecycle-process.cjs": "d4c37131169e56bbf9c449c22bd5247d96982cb8ac5d11d18f2ba541740224a1"
+  },
+  "method": "Read frozen source diffs, complete lifecycle controls, raw verification.json/check files and before.json; README verdict not used as oracle. Independently compiled both frozen TypeScript sources to independent-out using strict ES2022/commonjs settings; executed controlled and real-process lifecycle suites against this separate output. Added three observations against the same frozen compiled code.",
+  "checks": [
+    {
+      "command": "node_modules/.bin/tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots editors/vscode/.empty-typeroot --outDir implementation/compiler-completion/editor-lifecycle/independent-out --rootDir editors/vscode/src editors/vscode/src/extension.ts editors/vscode/src/client.ts",
+      "exit": 0
+    },
+    {
+      "command": "CAN_CLIENT_OUT=<independent-out> node editors/vscode/test/client-lifecycle.cjs",
+      "exit": 0,
+      "pass_groups": 13,
+      "raw": "independent-controlled.txt"
+    },
+    {
+      "command": "CAN_CLIENT_OUT=<independent-out> node editors/vscode/test/client-lifecycle-process.cjs",
+      "exit": 0,
+      "pass_groups": 6,
+      "raw": "independent-process.txt"
+    },
+    {
+      "command": "CAN_CLIENT_OUT=<independent-out> node implementation/compiler-completion/editor-lifecycle/independent-gaps.cjs",
+      "exit": 0,
+      "raw": "independent-gaps.json"
+    }
+  ],
+  "blocking_issues": [
+    {
+      "id": "ED-R09-IR01",
+      "requirement": "stop promptly cancels pending requests",
+      "owner": "CanLanguageClient.stop",
+      "finding": "stop detaches readiness/document ownership immediately but retains existing pending request callbacks until finish at cooperative exit or the shutdown deadline. With an outstanding hover and silent child, the promise is unresolved after stop microtasks and still unresolved at 1999ms.",
+      "expected": "Cancel pre-existing pending requests as shutdown begins, without consuming the newly owned shutdown response callback.",
+      "test_gap": "Provided stop cases await the pending request only after awaiting stopped, so they do not prove prompt cancellation."
+    },
+    {
+      "id": "ED-R09-IR02",
+      "requirement": "failed writes return failures without corrupting ownership",
+      "owner": "CanLanguageClient.didChange/ownDocument/writeFrame",
+      "finding": "A synchronous stdin.write throw is caught by writeFrame without retiring the client or rolling back didChange ownership. After opening revision 1, changing to revision 2 and throwing the change write, isDocumentVersion(uri,2) returns true even though transport messages contain only initialize, initialized and didOpen.",
+      "expected": "Retire the failed transport/clear ownership or preserve the last successfully transmitted ownership; unsent changes must not remain admitted as current server-owned revisions.",
+      "test_gap": "Provided failed-request case checks rejection, then manually emits a stream error that performs retirement; it does not check a synchronous document notification write failure."
+    }
+  ],
+  "accepted_evidence": [
+    "Readiness gating, shared start handshake, initialization refusal/death/timeout and async transport retirement passed the bounded controlled suite.",
+    "Real OS delayed initialize, cooperative exit0, error/timeout/stubborn/write-close SIGKILL completion and crash-reopen replay all passed.",
+    "Overlapping restart/deactivation controls passed. Existing cancellation/currentness and enum conversion code is outside the production diff; no new claim beyond inspected preservation and retained prior receipts."
+  ],
+  "limitations": [
+    "Real-process peers plus VM host callbacks are not installed VS Code GUI acceptance.",
+    "Tests wait separately for child exit after timeout escalation; stop/start failure promises themselves do not await observed SIGKILL exit. Exact one-live-OS-process timing after forced cleanup is not asserted here.",
+    "No multi-root ownership expansion, reconnect framework or unrelated broad currentness replay performed.",
+    "This verdict is pinned to the first freeze; later implementation fixes need targeted re-review."
+  ],
+  "compiled_sha256": {
+    "client.js": "242ea1c326517dc41aa34186ed61aa458ddc4075d2d071aac27260437388f0f1",
+    "extension.js": "d8e596593de869ae876d848c2199f241c7487685ff3c8551a76113358fdb9a3f"
+  }
+}

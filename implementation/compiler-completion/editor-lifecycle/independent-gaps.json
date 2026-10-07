@@ -1,0 +1,19 @@
+[
+  {
+    "case": "pending request at stop before deadline",
+    "settled": false
+  },
+  {
+    "case": "pending request at 1999ms",
+    "settled": false
+  },
+  {
+    "case": "failed document change ownership",
+    "ownsUnsentRevision": true,
+    "sentMethods": [
+      "initialize",
+      "initialized",
+      "textDocument/didOpen"
+    ]
+  }
+]

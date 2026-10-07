@@ -1,0 +1,16 @@
+{
+  "beforeHandshake": [
+    "initialize",
+    "textDocument/didOpen"
+  ],
+  "failedInitialize": {
+    "startResolved": true,
+    "messages": [
+      "initialize",
+      "initialized"
+    ]
+  },
+  "restartBeforeOldExit": 2,
+  "restartAfterOldExit": 3,
+  "cooperativeExitSettlesStop": false
+}

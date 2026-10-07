@@ -1,0 +1,74 @@
+{
+  "scope": "ED-R09 targeted correction re-review; second source freeze",
+  "verdict": "pass bounded lifecycle scope after both independently reproduced gaps corrected",
+  "blocking_issues": [],
+  "source_sha256": {
+    "editors/vscode/src/client.ts": "bd58d0078350212b0dd7f7de4255a227f7a17fca5989517cd1fd45bbce7890a2",
+    "editors/vscode/src/extension.ts": "8cab194f407951acf0bd3f8d47e904e315bb4fe6b6b8083ab00fc0ff16681645",
+    "editors/vscode/test/server-startup.cjs": "2a6a3a4cc06af4c9fba1bc2de3f13e270650832d0924ed6fe25161f81a630afa",
+    "editors/vscode/test/client-lifecycle.cjs": "43638e3cb8389e8b2a4f8376d45acd67dcccede00cf0f88bb8997f323da8ebfb",
+    "editors/vscode/test/client-lifecycle-process.cjs": "d4c37131169e56bbf9c449c22bd5247d96982cb8ac5d11d18f2ba541740224a1"
+  },
+  "review_method": "Read changed stop/failAllPending and writeFrame/sendRequest code and revised assertions. Independently strict-compile frozen client/extension to separate independent-corrected-out, preserving first-freeze output and proofs. Run four targeted corrected controls against this compiled output; do not repeat unchanged OS/currentness/host bodies.",
+  "checks": [
+    {
+      "command": "node_modules/.bin/tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots editors/vscode/.empty-typeroot --outDir implementation/compiler-completion/editor-lifecycle/independent-corrected-out --rootDir editors/vscode/src editors/vscode/src/extension.ts editors/vscode/src/client.ts",
+      "exit": 0
+    },
+    {
+      "command": "CAN_CLIENT_OUT=<independent-corrected-out> node implementation/compiler-completion/editor-lifecycle/independent-corrections.cjs",
+      "exit": 0,
+      "outcomes": [
+        {
+          "case": "stop immediately cancels pre-existing request",
+          "settledBeforeAdvancingClock": true
+        },
+        {
+          "case": "separate shutdown request still responds and cooperative exit finishes stop",
+          "kills": []
+        },
+        {
+          "case": "failed document write retires unsent and prior ownership, pending work and admission",
+          "ownsUnsentRevision": false,
+          "ownsPreviousRevision": false,
+          "cancelledImmediately": true,
+          "kills": [
+            "SIGKILL"
+          ]
+        },
+        {
+          "case": "failed initiating request rejects; older request cancels; later death/error disposes once",
+          "initiatingRequestRejected": true,
+          "priorRequestValue": null,
+          "disposalCount": 1
+        }
+      ]
+    }
+  ],
+  "resolved_issues": [
+    {
+      "id": "ED-R09-IR01",
+      "outcome": "stop clears pre-existing pending requests before registering its separately owned shutdown request. Hover cancellation occurs at virtual time zero; cooperative shutdown acknowledgement and exit still settle stop without kill."
+    },
+    {
+      "id": "ED-R09-IR02",
+      "outcome": "writeFrame retires transport on synchronous throw, clears all document ownership and cancels prior requests. Attempted revision2 and prior revision1 cease currentness immediately; new work refuses admission. Initiating request callback is removed before finish so that caller rejects instead of being resolved null."
+    }
+  ],
+  "preserved_evidence": {
+    "first_freeze_review": "independent-review.json",
+    "first_freeze_raw": "independent-gaps.json",
+    "first_freeze_compiled_snapshot": "independent-out",
+    "original_checks": "13 controlled and 6 OS process lifecycle groups passed before these two focused fixes; retained as historical. Refreshed verification/check files report strict compile,14 controlled,6 OS,11 startup,5 currentness groups passing on corrected source; parent/worker executions reviewed, not independently repeated here."
+  },
+  "compiled_sha256": {
+    "client.js": "bf773eec1b31aa80e9a6ae907ca502d6cbe3a03e2c3b636f16d835c54c314290",
+    "extension.js": "d8e596593de869ae876d848c2199f241c7487685ff3c8551a76113358fdb9a3f"
+  },
+  "limitations": [
+    "Bounded compiled client/extension plus VM host and retained local native-process evidence; installed VS Code GUI and other-host acceptance not established.",
+    "Unchanged currentness/cancellation/enum conversion bodies were not broadly replayed in this correction pass.",
+    "Forced-cleanup lifecycle promises issue SIGKILL before separately observed OS exit; exact one-live-process timing after forced cleanup is not asserted by these controls.",
+    "No reconnect framework, workspace ownership expansion or broad lifecycle audit claimed."
+  ]
+}
