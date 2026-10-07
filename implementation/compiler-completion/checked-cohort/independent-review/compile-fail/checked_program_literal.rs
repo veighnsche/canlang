@@ -1,0 +1,1 @@
+use canlang_compiler::{analysis::{check_program,CheckedProgram},source::SourceDb}; fn main() { let db=SourceDb::new(); let (seed,_)=check_program(&db,&[],None); let _=CheckedProgram { modules:seed.modules, symbols:seed.symbols, types:seed.types, effects:seed.effects, examples:seed.examples, catalog_version:seed.catalog_version }; }

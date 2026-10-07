@@ -1,0 +1,3 @@
+   Compiling checked-cohort-independent-caller v0.0.0 (/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/independent-review/external-caller)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+     Running tests/public_controls.rs (/private/tmp/can-checked-cohort-independent-target/debug/deps/public_controls-32cccd4c10d7f0f9)

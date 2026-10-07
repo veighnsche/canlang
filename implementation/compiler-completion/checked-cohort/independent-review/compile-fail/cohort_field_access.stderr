@@ -1,0 +1,9 @@
+error[E0616]: field `cohort` of struct `CheckedProgram` is private
+ --> implementation/compiler-completion/checked-cohort/independent-review/compile-fail/cohort_field_access.rs:1:162
+  |
+1 | ...(program,_)=check_program(&db,&[],None); let _=program.cohort; }
+  |                                                           ^^^^^^ private field
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0616`.

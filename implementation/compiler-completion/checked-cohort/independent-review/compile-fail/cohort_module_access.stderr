@@ -1,0 +1,12 @@
+error[E0603]: module `cohort` is private
+ --> implementation/compiler-completion/checked-cohort/independent-review/compile-fail/cohort_module_access.rs:1:33
+  |
+1 | use canlang_compiler::analysis::cohort::CheckedCohort; fn main() {}
+  |                                 ^^^^^^ private module
+  |
+note: the module `cohort` is defined here
+ --> src/analysis/mod.rs:30:0
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0603`.

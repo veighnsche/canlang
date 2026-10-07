@@ -1,0 +1,4 @@
+   Compiling canlang-compiler v0.1.0 (/private/tmp/can-checked-cohort-independent-review/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running tests/js_binding_runtime.rs (/private/tmp/can-checked-cohort-independent-target/debug/deps/js_binding_runtime-f2379148d266018b)
+OUT-R01: public emitter distinct imports, reserved lambdas, temp collisions, Unicode identities and loop scopes executed

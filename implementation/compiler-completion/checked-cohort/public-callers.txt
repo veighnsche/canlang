@@ -1,0 +1,96 @@
+compiler/tests/ide.rs:655:    let lint_fixes = collect_fixes(snapshot.program(), &db, &config);
+compiler/tests/ide.rs:726:    let lint_fix = collect_fixes(snapshot.program(), &db, &config)
+compiler/tests/ide.rs:1051:    let lint_fix = canlang_compiler::lint::collect_fixes(snapshot.program(), &db, &config)
+compiler/src/cli.rs:91:    fn analyze_owned(&self, db: &SourceDb, tool_version: &str) -> OwnedAnalysis {
+compiler/src/cli.rs:171:        self.analyze_owned(db, tool_version).result
+compiler/src/cli.rs:174:    fn analyze_owned(&self, db: &SourceDb, tool_version: &str) -> OwnedAnalysis {
+compiler/src/cli.rs:192:        let (program, diags) = crate::analysis::check_program(db, &files, catalog.as_ref());
+compiler/src/cli.rs:735:    let owned = analyzer.analyze_owned(&db, tool_version());
+compiler/src/cli.rs:756:    let (artifact, emit_diags) = crate::codegen::emit(&program, &sources);
+compiler/src/cli.rs:813:    let owned = analyzer.analyze_owned(&db, tool_version());
+compiler/src/cli.rs:825:    let dump = crate::policy::policy_dump(&db, &program, &files);
+compiler/src/cli.rs:931:    let owned = analyzer.analyze_owned(&db, tool_version());
+compiler/src/cli.rs:943:    let model = crate::docs::extract_reference(&db, &files, &program);
+compiler/src/cli.rs:1689:    let owned = analyzer.analyze_owned(&db, tool_version());
+compiler/src/cli.rs:1713:    let fixes = crate::lint::collect_fixes(&program, &db, &config);
+compiler/src/policy.rs:128:pub fn policy_dump(db: &SourceDb, program: &CheckedProgram, files: &[SourceId]) -> PolicyDump {
+compiler/src/policy.rs:743:        let (program, _) = check_program(&db, &[id], None);
+compiler/src/policy.rs:768:        let dump = policy_dump(&db, &program, &[id]);
+compiler/src/policy.rs:807:        let dump = policy_dump(&db, &program, &[id]);
+compiler/src/ide/queries.rs:227:        let (program, diagnostics) = check_program(db, &[file], catalog);
+compiler/tests/b4_witness.rs:31:    let (_program, mut diags) = check_program(&db, &[id], None);
+compiler/src/lsp/server.rs:428:        for lint_fix in collect_fixes(snapshot.program(), db, &self.lint_config(true)) {
+compiler/src/docs.rs:355:pub fn extract_reference(
+compiler/tests/codegen.rs:69:    let (program, diags) = check_program(db, &[id], catalog);
+compiler/tests/codegen.rs:3870:        let (ir, ir_diags) = canlang_compiler::codegen::ir::build(&program, &db, Some(&catalog));
+compiler/tests/b3_migrate.rs:18:    let (program, _) = check_program(&db, &[id], None);
+compiler/tests/b3_migrate.rs:19:    let (ir_program, diags) = ir::build(&program, &db, None);
+compiler/tests/b3_migrate.rs:319:    let (program, _) = check_program(&db, &[SourceId(0)], None);
+compiler/tests/b3_migrate.rs:320:    let (ir_program, diags) = ir::build(&program, &db, None);
+compiler/tests/b4_resolve.rs:63:    let (_program, mut diags) = check_program(&db, &[id], catalog);
+compiler/tests/js_binding_runtime.rs:274:    let (checked, diagnostics) = check_program(&db, &[id], None);
+compiler/tests/js_binding_runtime.rs:279:    let (ir, diagnostics) = ir::build(&checked, &db, None);
+compiler/tests/typed_reference_policy_consumers.rs:154:    let (program, diagnostics) = check_program(&db, &[id], catalog.as_ref());
+compiler/tests/typed_reference_policy_consumers.rs:156:    let model = extract_reference(&db, &[id], &program);
+compiler/tests/typed_reference_policy_consumers.rs:159:    let (program_without_catalog, diagnostics) = check_program(&db, &[id], None);
+compiler/tests/typed_reference_policy_consumers.rs:164:        extract_reference(&db, &[id], &program_without_catalog).to_json_string(),
+compiler/tests/b4_check.rs:76:    let (_program, mut diags) = check_program(&db, &[id], catalog);
+compiler/tests/b4_check.rs:1663:    let (program, mut diags) = check_program(&db, &[id], None);
+compiler/tests/b4_examples.rs:55:    check_program(&db, &[id], catalog)
+compiler/tests/b4_examples.rs:298:    let (_program, diags) = check_program(&db, &[id], Some(&catalog));
+compiler/tests/b4_examples.rs:329:    let (_program, diags) = check_program(&db, &[id], Some(&catalog));
+compiler/tests/b4_examples.rs:394:    let (program, diags) = check_program(&db, &[id], Some(catalog));
+compiler/tests/b4_examples.rs:671:    let (_program, diags) = check_program(&db, &[id], Some(&catalog));
+compiler/tests/b4_examples.rs:702:    let (_program, diags) = check_program(&db, &[propose_id, rent_id], Some(&catalog));
+compiler/tests/b4_examples.rs:745:    let (_program, diags) = check_program(&db, &[id], Some(&catalog));
+compiler/tests/docs.rs:98:    let (program, diags) = check_program(&db, &[id], None);
+compiler/tests/docs.rs:105:    let model = extract_reference(&db, &[id], &program);
+compiler/tests/docs.rs:563:        check_program(&db, &[id], Some(&catalog));
+compiler/tests/docs.rs:565:    let model = extract_reference(&db, &[id], &program);
+compiler/tests/docs.rs:611:    let (program, diags) = check_program(&db, &[zed, amy], None);
+compiler/tests/docs.rs:613:    let first = extract_reference(&db, &[zed, amy], &program);
+compiler/tests/docs.rs:614:    let second = extract_reference(&db, &[amy, zed], &program);
+compiler/tests/docs.rs:946:    let (program, diags) = check_program(&db, &ids, None);
+compiler/tests/docs.rs:966:        let model = extract_reference(&db, &ids, &program);
+compiler/tests/docs.rs:1064:            let model = extract_reference(&db, &ids, &program);
+compiler/tests/docs.rs:1129:        let model = extract_reference(&db, &ids, &program);
+compiler/tests/docs.rs:1164:        let model = extract_reference(&db, &ids, &program);
+compiler/tests/docs.rs:1436:    let (program, diags) = check_program(&db, &[id], None);
+compiler/tests/docs.rs:1550:    let model = extract_reference(&db, &[id], &program);
+compiler/tests/docs.rs:1576:    let (program, diags) = check_program(&db, &[id], None);
+compiler/tests/docs.rs:1581:    let model = extract_reference(&db, &[id], &program);
+compiler/tests/mcp_p4.rs:61:    let (_program, diags) = check_program(&db, &[id], None);
+compiler/tests/mcp_p4.rs:121:        check_program(&db, &[id], Some(&catalog));
+compiler/tests/effects.rs:1736:        let (program, all) = analysis::check_program(&db, &[file], None);
+compiler/tests/effects.rs:1777:        let (_, all) = analysis::check_program(&db, &[file], Some(&catalog));
+compiler/tests/b1_join.rs:144:    let (program, analysis_diags) = check_program(&db, &[id], Some(&catalog));
+compiler/tests/b1_join.rs:273:    let (program, analysis_diags) = check_program(&db, &[id], Some(&catalog));
+compiler/src/analysis/mod.rs:108:pub fn check_program(
+compiler/src/codegen/mod.rs:148:    let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
+compiler/tests/flat_expression_runtime.rs:263:    let (program, _) = canlang_compiler::analysis::check_program(&db, &[id], None);
+compiler/tests/flat_expression_runtime.rs:286:    let (program, _) = canlang_compiler::analysis::check_program(&db, &[id], None);
+compiler/tests/flat_expression_runtime.rs:287:    let (ir, _) = canlang_compiler::codegen::ir::build(&program, &db, None);
+compiler/tests/b3_i5.rs:71:    let (program, diags) = check_program(&db, &[id], None);
+compiler/tests/lint.rs:23:    let (program, diags) = analysis::check_program(&db, &[id], catalog);
+compiler/tests/lint.rs:245:    let fixes = collect_fixes(&program, &db, &config);
+compiler/tests/lint.rs:274:    assert!(collect_fixes(&program, &db, &config).is_empty());
+compiler/tests/lint.rs:537:    let fixes = collect_fixes(&program, &db, &config);
+compiler/tests/lint.rs:586:            let fixes = collect_fixes(&program, &db, &config);
+compiler/tests/lint.rs:606:            assert!(collect_fixes(&fixed_program, &fixed_db, &config).is_empty());
+compiler/tests/lint.rs:635:        assert!(collect_fixes(&program, &db, &config).is_empty(), "{text}");
+compiler/tests/lint.rs:651:    let fixes = collect_fixes(&program, &db, &config);
+compiler/tests/lint.rs:682:    let fixes = collect_fixes(&program, &db, &config);
+compiler/tests/lint.rs:696:    assert!(collect_fixes(&program, &db, &LintConfig::default()).is_empty());
+compiler/tests/lint.rs:697:    assert!(collect_fixes(&program, &db, &all()).is_empty());
+compiler/tests/lint.rs:710:    let fixes = collect_fixes(&program, &db, &config);
+compiler/tests/lint.rs:768:    let fixes = collect_fixes(&program, &db, &config);
+compiler/tests/lint.rs:848:        let (program, _) = analysis::check_program(&db, &[id], None);
+compiler/tests/b3_s4.rs:158:    let (program, check_diags) = analysis::check_program(&db, &[id], None);
+compiler/tests/b3_s4.rs:168:    let fixes = collect_fixes(&program, &db, &config);
+compiler/tests/b4_setparent.rs:19:    let (_program, mut diags) = check_program(&db, &[id], None);
+compiler/tests/analysis.rs:96:    let (_program, mut diags) = check_program(&db, &[id], catalog);
+compiler/tests/analysis.rs:198:    let (program, diags) = check_program(&db, &[id], None);
+compiler/tests/analysis.rs:625:            let (_program, check_diags) = check_program(&db, &[id], None);
+compiler/tests/check.rs:864:        let (_program, diags) = canlang_compiler::analysis::check_program(&db, &[id], None);
+compiler/src/lint/driver.rs:203:pub fn collect_fixes(program: &CheckedProgram, db: &SourceDb, config: &LintConfig) -> Vec<LintFix> {
+compiler/tests/mcp_p1.rs:109:        check_program(&db, &[id], Some(&catalog));

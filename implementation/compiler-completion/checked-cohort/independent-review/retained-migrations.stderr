@@ -1,0 +1,3 @@
+   Compiling canlang-compiler v0.1.0 (/private/tmp/can-checked-cohort-independent-review/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests/b3_migrate.rs (/private/tmp/can-checked-cohort-independent-target/debug/deps/b3_migrate-7b30a4864a2de361)

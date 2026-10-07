@@ -34,6 +34,9 @@
 //!   value-domain query, an unlowered authority scope/trigger/retains
 //!   shape, or another unlowered position. The emitted placeholder
 //!   throws loudly.
+//! * `E6011` `checked-cohort-mismatch`: the source database or catalog
+//!   belongs to a different owner, or a selected source did not exist at
+//!   check time. Emission refuses before lowering, including in test-only mode.
 
 pub mod artifact;
 pub mod bdd;
@@ -56,7 +59,7 @@ pub struct EmitOptions {
     /// Explicit test-only acknowledgment that the analysis is incomplete.
     /// Hermetic golden tests over partial fixtures set this; it must
     /// never gate production compilation, and artifacts produced under
-    /// it make no runtime-success claims.
+    /// it make no runtime-success claims. It never bypasses input-owner checks.
     pub allow_incomplete_test_only: bool,
 }
 
@@ -86,11 +89,11 @@ impl Default for EmitOptions {
 /// Sources consulted by one emission: texts, analysis result and catalog.
 #[derive(Debug)]
 pub struct EmitSources<'a> {
-    /// Source texts (paths, bytes, hashes, line indexes).
+    /// Original checked source owner (appends and moves remain valid).
     pub db: &'a SourceDb,
     /// Analysis result: completeness gates emission.
     pub result: &'a DiagnosticResult,
-    /// Producer catalog for builtin availability checks, if one was loaded.
+    /// Original checked catalog or its clone, if one was loaded.
     pub catalog: Option<&'a Catalog>,
     /// Driver options.
     pub options: EmitOptions,
@@ -105,6 +108,12 @@ pub struct EmitSources<'a> {
 /// `E6008` alongside it in canonical order. Diagnostics with severity
 /// error always block shipping; the caller decides that from the returned
 /// list.
+///
+/// Inputs must retain the program's source/catalog owners. Foreign owners
+/// return `E6011` with no executable output, even when contents match or
+/// test-only options acknowledge incomplete analysis. Source/map inventory
+/// still includes all DB entries; only [`CheckedProgram::checked_files`] are
+/// lowered. Callers must merge analysis/load errors as well as emitted errors.
 pub fn emit(
     program: &CheckedProgram,
     sources: &EmitSources<'_>,
@@ -116,34 +125,17 @@ pub fn emit(
             .next()
             .map(|(id, _)| Span::new(id, 0, 0))
             .unwrap_or(Span::new(SourceId(0), 0, 0));
-        let artifact = CompileArtifact {
-            language_version: crate::LANGUAGE_VERSION.to_string(),
-            tool_version: env!("CARGO_PKG_VERSION").to_string(),
-            sources: sources
-                .db
-                .iter()
-                .map(|(_id, source)| artifact::ArtifactSource {
-                    path: source.path.clone(),
-                    sha256: source.sha256.clone(),
-                })
-                .collect(),
-            modules: Vec::new(),
-            callables: Vec::new(),
-            operations: Vec::new(),
-            models: Vec::new(),
-            pages: Vec::new(),
-            migrations: Vec::new(),
-            requires: Vec::new(),
-            tests: Vec::new(),
-        };
         return (
-            artifact,
+            empty_artifact(sources.db),
             vec![Diagnostic::error(
                 "E6005",
                 "analysis is incomplete (complete=false); codegen refuses to emit without an explicit test-only acknowledgment".to_string(),
                 primary,
             )],
         );
+    }
+    if let Err(diagnostic) = program.validate_cohort(sources.db, sources.catalog) {
+        return (empty_artifact(sources.db), vec![diagnostic]);
     }
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
     let js_out = js::emit_program(&ir);
@@ -161,6 +153,28 @@ pub fn emit(
     diags.append(&mut artifact_diags);
     diags.sort_by(Diagnostic::canonical_cmp);
     (artifact, diags)
+}
+
+fn empty_artifact(db: &SourceDb) -> CompileArtifact {
+    CompileArtifact {
+        language_version: crate::LANGUAGE_VERSION.to_string(),
+        tool_version: env!("CARGO_PKG_VERSION").to_string(),
+        sources: db
+            .iter()
+            .map(|(_, source)| artifact::ArtifactSource {
+                path: source.path.clone(),
+                sha256: source.sha256.clone(),
+            })
+            .collect(),
+        modules: Vec::new(),
+        callables: Vec::new(),
+        operations: Vec::new(),
+        models: Vec::new(),
+        pages: Vec::new(),
+        migrations: Vec::new(),
+        requires: Vec::new(),
+        tests: Vec::new(),
+    }
 }
 
 /// One test module per suite (operation suites, then orphan recipes),

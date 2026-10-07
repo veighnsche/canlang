@@ -1,0 +1,18 @@
+{
+  "command": [
+    "rustfmt",
+    "--edition",
+    "2024",
+    "--config",
+    "skip_children=true",
+    "--check",
+    "compiler/src/source.rs",
+    "compiler/src/analysis/catalog.rs",
+    "compiler/src/analysis/mod.rs",
+    "compiler/src/analysis/cohort.rs",
+    "compiler/src/codegen/mod.rs",
+    "compiler/src/codegen/ir.rs",
+    "compiler/tests/checked_cohort.rs"
+  ],
+  "exit": 0
+}

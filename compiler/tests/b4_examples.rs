@@ -352,15 +352,16 @@ fn caninbox_header_routine_parity() {
 #[test]
 fn minimal_table_rows_emit_expected_and_error() {
     let catalog = fixture_catalog();
-    let (program, diags) = check_src(HEADER_SRC, Some(&catalog));
+    let mut db = SourceDb::new();
+    let id = db.add("test.can".to_string(), HEADER_SRC.to_string());
+    let (program, diags) = check_program(&db, &[id], Some(&catalog));
     assert!(
         diags.iter().all(|d| d.code != "E2001"),
         "minimal header elides: {diags:?}"
     );
     assert_eq!(program.examples.tables.len(), 1);
     assert_eq!(program.examples.tables[0].rows, 2);
-    let (artifact, emit_diags) =
-        emit_test_only(&program, &program_db(HEADER_SRC), &diags, Some(&catalog));
+    let (artifact, emit_diags) = emit_test_only(&program, &db, &diags, Some(&catalog));
     assert!(
         emit_diags.is_empty(),
         "minimal table emits clean: {emit_diags:?}"
@@ -379,12 +380,6 @@ fn minimal_table_rows_emit_expected_and_error() {
         joined.contains(",error:\"rule_failed\""),
         "error row carries its code:\n{joined}"
     );
-}
-
-fn program_db(src: &str) -> SourceDb {
-    let mut db = SourceDb::new();
-    db.add("test.can".to_string(), src.to_string());
-    db
 }
 
 /// Draft parity: every recorded table emits with every authored data row

@@ -1,0 +1,28 @@
+
+running 9 tests
+test completeness_precedes_cohort_and_cohort_refusal_precedes_parse_and_catalog ... ok
+test refusing_originally_absent_nonzero_and_max_ids_survives_multiple_appends ... ok
+test original_file_selection_is_copied_and_duplicates_are_not_silently_reordered ... FAILED
+test empty_selection_and_empty_db_have_real_distinct_owners ... ok
+test public_fact_and_result_edits_are_accepted_caller_responsibility ... ok
+test moving_whole_owners_by_swap_is_valid_but_replacement_has_a_new_owner ... ok
+test malformed_unselected_and_appended_sources_stay_inventory_only ... ok
+test coherent_none_keeps_missing_builtin_and_capability_errors_without_cohort_error ... ok
+test dropping_both_original_owners_does_not_let_new_equivalent_owners_reuse_identity ... ok
+
+failures:
+
+---- original_file_selection_is_copied_and_duplicates_are_not_silently_reordered stdout ----
+
+thread 'original_file_selection_is_copied_and_duplicates_are_not_silently_reordered' (1580276) panicked at tests/public_controls.rs:71:5:
+assertion `left == right` failed
+  left: [SourceId(2), SourceId(1)]
+ right: [SourceId(2), SourceId(1), SourceId(2)]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    original_file_selection_is_copied_and_duplicates_are_not_silently_reordered
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

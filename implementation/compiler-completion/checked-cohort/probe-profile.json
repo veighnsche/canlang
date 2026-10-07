@@ -1,0 +1,7 @@
+{
+  "compiler_commit": "530a0b7e",
+  "private_workspace": "/private/tmp/can-checked-cohort-q9067s_c",
+  "consumer": "real CatalogAnalyzer::analyze_owned + production EmitSources, bounded public API witness",
+  "scope": "artifact content; emitted JS not executed",
+  "catalog_path": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+}

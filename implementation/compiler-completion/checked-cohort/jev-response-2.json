@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "S9-Q06 / ARCH-01 finite checked-cohort contract decision. Verified code/probe at compiler commit 530a0b7e: SourceDb is append-only; add(path,text) makes a fresh database-local SourceId, preserving old bytes. SourceDb has no Clone; Catalog private fields are immutable after load, and Catalog derives Clone. CheckedProgram owns public mutable semantic tables, catalog_version only, and no source/catalog provenance. check_program(db,files,catalog) checks ordered explicit files and returns program + diagnostics; CatalogAnalyzer::analyze_owned calls it on all DB files and returns same moved catalog/program/result. emit(program,EmitSources{db,result,catalog,options}) gates only caller-provided result.complete, then public ir::build reparses ALL db entries. ir::build is itself public and skips completeness admission. Artifact/source-map sources inventory all db entries. Actual consumer probe freshly built from pinned private copy: clean coherent CatalogAnalyzer production control emits OLD; foreign DB with equal SourceIds/spans but changed bytes emits NEW under old facts without error; swapped foreign IDs attach wrong defaults; same-version changed catalog effects changes pure lower to awaited state-read without error; append under same path keeps OLD identity and executable semantics while artifact inventory includes both revisions. Reversed check-file order allocates modules in caller order. Checking one file from two-file DB emits only selected semantics but inventories both. Incomplete production returns E6005 and empty modules; test_only permits incomplete coherent fixtures AND currently permits mismatched swapped cohort. No generated JS runtime, broad suite, or benchmark claim.\nRequired outcome: release a simple reliable public source/catalog ownership contract before publishing/reusing checked binding facts, caching, or snapshots. Enforce at emit AND public ir::build before parsing/lowering; test_only must bypass only incomplete-analysis, never coherence. Preserve coherent CLI, direct check_program callers, immutable appends and selected file order. Checked files are semantic closure; extra DB entries stay metadata inventory for compatibility, not extra checked semantics. Catalog None vs Some is part of provenance. Keep current supplied result.complete and error-shipping caller responsibilities; no claim that editable semantic tables/diagnostics become authenticated or semantically true. Reports/lint/IDE are mapped consumers with current preconditions, not a new unrelated support migration. No global registry, hash-only proof, or speculative cache. Existing public function signatures should stay where possible; adding private provenance to CheckedProgram prevents external struct literals; repository has only two archived synthetic literals, executable production/tests construct via check_program. Inputs may move; Catalog clones and DB appends must remain valid. Decide whether equivalent separately reconstructed DB/catalog copies are supported, and state the compatibility limit. All alternatives below are proposals, not current APIs; compare the same required outcomes and recommend least complex reliable contract. Advice is not proof or authority.",
+    "questions": {
+      "contract": {
+        "type": "choice",
+        "instructions": "Which of the three proposals best satisfies the full finite cohort boundary with the least maintenance, given these observed callers? Weigh storage, API and substitution costs fairly and flag unknowns.",
+        "criteria": {
+          "borrowed_owner": "Carry lifetime references to the original immutable catalog and source database in CheckedProgram and obtain lowering inputs only from those references. The type system carries the association, at the cost of public lifetime/API propagation and preventing an append to the borrowed DB until checked facts are dropped (or adding shared-owner redesign). Independent equivalent objects are outside this contract.",
+          "exact_input_record": "Keep a private input snapshot inside checked facts: selected IDs in checking order, exact source paths/texts, and an immutable catalog clone. Validate full parsed catalog values/order and exact selected source values on every lowering entry. This explicitly supports content-equivalent new owners as well as appends, requires clones of text/catalog and equality derives, and makes old literal construction of CheckedProgram unavailable while retaining function signatures.",
+          "owner_tokens": "Retain private Arc-backed owner identity handles in SourceDb/Catalog and cloned handles + selected IDs in CheckedProgram. Both lowering entrances reject a different owner allocation; catalog clones share the handle and append preserves DB handle. No registry or second facts lookup exists. This avoids retained input copies and preserves signatures, but equivalent independent reloads/DB reconstruction require a new check; private provenance also breaks program literals."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "contract": {
+        "type": "choice",
+        "choice": "owner_tokens",
+        "confidence": 0.61,
+        "probabilities": {
+          "exact_input_record": 0.23,
+          "owner_tokens": 0.74,
+          "borrowed_owner": 0.03
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1213,
+      "output_tokens": 45
+    }
+  }
+}

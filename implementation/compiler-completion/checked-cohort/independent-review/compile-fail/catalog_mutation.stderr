@@ -1,0 +1,9 @@
+error[E0596]: cannot borrow data in a `&` reference as mutable
+ --> implementation/compiler-completion/checked-cohort/independent-review/compile-fail/catalog_mutation.rs:1:86
+  |
+1 | ...fn mutate(catalog: &mut Catalog) { catalog.lookup("lower").unwrap().js.clear(); } fn main() {}
+  |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot borrow as mutable
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0596`.

@@ -1,0 +1,9 @@
+error[E0599]: no method named `clear` found for reference `&[SourceId]` in the current scope
+ --> implementation/compiler-completion/checked-cohort/independent-review/compile-fail/selection_mutation.rs:1:172
+  |
+1 | ...ogram(&db,&[],None); program.checked_files().clear(); }
+  |                                                 ^^^^^ method not found in `&[SourceId]`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0599`.

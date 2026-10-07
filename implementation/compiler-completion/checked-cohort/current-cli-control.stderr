@@ -1,0 +1,2 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running `/private/tmp/can-checked-cohort-current-target/debug/can compile --format=json --catalog=/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/baseline-catalog.json /Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/cli-control.can`

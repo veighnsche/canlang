@@ -1,0 +1,37 @@
+{
+  "status": "advice",
+  "choices": [
+    {
+      "type": "choice",
+      "choice": "owner_tokens",
+      "confidence": 0.61,
+      "probabilities": {
+        "exact_input_record": 0.25,
+        "owner_tokens": 0.74,
+        "borrowed_owner": 0.01
+      }
+    },
+    {
+      "type": "choice",
+      "choice": "owner_tokens",
+      "confidence": 0.61,
+      "probabilities": {
+        "exact_input_record": 0.23,
+        "owner_tokens": 0.74,
+        "borrowed_owner": 0.03
+      }
+    },
+    {
+      "type": "choice",
+      "choice": "owner_tokens",
+      "confidence": 0.31,
+      "probabilities": {
+        "owner_tokens": 0.54,
+        "exact_input_record": 0.45,
+        "borrowed_owner": 0.01
+      }
+    }
+  ],
+  "disagreement": false,
+  "uncertainty": "Third wording nearly ties exact snapshots; equivalent independent-owner support is unverified and deliberately excluded. No retries were made."
+}

@@ -5,6 +5,7 @@
 //! human and LSP positions.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Canonical identity of one source text within a [`SourceDb`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -28,12 +29,18 @@ pub struct Source {
 pub struct SourceDb {
     sources: Vec<Source>,
     by_path: HashMap<String, SourceId>,
+    // A fresh allocation for every Default/new owner, stable across moves/adds.
+    identity: Arc<()>,
 }
 
 impl SourceDb {
     /// Create an empty database.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub(crate) fn identity(&self) -> &Arc<()> {
+        &self.identity
     }
 
     /// Add a source text, returning its canonical id.

@@ -1,0 +1,50 @@
+compiler/src/cli.rs:750:    let sources = crate::codegen::EmitSources {
+compiler/src/cli.rs:756:    let (artifact, emit_diags) = crate::codegen::emit(&program, &sources);
+compiler/tests/checked_cohort.rs:8:use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir};
+compiler/tests/checked_cohort.rs:82:    emit(
+compiler/tests/checked_cohort.rs:84:        &EmitSources {
+compiler/tests/checked_cohort.rs:128:    let (ir, diagnostics) = ir::build(program, db, catalog);
+compiler/tests/checked_cohort.rs:210:    let (ir, diagnostics) = ir::build(&program, &moved_db, Some(&clone));
+compiler/tests/checked_cohort.rs:328:    let (ir, diagnostics) = ir::build(&without_catalog, &db, None);
+compiler/tests/js_binding_runtime.rs:279:    let (ir, diagnostics) = ir::build(&checked, &db, None);
+compiler/tests/mcp_p1.rs:37:use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+compiler/tests/mcp_p1.rs:120:    let sources = EmitSources {
+compiler/tests/mcp_p1.rs:126:    let (artifact, emit_diags) = emit(&program, &sources);
+compiler/src/ide/queries.rs:264:    pub fn program(&self) -> &CheckedProgram {
+compiler/tests/b3_migrate.rs:6://! TEST-ONLY: hermetic, no catalog (`check_program`/`ir::build` with
+compiler/tests/b3_migrate.rs:19:    let (ir_program, diags) = ir::build(&program, &db, None);
+compiler/tests/b3_migrate.rs:320:    let (ir_program, diags) = ir::build(&program, &db, None);
+compiler/tests/codegen.rs:36:use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+compiler/tests/codegen.rs:88:    let sources = EmitSources {
+compiler/tests/codegen.rs:94:    emit(program, &sources)
+compiler/tests/codegen.rs:2363:    assert_eq!(text[7], "  await emit(c,\"demo.Due\",{});");
+compiler/tests/codegen.rs:3023:    let sources = EmitSources {
+compiler/tests/codegen.rs:3029:    let (artifact, diags) = emit(&program, &sources);
+compiler/tests/codegen.rs:3870:        let (ir, ir_diags) = canlang_compiler::codegen::ir::build(&program, &db, Some(&catalog));
+compiler/src/analysis/mod.rs:93:pub struct CheckedProgram {
+compiler/src/analysis/mod.rs:113:impl CheckedProgram {
+compiler/src/analysis/mod.rs:170:    let program = CheckedProgram {
+compiler/src/codegen/mod.rs:91:pub struct EmitSources<'a> {
+compiler/src/codegen/mod.rs:117:pub fn emit(
+compiler/src/codegen/mod.rs:119:    sources: &EmitSources<'_>,
+compiler/src/codegen/mod.rs:140:    let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
+compiler/tests/b4_examples.rs:15:use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+compiler/tests/b4_examples.rs:116:    let sources = EmitSources {
+compiler/tests/b4_examples.rs:122:    emit(program, &sources)
+compiler/tests/b1_join.rs:18://!   while `E6008`s report; this test drives `emit()` directly to pin
+compiler/tests/b1_join.rs:48:use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+compiler/tests/b1_join.rs:170:    let sources = EmitSources {
+compiler/tests/b1_join.rs:176:    let (artifact, emit_diags) = emit(&program, &sources);
+compiler/tests/b1_join.rs:297:    let sources = EmitSources {
+compiler/tests/b1_join.rs:303:    let (artifact, emit_diags) = emit(&program, &sources);
+compiler/tests/mcp_p4.rs:24:use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+compiler/tests/mcp_p4.rs:132:    let sources = EmitSources {
+compiler/tests/mcp_p4.rs:138:    let (artifact, emit_diags) = emit(&program, &sources);
+compiler/tests/flat_expression_runtime.rs:287:    let (ir, _) = canlang_compiler::codegen::ir::build(&program, &db, None);
+compiler/tests/typed_references.rs:69:        source: "do\n  emit(\"\\t\")\r\n".into(),
+compiler/tests/typed_references.rs:126:    let expected = r#"{"version":1,"sourceRevision":"revision","catalogVersion":"","languageVersion":"1.0","appDefaultLocale":"fr","owners":[{"name":"Shop","declarations":[{"owner":"Shop","name":"Order","kind":"model","description":{"source":"é/🦀\n\u0008\u000c","sourceLang":"fr","variants":[{"tag":"nl","text":null},{"tag":"en","text":""}],"location":{"sourceId":"x.can","start":1,"end":9}},"fields":[{"name":"value","type":"text?","nullable":true,"creationRequired":false,"default":"\"\\n\"","constraints":[{"kind":"min","detail":"1.00e+2"}]},{"name":"bare","type":"bool","nullable":false,"creationRequired":true,"constraints":[]}],"examples":[{"label":"first","source":"do\n  emit(\"\\t\")\r\n","expected":"false"},{"label":"second","source":""}],"location":{"sourceId":"x.can","start":1,"end":9}}],"operations":[{"id":"Shop.send","inputs":[{"name":"request","type":"text","nullable":false,"creationRequired":false,"default":"","constraints":[]}],"result":{"type":"void","nullable":false},"examples":[{"label":"empty","source":"","expected":""}],"location":{"sourceId":"x.can","start":1,"end":9}}]}],"availability":{"status":"available","owner":"owner","catalog":"catalog"}}"#;
+compiler/tests/b3_i5.rs:10:use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+compiler/tests/b3_i5.rs:77:    let sources = EmitSources {
+compiler/tests/b3_i5.rs:83:    let (artifact, _) = emit(&program, &sources);
+compiler/src/codegen/ir.rs:1282:    /// `emit Event {...}` → `emit(c, identity, payload)`.
+compiler/src/codegen/js.rs:2882:                    format!("{pad}await emit(c,{},{payload_text});", js_string(event)),

@@ -1,0 +1,13 @@
+error[E0624]: method `identity` is private
+ --> implementation/compiler-completion/checked-cohort/independent-review/compile-fail/catalog_identity_access.rs:1:96
+  |
+1 | use canlang_compiler::analysis::catalog::Catalog; fn access(catalog: &Catalog) { let _=catalog.identity(); } fn main() {}
+  |                                                                                                ^^^^^^^^ private method
+  |
+ --> src/analysis/catalog.rs:1121:4
+  |
+  = note: private method defined here
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0624`.

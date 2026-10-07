@@ -1,0 +1,3 @@
+   Compiling canlang-compiler v0.1.0 (/private/tmp/can-checked-cohort-independent-review/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.84s
+     Running tests/codegen.rs (/private/tmp/can-checked-cohort-independent-target/debug/deps/codegen-f034b1d724537270)

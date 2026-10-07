@@ -1,0 +1,5 @@
+   Compiling canlang-compiler v0.1.0 (/private/tmp/can-checked-cohort-independent-review/compiler)
+   Compiling checked-cohort-independent-caller v0.0.0 (/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/independent-review/external-caller)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.60s
+     Running tests/public_controls.rs (/private/tmp/can-checked-cohort-independent-target/debug/deps/public_controls-32cccd4c10d7f0f9)
+error: test failed, to rerun pass `--test public_controls`

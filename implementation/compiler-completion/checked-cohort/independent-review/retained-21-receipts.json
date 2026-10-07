@@ -1,0 +1,98 @@
+[
+  {
+    "name": "author-cohort",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "/private/tmp/can-checked-cohort-independent-review/compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-independent-target",
+      "--test",
+      "checked_cohort"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "retained-migrations",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "/private/tmp/can-checked-cohort-independent-review/compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-independent-target",
+      "--test",
+      "b3_migrate"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "retained-public-node",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "/private/tmp/can-checked-cohort-independent-review/compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-independent-target",
+      "--test",
+      "js_binding_runtime",
+      "public_emitter_binding_and_import_seams_execute",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "retained-incomplete",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "/private/tmp/can-checked-cohort-independent-review/compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-independent-target",
+      "--test",
+      "codegen",
+      "refuses_incomplete_analysis_without_ack"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "retained-catalog-effects",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "/private/tmp/can-checked-cohort-independent-review/compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-independent-target",
+      "--test",
+      "codegen",
+      "awaited_follows_catalog_effects"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "retained-requirements",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "/private/tmp/can-checked-cohort-independent-review/compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-independent-target",
+      "--test",
+      "codegen",
+      "requires_pins_catalog_and_families"
+    ],
+    "exit": 0
+  }
+]

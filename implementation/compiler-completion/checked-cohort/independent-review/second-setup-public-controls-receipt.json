@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--offline",
+    "--manifest-path",
+    "implementation/compiler-completion/checked-cohort/independent-review/external-caller/Cargo.toml",
+    "--target-dir",
+    "/private/tmp/can-checked-cohort-independent-target",
+    "--test",
+    "public_controls"
+  ],
+  "exit": 101
+}

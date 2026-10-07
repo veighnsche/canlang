@@ -1,0 +1,158 @@
+{
+  "library": "/private/tmp/can-checked-cohort-independent-target/debug/deps/libcanlang_compiler-61123a62f085be19.rlib",
+  "library_sha256": "d29017d02216757a46f22d478e97b2390dc4132057cf2a0ae425d91458619ebf",
+  "controls": [
+    {
+      "name": "catalog_identity_access",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--crate-name",
+        "catalog_identity_access",
+        "implementation/compiler-completion/checked-cohort/independent-review/compile-fail/catalog_identity_access.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-checked-cohort-independent-target/debug/deps/libcanlang_compiler-61123a62f085be19.rlib",
+        "-L",
+        "dependency=/private/tmp/can-checked-cohort-independent-target/debug/deps",
+        "--emit=metadata",
+        "-o",
+        "/private/tmp/catalog_identity_access.rmeta"
+      ],
+      "exit": 1,
+      "expected_failure": true
+    },
+    {
+      "name": "catalog_mutation",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--crate-name",
+        "catalog_mutation",
+        "implementation/compiler-completion/checked-cohort/independent-review/compile-fail/catalog_mutation.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-checked-cohort-independent-target/debug/deps/libcanlang_compiler-61123a62f085be19.rlib",
+        "-L",
+        "dependency=/private/tmp/can-checked-cohort-independent-target/debug/deps",
+        "--emit=metadata",
+        "-o",
+        "/private/tmp/catalog_mutation.rmeta"
+      ],
+      "exit": 1,
+      "expected_failure": true
+    },
+    {
+      "name": "checked_program_literal",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--crate-name",
+        "checked_program_literal",
+        "implementation/compiler-completion/checked-cohort/independent-review/compile-fail/checked_program_literal.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-checked-cohort-independent-target/debug/deps/libcanlang_compiler-61123a62f085be19.rlib",
+        "-L",
+        "dependency=/private/tmp/can-checked-cohort-independent-target/debug/deps",
+        "--emit=metadata",
+        "-o",
+        "/private/tmp/checked_program_literal.rmeta"
+      ],
+      "exit": 1,
+      "expected_failure": true
+    },
+    {
+      "name": "cohort_field_access",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--crate-name",
+        "cohort_field_access",
+        "implementation/compiler-completion/checked-cohort/independent-review/compile-fail/cohort_field_access.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-checked-cohort-independent-target/debug/deps/libcanlang_compiler-61123a62f085be19.rlib",
+        "-L",
+        "dependency=/private/tmp/can-checked-cohort-independent-target/debug/deps",
+        "--emit=metadata",
+        "-o",
+        "/private/tmp/cohort_field_access.rmeta"
+      ],
+      "exit": 1,
+      "expected_failure": true
+    },
+    {
+      "name": "cohort_module_access",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--crate-name",
+        "cohort_module_access",
+        "implementation/compiler-completion/checked-cohort/independent-review/compile-fail/cohort_module_access.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-checked-cohort-independent-target/debug/deps/libcanlang_compiler-61123a62f085be19.rlib",
+        "-L",
+        "dependency=/private/tmp/can-checked-cohort-independent-target/debug/deps",
+        "--emit=metadata",
+        "-o",
+        "/private/tmp/cohort_module_access.rmeta"
+      ],
+      "exit": 1,
+      "expected_failure": true
+    },
+    {
+      "name": "db_identity_access",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--crate-name",
+        "db_identity_access",
+        "implementation/compiler-completion/checked-cohort/independent-review/compile-fail/db_identity_access.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-checked-cohort-independent-target/debug/deps/libcanlang_compiler-61123a62f085be19.rlib",
+        "-L",
+        "dependency=/private/tmp/can-checked-cohort-independent-target/debug/deps",
+        "--emit=metadata",
+        "-o",
+        "/private/tmp/db_identity_access.rmeta"
+      ],
+      "exit": 1,
+      "expected_failure": true
+    },
+    {
+      "name": "selection_mutation",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--crate-name",
+        "selection_mutation",
+        "implementation/compiler-completion/checked-cohort/independent-review/compile-fail/selection_mutation.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-checked-cohort-independent-target/debug/deps/libcanlang_compiler-61123a62f085be19.rlib",
+        "-L",
+        "dependency=/private/tmp/can-checked-cohort-independent-target/debug/deps",
+        "--emit=metadata",
+        "-o",
+        "/private/tmp/selection_mutation.rmeta"
+      ],
+      "exit": 1,
+      "expected_failure": true
+    },
+    {
+      "name": "source_mutation",
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--crate-name",
+        "source_mutation",
+        "implementation/compiler-completion/checked-cohort/independent-review/compile-fail/source_mutation.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-checked-cohort-independent-target/debug/deps/libcanlang_compiler-61123a62f085be19.rlib",
+        "-L",
+        "dependency=/private/tmp/can-checked-cohort-independent-target/debug/deps",
+        "--emit=metadata",
+        "-o",
+        "/private/tmp/source_mutation.rmeta"
+      ],
+      "exit": 1,
+      "expected_failure": true
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "binary": "/private/tmp/can-checked-cohort-independent-target/debug/can",
+  "binary_sha256": "15674e4aed621eee018f97317f38df7c5c1dc117a29b9602d013b115afe49e0c",
+  "controls": [
+    {
+      "name": "coherent",
+      "command": [
+        "/private/tmp/can-checked-cohort-independent-target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/independent-review/cli-fixtures/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/independent-review/cli-fixtures/b.can",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/independent-review/cli-fixtures/a.can"
+      ],
+      "exit": 0,
+      "expected_exit": 0,
+      "validated": true,
+      "runtime_JS_executed": false,
+      "output_kind": "artifact"
+    },
+    {
+      "name": "analysis-refusal",
+      "command": [
+        "/private/tmp/can-checked-cohort-independent-target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/independent-review/cli-fixtures/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/independent-review/cli-fixtures/broken.can"
+      ],
+      "exit": 10,
+      "expected_exit": 10,
+      "validated": true,
+      "runtime_JS_executed": false,
+      "output_kind": "diagnostics"
+    }
+  ]
+}

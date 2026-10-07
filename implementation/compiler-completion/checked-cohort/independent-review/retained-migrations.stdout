@@ -1,0 +1,14 @@
+
+running 9 tests
+test valid_model_rename_lowers ... ok
+test invalid_migration_lowers_nothing ... ok
+test valid_field_directives_and_backfill_lower ... ok
+test artifact_carries_migration_registry ... ok
+test violations_emit_no_e6008 ... ok
+test valid_drop_model_invalidate_and_owner_drop_lower ... ok
+test predecessor_problems_are_e6010 ... ok
+test body_digest_is_deterministic ... ok
+test exactly_once_violations_are_e6009 ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

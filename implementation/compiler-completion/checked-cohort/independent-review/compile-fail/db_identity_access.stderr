@@ -1,0 +1,13 @@
+error[E0624]: method `identity` is private
+ --> implementation/compiler-completion/checked-cohort/independent-review/compile-fail/db_identity_access.rs:1:86
+  |
+1 | use canlang_compiler::source::SourceDb; fn main() { let db=SourceDb::new(); let _=db.identity(); }
+  |                                                                                      ^^^^^^^^ private method
+  |
+ --> src/source.rs:42:4
+  |
+  = note: private method defined here
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0624`.

@@ -1,0 +1,13 @@
+
+running 8 tests
+test originally_nonexistent_selected_id_cannot_become_checked_by_append ... ok
+test complete_gate_and_test_only_acknowledgment_are_separate_from_cohort ... ok
+test swapped_source_numbering_refuses_and_rechecking_restores_ownership ... ok
+test catalog_absence_is_part_of_the_checked_owner_contract ... ok
+test owner_moves_catalog_clone_and_immutable_append_preserve_old_semantics_and_inventory ... ok
+test selected_nonzero_sources_and_caller_order_are_preserved ... ok
+test owned_control_and_foreign_equal_ids_spans_or_hashes ... ok
+test changed_or_independently_reloaded_catalog_requires_rechecking ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
