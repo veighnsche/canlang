@@ -1,0 +1,5 @@
+{
+  "compiler/src/codegen/ir.rs": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+  "compiler/src/codegen/js.rs": "dd4a84f977a0ecdeb1e03685936042fcf47706de3757feda5f89c7987d99e8d4",
+  "compiler/tests/ui_adapter.rs": "29c644b4cb1db53569b7f1e51a5f5f141b695432d7f9cc3075a8d531845734d1"
+}

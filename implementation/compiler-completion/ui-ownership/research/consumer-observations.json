@@ -1,0 +1,23 @@
+[
+  {
+    "name": "tab",
+    "import": "failed",
+    "error": "SyntaxError: The requested module '@canlang/ui' does not provide an export named 'tab'"
+  },
+  {
+    "name": "order",
+    "import": "failed",
+    "error": "SyntaxError: The requested module '@canlang/stdlib' does not provide an export named 'hasRole'"
+  },
+  {
+    "name": "card-control",
+    "import": "failed",
+    "error": "TypeError: pattern must be a string or message descriptor"
+  },
+  {
+    "name": "actual-public-exports",
+    "tab": "undefined",
+    "tabs": "function",
+    "kbd": "function"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "scope": "unchanged generated static module to installed public UI; no query",
+  "checks": [
+    "literal escaped Card title",
+    "whole item gate",
+    "localized surviving caption",
+    "nested and sibling IDs",
+    "first surviving ordinal",
+    "sentinels once"
+  ],
+  "radio_groups": [
+    "tabs-can-tabs-m0-f0-s68",
+    "tabs-can-tabs-m0-f0-s193",
+    "tabs-can-tabs-m0-f0-s251"
+  ]
+}

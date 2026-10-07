@@ -1,0 +1,18 @@
+app Static
+Given
+When
+Then
+ page / title="Static"
+  card "Title <&>"
+   tabs
+    tab "Hidden"
+     require false
+     text "UNREACHED"
+    tab "Surviving"@{nl="Over"}
+     text "OUTER_SENTINEL"
+     tabs
+      tab "Nested"
+       text "INNER_SENTINEL"
+  tabs
+   tab "Sibling"
+    text "SIBLING_SENTINEL"

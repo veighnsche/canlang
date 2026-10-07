@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "compile_exit": 0,
+  "javascript_parse_exit": 0,
+  "scope": "generated emission protocol only; no authorized collection runtime",
+  "occurrence_vectors": [
+    "$can$l$303a726f77.id",
+    "$can$l$303a726f77.id,$can$l$323a726f77.id"
+  ],
+  "async_row_callbacks": 2,
+  "gate_and_child_await_inside_lazy_row": true,
+  "owner_production_pins_match": true,
+  "binary_sha256": "b0e5c51a26d55fbbaad0e2a51ce68c25dc66a656b7ae2508265ce5be1d6f723c"
+}

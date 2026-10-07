@@ -5647,10 +5647,7 @@ impl<'a> Cx<'a> {
         let word = ui_word(self.db, node);
         match node.kind {
             SyntaxKind::Card => {
-                let caption = kids(node)
-                    .iter()
-                    .find(|n| n.kind == SyntaxKind::MessageValue)
-                    .and_then(|n| self.decode_message_node(scope.module, n));
+                let caption = self.decode_caption_header(scope.module, node);
                 let mut props = Vec::new();
                 if let Some(caption) = caption {
                     props.push((
@@ -5733,7 +5730,33 @@ impl<'a> Cx<'a> {
                     }
                     props.push(("value".to_string(), self.decode_expr(scope, target)));
                 }
-                let children = self.decode_ui_children(scope, node, row_ctx);
+                let children = if target.is_none() {
+                    // Transient panel identity is independent of its localized
+                    // caption. These children are structural items, not factories.
+                    props.push((
+                        "id".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Text(format!(
+                                "can-tabs-m{}-f{}-s{}",
+                                scope.module.0, node.span.file.0, node.span.start
+                            )),
+                            ResolvedType::Scalar(Scalar::Text),
+                            node.span,
+                        ),
+                    ));
+                    kids(node)
+                        .iter()
+                        .filter(|child| child.kind == SyntaxKind::Tab)
+                        .enumerate()
+                        .map(|(ordinal, child)| {
+                            self.decode_transient_tab(scope, child, ordinal, row_ctx.clone())
+                        })
+                        .collect()
+                } else {
+                    // Bound enum panels retain their existing diagnostic path
+                    // until the canonical preference binding is supplied.
+                    self.decode_ui_children(scope, node, row_ctx)
+                };
                 let gate = self.decode_gate(scope, node);
                 Some(IrUi {
                     factory: "tabs".to_string(),
@@ -5761,6 +5784,58 @@ impl<'a> Cx<'a> {
                     span: node.span,
                 })
             }
+        }
+    }
+
+    /// One transient panel payload consumed only by its owning `tabs`.
+    fn decode_transient_tab(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        ordinal: usize,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let caption = match self.decode_caption_header(scope.module, node) {
+            Some(message) => TypedExpr::new(
+                IrExpr::Message(message),
+                ResolvedType::Scalar(Scalar::Text),
+                node.span,
+            ),
+            None => match kids(node).iter().find(|n| is_expression(n.kind)) {
+                Some(header) => self.decode_expr(scope, header),
+                None => {
+                    self.gap(
+                        "tab caption has no checked expression".to_string(),
+                        node.span,
+                    );
+                    TypedExpr::new(
+                        IrExpr::Unsupported {
+                            what: "tab caption".to_string(),
+                            why: "missing checked expression".to_string(),
+                        },
+                        ResolvedType::Unknown,
+                        node.span,
+                    )
+                }
+            },
+        };
+        IrUi {
+            factory: "tabItem".to_string(),
+            props: vec![
+                (
+                    "value".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Text(ordinal.to_string()),
+                        ResolvedType::Scalar(Scalar::Text),
+                        node.span,
+                    ),
+                ),
+                ("caption".to_string(), caption),
+            ],
+            children: self.decode_ui_children(scope, node, row_ctx),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
         }
     }
 

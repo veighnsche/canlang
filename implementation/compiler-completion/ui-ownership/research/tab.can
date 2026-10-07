@@ -1,0 +1,8 @@
+app Shop
+Given
+When
+Then
+ page / title="Home"
+  tabs
+   tab "Audit Tab"
+    text "Audit Child"

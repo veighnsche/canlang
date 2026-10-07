@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Please advise on generated tab keys, with equivalent alternatives. Can grammar currently authors tab expr under tabs: without a preference expr means localized readable caption; with preferences.enumField it means an enum case, all cases covered once, with declaration-owned labels. Public renderer provides tabs({items:[{value,caption,children}],id,binding?}); tab is not exported. Its unbound default is first panel and its parent id determines radio and DOM namespaces. Distinct captions can translate identically; authors may also repeat captions. Thus UI identity must remain separate from displayed message. Children and caption expressions must evaluate once with authored sequencing and scope. Existing lowering erases tab payload. The renderer can display bound options/panels but its Save-button POST API does not establish normative immediate canonical preference persistence, version conflict handling, or inactive unsaved-input preservation. Do not invent an endpoint or use temporary unsupported diagnostics as the identity solution. Compare generated ordinal identity, text identity, or explicit source keys as equally complete implementation contracts; bound identity must stay exact enum case in each.",
+    "questions": {
+      "identity": {
+        "type": "choice",
+        "instructions": "For this verified compiler-to-renderer join, choose the best key ownership scheme balancing localization/collision correctness, authoring economy, evaluation semantics and compatibility with the current grammar.",
+        "criteria": {
+          "ordinal": "Assign ephemeral source-position ordinal values per generated parent tabset namespace, with display text separate. Use enum cases for preference-backed values. No user key field; order edits may renumber and repeated runtime instances require an occurrence namespace contract.",
+          "caption": "Construct each ephemeral key from locale-neutral caption content with a defined collision strategy and checked expression conversion; key changes follow caption edits. Preference-backed values remain enum cases.",
+          "explicit": "Add an explicit stable transient Tab key to the language, including old-source migration and key-uniqueness rules, while keeping preference-backed enum keys. More authoring work purchases stability across panel edits."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "identity": {
+        "type": "choice",
+        "choice": "ordinal",
+        "confidence": 0.33,
+        "probabilities": {
+          "ordinal": 0.55,
+          "caption": 0.02,
+          "explicit": 0.43
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 693,
+      "output_tokens": 38
+    }
+  }
+}

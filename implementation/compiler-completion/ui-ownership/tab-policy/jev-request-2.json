@@ -1,0 +1,14 @@
+{
+  "state": "The open choice concerns identity for a Can tabs adapter. Source permits transient panels titled by text/messages and persistent panels keyed by every member of an owned preference enum. There is no explicit tab key syntax today. Translated or repeated text remains a valid caption. Public tabs factory takes an items array of string keys, separate captions and trusted child arrays/thunks; optional parent id isolates its radio group and indexed DOM IDs. It picks the first transient item unless current/open applies. No separate public tab function exists. Compiler presently emits tab() and drops content. Proposed repair must transport captions/content exactly once in source order, preserve enclosing bindings, and namespace sibling sets. For bound sets, declared enum keys and case labels are authoritative. A compiler adapter cannot invent canonical preference save URLs or claim immediate version checks/error recovery from the existing Save/POST factory; full persistence lifecycle needs a separately verified owner. Choose among complete key schemes below on duplicate/translation safety, source simplicity and stability. This consultation does not authorize production code or add syntax.",
+  "questions": {
+    "identity": {
+      "type": "choice",
+      "instructions": "Select the preferable complete adapter identity rule for these same outcomes: duplicate/translated captions, actual renderer payload, concise source, checked enum ownership and single ordered evaluation.",
+      "criteria": {
+        "ordinal": "Use a panel index local to a deterministic unique authored tabset site, never localized caption; persistent sets keep enum member names and declaration labels. New source syntax is unnecessary; layout edits can renumber transient entries and repeated-row occurrence identities need qualified scope.",
+        "caption": "Use canonical untranslated caption material as key plus a deterministic duplicate suffix. Specify dynamic message normalization and accept key changes after caption edits; persistent keys are still enum names.",
+        "explicit": "Introduce a source-level stable panel identifier, define compatibility/migration and duplicate checking, and keep enum names for persistent panels. This makes identity independent of insertion/editing but adds authoring payload."
+      }
+    }
+  }
+}

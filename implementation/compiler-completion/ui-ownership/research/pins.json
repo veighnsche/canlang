@@ -1,0 +1,23 @@
+{
+  "pins": {
+    "compiler/src/syntax/parser.rs": "87aa962dd5de5aec9ee73f82e25cf1d2cbc0553ec2c6ffc0f64cdd6e5f65b806",
+    "compiler/src/analysis/types.rs": "4d2d23e8a69feca5b50c406402b5768a71b9a67049646a8b6b8a340d237b8dba",
+    "compiler/src/analysis/resolve.rs": "a7e4a82c135e594e9163a4d2abc6a75518741a9648ed24be7b3cbe8eb109959f",
+    "compiler/src/analysis/effects.rs": "3d5ae54a89c189ab907146ed702a10e3d22e91cb8400653e2029421f29054c07",
+    "compiler/src/codegen/ir.rs": "ae69f86a6d4733d7d41cfd532b4a5d1effb9e9fe270d73eb819d4773e254dccc",
+    "compiler/src/codegen/js.rs": "5f6cc2203857050a6a653ebb61b5a351bb94b7ddfc958a58da3745eb42de6d82",
+    "packages/ui/src/index.ts": "e84a76c8b9585f03d5c87288a8d0e6d2ce2418146c65759e14e9c8be33e50369",
+    "packages/ui/src/catalog.ts": "6fd37786692fdf2932aa5cd5e04a75156695e1db8f26f9677d22654392d1dc01",
+    "packages/ui/src/panels.ts": "7b0be13c621cc652147cf3ca72f92a513543b61b322cbe7542efa360cfd45d22",
+    "packages/ui/src/collections.ts": "68c1b226749d876378858e4c0221f7e9895b981bc1349ff59041ad362efe74e7",
+    "packages/contracts/src/presentation.ts": "8c0a790f53f463e0097443f941994a0a0b3fa450e7393fd7fa4e344e5258a507",
+    "packages/interfaces/src/http/pages.ts": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+    "packages/ui/dist/src/index.js": "debf4ec6e4236d5b469eae1d75ca27e6953c1dbadd39f7cc5fa1696142de7610",
+    "packages/ui/dist/src/panels.js": "5500079ed6221c2f31e58381bbf732d27f25485cc11783afafb28f07f833e387",
+    "packages/ui/dist/src/collections.js": "a74a254474d8822d9694d2c71c7bc8ba379a12360a4bbaf8d887a5d3e3ff4d7b",
+    "packages/interfaces/dist/src/http/pages.js": "030135ad59c33a87daccd3a87d40a8faff2c21461506937acec61bf74b8ac461",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "binary": "b8ec81900121effeab3b2145c0f4436089eeea7a273642317335309861c0cd3d"
+  },
+  "binary_source_parity": "Not established; copied existing binary, no build performed"
+}

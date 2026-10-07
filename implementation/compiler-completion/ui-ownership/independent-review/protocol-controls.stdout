@@ -1,0 +1,26 @@
+{
+  "status": "passed",
+  "scope": "narrow carrier and actual public factory protocol; no query runner",
+  "checks": [
+    "caption/child eager initiation order once",
+    "false gate skips payload",
+    "first surviving value",
+    "all gated/empty fails closed",
+    "JSON ancestor path boundary and percent encoding",
+    "real factory radio/panel namespaces"
+  ],
+  "trace": [
+    "caption:one",
+    "child:one",
+    "caption:two",
+    "child:two"
+  ],
+  "ids": [
+    "review-site-%5B%22a%2Fb%22%2C%22c%22%5D",
+    "review-site-%5B%22a%22%2C%22b%2Fc%22%5D",
+    "review-site-%5B%22outer%20one%22%2C%22same%22%5D",
+    "review-site-%5B%22outer%20two%22%2C%22same%22%5D",
+    "review-site-%5B%22x%5C%22%22%2C%22%C3%A9%22%5D",
+    "review-site-%5B%22x%22%2C%22%5C%22%C3%A9%22%5D"
+  ]
+}
