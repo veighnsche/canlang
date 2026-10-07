@@ -1,0 +1,40 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.12s
+     Running tests/file_ownership.rs (/private/tmp/canlang-compiler-pass4/debug/deps/file_ownership-767568b9ca0c2ded)
+
+running 8 tests
+
+thread 'docs_write_failure_keeps_directory_and_removes_staging' (18779401) panicked at tests/file_ownership.rs:165:5:
+assertion failed: String::from_utf8_lossy(&output.stderr).contains("E7007")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'docs_new_output_obeys_umask_and_existing_output_keeps_mode' (18779399) panicked at tests/file_ownership.rs:68:5:
+Output { status: ExitStatus(unix_wait_status(512)), stdout: "", stderr: "error[E7001]: unknown flag '--platform-bin'; use can --help\n" }
+
+thread 'docs_symlink_outputs_replace_entry_and_keep_targets' (18779400) panicked at tests/file_ownership.rs:68:5:
+Output { status: ExitStatus(unix_wait_status(512)), stdout: "", stderr: "error[E7001]: unknown flag '--platform-bin'; use can --help\n" }
+test fmt_missing_input_is_e7002_and_does_not_create_output ... ok
+test docs_new_output_obeys_umask_and_existing_output_keeps_mode ... FAILED
+test docs_write_failure_keeps_directory_and_removes_staging ... FAILED
+test docs_symlink_outputs_replace_entry_and_keep_targets ... FAILED
+test fmt_changed_symlink_replaces_entry_and_keeps_target_private_and_unchanged ... ok
+test fmt_changed_hardlink_replaces_only_requested_entry ... ok
+test fmt_noop_preserves_inode_links_and_mode ... ok
+
+thread 'fmt_preserves_modes_including_private_readonly_and_special_bits' (18779406) panicked at tests/file_ownership.rs:80:9:
+assertion `left == right` failed
+  left: 488
+ right: 2536
+test fmt_preserves_modes_including_private_readonly_and_special_bits ... FAILED
+
+failures:
+
+failures:
+    docs_new_output_obeys_umask_and_existing_output_keeps_mode
+    docs_symlink_outputs_replace_entry_and_keep_targets
+    docs_write_failure_keeps_directory_and_removes_staging
+    fmt_preserves_modes_including_private_readonly_and_special_bits
+
+test result: FAILED. 4 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+error: test failed, to rerun pass `--test file_ownership`

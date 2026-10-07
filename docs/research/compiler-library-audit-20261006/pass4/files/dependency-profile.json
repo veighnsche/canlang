@@ -1,0 +1,135 @@
+{
+  "dependency": "tempfile",
+  "version": "3.27.0",
+  "direct_features": [
+    "getrandom"
+  ],
+  "default_features": false,
+  "baseline_registry_count": 37,
+  "file_only_registry_count": 50,
+  "added_locked_packages": [
+    {
+      "name": "bitflags",
+      "version": "2.13.2",
+      "checksum": "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2021",
+      "rust_version": "1.56.0",
+      "build": false
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.5",
+      "checksum": "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2018",
+      "rust_version": "1.32",
+      "build": false
+    },
+    {
+      "name": "errno",
+      "version": "0.3.14",
+      "checksum": "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2018",
+      "rust_version": "1.56",
+      "build": false
+    },
+    {
+      "name": "fastrand",
+      "version": "2.5.0",
+      "checksum": "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223",
+      "license": "Apache-2.0 OR MIT",
+      "edition": "2018",
+      "rust_version": "1.63",
+      "build": false
+    },
+    {
+      "name": "getrandom",
+      "version": "0.4.3",
+      "checksum": "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2024",
+      "rust_version": "1.85",
+      "build": "build.rs"
+    },
+    {
+      "name": "libc",
+      "version": "0.2.190",
+      "checksum": "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2021",
+      "rust_version": "1.65",
+      "build": "build.rs"
+    },
+    {
+      "name": "linux-raw-sys",
+      "version": "0.12.1",
+      "checksum": "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "edition": "2021",
+      "rust_version": "1.63",
+      "build": false
+    },
+    {
+      "name": "once_cell",
+      "version": "1.21.4",
+      "checksum": "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2021",
+      "rust_version": "1.65",
+      "build": false
+    },
+    {
+      "name": "r-efi",
+      "version": "6.0.0",
+      "checksum": "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf",
+      "license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+      "edition": "2018",
+      "rust_version": "1.68",
+      "build": false
+    },
+    {
+      "name": "rustix",
+      "version": "1.1.5",
+      "checksum": "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "edition": "2021",
+      "rust_version": "1.65",
+      "build": "build.rs"
+    },
+    {
+      "name": "tempfile",
+      "version": "3.27.0",
+      "checksum": "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2021",
+      "rust_version": "1.63",
+      "build": false
+    },
+    {
+      "name": "windows-link",
+      "version": "0.2.1",
+      "checksum": "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2021",
+      "rust_version": "1.71",
+      "build": false
+    },
+    {
+      "name": "windows-sys",
+      "version": "0.61.2",
+      "checksum": "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc",
+      "license": "MIT OR Apache-2.0",
+      "edition": "2021",
+      "rust_version": "1.71",
+      "build": false
+    }
+  ],
+  "executed_rust": "1.99.0",
+  "maximum_added_declared_rust_version": "1.85",
+  "license_assessment": "all added packages offer MIT/Apache compatible options; target-gated dependencies not executed",
+  "linux_image": "rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+  "linux_network": "none",
+  "linux_platform": "linux/amd64 under local emulation"
+}

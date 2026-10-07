@@ -1,0 +1,13 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.07s
+     Running unittests src/lib.rs (/private/tmp/canlang-compiler-pass4/debug/deps/canlang_compiler-b209887ffda84078)
+
+running 6 tests
+test cli::replacement_tests::concurrent_permission_change_is_not_reverted ... ok
+test cli::replacement_tests::stale_format_input_is_rejected_before_staging ... ok
+test cli::replacement_tests::partial_staging_write_failure_keeps_destination_and_cleans_up ... ok
+test cli::replacement_tests::concurrent_content_change_is_not_overwritten ... ok
+test cli::replacement_tests::concurrent_creation_is_not_overwritten_and_staging_is_removed ... ok
+test cli::replacement_tests::persist_failure_keeps_directory_and_cleans_up ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.00s

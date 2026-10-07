@@ -1,0 +1,20 @@
+{
+  "macos-aarch64": {
+    "bytes": 2117200,
+    "sha256": "4403d661a0cefa3fbe884b12f62278a18b417a81ee1472af4c686c07d361213f",
+    "baseline_bytes": 2100432,
+    "baseline_sha256": "0e327c65dac79327fb6e76dc4769914a9f4cc27747a17ea6d67f3cb0709aa888",
+    "delta_bytes": 16768,
+    "delta_percent": 0.7983119663002658,
+    "embedded_git": "unknown in isolated candidate and baseline"
+  },
+  "linux-x86_64-emulated": {
+    "bytes": 2900088,
+    "sha256": "b7f9c6f44a930e7987e33bc54f6c0374aedc30c4a0c159679d7b8994eae9b362",
+    "baseline_bytes": 2877648,
+    "baseline_sha256": "b8716b217872ca6b01e3803cc38a32deceaf50d028773c7fb6412735ac5f7444",
+    "delta_bytes": 22440,
+    "delta_percent": 0.7798035061967273,
+    "embedded_git": "unknown in isolated candidate and baseline"
+  }
+}

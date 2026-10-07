@@ -1,0 +1,31 @@
+   Compiling canlang-compiler v0.1.0 (/private/tmp/canlang-pass4-profiles/files/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.95s
+     Running unittests src/lib.rs (/private/tmp/canlang-pass4-files-target/debug/deps/canlang_compiler-ad6d331b19eebb03)
+
+running 24 tests
+test cli::tests::docs_help_names_modes_and_refusal ... ok
+test cli::replacement_tests::stale_format_input_is_rejected_before_staging ... ok
+test cli::tests::docs_requires_operands ... ok
+test cli::replacement_tests::partial_staging_write_failure_keeps_destination_and_cleans_up ... ok
+test cli::replacement_tests::concurrent_creation_is_not_overwritten_and_staging_is_removed ... ok
+test cli::replacement_tests::concurrent_content_change_is_not_overwritten ... ok
+test cli::replacement_tests::concurrent_permission_change_is_not_reverted ... ok
+test cli::tests::locale_and_out_are_docs_only ... ok
+test cli::replacement_tests::symlink_target_permission_change_is_not_reverted ... ok
+test cli::tests::out_refuses_can_sources_before_any_input_read ... ok
+test cli::replacement_tests::replacement_inode_is_detected_with_equal_bytes_mode_and_mtime ... ok
+test cli::replacement_tests::persist_failure_keeps_directory_and_cleans_up ... ok
+test cli::tests::stderr_tail_caps_and_names_absence ... ok
+test cli::tests::diagnostics_fail_with_no_spawn_and_no_file_write ... ok
+test cli::tests::format_json_shapes_diagnostics_not_markdown ... ok
+test cli::tests::out_refuses_to_overwrite_input_files ... ok
+test cli::tests::stub_backend_reports_needs_pipeline_before_spawn ... ok
+test cli::tests::missing_platform_binary_is_e7004 ... ok
+test cli::tests::renders_to_stdout_with_fixed_argv_and_stdin_payload ... ok
+test cli::tests::renderer_failure_reports_producer_detail_as_e7004 ... ok
+test cli::tests::renders_without_locale_omits_the_flag ... ok
+test cli::tests::out_writes_the_file_and_stays_silent ... ok
+test cli::tests::unwritable_out_is_e7007 ... ok
+test cli::tests::empty_and_non_utf8_output_are_e7004 ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 81 filtered out; finished in 0.40s

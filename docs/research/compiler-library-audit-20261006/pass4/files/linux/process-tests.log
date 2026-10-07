@@ -1,0 +1,16 @@
+   Compiling canlang-compiler v0.1.0 (/source/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 47.66s
+     Running tests/file_ownership.rs (scratch/target/debug/deps/file_ownership-3b076e7b5b7e8250)
+
+running 9 tests
+test fmt_missing_input_is_e7002_and_does_not_create_output ... ok
+test fmt_changed_hardlink_replaces_only_requested_entry ... ok
+test fmt_repeated_operands_and_already_formatted_alias_are_noops ... ok
+test fmt_changed_symlink_replaces_entry_and_keeps_target_private_and_unchanged ... ok
+test docs_write_failure_keeps_directory_and_removes_staging ... ok
+test fmt_noop_preserves_inode_links_and_mode ... ok
+test docs_new_output_obeys_umask_and_existing_output_keeps_mode ... ok
+test fmt_preserves_modes_including_private_readonly_and_special_bits ... ok
+test docs_symlink_outputs_replace_entry_and_keep_targets ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
