@@ -162,3 +162,5 @@ Values internal/violations.ts owns only the exact schema/wire append leaf. Colle
 Interfaces internal/prepared-binding.ts owns shared private entry/deferral mechanics, with public prepared types still at HTTP owner and construction/framing local to HTTP/MCP. Narrow reduction is accepted without SDK/handle or parent qualification; complete checkpoint unchanged.
 
 Interfaces internal/input-admission.ts owns only shared object-body and Bearer lexical mechanics; local authorization, error/status and uploads availability remain with handlers. Source/declaration reduction is accepted with test maintenance separately charged. Security/installed joins and complete checkpoint reconciliation remain open.
+
+Identity default unit discovery includes its emitted authentication source tests; Work emit stages the existing owning numeric oracle/capture for its default contract tests. Narrow private source-current recipe checks are accepted, with Values provenance, installed and native observer obligations remaining. No new production owner or complete checkpoint advance.
