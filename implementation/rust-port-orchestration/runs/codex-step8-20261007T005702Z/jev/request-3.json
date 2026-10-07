@@ -1,0 +1,51 @@
+{
+  "state": {
+    "phase": "Human-authorized finite D04; advisory decision, prototypes not acceptance",
+    "outcome": "Actual Node/workerd/outside-checkout installed same-line rewrite diagnostics retain original .can positions, with invoke fallback; no partial composition-only acceptance",
+    "source_checkpoint": "8581390afab9f3968230c5fbb070c41a1e749819",
+    "verified_inputs": {
+      "packages/cloudflare/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "packages/cloudflare/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "packages/cloudflare/src/runtime/modules.ts": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230",
+      "packages/cloudflare/src/deploy/bundle.ts": "ad64a7974ecd4b245f2c58d8edf8a243e8f9a4df939b026178cc590a330b34fb",
+      "packages/cloudflare/src/dev/local-run.ts": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+      "packages/cloudflare/src/runtime/invoke.ts": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+      "packages/cloudflare/src/worker/assembly.ts": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "packages/cloudflare/package.json": "f8d1483482dde2a5b333d35196584e4b61c9985c9825249a4aba9e9716d51252",
+      "bun.lock": "aec35229030b460af533a1aee3b95581f0eab7cc82a166ea00fbb871d8bc1a4a",
+      "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+      "implementation/remaining-work/tasks.json": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e"
+    },
+    "verified_facts": [
+      "Accepted D02 emits original-coordinate UTF16 edit maps synchronously; no-edit JS pass-through with absent transform map. Accepted D03 decodes via per-segment pinned codec and preserves Can raw GLB: last duplicate until first overshoot, unmapped barriers, unsorted source-order scan, source/name raw tables, signed32 accumulation and malformed first-fault admission.",
+      "Existing modules.ts writes original mod.map after import rewriting. bundle.ts embeds original artifact map and portable assembly. invoke mapThrownError looks up artifact.modules.find(path).map; first generated/remapped frame and never-throws/message-only behavior are existing contracts.",
+      "Human authored compiler source and original CompileArtifact identity/verdict inputs must remain unchanged. An optional serializable derived diagnostic map field on AssembledModules can pass through existing worker assembly; implementation handshake is not yet proven.",
+      "Pinned remapping2.3.5/gen-mapping0.3.13/trace0.3.31 defaults sort/dedup/resolve names and differ from Can raw semantics. Per-original-index opaque identities can avoid raw identity normalization/dedup. A source-order raw lookup-equivalent profile can retain GLB effects using prefix-max thresholds and last duplicates; candidate negative-coordinate/encoding representability remains under actual qualification.",
+      "No-edit malformed originals must retain bytes/serialization. For changed malformed maps all valid Can queries already fail full decode; retaining explicit invalid diagnostic view can preserve staging success/message-only instead of fabricating stale usable positions.",
+      "Composer/lexer/editor remain host tools; Worker receives runtime codec only. Root reconciled no active invoke writer; diagnostics-only transfer cannot count original W06/V09 chain completion. Native preparation stays HUMAN HOLD."
+    ],
+    "uncertainties": [
+      "All profile/carrier simplification and target runtime evidence pending. If carrier encoding grows into a second numeric/authority engine it fails the goal.",
+      "Stock host engines do not share Can acceptance of pathological negative/overflow maps; normal actual compiler-profile engine diagnostics and broader raw Can fallback must be distinguished honestly."
+    ]
+  },
+  "questions": {
+    "composition_route": {
+      "type": "choice",
+      "instructions": "Given the stated constraints and unresolved numeric/library limits, what D04 approach should be preferred and where must acceptance remain gated?",
+      "criteria": {
+        "compatible_library_adapter": "Use pinned library composition with bounded thin raw identity/GLB/numeric representation adapter only if actual qualification proves simpler and exact; keep original public raw contract and explicit invalid-map diagnostic behavior. No new full decoder.",
+        "derived_trace_view": "Represent original map plus exact rewrite-stage maps as a derived diagnostic view, use existing raw lookup newest-to-oldest for Can fallback; compose engine .map via library where actual host supports it, explicitly handle unsupported raw host profiles without pretending universal parity. Adds a small consumed sidecar seam but avoids carrier complexity.",
+        "new_changed_map_profile": "Introduce an explicit canonical changed-map profile and refuse unsupported original maps at staging, with versioned behavior and migration/consumer qualification. Simpler library path but changes formerly accepted staging/raw behavior and requires additional authorization/profile acceptance."
+      }
+    },
+    "diagnostic_handoff": {
+      "type": "choice",
+      "instructions": "For the real staged map-to-invoke join, which ownership-safe representation should we pursue and qualify?",
+      "criteria": {
+        "assembly_sidecar": "Optional serializable per-module derived maps/view on AssembledModules, presence-aware invoke access and absence-only original fallback; preserves original artifact identity, requires actual Worker and installed handshake.",
+        "derived_artifact_copy": "Build a separate runtime-only copy of artifact with final diagnostic maps, pass it through current invoke interface while preserving original object/verdict inputs outside execution; simpler invoke reuse but two artifact identities may confuse compatibility/security joins."
+      }
+    }
+  }
+}

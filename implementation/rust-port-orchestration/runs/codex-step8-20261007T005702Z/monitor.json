@@ -1,0 +1,126 @@
+{
+  "run_id": "codex-step8-20261007T005702Z",
+  "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step8-20261007T005702Z",
+  "private_root": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z",
+  "base": "8581390afab9f3968230c5fbb070c41a1e749819",
+  "previous_run": "codex-step7-20261007T002305Z",
+  "execution_authorized": true,
+  "human_release": "Human step8 D04 composition, real staged invoke diagnostics and installed Node/workerd acceptance",
+  "preparation_hold": true,
+  "future_dispatch_authorized": false,
+  "phase": "step8_product_wiring",
+  "source_pins": {
+    "packages/cloudflare/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+    "packages/cloudflare/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "packages/cloudflare/src/runtime/modules.ts": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230",
+    "packages/cloudflare/src/deploy/bundle.ts": "ad64a7974ecd4b245f2c58d8edf8a243e8f9a4df939b026178cc590a330b34fb",
+    "packages/cloudflare/src/dev/local-run.ts": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+    "packages/cloudflare/src/runtime/invoke.ts": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+    "packages/cloudflare/src/worker/assembly.ts": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+    "packages/cloudflare/package.json": "f8d1483482dde2a5b333d35196584e4b61c9985c9825249a4aba9e9716d51252",
+    "bun.lock": "aec35229030b460af533a1aee3b95581f0eab7cc82a166ea00fbb871d8bc1a4a",
+    "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+    "implementation/remaining-work/tasks.json": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e"
+  },
+  "roles": [
+    {
+      "role": "D04-map",
+      "agent": "/root/step8_maps",
+      "packet_id": "step8:D04-map",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack_observed": true,
+      "execution_authorized": true,
+      "write_files": [
+        "packages/cloudflare/src/deploy/module-maps.ts",
+        "packages/cloudflare/test/map-composition-contract.test.ts",
+        "packages/cloudflare/test/fixtures/map-composition-contract.json"
+      ],
+      "private_root": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/maps",
+      "status": "product_helper_writing",
+      "product_lease_ack_observed": true
+    },
+    {
+      "role": "R3",
+      "agent": "/root/step8_delivery",
+      "packet_id": "step8:R3-D04-host",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack_observed": true,
+      "execution_authorized": true,
+      "write_files": [
+        "packages/cloudflare/src/runtime/modules.ts",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/test/modules.test.ts",
+        "packages/cloudflare/test/deploy-bundle.test.ts",
+        "packages/cloudflare/test/deploy-package-assets.test.ts",
+        "packages/cloudflare/test/sourcemap.test.ts",
+        "packages/cloudflare/package.json"
+      ],
+      "private_root": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery",
+      "status": "product_lease_submitted_API_frozen",
+      "product_lease_ack_observed": false
+    }
+  ],
+  "native_timers": [],
+  "supervisor_status": "ACTIVE",
+  "heavy_grants": [
+    {
+      "slot": 1,
+      "owner": "/root/step8_maps",
+      "id": "step8-map-prototype-01",
+      "released": true,
+      "result": "Bun+Node 22groups777assertions, pinned offline private install"
+    },
+    {
+      "slot": 1,
+      "owner": "/root/step8_maps",
+      "id": "step8-map-host-02",
+      "released": true,
+      "scope": "eight sequential actual cold Node original/final host file pairs, max1runner",
+      "result": "Four actual Node v26.10.0 original/final map-enabled pairs passed; host results a5f604dd670acd5c611b8de1ce0c5419d8d435638e0180fa0b88727fbfec16fe"
+    },
+    {
+      "slot": 2,
+      "owner": "/root/step8_delivery",
+      "id": "step8-installed-prep-01",
+      "released": true,
+      "result": "private Cloudflare emit0 and fresh private npm tarball installation, final D04 host qualification remains"
+    },
+    {
+      "slot": 1,
+      "owner": "/root/step8_maps",
+      "id": "step8-map-product-03",
+      "released": false,
+      "scope": "private product helper compile/contract tests, max2workers"
+    }
+  ],
+  "schema_version": 1,
+  "executor": "Codex collaboration subagents",
+  "updated_at_utc": "2026-10-07T01:05:30.971351+00:00",
+  "foreign_writer": "Independent compiler agent retains compiler/ and dirty shared decision/filetree documents. No shared checkout/Git resets.",
+  "material_progress": {
+    "D04-map": "Actual private library witnesses pass; actual normal-profile host check now dispatched. No product lease yet.",
+    "R3": "Private genuine npm install and final host/negative fixture preparation done. Product wiring waiting explicit root API freeze."
+  },
+  "writer_transfer": {
+    "file": "packages/cloudflare/src/runtime/invoke.ts",
+    "prior_owner": "originating Codex package integrator",
+    "recipient": "/root/step8_delivery",
+    "source_sha256": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+    "scope": "diagnostics-only derived sidecar selection and collectSources; original W06/validation/state task identities and behaviors unchanged",
+    "evidence": "No active invoke writer in current finite roster; prior step7 writers released. contracts ownership future serial sequence is not an active lease. Existing root package integration authority applies.",
+    "product_release_pending": false,
+    "recipient_product_ack_pending": true
+  },
+  "composition_profile": "compatible_library_adapter_with_raw_Can_semantics",
+  "composition_api": "composeModuleMap<T extends RawModuleMap>(original:T|undefined, stagesNewestFirst:readonly ImportTransformMap[], originalJs:string): ModuleMapView<T>",
+  "diagnostic_sidecar": "AssembledModules.sourceMaps?: Record<string,SourceMap>; sidecar absence only falls back to original; present invalid map remains invalid",
+  "remaining_gates": [
+    "Actual source-current assembly/deployment/invoke join tests",
+    "Genuine outside-checkout fresh tarball Node/workerd diagnostics and map-disabled fallback",
+    "Short Astra medium independent critical diagnostic review",
+    "Released commands/writers, scoped commits and truthful parent-status preservation"
+  ]
+}
