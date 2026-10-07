@@ -163,3 +163,27 @@ test('authed dispatch derives the CSRF token from the session', async () => {
   assert.equal(captured.length, 1);
   assert.equal(captured[0]!.csrfToken, await deriveCsrfToken(identity.sessionToken));
 });
+
+test('poll context is stable for partial renders and changes with session, caller, team or path', () => {
+  const actor = { user_id: 'user-one', email: 'private@example.test', email_verified: true };
+  const team = { team_id: 'team-one', timezone: 'UTC', created_at: new Date(0).toISOString() };
+  const principal = { ...fakeIdentity(), actor, team };
+  const input = { request: testRequest('/hello'), pathname: '/hello', isPartial: false, appDefaultLocale: 'en', csrfToken: 'session-one', principal, query: fakeQuery() };
+  const key = buildPresentationContext(input).pollContext;
+  assert.equal(key, buildPresentationContext({ ...input, isPartial: true }).pollContext);
+  assert.doesNotMatch(key!, /private@example/);
+  for (const changes of [
+    { csrfToken: 'session-two' },
+    { pathname: '/elsewhere' },
+    { request: testRequest('/hello?team=team-two') },
+    { principal: { ...principal, actor: { ...actor, user_id: 'user-two' } } },
+    { principal: { ...principal, team: { ...team, team_id: 'team-two' } } },
+  ]) assert.notEqual(key, buildPresentationContext({ ...input, ...changes }).pollContext);
+});
+
+
+test('poll URL preserves the team selector and collection query', () => {
+  const context = buildPresentationContext({ request: testRequest('/hello?team=team-two&filter=failed'), pathname: '/hello', isPartial: false, appDefaultLocale: 'en', csrfToken: '', principal: fakeIdentity(), query: fakeQuery() });
+  assert.equal(context.path, '/hello');
+  assert.equal(context.pollUrl, '/hello?team=team-two&filter=failed');
+});

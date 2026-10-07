@@ -29,7 +29,8 @@ export type PollStopReason =
   | "context-changed"
   | "logout"
   | "owner-stop"
-  | "region-gone";
+  | "region-gone"
+  | "response-refused";
 
 /** Minimal visibility source (satisfied by `document`). */
 export interface VisibilityLike {
@@ -73,7 +74,7 @@ export interface PollRegionOptions {
   /** True once the principal is logged out (polling must terminate, never resume). */
   readonly isLoggedOut: () => boolean;
   /** Deliver an admitted (current-sequence, current-context) response body. */
-  readonly onResponse: (body: string, status: number) => void;
+  readonly onResponse: (body: string, status: number) => boolean | void;
   /** Optional stop notification (hidden/context/logout/owner/gone). */
   readonly onStop?: (reason: PollStopReason) => void;
   /**
@@ -235,8 +236,14 @@ export class PollRegion {
     if (this.stopped || mine !== this.sequence) {
       return;
     }
+    // Reading the body is another await: re-prove every paint condition.
+    if (this.options.visibility.visibilityState === "hidden") { this.stop("hidden"); return; }
+    if (this.options.isLoggedOut()) { this.stop("logout"); return; }
+    if (!this.options.context.isAlive()) { this.stop("region-gone"); return; }
+    if (this.options.context.key() !== this.options.contextKey) { this.stop("context-changed"); return; }
+    if (response.status < 200 || response.status >= 300) { this.stop("response-refused"); return; }
     this.failures = 0;
-    this.options.onResponse(body, response.status);
+    if (this.options.onResponse(body, response.status) === false) this.stop("response-refused");
   }
 
   private nextDelayMs(): number {
@@ -266,7 +273,7 @@ export function submitFetchPollFetch(fetchImpl: SubmitFetch): PollFetch {
         reject(new DOMException("Poll request aborted.", "AbortError"));
       };
       init.signal.addEventListener("abort", onAbort, { once: true });
-      void fetchImpl(url, { method: "GET", headers: {} }).then(
+      void fetchImpl(url, { method: "GET", headers: { "HX-Request": "true", "Accept": "text/html" } }).then(
         (response) => {
           init.signal.removeEventListener("abort", onAbort);
           resolve(response);

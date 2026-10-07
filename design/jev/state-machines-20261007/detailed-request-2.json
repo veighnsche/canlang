@@ -1,0 +1,26 @@
+{
+  "state": {
+    "stage": "Implementation design advice. User explicitly requests seamless stored state machines and a frontend that reacts to generation states. Advice is not acceptance or test evidence.",
+    "verified": "Can already has stored enum defaults, canonical scenario identity/inputs/by, ordered do effects, versioned record refs, guarded UI containers and page poll duration metadata. Compiler now checks opt-in scalar enum defaults and static transition endpoints. State tests exercise explicit staged edges, provisional order, rollback, CRUD/set/hook bypass, receipt replay and migration state validation. Before this change, browser bootstrap was not automatically started for page poll, and generated content was double-wrapped with renderPage. Real compiled scenario execution still has an input-envelope adapter gap being implemented. Full generated provider delivery is not established.",
+    "equal_outcomes": "Source lifecycle clarity; static graph linked to canonical operations; same authorization and business guards; enforced non-bypass through all stored writers; explicit evaluation order and atomic effects; default-owned creation; valid snapshot migration without reset; conservative late-completion guards; authorized state-driven rendering and automatic refresh preserving pending form edits; compact source and extension uncertainty.",
+    "candidates": {
+      "field": "Stored enum initial default plus machine modifier; transition record.field from -> to appears at ordered do position. Derive edges from canonical scenarios, runtime rejects ordinary writes. Reuse existing UI require state predicates and wire existing page poll. Flat machines only; reusable graph definition, hierarchy, parallel states, entry/exit callbacks remain open.",
+      "named": "Introduce named reusable machine declaration with explicit model field binding and canonical-operation edge references. Use same require predicates and page poll adapter. Enables graph reuse but needs a new definition/resolution surface, binding semantics and ownership rules without duplicating operation parameters/permissions.",
+      "conventions": "Keep enum/scenario/require/set source; extract best-effort graph and add lifecycle write checks only when proven. Use same frontend require predicates/page poll adapter. Lower grammar cost but arbitrary conditions/set prevent a complete declared graph, and protected create/update channels still need a contract.",
+      "defer": "Land frontend poll repairs first and defer machine grammar until real compiled workflow joins and reuse requirements distinguish designs. Gains reliable UI with existing enums, leaves explicit machine promise unmet for now."
+    },
+    "limits": "A name check alone cannot disambiguate late results after leaving and reentering a state. Keep existing version/occurrence correlation. Terminal state never freezes other fields or changes retention automatically. UI action visibility is advisory; server rechecks admission/source. Original parameter bindings are immutable snapshots, fresh records reads use overlay. External delivery remains asynchronous and requires its own implemented adapter. No alternative is assumed richer or simpler merely by label."
+  },
+  "questions": {
+    "implementation": {
+      "type": "choice",
+      "instructions": "Given the same observed compiler/runtime surfaces and frontend requirement, which of the four paths should be completed now?",
+      "criteria": {
+        "field": "Stored enum initial default plus machine modifier; transition record.field from -> to appears at ordered do position. Derive edges from canonical scenarios, runtime rejects ordinary writes. Reuse existing UI require state predicates and wire existing page poll. Flat machines only; reusable graph definition, hierarchy, parallel states, entry/exit callbacks remain open.",
+        "named": "Introduce named reusable machine declaration with explicit model field binding and canonical-operation edge references. Use same require predicates and page poll adapter. Enables graph reuse but needs a new definition/resolution surface, binding semantics and ownership rules without duplicating operation parameters/permissions.",
+        "conventions": "Keep enum/scenario/require/set source; extract best-effort graph and add lifecycle write checks only when proven. Use same frontend require predicates/page poll adapter. Lower grammar cost but arbitrary conditions/set prevent a complete declared graph, and protected create/update channels still need a contract.",
+        "defer": "Land frontend poll repairs first and defer machine grammar until real compiled workflow joins and reuse requirements distinguish designs. Gains reliable UI with existing enums, leaves explicit machine promise unmet for now."
+      }
+    }
+  }
+}

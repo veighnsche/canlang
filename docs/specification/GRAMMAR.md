@@ -180,7 +180,7 @@ field_type       = type ["!"] ;
 schema           = "{" bracketed(field) "}" ;
 field            = NAME ":" field_type [initializer] {field_modifier} [desc_attribute] [field_label_attribute] ;
 initializer      = "=" expr | "server" "=" expr ;
-field_modifier   = "trim" | "unique" | "min" "=" expr | "max" "=" expr ;
+field_modifier   = "trim" | "unique" | "machine" | "min" "=" expr | "max" "=" expr ;
 parameters       = "(" bracketed(parameter) ")" ;
 parameter        = NAME ":" type ["=" expr] [desc_attribute] [field_label_attribute] ;
 desc_attribute   = "desc" "=" (STRING [message_variants] | path) ;
@@ -299,6 +299,8 @@ User-fixture recipes reuse the existing path/value-object syntax: `fixture NAME=
 
 Policy `fields` selector paths may descend only through the singular embedded value/receipt shapes specified in DESIGN §4. Leaf/prefix grants, derived dependencies and partial projection authority require checking; parsing a path does not grant record-relationship traversal or a whole containing value. No new selector spelling is introduced.
 
+A stored scalar nonnullable enum may use `machine` only with a constant enum-case default. It is invalid on parameters, contracts, events, preferences, arrays and server-initialized fields. `transition` splits its target path into a stored record path and its last field, followed by one source case, an arrow and one target case. Both endpoints must be declared cases of that machine. It is an ordered `do` effect in mutation scenarios or trusted handlers; read scenarios, synchronous hooks and migration mappers cannot transition. DESIGN §5 specifies write protection and graph ownership.
+
 ## Inline messages, labels and locales
 
 ```ebnf
@@ -344,11 +346,12 @@ do_body         = "do" (line(effect_leaves) | suite(effect_body)) ;
 effect_body     = {effect_line | conditional | loop} ;
 effect_line     = line(effect_leaves) ;
 effect_leaves   = effect_leaf {";" effect_leaf} ;
-effect_leaf     = let | guard | create | set | delete | call | emit | send
+effect_leaf     = let | guard | create | set | transition | delete | call | emit | send
                 | schedule | cancel | return ;
 let             = "let" NAME "=" expr ;
 create          = "create" path values "as" NAME ;
 set             = "set" mutation_target values ;
+transition      = "transition" path NAME "->" NAME ;
 delete          = "delete" mutation_target ;
 call            = "call" ordinary values ["as" NAME] ;
 emit            = "emit" path values ;

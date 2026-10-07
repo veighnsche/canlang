@@ -1,0 +1,54 @@
+{
+  "request": {
+    "state": {
+      "purpose": "Evaluate a tentative addition, with no adopted syntax or implementation authorization. The user asks whether Can lacks seamless state machines. The language values business-workflow completeness, low authoring overhead, adoption, simple composition, and declarations that own their derived interfaces.",
+      "observed": "The inspected expense sample stores an enum status initialized to draft, also permitting submitted, approved and rejected. Its submission operation guards ownership/draft then assigns submitted. Its approval operation checks reviewer permission, submitted and no self-review, then assigns approved plus decision fields. Separate lock rules freeze data. Compiler nodes include CRUD/scenarios, guards, assignment, events and scheduled work; no first-class application-machine declaration was found. Runtime source has ordinary operation authorization, staged state and an optimistic commit combining record changes, audit, replay receipts, deliveries and scheduled work. No complete app execution claim follows.",
+      "requirements": "Use identical criteria: legible permitted state edges; parameter typing; retained permissions and domain guards; no alternate mutation bypass; atomic state/associated data; stable authored ordering; concurrency/repetition/stale-message behavior; inline expected-success/failure examples; compact reusable source. How creation, schema migration, self-edges, branching destinations and evolving graphs work is unresolved. UI hints remain permission-filtered and nonauthoritative. Remote effects retain uncertain asynchronous completion.",
+      "alternatives": "The first path leaves enums, require and set as-is while adding graph inference, lints and conventions; complex code can leave the graph partial and there is no new guaranteed transition contract. The second opts a model field into lifecycle semantics, with transitions owned by existing user or trusted operations and enforcement in current compilation/commit components; covering all writers and specifying timing is still work. The third authors a named reusable machine with central edges and record/operation bindings; this favors reuse but integrating canonical names, input types and authority must avoid a second definition of them. Any path can begin flat, and any can reuse the existing scheduling/transaction substrate.",
+      "boundaries": "No supplied application need presently demands state hierarchy, orthogonal regions, history, automatic entry/exit effects or eventless chains. The W3C SCXML specification covers richer statecharts and run-to-completion; Stately explains event-and-guard selection. A flat start defers those uses rather than proving them unnecessary. Advice should choose what to investigate, not certify an unbuilt feature.",
+      "sources": [
+        "examples/ExpenseFlow.can:12,20-21,28-39",
+        "docs/specification/DESIGN.md sections 4-7",
+        "compiler/src/syntax/cst.rs:98-120",
+        "compiler/src/syntax/parser.rs:4362",
+        "packages/state/src/mutation/pipeline.ts:1144",
+        "packages/state/src/invocation/invoke.ts:309-350",
+        "https://stately.ai/docs/transitions",
+        "https://www.w3.org/TR/scxml/"
+      ]
+    },
+    "questions": {
+      "direction": {
+        "type": "choice",
+        "instructions": "What should Can investigate first to improve state-machine authoring under the shared constraints and verified implementation context?",
+        "criteria": {
+          "existing": "Begin with better analysis and idioms for current enums/scenarios, allowing a partial graph and waiting for demonstrated deficiencies before a language extension.",
+          "model_lifecycle": "Begin with a stored-field lifecycle opt-in tied to canonical operation-owned edges, using existing compiler/runtime authority for enforcement.",
+          "machine_type": "Begin with a reusable machine declaration that centrally defines edges and connects to established operation schemas and storage ownership.",
+          "defer": "Withhold a preferred architecture while concrete workflow and semantic evidence remains inadequate to distinguish the paths."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "direction": {
+        "type": "choice",
+        "choice": "model_lifecycle",
+        "confidence": 0.24,
+        "probabilities": {
+          "defer": 0.23,
+          "machine_type": 0.06,
+          "existing": 0.28,
+          "model_lifecycle": 0.43
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1099,
+      "output_tokens": 55
+    }
+  }
+}
