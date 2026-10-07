@@ -761,7 +761,7 @@ function blankStringsAndComments(source: string): string {
     const d = source[i + 1];
     if (c === "/" && d === "/") {
       let j = i + 2;
-      while (j < length && source[j] !== "\n") j++;
+      while (j < length && source[j] !== "\n" && source[j] !== "\r" && source[j] !== "\u2028" && source[j] !== "\u2029") j++;
       blank(i, j);
       i = j;
     } else if (c === "/" && d === "*") {
