@@ -25,7 +25,7 @@ Scope: the shared JSON input grammar and catalog/LSP consumer qualification. Roo
 | LSP duplicates | Reserved top-level jsonrpc/id/method/params duplicates reject; unknown and nested policies unchanged | Existing owner semantics, legal unique ID correlation retained |
 | Parser errors | In-range zero-based UTF-8 byte location; `invalid JSON at byte N: reason` display envelope | Native grammar wording/location intentionally classified, not old byte/text equality |
 | Error callers | Catalog retains E6003/origin/caller anchor; LSP retains fixed -32700/null `invalid JSON` | Caller-visible code/span/protocol equality |
-| ParseError reason field | Proposed owned native reason, explicitly accepted only with caller/error qualification | Public Rust field type change (`&'static str` -> String); no current production field readers/constructors, unpublished crate; outside source users unqualified |
+| ParseError reason field | Owned native reason, accepted with the classified error matrix and first-failure byte witnesses | Public Rust field type change (`&'static str` -> String); no current production field readers/constructors, unpublished crate; outside source users unqualified |
 | Output representations | Existing typed Serde families and compatibility Json renderer unchanged | Pass5 acceptance retained; manual structural rendering is not an input parser |
 
 ## Pins and independent evidence
