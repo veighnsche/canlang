@@ -146,3 +146,5 @@ The [economical per-packet allocation](research/package-library-audit-20261006/r
 Work numeric text retains its package-local owner while caller imports replace seven private forwarders. The existing JSON and leaf carrier domains are unchanged; native reduction evidence does not close original production or delivery joins. Complete checkpoint unchanged.
 
 Ten UI renderers now consume the single internal appearance-props picker; render/composition/error ownership stays local and public declarations stay equal. The private owner removes duplicate mechanics with source-current selected caller qualification; broader browser workflow and accumulated-source review remain open.
+
+The worker environment-cache primitive remains inline in main.ts to preserve the enforced no-static-runtime-import boundary. Two defining caches/accessors remain separate, with exact Promise/throw/retry lifetime proof; a proposed private file was not required. Complete checkpoint unchanged.

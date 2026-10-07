@@ -471,6 +471,24 @@ function memoize<T>(run: () => Promise<T>): () => Promise<T> {
   };
 }
 
+function keyedPromise<K extends object, T>(
+  cache: WeakMap<K, Promise<T>>,
+  key: K,
+  run: (key: K) => Promise<T>,
+): Promise<T> {
+  const cached = cache.get(key);
+  if (cached !== undefined) return cached;
+  const tracked = run(key).then(
+    (value) => value,
+    (err: unknown) => {
+      if (cache.get(key) === tracked) cache.delete(key);
+      throw err;
+    },
+  );
+  cache.set(key, tracked);
+  return tracked;
+}
+
 /**
  * Build the serving fetch: binding gate outermost, `POST /mcp/grants`
  * routed to the grant join, everything else delegated to the assembled
@@ -505,17 +523,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const getAssemble = memoize(() => loadAssemble());
 
   function prodDepsFor(env: Record<string, unknown>): Promise<ProductionDeps> {
-    const cached = prodDepsByEnv.get(env);
-    if (cached !== undefined) return cached;
-    const tracked: Promise<ProductionDeps> = loadProdDeps(env).then(
-      (value) => value,
-      (err: unknown) => {
-        if (prodDepsByEnv.get(env) === tracked) prodDepsByEnv.delete(env);
-        throw err;
-      },
-    );
-    prodDepsByEnv.set(env, tracked);
-    return tracked;
+    return keyedPromise(prodDepsByEnv, env, loadProdDeps);
   }
 
   async function buildWorker(env: Record<string, unknown>): Promise<AssembledWorker> {
@@ -561,17 +569,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   }
 
   function workerFor(env: Record<string, unknown>): Promise<AssembledWorker> {
-    const cached = workerByEnv.get(env);
-    if (cached !== undefined) return cached;
-    const tracked: Promise<AssembledWorker> = buildWorker(env).then(
-      (value) => value,
-      (err: unknown) => {
-        if (workerByEnv.get(env) === tracked) workerByEnv.delete(env);
-        throw err;
-      },
-    );
-    workerByEnv.set(env, tracked);
-    return tracked;
+    return keyedPromise(workerByEnv, env, buildWorker);
   }
 
   async function grantsResponse(req: Request, env: Record<string, unknown>): Promise<Response> {

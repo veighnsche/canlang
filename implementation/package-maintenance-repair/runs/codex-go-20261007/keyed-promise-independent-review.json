@@ -1,0 +1,77 @@
+{
+  "packet": "DEL-D02",
+  "base": "e5ad5cf767004a892c0ae1937aedd67629170786",
+  "path": "packages/cloudflare/src/worker/main.ts",
+  "sourceHashes": {
+    "baseline": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+    "current": "4a701c54ffa724e047a12407a19068223e571213a0c874e96e5dd32ce8f944a1"
+  },
+  "declaration": {
+    "baseline": "0e5deeac1c3c884707c93c56c39893800ca3372fbff791c99e7d6c7587ad6788",
+    "current": "0e5deeac1c3c884707c93c56c39893800ca3372fbff791c99e7d6c7587ad6788",
+    "byteIdentical": true
+  },
+  "exactOtherSourcePreserved": true,
+  "inferredCallTypes": [
+    "Promise<ProductionDeps>",
+    "Promise<AssembledWorker>"
+  ],
+  "inferredTypes": {
+    "tracked": "Promise<T>",
+    "returnType": "Promise<T>",
+    "assignable": true
+  },
+  "typecheck": {
+    "command": "tsc -p packages/cloudflare/tsconfig.json --noEmit --incremental false --composite false",
+    "exitCode": 0,
+    "log": "/private/tmp/canlang-repair-go-20261007/keyed-promise-independent-typecheck.log"
+  },
+  "tests": {
+    "passed": 17,
+    "files": [
+      "worker-main",
+      "worker-boundary"
+    ],
+    "log": "/private/tmp/canlang-repair-go-20261007/keyed-promise-independent-vitest.log"
+  },
+  "controls": [
+    {
+      "name": "Actual worker accessor rejected assembly evicts and retries",
+      "passed": true
+    },
+    {
+      "name": "Actual accessors: concurrency, env isolation, map separation, lazy creation, rejection retry",
+      "result": {
+        "prodCalls": 4,
+        "assemblyCalls": 2,
+        "trace": [
+          "deps",
+          "deps",
+          "staged",
+          "deps",
+          "deps"
+        ]
+      }
+    },
+    {
+      "name": "Helper: immediate factory, same exact Promise, identity guarded old rejection, synchronous throw unwrapped, failed factory retry",
+      "passed": true
+    }
+  ],
+  "counts": {
+    "measure": "Nonblank noncomment TS source lines using parsed syntax comment ranges; tests/generated output/maps excluded",
+    "productionBefore": 409,
+    "productionAfter": 406,
+    "declarationsBefore": 40,
+    "declarationsAfter": 40,
+    "totalBefore": 449,
+    "totalAfter": 446
+  },
+  "defects": [],
+  "limits": [
+    "Only inline keyed Promise cache consolidation in worker/main.ts",
+    "Separate accessors and maps preserved",
+    "Worker static runtime import boundary passes",
+    "Injected/direct controls substantiate caching; broader app/backend/Cloudflare deployment not accepted"
+  ]
+}
