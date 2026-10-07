@@ -13,16 +13,17 @@
  * bare producer specifiers or a relative path resolving to another artifact
  * module. Anything else throws naming the module and the specifier.
  *
- * Specifier scanning is a deliberate regex pass (static `from`, side-effect
- * `import`, dynamic `import()`), not a full parse: emitted modules are
- * machine-generated compiler output, not hand-written edge cases.
+ * Host import records preserve original literal spans; derived maps account
+ * for changed import lengths without changing the compiled artifact.
  */
 
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join, posix, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveProducerFile } from "../deploy/producer-files.js";
-import type { ArtifactModule, CompileArtifact } from "@canlang/contracts";
+import type { CompileArtifact, SourceMap } from "@canlang/contracts";
+import { rewriteModuleImports, validateArtifactModuleImports } from "../deploy/module-imports.js";
+import { composeModuleMap } from "../deploy/module-maps.js";
 
 /**
  * Structural mirror of the sibling packet's `LoadedArtifact`
@@ -47,6 +48,8 @@ export interface AssembledModules {
    * valid; `assembleModules` always populates it.
    */
   mapUrls?: Record<string, string>;
+  /** Derived maps for staged coordinates; original artifact maps remain unchanged. */
+  sourceMaps?: Record<string, SourceMap>;
 }
 
 export interface AssembleModulesOptions {
@@ -65,68 +68,6 @@ export const UI_SPECIFIER = "@canlang/ui";
 export const UI_BUILD_COMMAND = "bun run --filter @canlang/ui build";
 /** UI dist entry relative to `distRoot`, mirroring that package's `main`. */
 export const UI_DIST_ENTRY_RELATIVE = join("ui", "dist", "src", "index.js");
-
-const FROM_SPECIFIER_RE = /(\bfrom\s*['"])([^'"]+)(['"])/g;
-const DYNAMIC_IMPORT_RE = /(\bimport\s*\(\s*['"])([^'"]+)(['"]\s*\))/g;
-const SIDE_EFFECT_IMPORT_RE = /(\bimport\s*['"])([^'"]+)(['"])/g;
-
-function isRelativeSpecifier(spec: string): boolean {
-  return spec === "." || spec === ".." || spec.startsWith("./") || spec.startsWith("../");
-}
-
-function collectSpecifiers(js: string): string[] {
-  const specs: string[] = [];
-  for (const re of [FROM_SPECIFIER_RE, DYNAMIC_IMPORT_RE, SIDE_EFFECT_IMPORT_RE]) {
-    re.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(js)) !== null) {
-      const spec = match[2];
-      if (spec !== undefined) specs.push(spec);
-    }
-  }
-  return specs;
-}
-
-function rewriteImports(js: string, stdlibUrl: string, uiUrl: string): string {
-  const mapped = (spec: string): string => {
-    if (spec === STDLIB_SPECIFIER) return stdlibUrl;
-    if (spec === UI_SPECIFIER) return uiUrl;
-    return spec;
-  };
-  const swap = (_full: string, pre: string, spec: string, post: string): string =>
-    `${pre}${mapped(spec)}${post}`;
-  // Dynamic before side-effect: after `import("...")` is rewritten the
-  // paren still blocks the side-effect pattern from double-matching.
-  return js
-    .replace(FROM_SPECIFIER_RE, swap)
-    .replace(DYNAMIC_IMPORT_RE, swap)
-    .replace(SIDE_EFFECT_IMPORT_RE, swap);
-}
-
-function validateImports(modules: readonly ArtifactModule[]): void {
-  const known = new Set(modules.map((m) => m.path));
-  for (const mod of modules) {
-    for (const spec of collectSpecifiers(mod.js)) {
-      if (spec === STDLIB_SPECIFIER || spec === UI_SPECIFIER) continue;
-      if (isRelativeSpecifier(spec)) {
-        const target = posix.normalize(posix.join(posix.dirname(mod.path), spec));
-        if (!known.has(target)) {
-          throw new Error(
-            `assembleModules: module ${JSON.stringify(mod.path)} imports ` +
-              `${JSON.stringify(spec)} (resolves to ${JSON.stringify(target)}): ` +
-              `no such artifact module`,
-          );
-        }
-        continue;
-      }
-      throw new Error(
-        `assembleModules: module ${JSON.stringify(mod.path)} has unresolvable import ` +
-          `${JSON.stringify(spec)} (only ${STDLIB_SPECIFIER}, ${UI_SPECIFIER}, ` +
-          `and relative imports are supported)`,
-      );
-    }
-  }
-}
 
 function assertSafeRelativePath(path: string): void {
   const normalized = posix.normalize(path);
@@ -162,31 +103,38 @@ export async function assembleModules(
   const entry = modules[0]!;
   // Fail loud before writing anything: no partial workDir on bad input.
   const uiUrl = await uiModuleUrl(opts.uiUrl);
-  validateImports(modules);
+  validateArtifactModuleImports(modules, "assembleModules");
   for (const mod of modules) assertSafeRelativePath(mod.path);
 
   const dir = resolve(opts.workDir);
   await mkdir(dir, { recursive: true });
   const moduleUrls: Record<string, string> = {};
   const mapUrls: Record<string, string> = {};
+  const sourceMaps: Record<string, SourceMap> = {};
   for (const mod of modules) {
     const outPath = join(dir, mod.path);
     await mkdir(dirname(outPath), { recursive: true });
-    // B3 I2: stage the artifact map beside the module and point at it, so
-    // plain Node can resolve staged frames. The comment is appended AFTER
-    // the last emitted line, so generated line numbers (and the map) stay
-    // valid.
+    // Stage the derived view beside the rewritten module. Appending its
+    // comment leaves every generated position unchanged.
     const mapName = `${posix.basename(mod.path)}.map`;
-    const stagedJs = withSourceMappingURL(rewriteImports(mod.js, opts.stdlibUrl, uiUrl), mapName);
+    const rewritten = rewriteModuleImports(mod.js, mod.path, (specifier) =>
+      specifier === STDLIB_SPECIFIER ? opts.stdlibUrl : specifier === UI_SPECIFIER ? uiUrl : specifier,
+      { prefix: "assembleModules" },
+    );
+    const view = composeModuleMap(mod.map, rewritten.map === undefined ? [] : [rewritten.map], mod.js);
+    const stagedJs = view.map === undefined ? rewritten.js : withSourceMappingURL(rewritten.js, mapName);
     await writeFile(outPath, stagedJs, "utf8");
-    const mapPath = join(dirname(outPath), mapName);
-    await writeFile(mapPath, JSON.stringify(mod.map), "utf8");
     moduleUrls[mod.path] = pathToFileURL(outPath).href;
-    mapUrls[mod.path] = pathToFileURL(mapPath).href;
+    if (view.map !== undefined) {
+      sourceMaps[mod.path] = view.map;
+      const mapPath = join(dirname(outPath), mapName);
+      await writeFile(mapPath, JSON.stringify(view.map), "utf8");
+      mapUrls[mod.path] = pathToFileURL(mapPath).href;
+    }
   }
   const entryUrl = moduleUrls[entry.path];
   if (entryUrl === undefined) throw new Error(`assembleModules: entry module missing: ${entry.path}`);
-  return { dir, entryUrl, moduleUrls, mapUrls };
+  return { dir, entryUrl, moduleUrls, mapUrls, sourceMaps };
 }
 
 /** Append a trailing `sourceMappingURL` comment without shifting earlier lines. */

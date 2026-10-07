@@ -1,3 +1,5 @@
+import { encode } from "@jridgewell/sourcemap-codec";
+import { lookup } from "../src/runtime/sourcemap.js";
 import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -316,6 +318,29 @@ describe("deploy bundle (P-B)", () => {
     // The verdict stages verbatim.
     expect(source).toContain(`"active":false`);
     expect(source).toContain("activation-incomplete");
+  });
+
+  it("stages derived map views without changing artifact or verdict identity", () => {
+    const artifact = testArtifact();
+    const js = 'import { ok } from "@canlang/stdlib"; export function boom(){throw new Error("mapped");}\n';
+    const column = js.indexOf("new Error");
+    const map: SourceMap = { ...EMPTY_MAP, sources: ["original.can"], sourcesContent: ["original"], mappings: encode([[[0, 0, 0, 0], [column, 0, 23, 8], [column + 9, 0, 24, 11]]]) };
+    artifact.modules = [{ path: "app/main.js", js, map }];
+    artifact.pages = [];
+    const original = JSON.stringify(artifact);
+    const bundle = buildDeployBundle(artifact, { workerDistDir: fakeWorkerDist(), verdict: ACTIVE_VERDICT });
+    const staged = bundle.modules[ARTIFACT_MODULE]!;
+    const artifactLine = staged.split("\n").find((line) => line.startsWith("export const artifact = "))!;
+    const modulesLine = staged.split("\n").find((line) => line.startsWith("export const modules = "))!;
+    const embedded = JSON.parse(artifactLine.slice("export const artifact = ".length, -1));
+    const asm = JSON.parse(modulesLine.slice("export const modules = ".length, -1));
+    expect(JSON.stringify(embedded)).toBe(original);
+    expect(JSON.stringify(artifact)).toBe(original);
+    const rewritten = bundle.modules["app/main.js"]!;
+    expect(lookup(asm.sourceMaps["app/main.js"], 1, rewritten.indexOf("new Error"))).toEqual({ source: "original.can", line: 24, column: 9 });
+    const inline = rewritten.match(/sourceMappingURL=data:application\/json;charset=utf-8;base64,([^\n]+)/)![1]!;
+    expect(JSON.parse(Buffer.from(inline, "base64").toString("utf8"))).toEqual(asm.sourceMaps["app/main.js"]);
+    expect(Object.keys(bundle.modules).some((key) => /module-imports|module-maps|magic-string|remapping|trace-mapping|lexer/.test(key))).toBe(false);
   });
 
   it("is deterministic: same inputs yield identical bytes and sha", () => {

@@ -92,7 +92,7 @@ import { distribution as valuesDistribution } from "@canlang/values/distribution
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import type {
   ActivationVerdict,
-  ArtifactModule,
+  SourceMap,
   AssetInventory,
   CompileArtifact,
   DeploymentAsset,
@@ -101,6 +101,8 @@ import type {
 import { ASSET_DIGEST_V2 } from "@canlang/contracts";
 import { catalogFromArtifactOperations } from "@canlang/interfaces";
 import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtime/modules.js";
+import { isRelativeImportSpecifier as isRelativeSpecifier, rewriteModuleImports, scanModuleImports, validateArtifactModuleImports } from "./module-imports.js";
+import { composeModuleMap } from "./module-maps.js";
 
 /** Main module key: the deployed worker entry within the module map. */
 export const DEPLOY_MAIN_MODULE = "worker/main.js";
@@ -249,13 +251,13 @@ export function deployBundleMain(stem: string): string {
 }
 
 /** Portable `AssembledModules`: URLs resolve against `worker/assembly.js`. */
-function portableAssembledModules(modulePaths: readonly string[]): AssembledModules {
+function portableAssembledModules(modulePaths: readonly string[], sourceMaps: Record<string, SourceMap>): AssembledModules {
   const moduleUrls: Record<string, string> = {};
   for (const path of [...modulePaths].sort()) {
     moduleUrls[path] = relativeSpecifier(ASSEMBLY_MODULE_KEY, path);
   }
   const entry = modulePaths[0] as string;
-  return { dir: "", entryUrl: relativeSpecifier(ASSEMBLY_MODULE_KEY, entry), moduleUrls };
+  return { dir: "", entryUrl: relativeSpecifier(ASSEMBLY_MODULE_KEY, entry), moduleUrls, sourceMaps };
 }
 
 /** Render the P-B staged deployment (`worker/artifact.js`) source. */
@@ -395,70 +397,18 @@ function readVendorTree(tree: VendorTree): Record<string, string> {
   return modules;
 }
 
-const FROM_SPECIFIER_RE = /(\bfrom\s*['"])([^'"]+)(['"])/g;
-const DYNAMIC_IMPORT_RE = /(\bimport\s*\(\s*['"])([^'"]+)(['"]\s*\))/g;
-const SIDE_EFFECT_IMPORT_RE = /(\bimport\s*['"])([^'"]+)(['"])/g;
-
-function isRelativeSpecifier(spec: string): boolean {
-  return spec === "." || spec === ".." || spec.startsWith("./") || spec.startsWith("../");
-}
-
-function collectSpecifiers(js: string): string[] {
-  const specs: string[] = [];
-  for (const re of [FROM_SPECIFIER_RE, DYNAMIC_IMPORT_RE, SIDE_EFFECT_IMPORT_RE]) {
-    re.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(js)) !== null) {
-      const spec = match[2];
-      if (spec !== undefined) specs.push(spec);
-    }
-  }
-  return specs;
-}
-
 /** Module-relative specifier from one map key to another (`./…` form). */
 function relativeSpecifier(fromModule: string, toKey: string): string {
   const rel = posix.relative(posix.dirname(fromModule), toKey);
   return rel.startsWith(".") ? rel : `./${rel}`;
 }
 
-function validateArtifactImports(modules: readonly ArtifactModule[]): void {
-  const known = new Set(modules.map((m) => m.path));
-  for (const mod of modules) {
-    for (const spec of collectSpecifiers(mod.js)) {
-      if (spec === STDLIB_SPECIFIER || spec === UI_SPECIFIER) continue;
-      if (isRelativeSpecifier(spec)) {
-        const target = posix.normalize(posix.join(posix.dirname(mod.path), spec));
-        if (!known.has(target)) {
-          throw new Error(
-            `deploy bundle: module ${JSON.stringify(mod.path)} imports ` +
-              `${JSON.stringify(spec)} (resolves to ${JSON.stringify(target)}): ` +
-              `no such artifact module`,
-          );
-        }
-        continue;
-      }
-      throw new Error(
-        `deploy bundle: module ${JSON.stringify(mod.path)} has unresolvable import ` +
-          `${JSON.stringify(spec)} (only ${STDLIB_SPECIFIER}, ${UI_SPECIFIER}, ` +
-          `and relative imports are supported)`,
-      );
-    }
-  }
-}
-
-function rewriteArtifactImports(js: string, modulePath: string): string {
-  const mapped = (spec: string): string => {
-    if (spec === STDLIB_SPECIFIER) return relativeSpecifier(modulePath, STDLIB_VENDOR_ENTRY);
-    if (spec === UI_SPECIFIER) return relativeSpecifier(modulePath, UI_VENDOR_ENTRY);
-    return spec;
-  };
-  const swap = (_full: string, pre: string, spec: string, post: string): string =>
-    `${pre}${mapped(spec)}${post}`;
-  return js
-    .replace(FROM_SPECIFIER_RE, swap)
-    .replace(DYNAMIC_IMPORT_RE, swap)
-    .replace(SIDE_EFFECT_IMPORT_RE, swap);
+function rewriteArtifactImports(js: string, modulePath: string) {
+  return rewriteModuleImports(js, modulePath, (specifier) => {
+    if (specifier === STDLIB_SPECIFIER) return relativeSpecifier(modulePath, STDLIB_VENDOR_ENTRY);
+    if (specifier === UI_SPECIFIER) return relativeSpecifier(modulePath, UI_VENDOR_ENTRY);
+    return specifier;
+  });
 }
 
 /**
@@ -491,12 +441,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
     return spec;
   };
-  const swap = (_full: string, pre: string, spec: string, post: string): string =>
-    `${pre}${mapped(spec)}${post}`;
-  let out = js
-    .replace(FROM_SPECIFIER_RE, swap)
-    .replace(DYNAMIC_IMPORT_RE, swap)
-    .replace(SIDE_EFFECT_IMPORT_RE, swap);
+  let out = rewriteModuleImports(js, moduleKey, mapped, { profile: "trusted-producer" }).js;
   // The P-C joins hold their specifiers in consts (`import(IDENTITY_SPECIFIER)`),
   // so the import-syntax pass above cannot see them: rewrite the exact source
   // literals too. Each literal occurs exactly once (the const initializer —
@@ -537,12 +482,7 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === "@canlang/contracts/values") return relativeSpecifier(moduleKey, "vendor/contracts/values.js");
     return spec;
   };
-  const swap = (_full: string, pre: string, spec: string, post: string): string =>
-    `${pre}${mapped(spec)}${post}`;
-  return js
-    .replace(FROM_SPECIFIER_RE, swap)
-    .replace(DYNAMIC_IMPORT_RE, swap)
-    .replace(SIDE_EFFECT_IMPORT_RE, swap);
+  return rewriteModuleImports(js, moduleKey, mapped, { profile: "trusted-producer" }).js;
 }
 
 function assertSafeRelativePath(path: string, what: string): void {
@@ -553,12 +493,12 @@ function assertSafeRelativePath(path: string, what: string): void {
 }
 
 /** Stage artifact modules (production only: `tests[]` are erased). */
-function stageArtifactModules(artifact: CompileArtifact): Record<string, string> {
+function stageArtifactModules(artifact: CompileArtifact): { modules: Record<string, string>; sourceMaps: Record<string, SourceMap> } {
   const modules = artifact.modules;
   if (modules.length === 0) {
     throw new Error("deploy bundle: artifact has no modules; modules[0] must be the entrypoint");
   }
-  validateArtifactImports(modules);
+  validateArtifactModuleImports(modules);
   const known = new Set(modules.map((m) => m.path));
   for (const page of artifact.pages) {
     if (!known.has(page.module)) {
@@ -577,11 +517,16 @@ function stageArtifactModules(artifact: CompileArtifact): Record<string, string>
     }
   }
   const staged: Record<string, string> = {};
+  const sourceMaps: Record<string, SourceMap> = {};
   for (const mod of modules) {
     assertSafeRelativePath(mod.path, "to stage module");
-    staged[mod.path] = rewriteArtifactImports(mod.js, mod.path);
+    const rewritten = rewriteArtifactImports(mod.js, mod.path);
+    const view = composeModuleMap(mod.map, rewritten.map === undefined ? [] : [rewritten.map], mod.js);
+    if (view.map !== undefined) sourceMaps[mod.path] = view.map;
+    const inline = view.map === undefined ? "" : `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${Buffer.from(JSON.stringify(view.map), "utf8").toString("base64")}\n`;
+    staged[mod.path] = rewritten.js + inline;
   }
-  return staged;
+  return { modules: staged, sourceMaps };
 }
 
 /**
@@ -857,19 +802,18 @@ function blankCommonJsWrappers(source: string): string {
   return out.join("");
 }
 
-const FILE_URL_IMPORT_RE = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)["']file:\/\//g;
 const BARE_REQUIRE_RE = /(?<![\w$.])require\s*\(/g;
 const MODULE_EXPORTS_RE = /(?<![\w$.])module\.exports/g;
 const FREE_EXPORTS_RE = /(?<![\w$.])exports(?![\w$])(?!\s*:)/g;
 
-function scanModuleIssues(source: string): string[] {
+function scanModuleIssues(source: string, modulePath: string): string[] {
   const issues: string[] = [];
-  for (const re of [FILE_URL_IMPORT_RE, BARE_REQUIRE_RE, MODULE_EXPORTS_RE, FREE_EXPORTS_RE]) {
+  for (const re of [BARE_REQUIRE_RE, MODULE_EXPORTS_RE, FREE_EXPORTS_RE]) {
     re.lastIndex = 0;
   }
   let match: RegExpExecArray | null;
-  while ((match = FILE_URL_IMPORT_RE.exec(source)) !== null) {
-    issues.push(`node file-URL import at offset ${match.index}`);
+  for (const record of scanModuleImports(source, modulePath)) {
+    if (record.specifier?.startsWith("file://")) issues.push(`node file-URL import at offset ${record.statement.start}`);
   }
   const stripped = blankCommonJsWrappers(blankStringsAndComments(source));
   while ((match = BARE_REQUIRE_RE.exec(stripped)) !== null) {
@@ -893,7 +837,7 @@ function scanModuleIssues(source: string): string[] {
  */
 export function assertWorkerdLoadable(modules: Readonly<Record<string, string>>): void {
   for (const [name, contents] of Object.entries(modules)) {
-    const issues = scanModuleIssues(contents);
+    const issues = scanModuleIssues(contents, name);
     if (issues.length > 0) {
       const extra = issues.length > 1 ? ` (+${issues.length - 1} more)` : "";
       throw new Error(
@@ -912,46 +856,8 @@ export function assertWorkerdLoadable(modules: Readonly<Record<string, string>>)
  * imports a checkout-only path (the P-C/P-B skew class: real files,
  * unresolvable-in-worker specifiers).
  */
-/**
- * Whether a static-import match sits at a statement start: only whitespace
- * may precede it back to the string start, a newline, or `;`/`{`/`}`.
- * Data files contain `"import", "` prose (ui catalog) that the loose
- * `import "…"` form misreads; real static imports in tsc/bun output
- * always sit at statement starts. (Deliberately NOT a regex anchor:
- * `(?:^|[;{}])…/m` backtracks catastrophically on minified bundles —
- * measured 6s; this check is O(1) per match instead.)
- */
-function isStatementStart(js: string, matchIndex: number): boolean {
-  let i = matchIndex - 1;
-  while (i >= 0 && (js[i] === " " || js[i] === "\t" || js[i] === "\r")) i--;
-  if (i < 0) return true;
-  const c = js[i];
-  return c === "\n" || c === ";" || c === "{" || c === "}";
-}
-
-function collectLinkSpecifiers(js: string): string[] {
-  const specs: string[] = [];
-  for (const re of [FROM_SPECIFIER_RE, DYNAMIC_IMPORT_RE, SIDE_EFFECT_IMPORT_RE]) {
-    re.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(js)) !== null) {
-      // Static forms must belong to a real import statement (see above);
-      // dynamic import() appears mid-expression and keeps the loose form.
-      if (re === SIDE_EFFECT_IMPORT_RE && !isStatementStart(js, match.index)) continue;
-      if (re === FROM_SPECIFIER_RE) {
-        // Stop only at statement boundaries: brace imports (`import {..}
-        // from`, minified `import{x}from`) and every re-export form
-        // (`export {..} from`, `export * from`) carry braces by construction.
-        let i = match.index - 1;
-        while (i >= 0 && js[i] !== "\n" && js[i] !== ";") i--;
-        if (!/\b(import|export)\b/.test(js.slice(i + 1, match.index))) continue;
-      }
-      // All three patterns capture the spec in group 2.
-      const spec = match[2];
-      if (spec !== undefined) specs.push(spec);
-    }
-  }
-  return specs;
+function collectLinkSpecifiers(js: string, modulePath: string): string[] {
+  return scanModuleImports(js, modulePath).flatMap((record) => record.specifier === undefined ? [] : [record.specifier]);
 }
 
 export function assertLinksResolve(
@@ -960,8 +866,7 @@ export function assertLinksResolve(
 ): void {
   const keys = new Set([...Object.keys(modules), ...binaryKeys]);
   for (const [name, contents] of Object.entries(modules)) {
-    const stripped = blankCommonJsWrappers(blankStringsAndComments(contents, true));
-    for (const spec of collectLinkSpecifiers(stripped)) {
+    for (const spec of collectLinkSpecifiers(contents, name)) {
       if (!isRelativeSpecifier(spec)) {
         throw new Error(
           `deploy bundle: module ${JSON.stringify(name)} has bare import ` +
@@ -1013,7 +918,7 @@ export function buildDeployBundle(
   const modules: Record<string, string> = {
     ...stageWorkerDist(workerDistDir),
     ...stageRuntimeDist(runtimeDistDir),
-    ...stagedArtifact,
+    ...stagedArtifact.modules,
   };
   for (const tree of VENDOR_TREES) {
     Object.assign(modules, readVendorTree(tree));
@@ -1023,7 +928,7 @@ export function buildDeployBundle(
   modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle();
   modules[ARTIFACT_MODULE] = renderStagedDeployment(
     artifact,
-    portableAssembledModules(artifact.modules.map((mod) => mod.path)),
+    portableAssembledModules(artifact.modules.map((mod) => mod.path), stagedArtifact.sourceMaps),
     options.verdict,
   );
   modules[DERIVED_INPUTS_MODULE] = buildDerivedInputsModule(artifact);

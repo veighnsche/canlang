@@ -68,6 +68,10 @@
     "./deploy/producer-files": {
       "types": "./dist/deploy/producer-files.d.ts",
       "default": "./dist/deploy/producer-files.js"
+    },
+    "./runtime/invoke": {
+      "types": "./dist/runtime/invoke.d.ts",
+      "default": "./dist/runtime/invoke.js"
     }
   },
   "scripts": {
@@ -90,7 +94,8 @@
     "@canlang/values": "workspace:*",
     "es-module-lexer": "3.0.3",
     "magic-string": "1.4.3",
-    "@jridgewell/sourcemap-codec": "1.6.0"
+    "@jridgewell/sourcemap-codec": "1.6.0",
+    "@jridgewell/remapping": "2.3.5"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261004.1",

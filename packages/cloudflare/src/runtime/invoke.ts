@@ -240,10 +240,11 @@ export function findRemappedFrame(
 }
 
 /** Every map `sources` entry across artifact modules (flat; positions are source-global). */
-function collectSources(artifact: CompileArtifact): string[] {
+function collectSources(artifact: CompileArtifact, asm: AssembledModules): string[] {
   const out: string[] = [];
   for (const mod of artifact.modules) {
-    const sources: unknown = mod.map?.sources;
+    const map = asm.sourceMaps !== undefined && Object.hasOwn(asm.sourceMaps, mod.path) ? asm.sourceMaps[mod.path] : mod.map;
+    const sources: unknown = map?.sources;
     if (!Array.isArray(sources)) continue;
     for (const source of sources) {
       if (typeof source === "string" && source.length > 0) out.push(source);
@@ -270,14 +271,15 @@ function mapThrownError(
   try {
     if (!(error instanceof Error) || typeof error.stack !== "string") return undefined;
     const { exact, suffixes } = buildModuleMatchers(asm.moduleUrls);
-    const sources = collectSources(artifact).sort((a, b) => b.length - a.length);
+    const sources = collectSources(artifact, asm).sort((a, b) => b.length - a.length);
     for (const frame of parseStackFrames(error.stack)) {
       const module = matchGeneratedModule(frame.file, exact, suffixes);
       if (module !== null) {
         const mod = artifact.modules.find((entry) => entry.path === module);
         if (mod === undefined) return undefined;
         // V8 columns are 1-based; `lookup` takes a 0-based generated column.
-        return lookup(mod.map, frame.line, frame.column - 1) ?? undefined;
+        const map = asm.sourceMaps !== undefined && Object.hasOwn(asm.sourceMaps, module) ? asm.sourceMaps[module] : mod.map;
+        return map === undefined ? undefined : lookup(map, frame.line, frame.column - 1) ?? undefined;
       }
       const normalized = frame.file.replace(/\\/g, "/");
       for (const source of sources) {
