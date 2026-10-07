@@ -2655,7 +2655,7 @@ impl<'a> Parser<'a> {
         let field_stop: Stop = &|w| {
             matches!(
                 w,
-                "trim" | "min" | "max" | "unique" | "server" | "label" | "desc"
+                "trim" | "min" | "max" | "unique" | "machine" | "server" | "label" | "desc"
             )
         };
         let mut initialized = false;
@@ -2682,7 +2682,10 @@ impl<'a> Parser<'a> {
             initialized = true;
         }
         let mut seen: Vec<String> = Vec::new();
-        while matches!(cursor.word(), Some("trim" | "unique" | "min" | "max")) {
+        while matches!(
+            cursor.word(),
+            Some("trim" | "unique" | "machine" | "min" | "max")
+        ) {
             let modifier = cursor.next().expect("peeked modifier");
             let word = modifier.text(cursor.text).to_string();
             if is_param {
@@ -5142,6 +5145,30 @@ impl<'a> Parser<'a> {
                         self.parse_attributes(cursor, &mut inner, HeaderKind::GuardRequire)?;
                         cursor.end()?;
                         (SyntaxKind::Require, StmtKind::Require)
+                    }
+                    "transition" => {
+                        let (path, segments) = self.parse_path_node(cursor)?;
+                        if segments.len() < 2 {
+                            return cursor.err("E1200", "transition needs a record.field target");
+                        }
+                        // Separate the writable record from its managed field while
+                        // retaining every authored token and trivia span.
+                        let mut path_children = path.children;
+                        let dot_at = path_children
+                            .iter()
+                            .rposition(|n| n.token().is_some_and(|t| t.is_punct(Punct::Dot)))
+                            .expect("transition dot");
+                        let field_path = path_children.split_off(dot_at);
+                        inner.push(SyntaxNode::enclosing(SyntaxKind::Path, path_children));
+                        inner.extend(field_path);
+                        let from = cursor.expect_name()?;
+                        self.builder.leaf(&mut inner, &from);
+                        let arrow = cursor.expect_p(Punct::Arrow)?;
+                        self.builder.leaf(&mut inner, &arrow);
+                        let to = cursor.expect_name()?;
+                        self.builder.leaf(&mut inner, &to);
+                        cursor.end()?;
+                        (SyntaxKind::Transition, StmtKind::Other)
                     }
                     "create" | "set" | "emit" => {
                         let (target, parts) = self.parse_path_node(cursor)?;

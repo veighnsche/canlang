@@ -4153,7 +4153,7 @@ impl<'a> Resolver<'a> {
                     self.walk_object_values(module, scope, object, text, diags);
                 }
             }
-            SyntaxKind::Delete => {
+            SyntaxKind::Transition | SyntaxKind::Delete => {
                 let parts = kids(node);
                 if let Some(target) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
                     self.resolve_mutation_head(scope, target, text);

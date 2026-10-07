@@ -410,11 +410,11 @@ describe("create", () => {
 });
 
 describe("set", () => {
-  it("merges the patch over the staged row and commits the update at version + 1", async () => {
+  it("merges the patch over the staged row and keeps a new row at version 1", async () => {
     // T17c (rule a): was load + merge + commit at stored version 3->4
     // via direct calls; now create (v1) + set merge through the
     // pipeline with read-your-write over the staged overlay, committed
-    // once (v2). SAME merge, bump, and attribution behavior.
+    // once (v1). A newly created row shares its transaction reservation.
     const s = await canonicalSetup();
     const committed = mustResult(
       await s.invoker.invokeMutation(
@@ -429,7 +429,7 @@ describe("set", () => {
     expect(committed.status).toBe("committed");
     expect(committed.result).toEqual({
       id: "t1",
-      version: 2,
+      version: 1,
       created: s.now,
       updated: s.now,
       createdBy: s.userId,
@@ -439,7 +439,9 @@ describe("set", () => {
       data: { title: "old", done: true },
     });
     const stored = await s.store.load("acme.Todo" as ModelName, "t1" as RecordId);
-    expect(stored?.version).toBe(2 as StoredRow["version"]);
+    // Create and its later staged update share one owner transaction;
+    // the newly created row remains at version 1 (DESIGN §2).
+    expect(stored?.version).toBe(1 as StoredRow["version"]);
     expect(stored?.data).toEqual({ title: "old", done: true });
     expect(await s.store.readRevision()).toBe(1);
   });
@@ -634,5 +636,21 @@ describe("count", () => {
     expect(() => count("nope" as unknown as ReadonlyArray<unknown>)).toThrow(
       "count: domain must be an array",
     );
+  });
+});
+
+describe('canonical builtin admission predicates', () => {
+  it('uses only the live canonical predicate snapshot while preserving declared grants', () => {
+    const c = createContext({ caller: { userId: 'user', roles: ['Images.operator'] }, store: fakeStore().port, memberships: ['Images.operator'] });
+    c.canonical = { operation: 'Images.generate', operationId: 'request', builtinRoles: ['public', 'authenticated', 'members'], stageWrite: async () => null, readModel: async () => [] };
+    expect(hasRole(c, 'public')).toBe(true);
+    expect(hasRole(c, 'authenticated')).toBe(true);
+    expect(hasRole(c, 'members')).toBe(true);
+    expect(hasRole(c, 'owner')).toBe(false);
+    expect(hasRole(c, 'Images.operator')).toBe(true);
+    c.canonical = { ...c.canonical, builtinRoles: ['public'] };
+    expect(hasRole(c, 'public')).toBe(true);
+    expect(hasRole(c, 'authenticated')).toBe(false);
+    expect(hasRole(c, 'members')).toBe(false);
   });
 });

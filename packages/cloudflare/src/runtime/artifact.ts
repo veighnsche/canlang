@@ -222,6 +222,14 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
     if (!isNonEmptyString(callable.export)) {
       fail(path, `${where}.export must be a non-empty string`);
     }
+    if (callable.inputStyle !== undefined &&
+        (callable.inputStyle !== "parameters" || callable.kind !== "operation" ||
+         !Array.isArray(parsed.requires) || !parsed.requires.some((requirement) => isRecord(requirement) &&
+           requirement.capability === "state.parameters" && typeof requirement.min_version === "number" && requirement.min_version >= 1) ||
+         !Array.isArray(parsed.operations) || !parsed.operations.some((operation) =>
+           isRecord(operation) && operation.name === callable.id && operation.kind === "scenario"))) {
+      fail(path, `${where}.inputStyle must be parameters on a scenario operation callable`);
+    }
     const member: unknown = callable.member;
     if (
       !Array.isArray(member) ||
@@ -348,6 +356,41 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
           ) {
             fail(path, `${fieldWhere}.field.result.fields must be an array of {name, type} leaves`);
           }
+        }
+      }
+    }
+  }
+
+  // Lifecycle metadata is executable policy: malformed metadata must not
+  // disappear during downstream descriptor conversion.
+  if (Array.isArray(parsed.models)) {
+    for (const [modelIndex, model] of parsed.models.entries()) {
+      if (!isRecord(model) || !Array.isArray(model.fields)) continue;
+      for (const [fieldIndex, field] of model.fields.entries()) {
+        if (!isRecord(field) || field.machine === undefined) continue;
+        const where = `models[${modelIndex}].fields[${fieldIndex}].machine`;
+        const machine = field.machine;
+        if (!isRecord(machine) || !Array.isArray(machine.states) || machine.states.length === 0 ||
+            !machine.states.every(isNonEmptyString) || new Set(machine.states).size !== machine.states.length ||
+            !isNonEmptyString(machine.initial) || !machine.states.includes(machine.initial) ||
+            !Array.isArray(machine.transitions)) fail(path, `${where} requires states, initial and transitions`);
+        const states = machine.states;
+        if (field.required !== false || field.serverOnly !== false || field.nullable === true || field.array !== undefined ||
+            !isRecord(field.field) || field.field.kind !== "enum" || !Array.isArray(field.field.values) ||
+            field.field.values.length !== machine.states.length || field.field.values.some((state, index) => state !== states[index]) ||
+            !isRecord(field.default) || field.default.kind !== "literal" || field.default.value !== machine.initial) {
+          fail(path, `${where} requires a nonnullable stored enum with a literal initial default`);
+        }
+        for (const edge of machine.transitions) {
+          if (!isRecord(edge) || !isNonEmptyString(edge.from) || !machine.states.includes(edge.from) ||
+              !isNonEmptyString(edge.to) || !machine.states.includes(edge.to) || !isNonEmptyString(edge.operation)) {
+            fail(path, `${where} has an invalid transition edge`);
+          }
+          const scenario = Array.isArray(parsed.operations) && parsed.operations.some((op) =>
+            isRecord(op) && op.name === edge.operation && op.kind === "scenario");
+          const handler = parsed.callables.some((callable) =>
+            isRecord(callable) && callable.id === edge.operation && callable.kind === "handler");
+          if (!scenario && !handler) fail(path, `${where} edge names no scenario or trusted handler`);
         }
       }
     }

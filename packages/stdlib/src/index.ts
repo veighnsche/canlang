@@ -249,3 +249,6 @@ export type {
   WireUnion,
   WireValue,
 } from '@canlang/values';
+
+// Stored lifecycle effects are produced by the canonical state engine.
+export { transition } from '@canlang/state/effects/transition';

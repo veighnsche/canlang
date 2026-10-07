@@ -153,3 +153,5 @@ export {
   type ValidatedOwnerAction,
   type ValidateStagedInput,
 } from './migration/index.js';
+
+export { transition, type TransitionContext } from './effects/transition.js';

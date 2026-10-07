@@ -78,6 +78,8 @@ pub struct JsCallable {
     pub export: String,
     /// Path segments into the module's `canApp()` registry object.
     pub member: Vec<String>,
+    /// Generated scenario parameters, as opposed to the legacy runtime envelope.
+    pub input_style: Option<String>,
     /// Declaration span.
     pub span: Span,
 }
@@ -643,6 +645,8 @@ pub struct JsModelField {
     pub array_required: Option<bool>,
     /// Source-declared default, when representable.
     pub default: Option<JsFieldDefault>,
+    /// Optional field-owned lifecycle metadata.
+    pub machine: Option<JsMachine>,
     /// Checked description source text, when authored.
     pub description: Option<String>,
 }
@@ -652,6 +656,21 @@ impl JsModelField {
     pub fn to_json(&self) -> String {
         descriptor_json(self)
     }
+}
+
+/// One field-owned flat lifecycle, derived from checked transition sites.
+#[derive(Debug, Clone, Serialize)]
+pub struct JsMachine {
+    pub initial: String,
+    pub states: Vec<String>,
+    pub transitions: Vec<JsMachineTransition>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JsMachineTransition {
+    pub from: String,
+    pub to: String,
+    pub operation: String,
 }
 
 /// One stored model descriptor (JSON shape of `ArtifactModel`).
@@ -860,12 +879,16 @@ impl Serialize for JsModelField {
             4 + usize::from(self.nullable)
                 + usize::from(self.array_required.is_some())
                 + usize::from(self.default.is_some())
-                + usize::from(self.description.is_some()),
+                + usize::from(self.description.is_some())
+                + usize::from(self.machine.is_some()),
         )?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("field", &self.field)?;
         state.serialize_field("required", &self.required)?;
         state.serialize_field("serverOnly", &self.server_only)?;
+        if let Some(machine) = &self.machine {
+            state.serialize_field("machine", machine)?;
+        }
         if self.nullable {
             state.serialize_field("nullable", &true)?;
         }
@@ -2756,6 +2779,38 @@ impl<'a> Emitter<'a> {
                     *span,
                 )]
             }
+            IrStmt::Transition {
+                model,
+                record,
+                field,
+                from,
+                to,
+                span,
+            } => {
+                if self.hook.is_some() {
+                    self.unsupported(
+                        "transition",
+                        "hooks cannot transition machine fields",
+                        *span,
+                    );
+                    return vec![(
+                        format!("{pad}throw new Error('transition in hook');"),
+                        *span,
+                    )];
+                }
+                self.stdlib.insert("transition".to_string());
+                let record = self.lower_expr(record);
+                vec![(
+                    format!(
+                        "{pad}await transition(c,{},({record}).id,{},{},{});",
+                        js_string(model),
+                        js_string(field),
+                        js_string(from),
+                        js_string(to)
+                    ),
+                    *span,
+                )]
+            }
             IrStmt::Delete { record, mode, span } => {
                 if self.hook.is_some() {
                     self.unsupported(
@@ -3316,8 +3371,7 @@ impl<'a> Emitter<'a> {
                     ""
                 };
                 props.push(format!(
-                    "renderRow:{prefix}({},{})=>[{children}]",
-                    row, child_ctx
+                    "renderRow:{prefix}({row},{child_ctx})=>{{{row}={{...{row}.fields,id:{row}.id,version:{row}.version===undefined?undefined:BigInt({row}.version)}};return [{children}];}}"
                 ));
                 self.exit_scope();
             }
@@ -3427,7 +3481,6 @@ impl<'a> Emitter<'a> {
     /// renderer reads the shared descriptor (`renderPage` never dispatches
     /// or re-runs admission).
     pub fn lower_page(&mut self, page: &IrPage, out: &mut JsWriter) {
-        self.ui.insert("renderPage".to_string());
         let descriptor = page_binding(page, "descriptor");
         let func = page_binding(page, "render");
         let mut members = vec![
@@ -3495,17 +3548,12 @@ impl<'a> Emitter<'a> {
         } else {
             String::new()
         };
-        // The body builder is `async` exactly when a child awaits
-        // (state-read calls inside render values).
-        let builder = if page.render.iter().any(ui_uses_async) {
-            "async()=>"
-        } else {
-            "()=>"
-        };
+        // The HTTP page owner applies the shared shell once. This function
+        // renders only admitted content for both full and partial requests.
         out.push(
             page.span,
             Some(format!("page {}", page.path)),
-            &format!("export async function {func}(c,bindings){{{preamble}return {}(c,{descriptor},{builder}[{children}]);}}", binding_ident("u", "renderPage")),
+            &format!("export async function {func}(c,bindings){{{preamble}return (await Promise.all([{children}])).filter(value=>value!=null).join('');}}"),
         );
     }
 }
@@ -3692,6 +3740,16 @@ impl<'a> Emitter<'a> {
                 kind,
                 export: export.clone(),
                 member: registry_member(self.ir, item),
+                input_style: matches!(
+                    &item.kind,
+                    IrItemKind::Scenario {
+                        trusted: false,
+                        hook: None,
+                        read: false,
+                        ..
+                    }
+                )
+                .then(|| "parameters".to_string()),
                 span: item.span,
             });
             out.push(
@@ -4208,6 +4266,11 @@ impl<'a> Emitter<'a> {
         if let Some(modifiers) = modifiers {
             if modifiers.trim {
                 members.push_str(",trim:true");
+            }
+            if modifiers.machine
+                && let Some(machine) = self.machine_for(field)
+            {
+                members.push_str(&format!(",machine:{}", descriptor_json(&machine)));
             }
             if modifiers.unique {
                 members.push_str(",unique:true");
@@ -5164,6 +5227,7 @@ impl<'a> Emitter<'a> {
                 server_only: true,
                 array_required: is_array.then_some(false),
                 default: Some(JsFieldDefault::Derived),
+                machine: None,
                 description: None,
             };
         }
@@ -5187,6 +5251,7 @@ impl<'a> Emitter<'a> {
                     server_only: false,
                     array_required: None,
                     default: None,
+                    machine: None,
                     description: None,
                 };
             }
@@ -5211,8 +5276,88 @@ impl<'a> Emitter<'a> {
             server_only: server.is_some(),
             array_required: is_array.then_some(required_array),
             default: js_field_default(default.as_ref(), server.as_ref()),
+            machine: self.machine_for(field_item),
             description: description.clone(),
         }
+    }
+
+    fn machine_for(&self, field: &IrItem) -> Option<JsMachine> {
+        let IrItemKind::Field {
+            owner,
+            ty: IrType::Known(ResolvedType::Enum { cases, .. }),
+            default,
+            modifiers,
+            ..
+        } = &field.kind
+        else {
+            return None;
+        };
+        if !modifiers.machine {
+            return None;
+        }
+        let Some(JsFieldDefault::Literal(initial_json)) = js_field_default(default.as_ref(), None)
+        else {
+            return None;
+        };
+        let Ok(initial) = serde_json::from_str::<String>(&initial_json) else {
+            return None;
+        };
+        let model = &self.ir.item(*owner).canonical;
+        let mut transitions = Vec::new();
+        fn collect(
+            body: &[IrStmt],
+            model: &str,
+            field: &str,
+            operation: &str,
+            out: &mut Vec<JsMachineTransition>,
+        ) {
+            for stmt in body {
+                match stmt {
+                    IrStmt::Transition {
+                        model: target,
+                        field: name,
+                        from,
+                        to,
+                        ..
+                    } if target == model && name == field => {
+                        let edge = JsMachineTransition {
+                            from: from.clone(),
+                            to: to.clone(),
+                            operation: operation.to_string(),
+                        };
+                        if !out.contains(&edge) {
+                            out.push(edge);
+                        }
+                    }
+                    IrStmt::If {
+                        then_branch,
+                        else_branch,
+                        ..
+                    } => {
+                        collect(then_branch, model, field, operation, out);
+                        collect(else_branch, model, field, operation, out);
+                    }
+                    IrStmt::For { body, .. } => collect(body, model, field, operation, out),
+                    _ => {}
+                }
+            }
+        }
+        for operation in &self.ir.items {
+            if let IrItemKind::Scenario { effects, .. } = &operation.kind {
+                collect(
+                    effects,
+                    model,
+                    &field.name,
+                    &operation.canonical,
+                    &mut transitions,
+                );
+            }
+        }
+        Some(JsMachine {
+            initial,
+            states: cases.clone(),
+            transitions,
+        })
     }
 
     /// Split one field type into its element tag, top-level nullability
@@ -5559,6 +5704,7 @@ impl<'a> Emitter<'a> {
                 kind: JsCallableKind::Pure,
                 export: key.clone(),
                 member: registry_member(self.ir, &item),
+                input_style: None,
                 span: item.span,
             });
             match expr {
@@ -5867,6 +6013,7 @@ impl<'a> Emitter<'a> {
                         kind: JsCallableKind::Pure,
                         export: name.clone(),
                         member: registry_member(self.ir, item),
+                        input_style: None,
                         span: item.span,
                     });
                     // The implementation lives at module scope

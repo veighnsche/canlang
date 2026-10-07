@@ -985,6 +985,7 @@ export interface CanonicalSeamCall {
   readonly context: InvocationContext;
   readonly def: unknown;
   readonly inputs: Record<string, unknown>;
+  readonly recordRefs?: readonly { readonly param: string; readonly model: ModelName; readonly row: StoredRow }[];
   readonly checkpoint?: {
     readonly revision: Revision;
     readonly owner: string;
@@ -1187,6 +1188,7 @@ interface StateGrantsProducer {
 
 /** T17b: one pipeline write as handed to `runMutationWrites` (no `when`: stdlib carries none). */
 export interface CanonicalPipelineWrite {
+  readonly transition?: { readonly field: string; readonly from: string; readonly to: string };
   readonly op: "create" | "update" | "remove";
   readonly model: string;
   readonly id: string;
@@ -1458,6 +1460,8 @@ export function assertT04aContractPins(provided: ContractVersionSet): void {
  */
 const REQUIRES_CONTRACT_FOR_CAPABILITY: Readonly<Record<string, "state" | "values">> = {
   state: "state",
+  "state.machines": "state",
+  "state.parameters": "state",
   "values.decimal": "values",
   "values.int64": "values",
   "values.money": "values",
@@ -1499,7 +1503,7 @@ export function assertRequiresFulfilled(
       throw new Error(
         `t16b: artifact requires unknown capability ${JSON.stringify(capability)} ` +
           `(min_version ${requirement.min_version}); known: ` +
-          `canlang.builtins, state, values.decimal, values.int64, values.money, values.temporal`,
+          `canlang.builtins, state, state.machines, state.parameters, values.decimal, values.int64, values.money, values.temporal`,
       );
     }
     const have = contract === "state" ? provided.state : provided.values;
@@ -1627,6 +1631,11 @@ function resolvePreloadCallable(artifact: CompileArtifact, op: PreloadOperation)
       throw new Error(
         `t16b: operation ${JSON.stringify(op.name)} has no usable callable module (contract violation).`,
       );
+    }
+    if (entry["inputStyle"] !== undefined &&
+        (entry["inputStyle"] !== "parameters" || op.kind !== "scenario" ||
+         !artifact.requires.some((requirement) => requirement.capability === "state.parameters" && requirement.min_version >= 1))) {
+      throw new Error(`t16b: operation ${JSON.stringify(op.name)} has invalid callable inputStyle.`);
     }
     return { module: entry["module"] as string };
   }
@@ -2079,12 +2088,31 @@ function assertOriginalInputNameUniqueness(
  * launder malformed additives into acceptance. Whole-set
  * rejection preserved.
  */
+/** Machine support belongs to the installed producer, independently of the stable state contract. */
+export function assertStateMachineProducerCapability(artifact: CompileArtifact, catalog: unknown): void {
+  const requirement = artifact.requires.find((entry) => entry.capability === "state.machines");
+  const carriesMachine = artifact.models?.some((model) => model.fields.some((field) => field.machine !== undefined)) ?? false;
+  if (!carriesMachine && requirement === undefined) return;
+  if (requirement === undefined || requirement.min_version < 1) throw new Error("state.machines capability is required for machine fields.");
+  const capabilities = isUnknownRecord(catalog) ? catalog["capabilities"] : undefined;
+  const provided = isUnknownRecord(capabilities) ? capabilities["state.machines"] : undefined;
+  if (typeof provided !== "number" || provided < requirement.min_version) {
+    throw new Error("Installed state producer does not provide the required state.machines capability.");
+  }
+}
+
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
 ): Promise<LoadedCanonicalDescriptors> {
   const cached = canonicalCache.get(artifact);
   if (cached !== undefined) return cached;
+  if (artifact.requires.some((entry) => entry.capability === "state.machines") ||
+      artifact.models?.some((model) => model.fields.some((field) => field.machine !== undefined))) {
+    const catalogMod = await loadProducerModule("@canlang/state/catalog", "state capability catalog");
+    const catalog = requireProducerFn(catalogMod, "stateCatalog", "state capability catalog")();
+    assertStateMachineProducerCapability(artifact, catalog);
+  }
   const producers = await loadCanonicalStateProducers();
   const ops = readPreloadOperations(artifact);
   const crudBy = new Map<string, CanonicalByPredicate>();
@@ -2474,7 +2502,7 @@ export function collapseStagedWrites(
       // Final state removed: one remove on the first basis, or nothing
       // when the row was created in-scenario (net no-op).
       if (preExists) {
-        if (first.expectedVersion === undefined) {
+        if (typeof first.expectedVersion !== "number") {
           throw new Error(`t17b: staged ${first.kind} lost its expectedVersion (pipeline/dist skew?)`);
         }
         collapsed.push({
@@ -2493,9 +2521,9 @@ export function collapseStagedWrites(
     }
     if (lastRemove === -1) {
       if (!preExists) {
-        collapsed.push({ kind: "insert", model: first.model, row: finalRow });
+        collapsed.push({ kind: "insert", model: first.model, row: { ...finalRow, version: 1 as RecordVersion } });
       } else {
-        if (first.expectedVersion === undefined) {
+        if (typeof first.expectedVersion !== "number") {
           throw new Error(`t17b: staged ${first.kind} lost its expectedVersion (pipeline/dist skew?)`);
         }
         collapsed.push({
@@ -2503,7 +2531,7 @@ export function collapseStagedWrites(
           model: first.model,
           id,
           expectedVersion: first.expectedVersion,
-          row: finalRow,
+          row: { ...finalRow, version: (first.expectedVersion + 1) as RecordVersion },
         });
       }
       continue;
@@ -2517,7 +2545,7 @@ export function collapseStagedWrites(
       throw new Error(`t17b: staged ${revived?.kind ?? "?"} after a staged remove (pipeline/dist skew?)`);
     }
     if (preExists) {
-      if (first.expectedVersion === undefined) {
+      if (typeof first.expectedVersion !== "number") {
         throw new Error(`t17b: staged ${first.kind} lost its expectedVersion (pipeline/dist skew?)`);
       }
       collapsed.push({
@@ -2527,7 +2555,7 @@ export function collapseStagedWrites(
         expectedVersion: first.expectedVersion,
       });
     }
-    collapsed.push({ kind: "insert", model: first.model, row: finalRow });
+    collapsed.push({ kind: "insert", model: first.model, row: { ...finalRow, version: 1 as RecordVersion } });
   }
   return collapsed;
 }
@@ -2603,8 +2631,8 @@ function assertServableReadQuery(
  * T32b: freeze one caller-roles observation into a comparable snapshot
  * (sorted, NUL-joined — order-free, collision-free on role names).
  */
-function snapshotCallerRoles(grants: ReadonlyArray<string>): string {
-  return [...grants].sort().join("\0");
+function snapshotCallerRoles(grants: ReadonlyArray<string>, owner: boolean): string {
+  return JSON.stringify([[...grants].sort(), owner]);
 }
 
 /**
@@ -2620,7 +2648,7 @@ async function readCallerRolesSnapshot(
 ): Promise<string | null> {
   const membership = await memberships.findMembership(teamId, actorUserId);
   if (membership === null || membership.status !== "active") return null;
-  return snapshotCallerRoles(membership.roles.map((grant) => grant.role));
+  return snapshotCallerRoles(membership.roles.map((grant) => grant.role), membership.is_owner);
 }
 
 /**
@@ -2649,6 +2677,40 @@ async function readCallerRolesSnapshot(
  * touch keeps its history entry. The ONE fenced commit carries the
  * scenario operation identity into history + receipt.
  */
+/** Clone admitted snapshots so handlers cannot mutate admission evidence or stored rows. */
+function scenarioParameters(call: CanonicalSeamCall, artifact: CompileArtifact, staged: Map<string, StoredRow | null>): Record<string, unknown> {
+  const parameters = structuredClone(call.inputs);
+  const views = new Map<string, object>();
+  for (const ref of call.recordRefs ?? []) {
+    const row = ref.row;
+    const key = stagedKey(ref.model, row.id);
+    let view = views.get(key);
+    if (view === undefined) {
+      const admitted = freezeScenarioSnapshot(structuredClone(row.data)) as Record<string, unknown>;
+      const fields = artifact.models?.find((model) => model.name === ref.model)?.fields.map((field) => field.name) ?? Object.keys(row.data);
+      const record: Record<string, unknown> = {};
+      for (const field of fields) Object.defineProperty(record, field, {
+        enumerable: true, get: () => staged.has(key) ? staged.get(key)?.data[field] : admitted[field],
+      });
+      Object.assign(record, { id: row.id, version: BigInt(row.version), created: new Date(row.created).toISOString(),
+        updated: new Date(row.updated).toISOString(), created_by: row.createdBy, updated_by: row.updatedBy,
+        archived_at: row.archivedAt === null ? null : new Date(row.archivedAt).toISOString(),
+      });
+      view = Object.freeze(record);
+      views.set(key, view);
+    }
+    parameters[ref.param] = view;
+  }
+  return parameters;
+}
+function freezeScenarioSnapshot(value: unknown): unknown {
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value)) freezeScenarioSnapshot(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+
 async function runScenarioSeam(
   loaded: LoadedCanonicalDescriptors,
   opts: CanonicalMutationOpts,
@@ -2657,6 +2719,7 @@ async function runScenarioSeam(
   const actorUserId = call.context.actor?.userId ?? null;
   const teamId = call.context.team?.teamId ?? null;
   let grants: string[] = [];
+  const builtinRoles = ["public", ...(actorUserId === null ? [] : ["authenticated"])];
   // T32b: the caller-roles snapshot behind `c.caller.roles` — the ONE
   // authorization-relevant fact the seam reads from NON-fenced state
   // (the membership store moves no state revision, so the revision
@@ -2670,7 +2733,9 @@ async function runScenarioSeam(
     const membership = await opts.memberships.findMembership(teamId, actorUserId);
     if (membership !== null && membership.status === "active") {
       grants = membership.roles.map((grant) => grant.role);
-      callerRolesSnapshot = snapshotCallerRoles(grants);
+      callerRolesSnapshot = snapshotCallerRoles(grants, membership.is_owner);
+      builtinRoles.push("members");
+      if (membership.is_owner) builtinRoles.push("owner");
     }
   }
   const seamGuards: CanonicalGuardRevalidation[] =
@@ -2715,6 +2780,7 @@ async function runScenarioSeam(
   const staged: Map<string, StoredRow | null> = new Map();
   const overlay = withStagedOverlay(opts.store, staged);
   const stagedWrites: CanonicalStagedDomainWrite[] = [];
+  const reservedVersions = new Map<string, RecordVersion>();
   const stagedHistory: unknown[] = [];
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
   const resolvedDefaults: Record<string, unknown> = {};
@@ -2728,7 +2794,7 @@ async function runScenarioSeam(
       if (!isUnknownRecord(row) || typeof row["id"] !== "string") {
         throw new Error(`t17b: staged ${write.kind} lost its row (pipeline/dist skew?)`);
       }
-      const stagedRow = row as unknown as StoredRow;
+      const stagedRow = freezeScenarioSnapshot(structuredClone(row)) as StoredRow;
       staged.set(stagedKey(write.model, row["id"] as string), stagedRow);
       return stagedRow;
     }
@@ -2744,6 +2810,7 @@ async function runScenarioSeam(
     );
   };
   const scope: CanonicalEffectsScope = {
+    builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
     operationId: call.context.operationId,
     stageWrite: async (write: CanonicalStagedWrite): Promise<StoredRow | null> => {
@@ -2766,6 +2833,7 @@ async function runScenarioSeam(
               id: write.id,
               ...(write.parent === undefined ? {} : { parent: write.parent }),
               ...(write.data === undefined ? {} : { data: write.data }),
+              ...(write.transition === undefined ? {} : { transition: write.transition }),
             },
           ],
           context: call.context,
@@ -2778,11 +2846,22 @@ async function runScenarioSeam(
           // transitive scopes. Absent on checkpoint-less calls.
           ...(seamTrigger === undefined ? {} : { trigger: seamTrigger }),
         });
-        const first = result.writes[0];
+        const normalizedWrites = result.writes.map((touch) => {
+          const id = touch.kind === "insert" ? touch.row?.id : touch.id;
+          if (typeof id !== "string") throw new Error("staged write lost record identity");
+          const key = stagedKey(touch.model, id);
+          if (touch.kind === "insert") reservedVersions.set(key, 1 as RecordVersion);
+          else if (!reservedVersions.has(key) && typeof touch.expectedVersion === "number") {
+            reservedVersions.set(key, (touch.expectedVersion + 1) as RecordVersion);
+          }
+          const version = reservedVersions.get(key);
+          return touch.row === undefined || version === undefined ? touch : { ...touch, row: { ...touch.row, version } };
+        });
+        const first = normalizedWrites[0];
         if (first === undefined) {
           throw new Error(`t17b: pipeline staged no write for one submitted write (pipeline/dist skew?)`);
         }
-        stagedWrites.push(...result.writes);
+        stagedWrites.push(...normalizedWrites);
         stagedHistory.push(...result.history);
         for (const touch of result.uniqueReleases) {
           stagedTouches.push({ kind: "release", touch });
@@ -2796,7 +2875,7 @@ async function runScenarioSeam(
           resolvedDefaults[`${callTag}.${field}`] = value;
         }
         let returned: StoredRow | null = null;
-        for (const stagedWrite of result.writes) {
+        for (const stagedWrite of normalizedWrites) {
           returned = applyStagedWrite(stagedWrite);
         }
         return returned;
@@ -2848,9 +2927,11 @@ async function runScenarioSeam(
     memberships: grants,
     canonical: scope,
   });
-  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [
-    { operation_id: call.context.operationId, inputs: call.inputs },
-  ]);
+  const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
+  const argument = callable?.inputStyle === "parameters"
+    ? scenarioParameters(call, opts.artifact, staged)
+    : { operation_id: call.context.operationId, inputs: call.inputs };
+  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [argument]);
   if (!outcome.ok) {
     // Attributed engine failure first: an uncaught engine `StateError`
     // propagates verbatim, so its message matches the recorded one
@@ -2875,7 +2956,13 @@ async function runScenarioSeam(
   const uniques = netStagedUniques(stagedTouches);
   return {
     writes: collapseStagedWrites(stagedWrites),
-    history: stagedHistory,
+    history: stagedHistory.map((entry) => {
+      if (!isUnknownRecord(entry)) return entry;
+      const first = stagedWrites.find((write) => write.model === entry["model"] &&
+        (write.kind === "insert" ? write.row?.id : write.id) === entry["recordId"]);
+      const version = first?.kind === "insert" ? 1 : typeof first?.expectedVersion !== "number" ? undefined : first.expectedVersion + (first.kind === "remove" ? 0 : 1);
+      return version === undefined ? entry : { ...entry, version };
+    }),
     outbox: [],
     schedules: [],
     uniqueClaims: uniques.claims,

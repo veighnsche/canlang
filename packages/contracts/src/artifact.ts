@@ -1,3 +1,5 @@
+import type { FieldMachine } from "./state.js";
+
 /**
  * Lane 01-owned compiled-artifact boundary.
  *
@@ -80,6 +82,8 @@ export interface ArtifactCallable {
    * registry holds implementations — this is the linkage between them.
    */
   member: string[];
+  /** Generated scenarios receive named admitted parameters; absent keeps the legacy envelope. */
+  inputStyle?: "parameters";
 }
 
 /**
@@ -287,6 +291,8 @@ export type ArtifactModelFieldType =
  * `serverOnly: true`; they never appear in operation inputs.
  */
 export interface ArtifactModelField {
+  /** Opt-in flat lifecycle, with static operation-owned edges. */
+  machine?: FieldMachine;
   /** Field name (model-local). */
   name: string;
   /** Element type tag (arrays add the `array` marker). */

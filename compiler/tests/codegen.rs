@@ -2566,7 +2566,7 @@ fn construct_pages_admit_render() {
         module.js
     );
     assert!(
-        module.js.contains("export async function $can$p$657870656e73653a72656e6465723a2f657870656e7365732f726576696577(c,bindings){return $can$u$72656e64657250616765(c,$can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f726576696577,()=>[$can$u$7461626c65({context:c,model:\"expense.Expense\"})]);}"),
+        module.js.contains("export async function $can$p$657870656e73653a72656e6465723a2f657870656e7365732f726576696577(c,bindings){return (await Promise.all([$can$u$7461626c65({context:c,model:\"expense.Expense\"})])).filter(value=>value!=null).join('');}"),
         "review function:\n{}",
         module.js
     );
@@ -2644,7 +2644,7 @@ fn construct_page_preferences_preamble_reads_bindings() {
     emitter.lower_page(&page, &mut out);
     let module = out.finish("test.mjs".to_string());
     assert!(
-        module.js.contains("export async function $can$p$657870656e73653a72656e6465723a2f657870656e7365732f7072656673(c,bindings){const preferences=bindings.preferences[\"expense\"];return $can$u$72656e64657250616765(c,$can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f7072656673,()=>[$can$u$74657874({context:c,value:preferences.view})]);}"),
+        module.js.contains("export async function $can$p$657870656e73653a72656e6465723a2f657870656e7365732f7072656673(c,bindings){const preferences=bindings.preferences[\"expense\"];return (await Promise.all([$can$u$74657874({context:c,value:preferences.view})])).filter(value=>value!=null).join('');}"),
         "preamble reads bindings:\n{}",
         module.js
     );
@@ -3500,7 +3500,7 @@ fn construct_ui_gate_ternary() {
     assert!(
         emitter
             .lower_ui(&list)
-            .contains("renderRow:async($can$l$303a726f77,$can$l$313a726f7756696577)=>["),
+            .contains("renderRow:async($can$l$303a726f77,$can$l$313a726f7756696577)=>{"),
         "async gate propagates"
     );
     let (diags, _, _, _) = emitter.finish();

@@ -33,6 +33,7 @@ export interface CallerInfo {
  * uniques, delete modes); nothing is validated twice.
  */
 export interface CanonicalStagedWrite {
+  readonly transition?: { readonly field: string; readonly from: string; readonly to: string };
   readonly op: 'create' | 'update' | 'remove';
   readonly model: string;
   readonly id: string;
@@ -77,6 +78,8 @@ export interface CanonicalReadQuery {
  * (the seam in `./invoke.js`) and no second engine or validator.
  */
 export interface CanonicalEffectsScope {
+  /** Builtin by predicates derived from the live admitted caller/membership. */
+  readonly builtinRoles?: readonly string[];
   readonly operation: string;
   readonly operationId: string;
   stageWrite(write: CanonicalStagedWrite): Promise<StoredRow | null>;
