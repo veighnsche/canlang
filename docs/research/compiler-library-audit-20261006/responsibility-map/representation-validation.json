@@ -1,7 +1,7 @@
 {
   "scope": "Mechanical current inventory/workflow/compatibility/representation linkage and evidence integrity; not all semantic correctness",
   "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
-  "observed_head": "2e8db2340a3540b5ed891ff529b1953993ad8665",
+  "observed_head": "4659b9477173e9ff423d2b4d8f1d1a19c8c2d007",
   "compiler_diff_from_source_baseline": "",
   "paths": 107,
   "unique_paths": 107,
@@ -42,12 +42,12 @@
     "execution receipts retain host, body-skip, source/dist, synthetic/mocked and installed-product limits",
     "Step2 independent inventory receipt kept separately; this validates current extended ledger",
     "every semantic branch/API not qualified; known compatibility families only",
-    "classifications preserve current public/migration support; no policy change or test/build execution",
+    "classifications preserve current public/migration support; Step4 classification/review made no policy change or execution; Step5 root build/API probes are separately captured",
     "deliberate mixed public-input probes distinct from normal CLI and immutable append control",
     "source reconstruction/parallel models do not establish measured cost or redundant semantics",
     "fresh locked offline library build + probe execution only; no JS/application/GUI/fullsuite/other-host qualification"
   ],
-  "ledger_sha256": "5c25ae381e9078b655c9ac04bac5ece805abe1086ad91b2935f522c9f27341e6",
+  "ledger_sha256": "db8f6d1b0716921d91b398516ab5a18cf6813a7435df118a8528ebf36ea73698",
   "workflows": 18,
   "workflow_ids": [
     "CHECK",

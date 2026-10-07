@@ -576,5 +576,115 @@
     }
   },
   "correction_policy": "source corrections integrated; remaining policy/gap proposals explicit",
-  "final_artifact_review": "pending"
+  "final_artifact_review": {
+    "verdict": "accept_with_minor_integration_corrections",
+    "reviewed_commit": "e5ee0d61",
+    "observed_current_head": "4659b9477173e9ff423d2b4d8f1d1a19c8c2d007",
+    "head_note": "Later package documentation commit observed; compiler source remains pinned and reviewed ledger hash unchanged. No dirty package files modified by this reviewer.",
+    "scope": "Independent final artifact/integration challenge of Step5. Frontend authored by this reviewer is checked for integration consistency only; lowering/root/probe/consumer/carrier/readable/status claims independently challenged. No test/probe reruns, builds, runtime, network or repository edits.",
+    "verified": {
+      "representation_rows": 35,
+      "unique_row_ids": 35,
+      "selected_carrier_groups": 8,
+      "workflow_joins": 18,
+      "join_errors": 0,
+      "current_pins_matching": {
+        "representation_inputs": 37,
+        "compatibility_inputs": 82,
+        "workflow_inputs": 85,
+        "interface_inputs": 31,
+        "probe_before_inputs": 108,
+        "saved_raw_evidence_files": 36
+      },
+      "ledger_sha256": "5c25ae381e9078b655c9ac04bac5ece805abe1086ad91b2935f522c9f27341e6",
+      "ledger_matches_validation": true,
+      "compiler_diff_to_1fd07722090fe70228a6b661e3c6e136275ca84b": "empty",
+      "current_compiler_library_sha256": "1486166f24aeaf4bb7bf476270fdb32dc31fb17cccdfcb820c229dcfb3ab6d56",
+      "current_library_matches_receipt": true
+    },
+    "integration_confirmed": [
+      "LOW05 now identifies actual analysis call_builtin/try_overload specificity choice versus IR first-arity named binding; no unexecuted current overload/evaluation counterexample inferred.",
+      "LOW12 now correctly emission-only migration admission, sole production checker callerIR4964.",
+      "LOW18/19 add actual state descriptor admission/interim model and testkit recipe/dependency/user/row reconstruction without calling those redundant compiler stages.",
+      "Operation descriptors shared once; richer runtime model and artifact model projections remain distinct.",
+      "Normal CLI owned DB/catalog/program/result and private borrowed Snapshot are separated from deliberately mixed public input hazards.",
+      "Immutable same-path append retains SourceId0 bytes, rather than claiming mutation/stale-cache defect.",
+      "IR doc narrow re-read versus actual fallback semantic reconstruction is explicit; public writer embedded-newline attribution gap retained.",
+      "Selected carriers and18workflow navigation are scoped; staticEXPLAIN and opaque forwarded CLI routes create no checked facts.",
+      "No architecture/cache/API/library/policy chosen and no cost/performance/full closure inferred from repetition/schema overlap.",
+      "No merge/living checkpoint advancement/product/GUI/other-host/generated JS runtime success claimed."
+    ],
+    "evidence_review": {
+      "corrected_probe": "Saved source uses CatalogAnalyzer::analyze_owned with complete clean analysis and EmitOptions::new; emits8cases, all returned error lists empty. No bypass or JavaScript execution.",
+      "foreign_database": "Saved artifact shows Shop.Gadget default NEW and new sourcehash; controlOLD. Independent hash mismatch assertion in source covers old result versus supplied replacementDB; artifacts confirm emitted hashes.",
+      "immutable_append": "Saved artifact includes old/new revisions and OLD default.",
+      "swapped_database": "Saved artifacts confirm One.Thing=TWO and Two.Thing=ONE versus controlsONE/TWO. Receipt records independent field assertions; probe source itself asserts altered module output, not those exact field associations.",
+      "catalog": "Saved edited catalogs and artifacts/raw stream confirm awaiting change for major7 and same-label altered effects; checked requirement minimum0 remains. Coherently rechecked changed catalog outcome untested.",
+      "ordering": "Raw stream reports sameDB reversed check files Two,One diagnostics[]; source does not assert that exact list, so keep observation label.",
+      "failed_first_fixture": "attempt1 source/rawstderr retain invalid package grammar analysis panicexit101 after6passed cases, not swallowed success.",
+      "build_timing": "Initial fresh build.log is transcribed. Raw locked/offline build verification timestamp11:16:29 follows successful probe receipt11:12:33 and library hash unchanged. Readable view accurately does not present it as preprobe raw rebuild."
+    },
+    "corrections": [
+      {
+        "id": "S5-FINAL-01",
+        "target": "coverage.jsonl representation_carriers IR_JS_ARTIFACT SourceMap declaration fields",
+        "issue": "Selected declaration field list mixes wire-only version and wire camelCase name with actual Rust SourceMap fields.",
+        "required_edit": "List actual file,sources,sources_content,names,mappings. Separately state MapWire adds constant version3 and renames sources_content to sourcesContent. No support or schema change.",
+        "sources": [
+          "compiler/src/codegen/sourcemap.rs:14-24",
+          "compiler/src/codegen/sourcemap.rs:108-123"
+        ]
+      },
+      {
+        "id": "S5-FINAL-02",
+        "target": "coverage.jsonl representation_carriers REPORTS ReferenceModel fields",
+        "issue": "appDefaultLocale is output rename rather than declared Rust field.",
+        "required_edit": "Use app_default_locale in carrier fields, with explicit wire rename appDefaultLocale. Other exact selected carrier fields verified at declared scope.",
+        "sources": [
+          "compiler/src/docs.rs:339-340"
+        ]
+      },
+      {
+        "id": "S5-FINAL-03",
+        "target": "representation-validation.json limitations",
+        "issue": "Inherited no policy change or test/build execution limitation is unscoped and contradicts later correctly stated rootStep5build/probe qualification.",
+        "required_edit": "Qualify noexecution as Step4 classifications/independent source reviews; rootStep5 did locked/offline library build and saved publicAPI probes. Keep no policy/implementation changes and no JS/product/fullsuite execution.",
+        "sources": [
+          "representation-validation.json limitations",
+          "representation-evidence/provenance/receipt.json",
+          "representations.md source/catalog witnesses/build timing"
+        ]
+      },
+      {
+        "id": "S5-FINAL-04",
+        "target": "representation-review.json final_artifact_review and ledger representation_scope review",
+        "issue": "Pending is accurate during review; must finalize after incorporating this receipt.",
+        "required_edit": "Record bounded final acceptance and rehash ledger/validation after any ledger field fixes. Optional qualify FE-G01/03 no-probe wording as originalfrontend writer source-only, with PRV executed evidence separately, rather than globalnoexecution.",
+        "sources": [
+          "representation-review.json final_artifact_review",
+          "coverage.jsonl representation_scope",
+          "coverage.jsonl FE-G01/FE-G03"
+        ]
+      }
+    ],
+    "limitations": [
+      "This review validates saved evidence/integration, not fresh probe/test execution.",
+      "108source/catalog pins plus current library equality are bounded provenance evidence; not complete loaded build/release closure qualification.",
+      "Counterexample probes deliberately violate carrier coherence; they do not show normalCLI stale output or choose an enforcement API.",
+      "Full source semantic/resource/oracle parity and downstream migration/application/editor correctness remain open."
+    ]
+  },
+  "final_incorporation": {
+    "status": "all four final corrections applied",
+    "changes": [
+      "SourceMap Rust fields separated from constant version3/camelCase wire projection",
+      "ReferenceModel Rust app_default_locale separated from wire rename",
+      "inherited noexecution limitation scoped to Step4/review; root Step5 build/API probes preserved",
+      "pending review status finalized; corrected ledger hash recomputed"
+    ],
+    "allocation": "Sol6.1 medium technical/cross/root/final reviews; Luna6 low carrier inventory; root integration/probes; no escalation",
+    "validated_ledger_sha256": "db8f6d1b0716921d91b398516ab5a18cf6813a7435df118a8528ebf36ea73698",
+    "mechanical_errors": [],
+    "hash_scope": "Reviewer ledger hash records early commit e5ee0d61. This final hash records the corrected ledger after the four review corrections; root mechanical validation establishes the delta, not a new independent semantic review."
+  }
 }
