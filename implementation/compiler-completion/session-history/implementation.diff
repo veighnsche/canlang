@@ -1,0 +1,120 @@
+diff --git a/compiler/src/lint/driver.rs b/compiler/src/lint/driver.rs
+index fb3262c2..149c540e 100644
+--- a/compiler/src/lint/driver.rs
++++ b/compiler/src/lint/driver.rs
+@@ -173,7 +173,7 @@ impl Default for LintConfig {
+     }
+ }
+ 
+-/// Lint every source in `db` against the checked program.
++/// Lint the program's selected sources against their checked database.
+ ///
+ /// Rules see `program` (symbols, modules, type table) plus the reparsed
+ /// CST for precise spans. Findings are warnings/informational only and
+@@ -469,7 +469,10 @@ fn run_with_files(
+ ) -> Vec<(SourceId, Finding)> {
+     let declared = declared_names(program);
+     let mut out = Vec::new();
+-    for (file, source) in db.iter() {
++    for &file in program.checked_files() {
++        let Some(source) = db.get(file) else {
++            continue;
++        };
+         let (tree, _) = crate::syntax::parse(db, file);
+         let ctx = RuleCtx {
+             program,
+diff --git a/compiler/src/lsp/server.rs b/compiler/src/lsp/server.rs
+index 90ae49fc..caa48e04 100644
+--- a/compiler/src/lsp/server.rs
++++ b/compiler/src/lsp/server.rs
+@@ -138,6 +138,9 @@ pub struct CodeAction {
+ /// server knowing their types. Positions are UTF-16. Location-returning
+ /// methods also take the requesting document URI so single-file backends
+ /// can attribute same-file spans without reversing the URI mapping.
++/// The database contains the live documents and may be replaced between
++/// callbacks. Source IDs belong to the supplied database owner; a retained
++/// checked program must be rechecked before use with a later owner.
+ pub trait LanguageAnalysis {
+     /// Full-document diagnostics for the current text.
+     fn diagnostics(&self, db: &SourceDb, id: SourceId) -> Vec<Diagnostic>;
+@@ -824,6 +827,29 @@ impl<A: LanguageAnalysis> Server<A> {
+         self.docs.get(uri).map(|doc| doc.id)
+     }
+ 
++    /// Release session history by replacing the private owner with live texts.
++    /// Cancel stale work before remapping IDs so a reused numeric ID cannot
++    /// revive a superseded task. Existing source owners remain immutable.
++    fn retain_live_sources(&mut self) {
++        self.pending.retain(|(uri, version, id)| {
++            self.docs
++                .get(uri)
++                .is_some_and(|doc| doc.version == *version && doc.id == *id)
++        });
++        // Preserve the append order of current snapshots, including the
++        // latest-live entry for URI aliases with the same display path.
++        let mut ordered: Vec<_> = self.docs.iter_mut().collect();
++        ordered.sort_by(|(a_uri, a), (b_uri, b)| (a.id, a_uri).cmp(&(b.id, b_uri)));
++        let mut live = SourceDb::new();
++        for (uri, doc) in ordered {
++            doc.id = live.add(uri_to_path(uri), doc.text.clone());
++        }
++        for (uri, _, id) in &mut self.pending {
++            *id = self.docs[uri].id;
++        }
++        self.db = live;
++    }
++
+     fn handle_notification(&mut self, method: &str, params: Option<&Json>) -> Vec<String> {
+         if method != "exit" && self.lifecycle != Lifecycle::Ready {
+             return Vec::new();
+@@ -859,9 +885,7 @@ impl<A: LanguageAnalysis> Server<A> {
+                 };
+                 // No-op open (same text already tracked): reuse the live
+                 // SourceId instead of appending a duplicate snapshot.
+-                // Residual: SourceDb is append-only, so every *distinct*
+-                // version still retains a snapshot; true compaction needs
+-                // a compaction API in a later slice.
++                let changed = self.docs.get(uri).is_none_or(|open| open.text != text);
+                 let id = match self.docs.get(uri) {
+                     Some(open) if open.text == text => open.id,
+                     _ => self.db.add(uri_to_path(uri), text.to_string()),
+@@ -875,6 +899,9 @@ impl<A: LanguageAnalysis> Server<A> {
+                     },
+                 );
+                 self.pending.push_back((uri.to_string(), version, id));
++                if changed {
++                    self.retain_live_sources();
++                }
+             }
+             "textDocument/didChange" => {
+                 let (Some(selector), Some(version)) = (
+@@ -911,9 +938,8 @@ impl<A: LanguageAnalysis> Server<A> {
+                 // a keystroke that nets no new text never grows the
+                 // append-only SourceDb. Versions still advance and the new
+                 // version is still published; only the snapshot is shared.
+-                // Residual: distinct versions still accumulate until a
+-                // SourceDb compaction API lands in a later slice.
+-                let id = if full == open.text {
++                let changed = full != open.text;
++                let id = if !changed {
+                     open.id
+                 } else {
+                     self.db.add(uri_to_path(uri), full.to_string())
+@@ -927,6 +953,9 @@ impl<A: LanguageAnalysis> Server<A> {
+                     },
+                 );
+                 self.pending.push_back((uri.to_string(), version, id));
++                if changed {
++                    self.retain_live_sources();
++                }
+             }
+             "textDocument/didClose" => {
+                 if let Some(uri) = params
+@@ -936,6 +965,7 @@ impl<A: LanguageAnalysis> Server<A> {
+                 {
+                     self.pending.retain(|(queued_uri, _, _)| queued_uri != uri);
+                     if let Some(doc) = self.docs.remove(uri) {
++                        self.retain_live_sources();
+                         return vec![publish_diagnostics(uri, doc.version, &doc.text, &[])];
+                     }
+                 }
