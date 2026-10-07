@@ -1647,3 +1647,10 @@ Independent baseline/mutation controls and 42 relevant source-current tests pass
 CSV and browser export delegate their identical digest mechanics to internal/business-errors.ts. The two existing public interfaces and wrapper declarations remain byte-identical, retaining declaration merging. The private helper infers its unchanged result rather than adding another maintained interface or owner import cycle. Public wrappers keep their original names and return contracts.
 
 Independent current-source compilation, 41 selected caller tests and getter/exception-order controls pass. Readable production decreases from 450 to 428; charging the private declaration increases, the complete measured closure decreases from 583 to 571 (12 lines). Prior alias/private-interface candidates are superseded. [Final evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/business-errors-independent-review-final.json) preserves hashes and limits; CSV grammar, authority, provider policy and wider UI qualification remain separate.
+
+
+## 2026-10-07 — One private Values violation appender (accepted)
+
+Schema and wire retain their collector types, path aliases and traversal owners while sharing the identical pushViolation leaf through internal/violations.ts. Preserve receiver-bound ctx.violations.push, copied/frozen paths, field omission and ordered construction; no generic validation pipeline or backend conversion is introduced.
+
+Independent 254 selected tests, seven baseline/current public-caller comparisons and receiver/getter/iterator/exception controls pass. Public owner declarations are byte-identical. Readable production decreases by 16 lines; charging four private declaration lines, complete measured closure decreases by 12. Emitted bytes increase slightly, so no byte-saving claim is made. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/violations-independent-review.json) preserves source pins and original backend limits.
