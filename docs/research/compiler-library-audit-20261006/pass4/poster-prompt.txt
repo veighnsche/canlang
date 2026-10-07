@@ -1,0 +1,13 @@
+Use case: ads-marketing
+Asset type: finished portrait build-in-public poster
+Primary request: one dark PS2-era low-poly poster for a completed Canlang compiler improvement. Canlang is a language for building custom business apps. Its formatter previously replaced owner-only 0600 sources with 0644 files; the implementation now uses an owned temporary file beside the source and restores captured Unix mode before replacement. Only show the finite permission-mode repair; do not imply preservation of ownership or ACLs or crash durability.
+Scene/backdrop: a simple dimly lit low-poly retro workstation, with a small geometric source-file object passing through a formatter tool and emerging with the same discreet 0600 label. Charcoal and midnight blue, restrained cyan light, light analog texture. No logos from other products.
+Style/medium: finished PS2-era low-poly 3D poster, sparse composition, crisp high-contrast typography readable on a phone. Dark portrait. Text must be part of the generated finished image.
+Text (verbatim):
+Canlang
+A language for business apps.
+Format your code.
+Keep its Unix mode.
+0600 before. 0600 after.
+can fmt
+Constraints: reproduce all text exactly; no extra text or claims; no performance statistics, security shield, crash-safety promise or company logos. Keep tweet out of image.

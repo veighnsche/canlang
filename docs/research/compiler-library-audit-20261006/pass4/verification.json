@@ -1,0 +1,76 @@
+{
+  "status": "accepted bounded C04F and C04H packets",
+  "baseline_compiler_ref": "0104b04",
+  "implementation_commits": {
+    "file": "80868adcd9307aa8acc15698598ceaa62127effc",
+    "hash": "5cf27d6632ed0c6e61befd3ffe7d05d18931dac2"
+  },
+  "inputs": {
+    "baseline_count": 677,
+    "current_count": 678,
+    "changed": [
+      "compiler/Cargo.lock",
+      "compiler/Cargo.toml",
+      "compiler/src/cli.rs",
+      "compiler/src/source.rs",
+      "packages/values/src/wire.ts"
+    ],
+    "new": [
+      "compiler/tests/file_ownership.rs"
+    ],
+    "compiler_changes": [
+      "compiler/Cargo.toml",
+      "compiler/Cargo.lock",
+      "compiler/src/cli.rs",
+      "compiler/src/source.rs"
+    ],
+    "external_concurrent_change": "packages/values/src/wire.ts belongs to other agent; compiler work did not write it. Built catalog/runtime fixtures remain byte-identical.",
+    "drift_after_tests": "none between saved current-input and final-input manifests"
+  },
+  "macos_suite": {
+    "command": "cargo test --locked --offline --manifest-path compiler/Cargo.toml --target-dir /private/tmp/canlang-compiler-pass4",
+    "exit": 0,
+    "targets": 32,
+    "passed": 967,
+    "failed": 0,
+    "ignored": 0,
+    "log_sha256": "63b16065c4e27312b2b41917d2e0b6d0b6b6fc17a322fa767e42a54952a0381d"
+  },
+  "clippy": {
+    "command": "cargo clippy --locked --offline --manifest-path compiler/Cargo.toml --target-dir /private/tmp/canlang-compiler-pass4 --all-targets -- -D warnings",
+    "exit": 0,
+    "log_sha256": "a5fe194af85fc1624264981e7bca08e1f895b170a93795d198af3c39f7a5fc52"
+  },
+  "formatting": {
+    "baseline": "0104b04 compiler, Pass3 final formatting log",
+    "baseline_hunks": 88,
+    "current_hunks": 88,
+    "same_normalized_hunks": true,
+    "normalization": "checkout prefix, diagnostic line number, and trailing whitespace from archived log lines only"
+  },
+  "dependencies": {
+    "baseline_registry_packages": 37,
+    "file_only_registry_packages": 50,
+    "hash_only_registry_packages": 47,
+    "combined_registry_packages": 58,
+    "archives_sha256_verified": 58,
+    "metadata": "dependency-manifests.json",
+    "features": "features.txt"
+  },
+  "hosts": {
+    "macos": "aarch64, Rust1.99.0; combined full suite/Clippy and independent packet releases",
+    "linux": "x86_64 Debian13.7, Rust1.99.0; independent packet releases/source/file regressions in pinned local Docker image under emulation; no network and isolated cache/source/target",
+    "linux_image": "rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+    "linux_amd64_image_id": "sha256:458b145eb2406e832adc9c9536d487c5d264401a4ce63adbeced3fe91292616c"
+  },
+  "limits": [
+    "no Windows host or alternate compiler MSRV qualification",
+    "no owner/ACL/xattr/timestamp/inode preservation or crash durability",
+    "trusted destination parents; metadata first observed at writer entry and residual final check-to-persist race",
+    "macOS special-mode fixture was not retained at setup; that subcase unqualified there",
+    "real docs CLI uses actual catalog with explicit producer stub; installed renderer unqualified",
+    "sha2 0.11.0 and exhaustive hardware backend coverage unqualified",
+    "independent packet Linux acceptance, not a claimed complete Linux compiler suite",
+    "no package edits, merge or living-plan checkpoint advancement by compiler work"
+  ]
+}

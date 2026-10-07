@@ -1,0 +1,7 @@
+{
+  "baseline": "0104b04 compiler, Pass3 final formatting log",
+  "baseline_hunks": 88,
+  "current_hunks": 88,
+  "same_normalized_hunks": true,
+  "normalization": "checkout prefix, diagnostic line number, and trailing whitespace from archived log lines only"
+}
