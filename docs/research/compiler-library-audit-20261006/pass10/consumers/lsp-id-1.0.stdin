@@ -1,0 +1,3 @@
+Content-Length: 109
+
+{"jsonrpc":"2.0","id":1.0,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}

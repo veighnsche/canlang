@@ -1,0 +1,72 @@
+{
+  "cargo": {
+    "argv": [
+      "cargo",
+      "--version"
+    ],
+    "exit_code": 0,
+    "version": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "path": "/Users/vince/.cargo/bin/cargo",
+    "sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a"
+  },
+  "rustc": {
+    "argv": [
+      "rustc",
+      "--version"
+    ],
+    "exit_code": 0,
+    "version": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "path": "/Users/vince/.cargo/bin/rustc",
+    "sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a"
+  },
+  "bun": {
+    "argv": [
+      "bun",
+      "--version"
+    ],
+    "exit_code": 0,
+    "version": "1.4.2",
+    "path": "/Users/vince/.bun/bin/bun",
+    "sha256": "35d20dd0263e5c950194434b925454fdfa9ba6e4467da960410fa05b08a7a5b5"
+  },
+  "node": {
+    "argv": [
+      "node",
+      "--version"
+    ],
+    "exit_code": 0,
+    "version": "v24.21.0",
+    "path": "/Users/vince/.vite-plus/bin/node",
+    "sha256": "ce6081b1dc4585695c843ed92efbf6568a1b971818b097bc28dfd3751daea1c4"
+  },
+  "bash": {
+    "argv": [
+      "bash",
+      "--version"
+    ],
+    "exit_code": 0,
+    "version": "GNU bash, version 3.2.57(1)-release (arm64-apple-darwin26)",
+    "path": "/bin/bash",
+    "sha256": "d59c6f2312e551e9c46497329d435b6ec74fbc46e9155b84170f377127ed004e"
+  },
+  "zsh": {
+    "argv": [
+      "zsh",
+      "--version"
+    ],
+    "exit_code": 0,
+    "version": "zsh 5.9 (arm64-apple-darwin26.0)",
+    "path": "/bin/zsh",
+    "sha256": "abc56520c469fa4985fca02c5f55621932ad79de4f36440a64a27526f4b535ef"
+  },
+  "python3": {
+    "argv": [
+      "python3",
+      "--version"
+    ],
+    "exit_code": 0,
+    "version": "Python 3.14.7",
+    "path": "/opt/homebrew/bin/python3",
+    "sha256": "87d4df53fd91304be5bac391fb204643c36b7df2023c04a0953bcbc7d4fdf634"
+  }
+}

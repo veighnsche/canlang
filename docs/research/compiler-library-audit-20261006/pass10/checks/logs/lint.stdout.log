@@ -1,0 +1,15 @@
+
+   • turbo 2.11.7
+   • Packages in scope: //, @canlang/cloudflare, @canlang/contracts, @canlang/files, @canlang/identity, @canlang/interfaces, @canlang/services, @canlang/state, @canlang/stdlib, @canlang/testkit, @canlang/ui, @canlang/values, @canlang/work, @canlang/work-kernel
+   • Running native:compiler:lint in 14 packages
+   • Remote caching disabled
+
+//:native:compiler:lint: cache bypass, force executing 3b088dd1f761dcac
+//:native:compiler:lint: $ cargo fmt --manifest-path compiler/Cargo.toml --check && cargo clippy --locked --manifest-path compiler/Cargo.toml --all-targets -- -D warnings
+//:native:compiler:lint:    Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+//:native:compiler:lint:     Finished `dev` profile [unoptimized + debuginfo] target(s) in 18.96s
+
+ Tasks:    1 successful, 1 total
+Cached:    0 cached, 1 total
+  Time:    19.653s 
+

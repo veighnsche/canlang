@@ -1,0 +1,5 @@
+Content-Length: 76
+
+{"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"invalid JSON"}}Content-Length: 614
+
+{"jsonrpc":"2.0","id":99,"result":{"capabilities":{"positionEncoding":"utf-16","textDocumentSync":1,"hoverProvider":true,"completionProvider":{},"definitionProvider":true,"referencesProvider":true,"codeActionProvider":true,"renameProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":["namespace","type","class","interface","enum","struct","parameter","variable","property","enumMember","event","function","method","keyword","comment","string","number","operator"],"tokenModifiers":["declaration","documentation","defaultLibrary","readonly"]},"full":true}},"serverInfo":{"name":"can","version":"0.1.0"}}}

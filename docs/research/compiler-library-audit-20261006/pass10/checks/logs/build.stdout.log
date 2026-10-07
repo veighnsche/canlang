@@ -1,0 +1,15 @@
+
+   • turbo 2.11.7
+   • Packages in scope: //, @canlang/cloudflare, @canlang/contracts, @canlang/files, @canlang/identity, @canlang/interfaces, @canlang/services, @canlang/state, @canlang/stdlib, @canlang/testkit, @canlang/ui, @canlang/values, @canlang/work, @canlang/work-kernel
+   • Running native:compiler:build in 14 packages
+   • Remote caching disabled
+
+//:native:compiler:build: cache bypass, force executing 47226e099b1aaebb
+//:native:compiler:build: $ cargo build --locked --manifest-path compiler/Cargo.toml
+//:native:compiler:build:    Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+//:native:compiler:build:     Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.11s
+
+ Tasks:    1 successful, 1 total
+Cached:    0 cached, 1 total
+  Time:    11.22s 
+

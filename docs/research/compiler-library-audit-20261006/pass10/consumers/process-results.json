@@ -1,0 +1,284 @@
+{
+  "binary": "/private/tmp/canlang-pass10-profile/release/can",
+  "binarySha256": "6405484cb6156faf26f3efc3a32e57cb193b662581c61995842d78f41baa3c4f",
+  "results": [
+    {
+      "name": "cli-check",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/private/tmp/canlang-pass10-consumers/bad.can"
+      ],
+      "exit": 10,
+      "expectedExit": 10,
+      "stdoutSha256": "3506e423a67e54f755717194b8683cf38e12d98988d9c71dc3f5e5b2a398f523",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cli-lint",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lint",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/private/tmp/canlang-pass10-consumers/bad.can"
+      ],
+      "exit": 10,
+      "expectedExit": 10,
+      "stdoutSha256": "3506e423a67e54f755717194b8683cf38e12d98988d9c71dc3f5e5b2a398f523",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cli-fmt",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "fmt",
+        "/private/tmp/canlang-pass10-consumers/bad.can"
+      ],
+      "exit": 10,
+      "expectedExit": 10,
+      "stdoutSha256": "3506e423a67e54f755717194b8683cf38e12d98988d9c71dc3f5e5b2a398f523",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "artifact",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/private/tmp/canlang-pass10-consumers/wire.can"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "8215526123558ad7cf7d2edfd47fd815b6519e35d2868da6c23d567a21f84f5b",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-utf8",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "a0192f9e0e5d71a835ea043c201cb234a2ddab80d0a3228493ba6a1563fef9f2",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-syntax",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "19825b9fa768ec16b7952734dbfbd9791e9e59a8eccaa5d712d245e397995c0a",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-duplicate",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "afc8fc5c68e293a0dd5f95800157bdbd9b3b1e8488407ce71617999220afa508",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-fractional-id",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "afc8fc5c68e293a0dd5f95800157bdbd9b3b1e8488407ce71617999220afa508",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-wrong-version",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "9420057111e13820d922757f00b7b098a090a4b9240b944cbad3ceca492d46b3",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-id--0",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "c89c88ea68cf97e80878509ecdeafd3aa2dd734d77ea9f5830ca3dcc54375101",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-id-1.0",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "b412f6c06b6cd1a4bef403187b21749a9c72d28d37654b4a8ca97c41c1d35fb8",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-id-1e0",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "323d3c34b93062e36e8b1f8b9cf05ae64ea667c9f4049219a5b163fccc3c20ef",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-id-2147483647",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "baf27db7d17657a451618070746faf1f5246c1fe63d67910bc2ff376168fa369",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-shutdown",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "60d3a803e14810ad80a15b877c9ea9bdfcf61357b6a997987d583af29e7cfd4a",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-early-exit",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 1,
+      "expectedExit": 1,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-eof",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lsp-torn",
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "lsp"
+      ],
+      "exit": 0,
+      "expectedExit": 0,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "unchanged-original-CanDo",
+      "exit": 10,
+      "diagnostics": {
+        "tool": "can",
+        "tool_version": "0.1.0",
+        "language_version": "1.0",
+        "schema_version": 1,
+        "sources": [
+          {
+            "id": 0,
+            "path": "/Users/vince/Projects/canlang/draft/CanDo.can",
+            "sha256": "15761cc422c6d11827a6f13aa3cc3318a8bb393ef2110169f1a02ff046e4ec35"
+          },
+          {
+            "id": 1,
+            "path": "/Users/vince/Projects/canlang/draft/shared/Locations.can",
+            "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a"
+          },
+          {
+            "id": 2,
+            "path": "/Users/vince/Projects/canlang/draft/shared/Employees.can",
+            "sha256": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4"
+          }
+        ],
+        "complete": true,
+        "diagnostics": [
+          {
+            "code": "E3001",
+            "severity": "error",
+            "message": "argument 'person': expected user, found user?",
+            "primary": {
+              "file": 0,
+              "start": 6159,
+              "end": 6164
+            },
+            "related": [],
+            "tags": []
+          },
+          {
+            "code": "E3010",
+            "severity": "error",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 2,
+              "start": 1336,
+              "end": 1362
+            },
+            "related": [],
+            "tags": []
+          },
+          {
+            "code": "E3010",
+            "severity": "error",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 2,
+              "start": 1477,
+              "end": 1503
+            },
+            "related": [],
+            "tags": []
+          }
+        ],
+        "omitted": 0
+      },
+      "argv": [
+        "/private/tmp/canlang-pass10-profile/release/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/draft/CanDo.can",
+        "/Users/vince/Projects/canlang/draft/shared/Locations.can",
+        "/Users/vince/Projects/canlang/draft/shared/Employees.can"
+      ],
+      "expectedExit": 10
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "warmups_per_side": 3,
+  "measured_rounds_per_side": 20,
+  "median_ms": {
+    "baseline": 7.9527705,
+    "current": 7.930875
+  },
+  "independent_decoded_map_and_full_artifact_parity": true,
+  "modules": 3,
+  "decoded_points": 55,
+  "scope": "Bounded actual CLI compile for this fixed fixture/catalog on native host; includes process startup/full compile. No general speed claim."
+}
