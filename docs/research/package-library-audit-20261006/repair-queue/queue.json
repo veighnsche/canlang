@@ -70,7 +70,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -86,7 +88,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-V01-values",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "WORK",
@@ -158,7 +174,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -174,7 +192,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-V01-work",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "WORK",
@@ -256,7 +288,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -272,7 +306,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-W01-quote",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "WORK",
@@ -358,7 +406,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -374,7 +424,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-W01-uri",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "VALUES",
@@ -464,7 +528,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -480,7 +546,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-V03",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "VALUES",
@@ -637,7 +719,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -653,7 +737,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-V04",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "VALUES",
@@ -745,7 +845,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -761,7 +863,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-V05",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "STATE",
@@ -850,7 +966,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -866,7 +984,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-S01",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "STATE",
@@ -945,7 +1077,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -961,7 +1095,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-S01-own-key",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "STATE / WORK",
@@ -1049,7 +1199,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -1067,7 +1219,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-S02",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "STATE / IDENTITY",
@@ -1146,7 +1314,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -1163,7 +1333,24 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-S03",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review",
+          "consequential-owner-store-contract-if-selected"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "WORK / STATE",
@@ -1265,7 +1452,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -1282,7 +1471,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-W02",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "WORK",
@@ -1526,7 +1729,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -1544,7 +1749,21 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
       "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
-      "dependency_limit": "These selected changed Rust leaves need review before the selected assembly receipt; unrelated optional library/profile candidates do not gate unchanged original backend qualification."
+      "dependency_limit": "These selected changed Rust leaves need review before the selected assembly receipt; unrelated optional library/profile candidates do not gate unchanged original backend qualification.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-W03",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "IDENTITY",
@@ -1640,7 +1859,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -1657,7 +1878,24 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-I01",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review",
+          "persisted-security-and-timing-contract-if-changed"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "IDENTITY / INTERFACES",
@@ -1766,7 +2004,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -1784,7 +2024,24 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-I02",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review",
+          "persisted-security-and-timing-contract-if-changed"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "FILES",
@@ -1879,7 +2136,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -1896,7 +2155,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-F01",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "FILES / SOURCE INGRESS",
@@ -2034,7 +2309,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2052,7 +2329,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-F02",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "SERVICES",
@@ -2127,7 +2420,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2143,7 +2438,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-SV01",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "SERVICES / WORK",
@@ -2260,7 +2571,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2278,7 +2591,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-SV02",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "SERVICES / FILES",
@@ -2356,7 +2685,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2373,7 +2704,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-SV03",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "SERVICES / TESTKIT",
@@ -2464,7 +2811,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2481,7 +2830,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-SV04",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "DELIVERY",
@@ -2565,7 +2928,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2581,7 +2946,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-D01",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "DELIVERY",
@@ -2644,7 +3023,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2660,7 +3041,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-D02",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "low"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "tightly specified technical leaf only",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "CSV / INTERFACES",
@@ -2761,7 +3156,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2778,7 +3175,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-C01",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "CSV / STATE JOIN",
@@ -2874,7 +3287,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2891,7 +3306,24 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-C02",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6-astra",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review",
+          "C03-critical-consent-authority-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "CSV / STATE JOIN",
@@ -2983,7 +3415,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -2999,7 +3433,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-C02-order",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "BROWSER",
@@ -3079,7 +3527,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -3095,7 +3545,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-B01",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "BROWSER / INTERFACES",
@@ -3225,7 +3689,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -3242,7 +3708,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-B02",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "DELIVERY",
@@ -3361,7 +3843,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -3377,7 +3861,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-D03",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "DELIVERY / MAPS",
@@ -3481,7 +3981,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -3497,7 +3999,24 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-D04",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6-astra",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review",
+          "D04-critical-staged-diagnostic-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "HELD NATIVE PREPARATION",
@@ -3706,7 +4225,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -3722,7 +4243,23 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-D05",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "DEPENDENCY / RELEASE",
@@ -3868,7 +4405,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -3889,7 +4428,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-R01",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "TESTKIT / EVIDENCE CLEANUP",
@@ -4022,7 +4575,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -4040,7 +4595,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-E02",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "STATE / CLOUDFLARE",
@@ -4083,7 +4652,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -4132,7 +4703,21 @@
         "packages/cloudflare/src/runtime/invoke.ts"
       ],
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#REPLAY-IP07",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "INTERFACES",
@@ -4174,7 +4759,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -4209,7 +4796,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#PARSER-DP01",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "low"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "tightly specified technical leaf only",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "TEST EVIDENCE",
@@ -4251,7 +4852,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -4326,7 +4929,21 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#VERIFY-TV01",
+        "implementation_or_qualification": {
+          "model": "gpt-6-luna",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "frozen mechanical/record slice only",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "VALUES",
@@ -4399,7 +5016,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -4416,7 +5035,21 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-V02-violations",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "low"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "tightly specified technical leaf only",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "VALUES",
@@ -4489,7 +5122,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -4506,7 +5141,21 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-V02-gregorian",
+        "implementation_or_qualification": {
+          "model": "gpt-6-luna",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "frozen mechanical/record slice only",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "STATE / WORK",
@@ -4630,7 +5279,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -4648,7 +5299,23 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-S04-admission",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "STATE / WORK",
@@ -4773,7 +5440,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -4791,7 +5460,23 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-S04-query",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "STATE / WORK",
@@ -4915,7 +5600,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -4933,7 +5620,23 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#TECH-S04-cohort",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "full substantive join or contract-qualified implementation",
+        "special_review_gate_refs": [
+          "existing-critical-security-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "BROWSER / UI",
@@ -5014,7 +5717,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -5031,7 +5736,21 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-U01-appearance",
+        "implementation_or_qualification": {
+          "model": "gpt-6-luna",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "frozen mechanical/record slice only",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "BROWSER / UI",
@@ -5104,7 +5823,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -5121,7 +5842,21 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-U01-draft",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "BROWSER / INTERFACES",
@@ -5219,7 +5954,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -5236,7 +5973,21 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-A01-error",
+        "implementation_or_qualification": {
+          "model": "gpt-6-luna",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "frozen mechanical/record slice only",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "BROWSER / INTERFACES",
@@ -5332,7 +6083,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -5349,7 +6102,21 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-A01-binding",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "low"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "tightly specified technical leaf only",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "BROWSER / INTERFACES",
@@ -5447,7 +6214,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -5464,7 +6233,21 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-A01-admission",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "low"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "implementation_scope": "tightly specified technical leaf only",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "BROWSER / INTERFACES",
@@ -5562,7 +6345,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -5579,7 +6364,21 @@
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "scope_partition": "Only named findings/files; parent recommendation is a nonadditive grouping, no shared release barrier.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#DEL-A01-canonical",
+        "implementation_or_qualification": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "independent_review": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "ordinary bounded implementation/qualification",
+        "special_review_gate_refs": [],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     },
     {
       "family": "INDEPENDENT JOINED REVIEW",
@@ -5669,7 +6468,9 @@
       "model_for_technical_planning": {
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium."
+        "reason": "User-selected consequential source/contract/coverage review; mechanical indexing is separately Luna medium.",
+        "historical": true,
+        "scope": "Previous completed audit/queue preparation; not the implementation or review dispatch default."
       },
       "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
       "owner_lease": {
@@ -5759,7 +6560,20 @@
       ],
       "test_file_lease": "Exact existing test/oracle sources are referenced by the allocated TV records. Any additional finite regression file must be named and leased at dispatch; no package-wide test writer grant.",
       "acceptance_dependencies": [],
-      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker."
+      "provenance_gate": "Use source-current discovery/oracle/fixture pins for this exact changed owner/caller. TV01 supplies reusable support only for its identity/Values/Work scope, not a queue-wide prerequisite or blocker.",
+      "delegation": {
+        "allocation_reference": "model-allocation.json#FINAL-R03",
+        "implementation_or_qualification": null,
+        "independent_review": {
+          "model": "gpt-6-astra",
+          "reasoning_effort": "high"
+        },
+        "implementation_scope": "review-only; no implementation worker",
+        "special_review_gate_refs": [
+          "R03-final-selected-critical-review"
+        ],
+        "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
+      }
     }
   ],
   "retained": [
@@ -6741,6 +7555,8 @@
     "record": "independent-review.json",
     "reviewed_draft_sha256": "d17ccc95f93b2601258f390ff94327c0e1a779fc27af863fc1e9cff042968079",
     "post_review_change": "Stage/review pointer and explicit narrowing of numeric actual-caller recipes to each already split owner; files, blockers, dependencies, coverage and proposed remedies unchanged.",
-    "unresolved_bounded_findings": 0
-  }
+    "unresolved_bounded_findings": 0,
+    "subsequent_allocation_amendment": "User requested most economical reliable implementation/review settings. Only delegation/historical-role metadata added; prior structural/coverage review remains at its original recorded hashes. Separate bounded allocation consistency review recorded in model-allocation-review.json."
+  },
+  "model_allocation": "model-allocation.json"
 }

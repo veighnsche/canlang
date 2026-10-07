@@ -66,6 +66,28 @@ def main():
     check('no fabricated future production reductions', all(p['expected_production_reduction']['readable_lines'] is None and p['expected_production_reduction']['total_implementation_and_declarations'] is None for p in packets.values()))
     check('replacement strict reduction and independent correctness budget explicit', 'Strictly reduce both' in queue['common_gates']['replacement_only'] and 'Separate scope/budget' in queue['common_gates']['correctness'])
     check('security approval/HOLD/compiler boundaries explicit', 'approval-pending' in queue['common_gates']['security'] and 'HOLD' in queue['common_gates']['native_preparation'] and 'compiler' in queue['common_gates']['ownership'])
+    allocation = load(HERE / 'model-allocation.json')
+    models = {r['id']: r for r in allocation['allocations']}
+    allowed = {
+        ('gpt-6-luna', 'low'), ('gpt-6-luna', 'medium'),
+        ('gpt-6.1-sol', 'low'), ('gpt-6.1-sol', 'medium'), ('gpt-6.1-sol', 'high'),
+        ('gpt-6-astra', 'medium'), ('gpt-6-astra', 'high'),
+    }
+    def valid_pair(pair):
+        return pair is not None and (pair['model'], pair['reasoning_effort']) in allowed
+    check('all 48 packet-specific model allocations unique and exact', len(models) == len(allocation['allocations']) == 48 and set(models) == set(packets))
+    check('model allocation remains planning only', not allocation['execution_authorized'] and all(not r['execution_authorized'] for r in models.values()))
+    check('delegated model and reasoning pairs supported by current policy', all((r['implementation_or_qualification'] is None or valid_pair(r['implementation_or_qualification'])) and valid_pair(r['independent_review']) and valid_pair(r['prepared_records']) and valid_pair(r['prepared_fixtures']) and valid_pair(r['escalation']['next_combination']) for r in models.values()))
+    check('queue and independent model allocation rows agree', all(p['delegation']['implementation_or_qualification'] == models[p['id']]['implementation_or_qualification'] and p['delegation']['independent_review'] == models[p['id']]['independent_review'] and p['delegation']['special_review_gate_refs'] == models[p['id']]['special_review_gate_refs'] and p['status'] == models[p['id']]['status_preserved'] for p in packets.values()))
+    check('critical stage references resolve without invented duplicate tasks', all(g in allocation['special_review_gates'] for r in models.values() for g in r['special_review_gate_refs']))
+    check('final review-only packet preserves required Astra high reviewer', models['FINAL-R03']['implementation_or_qualification'] is None and models['FINAL-R03']['independent_review'] == {'model': 'gpt-6-astra', 'reasoning_effort': 'high'} and models['FINAL-R03']['escalation']['next_combination'] == {'model': 'gpt-6-astra', 'reasoning_effort': 'high'} and all(r['implementation_or_qualification'] is not None for i, r in models.items() if i != 'FINAL-R03'))
+    check('cheap assistance cannot adjudicate unreleased contracts', all('specified' in r['prepared_records']['scope'].lower() and 'released' in r['prepared_fixtures']['scope'].lower() for r in models.values()) and 'no contract' in allocation['policy']['cheap_work'].lower())
+    projection = {'base': queue['base'], 'counts': queue['counts'], 'topological_order': queue['topological_order'], 'common_gates': queue['common_gates'], 'external_gates': queue['external_gates'], 'packets': [{k: v for k, v in p.items() if k not in ['delegation', 'model_for_technical_planning']} for p in queue['packets']]}
+    check('technical queue unchanged by economical model amendment', hashlib.sha256(json.dumps(projection, sort_keys=True, separators=(',', ':')).encode()).hexdigest() == allocation['technical_queue_projection_sha256'])
+    actual_profiles = dict(collections.Counter('review-only' if r['implementation_or_qualification'] is None else r['implementation_or_qualification']['model'] + '/' + r['implementation_or_qualification']['reasoning_effort'] for r in models.values()))
+    actual_ready = dict(collections.Counter(r['implementation_or_qualification']['model'] + '/' + r['implementation_or_qualification']['reasoning_effort'] for r in models.values() if r['status_preserved'] == 'ready'))
+    check('economical implementation and ready-role counts match rows', actual_profiles == allocation['counts'] and actual_ready == allocation['ready_counts'])
+    check('historical high planning settings are not dispatch defaults', all(p['model_for_technical_planning']['historical'] and p['delegation']['implementation_scope'] for p in packets.values()))
     result = {'mode': 'planning metadata/source validation only; no product build/test/runtime', 'base': queue['base'], 'checks': checks, 'passed': sum(c['passed'] for c in checks), 'total': len(checks)}
     (HERE / 'verification.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps({'passed': result['passed'], 'total': result['total'], 'failed': [c['check'] for c in checks if not c['passed']]}))

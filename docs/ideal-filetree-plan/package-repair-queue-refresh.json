@@ -22,5 +22,11 @@
   ],
   "execution_authorized": false,
   "checkpoint_advanced": false,
-  "review": "Independent raw-requirements/proposal coverage challenge; metadata only."
+  "review": "Independent raw-requirements/proposal coverage challenge; metadata only.",
+  "economical_model_allocation": {
+    "path": "docs/research/package-library-audit-20261006/repair-queue/model-allocation.json",
+    "scope": "Future finite delegation only; task scope, target files, owners, original gates and complete checkpoint unchanged.",
+    "review": "docs/research/package-library-audit-20261006/repair-queue/model-allocation-review.json",
+    "execution_authorized": false
+  }
 }
