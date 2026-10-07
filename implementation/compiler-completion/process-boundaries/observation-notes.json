@@ -1,0 +1,13 @@
+{
+  "sigchld_attempt": {
+    "hypothesis": "Inherited ignored SIGCHLD may cause real wait ECHILD",
+    "initial_observer_error": "Assertion expected2/E7004 before receipt write and failed; it did not establish wait failure",
+    "retained_result": "Second execution retains37, exact out/err and no direct child alive; current probe asserts native observed37",
+    "consequence": "Wait-error branch remains source-inspected, not failure-injected or execution-qualified"
+  },
+  "readonly_descriptors": {
+    "result": "Native Rust standard stdout ignores EBADF from the owned read-only descriptor; help returns0. These fixtures establish no non-BrokenPipe write panic.",
+    "replacement": "Child-only RLIMIT_FSIZE=0 with SIGXFSZ ignored and owned writable files demonstrates actual other-write failure (EFBIG)"
+  },
+  "baseline_scope": "Baseline has20 observations; current adds one finite SIGCHLD control. Baseline relevant main/cli/lock pins and binary hash retained separately; no pristine whole-repository freeze claimed."
+}
