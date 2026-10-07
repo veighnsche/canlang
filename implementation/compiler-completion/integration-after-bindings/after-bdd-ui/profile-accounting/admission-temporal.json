@@ -1,0 +1,54 @@
+{
+  "status": "completed_run_accounting",
+  "commands": {
+    "suite": "cargo test --manifest-path compiler/Cargo.toml --locked --offline -- --nocapture",
+    "suite_exit_code": 0,
+    "suite_log": "full-suite-admission-temporal.log",
+    "suite_log_sha256": "876644ec83a9d61e0d252c0a8454126c0eb9ec8868c543d176b6282c82aa42d8",
+    "strict_clippy": "cargo clippy --manifest-path compiler/Cargo.toml --locked --offline --all-targets -- -D warnings",
+    "strict_clippy_exit_code": 0,
+    "strict_clippy_log": "all-target-clippy-admission-temporal.log",
+    "strict_clippy_log_sha256": "fee39eb0193d5e3f23be041e0dba91415fba2f933d94825de4784989bd8c6fe1"
+  },
+  "suite_accounting": {
+    "test_binary_summaries": 65,
+    "summaries_with_tests": 64,
+    "passed": 1146,
+    "failed": 0,
+    "ignored": 0,
+    "optional_body_skip_count": 1,
+    "optional_body_skips": [
+      "SKIP mode 4750: this host did not retain the requested fixture bits"
+    ]
+  },
+  "compiler_inputs": {
+    "manifest": "before-inputs-admission-temporal.json",
+    "count": 117,
+    "manifest_sha256": "079d276846816cc4dcc4dd85ab172dda68c4a502bc353561c1b95c499ea17ba0",
+    "current_discovered_count": 117,
+    "added_files": [],
+    "removed_files": [],
+    "changed_files": []
+  },
+  "package_inputs": {
+    "manifest": "before-package-producers-admission-temporal.json",
+    "count": 1770,
+    "manifest_sha256": "68f4fa73e9dfecc21620a79cb56f6c93552a5b2bba8b5b7f41649a44cdf2059a",
+    "scope": "dist files and package.json files for cloudflare, contracts, interfaces, state, stdlib, testkit, ui, and values",
+    "current_discovered_count": 1770,
+    "added_files": [],
+    "removed_files": [],
+    "changed_files": []
+  },
+  "body_evidence": {
+    "prerequisites_exercised": "Node v24.21.0; actual catalog source/build equality, fresh producer output, catalog loader, and CLI check completed. Other passing suite bodies report actual generated/runtime consumers in the raw log.",
+    "optional_skip_interpretation": "The mode-4750 fixture body did not execute on this host. Its enclosing harness test passed; this is not a Rust ignored test.",
+    "scope_limit": "Harness and clippy results do not establish complete application execution or semantic closure. Invocation-port and canonical-memory scope limits remain as documented by the tests."
+  },
+  "provenance": {
+    "suite_start_head": "42b7200b0c3c879eaebbdd4b01c4ec115c44601d",
+    "current_head_at_accounting": "61e499555ec0043d4be970d228ea59ec88208380",
+    "note": "Git HEAD changed during the run. The frozen compiler and package file inventories had zero added, removed, or changed files at accounting time; the differing HEAD is recorded as provenance metadata."
+  },
+  "scope": "Final accounting for this admission-temporal run only. No semantic completion claim. Earlier failed-attempt receipts remain separate and unchanged."
+}

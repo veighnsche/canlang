@@ -1,0 +1,13 @@
+{
+  "status": "started",
+  "compiler_inputs": 117,
+  "package_manifest_and_dist_inputs": 1770,
+  "compiler_freeze": "All known source writers have released frozen leaves; reviewer only reads/executes.",
+  "package_scope": "Shared producers independently snapshot; foreign writers not frozen. Changes will be reported rather than silently credited.",
+  "start_head": "42b7200b0c3c879eaebbdd4b01c4ec115c44601d",
+  "clippy_command": "cargo clippy --manifest-path compiler/Cargo.toml --locked --offline --all-targets -- -D warnings",
+  "suite_command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline -- --nocapture",
+  "clippy_exit_code": 0,
+  "clippy_log_sha256": "fee39eb0193d5e3f23be041e0dba91415fba2f933d94825de4784989bd8c6fe1",
+  "suite_start_head": "42b7200b0c3c879eaebbdd4b01c4ec115c44601d"
+}
