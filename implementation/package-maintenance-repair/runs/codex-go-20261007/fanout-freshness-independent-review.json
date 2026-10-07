@@ -1,0 +1,194 @@
+{
+  "verdict": "PASS for exact released finite TECH-W02 GAP-L01/L03 source-snapshot repair and maintained/independent memory-execution profiles; declaration equality claim must be corrected. Broader gates remain OPEN.",
+  "finishedAt": "2026-10-07T21:51:41.770204+00:00",
+  "baselineCommit": "89d885a9",
+  "baselineRuntimeSha256": "07b8445de0ebec9dae5d9f46eb9e8a110550a60582131bf5cccc8459e53fa047",
+  "releasedReadLeases": [
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "emittedPath": "packages/cloudflare/dist/runtime/invoke.js",
+      "emittedSha256": "f00335a796f9af2524b6ec077035328ef99f1d3b587ef10d2fba924ddb615ea5",
+      "liveSha256": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997"
+    },
+    {
+      "path": "packages/cloudflare/test/fanout-fresh-facts.test.ts",
+      "sha256": "0ad244593fcc37ffe08a43676f89c67fdc35a77d29cb9fc9bffe93748272ae1a",
+      "emittedPath": "packages/cloudflare/dist/test/fanout-fresh-facts.test.js",
+      "emittedSha256": "dea4cd3ce0ee34ca041e888835ec8bdc2b17ab062e96e7b9d6e60f60829cfd0e",
+      "liveSha256": "0ad244593fcc37ffe08a43676f89c67fdc35a77d29cb9fc9bffe93748272ae1a"
+    }
+  ],
+  "supportingProducerPins": [
+    {
+      "path": "packages/state/src/effects/staging.ts",
+      "sha256": "e5526973013ddefe2dbe19baafd3f8c20b00378258eea0a84482265ae73313c7",
+      "emittedPath": "packages/state/dist/src/effects/staging.js",
+      "emittedSha256": "751a94342c8ab986f89350faa29ecf1cf6ec7a2463a958fc2640739fd4c1e278",
+      "liveSha256": "e5526973013ddefe2dbe19baafd3f8c20b00378258eea0a84482265ae73313c7"
+    },
+    {
+      "path": "packages/state/src/fanout/lifecycle.ts",
+      "sha256": "451e1c290611b80f28692cf4873d03897881b7f3e14c399d8a8b140c1a4f0f78",
+      "emittedPath": "packages/state/dist/src/fanout/lifecycle.js",
+      "emittedSha256": "4f0cd1f05026dbdbb171ccb1da35ca1f9b45c3900d748e8e2ec6df7e36ac529d",
+      "liveSha256": "451e1c290611b80f28692cf4873d03897881b7f3e14c399d8a8b140c1a4f0f78"
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "emittedPath": "packages/state/dist/src/invocation/admission.js",
+      "emittedSha256": "5dc56db2da98af60a1e9be8d2be2691230fbcaa98578ccb3f62d62d14aa6402c",
+      "liveSha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6"
+    },
+    {
+      "path": "packages/state/src/invocation/invoke.ts",
+      "sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "emittedPath": "packages/state/dist/src/invocation/invoke.js",
+      "emittedSha256": "9f42c79f7f57ad808ea53cb5ea9c10f78e1f2459900694a84485322d976cd7ef",
+      "liveSha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670"
+    },
+    {
+      "path": "packages/state/src/ports/transact.ts",
+      "sha256": "a322234e281865e6a61be016efa647d812b7e3e4d2e58a66aad98a7a66001c8d",
+      "emittedPath": "packages/state/dist/src/ports/transact.js",
+      "emittedSha256": "e8a790ca0e4e56f3e807b6ed7e7c1a385ee8165736c23a1c904391dad3d24b1f",
+      "liveSha256": "a322234e281865e6a61be016efa647d812b7e3e4d2e58a66aad98a7a66001c8d"
+    },
+    {
+      "path": "packages/state/src/storage/memory.ts",
+      "sha256": "89ba826037d7162e8f642a4bb97de3d07eca04b2ae00c14969746567643b94f8",
+      "emittedPath": "packages/state/dist/src/storage/memory.js",
+      "emittedSha256": "e28cd11c3ec33ff2cdf2f0a6efc5311477b536176b9e0385c8180f35bfc1bd13",
+      "liveSha256": "89ba826037d7162e8f642a4bb97de3d07eca04b2ae00c14969746567643b94f8"
+    }
+  ],
+  "sourcePrefixBeforeFanout": {
+    "before": "1b583469c9cf1a602f31e0a4fccf61622c7f42d3fd331a29a0e3e4e90f49e678",
+    "current": "1b583469c9cf1a602f31e0a4fccf61622c7f42d3fd331a29a0e3e4e90f49e678"
+  },
+  "scopeAndBudgetNotes": [
+    "Explicit closure contains 37 production files plus maintained test and reusable real State fixture; both sides intentionally use the same pinned current support sources and historical private prerequisite distributions. This is a single-file counterfactual, not a checkout-wide baseline.",
+    "Current production adds 2202 bytes,50 physical lines,49 nonblank lines,50 token-bearing source lines; no new loop or unbounded traversal. pageLimit still bounds release and query; maxDrives bounds processed rows. One extra domain reload occurs per actually demanded guarded snapshot; failure reclassifies at most once.",
+    "The unchanged maintained proof and fixture total37912 bytes/862 physical lines/826 nonblank lines on both counterfactual sides. The maintained proof itself is21655 bytes/383 split lines/377 nonblank lines and is absent at baseline89d885a9.",
+    "The source prefix before fanout is byte-identical. State MAX_ADMISSION_ATTEMPTS remains3; no retry, claim, commit,outcome,history,outbox,schedule,metadata or authority ordering was changed by the target delta."
+  ],
+  "executionResults": {
+    "independent": {
+      "before": {
+        "passed": 3,
+        "tests": 18
+      },
+      "current": {
+        "passed": 18,
+        "tests": 18
+      }
+    },
+    "maintained": {
+      "before": {
+        "passed": 9,
+        "failed": 16,
+        "tests": 25
+      },
+      "current": {
+        "passed": 25,
+        "failed": 0,
+        "tests": 25
+      }
+    },
+    "initialIndependentFixtureFailure": "Initial current run17/18 because fixture staged only first2 children. Corrected fixture initial admission bounds to full admitted5-member cohort; unchanged runtime, preserved current-witness.log and current-witness-handle.json. Final current-witness-v2.log18/18."
+  },
+  "strictComparison": {
+    "productionBeforeDiagnostics": 0,
+    "productionCurrentDiagnostics": 0,
+    "maintainedBeforeDiagnostics": [
+      {
+        "file": "/private/tmp/canlang-repair-go-20261007/fanout-independent/before/packages/cloudflare/test/fanout-fresh-facts.test.ts",
+        "line": 362,
+        "code": 18046,
+        "message": "'call' is of type 'unknown'."
+      },
+      {
+        "file": "/private/tmp/canlang-repair-go-20261007/fanout-independent/before/packages/cloudflare/test/fanout-fresh-facts.test.ts",
+        "line": 369,
+        "code": 2698,
+        "message": "Spread types may only be created from object types."
+      }
+    ],
+    "maintainedCurrentDiagnostics": [],
+    "fullDefiningSourceClosureDiagnostics": "Before only2 maintained-test unknown-call diagnostics; current only2 deliberate API negative controls. No producer-source diagnostics.",
+    "apiControlBefore": [
+      {
+        "file": "/private/tmp/canlang-repair-go-20261007/fanout-independent/before/packages/cloudflare/test/fanout-fresh-facts.test.ts",
+        "line": 362,
+        "code": 18046,
+        "message": "'call' is of type 'unknown'."
+      },
+      {
+        "file": "/private/tmp/canlang-repair-go-20261007/fanout-independent/before/packages/cloudflare/test/fanout-fresh-facts.test.ts",
+        "line": 369,
+        "code": 2698,
+        "message": "Spread types may only be created from object types."
+      }
+    ],
+    "apiControlCurrent": [
+      {
+        "file": "/private/tmp/canlang-repair-go-20261007/fanout-independent/current/packages/cloudflare/test/independent-api.ts",
+        "line": 10,
+        "code": 2345,
+        "message": "Argument of type '{}' is not assignable to parameter of type 'FanoutAdmittedCall'.\n  Property 'recordRefs' is missing in type '{}' but required in type 'FanoutAdmittedCall'."
+      },
+      {
+        "file": "/private/tmp/canlang-repair-go-20261007/fanout-independent/current/packages/cloudflare/test/independent-api.ts",
+        "line": 12,
+        "code": 2345,
+        "message": "Argument of type 'unknown' is not assignable to parameter of type 'FanoutAdmittedCall'."
+      }
+    ]
+  },
+  "declarationComparison": {
+    "equal": false,
+    "beforeSha256": "f7cff73158b05de83cf951e51d0fc47ad1afeba62bf64a4f3b3495539c22ecc6",
+    "currentSha256": "3518b85285bc9a4bebab84edb46d1f47fba8a8348f13d70dde36ad7781d7593e",
+    "drift": "RecordId type import,new private FanoutAdmittedCall recordRefs projection,and reachable FanoutStateProducers.invoke.invokeFanoutChild execute callback changes call:unknown to call:FanoutAdmittedCall. Ordinary scheduler/claim/body signatures remain unchanged but the exported nested producer declaration changes.",
+    "assignability": "Strict controls prove callbacks accepting unknown and ordinary contextual callbacks remain assignable on both versions; real State AdmittedCall is assignable to current projected callback input. Calling that callback directly with {} or arbitrary unknown passed original types and now yields TS2345. Runtime shape/correlation checks remain decisive; types establish no universal producer trust."
+  },
+  "behaviorEvidence": [
+    "Five identities with pageLimit3/maxDrives1: terminal a replays,fresh b remains running,c/d/e stale release and complete; before d/e remain running.",
+    "Real State admission after preclaim A\u2192B gives body B and committed row/outbox/schedule B; app/source/identity/registry passed through, actual context captured.",
+    "Two actual State revision-fence retries re-admit A\u2192B\u2192C; only C row/outbox/schedule commit,one operationId across retry loop,fanout attempts1.",
+    "Guard demand reads B after opening fresh scope; original snapshot/guard thrown object identity propagates with pending attempts0.",
+    "Demand-time archived\u2192skipped/deleted,missing(no disposal history)\u2192failed/missing-record,infra\u2192failed/infra-read-failure; one transient null followed by present reload\u2192retry/lifecycle-race with pending attempts0. No new skip policy.",
+    "Unrelated leading admitted ref does not hijack body association; seven negative supplied producer skews refuse before body/effects and leave claimed running attempts0."
+  ],
+  "remainingOpen": [
+    "Historical pinned prerequisite distributions are copied privately; this does not prove a fresh full dependency graph or installed exports.",
+    "Supplied producer-skew controls do not establish universal trust in an arbitrary malicious or malformed producer.",
+    "Mounted exposed serving,compiled generated consumer,durable storage,startup,installed package,T26 and parent acceptance remain open; this review supplies no promotion for them."
+  ],
+  "resultHashes": {
+    "before-witness.json": "6220a0dcae4c5dd294e345a175dc3dae51594f2de30a69233aae02ada25c9733",
+    "current-witness.json": "e3c9a9d3120c86bd84f45f869b433a85223c3303ac2f61bffaad761b308dc857",
+    "before-witness.log": "b63905c8fbbd401366f90c8ddfa45408a2c96be0a298764130c9f26e48b42e75",
+    "current-witness.log": "a803aee6d82028a1a807396456832749186df7ef161d0ba035f76fa3aa3ac800",
+    "current-witness-v2.log": "88164f6b6efbb448e06cc5c89c76de8562093a472fa6236bcff4d7fffab44b31",
+    "before-maintained.json": "f62ad4c4a5fb75c60fc831759c40ea4cedc235aed43a00b171f73d1d76e38a25",
+    "current-maintained.json": "0d6c6e94d778f29cd8d52da476a1539209efe971a4bf9129ad06c9dbe7b119de",
+    "before-strict.json": "232e24e0ad0b6f7ca2e179512768c9797fdf20b199dd2973e3fa53c6a2c2b766",
+    "current-strict.json": "d8b1b27e6f22e41fab491c575fe033e7e6efbadb49a0adaba8f85caa59b90e7f",
+    "before-api.json": "3c106a5b34c30034205dbce362e3d09bed5733c9ab10e6d812026cda38fbc8d2",
+    "current-api.json": "8e28ec53c8bb1c3e0fee5a6dfc94e7268df26982070aca7af6245e6bc9dc4479",
+    "before-production-strict.json": "a8cfad37df77d6951294caf7eb106c92776e76f73440019855e6170197535eb7",
+    "current-production-strict.json": "f41845c31cf0691d3d57871f74ec47f644e17742fa95694fb8e162498ca36cda",
+    "before-manifest.json": "5724cba868af38836b9b97ceef26334fa0f5924e1beadab775fb0b5d11634c37",
+    "current-manifest.json": "e8408b9bbf8c1ad6f2256c10e0c02a39ecb1e6e402d5206bb81f2fdb6ff81a57",
+    "witness.mjs": "aac409a99ae0cdc777a86734d41fa10ba268853dbf761fa7833b98f0e2b93d86"
+  },
+  "rootDisposition": "accepted exact released source-snapshot/memory profiles; declaration restriction is explicitly credited as a correction, not equality",
+  "fullPrivateEvidence": "/private/tmp/canlang-repair-go-20261007/fanout-independent/result.json",
+  "fullPrivateEvidenceSHA256": "1235f823b9ad3bc1cb91399e4c9aa75ac78b10a0fc2e1593895c8601881e74ee",
+  "sourcePins": {
+    "packages/cloudflare/src/runtime/invoke.ts": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+    "packages/cloudflare/test/fanout-fresh-facts.test.ts": "0ad244593fcc37ffe08a43676f89c67fdc35a77d29cb9fc9bffe93748272ae1a"
+  }
+}

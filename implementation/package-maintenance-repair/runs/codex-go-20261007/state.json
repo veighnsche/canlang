@@ -166,19 +166,19 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "TECH-W02 GAP-L01/L03 review",
-      "agent": "/root/review_fanout_freshness",
-      "state": "exact source ACK and actual independent current18/18/baseline3/18; final disposition pending"
-    },
-    {
-      "id": "TECH-V03 owned-content",
-      "agent": "/root/row_scope_cleanup",
-      "state": "contract36417cc3 received; exact2writeleaseACK/edits; tests active"
-    },
-    {
-      "id": "TECH-F01 finalization size",
+      "id": "TECH-V03 independent review",
       "agent": "/root/review_ui_appearance",
-      "state": "exact2writeleaseACK; immutable-size guard/tests active"
+      "state": "exact2readleaseACK, actual parser current/baseline controls"
+    },
+    {
+      "id": "TECH-F01 independent review",
+      "agent": "/root/row_scope_cleanup",
+      "state": "exact2readleaseACK, actual FS/current/baseline controls"
+    },
+    {
+      "id": "Remaining 48-packet index",
+      "agent": "/root/remaining_packet_index",
+      "state": "private mechanical extraction; not technical acceptance"
     }
   ],
   "packet_state": {
@@ -268,7 +268,7 @@
     },
     "TECH-V03": {
       "planning_status": "blocked",
-      "state": "Released contract implementation ACKed; actual source correction and tests active",
+      "state": "Stable-owned-content candidate released; different-author actual parser review ACKed",
       "files": [
         "packages/values/bindings/owned-input.ts",
         "packages/values/src/prepared/plan.ts",
@@ -290,7 +290,9 @@
         "packages/values/bindings/owned-input.ts",
         "packages/values/test/owned-input.test.ts"
       ],
-      "writer_released": false
+      "writer_released": true,
+      "reviewer": "/root/review_ui_appearance",
+      "review_outputs": "/private/tmp/canlang-repair-go-20261007/owned-content-independent"
     },
     "TECH-V04": {
       "planning_status": "blocked",
@@ -427,7 +429,7 @@
     },
     "TECH-W02": {
       "planning_status": "ready",
-      "state": "GAP-L01/L03 source released; different-author actual retry/cursor review active",
+      "state": "Independently accepted GAP-L01/L03 source correction; scoped commit prepared",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/state/src/fanout/lifecycle.ts",
@@ -450,11 +452,11 @@
         "original compiled/durable joins"
       ],
       "reviewer": "/root/review_fanout_freshness",
-      "review": "fanout-converse-independent-review.json",
+      "review": "fanout-freshness-independent-review.json",
       "subscopes": {
         "GAP-L04": "accepted and committed 8a61be6",
-        "GAP-L01": "ACKed finite source-current consumer regression prep; runtime metadata writer holds source",
-        "GAP-L03": "ACKed finite source-current consumer regression prep; runtime metadata writer holds source",
+        "GAP-L01": "independently accepted bounded cursor continuation memory/source profile",
+        "GAP-L03": "independently accepted current admitted refs and guard-demand memory/source profile",
         "full_parent": "open original compiled/durable/installed qualification"
       },
       "limit": "No process restart or cross-store/universal concurrent scope from local adapter witnesses",
@@ -468,7 +470,15 @@
       },
       "writer_released": true,
       "outputs": "/private/tmp/canlang-repair-go-20261007/fanout-production",
-      "review_outputs": "/private/tmp/canlang-repair-go-20261007/fanout-independent"
+      "review_outputs": "/private/tmp/canlang-repair-go-20261007/fanout-independent",
+      "review_read_released": true,
+      "root_read_released": true,
+      "source_pins": {
+        "packages/cloudflare/src/runtime/invoke.ts": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+        "packages/cloudflare/test/fanout-fresh-facts.test.ts": "0ad244593fcc37ffe08a43676f89c67fdc35a77d29cb9fc9bffe93748272ae1a"
+      },
+      "commit_pending": true,
+      "parent_limit": "Original compiled/mounted/durable/startup/installed/T26 qualification remains open; structural view is not admission authority"
     },
     "TECH-W03": {
       "planning_status": "blocked",
@@ -577,7 +587,7 @@
     },
     "TECH-F01": {
       "planning_status": "blocked",
-      "state": "Finite finalization size-agreement correction ACKed; source/tests active, phase/retry recovery remains open",
+      "state": "Finite size-agreement candidate released; different-author actual FS/source review ACKed",
       "files": [
         "packages/files/src/ports.ts",
         "packages/files/src/upload/index.ts",
@@ -596,7 +606,9 @@
       "agent": "/root/review_ui_appearance",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "writer_released": false
+      "writer_released": true,
+      "reviewer": "/root/row_scope_cleanup",
+      "review_outputs": "/private/tmp/canlang-repair-go-20261007/file-size-independent"
     },
     "TECH-F02": {
       "planning_status": "blocked",
@@ -1213,7 +1225,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T21:51:54.757129+00:00",
+  "updated_utc": "2026-10-07T21:56:29.762353+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",

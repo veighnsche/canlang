@@ -213,3 +213,5 @@ Testkit retains the defining table/RowScope lifetime owner; unexpected execution
 Identity remains the S256 digest-domain owner; mounted Interfaces consumes the same43-symbol issuance rule. Independent finite source/memory/mounted qualification preserves verifier and one-use semantics; browser/current-authority/persisted/installed gates stay open. No owner migration, merge or complete checkpoint advance.
 
 Values retains owned JSON parsing and derivative ownership. The finite stable-frozen contract is released with explicit mutation/byte-access cost and compatibility limits; source correction and genuine factory/default/consumer qualification remain pending. No new package/layer, merge or complete checkpoint advance.
+
+Cloudflare remains the fanout scheduling/effect consumer, State the admission/lifecycle/transaction owner. Narrow current cursor, guard-demand and per-retry admitted-row qualification is accepted with explicit reachable callback declaration narrowing and correctness budget. Structural views are not producer authority; original mounted/compiled/durable/installed/T26 gates remain open. No merge or complete checkpoint advance.
