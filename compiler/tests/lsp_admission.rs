@@ -46,18 +46,26 @@ impl Transcript {
         );
     }
 
-    fn responses(&self) -> Vec<Json> {
+    fn response_bodies(&self) -> Vec<String> {
         let mut reader = Cursor::new(&self.stdout);
-        let mut responses = Vec::new();
+        let mut bodies = Vec::new();
         while let Some(body) = transport::read_message(&mut reader)
             .expect("server output must have complete Content-Length framing")
         {
-            let text = std::str::from_utf8(&body).expect("response body must be UTF-8");
-            let value = transport::parse(text).expect("response body must be JSON");
-            assert_eq!(value.get("jsonrpc").and_then(Json::as_str), Some("2.0"));
-            responses.push(value);
+            bodies.push(String::from_utf8(body).expect("response body must be UTF-8"));
         }
-        responses
+        bodies
+    }
+
+    fn responses(&self) -> Vec<Json> {
+        self.response_bodies()
+            .into_iter()
+            .map(|text| {
+                let value = transport::parse(&text).expect("response body must be JSON");
+                assert_eq!(value.get("jsonrpc").and_then(Json::as_str), Some("2.0"));
+                value
+            })
+            .collect()
     }
 }
 
@@ -237,7 +245,7 @@ fn malformed_utf8_is_one_parse_error_and_does_not_initialize() {
 
 #[test]
 fn valid_unicode_string_id_keeps_its_semantic_value() {
-    let output = run(frame(&initialize(r#""é😀-\u0061-\"-\\-\n""#)));
+    let output = run(frame(&initialize(r#""é\uD83D\uDE00-\u0061-\"-\\-\n""#)));
     output.assert_exit(0);
     let responses = output.responses();
     assert_eq!(responses.len(), 1);
@@ -246,6 +254,7 @@ fn valid_unicode_string_id_keeps_its_semantic_value() {
         responses[0].get("id").and_then(Json::as_str),
         Some("é😀-a-\"-\\-\n")
     );
+    assert!(output.response_bodies()[0].starts_with(r#"{"jsonrpc":"2.0","id":"é😀-a-\"-\\-\n","#));
 }
 
 #[test]
@@ -318,6 +327,12 @@ fn accepted_integral_ids_preserve_the_original_number_lexeme() {
         assert_eq!(responses.len(), 1, "ID {id}: {responses:?}");
         assert_success(&responses[0]);
         assert_number_id(&responses[0], id);
+        // A byte assertion is independent of the migrated input parser:
+        // normalizing a number on both input and output cannot pass it.
+        assert!(
+            output.response_bodies()[0].starts_with(&format!("{{\"jsonrpc\":\"2.0\",\"id\":{id},")),
+            "raw reply did not preserve ID {id}"
+        );
     }
 }
 
@@ -384,6 +399,10 @@ fn decoded_reserved_duplicate_keys_are_rejected_before_dispatch() {
             "7",
         ),
         (
+            r#"{"jsonrpc":"2.0","jsonr\u0070c":"2.0","id":7,"method":"initialize"}"#,
+            "7",
+        ),
+        (
             r#"{"jsonrpc":"2.0","id":7,"method":"initialize","metho\u0064":"initialize"}"#,
             "7",
         ),
@@ -413,6 +432,116 @@ fn malformed_json_is_a_null_parse_error_and_consumes_the_frame() {
         r#"{"jsonrpc":"2.0","id":"\uD800","method":"initialize"}"#,
     ] {
         rejected_then_initialize(body.as_bytes().to_vec(), -32700, "null");
+    }
+}
+
+/// The malformed request must not initialize, and neither parse errors nor
+/// ignored notification frames may interfere with the full recovered lifecycle.
+fn parse_error_then_complete_lifecycle(body: Vec<u8>) {
+    let output = messages([
+        body,
+        initialize("99"),
+        call(None, "initialized", Some("{}")),
+        call(Some("100"), "shutdown", None),
+        call(None, "exit", None),
+    ]);
+    output.assert_exit(0);
+    let raw = output.response_bodies();
+    assert_eq!(raw.len(), 3, "{raw:?}");
+    assert_eq!(
+        raw[0],
+        r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"invalid JSON"}}"#,
+    );
+    let responses = output.responses();
+    assert_number_id(&responses[1], "99");
+    assert_success(&responses[1]);
+    assert_number_id(&responses[2], "100");
+    assert_success(&responses[2]);
+    assert_eq!(responses[2].get("result"), Some(&Json::Null));
+}
+
+#[test]
+fn strict_json_grammar_and_unknown_unicode_recover_through_shutdown_exit() {
+    // Unknown fields still require complete JSON validation before projection.
+    // Every case otherwise carries an executable initialize envelope.
+    for (label, unknown) in [
+        ("leading zero", r#""future":01"#),
+        ("missing integer", r#""future":.5"#),
+        ("missing fraction", r#""future":1."#),
+        ("missing exponent", r#""future":1e+"#),
+        ("leading plus", r#""future":+1"#),
+        ("lone high surrogate value", r#""future":"\uD800""#),
+        ("lone low surrogate value", r#""future":"\uDC00""#),
+        ("lone high surrogate key", r#""\uD800":true"#),
+        ("lone low surrogate key", r#""\uDC00":true"#),
+        ("invalid Unicode escape", r#""future":"\u12xz""#),
+        ("unescaped control value", "\"future\":\"raw\ncontrol\""),
+        ("unescaped control key", "\"raw\tkey\":true"),
+    ] {
+        let params =
+            format!("{{\"processId\":null,\"rootUri\":null,\"capabilities\":{{{unknown}}}}}");
+        let body = call(Some("7"), "initialize", Some(&params));
+        eprintln!("strict JSON process case: {label}");
+        parse_error_then_complete_lifecycle(body);
+    }
+    for suffix in [" trailing", "{}", "\u{000b}"] {
+        let mut body = initialize("7");
+        body.extend_from_slice(suffix.as_bytes());
+        parse_error_then_complete_lifecycle(body);
+    }
+}
+
+#[test]
+fn ignored_capabilities_keep_the_value_entry_depth_budget() {
+    // Envelope=0, params=1, capabilities=2, future=3. These frozen
+    // wrapper counts do not depend on the parser's exported budget constant:
+    // 61 array wrappers put the terminal value at64; 62 put it at65.
+    for terminal in ["[]", "{}", "true"] {
+        let value = format!("{}{}{}", "[".repeat(61), terminal, "]".repeat(61));
+        let params = format!(
+            "{{\"processId\":null,\"rootUri\":null,\"capabilities\":{{\"future\":{value}}}}}"
+        );
+        let output = messages([
+            call(Some("7"), "initialize", Some(&params)),
+            call(Some("8"), "shutdown", None),
+            call(None, "exit", None),
+        ]);
+        output.assert_exit(0);
+        let responses = output.responses();
+        assert_eq!(responses.len(), 2, "depth64 {terminal}: {responses:?}");
+        assert_number_id(&responses[0], "7");
+        assert_success(&responses[0]);
+        assert_number_id(&responses[1], "8");
+        assert_success(&responses[1]);
+    }
+    for terminal in ["true", "[]", "{}"] {
+        let value = format!("{}{}{}", "[".repeat(62), terminal, "]".repeat(62));
+        let params = format!(
+            "{{\"processId\":null,\"rootUri\":null,\"capabilities\":{{\"future\":{value}}}}}"
+        );
+        parse_error_then_complete_lifecycle(call(Some("7"), "initialize", Some(&params)));
+    }
+}
+
+#[test]
+fn ordinary_private_marker_keys_remain_objects_in_initialize_params() {
+    for params in [
+        r#"{"$serde_json::private::Number":"1","processId":null,"rootUri":null,"capabilities":{}}"#,
+        r#"{"processId":null,"rootUri":null,"capabilities":{"$serde_json::private::Number":"1"}}"#,
+        r#"{"processId":null,"rootUri":null,"capabilities":{"$serde_json::private::RawValue":"null"}}"#,
+    ] {
+        let output = messages([
+            call(Some("7"), "initialize", Some(params)),
+            call(Some("8"), "shutdown", None),
+            call(None, "exit", None),
+        ]);
+        output.assert_exit(0);
+        let responses = output.responses();
+        assert_eq!(responses.len(), 2, "{responses:?}");
+        assert_number_id(&responses[0], "7");
+        assert_success(&responses[0]);
+        assert_number_id(&responses[1], "8");
+        assert_success(&responses[1]);
     }
 }
 

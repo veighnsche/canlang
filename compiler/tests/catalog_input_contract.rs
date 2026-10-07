@@ -15,7 +15,7 @@ fn document(entries: &str) -> String {
 }
 
 fn loader(
-    text: &str,
+    text: impl AsRef<[u8]>,
 ) -> (
     Option<canlang_compiler::analysis::catalog::Catalog>,
     Vec<canlang_compiler::diagnostic::Diagnostic>,
@@ -23,7 +23,7 @@ fn loader(
 ) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("catalog.json");
-    std::fs::write(&path, text).unwrap();
+    std::fs::write(&path, text.as_ref()).unwrap();
     let mut db = SourceDb::new();
     let id = db.add("anchor.can".into(), SOURCE.into());
     let primary = Span::new(id, 0, 0);
@@ -36,11 +36,11 @@ fn loader(
     (catalog, diagnostics, primary)
 }
 
-fn cli(text: &str) -> std::process::Output {
+fn cli(text: impl AsRef<[u8]>) -> std::process::Output {
     let dir = tempfile::tempdir().unwrap();
     let catalog = dir.path().join("catalog.json");
     let source = dir.path().join("anchor.can");
-    std::fs::write(&catalog, text).unwrap();
+    std::fs::write(&catalog, text.as_ref()).unwrap();
     std::fs::write(&source, SOURCE).unwrap();
     Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["check", "--format=json", "--catalog"])
@@ -50,6 +50,103 @@ fn cli(text: &str) -> std::process::Output {
         .env_remove("CAN_CATALOG")
         .output()
         .unwrap()
+}
+
+fn assert_catalog_rejected(bytes: &[u8], utf8_error: bool) {
+    let (catalog, diagnostics, primary) = loader(bytes);
+    assert!(catalog.is_none());
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert_eq!(diagnostics[0].code, "E6003");
+    assert_eq!(diagnostics[0].primary, primary);
+    if utf8_error {
+        assert!(diagnostics[0].message.contains("not valid UTF-8"));
+    }
+    let output = cli(bytes);
+    assert!(!output.status.success());
+    // This decoder is independent of the shared parser being qualified.
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let diagnostics = value["diagnostics"].as_array().unwrap();
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0]["code"], "E6003");
+    assert_eq!(diagnostics[0]["primary"]["file"], 0);
+    assert_eq!(diagnostics[0]["primary"]["start"], 0);
+    assert_eq!(diagnostics[0]["primary"]["end"], 0);
+    if utf8_error {
+        assert!(
+            diagnostics[0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("not valid UTF-8")
+        );
+    }
+}
+
+fn document_with_extra(extra: &str) -> String {
+    let mut text = document(ENTRY);
+    text.pop();
+    format!("{text},{extra}}}")
+}
+
+#[test]
+fn ignored_catalog_extras_still_require_strict_complete_json() {
+    for extra in [
+        r#""unknown":"\uD800""#,
+        r#""unknown":"\uDC00""#,
+        r#""unknown":{"\uD800":0}"#,
+        r#""\uDC00":0"#,
+        r#""unknown":{"$serde_json::private::RawValue":"\uD800"}"#,
+        r#""unknown":01"#,
+        r#""unknown":1e+"#,
+        r#""unknown":1."#,
+        "\"unknown\":\"é\n\"",
+    ] {
+        assert_catalog_rejected(document_with_extra(extra).as_bytes(), false);
+    }
+    assert_catalog_rejected(format!("{} trailing", document(ENTRY)).as_bytes(), false);
+}
+
+#[test]
+fn catalog_unknown_value_depth_counts_from_envelope_root() {
+    // Envelope enters depth 0, unknown value depth 1. A terminal scalar
+    // or empty container under 63 wrappers enters depth 64; 64 enters 65.
+    for terminal in ["0", "[]", "{}"] {
+        for wrappers in [63, 64] {
+            let value = format!(
+                "{}{}{}",
+                "[".repeat(wrappers),
+                terminal,
+                "]".repeat(wrappers)
+            );
+            let text = document_with_extra(&format!("\"unknown\":{value}"));
+            if wrappers == 64 {
+                assert_catalog_rejected(text.as_bytes(), false);
+            } else {
+                let (catalog, diagnostics, _) = loader(&text);
+                assert!(diagnostics.is_empty(), "{diagnostics:?}");
+                assert!(catalog.unwrap().lookup("trim").is_some());
+                let output = cli(&text);
+                assert!(
+                    output.status.success(),
+                    "{}",
+                    String::from_utf8_lossy(&output.stdout)
+                );
+                let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+                assert_eq!(value["diagnostics"], serde_json::json!([]));
+                assert_eq!(value["complete"], true);
+            }
+        }
+    }
+}
+
+#[test]
+fn catalog_invalid_utf8_bytes_keep_catalog_code_and_source_primary() {
+    let mut bytes = document_with_extra("\"unknown\":\"sentinel\"").into_bytes();
+    let start = bytes
+        .windows(8)
+        .position(|window| window == b"sentinel")
+        .unwrap();
+    bytes[start] = 0xff;
+    assert_catalog_rejected(&bytes, true);
 }
 
 #[test]

@@ -5,7 +5,8 @@
 //! round-trip byte-identically. Parsing enforces [`MAX_JSON_DEPTH`] so
 //! hostile input cannot recurse without bound.
 
-use std::fmt;
+use serde::de::{self, Deserialize, DeserializeSeed, MapAccess, SeqAccess, Visitor};
+use std::{cell::Cell, fmt, io};
 
 /// Serialize typed output with Can's compact, byte-compatible string policy.
 ///
@@ -131,10 +132,10 @@ impl Json {
 /// JSON parse failure with byte offset.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
-    /// Byte offset where parsing failed.
+    /// Zero-based UTF-8 byte that triggered failure, or input length at EOF.
     pub offset: usize,
-    /// Short static reason.
-    pub message: &'static str,
+    /// Native grammar reason without a redundant line/column suffix.
+    pub message: String,
 }
 
 impl fmt::Display for ParseError {
@@ -147,292 +148,187 @@ impl std::error::Error for ParseError {}
 
 /// Parse one complete JSON document; trailing bytes are an error.
 pub fn parse(text: &str) -> Result<Json, ParseError> {
-    let mut parser = Parser {
-        bytes: text.as_bytes(),
-        pos: 0,
+    let cursor = Cell::new(0);
+    let error_offset = Cell::new(None);
+    let eof = Cell::new(false);
+    let seed = InputSeed {
+        text,
+        cursor: &cursor,
+        eof: &eof,
+        error_offset: &error_offset,
+        depth: 0,
+        origin: ValueOrigin::Root,
     };
-    let value = parser.parse_value(0)?;
-    parser.skip_ws();
-    if parser.pos != parser.bytes.len() {
-        return Err(parser.error("trailing bytes"));
-    }
-    Ok(value)
-}
-
-struct Parser<'a> {
-    bytes: &'a [u8],
-    pos: usize,
-}
-
-impl Parser<'_> {
-    fn error(&self, message: &'static str) -> ParseError {
-        ParseError {
-            offset: self.pos,
-            message,
-        }
-    }
-
-    fn peek(&self) -> Option<u8> {
-        self.bytes.get(self.pos).copied()
-    }
-
-    fn skip_ws(&mut self) {
-        while matches!(self.peek(), Some(b' ' | b'\t' | b'\n' | b'\r')) {
-            self.pos += 1;
-        }
-    }
-
-    fn expect(&mut self, byte: u8, message: &'static str) -> Result<(), ParseError> {
-        if self.peek() == Some(byte) {
-            self.pos += 1;
-            Ok(())
-        } else {
-            Err(self.error(message))
-        }
-    }
-
-    fn parse_value(&mut self, depth: usize) -> Result<Json, ParseError> {
-        if depth > MAX_JSON_DEPTH {
-            return Err(self.error("nesting too deep"));
-        }
-        self.skip_ws();
-        match self.peek() {
-            Some(b'n') => self.parse_literal("null", Json::Null),
-            Some(b't') => self.parse_literal("true", Json::Bool(true)),
-            Some(b'f') => self.parse_literal("false", Json::Bool(false)),
-            Some(b'"') => Ok(Json::Str(self.parse_string()?)),
-            Some(b'[') => {
-                self.pos += 1;
-                let mut items = Vec::new();
-                self.skip_ws();
-                if self.peek() == Some(b']') {
-                    self.pos += 1;
-                    return Ok(Json::Arr(items));
-                }
-                loop {
-                    items.push(self.parse_value(depth + 1)?);
-                    self.skip_ws();
-                    match self.peek() {
-                        Some(b',') => {
-                            self.pos += 1;
-                            self.skip_ws();
-                        }
-                        Some(b']') => {
-                            self.pos += 1;
-                            return Ok(Json::Arr(items));
-                        }
-                        _ => return Err(self.error("expected ',' or ']'")),
-                    }
-                }
-            }
-            Some(b'{') => {
-                self.pos += 1;
-                let mut members = Vec::new();
-                self.skip_ws();
-                if self.peek() == Some(b'}') {
-                    self.pos += 1;
-                    return Ok(Json::Obj(members));
-                }
-                loop {
-                    self.skip_ws();
-                    if self.peek() != Some(b'"') {
-                        return Err(self.error("expected string key"));
-                    }
-                    let key = self.parse_string()?;
-                    self.skip_ws();
-                    self.expect(b':', "expected ':'")?;
-                    let value = self.parse_value(depth + 1)?;
-                    members.push((key, value));
-                    self.skip_ws();
-                    match self.peek() {
-                        Some(b',') => {
-                            self.pos += 1;
-                        }
-                        Some(b'}') => {
-                            self.pos += 1;
-                            return Ok(Json::Obj(members));
-                        }
-                        _ => return Err(self.error("expected ',' or '}'")),
-                    }
-                }
-            }
-            Some(b'-') | Some(b'0'..=b'9') => Ok(Json::Num(self.parse_number()?)),
-            Some(_) => Err(self.error("unexpected character")),
-            None => Err(self.error("unexpected end")),
-        }
-    }
-
-    fn parse_literal(&mut self, word: &str, value: Json) -> Result<Json, ParseError> {
-        if self.bytes[self.pos..].starts_with(word.as_bytes()) {
-            self.pos += word.len();
-            Ok(value)
-        } else {
-            Err(self.error("invalid literal"))
-        }
-    }
-
-    fn parse_string(&mut self) -> Result<String, ParseError> {
-        debug_assert_eq!(self.peek(), Some(b'"'));
-        self.pos += 1;
-        let mut out = String::new();
-        loop {
-            let byte = self
-                .peek()
-                .ok_or_else(|| self.error("unterminated string"))?;
-            match byte {
-                b'"' => {
-                    self.pos += 1;
-                    return Ok(out);
-                }
-                b'\\' => {
-                    self.pos += 1;
-                    let esc = self
-                        .peek()
-                        .ok_or_else(|| self.error("unterminated escape"))?;
-                    self.pos += 1;
-                    match esc {
-                        b'"' => out.push('"'),
-                        b'\\' => out.push('\\'),
-                        b'/' => out.push('/'),
-                        b'b' => out.push('\u{0008}'),
-                        b'f' => out.push('\u{000C}'),
-                        b'n' => out.push('\n'),
-                        b'r' => out.push('\r'),
-                        b't' => out.push('\t'),
-                        b'u' => {
-                            let high = self.parse_hex4()?;
-                            if (0xD800..0xDC00).contains(&high) {
-                                if self.bytes.get(self.pos..self.pos + 2) == Some(b"\\u") {
-                                    self.pos += 2;
-                                    let low = self.parse_hex4()?;
-                                    if (0xDC00..0xE000).contains(&low) {
-                                        let scalar =
-                                            0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00);
-                                        out.push(
-                                            char::from_u32(scalar)
-                                                .ok_or_else(|| self.error("invalid code point"))?,
-                                        );
-                                    } else {
-                                        return Err(self.error("invalid low surrogate"));
-                                    }
-                                } else {
-                                    return Err(self.error("missing low surrogate"));
-                                }
-                            } else if (0xDC00..0xE000).contains(&high) {
-                                return Err(self.error("lone low surrogate"));
-                            } else {
-                                out.push(
-                                    char::from_u32(high)
-                                        .ok_or_else(|| self.error("invalid code point"))?,
-                                );
-                            }
-                        }
-                        _ => return Err(self.error("invalid escape")),
-                    }
-                }
-                0x00..=0x1F => return Err(self.error("unescaped control character")),
-                0x20..=0x7F => {
-                    out.push(byte as char);
-                    self.pos += 1;
-                }
-                _ => {
-                    // Copy one multibyte UTF-8 scalar verbatim. The parser
-                    // input is already a `&str`, so the scalar at `pos` is
-                    // valid; decode from the lead byte in O(1) without
-                    // revalidating the tail (a whole-tail `from_utf8` here
-                    // would be O(n) per scalar, O(n^2) per string).
-                    let width = utf8_width(byte).ok_or_else(|| self.error("invalid UTF-8"))?;
-                    let end = self.pos + width;
-                    let slice = self
-                        .bytes
-                        .get(self.pos..end)
-                        .ok_or_else(|| self.error("invalid UTF-8"))?;
-                    let text =
-                        std::str::from_utf8(slice).map_err(|_| self.error("invalid UTF-8"))?;
-                    let ch = text
-                        .chars()
-                        .next()
-                        .ok_or_else(|| self.error("invalid UTF-8"))?;
-                    out.push(ch);
-                    self.pos = end;
-                }
-            }
-        }
-    }
-
-    fn parse_hex4(&mut self) -> Result<u32, ParseError> {
-        if self.pos + 4 > self.bytes.len() {
-            return Err(self.error("truncated \\u escape"));
-        }
-        let mut value: u32 = 0;
-        for i in 0..4 {
-            let digit = match self.bytes[self.pos + i] {
-                b'0'..=b'9' => (self.bytes[self.pos + i] - b'0') as u32,
-                b'a'..=b'f' => (self.bytes[self.pos + i] - b'a') as u32 + 10,
-                b'A'..=b'F' => (self.bytes[self.pos + i] - b'A') as u32 + 10,
-                _ => return Err(self.error("invalid \\u escape")),
-            };
-            value = value * 16 + digit;
-        }
-        self.pos += 4;
+    let mut deserializer = serde_json::Deserializer::from_reader(InputReader {
+        bytes: text.as_bytes(),
+        cursor: &cursor,
+        eof: &eof,
+    });
+    let result = seed.deserialize(&mut deserializer).and_then(|value| {
+        seed.capture_error(deserializer.end())?;
         Ok(value)
-    }
+    });
+    result.map_err(|error| {
+        // Capture at the first fallible seed/access boundary. Serde may
+        // consume whitespace/delimiters while unwinding a failed container;
+        // the final reader cursor/EOF state no longer identifies that error.
+        let offset = error_offset
+            .get()
+            .expect("JSON failure must capture its byte");
+        let native = error.to_string();
+        let suffix = format!(" at line {} column {}", error.line(), error.column());
+        ParseError {
+            offset,
+            message: native.strip_suffix(&suffix).unwrap_or(&native).to_owned(),
+        }
+    })
+}
 
-    fn parse_number(&mut self) -> Result<String, ParseError> {
-        let start = self.pos;
-        if self.peek() == Some(b'-') {
-            self.pos += 1;
+/// Cursor coupling qualified against pinned serde_json 1.0.151:
+/// IoRead uses one-byte reads and holds at most one peeked byte. SeqAccess
+/// peeks the next value before invoking its seed; MapAccess consumes only the
+/// colon before invoking its value seed. Root has not fetched a byte yet.
+/// Requalify these rules on upgrades with the context/EOF/depth witnesses below.
+#[derive(Clone, Copy)]
+enum ValueOrigin {
+    Root,
+    Object,
+    Array,
+}
+
+struct InputReader<'a> {
+    bytes: &'a [u8],
+    cursor: &'a Cell<usize>,
+    eof: &'a Cell<bool>,
+}
+
+impl io::Read for InputReader<'_> {
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        let position = self.cursor.get();
+        // Do not permit a bulk request to scan past the active parse entry.
+        if output.is_empty() {
+            return Ok(0);
         }
-        match self.peek() {
-            Some(b'0') => {
-                self.pos += 1;
-            }
-            Some(b'1'..=b'9') => {
-                while matches!(self.peek(), Some(b'0'..=b'9')) {
-                    self.pos += 1;
-                }
-            }
-            _ => return Err(self.error("invalid number")),
+        if position == self.bytes.len() {
+            self.eof.set(true);
+            return Ok(0);
         }
-        if self.peek() == Some(b'.') {
-            self.pos += 1;
-            if !matches!(self.peek(), Some(b'0'..=b'9')) {
-                return Err(self.error("invalid number"));
-            }
-            while matches!(self.peek(), Some(b'0'..=b'9')) {
-                self.pos += 1;
-            }
-        }
-        if matches!(self.peek(), Some(b'e' | b'E')) {
-            self.pos += 1;
-            if matches!(self.peek(), Some(b'+' | b'-')) {
-                self.pos += 1;
-            }
-            if !matches!(self.peek(), Some(b'0'..=b'9')) {
-                return Err(self.error("invalid number"));
-            }
-            while matches!(self.peek(), Some(b'0'..=b'9')) {
-                self.pos += 1;
-            }
-        }
-        Ok(String::from_utf8_lossy(&self.bytes[start..self.pos]).into_owned())
+        output[0] = self.bytes[position];
+        self.cursor.set(position + 1);
+        Ok(1)
     }
 }
 
-/// UTF-8 scalar width in bytes from the lead byte, or `None` for a
-/// stray continuation byte. Overlong/invalid sequences are rejected by
-/// the `from_utf8` check on the sliced scalar in [`Parser::parse_string`].
-fn utf8_width(lead: u8) -> Option<usize> {
-    if lead < 0x80 {
-        Some(1)
-    } else if lead >> 5 == 0b110 {
-        Some(2)
-    } else if lead >> 4 == 0b1110 {
-        Some(3)
-    } else if lead >> 3 == 0b11110 {
-        Some(4)
-    } else {
-        None
+#[derive(Clone, Copy)]
+struct InputSeed<'a> {
+    text: &'a str,
+    cursor: &'a Cell<usize>,
+    eof: &'a Cell<bool>,
+    error_offset: &'a Cell<Option<usize>>,
+    depth: usize,
+    origin: ValueOrigin,
+}
+
+impl InputSeed<'_> {
+    fn entry_offset(self) -> usize {
+        match self.origin {
+            ValueOrigin::Root | ValueOrigin::Object => self.cursor.get(),
+            ValueOrigin::Array => self.cursor.get().saturating_sub(1),
+        }
+    }
+
+    fn capture_error<T, E>(self, result: Result<T, E>) -> Result<T, E> {
+        result.inspect_err(|_| {
+            if self.error_offset.get().is_none() {
+                self.error_offset.set(Some(if self.eof.get() {
+                    self.cursor.get()
+                } else {
+                    self.cursor.get().saturating_sub(1)
+                }));
+            }
+        })
+    }
+
+    fn child(self, origin: ValueOrigin) -> Self {
+        Self {
+            depth: self.depth + 1,
+            origin,
+            ..self
+        }
+    }
+}
+
+impl<'de> DeserializeSeed<'de> for InputSeed<'_> {
+    type Value = Json;
+
+    fn deserialize<D: de::Deserializer<'de>>(self, deserializer: D) -> Result<Json, D::Error> {
+        let mut start = self.entry_offset();
+        // Enforce the value-entry limit before visiting/materializing the value.
+        // SeqAccess may already skip whitespace and peek its first byte;
+        // object values have only consumed the colon. Empty containers at
+        // depth64 never enter a child.
+        if self.depth > MAX_JSON_DEPTH {
+            self.error_offset.set(Some(start));
+            return Err(de::Error::custom("nesting too deep"));
+        }
+        let bytes = self.text.as_bytes();
+        while matches!(bytes.get(start), Some(b' ' | b'\t' | b'\n' | b'\r')) {
+            start += 1;
+        }
+        if matches!(bytes.get(start), Some(b'-' | b'0'..=b'9')) {
+            // Only numeric tokens use ignored parsing. Serde owns their full
+            // grammar without floats, magnitude limits, or synthetic map keys.
+            // Containers and strings always visit below: ignoring a subtree
+            // would bypass both the depth budget and strict surrogate decoding.
+            self.capture_error(de::IgnoredAny::deserialize(deserializer))?;
+            let fetched = self.cursor.get();
+            // A successful number ends with a digit. Otherwise IoRead fetched
+            // one delimiter as lookahead; exclude it from the authored lexeme.
+            let end = fetched - usize::from(!bytes[fetched - 1].is_ascii_digit());
+            Ok(Json::Num(self.text[start..end].to_owned()))
+        } else {
+            self.capture_error(deserializer.deserialize_any(self))
+        }
+    }
+}
+
+impl<'de> Visitor<'de> for InputSeed<'_> {
+    type Value = Json;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("JSON value")
+    }
+
+    fn visit_unit<E: de::Error>(self) -> Result<Json, E> {
+        Ok(Json::Null)
+    }
+
+    fn visit_bool<E: de::Error>(self, value: bool) -> Result<Json, E> {
+        Ok(Json::Bool(value))
+    }
+
+    fn visit_str<E: de::Error>(self, value: &str) -> Result<Json, E> {
+        Ok(Json::Str(value.to_owned()))
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut sequence: A) -> Result<Json, A::Error> {
+        let mut items = Vec::new();
+        while let Some(value) =
+            self.capture_error(sequence.next_element_seed(self.child(ValueOrigin::Array)))?
+        {
+            items.push(value);
+        }
+        Ok(Json::Arr(items))
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut object: A) -> Result<Json, A::Error> {
+        let mut members = Vec::new();
+        while let Some(key) = self.capture_error(object.next_key::<String>())? {
+            let value =
+                self.capture_error(object.next_value_seed(self.child(ValueOrigin::Object)))?;
+            members.push((key, value));
+        }
+        Ok(Json::Obj(members))
     }
 }
 
@@ -472,5 +368,188 @@ fn render_into(out: &mut String, value: &Json) {
             }
             out.push('}');
         }
+    }
+}
+
+#[cfg(test)]
+mod input_tests {
+    use super::*;
+    use std::io::Read as _;
+
+    #[test]
+    fn numeric_source_spans_cover_all_seed_origins_and_eof() {
+        for number in [
+            "0",
+            "-0",
+            "1",
+            "-1",
+            "9223372036854775808",
+            "-9223372036854775809",
+            "1.000",
+            "1e+00",
+            "1E-000",
+            "0.000001E999999999999999",
+            "123456789012345678901234567890.1234567890123456789",
+        ] {
+            for lead in ["", " ", "\n\t\r "] {
+                for tail in ["", " ", "\n\t\r "] {
+                    let expected = Json::Num(number.into());
+                    for (text, value) in [
+                        (format!("{lead}{number}{tail}"), expected.clone()),
+                        (
+                            format!("[{lead}{number}{tail}]"),
+                            Json::Arr(vec![expected.clone()]),
+                        ),
+                        (
+                            format!("{{\"n\":{lead}{number}{tail}}}"),
+                            Json::Obj(vec![("n".into(), expected.clone())]),
+                        ),
+                    ] {
+                        assert_eq!(parse(&text).unwrap(), value, "{text:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn reader_limits_bulk_requests_and_depth_stops_before_the_tail() {
+        let cursor = Cell::new(0);
+        let eof = Cell::new(false);
+        let mut reader = InputReader {
+            bytes: b"123",
+            cursor: &cursor,
+            eof: &eof,
+        };
+        let mut output = [0; 32];
+        assert_eq!(reader.read(&mut output).unwrap(), 1);
+        assert_eq!(cursor.get(), 1);
+        assert_eq!(output[0], b'1');
+        assert_eq!(reader.read(&mut []).unwrap(), 0);
+        assert!(!eof.get());
+
+        let text = format!("{}0{}", "[".repeat(10_000), "]".repeat(10_000));
+        let cursor = Cell::new(0);
+        let eof = Cell::new(false);
+        let error_offset = Cell::new(None);
+        let seed = InputSeed {
+            text: &text,
+            cursor: &cursor,
+            eof: &eof,
+            error_offset: &error_offset,
+            depth: 0,
+            origin: ValueOrigin::Root,
+        };
+        let mut deserializer = serde_json::Deserializer::from_reader(InputReader {
+            bytes: text.as_bytes(),
+            cursor: &cursor,
+            eof: &eof,
+        });
+        assert!(seed.deserialize(&mut deserializer).is_err());
+        assert_eq!(cursor.get(), 66);
+        assert_eq!(error_offset.get(), Some(65));
+        assert!(!eof.get());
+        assert_eq!(text.len(), 20_001);
+        // No containing Json can finish, nor can its Vec receive a child,
+        // before this error unwinds: only the bounded visitor frames exist.
+        let error = parse(&text).unwrap_err();
+        assert_eq!(error.offset, 65);
+        assert_eq!(error.message, "nesting too deep");
+    }
+
+    #[test]
+    fn native_error_anchors_count_utf8_bytes_newlines_and_eof() {
+        for text in ["", " \n", "nul", "\"é", "\"é\\", "1.", "1e", "1e+", "[1"] {
+            let error = parse(text).unwrap_err();
+            assert_eq!(error.offset, text.len(), "{text:?}: {error:?}");
+            assert!(!error.message.contains(" at line "), "{error:?}");
+        }
+        for (text, offset, reason) in [
+            ("nulX", 3, "expected ident"),
+            ("\"é\\q\"", 4, "invalid escape"),
+            ("\"é\"\n x", 6, "trailing characters"),
+            ("{\"é\":0,\n bad}", 10, "key must be a string"),
+            ("[1,]", 3, "trailing comma"),
+            ("01", 1, "invalid number"),
+            (r#""\uDC00""#, 6, "lone leading surrogate in hex escape"),
+        ] {
+            let error = parse(text).unwrap_err();
+            assert_eq!(error.offset, offset, "{text:?}");
+            assert_eq!(error.message, reason, "{text:?}");
+            assert_eq!(
+                error.to_string(),
+                format!("invalid JSON at byte {offset}: {reason}")
+            );
+        }
+        let text = "\"é\n\"";
+        let error = parse(text).unwrap_err();
+        assert_eq!(error.offset, 3); // The LF byte, despite IoRead's new line.
+        assert!(error.message.starts_with("control character"));
+    }
+
+    #[test]
+    fn nested_error_anchors_survive_container_cleanup_and_eof() {
+        for (text, offset, reason) in [
+            ("[\"é\n       \"]", 4, "control character"),
+            ("{\"x\":\"é\n       \"}", 8, "control character"),
+            ("{\"é\n       \":0}", 4, "control character"),
+            (r#"["\q       "]"#, 3, "invalid escape"),
+            (r#"[{"x":"é\q       "}]"#, 10, "invalid escape"),
+            (r#"{"é\q       ":0}"#, 5, "invalid escape"),
+            (r#"["\q"#, 3, "invalid escape"),
+            (r#"{"x":"é\q"#, 9, "invalid escape"),
+            (r#"{"é\q"#, 5, "invalid escape"),
+            ("[\"é\n       ", 4, "control character"),
+            ("{\"x\":\"é\n       ", 8, "control character"),
+            ("{\"é\n       ", 4, "control character"),
+        ] {
+            let error = parse(text).unwrap_err();
+            assert_eq!(error.offset, offset, "{text:?}: {error:?}");
+            assert!(error.message.starts_with(reason), "{text:?}: {error:?}");
+        }
+        for text in ["[1.", "{\"x\":1e+", "[\"é", "{\"é"] {
+            assert_eq!(parse(text).unwrap_err().offset, text.len(), "{text:?}");
+        }
+    }
+
+    #[test]
+    fn ignoring_numbers_never_ignores_marker_objects_or_unicode() {
+        assert_eq!(
+            parse(r#"{"$serde_json::private::Number":"1E9","$serde_json::private::Number":-0}"#)
+                .unwrap(),
+            Json::Obj(vec![
+                (
+                    "$serde_json::private::Number".into(),
+                    Json::Str("1E9".into())
+                ),
+                (
+                    "$serde_json::private::Number".into(),
+                    Json::Num("-0".into())
+                ),
+            ])
+        );
+        for text in [
+            r#"{"$serde_json::private::RawValue":"\uD800"}"#,
+            r#"{"unknown":{"\uDC00":1}}"#,
+            r#"["\uD800\uD800"]"#,
+            r#"["\uDC00\uD800"]"#,
+            r#""\x00""#,
+            r#""\u000g""#,
+            "-",
+            "-01",
+            "+1",
+            ".1",
+            "1.e2",
+            "00",
+            "1e 1",
+            "1e++1",
+            "1true",
+            "[1 2]",
+            "{\"a\":1,}",
+            "\u{a0}null",
+        ] {
+            assert!(parse(text).is_err(), "accepted {text:?}");
+        }
+        assert_eq!(parse(r#""\uD83D\uDE00""#).unwrap(), Json::Str("😀".into()));
     }
 }
