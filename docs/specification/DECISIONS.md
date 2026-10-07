@@ -1603,3 +1603,10 @@ Seventy-three registered tests, 171 leaf tests and 10,213 current V8 comparisons
 Move the ten byte-equivalent private option pickers into UI's internal appearance-props owner. Each caller keeps the same composition point and appearance admission owner, including two getter reads for a defined property and tone/size/variant/orientation order. Public entrypoints and package exports stay unchanged.
 
 Independent source/emitted comparison, getter and sentinel controls, and all 496 selected renderer tests pass against private source-current output with the actual package dependencies. Readable production decreases by 221 lines. Even charging the two new private generated declaration lines, the complete measured closure decreases by 219; public declaration bytes remain equal. This is extraction acceptance, not broader browser/app/backend qualification. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/ui-appearance-independent-review.json) records hashes, tests and boundaries.
+
+
+## 2026-10-07 — Share environment Promise caching inside worker boundary (accepted)
+
+Keep the shared private keyedPromise primitive inside worker/main.ts: the proposed separate file would violate the existing static-runtime-import boundary. Two WeakMaps and policy accessors remain separate. Exact Promise identity, immediate factory execution and synchronous throw, rejection retry, and identity-guarded old-rejection eviction are preserved without deferred factory invocation or a new loader.
+
+Independent source review, package noEmit check, unchanged public declarations, all 17 worker/main-boundary tests and direct actual-accessor/assembly rejection controls pass. Readable production decreases by three lines; the two-line physical reduction and unchanged generated declaration bytes also establish a strictly smaller complete source closure. This is the cache primitive scope, not full installed/deployment/backend acceptance. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/keyed-promise-independent-review.json) preserves inferred types, source pins and residual gates.

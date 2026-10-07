@@ -89,7 +89,7 @@
         "packages/ui/src/review.ts": "b01e6fa2923dae76cbd4e743b9618d891cfd07dc79060e77bec2c04d381bcfea",
         "packages/ui/src/settings.ts": "f82458311f13871649ff392368efb17fc85c17250eede1153450b5f509b8136f"
       },
-      "state": "independently accepted extraction; committing",
+      "state": "accepted narrow extraction; committed 890fc3b",
       "agent": "/root/impl_ui_appearance",
       "acceptance": "pending independent source-current review and exact qualified caller evidence",
       "review": "ui-appearance-independent-review.json"
@@ -162,7 +162,8 @@
     "files": [
       "packages/cloudflare/src/worker/main.ts"
     ],
-    "state": "implementation released; independent Sol medium review running"
+    "state": "independently accepted inline primitive; committing",
+    "review": "keyed-promise-independent-review.json"
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
