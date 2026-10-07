@@ -22,6 +22,8 @@ The proposed [compiler correctness, ownership and simplicity audit](compiler-cor
 
 [Audit Step 5 is executed](responsibility-map/representations.md): the same ledger traces 35 stage/owner/conversion duties through source, checked facts, IR and actual output consumers, with eight selected carrier groups and all 18 workflow joins. Independent review qualifies repeated work and semantic-rule differences without declaring every parallel type redundant. Fresh library/public-API probes demonstrate unsealed mixed source/catalog inputs, with coherent/immutable controls; the normal CLI cohort stays distinct. No implementation or API/policy/cache choice; full semantics, measured integration reduction and product acceptance remain open.
 
+[Audit Step 6 is executed](responsibility-map/integrations.md): all seven direct dependencies are traced through 22 engine/consumer-family closures, with 15 retain, six defer and one bounded simplify result. Exact source ranges, shared/recursive callers, public orphan helpers, typed versus compatibility models, roundtrips, fallback policies and private implementation assumptions are independently reviewed. Conditional retirement targets include all replacement/support code; no source reduction is credited. Published count replay confirms current production 69,255 versus original 69,119 (+136); full semantic, upgrade/cost and product qualification remain open.
+
 | Pass | Declared outcome / reference |
 | --- | --- |
 |0 |[Released contracts and witnesses](pass0/README.md) |

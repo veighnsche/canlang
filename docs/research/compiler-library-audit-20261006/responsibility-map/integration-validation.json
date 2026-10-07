@@ -1,7 +1,7 @@
 {
   "scope": "Mechanical Step6 source/closure/pin/count integrity with retained Steps1\u20135 linkage. Not new compiler execution, every semantic branch, workload cost or replacement qualification.",
   "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
-  "observed_head": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "observed_head": "39d9f4509311defd997d3ff1e6894d201d6f7cf5",
   "compiler_diff_from_source_baseline": "",
   "paths": 107,
   "unique_paths": 107,
@@ -57,7 +57,7 @@
     "arbitrary external Rust users and full downstream package workflows unresolved; public orphans not deletion authority",
     "conditional retirement thresholds include replacement/fallback/public compatibility code; no Step6 production deletion or candidate equivalence/build/release/performance trial"
   ],
-  "ledger_sha256": "87e9150bc6f3da0056b94ac2fc487581a45601f9bf208b8db30fbac17fc19c43",
+  "ledger_sha256": "24547f0cae36bbb87deea5ce6b3342c6882f7f484bc66d6576ad47b9775978ed",
   "workflows": 18,
   "workflow_ids": [
     "CHECK",
@@ -337,6 +337,11 @@
       "path": "integration-evidence/production-delta.json",
       "bytes": 16532,
       "sha256": "944b8fd2ab3db5bbaba26cea69520010bc042517430c1948254cabd6b559533b"
+    },
+    {
+      "path": "integration-evidence/tool-replay.json",
+      "bytes": 2869,
+      "sha256": "57d76f4a42ba1adb99803788aa9b61c58a6fb91ce80281b636a2c4797e3fbef5"
     },
     {
       "path": "integration-evidence/validate.py",
