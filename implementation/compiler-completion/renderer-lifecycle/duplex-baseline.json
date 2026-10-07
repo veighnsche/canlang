@@ -1,0 +1,13 @@
+{
+  "binary_sha256": "f20f92bafd04499b95016217a7c3720921605e5ca72982b622b8fd3638522cfa",
+  "case": "finite startup stderr before stdin read",
+  "source_fixture_bytes": 262226,
+  "renderer_startup_stderr_bytes": 393216,
+  "supervisor_timeout_seconds": 3,
+  "timed_out": true,
+  "returncode": -9,
+  "stdout": "",
+  "stderr": "",
+  "cleanup": "supervisor killed owned process group",
+  "scope": "Controlled finite renderer boundary; no production timeout/capture/admission policy selected."
+}

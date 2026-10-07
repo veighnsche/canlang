@@ -1,0 +1,23 @@
+{
+  "baseline_observation": {
+    "command": "actual debug can docs on source-legal 262226-byte fixture; child closes stdin and sleeps",
+    "exit": 2,
+    "diagnostic": "E7004 failed to pipe reference model; Broken pipe",
+    "renderer_alive_after_can_exit": true,
+    "cleanup": "observer killed residual renderer",
+    "limit": "Initial binary hash not retained; independent source-pinned baseline replay is in independent-review.json."
+  },
+  "invalid_observer_attempt": {
+    "issue": "A fixture named signal.py shadowed Python stdlib signal and exited1; signal behavior was not qualified by this attempt.",
+    "correction": "Prefix all fixture filenames renderer-; subsequent seven actual CLI controls pass."
+  },
+  "scope": "Accepted early-handoff child cleanup only; timeout/capture, duplex I/O, descendants and other hosts remain separate qualification.",
+  "cleanup_only_freeze_source_sha256": "e09e627ef4bca4868489f4408508bc3c23235951898fb5351378a04dcae1d116",
+  "duplex_final_freeze_source_sha256": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+  "focused_cli_tests": {
+    "passed": 18,
+    "failed": 0,
+    "ignored": 0,
+    "scope": "cli::tests, including failed handoff cleanup and finite duplex regression"
+  }
+}

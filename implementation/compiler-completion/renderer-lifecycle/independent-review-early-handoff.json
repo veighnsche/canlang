@@ -1,0 +1,183 @@
+{
+  "source": "compiler/src/cli.rs",
+  "source_sha256": "e09e627ef4bca4868489f4408508bc3c23235951898fb5351378a04dcae1d116",
+  "renderer_and_tail_sha256": "a5af2a14ef512e433ae4ed037a667885612c9ed912e9721534525ff1a0a02ea2",
+  "baseline_renderer_and_tail_sha256": "f632a0a3a84a787c27bb507284521edd0bf426bd48aa4f58b49e962bb33e33f1",
+  "verdict": "pass for narrow early stdin-write cleanup; broader FAIL-R05 remains unqualified",
+  "blocking_issues": [],
+  "method": "Extracted byte-exact render_via_platform and stderr_tail plus actual DispatchResult definition/implementation; supplied only exit constants and a tiny calling main. Compiled both current and Git HEAD implementations with rustc. Compared current behavior with original for eight cases. Temporary fixtures deleted; live baseline orphan children killed after observation.",
+  "checks": [
+    {
+      "version": "baseline",
+      "case": "closed-input-live-child",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: failed to pipe the reference model to '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/baseline-closed-input-live-child.sh docs': Broken pipe (os error 32)\n",
+      "seconds": 0.28815220900287386,
+      "child_present_after_return": true
+    },
+    {
+      "version": "baseline",
+      "case": "closed-input-partial-output",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: failed to pipe the reference model to '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/baseline-closed-input-partial-output.sh docs': Broken pipe (os error 32)\n",
+      "seconds": 0.14736808300222037,
+      "child_present_after_return": true
+    },
+    {
+      "version": "baseline",
+      "case": "closed-input-already-exited",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: failed to pipe the reference model to '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/baseline-closed-input-already-exited.sh docs': Broken pipe (os error 32)\n",
+      "seconds": 0.15292854200379224,
+      "child_present_after_return": false
+    },
+    {
+      "version": "baseline",
+      "case": "success",
+      "exit_code": 0,
+      "stdout": "# Ref\n",
+      "stderr": "",
+      "seconds": 0.14973116700275568,
+      "child_present_after_return": null
+    },
+    {
+      "version": "baseline",
+      "case": "nonzero",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/baseline-nonzero.sh docs' failed (exit 7): producer detail\n",
+      "seconds": 0.13684508399455808,
+      "child_present_after_return": null
+    },
+    {
+      "version": "baseline",
+      "case": "signal",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/baseline-signal.sh docs' failed (killed by signal): no detail on stderr\n",
+      "seconds": 0.13698370899510337,
+      "child_present_after_return": null
+    },
+    {
+      "version": "baseline",
+      "case": "invalid-utf8",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/baseline-invalid-utf8.sh docs' wrote non-UTF8 output\n",
+      "seconds": 0.1468479169998318,
+      "child_present_after_return": null
+    },
+    {
+      "version": "baseline",
+      "case": "empty-output",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/baseline-empty-output.sh docs' produced no output\n",
+      "seconds": 0.036788749996048864,
+      "child_present_after_return": null
+    },
+    {
+      "version": "current",
+      "case": "closed-input-live-child",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: failed to pipe the reference model to '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/current-closed-input-live-child.sh docs': Broken pipe (os error 32)\n",
+      "seconds": 0.2869354590002331,
+      "child_present_after_return": false
+    },
+    {
+      "version": "current",
+      "case": "closed-input-partial-output",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: failed to pipe the reference model to '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/current-closed-input-partial-output.sh docs': Broken pipe (os error 32)\n",
+      "seconds": 0.1486191250005504,
+      "child_present_after_return": false
+    },
+    {
+      "version": "current",
+      "case": "closed-input-already-exited",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: failed to pipe the reference model to '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/current-closed-input-already-exited.sh docs': Broken pipe (os error 32)\n",
+      "seconds": 0.14724691699666437,
+      "child_present_after_return": false
+    },
+    {
+      "version": "current",
+      "case": "success",
+      "exit_code": 0,
+      "stdout": "# Ref\n",
+      "stderr": "",
+      "seconds": 0.0491425829968648,
+      "child_present_after_return": null
+    },
+    {
+      "version": "current",
+      "case": "nonzero",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/current-nonzero.sh docs' failed (exit 7): producer detail\n",
+      "seconds": 0.04205762500350829,
+      "child_present_after_return": null
+    },
+    {
+      "version": "current",
+      "case": "signal",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/current-signal.sh docs' failed (killed by signal): no detail on stderr\n",
+      "seconds": 0.038629583999863826,
+      "child_present_after_return": null
+    },
+    {
+      "version": "current",
+      "case": "invalid-utf8",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/current-invalid-utf8.sh docs' wrote non-UTF8 output\n",
+      "seconds": 0.037372957995103206,
+      "child_present_after_return": null
+    },
+    {
+      "version": "current",
+      "case": "empty-output",
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-renderer-independent-9bfvr_df/current-empty-output.sh docs' produced no output\n",
+      "seconds": 0.03929533299378818,
+      "child_present_after_return": null
+    }
+  ],
+  "source_review": [
+    "Drop stdin before kill releases the owned write handle. kill targets the owned direct child; wait synchronously reaps it before returning. The original write error remains the E7004 detail and stdout remains empty.",
+    "Success and existing wait_with_output/nonzero/signal/UTF8/empty-output logic are unchanged.",
+    "New unit test forces a failed handoff with payload larger than a pipe buffer, records the same process PID with exec sleep, and checks absence with kill -0 after return. This catches both a still-running owned child and a Unix zombie."
+  ],
+  "limitations": [
+    "Exact-function probe and all 17 focused integrated CLI unit tests passed; actual can docs executable consumer qualification is being performed independently by the parent and is not credited in this review.",
+    "Local macOS native subprocess behavior only; Windows and other hosts were not executed.",
+    "Timeout, bounded capture, blocked writes, descendant process-tree termination and wider FAIL-R05 duties remain unqualified. No timeout/capture policy is selected.",
+    "kill/wait errors are intentionally ignored to retain the original write diagnostic; this test does not inject OS cleanup failures."
+  ],
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "integrated_check": {
+    "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline --lib cli::tests::",
+    "exit_code": 0,
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0,
+    "filtered_out": 111,
+    "test_run_seconds": 0.14,
+    "new_regression": "cli::tests::failed_renderer_input_terminates_and_reaps_the_child passed"
+  },
+  "executed_source_sha256": "f08bfbb67c9beec2a47b6d3b526b1f1b5c1750f7e20e4073941bd5689459e1fb",
+  "formatting_followup": {
+    "change": "rustfmt expanded two new test asserts only; reversing precisely these whitespace changes reproduces the previously executed whole-source SHA256",
+    "runtime_replayed": false,
+    "rationale": "Production render_via_platform/stderr_tail bytes unchanged; test assertion tokens unchanged."
+  }
+}

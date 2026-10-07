@@ -1,0 +1,63 @@
+{
+  "binary_sha256": "c4a43347e5d821cb73f4bfd93c9f65778b03a2b0bfa0d8551c81a326cf5d8f8c",
+  "source_fixture_bytes": 262226,
+  "expect_unreaped": false,
+  "results": [
+    {
+      "case": "source-check",
+      "exit": 0
+    },
+    {
+      "case": "success",
+      "exit": 0,
+      "stdout_bytes": 12,
+      "stdout_sha256": "cb0730c7d12a2cc1ef8c9942bbc96ef996ecd3afaa6235b49d81c5e800572a81",
+      "stderr": ""
+    },
+    {
+      "case": "nonzero",
+      "exit": 2,
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-render-lifecycle-b0rp8s4b/renderer-nonzero.py docs' failed (exit 3): renderer-control\n"
+    },
+    {
+      "case": "signal",
+      "exit": 2,
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-render-lifecycle-b0rp8s4b/renderer-signal.py docs' failed (killed by signal): no detail on stderr\n"
+    },
+    {
+      "case": "invalid-utf8",
+      "exit": 2,
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-render-lifecycle-b0rp8s4b/renderer-invalid-utf8.py docs' wrote non-UTF8 output\n"
+    },
+    {
+      "case": "empty",
+      "exit": 2,
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error[E7004]: reference renderer '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-render-lifecycle-b0rp8s4b/renderer-empty.py docs' produced no output\n"
+    },
+    {
+      "case": "duplex",
+      "exit": 0,
+      "stdout_bytes": 262156,
+      "stdout_sha256": "cab97174553a8593024092f4594c94bf08cb536b812c3f98938cd68f82e17359",
+      "stderr": ""
+    },
+    {
+      "case": "closed-input",
+      "exit": 2,
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error[E7004]: failed to pipe the reference model to '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-render-lifecycle-b0rp8s4b/renderer-closed-input.py docs': Broken pipe (os error 32)\n",
+      "renderer_alive_after_can_exit": false,
+      "observer_cleanup": "none needed"
+    }
+  ],
+  "limits": "Native CLI/Python child boundary; timeout/capture policy, arbitrary renderer and other hosts are separate obligations."
+}
