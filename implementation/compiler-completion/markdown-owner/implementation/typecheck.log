@@ -1,0 +1,39 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @canlang/interfaces
+   • Running typecheck:check in 1 package
+   • Remote caching disabled
+
+@canlang/ui:build:prepare: cache bypass, force executing 03fdc74bfd0d6023
+@canlang/values:build:prepare: cache bypass, force executing 1dd57d503d7ff077
+@canlang/interfaces:build:prepare: cache bypass, force executing 5466e88d80b6c9f7
+@canlang/identity:build:prepare: cache bypass, force executing ec13784c9c1fd8ec
+@canlang/interfaces:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/ui:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/values:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/identity:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build:prepare: cache bypass, force executing 75860e34c9057b67
+@canlang/contracts:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build: cache hit, replaying logs a6c28faefdcc8d69
+@canlang/contracts:build: $ node ../../scripts/build-package.mjs
+@canlang/contracts:build: $ tsc -p tsconfig.json
+@canlang/identity:build: cache hit, replaying logs fe39b255e27eaf3e
+@canlang/identity:build: $ node ../../scripts/build-package.mjs
+@canlang/identity:build: $ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/
+@canlang/values:build: cache hit, replaying logs 8ad756c0a77bcce1
+@canlang/values:build: $ node ../../scripts/build-package.mjs
+@canlang/values:build: $ tsc -p tsconfig.json && node scripts/stage-semantics.mjs
+@canlang/ui:build: cache hit, replaying logs 9aceaa903e4d24dc
+@canlang/ui:build: $ node ../../scripts/build-package.mjs
+@canlang/ui:build: $ tsc -p tsconfig.json && node scripts/build-browser.mjs
+@canlang/ui:build: build-browser: installed bootstrap.js, polling.js, can-style.css + manifest.json (daisyui 5.7.47, catalog 0.1.0-lane05-draft, binders guarded-form,once-action,poll-region)
+@canlang/interfaces:build: cache hit, replaying logs 7794267f0041ce9c
+@canlang/interfaces:build: $ node ../../scripts/build-package.mjs
+@canlang/interfaces:build: $ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/
+@canlang/interfaces:typecheck:check: cache bypass, force executing 48baab9a64d336a7
+@canlang/interfaces:typecheck:check: $ tsc -p tsconfig.json --noEmit
+
+ Tasks:    11 successful, 11 total
+Cached:    5 cached, 11 total
+  Time:    1.316s 
+

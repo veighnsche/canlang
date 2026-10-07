@@ -1073,3 +1073,34 @@ test('combined suffix-versus-bare model has unique anchors and no dangling links
     assert.ok(defined.has(target), `dangling link target: ${target}`);
   }
 });
+
+// These expected bytes express the Markdown contract; the saved marked/DOM replay
+// independently checks consumer text and table shape without a new dependency.
+for (const [value, inline, table] of [
+  ['a`b', '``a`b``', '``a`b``'],
+  ['`'.repeat(64), '`'.repeat(65) + ' ' + '`'.repeat(64) + ' ' + '`'.repeat(65), undefined],
+  [' a ', '`  a  `', '`  a  `'],
+  ['  ', '`  `', '`  `'],
+  ['', '<code></code>', '<code></code>'],
+  [String.raw`a\b`, '`' + String.raw`a\b` + '`', undefined],
+  [String.raw`\|`, '`' + String.raw`\|` + '`', '<code>&#92;&#124;</code>'],
+  [String.raw`\\\|`, '`' + String.raw`\\\|` + '`', '<code>&#92;&#92;&#92;&#124;</code>'],
+  ['<b>|&amp;', '`<b>|&amp;`', '<code>&#60;b&#62;&#124;&#38;amp&#59;</code>'],
+] as const) {
+  test(`preserves authored code representation for ${JSON.stringify(value)}`, () => {
+    const base = modelWithDescription(description('Doc.'));
+    const owner = base.owners[0]!;
+    const declaration = owner.declarations[0]!;
+    const field = { name: value, type: value, default: value, nullable: false,
+      creationRequired: true, constraints: [] };
+    const out = renderReferenceMarkdown({ ...base, sourceRevision: value,
+      owners: [{ ...owner, declarations: [{ ...declaration, fields: [field] }],
+        operations: [{ id: 'TeamTasks.run', inputs: [field],
+          result: { type: value, nullable: false }, examples: [],
+          location: declaration.location }] }] });
+    assert.ok(out.includes(`- Source revision: ${inline}\n`));
+    const cell = table ?? inline;
+    const row = `| ${cell} | ${cell} | no | yes | ${cell} |`;
+    assert.equal(out.split(row).length - 1, 2, 'declaration and operation table cells');
+  });
+}

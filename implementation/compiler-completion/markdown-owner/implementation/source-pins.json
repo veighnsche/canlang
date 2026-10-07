@@ -1,0 +1,8 @@
+{
+  "head": "d4b041fbab45f03c76a954edc310ace906b2a780",
+  "sha256": {
+    "packages/interfaces/src/docs/reference.ts": "326100d81a28ec07a751f7c93aa87518da8e41b5a1692f5210fa34f46835a08c",
+    "packages/interfaces/test/docs-reference.test.ts": "73757234276ff038b0dab248d7968d4f5436211e94ac70c72f67eb6383b4428c",
+    "implementation/compiler-completion/markdown-owner/research/raw.json": "79c44a27eb16955b19d8da913028c2951f1365c1ee7f610516822bdfeda8c0ff"
+  }
+}

@@ -1,0 +1,90 @@
+diff --git a/packages/interfaces/src/docs/reference.ts b/packages/interfaces/src/docs/reference.ts
+index 5c8f4ec4..d959c257 100644
+--- a/packages/interfaces/src/docs/reference.ts
++++ b/packages/interfaces/src/docs/reference.ts
+@@ -169,13 +169,21 @@ function escapeMarkdown(text: string): string {
+     .join("\n");
+ }
+ 
+-/** Escapes a value rendered inside a Markdown code span. */
+-function escapeCodeSpan(text: string): string {
+-  return text.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
+-}
+-
+-function codeSpan(text: string): string {
+-  return `\`${escapeCodeSpan(text)}\``;
++/** Preserves single-line authored code text in inline and GFM table contexts. */
++function codeSpan(text: string, table = false): string {
++  if (text === "" || (table && text.includes("|"))) {
++    // Entities keep literal punctuation out of HTML parsing and table boundaries.
++    const safe = text.replace(/[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/g,
++      (char) => `&#${char.charCodeAt(0)};`);
++    return `<code>${safe}</code>`;
++  }
++  let longest = 0;
++  for (const run of text.matchAll(/`+/g)) longest = Math.max(longest, run[0].length);
++  const fence = "`".repeat(longest + 1);
++  // CommonMark strips one space at both edges unless the content is all spaces.
++  const pad = text.startsWith("`") || text.endsWith("`") ||
++    (text.startsWith(" ") && text.endsWith(" ") && /[^ ]/.test(text));
++  return `${fence}${pad ? " " : ""}${text}${pad ? " " : ""}${fence}`;
+ }
+ 
+ /**
+@@ -591,7 +599,7 @@ function renderDeclaration(
+               .map((constraint) => escapeMarkdown(`${constraint.kind}: ${constraint.detail}`))
+               .join("; ");
+       lines.push(
+-        `| ${codeSpan(field.name)} | ${codeSpan(field.type)} | ${field.nullable ? "yes" : "no"} | ${field.creationRequired ? "yes" : "no"} | ${field.default === undefined ? "—" : codeSpan(field.default)} | ${constraints} | ${describeText(field.description, context)} |`,
++        `| ${codeSpan(field.name, true)} | ${codeSpan(field.type, true)} | ${field.nullable ? "yes" : "no"} | ${field.creationRequired ? "yes" : "no"} | ${field.default === undefined ? "—" : codeSpan(field.default, true)} | ${constraints} | ${describeText(field.description, context)} |`,
+       );
+     }
+     lines.push("");
+@@ -665,7 +673,7 @@ function renderOperation(
+               .map((constraint) => escapeMarkdown(`${constraint.kind}: ${constraint.detail}`))
+               .join("; ");
+       lines.push(
+-        `| ${codeSpan(input.name)} | ${codeSpan(input.type)} | ${input.nullable ? "yes" : "no"} | ${input.creationRequired ? "yes" : "no"} | ${input.default === undefined ? "—" : codeSpan(input.default)} | ${constraints} | ${describeText(input.description, context)} |`,
++        `| ${codeSpan(input.name, true)} | ${codeSpan(input.type, true)} | ${input.nullable ? "yes" : "no"} | ${input.creationRequired ? "yes" : "no"} | ${input.default === undefined ? "—" : codeSpan(input.default, true)} | ${constraints} | ${describeText(input.description, context)} |`,
+       );
+     }
+     lines.push("");
+diff --git a/packages/interfaces/test/docs-reference.test.ts b/packages/interfaces/test/docs-reference.test.ts
+index d4c8c924..e3fbf02b 100644
+--- a/packages/interfaces/test/docs-reference.test.ts
++++ b/packages/interfaces/test/docs-reference.test.ts
+@@ -1073,3 +1073,34 @@ test('combined suffix-versus-bare model has unique anchors and no dangling links
+     assert.ok(defined.has(target), `dangling link target: ${target}`);
+   }
+ });
++
++// These expected bytes express the Markdown contract; the saved marked/DOM replay
++// independently checks consumer text and table shape without a new dependency.
++for (const [value, inline, table] of [
++  ['a`b', '``a`b``', '``a`b``'],
++  ['`'.repeat(64), '`'.repeat(65) + ' ' + '`'.repeat(64) + ' ' + '`'.repeat(65), undefined],
++  [' a ', '`  a  `', '`  a  `'],
++  ['  ', '`  `', '`  `'],
++  ['', '<code></code>', '<code></code>'],
++  [String.raw`a\b`, '`' + String.raw`a\b` + '`', undefined],
++  [String.raw`\|`, '`' + String.raw`\|` + '`', '<code>&#92;&#124;</code>'],
++  [String.raw`\\\|`, '`' + String.raw`\\\|` + '`', '<code>&#92;&#92;&#92;&#124;</code>'],
++  ['<b>|&amp;', '`<b>|&amp;`', '<code>&#60;b&#62;&#124;&#38;amp&#59;</code>'],
++] as const) {
++  test(`preserves authored code representation for ${JSON.stringify(value)}`, () => {
++    const base = modelWithDescription(description('Doc.'));
++    const owner = base.owners[0]!;
++    const declaration = owner.declarations[0]!;
++    const field = { name: value, type: value, default: value, nullable: false,
++      creationRequired: true, constraints: [] };
++    const out = renderReferenceMarkdown({ ...base, sourceRevision: value,
++      owners: [{ ...owner, declarations: [{ ...declaration, fields: [field] }],
++        operations: [{ id: 'TeamTasks.run', inputs: [field],
++          result: { type: value, nullable: false }, examples: [],
++          location: declaration.location }] }] });
++    assert.ok(out.includes(`- Source revision: ${inline}\n`));
++    const cell = table ?? inline;
++    const row = `| ${cell} | ${cell} | no | yes | ${cell} |`;
++    assert.equal(out.split(row).length - 1, 2, 'declaration and operation table cells');
++  });
++}
