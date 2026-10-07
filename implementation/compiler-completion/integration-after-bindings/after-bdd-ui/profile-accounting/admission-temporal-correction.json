@@ -1,0 +1,18 @@
+{
+  "status": "accounting_correction",
+  "supersedes_receipt": "admission-temporal.json",
+  "superseded_receipt_sha256": "5e2fbb2bb961a7b146f095dbdbc52e0096b0f3f7e73550d3cbad81bf80a83945",
+  "raw_suite_log": "../full-suite-admission-temporal.log",
+  "raw_suite_log_sha256": "876644ec83a9d61e0d252c0a8454126c0eb9ec8868c543d176b6282c82aa42d8",
+  "corrected_counters": {
+    "running_test_binary_lines": 64,
+    "result_summaries_including_doc_tests": 65,
+    "nonzero_summaries": 63,
+    "empty_summaries": 2,
+    "passed": 1146,
+    "failed": 0,
+    "ignored": 0
+  },
+  "interpretation": "The prior receipt's 1146/0/0 pass/fail/ignored headline is correct. Its test_binary_summaries=65 count includes the doc-test result summary; the actual `Running` line count is 64. Of the 65 result summaries, 63 contain tests and two are empty.",
+  "preservation": "The original admission-temporal.json and raw suite log are unchanged. This correction only supersedes the summary-count interpretation."
+}

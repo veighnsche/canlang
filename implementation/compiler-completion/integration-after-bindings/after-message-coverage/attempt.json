@@ -1,0 +1,10 @@
+{
+  "status": "started",
+  "source_commit": "bc2b7d05",
+  "start_head": "bc2b7d053cc729734c6a3d86ae330240e6851ba3",
+  "compiler_inputs": 118,
+  "package_inputs": 1770,
+  "scope": "New actual source correction; previous1146profile remains historical matching inputs, no automatic recredit. Foreign package source writers are independent; dist discovery/hash changes will be reported.",
+  "clippy_exit_code": 0,
+  "clippy_log_sha256": "312e866f30ccf9edbe1260b835f1c382f21fe663ec3a8b4f248e06c95968960f"
+}
