@@ -1,0 +1,103 @@
+{
+  "packet": "DEL-C02-order",
+  "disposition": "independently accepted finite mounted CSV source-row invocation order; parent consent/authority gates open",
+  "baseline": "b055ca616dc0ab3a8df3df4429c1f58ba2508bf2",
+  "reviewer": "root; economical bounded technical review, no new broad high-risk contract",
+  "sourcePins": {
+    "packages/interfaces/src/http/csv.ts": "a7aa6ee00728dde7a06f4589f3316a8aef81d75d7a73d2555110eb750925add1",
+    "packages/interfaces/test/csv-selected-order.test.ts": "e7c5e2e4d54c4d964661969d51550e716cc0d7da97de2d23ad1e282533fc8407"
+  },
+  "proofs": {
+    "sourceChangesOnlyFinalLoop": true,
+    "completeSelectionValidationAndAuthorityLivenessBeforeEffectsUnchanged": true,
+    "sparseSelectedIndicesMappedToOriginalSourceRows": true,
+    "operationIdAndSelectedStatusAssociationPreserved": true,
+    "callbackAwaitedBeforeNextSourceRow": true,
+    "firstThrownSourceCallbackStopsFurtherDemand": true,
+    "canonicalGrammarAndConsentBytesUnchanged": true,
+    "publicDeclarationBytesUnchanged": true,
+    "noImplicitEmptyBatchAdoption": true
+  },
+  "independentRuntime": {
+    "actualPath": "mounted createHttpHandler\u2192handleCsvRequest\u2192scripted actual invoker, authenticated memory IdentityStore",
+    "freshOwner": "Root transpiled exact old/current csv.ts into private frozen consumer snapshots; all source outside final loop byte-equal, no stale owner emit",
+    "runs": [
+      {
+        "variant": "baseline",
+        "pid": 65179,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "--test-reporter=tap",
+          "--test-timeout=45000",
+          "/private/tmp/canlang-repair-go-20261007/csv-order-independent/baseline/dist/root-selected-order.test.mjs"
+        ],
+        "start": "2026-10-07T20:27:29.757Z",
+        "deadline": "2026-10-07T20:28:29.757Z",
+        "sourceSha256": "098b7164f52b875d9aafbb46f2b9eedcfaadb2de374481775018c39d8b8ad052",
+        "moduleSha256": "9a8499e0f6b268e2490a30c09225be905ed83a71cdb4758cf04a3a83ca8305f9",
+        "exit": 1,
+        "signal": null,
+        "end": "2026-10-07T20:27:30.181Z",
+        "pass": 1,
+        "fail": 2
+      },
+      {
+        "variant": "current",
+        "pid": 65181,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "--test-reporter=tap",
+          "--test-timeout=45000",
+          "/private/tmp/canlang-repair-go-20261007/csv-order-independent/current/dist/root-selected-order.test.mjs"
+        ],
+        "start": "2026-10-07T20:27:30.192Z",
+        "deadline": "2026-10-07T20:28:30.192Z",
+        "sourceSha256": "a7aa6ee00728dde7a06f4589f3316a8aef81d75d7a73d2555110eb750925add1",
+        "moduleSha256": "36b0abf3de84447af09c334b8dfa960ce6dbc00133a4279f77dd9d0cba27eecc",
+        "exit": 0,
+        "signal": null,
+        "end": "2026-10-07T20:27:30.590Z",
+        "pass": 3,
+        "fail": 0
+      }
+    ],
+    "controls": [
+      "Sparse reversed selected indices preserve source effect/output order and caller operation IDs",
+      "Pending source-first callback blocks later demand; throw refuses and stops remaining selected rows",
+      "Candidate tamper conflict and original empty-selection validation refuse before effects"
+    ]
+  },
+  "qualifiedProducerEvidence": {
+    "result_sha256": "40bd76f38ae1ce7d04f35581ebb84c1b2dececcb761b930ad01dd1c281d07dce",
+    "newMountedControls": 6,
+    "existingSelectedCsvTests": 23,
+    "baselineExpectedFailures": 4,
+    "strictNoEmitSourceContracts": "baseline/current exit0; private outputs only",
+    "originalEmission": "baseline/current share five pre-existing stale shared contracts presentation diagnostics; no foreign/shared fix; owner source/transpiled parity independently proved"
+  },
+  "reviewerFailure": {
+    "retained_logs": [
+      "baseline-initial-assertion-failure.log",
+      "current-initial-assertion-failure.log",
+      "initial-assertion-failure-runs.json"
+    ],
+    "reason": "Root initially expected empty selection success; defining unchanged parseSelections requires a nonempty batch and returns400. Corrected the private expectation only. Explicit TAP reporter added for reliable count parsing; product unchanged."
+  },
+  "limits": [
+    "Correctness budget only; no reduction credit",
+    "Existing __proto__ CSV cell loss remains separate DEL-C01/DEL-C02 residual; mapRowCells unchanged",
+    "Consent context/integrity, replay security and canonical security gates unfinished; no closure or policy change claimed",
+    "Actual mounted createHttpHandler\u2192handleCsvRequest\u2192scripted invoker consumer controls only; no durable/native/browser/whole CSV lane acceptance",
+    "Foreign 65f43dc feature/compiler source and shared distributions untouched; no Git staging/commits"
+  ],
+  "budget": "Correctness only; no production reduction credit",
+  "lease": {
+    "writerReleased": true,
+    "rootReadReleased": true,
+    "noActiveCommands": true
+  },
+  "evidenceRoot": "/private/tmp/canlang-repair-go-20261007/csv-order-independent",
+  "finished_utc": "2026-10-07T20:30:10.401676+00:00"
+}
