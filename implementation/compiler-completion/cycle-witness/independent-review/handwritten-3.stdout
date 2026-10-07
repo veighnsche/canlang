@@ -1,0 +1,4 @@
+diamond-forward: [("E3005", "call cycle: b -> d -> a -> b", SourceId(0), 55, 56), ("E3005", "call cycle: a -> c -> d -> a", SourceId(0), 197, 198)]
+diamond-reverse: [("E3005", "call cycle: c -> d -> a -> c", SourceId(0), 55, 56), ("E3005", "call cycle: a -> b -> d -> a", SourceId(0), 197, 198)]
+interleaved-symbols: z=2, a=8
+interleaved-symbols: [("E3005", "call cycle: z -> a -> z", SourceId(0), 173, 174)]

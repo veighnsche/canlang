@@ -1,0 +1,64 @@
+{
+  "packet": "SEM-R07 / G09-1",
+  "writer_freeze": {
+    "compiler/src/analysis/types.rs": "3e25415436f61cecca33b263b7232f646332f40fa3e87fabf080930038d0ff07",
+    "compiler/tests/cycle_witness.rs": "f80d0d6e585b9c801e0386637c7a3f3c4b2b2beaab3b64417a9297005e1fa28c",
+    "AGENTS.md": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+    "docs/research/compiler-library-audit-20261006/responsibility-map/semantics.md": "7271c103c6e6b31571b1f8c8f822fa13fa7adda4f9762331cc644f4f5f9d58a7",
+    "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/review-authority.md": "18183bbdf5b4e1e63bbae9ab3b564026fe0b9edb7aa61dad95a9bea07089499c",
+    "docs/research/compiler-library-audit-20261006/pass9/graphs/ASSESSMENT.md": "89cf1d71db5899d97c00f2d78fc70874992f479b5b2af17ef93701ba8f1ec955",
+    "docs/research/compiler-library-audit-20261006/pass9/graphs/compiler_probe.rs": "bc46a27d145600ef377521ec9dab32a48e4296aa37157801c48a105149a318df"
+  },
+  "production_delta": "Sort only static-call caller origins ascending by SymbolId; authored edge vectors, DFS, visited policy, closing spans, global sorted path-vertex-set dedup and callable filtering unchanged.",
+  "contract": "Same exact sources and supplied check-file order have deterministic witnesses. SymbolId order follows indexing, including nested/generated symbols. File/declaration permutations may change preferred witness; duplicate paths remain distinct immutable IDs. No global canonical-path or lexical-name policy.",
+  "jev": "Three independently worded equivalent choice consultations unanimously prefer index_order; advice only. Initial sandbox connection failures retained; escalated minimal current requests succeeded.",
+  "frozen_before_after": "Source manifests show only changed preexisting source path src/analysis/types.rs; after adds tests/cycle_witness.rs. Frozen-after focused suite: 11 pass, 0 fail, including 24 fresh child-process checks.",
+  "before_processes": 24,
+  "before_distinct_call_sets": {
+    "calls_upstream": 2,
+    "calls_overlap": 4
+  },
+  "after_processes": 24,
+  "after_distinct_call_sets": {
+    "calls_upstream": 1,
+    "calls_overlap": 1
+  },
+  "expected_public_call_diagnostics": {
+    "calls_upstream": [
+      "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+    ],
+    "calls_overlap": [
+      "PUBLIC E3005 111..112 call cycle: a -> b -> a",
+      "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+    ]
+  },
+  "unchanged_observer_cases": [
+    "composition_upstream",
+    "composition_duplicate",
+    "ownership_upstream",
+    "fixture_upstream",
+    "derive_upstream"
+  ],
+  "other_graph_comparison": "Ordered public tuples and raw multisets preserved; fixture/derive raw origin order remains randomized as before and is intentionally outside this repair.",
+  "live_focused_suite": "11 pass, 0 fail, including 24 fresh child-process checks",
+  "live_related_suites": {
+    "analysis": "37 pass",
+    "b4_resolve": "11 pass",
+    "check": "37 pass",
+    "effects": "46 pass",
+    "b4_examples": "24 pass, 1 fail: minimal_table_rows_emit_expected_and_error receives E6011 from concurrent checked-cohort seam. Root notified and owns repair; no worker writes there."
+  },
+  "retained_failed_attempts": [
+    "Before frozen build omitted three include_str completion files; copied and rehashed them, then build succeeded.",
+    "First test assumed tight E2018 spans; existing spans include leading whitespace. Corrected exact control expectation, no production span change.",
+    "Three sandbox JEV connection failures, subsequent escalated preauthorized current questions succeeded.",
+    "Related b4_examples foreign-owner E6011 failure.",
+    "Initial receipt comparison incorrectly required unrelated fixture/derive RAW order to be deterministic; corrected to ordered public tuples plus raw multisets."
+  ],
+  "limitations": [
+    "Finite graph corpus and 24 processes qualify named outcomes; no exhaustive graph proof.",
+    "No graph-library migration, benchmark, runtime deployment or whole compiler suite qualification.",
+    "Snapshots/binaries remain under /private/tmp; pins, patch, observer and receipts are retained here, not a hermetic source release.",
+    "Shared DECISIONS/ledger/plan updates belong to root; worker made no Git operation."
+  ]
+}

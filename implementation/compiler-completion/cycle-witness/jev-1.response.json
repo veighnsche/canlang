@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "SEM-R07/G09-1 finite diagnostic ordering repair. Current verified check_cycles in compiler/src/analysis/types.rs builds a HashMap of caller to authored-order edge occurrences (callee and closing-edge Span). Only Scenario/DeriveFn vertices survive; CRUD/capability operations are leaves. It walks each HashMap key via stack DFS, visited-on-push and cloned paths, emitting return-to-origin witnesses at closing-edge span. Globally dedups sorted path SymbolId sets; this is not SCC membership and overlapping cycles can emit several witnesses. No adjacency sorting, edge merging, vertex-scope expansion, derive outgoing-edge expansion, aggregation, containment, composition or fixture changes are authorized. SymbolIds are assigned in ordered check file/module/tree declaration indexing, with nested/generated declarations interleaved; they are not globally canonical source positions. SourceDb is append-only, IDs distinguish immutable revisions including same-path sources; span is declaration-name byte range. Symbol also has canonical name. Public diagnostics sort (file,start,code), but randomized origin iteration changes message and span before sorting. Historical 12 process repeats observed both orientations for a two-node cycle and three overlap result sets. Required: same exact input and supplied file order yields exact deterministic call-cycle diagnostic tuples; retain graph/DFS/dedup semantics. Permutations must have explicitly qualified outcomes; global permutation invariance is optional and should not silently override authored order. Minimize owning code complexity; no graph library/framework. Choose deterministic origin order only. These are proposed alternatives, not implemented APIs. Advice is not authority or proof.",
+    "questions": {
+      "origin_policy": {
+        "type": "choice",
+        "instructions": "Choose the least complex deterministic origin ordering that meets the required fixed-input diagnostic contract. Balance authored-order compatibility and optional permutation stability; identify remaining uncertainty.",
+        "criteria": {
+          "index_order": "Sort origin caller SymbolIds ascending, leaving all edge vectors and walker intact. Smallest repair, stable for fixed supplied file/indexing order; declaration/file permutations may deliberately change preferred cycle orientation. Nested/generated symbols mean indexing order, not a source-position guarantee.",
+          "source_order": "Sort origins by (display source path, declaration span start/end, canonical name, SourceId, SymbolId). Retain adjacency and walker. Better cross-file permutation behavior when paths uniquely identify files; duplicate-path immutable revisions still require SourceId/SymbolId tie breaks, so no universal permutation invariance. Requires source lookup and broader ordering contract.",
+          "name_order": "Sort origins by (canonical symbol name, declaration span file/start/end, SymbolId). Retain adjacency and walker. Favors lexical callable identity rather than authored/index order, remains deterministic but makes renamed declarations change preferred orientation and needs tie rules for duplicates."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "origin_policy": {
+        "type": "choice",
+        "choice": "index_order",
+        "confidence": 1.0,
+        "probabilities": {
+          "index_order": 1.0,
+          "source_order": 0.0,
+          "name_order": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 844,
+      "output_tokens": 43
+    }
+  }
+}

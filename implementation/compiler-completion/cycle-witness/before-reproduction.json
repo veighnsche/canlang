@@ -1,0 +1,1172 @@
+{
+  "build_command": [
+    "rustc",
+    "--edition=2024",
+    "/Users/vince/Projects/canlang/implementation/compiler-completion/cycle-witness/compiler_probe.rs",
+    "--extern",
+    "canlang_compiler=/private/tmp/canlang-cycle-witness-target-before/debug/libcanlang_compiler.rlib",
+    "-L",
+    "dependency=/private/tmp/canlang-cycle-witness-target-before/debug/deps",
+    "-o",
+    "/private/tmp/canlang-cycle-witness-probe-before"
+  ],
+  "exe_sha256": "d667b5a6a3e670df11337fbcbe6851334db4af8c9028f5fc951220c9c6f11bcb",
+  "runs": [
+    {
+      "process": 1,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 98..99 call cycle: b -> a -> b"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 2,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 3,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 4,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+        ]
+      }
+    },
+    {
+      "process": 5,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+        ]
+      }
+    },
+    {
+      "process": 6,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 7,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 8,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c",
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a"
+        ]
+      }
+    },
+    {
+      "process": 9,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 98..99 call cycle: b -> a -> b"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+        ]
+      }
+    },
+    {
+      "process": 10,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 11,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c",
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a"
+        ]
+      }
+    },
+    {
+      "process": 12,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+        ]
+      }
+    },
+    {
+      "process": 13,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c",
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a"
+        ]
+      }
+    },
+    {
+      "process": 14,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+        ]
+      }
+    },
+    {
+      "process": 15,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 16,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 17,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 98..99 call cycle: b -> a -> b"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+        ]
+      }
+    },
+    {
+      "process": 18,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 98..99 call cycle: b -> a -> b"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+        ]
+      }
+    },
+    {
+      "process": 19,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c",
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a"
+        ]
+      }
+    },
+    {
+      "process": 20,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 98..99 call cycle: b -> a -> b"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 21,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c",
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a"
+        ]
+      }
+    },
+    {
+      "process": 22,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 111..112 call cycle: a -> b -> a",
+          "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+        ]
+      }
+    },
+    {
+      "process": 23,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+        ]
+      }
+    },
+    {
+      "process": 24,
+      "exit": 0,
+      "cases": {
+        "composition_upstream": [
+          "RAW E2007 19..20 app composition cycle through 'A'",
+          "RAW E2007 34..35 app composition cycle through 'B'",
+          "PUBLIC E2007 19..20 app composition cycle through 'A'",
+          "PUBLIC E2007 34..35 app composition cycle through 'B'"
+        ],
+        "composition_duplicate": [
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 4..5 app composition cycle through 'A'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "RAW E2007 21..22 app composition cycle through 'B'",
+          "PUBLIC E2007 4..5 app composition cycle through 'A'",
+          "PUBLIC E2007 21..22 app composition cycle through 'B'"
+        ],
+        "ownership_upstream": [
+          "RAW E2008 13..14 containment cycle through model 'U'",
+          "RAW E2008 29..30 containment cycle through model 'A'",
+          "RAW E2008 45..46 containment cycle through model 'B'",
+          "PUBLIC E2008 13..14 containment cycle through model 'U'",
+          "PUBLIC E2008 29..30 containment cycle through model 'A'",
+          "PUBLIC E2008 45..46 containment cycle through model 'B'"
+        ],
+        "fixture_upstream": [
+          "RAW E2017 73..74 fixture reference cycle through 'a'",
+          "RAW E2017 92..93 fixture reference cycle through 'b'",
+          "PUBLIC E2017 73..74 fixture reference cycle through 'a'",
+          "PUBLIC E2017 92..93 fixture reference cycle through 'b'"
+        ],
+        "derive_upstream": [
+          "RAW E2018 65..67 derived-value cycle through 'b'",
+          "RAW E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 42..44 derived-value cycle through 'a'",
+          "PUBLIC E2018 65..67 derived-value cycle through 'b'"
+        ],
+        "calls_upstream": [
+          "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+        ],
+        "calls_overlap": [
+          "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+          "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+        ]
+      }
+    }
+  ],
+  "distinct_diagnostics": {
+    "calls_upstream": [
+      [
+        "PUBLIC E3005 141..142 call cycle: a -> b -> a"
+      ],
+      [
+        "PUBLIC E3005 98..99 call cycle: b -> a -> b"
+      ]
+    ],
+    "calls_overlap": [
+      [
+        "PUBLIC E3005 111..112 call cycle: a -> b -> a",
+        "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+      ],
+      [
+        "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+        "PUBLIC E3005 154..155 call cycle: a -> c -> a"
+      ],
+      [
+        "PUBLIC E3005 55..56 call cycle: b -> a -> b",
+        "PUBLIC E3005 68..69 call cycle: c -> a -> c"
+      ],
+      [
+        "PUBLIC E3005 68..69 call cycle: c -> a -> c",
+        "PUBLIC E3005 111..112 call cycle: a -> b -> a"
+      ]
+    ]
+  }
+}
