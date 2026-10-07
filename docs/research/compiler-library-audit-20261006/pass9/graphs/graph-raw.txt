@@ -1,0 +1,12 @@
+FIXED acyclic cyclic=[false, false, false] reaching=[false, false, false] calls=[]
+FIXED upstream cyclic=[false, true, true] reaching=[true, true, true] calls=[Witness { path: [1, 2, 1], edge: (2, 1, 0) }]
+FIXED independent cyclic=[true, true, true, false] reaching=[true, true, true, false] calls=[Witness { path: [0, 0], edge: (0, 0, 0) }, Witness { path: [1, 2, 1], edge: (2, 1, 0) }]
+FIXED duplicate cyclic=[true, true] reaching=[true, true] calls=[Witness { path: [0, 1, 0], edge: (1, 0, 0) }]
+FIXED overlap cyclic=[true, true, true] reaching=[true, true, true] calls=[Witness { path: [0, 2, 0], edge: (2, 0, 0) }, Witness { path: [0, 1, 0], edge: (1, 0, 0) }]
+FIXED diamond cyclic=[true, true, true, true] reaching=[true, true, true, true] calls=[Witness { path: [0, 2, 3, 0], edge: (3, 0, 0) }, Witness { path: [1, 3, 0, 1], edge: (0, 1, 0) }]
+EXHAUSTIVE 512 graphs x 2 root orders: exact witness/closing-edge/order parity
+BENCH chain_acyclic vertices=1000 edges=999 membership_direct_ns=13946334 scc_build_membership_reverse_ns=65916 call_direct_ns=101966459 call_scc_gate_ns=68416 cyclic=0 call_diags=0 reach_direct=Some((12818459, 0))
+BENCH sparse_acyclic vertices=1000 edges=1992 membership_direct_ns=18112708 scc_build_membership_reverse_ns=68417 call_direct_ns=77503833 call_scc_gate_ns=66209 cyclic=0 call_diags=0 reach_direct=None
+BENCH independent_cycles vertices=1000 edges=1000 membership_direct_ns=56583 scc_build_membership_reverse_ns=57500 call_direct_ns=224375 call_scc_gate_ns=292458 cyclic=1000 call_diags=500 reach_direct=Some((49166, 1000))
+BENCH highfanout vertices=1000 edges=999 membership_direct_ns=69958 scc_build_membership_reverse_ns=64208 call_direct_ns=108875 call_scc_gate_ns=113834 cyclic=0 call_diags=0 reach_direct=None
+BENCH upstream_chain_cycle vertices=1000 edges=1000 membership_direct_ns=13917875 scc_build_membership_reverse_ns=66250 call_direct_ns=101420291 call_scc_gate_ns=67042 cyclic=2 call_diags=1 reach_direct=Some((12281917, 1000))

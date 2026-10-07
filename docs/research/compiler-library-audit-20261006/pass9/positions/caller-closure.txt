@@ -1,0 +1,52 @@
+compiler/src/diagnostic.rs:303:    use crate::source::LineIndex;
+compiler/src/diagnostic.rs:306:            let index = LineIndex::new(&source.text);
+compiler/src/cli.rs:164:            cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+compiler/src/cli.rs:921:    let root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+compiler/src/cli.rs:929:        files.push(db.add(crate::docs::portable_source_id(path, &root), text));
+compiler/src/cli.rs:1709:                use crate::source::LineIndex;
+compiler/src/cli.rs:1713:                            let index = LineIndex::new(&source.text);
+compiler/src/docs.rs:74://!   (see [`portable_source_id`]) so every spelling of the same input —
+compiler/src/docs.rs:116:    /// Portable source identity (see [`portable_source_id`]): paths under
+compiler/src/docs.rs:965:/// Paths are portable identities (see [`portable_source_id`]) so absolute
+compiler/src/docs.rs:968:    let root = docs_project_root();
+compiler/src/docs.rs:972:        .map(|s| (portable_source_id(&s.path, &root), s.text.as_str()))
+compiler/src/docs.rs:1016:/// against the project root, see [`portable_source_id`]), or a synthetic
+compiler/src/docs.rs:1021:        |s| portable_source_id(&s.path, &docs_project_root()),
+compiler/src/docs.rs:1030:fn docs_project_root() -> PathBuf {
+compiler/src/docs.rs:1031:    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+compiler/src/docs.rs:1054:pub fn portable_source_id(path: &str, root: &Path) -> String {
+compiler/src/docs.rs:1068:    let normalized = lexical_normalize(&joined);
+compiler/src/docs.rs:1072:    let lexical_root = lexical_normalize(root);
+compiler/src/docs.rs:1082:fn lexical_normalize(path: &Path) -> PathBuf {
+compiler/src/lsp/server.rs:26:use crate::source::{LineIndex, SourceDb, SourceId, Span};
+compiler/src/lsp/server.rs:255:        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+compiler/src/lsp/server.rs:323:        let offset = queries::offset_at_position(snapshot.text(), pos.line, pos.character)?;
+compiler/src/lsp/server.rs:329:        let Some(offset) = queries::offset_at_position(snapshot.text(), pos.line, pos.character)
+compiler/src/lsp/server.rs:346:        let index = LineIndex::new(text);
+compiler/src/lsp/server.rs:347:        let Some(offset) = queries::offset_at_position(text, pos.line, pos.character) else {
+compiler/src/lsp/server.rs:364:        let index = LineIndex::new(text);
+compiler/src/lsp/server.rs:365:        let Some(offset) = queries::offset_at_position(text, pos.line, pos.character) else {
+compiler/src/lsp/server.rs:385:        let Some(offset) = queries::offset_at_position(text, pos.line, pos.character) else {
+compiler/src/lsp/server.rs:394:        let index = LineIndex::new(text);
+compiler/src/lsp/server.rs:421:            queries::offset_at_position(text, range.start.line, range.start.character)
+compiler/src/lsp/server.rs:425:        let Some(end) = queries::offset_at_position(text, range.end.line, range.end.character)
+compiler/src/lsp/server.rs:429:        let index = LineIndex::new(text);
+compiler/src/lsp/server.rs:458:fn span_to_range(index: &LineIndex, text: &str, span: Span) -> LspRange {
+compiler/src/lsp/server.rs:497:    index: &LineIndex,
+compiler/src/lsp/server.rs:975:    let index = LineIndex::new(text);
+compiler/src/codegen/sourcemap.rs:9:use crate::source::{LineIndex, SourceDb};
+compiler/src/codegen/sourcemap.rs:45:        indexes.push(LineIndex::new(&source.text));
+compiler/src/codegen/sourcemap.rs:60:                // Can's consumer profile uses source byte columns; LineIndex
+compiler/src/source.rs:4://! these types. Byte offsets are canonical; [`LineIndex`] converts to
+compiler/src/source.rs:114:pub struct LineIndex {
+compiler/src/source.rs:119:impl LineIndex {
+compiler/src/source.rs:310:        let idx = LineIndex::new(text);
+compiler/src/source.rs:321:        let bare_idx = LineIndex::new(bare);
+compiler/src/source.rs:329:        let idx = LineIndex::new(text);
+compiler/src/ide/queries.rs:96:/// clamps back to the scalar start. Mirrors [`LineIndex::to_lsp`]'s
+compiler/src/ide/queries.rs:99:/// [`LineIndex::to_lsp`]: crate::source::LineIndex::to_lsp
+compiler/src/ide/queries.rs:100:pub fn offset_at_position(text: &str, line: u32, character: u32) -> Option<u32> {
+compiler/src/ide/tokens.rs:17:use crate::source::LineIndex;
+compiler/src/ide/tokens.rs:64:    let index = LineIndex::new(text);
+compiler/src/ide/tokens.rs:90:    index: &LineIndex,
+compiler/src/ide/tokens.rs:114:    index: &LineIndex,

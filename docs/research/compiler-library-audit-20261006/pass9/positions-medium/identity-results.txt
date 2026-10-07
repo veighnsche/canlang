@@ -1,0 +1,8 @@
+existing.can | /private/tmp/canlang-pass9-positions-medium/identity-real => existing.can
+existing.can | /private/tmp/canlang-pass9-positions-medium/identity-link => existing.can
+missing.can | /private/tmp/canlang-pass9-positions-medium/identity-real => missing.can
+/private/tmp/canlang-pass9-positions-medium/identity-link/missing.can | /private/tmp/canlang-pass9-positions-medium/identity-real => external:/private/tmp/canlang-pass9-positions-medium/identity-link/missing.can
+../../x | ../missing => external:../../x
+../../x | ../../missing => external:../../../x
+../x | /private/tmp/canlang-pass9-positions-medium/missing/root => external:/private/tmp/canlang-pass9-positions-medium/missing/x
+/../../x | /missing/root => external:/../../x

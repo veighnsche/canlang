@@ -1,0 +1,10 @@
+[
+  {
+    "current": "path 6: external:x",
+    "path_clean": "path 6: external:../../x"
+  },
+  {
+    "current": "path 7: external:../x",
+    "path_clean": "path 7: external:../../../x"
+  }
+]

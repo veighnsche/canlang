@@ -1,0 +1,17 @@
+{
+  "compiler/src/analysis/types.rs": "91c73cd3ee28bfc2e62f84226fd0170291c0b06e56e0fbf6bc5e39a5914b734f",
+  "compiler/src/analysis/mod.rs": "4debfe707daf81d33d5f67e10b3a0da3d1f0bd0e465c62204ae8ace19fef99ec",
+  "compiler/src/cli.rs": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679",
+  "compiler/target/debug/can": "a15411ee7f24cdaf429cfebf8370d127fcafb5f3d2175dda759dfc0c7fd40ded",
+  "packages/values/src/temporal.ts": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+  "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+  "packages/values/dist/src/temporal.js": "5674cb40272776edcdab2314bf2bfa75647632a2e8028089bdc67b7cd78e9849",
+  "packages/values/dist/src/index.js": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+  "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+  "packages/values/semantics/src/temporal/instant.rs": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c",
+  "packages/values/semantics/src/temporal/civil.rs": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d",
+  "docs/specification/DESIGN.md": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+  "docs/ideal-filetree-plan/finished-product/reviews/language.md": "f36d5b93326681ac7e9ceed3077ba909efb5acd20f4d487905922830e03ae862",
+  "packages/values/src/catalog.ts": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb"
+}

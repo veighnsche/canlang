@@ -1,0 +1,846 @@
+[
+  {
+    "argv": [],
+    "exit": 0,
+    "stdout": "no-command format=None catalog=None\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nCommands:\n  compile      \n  check        \n  lint         \n  fmt          \n  explain      \n  lsp          \n  policy       \n  docs         \n  completions  \n  help         \n  run          \n  test         \n  build        \n  deploy       \n  activate     \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "-h"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nCommands:\n  compile      \n  check        \n  lint         \n  fmt          \n  explain      \n  lsp          \n  policy       \n  docs         \n  completions  \n  help         \n  run          \n  test         \n  build        \n  deploy       \n  activate     \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "help"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"help\" format=None catalog=None operands=[]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--help",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nCommands:\n  compile      \n  check        \n  lint         \n  fmt          \n  explain      \n  lsp          \n  policy       \n  docs         \n  completions  \n  help         \n  run          \n  test         \n  build        \n  deploy       \n  activate     \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--help",
+      "--version"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nCommands:\n  compile      \n  check        \n  lint         \n  fmt          \n  explain      \n  lsp          \n  policy       \n  docs         \n  completions  \n  help         \n  run          \n  test         \n  build        \n  deploy       \n  activate     \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "compile",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate compile [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate check [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "lint",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate lint [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --fix                \n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "fmt",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate fmt [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --check              \n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "explain",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate explain [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "lsp",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate lsp [OPTIONS]\n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "policy",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate policy [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "docs",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate docs [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --locale <locale>    \n      --catalog <catalog>  \n      --out <out>          \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "completions",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate completions [OPTIONS] <operands>\n\nArguments:\n  <operands>  [possible values: bash, zsh, fish]\n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "help",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate help [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "help",
+      "run"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"help\" format=None catalog=None operands=[\"run\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--help",
+      "run"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nCommands:\n  compile      \n  check        \n  lint         \n  fmt          \n  explain      \n  lsp          \n  policy       \n  docs         \n  completions  \n  help         \n  run          \n  test         \n  build        \n  deploy       \n  activate     \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "run",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"run\" format=None catalog=None operands=[\"--help\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "run",
+      "--format=json",
+      "--catalog",
+      "A",
+      "--",
+      "--help",
+      "two words",
+      ""
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"run\" format=Some(\"json\") catalog=Some(\"A\") operands=[\"--help\", \"two words\", \"\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "run",
+      "--",
+      "--artifact",
+      "x",
+      "--",
+      "-h"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"run\" format=None catalog=None operands=[\"--artifact\", \"x\", \"--\", \"-h\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "help",
+      "test"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"help\" format=None catalog=None operands=[\"test\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--help",
+      "test"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nCommands:\n  compile      \n  check        \n  lint         \n  fmt          \n  explain      \n  lsp          \n  policy       \n  docs         \n  completions  \n  help         \n  run          \n  test         \n  build        \n  deploy       \n  activate     \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "test",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"test\" format=None catalog=None operands=[\"--help\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "test",
+      "--format=json",
+      "--catalog",
+      "A",
+      "--",
+      "--help",
+      "two words",
+      ""
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"test\" format=Some(\"json\") catalog=Some(\"A\") operands=[\"--help\", \"two words\", \"\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "test",
+      "--",
+      "--artifact",
+      "x",
+      "--",
+      "-h"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"test\" format=None catalog=None operands=[\"--artifact\", \"x\", \"--\", \"-h\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "help",
+      "build"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"help\" format=None catalog=None operands=[\"build\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--help",
+      "build"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nCommands:\n  compile      \n  check        \n  lint         \n  fmt          \n  explain      \n  lsp          \n  policy       \n  docs         \n  completions  \n  help         \n  run          \n  test         \n  build        \n  deploy       \n  activate     \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "build",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"build\" format=None catalog=None operands=[\"--help\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "build",
+      "--format=json",
+      "--catalog",
+      "A",
+      "--",
+      "--help",
+      "two words",
+      ""
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"build\" format=Some(\"json\") catalog=Some(\"A\") operands=[\"--help\", \"two words\", \"\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "build",
+      "--",
+      "--artifact",
+      "x",
+      "--",
+      "-h"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"build\" format=None catalog=None operands=[\"--artifact\", \"x\", \"--\", \"-h\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "help",
+      "deploy"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"help\" format=None catalog=None operands=[\"deploy\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--help",
+      "deploy"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nCommands:\n  compile      \n  check        \n  lint         \n  fmt          \n  explain      \n  lsp          \n  policy       \n  docs         \n  completions  \n  help         \n  run          \n  test         \n  build        \n  deploy       \n  activate     \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "deploy",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"deploy\" format=None catalog=None operands=[\"--help\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "deploy",
+      "--format=json",
+      "--catalog",
+      "A",
+      "--",
+      "--help",
+      "two words",
+      ""
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"deploy\" format=Some(\"json\") catalog=Some(\"A\") operands=[\"--help\", \"two words\", \"\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "deploy",
+      "--",
+      "--artifact",
+      "x",
+      "--",
+      "-h"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"deploy\" format=None catalog=None operands=[\"--artifact\", \"x\", \"--\", \"-h\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "help",
+      "activate"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"help\" format=None catalog=None operands=[\"activate\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--help",
+      "activate"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nCommands:\n  compile      \n  check        \n  lint         \n  fmt          \n  explain      \n  lsp          \n  policy       \n  docs         \n  completions  \n  help         \n  run          \n  test         \n  build        \n  deploy       \n  activate     \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "activate",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"activate\" format=None catalog=None operands=[\"--help\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "activate",
+      "--format=json",
+      "--catalog",
+      "A",
+      "--",
+      "--help",
+      "two words",
+      ""
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"activate\" format=Some(\"json\") catalog=Some(\"A\") operands=[\"--help\", \"two words\", \"\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "activate",
+      "--",
+      "--artifact",
+      "x",
+      "--",
+      "-h"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"activate\" format=None catalog=None operands=[\"--artifact\", \"x\", \"--\", \"-h\"]\n",
+    "stderr": "",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "frobnicate"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=InvalidSubcommand\nerror: unrecognized subcommand 'frobnicate'\n\nUsage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nFor more information, try '--help'.\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "frobnicate",
+      "--help"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=InvalidSubcommand\nerror: unrecognized subcommand 'frobnicate'\n\nUsage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nFor more information, try '--help'.\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--wat"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=UnknownArgument\nerror: unexpected argument '--wat' found\n\n  tip: to pass '--wat' as a value, use '-- --wat'\n\nUsage: canlang-pass9-cli-candidate check [OPTIONS] [operands]...\n\nFor more information, try '--help'.\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "completions"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=MissingRequiredArgument\nerror: the following required arguments were not provided:\n  <operands>\n\nUsage: canlang-pass9-cli-candidate completions <operands>\n\nFor more information, try '--help'.\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "completions",
+      "powershell"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=InvalidValue\nerror: invalid value 'powershell' for '<operands>'\n  [possible values: bash, zsh, fish]\n\nFor more information, try '--help'.\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "completions",
+      "bash",
+      "fish"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=UnknownArgument\nerror: unexpected argument 'fish' found\n\nUsage: canlang-pass9-cli-candidate completions [OPTIONS] <operands>\n\nFor more information, try '--help'.\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "help",
+      "check",
+      "fmt"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"help\" format=None catalog=None operands=[\"check\", \"fmt\"]\n",
+    "stderr": "",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "lsp",
+      "--format=json"
+    ],
+    "exit": 101,
+    "stdout": "",
+    "stderr": "\nthread 'main' (19470629) panicked at src/main.rs:30:56:\nMismatch between definition and access of `operands`. Unknown argument or group id.  Make sure you are using the argument id and not the short or long flags\n\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--format=json",
+      "run",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"run\" format=Some(\"json\") catalog=None operands=[\"--help\"]\n",
+    "stderr": "",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"check\" format=None catalog=None operands=[\"--help\"]\n",
+    "stderr": "",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--",
+      "--help"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=InvalidSubcommand\nerror: unrecognized subcommand '--help'\n\nUsage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nFor more information, try '--help'.\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "/private/tmp/canlang-pass9-cli/missing.can"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"check\" format=None catalog=None operands=[\"/private/tmp/canlang-pass9-cli/missing.can\"]\n",
+    "stderr": "",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "explain",
+      "NOPE"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"explain\" format=None catalog=None operands=[\"NOPE\"]\n",
+    "stderr": "",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "run",
+      "--artifact",
+      "x"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"run\" format=None catalog=None operands=[\"--artifact\", \"x\"]\n",
+    "stderr": "",
+    "current_exit": 7,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "run"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"run\" format=None catalog=None operands=[]\n",
+    "stderr": "",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "run"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"run\" format=None catalog=None operands=[]\n",
+    "stderr": "",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--format=text",
+      "--format=json",
+      "/private/tmp/canlang-pass9-cli/bad.can"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"check\" format=Some(\"json\") catalog=None operands=[\"/private/tmp/canlang-pass9-cli/bad.can\"]\n",
+    "stderr": "",
+    "current_exit": 10,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--format=json",
+      "--format=text",
+      "/private/tmp/canlang-pass9-cli/bad.can"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"check\" format=Some(\"text\") catalog=None operands=[\"/private/tmp/canlang-pass9-cli/bad.can\"]\n",
+    "stderr": "",
+    "current_exit": 10,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--catalog=/private/tmp/canlang-pass9-cli/absent.json",
+      "--catalog",
+      "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+      "--format=json",
+      "/private/tmp/canlang-pass9-cli/bad.can"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"check\" format=Some(\"json\") catalog=Some(\"/Users/vince/Projects/canlang/packages/values/dist/catalog.json\") operands=[\"/private/tmp/canlang-pass9-cli/bad.can\"]\n",
+    "stderr": "",
+    "current_exit": 10,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--help",
+      "--format=wat"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate check [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--format=wat",
+      "--help"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=InvalidValue\nerror: invalid value 'wat' for '--format <format>'\n  [possible values: json, text]\n\nFor more information, try '--help'.\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--help",
+      "--wat"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate check [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--wat",
+      "--help"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=UnknownArgument\nerror: unexpected argument '--wat' found\n\n  tip: to pass '--wat' as a value, use '-- --wat'\n\nUsage: canlang-pass9-cli-candidate check [OPTIONS] [operands]...\n\nFor more information, try '--help'.\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--help",
+      "--format"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate check [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--help",
+      "--fix"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate check [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "fmt",
+      "--help",
+      "--format=json"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate fmt [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --check              \n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "help",
+      "--format=json",
+      "check"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"help\" format=Some(\"json\") catalog=None operands=[\"check\"]\n",
+    "stderr": "",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--catalog",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "cmd=\"check\" format=None catalog=Some(\"--help\") operands=[]\n",
+    "stderr": "",
+    "current_exit": 2,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "check",
+      "--catalog=",
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "Usage: canlang-pass9-cli-candidate check [OPTIONS] [operands]...\n\nArguments:\n  [operands]...  \n\nOptions:\n      --format <format>    [possible values: json, text]\n      --catalog <catalog>  \n  -h, --help               Print help\n",
+    "stderr": "kind=DisplayHelp\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  },
+  {
+    "argv": [
+      "--version",
+      "frobnicate"
+    ],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "kind=UnknownArgument\nerror: unexpected argument '--version' found\n\nUsage: canlang-pass9-cli-candidate [OPTIONS] [COMMAND]\n\nFor more information, try '--help'.\n",
+    "current_exit": 0,
+    "note": "parser/metadata prototype only; no business dispatch"
+  }
+]

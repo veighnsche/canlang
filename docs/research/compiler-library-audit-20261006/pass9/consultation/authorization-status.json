@@ -1,0 +1,17 @@
+{
+  "status": "pending specific human authorization; no requests sent",
+  "endpoint": "https://api.typesafe.ai/v1/systemone",
+  "rejection": "Automatic approval review rejected execution of the prepared consultation driver because general JEV authorization did not explicitly cover this repository-derived payload and destination.",
+  "action": "three saved verified-context requests, each containing graph origin ordering and outside-plural ICU pound policy alternatives",
+  "requests": {
+    "request-1.json": "dc6d264127c75eb2925c2cf74a738a0b52111bab1d180c09feae2780a34fa444",
+    "request-2.json": "7056fd45c2d010e115c7d7678b9a2a6a9fe766699d21d171a387474a3c9dd936",
+    "request-3.json": "dd1afc57d1f897864ea40edadb51f16eacafb8d3c88855e6383e35cab0716bfc"
+  },
+  "human_question": "Specific approval requested through asynchronous user input; independent repairs/reviews continue.",
+  "boundaries": [
+    "no workaround or indirect execution",
+    "no graph origin or pound policy selected",
+    "no credentials or application/user data in the saved requests"
+  ]
+}

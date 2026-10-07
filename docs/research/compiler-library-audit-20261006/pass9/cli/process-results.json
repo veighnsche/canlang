@@ -1,0 +1,1333 @@
+{
+  "binary_sha256": "a15411ee7f24cdaf429cfebf8370d127fcafb5f3d2175dda759dfc0c7fd40ded",
+  "cases": [
+    {
+      "argv": [],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can 0.1.0"
+      },
+      "exit": 0,
+      "stdout": "can 0.1.0 \u2014 CanLang compiler and authoring tools\n\nUsage: can <COMMAND> [OPTIONS] [ARGS...]\n       can --help\n       can --version\n\nCommands:\n  compile   Analyze sources and emit the compile artifact\n  check     Analyze sources and report diagnostics\n  lint      Run lint rules over sources (warnings only, never blocks)\n  fmt       Format sources in place (or check with --check)\n  explain   Print a diagnostic catalog entry: can explain E1001\n  lsp       Run the language server over stdio (Content-Length JSON-RPC)\n  policy    Dump the declared policy surface (roles, policies, operation gates)\n  docs      Generate the localized internal declaration reference (Markdown)\n  run       Thin lane-7 entry: exec can-platform run (passthrough)\n  test      Thin lane-7 entry: exec can-platform test (passthrough)\n  build     Thin lane-7 entry: exec can-platform build (passthrough)\n  deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)\n  activate  Thin lane-7 entry: exec can-platform activate (passthrough)\n  completions  Print a shell completion script: can completions bash|zsh|fish\n  help      Show help (global or `can help <COMMAND>`)\n\nOptions:\n  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)\n  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,\n                       ./can-catalog.json, ./packages/values/dist/catalog.json)\n  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)\n  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)\n  -h, --help           Show help (global or `can <COMMAND> --help`)\n  -V, --version        Show version\n\nEnvironment:\n  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)\n  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can 0.1.0"
+      },
+      "exit": 0,
+      "stdout": "can 0.1.0 \u2014 CanLang compiler and authoring tools\n\nUsage: can <COMMAND> [OPTIONS] [ARGS...]\n       can --help\n       can --version\n\nCommands:\n  compile   Analyze sources and emit the compile artifact\n  check     Analyze sources and report diagnostics\n  lint      Run lint rules over sources (warnings only, never blocks)\n  fmt       Format sources in place (or check with --check)\n  explain   Print a diagnostic catalog entry: can explain E1001\n  lsp       Run the language server over stdio (Content-Length JSON-RPC)\n  policy    Dump the declared policy surface (roles, policies, operation gates)\n  docs      Generate the localized internal declaration reference (Markdown)\n  run       Thin lane-7 entry: exec can-platform run (passthrough)\n  test      Thin lane-7 entry: exec can-platform test (passthrough)\n  build     Thin lane-7 entry: exec can-platform build (passthrough)\n  deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)\n  activate  Thin lane-7 entry: exec can-platform activate (passthrough)\n  completions  Print a shell completion script: can completions bash|zsh|fish\n  help      Show help (global or `can help <COMMAND>`)\n\nOptions:\n  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)\n  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,\n                       ./can-catalog.json, ./packages/values/dist/catalog.json)\n  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)\n  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)\n  -h, --help           Show help (global or `can <COMMAND> --help`)\n  -V, --version        Show version\n\nEnvironment:\n  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)\n  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "-h"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can 0.1.0"
+      },
+      "exit": 0,
+      "stdout": "can 0.1.0 \u2014 CanLang compiler and authoring tools\n\nUsage: can <COMMAND> [OPTIONS] [ARGS...]\n       can --help\n       can --version\n\nCommands:\n  compile   Analyze sources and emit the compile artifact\n  check     Analyze sources and report diagnostics\n  lint      Run lint rules over sources (warnings only, never blocks)\n  fmt       Format sources in place (or check with --check)\n  explain   Print a diagnostic catalog entry: can explain E1001\n  lsp       Run the language server over stdio (Content-Length JSON-RPC)\n  policy    Dump the declared policy surface (roles, policies, operation gates)\n  docs      Generate the localized internal declaration reference (Markdown)\n  run       Thin lane-7 entry: exec can-platform run (passthrough)\n  test      Thin lane-7 entry: exec can-platform test (passthrough)\n  build     Thin lane-7 entry: exec can-platform build (passthrough)\n  deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)\n  activate  Thin lane-7 entry: exec can-platform activate (passthrough)\n  completions  Print a shell completion script: can completions bash|zsh|fish\n  help      Show help (global or `can help <COMMAND>`)\n\nOptions:\n  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)\n  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,\n                       ./can-catalog.json, ./packages/values/dist/catalog.json)\n  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)\n  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)\n  -h, --help           Show help (global or `can <COMMAND> --help`)\n  -V, --version        Show version\n\nEnvironment:\n  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)\n  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can 0.1.0"
+      },
+      "exit": 0,
+      "stdout": "can 0.1.0 \u2014 CanLang compiler and authoring tools\n\nUsage: can <COMMAND> [OPTIONS] [ARGS...]\n       can --help\n       can --version\n\nCommands:\n  compile   Analyze sources and emit the compile artifact\n  check     Analyze sources and report diagnostics\n  lint      Run lint rules over sources (warnings only, never blocks)\n  fmt       Format sources in place (or check with --check)\n  explain   Print a diagnostic catalog entry: can explain E1001\n  lsp       Run the language server over stdio (Content-Length JSON-RPC)\n  policy    Dump the declared policy surface (roles, policies, operation gates)\n  docs      Generate the localized internal declaration reference (Markdown)\n  run       Thin lane-7 entry: exec can-platform run (passthrough)\n  test      Thin lane-7 entry: exec can-platform test (passthrough)\n  build     Thin lane-7 entry: exec can-platform build (passthrough)\n  deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)\n  activate  Thin lane-7 entry: exec can-platform activate (passthrough)\n  completions  Print a shell completion script: can completions bash|zsh|fish\n  help      Show help (global or `can help <COMMAND>`)\n\nOptions:\n  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)\n  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,\n                       ./can-catalog.json, ./packages/values/dist/catalog.json)\n  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)\n  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)\n  -h, --help           Show help (global or `can <COMMAND> --help`)\n  -V, --version        Show version\n\nEnvironment:\n  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)\n  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--help",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can 0.1.0"
+      },
+      "exit": 0,
+      "stdout": "can 0.1.0 \u2014 CanLang compiler and authoring tools\n\nUsage: can <COMMAND> [OPTIONS] [ARGS...]\n       can --help\n       can --version\n\nCommands:\n  compile   Analyze sources and emit the compile artifact\n  check     Analyze sources and report diagnostics\n  lint      Run lint rules over sources (warnings only, never blocks)\n  fmt       Format sources in place (or check with --check)\n  explain   Print a diagnostic catalog entry: can explain E1001\n  lsp       Run the language server over stdio (Content-Length JSON-RPC)\n  policy    Dump the declared policy surface (roles, policies, operation gates)\n  docs      Generate the localized internal declaration reference (Markdown)\n  run       Thin lane-7 entry: exec can-platform run (passthrough)\n  test      Thin lane-7 entry: exec can-platform test (passthrough)\n  build     Thin lane-7 entry: exec can-platform build (passthrough)\n  deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)\n  activate  Thin lane-7 entry: exec can-platform activate (passthrough)\n  completions  Print a shell completion script: can completions bash|zsh|fish\n  help      Show help (global or `can help <COMMAND>`)\n\nOptions:\n  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)\n  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,\n                       ./can-catalog.json, ./packages/values/dist/catalog.json)\n  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)\n  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)\n  -h, --help           Show help (global or `can <COMMAND> --help`)\n  -V, --version        Show version\n\nEnvironment:\n  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)\n  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--help",
+        "--version"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can 0.1.0"
+      },
+      "exit": 0,
+      "stdout": "can 0.1.0 \u2014 CanLang compiler and authoring tools\n\nUsage: can <COMMAND> [OPTIONS] [ARGS...]\n       can --help\n       can --version\n\nCommands:\n  compile   Analyze sources and emit the compile artifact\n  check     Analyze sources and report diagnostics\n  lint      Run lint rules over sources (warnings only, never blocks)\n  fmt       Format sources in place (or check with --check)\n  explain   Print a diagnostic catalog entry: can explain E1001\n  lsp       Run the language server over stdio (Content-Length JSON-RPC)\n  policy    Dump the declared policy surface (roles, policies, operation gates)\n  docs      Generate the localized internal declaration reference (Markdown)\n  run       Thin lane-7 entry: exec can-platform run (passthrough)\n  test      Thin lane-7 entry: exec can-platform test (passthrough)\n  build     Thin lane-7 entry: exec can-platform build (passthrough)\n  deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)\n  activate  Thin lane-7 entry: exec can-platform activate (passthrough)\n  completions  Print a shell completion script: can completions bash|zsh|fish\n  help      Show help (global or `can help <COMMAND>`)\n\nOptions:\n  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)\n  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,\n                       ./can-catalog.json, ./packages/values/dist/catalog.json)\n  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)\n  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)\n  -h, --help           Show help (global or `can <COMMAND> --help`)\n  -V, --version        Show version\n\nEnvironment:\n  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)\n  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "compile",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can compile"
+      },
+      "exit": 0,
+      "stdout": "can compile \u2014 analyze sources and emit the compile artifact\n\nUsage: can compile [--format=json|text] [--catalog=PATH] FILE.can...\n\nText lists one emitted module path per line; json prints the artifact envelope. Analysis or emission errors (E6006/E6007/E6008) report diagnostics instead of an artifact.\n\nExit codes: 0 emitted, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "check",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can check"
+      },
+      "exit": 0,
+      "stdout": "can check \u2014 analyze sources and report diagnostics (full pipeline over the producer catalog; result is complete=true)\n\nUsage: can check [--format=json|text] [--catalog=PATH] FILE.can...\n\nCatalog order: --catalog PATH, CAN_CATALOG, ./can-catalog.json, ./packages/values/dist/catalog.json (emit it with `npm run catalog` in packages/values). Without a catalog, builtin names do not resolve.\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "lint",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can lint"
+      },
+      "exit": 0,
+      "stdout": "can lint \u2014 analyze sources, then run lint rules over the checked program (recommended rules; warnings/informational only, never blocking)\n\nUsage: can lint [--fix] [--format=json|text] [--catalog=PATH] FILE.can...\n\nAnalysis errors report diagnostics with exit 10 and no lint findings. On a clean analysis the lint findings print as the diagnostic envelope (exit 0: warnings never block). With --fix, machine fixes are computed and reported (JSON gains a sorted `fixes` array; text gains one `fix` line per fix); nothing is written.\n\nExit codes: 0 findings-or-clean, 10 analysis errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "fmt",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can fmt"
+      },
+      "exit": 0,
+      "stdout": "can fmt \u2014 format sources canonically\n\nUsage: can fmt [--check] [FILE.can...|-]\n\nFormats each file in place, writing only files that change. With no operands, or `-`, reads stdin and writes the formatted text to stdout. `--check` writes nothing and lists the files that differ instead. Parse failures print the machine-JSON diagnostic envelope on stdout and write nothing. Exit codes: 0 clean, 10 errors or differences reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "explain",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can explain"
+      },
+      "exit": 0,
+      "stdout": "can explain \u2014 print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "lsp",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can lsp"
+      },
+      "exit": 0,
+      "stdout": "can lsp \u2014 run the language server over stdio\n\nUsage: can lsp\n\nSpeaks Content-Length JSON-RPC; see the transport module docs.\nStdin EOF shuts the server down with the lifecycle exit code; a\nshutdown request followed by the exit notification exits 0, exit\nwithout shutdown exits 1.\n\nExit codes: 0 clean shutdown (shutdown+exit, or stdin EOF), 1 exit without shutdown, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "policy",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can policy"
+      },
+      "exit": 0,
+      "stdout": "can policy \u2014 dump the declared policy surface (roles, model policies/invariants, operation gates)\n\nUsage: can policy [--format=json|text] [--catalog=PATH] FILE.can...\n\nReads the checked program and prints the policy surface in source order.\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "docs",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can docs"
+      },
+      "exit": 0,
+      "stdout": "can docs \u2014 generate the localized internal declaration reference\n\nUsage: can docs [--locale=TAG] [--out=PATH] [--format=json|text] [--catalog=PATH] FILE.can...\n\nAnalyzes sources, extracts the frozen reference model v1 and pipes it as JSON through stdin to the `can-platform docs` renderer (fixed args, no shell), which selects description variants through the shared TS locale resolver and writes Markdown. Without --out the Markdown goes to stdout; without --locale the renderer uses the app default locale plus source fallback. --format shapes diagnostics only, never the Markdown. Analysis errors report diagnostics (exit 10) with no reference output and no file write; a missing runtime/renderer or a failed render is tool error E7004. --out refuses `.can` paths and input files: authored sources are never overwritten. The reference never runs business handlers or examples.\n\nExit codes: 0 rendered, 10 errors reported, 2 tool failure.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "completions",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can completions"
+      },
+      "exit": 0,
+      "stdout": "can completions \u2014 print a shell completion script\n\nUsage: can completions bash|zsh|fish\n\nPrints the completion script for every `can` command, flag and\noperand to stdout; eval it or install it (see docs/install.md).\n\nExit codes: 0 printed, 2 unknown shell or bad usage.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "help",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can help"
+      },
+      "exit": 0,
+      "stdout": "can help \u2014 show help\n\nUsage: can help [COMMAND]\n\nWith no command, prints the global help (`can --help`). With a\ncommand, prints that command's help (same as `can <COMMAND> --help`,\nexcept run|test|build|deploy|activate pass a trailing `--help`\nthrough to can-platform, so `can help <COMMAND>` \u2014 like\n`can --help <COMMAND>` \u2014 is the way to see their `can`-side help).\n\nExit codes: 0 printed, 2 unknown command.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "help",
+        "run"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can run"
+      },
+      "exit": 0,
+      "stdout": "can run \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can run [ARGS...]\n\nExecs `can-platform run` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can run --help` asks the platform tool; use\n`can help run` or `can --help run` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--help",
+        "run"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can run"
+      },
+      "exit": 0,
+      "stdout": "can run \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can run [ARGS...]\n\nExecs `can-platform run` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can run --help` asks the platform tool; use\n`can help run` or `can --help run` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "run",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"run\", \"--help\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"run\", \"--help\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "run",
+        "--format=json",
+        "--catalog",
+        "A",
+        "--",
+        "--help",
+        "two words",
+        ""
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"run\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"run\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "run",
+        "--",
+        "--artifact",
+        "x",
+        "--",
+        "-h"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"run\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"run\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "help",
+        "test"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can test"
+      },
+      "exit": 0,
+      "stdout": "can test \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can test [ARGS...]\n\nExecs `can-platform test` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can test --help` asks the platform tool; use\n`can help test` or `can --help test` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--help",
+        "test"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can test"
+      },
+      "exit": 0,
+      "stdout": "can test \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can test [ARGS...]\n\nExecs `can-platform test` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can test --help` asks the platform tool; use\n`can help test` or `can --help test` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "test",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"test\", \"--help\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"test\", \"--help\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "test",
+        "--format=json",
+        "--catalog",
+        "A",
+        "--",
+        "--help",
+        "two words",
+        ""
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"test\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"test\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "test",
+        "--",
+        "--artifact",
+        "x",
+        "--",
+        "-h"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"test\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"test\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "help",
+        "build"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can build"
+      },
+      "exit": 0,
+      "stdout": "can build \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can build [ARGS...]\n\nExecs `can-platform build` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can build --help` asks the platform tool; use\n`can help build` or `can --help build` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--help",
+        "build"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can build"
+      },
+      "exit": 0,
+      "stdout": "can build \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can build [ARGS...]\n\nExecs `can-platform build` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can build --help` asks the platform tool; use\n`can help build` or `can --help build` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "build",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"build\", \"--help\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"build\", \"--help\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "build",
+        "--format=json",
+        "--catalog",
+        "A",
+        "--",
+        "--help",
+        "two words",
+        ""
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"build\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"build\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "build",
+        "--",
+        "--artifact",
+        "x",
+        "--",
+        "-h"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"build\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"build\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "help",
+        "deploy"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can deploy"
+      },
+      "exit": 0,
+      "stdout": "can deploy \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can deploy [ARGS...]\n\nExecs `can-platform deploy` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can deploy --help` asks the platform tool; use\n`can help deploy` or `can --help deploy` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--help",
+        "deploy"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can deploy"
+      },
+      "exit": 0,
+      "stdout": "can deploy \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can deploy [ARGS...]\n\nExecs `can-platform deploy` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can deploy --help` asks the platform tool; use\n`can help deploy` or `can --help deploy` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "deploy",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"deploy\", \"--help\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"deploy\", \"--help\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "deploy",
+        "--format=json",
+        "--catalog",
+        "A",
+        "--",
+        "--help",
+        "two words",
+        ""
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"deploy\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"deploy\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "deploy",
+        "--",
+        "--artifact",
+        "x",
+        "--",
+        "-h"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"deploy\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"deploy\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "help",
+        "activate"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can activate"
+      },
+      "exit": 0,
+      "stdout": "can activate \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can activate [ARGS...]\n\nExecs `can-platform activate` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can activate --help` asks the platform tool; use\n`can help activate` or `can --help activate` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--help",
+        "activate"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "",
+        "stdout_contains": "can activate"
+      },
+      "exit": 0,
+      "stdout": "can activate \u2014 thin lane-7 entry (passthrough to can-platform)\n\nUsage: can activate [ARGS...]\n\nExecs `can-platform activate` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can activate --help` asks the platform tool; use\n`can help activate` or `can --help activate` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "activate",
+        "--help"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"activate\", \"--help\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"activate\", \"--help\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "activate",
+        "--format=json",
+        "--catalog",
+        "A",
+        "--",
+        "--help",
+        "two words",
+        ""
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"activate\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"activate\", \"--format=json\", \"--catalog\", \"A\", \"--\", \"--help\", \"two words\", \"\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "activate",
+        "--",
+        "--artifact",
+        "x",
+        "--",
+        "-h"
+      ],
+      "expected": {
+        "exit": 0,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"activate\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]"
+      },
+      "exit": 0,
+      "stdout": "[\"activate\", \"--\", \"--artifact\", \"x\", \"--\", \"-h\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "frobnicate"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "unknown command",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: unknown command 'frobnicate'; use can --help\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "frobnicate",
+        "--help"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "unknown command",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: unknown command 'frobnicate'; use can --help\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "check",
+        "--wat"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "unknown flag",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: unknown flag '--wat'; use can --help\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "completions"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "expects exactly one",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: can completions expects exactly one SHELL operand (bash|zsh|fish)\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "completions",
+        "powershell"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "unknown shell",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: unknown shell 'powershell'; want bash|zsh|fish\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "completions",
+        "bash",
+        "fish"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "expects exactly one",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: can completions expects exactly one SHELL operand (bash|zsh|fish)\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "help",
+        "check",
+        "fmt"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "expects at most one",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: can help expects at most one COMMAND operand\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "lsp",
+        "--format=json"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "takes no --format",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: can lsp takes no --format flag\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--format=json",
+        "run",
+        "--help"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "takes no can-side flags",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: can run takes no can-side flags; everything after the subcommand passes through to can-platform\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "check",
+        "--",
+        "--help"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "cannot read '--help'",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7002]: cannot read '--help': No such file or directory (os error 2)\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "--",
+        "--help"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "unknown command",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: unknown command '--help'; use can --help\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "check",
+        "/private/tmp/canlang-pass9-cli/missing.can"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "cannot read",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7002]: cannot read '/private/tmp/canlang-pass9-cli/missing.can': No such file or directory (os error 2)\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "explain",
+        "NOPE"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "unknown diagnostic",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7003]: unknown diagnostic code 'NOPE'; known codes: E1001, E1002, E1003, E1004, E1005, E1006, E1007, E1101, E1102, E1103, E1120, E1121, E1122, E1123, E1124, E1125, E1126, E1200, E1201, E1202, E1203, E1204, E1205, E1206, E1207, E1208, E1209, E1210, E1211, E1212, E1213, E1214, E1215, E1216, E2001, E2002, E2003, E2004, E2005, E2006, E2007, E2008, E2009, E2010, E2012, E2013, E2014, E2017, E2018, E3001, E3002, E3003, E3004, E3005, E3006, E3007, E3008, E3009, E3010, E3011, E3012, E3013, E3014, E3015, E3016, E3017, E3018, E3019, E4001, E4002, E4003, E4004, E4010, E4011, E4012, E4020, E4030, E4040, E4041, E4042, E4050, E4051, E4052, E4053, E4054, E5001, E5002, E5003, E5004, E5005, E5006, E5007, E5008, E5009, E6001, E6002, E6003, E6004, E6005, E6006, E6007, E6008, E7001, E7002, E7003, E7004, E7005, E7006, E7007, I1001, I1002, I1003, I1004, W1001, W2001, W3001\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "run",
+        "--artifact",
+        "x"
+      ],
+      "expected": {
+        "exit": 7,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"run\", \"--artifact\", \"x\"]"
+      },
+      "exit": 7,
+      "stdout": "[\"run\", \"--artifact\", \"x\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "run"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "fixture stderr",
+        "stdout_contains": "[\"run\"]"
+      },
+      "exit": 2,
+      "stdout": "[\"run\"]\n",
+      "stderr": "fixture stderr\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "run"
+      ],
+      "expected": {
+        "exit": 2,
+        "stderr_contains": "E7004",
+        "stdout_contains": null
+      },
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7004]: lane-7 producer '/private/tmp/canlang-pass9-cli/nonexistent' is not a file for `can run`; install it or fix CAN_PLATFORM_BIN (see can explain E7004)\n",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "check",
+        "--format=text",
+        "--format=json",
+        "/private/tmp/canlang-pass9-cli/bad.can"
+      ],
+      "expected": {
+        "exit": 10,
+        "stderr_contains": "",
+        "stdout_contains": "{"
+      },
+      "exit": 10,
+      "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-cli/bad.can\",\"sha256\":\"661ed0b6f1c6473287921b2d523599a8733882387a8facd93cf06df8d55b3926\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E1211\",\"severity\":\"error\",\"message\":\"expected app, package or migration\",\"primary\":{\"file\":0,\"start\":0,\"end\":2},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "check",
+        "--format=json",
+        "--format=text",
+        "/private/tmp/canlang-pass9-cli/bad.can"
+      ],
+      "expected": {
+        "exit": 10,
+        "stderr_contains": "",
+        "stdout_contains": "/private/tmp/canlang-pass9-cli/bad.can:"
+      },
+      "exit": 10,
+      "stdout": "/private/tmp/canlang-pass9-cli/bad.can:1:1: error E1211 expected app, package or migration\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true
+      }
+    },
+    {
+      "argv": [
+        "check",
+        "--catalog=/private/tmp/canlang-pass9-cli/absent.json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "--format=json",
+        "/private/tmp/canlang-pass9-cli/bad.can"
+      ],
+      "expected": {
+        "exit": 10,
+        "stderr_contains": "",
+        "stdout_contains": "{"
+      },
+      "exit": 10,
+      "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-cli/bad.can\",\"sha256\":\"661ed0b6f1c6473287921b2d523599a8733882387a8facd93cf06df8d55b3926\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E1211\",\"severity\":\"error\",\"message\":\"expected app, package or migration\",\"primary\":{\"file\":0,\"start\":0,\"end\":2},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+      "stderr": "",
+      "checks": {
+        "exit": true,
+        "stderr": true,
+        "stdout": true,
+        "last_catalog_loaded": true
+      }
+    }
+  ],
+  "characterization": [
+    {
+      "argv": [
+        "check",
+        "--help",
+        "--format=wat"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: invalid --format 'wat'; want json|text\n"
+    },
+    {
+      "argv": [
+        "check",
+        "--format=wat",
+        "--help"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: invalid --format 'wat'; want json|text\n"
+    },
+    {
+      "argv": [
+        "check",
+        "--help",
+        "--wat"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: unknown flag '--wat'; use can --help\n"
+    },
+    {
+      "argv": [
+        "check",
+        "--wat",
+        "--help"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: unknown flag '--wat'; use can --help\n"
+    },
+    {
+      "argv": [
+        "check",
+        "--help",
+        "--format"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: missing value for --format; want json|text\n"
+    },
+    {
+      "argv": [
+        "check",
+        "--help",
+        "--fix"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: --fix only applies to can lint\n"
+    },
+    {
+      "argv": [
+        "fmt",
+        "--help",
+        "--format=json"
+      ],
+      "exit": 0,
+      "stdout": "can fmt \u2014 format sources canonically\n\nUsage: can fmt [--check] [FILE.can...|-]\n\nFormats each file in place, writing only files that change. With no operands, or `-`, reads stdin and writes the formatted text to stdout. `--check` writes nothing and lists the files that differ instead. Parse failures print the machine-JSON diagnostic envelope on stdout and write nothing. Exit codes: 0 clean, 10 errors or differences reported, 2 tool failure.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "help",
+        "--format=json",
+        "check"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: can help takes no --format or --catalog flag\n"
+    },
+    {
+      "argv": [
+        "check",
+        "--catalog",
+        "--help"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error[E7001]: can check expects at least one FILE.can operand\n"
+    },
+    {
+      "argv": [
+        "check",
+        "--catalog=",
+        "--help"
+      ],
+      "exit": 0,
+      "stdout": "can check \u2014 analyze sources and report diagnostics (full pipeline over the producer catalog; result is complete=true)\n\nUsage: can check [--format=json|text] [--catalog=PATH] FILE.can...\n\nCatalog order: --catalog PATH, CAN_CATALOG, ./can-catalog.json, ./packages/values/dist/catalog.json (emit it with `npm run catalog` in packages/values). Without a catalog, builtin names do not resolve.\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "--version",
+        "frobnicate"
+      ],
+      "exit": 0,
+      "stdout": "can 0.1.0 (commit 601d4915; language 1.0; schema 1)\n",
+      "stderr": ""
+    }
+  ],
+  "completion_bytes": [
+    {
+      "shell": "bash",
+      "exit": 0,
+      "stderr": "",
+      "exact_shipped_bytes": true,
+      "bytes": 2428
+    },
+    {
+      "shell": "zsh",
+      "exit": 0,
+      "stderr": "",
+      "exact_shipped_bytes": true,
+      "bytes": 3014
+    },
+    {
+      "shell": "fish",
+      "exit": 0,
+      "stderr": "",
+      "exact_shipped_bytes": true,
+      "bytes": 3876
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+    fn check_fixture(&mut self, text: &str, module: ModuleId, node: &SyntaxNode) {
+        let name = decl_name(text, node, &["export", "fixture"]);
+        let id = name.and_then(|n| test_symbol(self.tables, module, n));
+        let Some(id) = id else { return };
+        let target = match &self.tables.symbols[id.0 as usize].kind {
+            SymbolKind::Fixture { target } => *target,
+            _ => return,
+        };
+        let seeds = self
+            .tables
+            .fixture_edges
+            .get(&id)
+            .cloned()
+            .unwrap_or_default();
+        self.out.fixtures.push(FixtureRecipe {
+            symbol: id,
+            node: NodeKey::of(node),
+            span: tight_span(text, node),
+            module,
+            target,
+            seeds,
+        });
+    }
+

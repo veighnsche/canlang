@@ -1,0 +1,24 @@
+{
+  "model": "jev-latest",
+  "state": "Verified context, phrasing 2: DESIGN9.1 bounded ICU profile allows text/named arguments, exact numeric cases, nearest-plural#, apostrophe-friendly quoting, and rejects unsupported offsets/styles/rich handlers; it does not explicitly state outside-plural# admission. Current public @canlang/values source and built root agree that top-level# is literal text; compiler examples.rs IcuParser rejects it with E5007, and an existing test codifies that rejection. Compiler documentation calls the profile implementation-defined pending a DESIGN ruling. Quoted# agrees; # inside a plural/select nesting uses nearest plural in runtime. Official Unicode ICU MessageFormat docs (actually opened2026-10-07) describe # as a syntax/quoting character within plural styles, not all ordinary message text. That is contextual evidence, not automatic authority to widen bounded Can. Other explicit numeric type defects are already independently reviewed and repaired, while additional finite syntax/disclosure packets are queued separately. No package or full parser/architecture migration is authorized.\n\nActual check_program dedups by(file,start,end,code,message) and sorts(file,start,code), promising deterministic diagnostics. types.rs::check_cycles makes scenario/derive call graph edges retaining call occurrence order/individual span; only scenario bodies set current_op, so standalone derive recursion belongs E2018. It walks each caller with stack DFS, visited-on-push, adjacency insertion order, and closing-edge spans, globally dedupping sorted witness vertex ID sets. Callers currently come from randomized HashMap keys. Actual12fresh process runs on identical program show a->b->a span141..142 versus b->a->b span98..99; an overlap program yields3different public diagnostic sets. Later diagnostic sorting cannot fix changing content. SymbolIds are appended in deterministic indexing order for supplied ordered files/trees, including generated/nested symbols, not globally canonical path/position order. SCC comparison is not adopted: both iterative and SCC+legacyDFS preserve fixed ordered-origin results across512graphs*2orders; synthetic chains benefit but actual editor/compiler workload is unmeasured. Desired repair scope is stable origin selection only, preserving adjacency, closing span, vertex-set dedup, callable filters and upstream exclusion; no SCC diagnostic replacement.",
+  "questions": {
+    "graph_origin": {
+      "type": "choice",
+      "instructions": "Choose stable caller enumeration for this narrow diagnostic repair, weighing minimal preservation versus source-oriented ordering.",
+      "criteria": {
+        "ids": "Make existing ID-index order the deterministic root enumeration and preserve all inner walk/dedup logic. Minimal change; determinism is for the same input ordering, not normalized source-path ordering.",
+        "source_spans": "Use each caller declaration location and ID tie-breaker to define root order; preserve inner traversal and report mechanics. More source-oriented but couples to span/index policy.",
+        "recorded_calls": "Use earliest occurrence of each caller in the ordered recorded edge list as the root sequence, retaining all traversal details. Depends on typed-call recording order, not arbitrary hash iteration."
+      }
+    },
+    "pound_top": {
+      "type": "choice",
+      "instructions": "Choose whether the constant-language pound rule should align with the actual owner, become deliberately stricter, or remain deferred.",
+      "criteria": {
+        "literal": "Treat outside-plural pound as ordinary message text like the current public source/built API, explicitly accepting that the constant compiler admission changes. Preserve inside-plural and quoting behavior with independent regressions.",
+        "strict": "Make the current compiler restriction an explicit bounded constant-source language rule while public dynamic patterns may accept more. Preserve E5007 and require authors to quote a literal pound.",
+        "defer": "Do not decide pound admission in this utility packet; report the discrepancy and keep its dependent change pending while independent repairs ship."
+      }
+    }
+  }
+}

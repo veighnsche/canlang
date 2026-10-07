@@ -1,0 +1,9 @@
+{
+  "compiler/src/analysis/types.rs": "91c73cd3ee28bfc2e62f84226fd0170291c0b06e56e0fbf6bc5e39a5914b734f",
+  "compiler/src/analysis/examples.rs": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+  "compiler/src/analysis/check.rs": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+  "compiler/src/diagnostic.rs": "9fd7f517cb57423c45eb11f8cae995746181d678966b6d9d379334a93d4c99de",
+  "docs/specification/DESIGN.md": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+  "docs/research/compiler-library-audit-20261006/pass9/graphs/compiler-repeat-raw.txt": "5cd4cb5fefc12b8c3b42aae21ef0b043abd626a6b5d00e6db2f32b64673e81cb",
+  "docs/research/compiler-library-audit-20261006/pass9/icu/structure-parity.json": "e2f0753812b9528d5f43f875e61c23f9cedf0957319bb10a0eb1ec6d34fad580"
+}

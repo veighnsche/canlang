@@ -1,0 +1,14 @@
+canlang-pass9-graphs v0.0.0 (/private/tmp/canlang-pass9-graphs)
+└── petgraph feature "std"
+    ├── petgraph v0.8.3
+    │   ├── fixedbitset v0.5.7
+    │   ├── indexmap v2.14.2
+    │   │   ├── equivalent v1.0.2
+    │   │   └── hashbrown v0.17.1
+    │   ├── hashbrown feature "default-hasher"
+    │   │   └── hashbrown v0.15.5
+    │   │       └── foldhash v0.1.5
+    │   └── hashbrown feature "inline-more"
+    │       └── hashbrown v0.15.5 (*)
+    └── indexmap feature "std"
+        └── indexmap v2.14.2 (*)

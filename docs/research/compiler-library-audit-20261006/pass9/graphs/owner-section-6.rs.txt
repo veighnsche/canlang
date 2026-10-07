@@ -1,0 +1,24 @@
+    fn scope_is_app(&self, mut model: SymbolId) -> bool {
+        let mut seen = HashSet::new();
+        seen.insert(model);
+        loop {
+            match &self.tables.symbols[model.0 as usize].kind {
+                SymbolKind::Model {
+                    owner: ModelOwner::ChildOf(parent),
+                    ..
+                } => {
+                    if !seen.insert(*parent) {
+                        return false;
+                    }
+                    model = *parent;
+                }
+                SymbolKind::Model {
+                    owner: ModelOwner::App,
+                    ..
+                } => return true,
+                _ => return false,
+            }
+        }
+    }
+}
+

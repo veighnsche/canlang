@@ -1,0 +1,24 @@
+{
+  "model": "jev-latest",
+  "state": "Verified context, phrasing 3: Actual check_program dedups by(file,start,end,code,message) and sorts(file,start,code), promising deterministic diagnostics. types.rs::check_cycles makes scenario/derive call graph edges retaining call occurrence order/individual span; only scenario bodies set current_op, so standalone derive recursion belongs E2018. It walks each caller with stack DFS, visited-on-push, adjacency insertion order, and closing-edge spans, globally dedupping sorted witness vertex ID sets. Callers currently come from randomized HashMap keys. Actual12fresh process runs on identical program show a->b->a span141..142 versus b->a->b span98..99; an overlap program yields3different public diagnostic sets. Later diagnostic sorting cannot fix changing content. SymbolIds are appended in deterministic indexing order for supplied ordered files/trees, including generated/nested symbols, not globally canonical path/position order. SCC comparison is not adopted: both iterative and SCC+legacyDFS preserve fixed ordered-origin results across512graphs*2orders; synthetic chains benefit but actual editor/compiler workload is unmeasured. Desired repair scope is stable origin selection only, preserving adjacency, closing span, vertex-set dedup, callable filters and upstream exclusion; no SCC diagnostic replacement.\n\nDESIGN9.1 bounded ICU profile allows text/named arguments, exact numeric cases, nearest-plural#, apostrophe-friendly quoting, and rejects unsupported offsets/styles/rich handlers; it does not explicitly state outside-plural# admission. Current public @canlang/values source and built root agree that top-level# is literal text; compiler examples.rs IcuParser rejects it with E5007, and an existing test codifies that rejection. Compiler documentation calls the profile implementation-defined pending a DESIGN ruling. Quoted# agrees; # inside a plural/select nesting uses nearest plural in runtime. Official Unicode ICU MessageFormat docs (actually opened2026-10-07) describe # as a syntax/quoting character within plural styles, not all ordinary message text. That is contextual evidence, not automatic authority to widen bounded Can. Other explicit numeric type defects are already independently reviewed and repaired, while additional finite syntax/disclosure packets are queued separately. No package or full parser/architecture migration is authorized.",
+  "questions": {
+    "graph_origin": {
+      "type": "choice",
+      "instructions": "Select a repeatable origin order under the frozen cycle witness mechanism, with compatibility and simplicity evaluated equally.",
+      "criteria": {
+        "ids": "Deterministically sort the current roots by their established SymbolId. Keep adjacency/DFS/closing-edge/vertex-set dedup untouched. This guarantees repeatability for frozen source/index input, without promising path-canonical witnesses.",
+        "source_spans": "Select root sequence by declared source file/start, then ID; keep legacy walk and grouping. This expresses source-order preference with additional coupling rather than a new graph algorithm.",
+        "recorded_calls": "Derive the root list by deduplicating first caller appearances in the existing edge record. Keep legacy discovery/dedup details, and expose recording order as the tie policy."
+      }
+    },
+    "pound_top": {
+      "type": "choice",
+      "instructions": "Select the appropriate explicit treatment of top-level pound in this bounded profile, given current owner/spec/compiler evidence.",
+      "criteria": {
+        "literal": "Clarify that plain pound text needs no quoting outside plural, matching both current public owner forms; change compiler constant checks and the old rejection test deliberately. Inner plural semantics stay.",
+        "strict": "Clarify that authored constant patterns intentionally reject plain pound outside plural, despite the broader owner API; keep admission and require quotes for literal use.",
+        "defer": "Retain uncertainty on this one syntax boundary, label the unimplemented dependent packet and complete all unrelated accepted repairs."
+      }
+    }
+  }
+}

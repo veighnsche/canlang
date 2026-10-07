@@ -1,0 +1,13 @@
+{
+  "compiler/src/source.rs": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a",
+  "compiler/src/ide/queries.rs": "c76ea4e3748ea0928d129f02001771970c7b84467421786b4c07e01dafe5060a",
+  "compiler/src/ide/mod.rs": "cadad2e06e0c21495f96fddaa04c3ec898e16779e4055e7092fc77a916a8a542",
+  "compiler/src/lsp/server.rs": "79c53edb9ba35b411e48d7d0064776dfbb4b8b622f748dbb13d3958cb9f78743",
+  "compiler/src/ide/tokens.rs": "08907dd10a6d7b44ef3e5e28ba8a55e02b0c05e98ccfd534363cd8eebc2bd96c",
+  "compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+  "compiler/src/docs.rs": "f253419974666149f450aa969d63a53284d6c90d52a2bee82358574864283a79",
+  "compiler/src/cli.rs": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679",
+  "compiler/tests/ide.rs": "b29b9ec2664da55d85a1796b490407998bcfb39e3faaf7e4919169ab8b272795",
+  "compiler/tests/docs.rs": "5e4ab1d6d7b04796e38013dee10561754be69d6cf631e5bcfa028003f3660c3f",
+  "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971"
+}

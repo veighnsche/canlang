@@ -1,0 +1,14 @@
+canlang-pass9-temporal-candidate v0.0.0 (/private/tmp/canlang-pass9-temporal-candidate)
+├── time feature "parsing"
+│   └── time v0.3.55
+│       ├── powerfmt v0.2.1
+│       ├── deranged feature "default"
+│       │   └── deranged v0.5.8
+│       ├── num-conv feature "default"
+│       │   └── num-conv v0.2.2
+│       └── time-core feature "default"
+│           └── time-core v0.1.9
+└── time feature "std"
+    ├── time v0.3.55 (*)
+    └── time feature "alloc"
+        └── time v0.3.55 (*)

@@ -1,0 +1,9 @@
+[package]
+name = "canlang-pass9-temporal-candidate"
+version = "0.0.0"
+edition = "2021"
+[dependencies]
+time = { version = "=0.3.55", default-features = false, features = ["std", "parsing"] }
+[profile.dev]
+debug = 0
+incremental = false
