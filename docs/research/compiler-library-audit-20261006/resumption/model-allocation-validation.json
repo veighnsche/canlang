@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "scope": "Allocation metadata/reference/pair/link checks only; no implementation, production tests or policy changes.",
+  "counts": {
+    "reference_records": 67,
+    "completed_bounded_no_dispatch": 17,
+    "remaining_or_continuing_reference_records": 50,
+    "owner_lanes": 4,
+    "nonadditive": "Shared outcome and qualification joins are not separate new implementations or wins; OR01/OR02 retain completed witnesses plus their remaining checklist/joins."
+  },
+  "checks": {
+    "exact_references": 67,
+    "explicit_remaining_pairs": 50,
+    "completed_no_dispatch": 17,
+    "owner_lanes": 4,
+    "local_file_targets": 53,
+    "approved_combinations": [
+      [
+        "gpt-6-astra",
+        "high"
+      ],
+      [
+        "gpt-6-astra",
+        "medium"
+      ],
+      [
+        "gpt-6-luna",
+        "low"
+      ],
+      [
+        "gpt-6-luna",
+        "medium"
+      ],
+      [
+        "gpt-6.1-sol",
+        "high"
+      ],
+      [
+        "gpt-6.1-sol",
+        "low"
+      ],
+      [
+        "gpt-6.1-sol",
+        "medium"
+      ]
+    ],
+    "no_default_Astra": true,
+    "OR01_OR02_Q07_partial_preserved": true,
+    "canonical_ledger_rows_unchanged": 667,
+    "navigation_file_targets": 82,
+    "reviewed_assignment_json_hash_matches": true,
+    "post_review_assignment_table_unchanged": true
+  },
+  "main_setting_counts": [
+    {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "medium",
+      "reference_records": 3
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "reference_records": 19
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "low",
+      "reference_records": 1
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "reference_records": 27
+    }
+  ],
+  "hashes": {
+    "model-allocation.json": "16bf7331afa59c85e72e51749e31a28f600cc47b17b6ed4615a10ae5f643ae62",
+    "model-allocation.md": "cc2af4f5181af4c5b276f5d5126cd560ab9ca4cba24c1c39736038c71a370857",
+    "../responsibility-map/coverage.jsonl": "8f00f254f1a0088769b1bcc9f5e655ded7a0a6098800e0b6eca7cf0b86228faa"
+  },
+  "errors": [],
+  "limits": [
+    "Counts are reference records and shared joins, not independent task executions.",
+    "File existence only; Markdown anchors not checked.",
+    "Actual model availability/source gates/file leases must be checked at dispatch."
+  ],
+  "independent_review": {
+    "path": "model-allocation-review.json",
+    "verdict": "accept_bounded_allocation_metadata",
+    "reviewer_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium"
+  }
+}

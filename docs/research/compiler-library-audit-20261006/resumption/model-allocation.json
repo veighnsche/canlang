@@ -1,0 +1,2255 @@
+{
+  "schema": 1,
+  "date": "2026-10-07",
+  "timezone": "Europe/Brussels",
+  "scope": "Current compiler reference-to-dispatch settings; metadata view of the existing ledger/owner packets, not new task IDs or implementation authorization. Package repair allocation is a separate owner plan.",
+  "basis": {
+    "audit_head": "e5ad5cf",
+    "production_head": "7f4b26cfc6a4d8c77a012387eebf1c373d90be75",
+    "observed_head": "890fc3b637993cd28b697f2ccd3a97ac678a8024",
+    "ledger": "../responsibility-map/coverage.jsonl",
+    "ledger_sha256": "8f00f254f1a0088769b1bcc9f5e655ded7a0a6098800e0b6eca7cf0b86228faa",
+    "skill": "/Users/vince/.codex/skills/model-selection/SKILL.md",
+    "skill_sha256": "483c8b21a51e2c717b2d4d1909e999e1776c2f7060be6e4be529b02568352d96"
+  },
+  "policy": {
+    "objective": "Least expensive supported model/effort likely to meet the same independent acceptance over the full run, including context, retries/corrections and review; not a measured optimum.",
+    "main_models": [
+      "gpt-6-luna",
+      "gpt-6.1-sol"
+    ],
+    "dispatch_defaults": "No default Astra, xhigh, max or ultra for ordinary packet work. The coordinator model is unchanged.",
+    "tooling_first": "Do not spawn a worker just to run a cheap known command or hash files.",
+    "context": "Supply only selected reference/group, source-current owner declarations, independent expected outcomes, raw evidence, exact released files and command recipe. Avoid whole-history forks and repeated inventories.",
+    "review": "Risk-matched independent Sol review; reuse matching unchanged accepted evidence and combine overlapping witnesses only when exact source/scope matches. Do not duplicate parent/group reviews or let a shared group waive another packet acceptance.",
+    "concurrency": "Four conceptual owner lanes; at most three subagents beside the coordinator with the current dispatcher. Reserve a slot for an independent review when needed.",
+    "ownership": "One live writer per exact source file. In particular types.rs, ir.rs, js.rs, server.rs and artifact.rs are shared across groups; group labels grant no file lease. Narrow the released writer closure before concurrent dispatch. Foreign package/native/GUI/application prerequisites are retained.",
+    "gates": "Existing accepted/proposed/JEV/support/host prerequisites remain unchanged. Model allocation selects neither a technical policy nor a new implementation release.",
+    "runtime_recheck": "Recheck supported models/efforts, actual source/contracts and candidate recipe before each dispatch. Record selected pair, scope, attempts, review/corrections and available usage/time; escalate or split only with evidence."
+  },
+  "official_sources": [
+    {
+      "url": "https://developers.openai.com/api/docs/guides/model-selection",
+      "checked": "2026-10-07",
+      "use": "Workload choices are starting points; keep the lightest setting meeting the quality bar."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/deployment-checklist",
+      "checked": "2026-10-07",
+      "use": "Lower effort uses fewer reasoning tokens; compare cost per successful task, not model price alone."
+    }
+  ],
+  "counts": {
+    "reference_records": 67,
+    "completed_bounded_no_dispatch": 17,
+    "remaining_or_continuing_reference_records": 50,
+    "owner_lanes": 4,
+    "nonadditive": "Shared outcome and qualification joins are not separate new implementations or wins; OR01/OR02 retain completed witnesses plus their remaining checklist/joins."
+  },
+  "lanes": [
+    {
+      "id": "analysis",
+      "name": "Analysis, syntax and checked ownership",
+      "scope": "Types/effects/resolution/recovery, stack localization, representability and source/cohort/history contracts."
+    },
+    {
+      "id": "lowering",
+      "name": "IR, generated execution and map ownership",
+      "scope": "IR/JS/BDD/UI/value/call/default/map consumers; package owners retain their foreign writers."
+    },
+    {
+      "id": "protocol",
+      "name": "CLI, build, JSON and editor boundaries",
+      "scope": "Build metadata, transport/input/output, renderer processes, docs/policy and client/workspace support."
+    },
+    {
+      "id": "evidence",
+      "name": "Consumer profiles and release evidence",
+      "scope": "Specified bodies/inventories, original application/host joins and public support crosswalks; no substitute mock acceptance."
+    }
+  ],
+  "shared_file_conflicts_from_recorded_writers": {
+    "compiler/src/analysis/catalog.rs": [
+      "SEM-R08",
+      "FAIL-R06"
+    ],
+    "compiler/src/analysis/effects.rs": [
+      "SYN-R05",
+      "SEM-R08",
+      "FAIL-R01",
+      "FAIL-R06"
+    ],
+    "compiler/src/analysis/examples.rs": [
+      "SEM-R05",
+      "FAIL-R01"
+    ],
+    "compiler/src/analysis/resolve.rs": [
+      "SYN-R05",
+      "FAIL-R01",
+      "FAIL-R06"
+    ],
+    "compiler/src/analysis/types.rs": [
+      "SYN-R05",
+      "SYN-R07",
+      "SEM-R04",
+      "SEM-R05",
+      "SEM-R07",
+      "SEM-R08",
+      "FAIL-R01",
+      "FAIL-R06"
+    ],
+    "compiler/src/cli.rs": [
+      "OUT-R05",
+      "FAIL-R05"
+    ],
+    "compiler/src/codegen/ir.rs": [
+      "SYN-R03",
+      "SYN-R04",
+      "SYN-R05",
+      "SYN-R07",
+      "SEM-R03",
+      "SEM-R08",
+      "FAIL-R01"
+    ],
+    "compiler/src/codegen/js.rs": [
+      "SYN-R07",
+      "SYN-R08",
+      "SEM-R03",
+      "SEM-R06",
+      "OUT-R05",
+      "FAIL-R01"
+    ],
+    "compiler/src/codegen/sourcemap.rs": [
+      "OUT-R05",
+      "FAIL-R06"
+    ],
+    "compiler/src/lint/driver.rs": [
+      "ED-R06",
+      "FAIL-R07"
+    ],
+    "compiler/src/lsp/server.rs": [
+      "OUT-R05",
+      "ED-R06",
+      "ED-R07",
+      "FAIL-R03",
+      "FAIL-R07"
+    ],
+    "compiler/src/source.rs": [
+      "ED-R06",
+      "FAIL-R06",
+      "FAIL-R07"
+    ],
+    "compiler/src/syntax/parser.rs": [
+      "SYN-R06",
+      "SYN-R07"
+    ],
+    "editors/vscode/src/client.ts": [
+      "ED-R07",
+      "ED-R09"
+    ],
+    "editors/vscode/src/extension.ts": [
+      "ED-R07",
+      "ED-R09"
+    ]
+  },
+  "conflict_limit": "Recorded defining writers are an initial conflict index. Step9/consumer proposals may add released exact writers; recompute actual leases at dispatch rather than assuming absent files are safe.",
+  "tasks": [
+    {
+      "reference": "SYN-R01",
+      "record": "syntax_finding",
+      "source": "../responsibility-map/syntax.md",
+      "title": "SYN-R01",
+      "prior_gate_ref": "../responsibility-map/syntax.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/effects.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "SYN-R02",
+      "record": "syntax_finding",
+      "source": "../responsibility-map/syntax.md",
+      "title": "SYN-R02",
+      "prior_gate_ref": "../responsibility-map/syntax.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/types.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "SYN-R03",
+      "record": "syntax_finding",
+      "source": "../responsibility-map/syntax.md",
+      "title": "SYN-R03",
+      "prior_gate_ref": "../responsibility-map/syntax.md",
+      "potential_writer_files": [
+        "compiler/src/codegen/ir.rs"
+      ],
+      "lane": "lowering",
+      "dispatch_group": "ui-forms",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Bounded caption, descendants, structured order and factory-profile joins need real UI expectations, not a whitelist. Serialize IR changes.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SYN-R04",
+      "record": "syntax_finding",
+      "source": "../responsibility-map/syntax.md",
+      "title": "SYN-R04",
+      "prior_gate_ref": "../responsibility-map/syntax.md",
+      "potential_writer_files": [
+        "compiler/src/codegen/ir.rs"
+      ],
+      "lane": "lowering",
+      "dispatch_group": "ui-forms",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Bounded caption, descendants, structured order and factory-profile joins need real UI expectations, not a whitelist. Serialize IR changes.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SYN-R05",
+      "record": "syntax_finding",
+      "source": "../responsibility-map/syntax.md",
+      "title": "SYN-R05",
+      "prior_gate_ref": "../responsibility-map/syntax.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/ir.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "corpus-support",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Corpus/Judgment ownership spans resolution, types, effects and IR; supported meaning versus refusal is a known consequential support choice.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SYN-R06",
+      "record": "syntax_finding",
+      "source": "../responsibility-map/syntax.md",
+      "title": "SYN-R06",
+      "prior_gate_ref": "../responsibility-map/syntax.md",
+      "potential_writer_files": [
+        "compiler/src/syntax/layout.rs",
+        "compiler/src/syntax/parser.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "syntax-recovery",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "The existing multiline grammar and heuristic recovery conflict. Investigate that concrete policy before a bounded parser change.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SYN-R07",
+      "record": "syntax_finding",
+      "source": "../responsibility-map/syntax.md",
+      "title": "SYN-R07",
+      "prior_gate_ref": "../responsibility-map/syntax.md",
+      "potential_writer_files": [
+        "compiler/src/syntax/parser.rs",
+        "compiler/src/analysis/types.rs",
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs"
+      ],
+      "lane": "lowering",
+      "dispatch_group": "ui-forms",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Bounded caption, descendants, structured order and factory-profile joins need real UI expectations, not a whitelist. Serialize IR changes.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SYN-R08",
+      "record": "syntax_finding",
+      "source": "../responsibility-map/syntax.md",
+      "title": "SYN-R08",
+      "prior_gate_ref": "../responsibility-map/syntax.md",
+      "potential_writer_files": [
+        "compiler/src/codegen/js.rs",
+        "compiler/tests/syntax.rs",
+        "compiler/tests/analysis.rs",
+        "compiler/tests/effects.rs",
+        "compiler/tests/codegen.rs"
+      ],
+      "lane": "evidence",
+      "dispatch_group": "value-presentation",
+      "work": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Maintain specified unsupported/witness/prose records only. New executable expectations stay with the technical value owner.",
+      "frozen_implementation": null,
+      "execution_role": "record_leaf",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "record/update a specified recipe",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SEM-R01",
+      "record": "semantic_finding",
+      "source": "../responsibility-map/semantics.md",
+      "title": "SEM-R01",
+      "prior_gate_ref": "../responsibility-map/semantics.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/types.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "SEM-R02",
+      "record": "semantic_finding",
+      "source": "../responsibility-map/semantics.md",
+      "title": "SEM-R02",
+      "prior_gate_ref": "../responsibility-map/semantics.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/effects.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "SEM-R03",
+      "record": "semantic_finding",
+      "source": "../responsibility-map/semantics.md",
+      "title": "SEM-R03",
+      "prior_gate_ref": "../responsibility-map/semantics.md",
+      "potential_writer_files": [
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "packages/stdlib/src/index.ts",
+        "packages/values/src/stdlib-pure.ts"
+      ],
+      "lane": "lowering",
+      "dispatch_group": "selected-calls",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Checked overload/argument facts, IR reconstruction and installed format signatures already disagree; settle the owning seam before frozen implementation.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SEM-R04",
+      "record": "semantic_finding",
+      "source": "../responsibility-map/semantics.md",
+      "title": "SEM-R04",
+      "prior_gate_ref": "../responsibility-map/semantics.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/types.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "email-floor",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Compiler and public codec disagree on the admission floor. The bounded owner/JEV choice precedes a small adapter.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SEM-R05",
+      "record": "semantic_finding",
+      "source": "../responsibility-map/semantics.md",
+      "title": "SEM-R05",
+      "prior_gate_ref": "../responsibility-map/semantics.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/examples.rs",
+        "compiler/src/analysis/types.rs"
+      ],
+      "lane": "lowering",
+      "dispatch_group": "value-presentation",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Finite date/datetime, year, timezone and Decimal presentation vectors are bounded technical qualification; a new Decimal backend is outside this scope.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SEM-R06",
+      "record": "semantic_finding",
+      "source": "../responsibility-map/semantics.md",
+      "title": "SEM-R06",
+      "prior_gate_ref": "../responsibility-map/semantics.md",
+      "potential_writer_files": [
+        "packages/ui/src/messages.ts",
+        "compiler/src/codegen/js.rs"
+      ],
+      "lane": "lowering",
+      "dispatch_group": "value-presentation",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Finite date/datetime, year, timezone and Decimal presentation vectors are bounded technical qualification; a new Decimal backend is outside this scope.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SEM-R07",
+      "record": "semantic_finding",
+      "source": "../responsibility-map/semantics.md",
+      "title": "SEM-R07",
+      "prior_gate_ref": "../responsibility-map/semantics.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/types.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "graph-witness",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Per-origin scope, multiplicity, seed order and diagnostic anchors are a known interacting graph contract, with its existing policy/JEV gate.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "SEM-R08",
+      "record": "semantic_finding",
+      "source": "../responsibility-map/semantics.md",
+      "title": "SEM-R08",
+      "prior_gate_ref": "../responsibility-map/semantics.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/catalog.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/ir.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "semantic-leads",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "First turn trial/default/nominal/scalar leads into small independent witnesses. No broad semantic rewrite follows from a lead.",
+      "frozen_implementation": null,
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "OUT-R01",
+      "record": "output_finding",
+      "source": "../responsibility-map/outputs.md",
+      "title": "OUT-R01",
+      "prior_gate_ref": "../responsibility-map/outputs.md",
+      "potential_writer_files": [
+        "compiler/src/codegen/js.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "OUT-R02",
+      "record": "output_finding",
+      "source": "../responsibility-map/outputs.md",
+      "title": "OUT-R02",
+      "prior_gate_ref": "../responsibility-map/outputs.md",
+      "potential_writer_files": [
+        "compiler/src/diagnostic.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "OUT-R03",
+      "record": "output_finding",
+      "source": "../responsibility-map/outputs.md",
+      "title": "OUT-R03",
+      "prior_gate_ref": "../responsibility-map/outputs.md",
+      "potential_writer_files": [
+        "packages/interfaces/src/docs/reference.ts"
+      ],
+      "lane": "evidence",
+      "dispatch_group": "markdown-owner",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Qualify escaping through the actual owning Markdown renderer; then a released local correction is small. Compiler bytes already preserve the values.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "OUT-R04",
+      "record": "output_finding",
+      "source": "../responsibility-map/outputs.md",
+      "title": "OUT-R04",
+      "prior_gate_ref": "../responsibility-map/outputs.md",
+      "potential_writer_files": [
+        "compiler/src/lint/rules.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "comment-preservation",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Distinguish safe removal from attached-comment ownership using exact source controls; escalate only a genuinely unresolved preservation choice.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "OUT-R05",
+      "record": "output_finding",
+      "source": "../responsibility-map/outputs.md",
+      "title": "OUT-R05",
+      "prior_gate_ref": "../responsibility-map/outputs.md",
+      "potential_writer_files": [
+        "compiler/src/cli.rs",
+        "compiler/src/codegen/sourcemap.rs",
+        "compiler/src/codegen/js.rs",
+        "compiler/src/lsp/server.rs"
+      ],
+      "lane": "evidence",
+      "dispatch_group": "application-profiles",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Define finite host/map/GUI/value profiles and use their actual consumers; no new general engine or automatic broad replay.",
+      "frozen_implementation": null,
+      "execution_role": "profile_join",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "ED-R01",
+      "record": "editor_finding",
+      "source": "../responsibility-map/editor.md",
+      "title": "diagnostic currentness",
+      "prior_gate_ref": "../responsibility-map/editor.md",
+      "potential_writer_files": [
+        "editors/vscode/src/client.ts"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "ED-R02",
+      "record": "editor_finding",
+      "source": "../responsibility-map/editor.md",
+      "title": "provider edit versions and cancellation",
+      "prior_gate_ref": "../responsibility-map/editor.md",
+      "potential_writer_files": [
+        "editors/vscode/src/extension.ts",
+        "editors/vscode/src/client.ts"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "ED-R03",
+      "record": "editor_finding",
+      "source": "../responsibility-map/editor.md",
+      "title": "completion host enum identity",
+      "prior_gate_ref": "../responsibility-map/editor.md",
+      "potential_writer_files": [
+        "editors/vscode/src/extension.ts",
+        "editors/vscode/src/client.ts"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "ED-R04",
+      "record": "editor_finding",
+      "source": "../responsibility-map/editor.md",
+      "title": "server clear on close",
+      "prior_gate_ref": "../responsibility-map/editor.md",
+      "potential_writer_files": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/lsp/output.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "ED-R05",
+      "record": "editor_finding",
+      "source": "../responsibility-map/editor.md",
+      "title": "references includeDeclaration and edit capability negotiation",
+      "prior_gate_ref": "../responsibility-map/editor.md",
+      "potential_writer_files": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/lsp/output.rs",
+        "compiler/src/ide/queries.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "ED-R06",
+      "record": "editor_finding",
+      "source": "../responsibility-map/editor.md",
+      "title": "session source history ownership",
+      "prior_gate_ref": "../responsibility-map/editor.md",
+      "potential_writer_files": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/source.rs",
+        "compiler/src/lint/driver.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "history-ownership",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Immutable SourceIds, checked cohorts and historical lint share retention ownership; FAIL-R07 reuses ED-R06 rather than funding a second history API.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "ED-R07",
+      "record": "editor_finding",
+      "source": "../responsibility-map/editor.md",
+      "title": "workspace cross-file and catalog support",
+      "prior_gate_ref": "../responsibility-map/editor.md",
+      "potential_writer_files": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/ide/queries.rs",
+        "editors/vscode/src/client.ts",
+        "editors/vscode/src/extension.ts"
+      ],
+      "lane": "protocol",
+      "dispatch_group": "workspace-support",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Workspace, catalog invalidation and cross-file support are an unselected multi-owner feature contract; narrow it before implementation.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "ED-R08",
+      "record": "editor_finding",
+      "source": "../responsibility-map/editor.md",
+      "title": "public queued epochs and shutdown",
+      "prior_gate_ref": "../responsibility-map/editor.md",
+      "potential_writer_files": [
+        "compiler/src/lsp/server.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "committed and qualified bounded existing contract"
+    },
+    {
+      "reference": "ED-R09",
+      "record": "editor_finding",
+      "source": "../responsibility-map/editor.md",
+      "title": "startup and host lifecycle qualification",
+      "prior_gate_ref": "../responsibility-map/editor.md",
+      "potential_writer_files": [
+        "editors/vscode/src/client.ts",
+        "editors/vscode/src/extension.ts"
+      ],
+      "lane": "protocol",
+      "dispatch_group": "editor-startup",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Probe finite startup/write/restart/disconnect leads through actual client/process callbacks before deciding a repair.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "retain original proposed owner/policy/qualification gate; no production writer released here"
+    },
+    {
+      "reference": "FAIL-R01",
+      "record": "failure_finding",
+      "source": "../responsibility-map/failure.md",
+      "title": "Localize and repair accepted flat-expression stack abort",
+      "prior_gate_ref": "../responsibility-map/failure.md",
+      "potential_writer_files": [
+        "compiler/src/analysis/mod.rs",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/analysis/examples.rs",
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "compiler/src/syntax/cst.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "flat-stack",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Valid debug sources abort in resolution, typing and direct lowering. Complete iterative consumer/order/ownership closure is uncertain; release survival is a separate control.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Narrow the demonstrated responsible traversal first. Reuse final stage controls and JEV advice; no new structural cap or arena redesign is selected.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "Unresolved native-debug valid-source defect; fresh stage/clone/drop controls and successful native-release ladder recorded. Iterative-first JEV advice, no redesigned consumer or structural cap selected."
+    },
+    {
+      "reference": "FAIL-R02",
+      "record": "failure_finding",
+      "source": "../responsibility-map/failure.md",
+      "title": "Qualify executable internal-fault wording",
+      "prior_gate_ref": "../responsibility-map/failure.md",
+      "potential_writer_files": [
+        "compiler/README.md",
+        "compiler/src/main.rs"
+      ],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release.",
+      "prior_disposition": "Committed wording qualification at ff1a093; unwinding executable boundary, not stack-abort repair."
+    },
+    {
+      "reference": "FAIL-R03",
+      "record": "failure_finding",
+      "source": "../responsibility-map/failure.md",
+      "title": "Qualify bounded LSP header/body admission",
+      "prior_gate_ref": "../responsibility-map/failure.md",
+      "potential_writer_files": [
+        "compiler/src/lsp/transport.rs",
+        "compiler/src/lsp/server.rs"
+      ],
+      "lane": "protocol",
+      "dispatch_group": "framing-resources",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Header/body allocation timing and malformed-frame lifecycle need an explicit finite admission contract. A frozen reader adapter is ordinary code.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "Header/body admission and malformed-frame lifecycle policy gate; no new numeric budget."
+    },
+    {
+      "reference": "FAIL-R04",
+      "record": "failure_finding",
+      "source": "../responsibility-map/failure.md",
+      "title": "Remove build metadata missing-path rebuilds",
+      "prior_gate_ref": "../responsibility-map/failure.md",
+      "potential_writer_files": [
+        "compiler/build.rs"
+      ],
+      "lane": "protocol",
+      "dispatch_group": "build-metadata",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "One build.rs owner and reproduced unchanged-build/Git-layout controls make this a narrow existing-mechanism correction.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Ready candidate at its recorded contract; release only build.rs and disposable Git/Cargo fixtures. Preserve unknown fallback and do not claim a stale-hash bug.",
+      "allocation_status": "ready_candidate_not_dispatched",
+      "primary_phase": "bounded existing-mechanism implementation after exact writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "Ready existing-mechanism correction candidate, not released/implemented; actual Git metadata paths and unchanged-build acceptance retained. Unnecessary rebuild observed, stale-hash hypothesis falsified."
+    },
+    {
+      "reference": "FAIL-R05",
+      "record": "failure_finding",
+      "source": "../responsibility-map/failure.md",
+      "title": "Qualify renderer and output failure lifecycle",
+      "prior_gate_ref": "../responsibility-map/failure.md",
+      "potential_writer_files": [
+        "compiler/src/cli.rs",
+        "compiler/src/main.rs"
+      ],
+      "lane": "protocol",
+      "dispatch_group": "renderer-lifecycle",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Finite stdin-close, wait/reap, signal and output probes qualify source-only leads before a child-lifecycle correction.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "prior_disposition": "Qualify child/write/signal/bounds/reap source leads before releasing owning repair."
+    },
+    {
+      "reference": "FAIL-R06",
+      "record": "failure_finding",
+      "source": "../responsibility-map/failure.md",
+      "title": "Define source/carrier representability and width qualification",
+      "prior_gate_ref": "../responsibility-map/failure.md",
+      "potential_writer_files": [
+        "compiler/src/source.rs",
+        "compiler/src/syntax/lexer.rs",
+        "compiler/src/analysis/catalog.rs",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/sourcemap.rs",
+        "compiler/src/codegen/artifact.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "representability",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Source IDs, byte widths, public carriers, catalog/graph/map consumers need separate owning representability obligations; no global cap or giant allocation probe.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "Separate source/carrier/u32/used-catalog/graph/output qualification gates; no global cap or giant allocation experiment."
+    },
+    {
+      "reference": "FAIL-R07",
+      "record": "failure_finding",
+      "source": "../responsibility-map/failure.md",
+      "title": "Reuse session-history ownership and preserve host/file qualification gates",
+      "prior_gate_ref": "../responsibility-map/failure.md",
+      "potential_writer_files": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/source.rs",
+        "compiler/src/lint/driver.rs"
+      ],
+      "lane": "analysis",
+      "dispatch_group": "history-ownership",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Immutable SourceIds, checked cohorts and historical lint share retention ownership; FAIL-R07 reuses ED-R06 rather than funding a second history API.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "prior_disposition": "Reuses ED-R06 retained history plus mode4750/otherhost gates; accepted C04F policy retained.",
+      "shared_outcome_refs": [
+        "ED-R06",
+        "OUT-R05"
+      ]
+    },
+    {
+      "reference": "S9-Q01",
+      "record": "resumption_lowering_followup",
+      "source": "lowering-and-execution.md",
+      "title": "S9-Q01 — selected calls and format; LOW-05, SEM-R03",
+      "prior_gate_ref": "lowering-and-execution.md",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "selected-calls",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Checked overload/argument facts, IR reconstruction and installed format signatures already disagree; settle the owning seam before frozen implementation.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "shared_outcome_refs": [
+        "SEM-R03",
+        "S9-Q06"
+      ]
+    },
+    {
+      "reference": "S9-Q02",
+      "record": "resumption_lowering_followup",
+      "source": "lowering-and-execution.md",
+      "title": "S9-Q02 — expression/statement order and failure; LOW-04/07",
+      "prior_gate_ref": "lowering-and-execution.md",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "evaluation-order",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Write source-legal once/order/short-circuit/default/failure witnesses. The review checks effectful behavior across real emitted consumers.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "S9-Q03",
+      "record": "resumption_lowering_followup",
+      "source": "lowering-and-execution.md",
+      "title": "S9-Q03 — tab/order/profile; SYN-R03/04/07",
+      "prior_gate_ref": "lowering-and-execution.md",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "ui-forms",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Bounded caption, descendants, structured order and factory-profile joins need real UI expectations, not a whitelist. Serialize IR changes.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "shared_outcome_refs": [
+        "SYN-R03",
+        "SYN-R04",
+        "SYN-R07"
+      ]
+    },
+    {
+      "reference": "S9-Q04",
+      "record": "resumption_lowering_followup",
+      "source": "lowering-and-execution.md",
+      "title": "S9-Q04 — Corpus/Judgment; SYN-R05",
+      "prior_gate_ref": "lowering-and-execution.md",
+      "potential_writer_files": [],
+      "lane": "analysis",
+      "dispatch_group": "corpus-support",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Corpus/Judgment ownership spans resolution, types, effects and IR; supported meaning versus refusal is a known consequential support choice.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "shared_outcome_refs": [
+        "SYN-R05"
+      ]
+    },
+    {
+      "reference": "S9-Q05",
+      "record": "resumption_lowering_followup",
+      "source": "lowering-and-execution.md",
+      "title": "S9-Q05 — value/presentation and Decimal; SEM-R05/06, SYN-R08, OUT-R05",
+      "prior_gate_ref": "lowering-and-execution.md",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "value-presentation",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Finite date/datetime, year, timezone and Decimal presentation vectors are bounded technical qualification; a new Decimal backend is outside this scope.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "shared_outcome_refs": [
+        "SEM-R05",
+        "SEM-R06",
+        "SYN-R08",
+        "OUT-R05"
+      ]
+    },
+    {
+      "reference": "S9-Q06",
+      "record": "resumption_lowering_followup",
+      "source": "lowering-and-execution.md",
+      "title": "S9-Q06 — public coherent checked facts; PRV/LOW-01–06/14, ARCH-01",
+      "prior_gate_ref": "lowering-and-execution.md",
+      "potential_writer_files": [],
+      "lane": "analysis",
+      "dispatch_group": "checked-cohort",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Public mixed source/catalog carriers, fact reuse and invalidation need one coherent ownership contract before caches, seals or API changes.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "shared_outcome_refs": [
+        "ARCH-01"
+      ]
+    },
+    {
+      "reference": "S9-Q07",
+      "record": "resumption_lowering_followup",
+      "source": "lowering-and-execution.md",
+      "title": "S9-Q07 — BDD runtime carriers and platform closure; LOW-11/19, OR-06",
+      "prior_gate_ref": "lowering-and-execution.md",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "bdd-runtime",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "The fixture identity/facade repair is complete. Remaining returned-payload/as, request execution and platform joins need actual consumer contracts, not more identity work.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "S9-Q08",
+      "record": "resumption_lowering_followup",
+      "source": "lowering-and-execution.md",
+      "title": "S9-Q08 — page/map/migration/application profiles; LOW-07/12–14/18, OUT-R05/OR-06",
+      "prior_gate_ref": "lowering-and-execution.md",
+      "potential_writer_files": [],
+      "lane": "evidence",
+      "dispatch_group": "application-profiles",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Define and qualify selected page admission, migration, disclosure/durable and installed application joins across their actual owners. Fixed command execution can be cheaper afterward.",
+      "frozen_implementation": null,
+      "execution_role": "profile_join",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "shared_outcome_refs": [
+        "OUT-R05",
+        "OR-06"
+      ]
+    },
+    {
+      "reference": "OR-01",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "OR-01",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "lane": "evidence",
+      "dispatch_group": "optional-bodies",
+      "work": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Update specified body/prerequisite/skip receipts when a selected profile changes; existing accepted evidence is reused at matching inputs.",
+      "frozen_implementation": null,
+      "execution_role": "continuing_checklist",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "record/update a specified recipe",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "OR-02",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "OR-02",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "lane": "evidence",
+      "dispatch_group": "emitted-oracles",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Join the remaining S9 evaluation/value/BDD/application witnesses once. The landed binding bodies stay accepted only at their recorded source/profile.",
+      "frozen_implementation": null,
+      "execution_role": "qualification_join",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "shared_outcome_refs": [
+        "S9-Q02",
+        "S9-Q05",
+        "S9-Q07",
+        "S9-Q08"
+      ]
+    },
+    {
+      "reference": "OR-03",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "OR-03",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release."
+    },
+    {
+      "reference": "OR-04",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "OR-04",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release."
+    },
+    {
+      "reference": "OR-05",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "OR-05",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "lane": "protocol",
+      "dispatch_group": "json-framing-oracles",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Specify distinct missing bounded grammar/Unicode/depth/frame outcomes independently; keep current regressions and defer a generic fuzz framework.",
+      "frozen_implementation": null,
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "OR-06",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "OR-06",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "lane": "evidence",
+      "dispatch_group": "application-profiles",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Define and qualify selected page admission, migration, disclosure/durable and installed application joins across their actual owners. Fixed command execution can be cheaper afterward.",
+      "frozen_implementation": null,
+      "execution_role": "profile_join",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "shared_outcome_refs": [
+        "S9-Q08",
+        "OUT-R05"
+      ]
+    },
+    {
+      "reference": "DEP-01",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "DEP-01",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "lane": "protocol",
+      "dispatch_group": "json-reader",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Raw numeric lexemes, duplicate/order/depth and error origins rely on pinned reader behavior through public catalog/LSP callers. A supported replacement needs complete-closure evidence.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart.",
+      "shared_outcome_refs": [
+        "integration:json-reader-coupling"
+      ]
+    },
+    {
+      "reference": "DEP-02",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "DEP-02",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "map-extraction",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Public map API, source/name IDs and independent current consumers bound this codec/extraction qualification. Private encoder access is not a replacement.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "shared_outcome_refs": [
+        "integration:source-map-extraction",
+        "integration:public-map-decoder"
+      ]
+    },
+    {
+      "reference": "DEP-03",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "DEP-03",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "lane": "evidence",
+      "dispatch_group": "target-inventory",
+      "work": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Capture the selected activated target/toolchain/archive/license-file/notice inventory by a fixed recipe. Interpretation and release conclusions remain with the technical reviewer.",
+      "frozen_implementation": null,
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "record/update a specified recipe",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "COST-01",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "COST-01",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release."
+    },
+    {
+      "reference": "ARCH-01",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "ARCH-01",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "lane": "analysis",
+      "dispatch_group": "checked-cohort",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Public mixed source/catalog carriers, fact reuse and invalidation need one coherent ownership contract before caches, seals or API changes.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart."
+    },
+    {
+      "reference": "ARCH-02",
+      "record": "resumption_cost_oracle_followup",
+      "source": "audit-costs-and-oracles.md",
+      "title": "ARCH-02",
+      "prior_gate_ref": "audit-costs-and-oracles.md",
+      "potential_writer_files": [],
+      "lane": "evidence",
+      "dispatch_group": "public-support",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Map public support and complete callers one family at a time; nonuse does not release retirement. Reuse the specific integration-family acceptance.",
+      "frozen_implementation": null,
+      "execution_role": "support_join",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra.",
+      "shared_outcome_refs": [
+        "integration:docs-legacy-views",
+        "integration:public-map-decoder",
+        "integration:legacy-lsp-render-builders",
+        "integration:public-descriptor-fix-fragments",
+        "integration:lsp-duplicate-position-carriers"
+      ]
+    },
+    {
+      "reference": "integration:bdd-quote-consolidation",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "BDD quote consolidation",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "allocation_status": "completed_bounded_scope",
+      "execution_role": "reuse_receipt",
+      "work": null,
+      "independent_review": null,
+      "reason": "No new dispatch for the accepted bounded scope. Reuse only matching source/profile evidence; changed or wider scope needs its own finite release."
+    },
+    {
+      "reference": "integration:json-reader-coupling",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "JSON reader coupling",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "lane": "protocol",
+      "dispatch_group": "json-reader",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Raw numeric lexemes, duplicate/order/depth and error origins rely on pinned reader behavior through public catalog/LSP callers. A supported replacement needs complete-closure evidence.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Keep frozen leaves at the stated cheaper setting. Astra medium is reserved for an evidenced unresolved bounded conflict; Astra high for a genuinely major open decision. No automatic xhigh/max/ultra or whole-lane restart."
+    },
+    {
+      "reference": "integration:docs-legacy-views",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "Docs legacy views",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "lane": "protocol",
+      "dispatch_group": "docs-legacy",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Public legacy view support and the actual renderer need qualification before removing already typed compatibility bridges.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "integration:policy-layout-engine",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "Policy layout engine",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "lane": "protocol",
+      "dispatch_group": "policy-layout",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "An owning byte/layout revision and actual policy consumer precede replacing the custom formatter; a parseable object alone does not release the contract.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "integration:default-json-string-bridge",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "Default JSON string bridge",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "default-representation",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Exact value/scale, omission/null and public IR/artifact representation cross the proposed string-bridge retirement.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "integration:source-map-extraction",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "Source-map extraction",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "map-extraction",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Public map API, source/name IDs and independent current consumers bound this codec/extraction qualification. Private encoder access is not a replacement.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "integration:public-map-decoder",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "Public map decoder",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "public-map-support",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "The public decoder/oracle support gate precedes a test-only move or deletion; production removal and repository removal are separate counts.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "integration:legacy-lsp-render-builders",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "Legacy LSP render builders",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "lane": "protocol",
+      "dispatch_group": "lsp-builder-support",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Live JSON-RPC ID/byte paths and public helper/Json support must be retained before a frozen typed-builder consolidation.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "integration:public-descriptor-fix-fragments",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "Public descriptor/fix fragments",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "lane": "lowering",
+      "dispatch_group": "public-fragment-support",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Complete public fragment/fix caller and byte support before retiring wrappers; live DTOs and operations remain owning mechanisms.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    },
+    {
+      "reference": "integration:lsp-duplicate-position-carriers",
+      "record": "integration_retirement_candidate",
+      "source": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "title": "LSP duplicate position carriers",
+      "prior_gate_ref": "../responsibility-map/integrations.md#findings-and-explicit-retirement-targets",
+      "potential_writer_files": [],
+      "lane": "protocol",
+      "dispatch_group": "lsp-position-support",
+      "work": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Backend callbacks, authored URIs and source-owned UTF16 conversion are distinct from protocol DTO shapes. Release the API migration before changing carriers.",
+      "frozen_implementation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "condition": "Only an exact existing-outcome recipe with released owner contract, file closure and independent expectations; otherwise keep the main setting."
+      },
+      "execution_role": "owning_packet",
+      "dispatch_gate": "Retain the original owner/contract/qualification prerequisites; allocation alone releases no writer.",
+      "allocation_status": "remaining_proposal_or_qualification",
+      "primary_phase": "qualification/investigation before writer release",
+      "specified_execution": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "condition": "Only an already published finite command/vector/receipt recipe. Prefer direct tooling when no judgment or worker is needed; failures return to the owning technical task."
+      },
+      "escalation": "Use Sol high only for concrete cross-owner/evaluation/identity/lifecycle uncertainty beyond this setting; use Astra medium for a bounded evidenced conflict Sol cannot resolve reliably, or high for a genuinely major open decision. Choose the stronger setting upfront when that evidence is already known. No automatic xhigh/max/ultra."
+    }
+  ]
+}

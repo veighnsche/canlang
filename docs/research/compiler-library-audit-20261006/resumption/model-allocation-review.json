@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-10-07",
+  "reviewer": {
+    "agent": "/root/review_compiler_model_allocation",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "independent": true
+  },
+  "verdict": "accept_bounded_allocation_metadata",
+  "scope": "Reference coverage, phase and review settings, economy, overlapping outcomes, recorded ownership and preserved gates; no implementation or product qualification.",
+  "counts": {
+    "reference_records": 67,
+    "findings": 37,
+    "S9_followups": 8,
+    "cost_oracle_dependency_architecture_followups": 12,
+    "integration_candidates": 10,
+    "remaining_or_continuing": 50,
+    "completed_bounded_no_dispatch": 17
+  },
+  "reviewed_sha256": {
+    "model-allocation.json": "16bf7331afa59c85e72e51749e31a28f600cc47b17b6ed4615a10ae5f643ae62",
+    "model-allocation.md": "690629a28a2103dc2512c27f73885b1913b77cc77f890331d09b2bc92ab8668c",
+    "../responsibility-map/coverage.jsonl": "8f00f254f1a0088769b1bcc9f5e655ded7a0a6098800e0b6eca7cf0b86228faa"
+  },
+  "findings": [
+    "All 67 existing references are represented. The 50 remaining records have explicit work and independent-review settings; 17 completed bounded records have null settings.",
+    "OR-01, OR-02 and S9-Q07 preserve their completed witnesses and remaining checklist, wider joins or payload/request/platform obligations.",
+    "Only supported approved pairs are selected. High effort has a stated specific uncertainty; frozen changes and fixed recipes use cheaper settings.",
+    "Shared outcome joins are nonadditive. Recorded writer and disposition joins match the ledger, and exact-file serialization and foreign owner gates remain intact.",
+    "No blocking omission, excess routine effort or unsafe cheapening was found.",
+    "The allocation claims no measured optimum, implementation, policy decision or broader acceptance."
+  ],
+  "limits": [
+    "The writer index is initial and incomplete; recompute released exact-file leases before dispatch.",
+    "Review performed no edits, production tests or experiment calls."
+  ],
+  "post_review_user_steering": {
+    "change": "Removed cost-estimate commentary at the user request; assignment tables and machine settings are unchanged.",
+    "assignment_table_unchanged": true,
+    "current_markdown_sha256": "cc2af4f5181af4c5b276f5d5126cd560ab9ca4cba24c1c39736038c71a370857"
+  }
+}
