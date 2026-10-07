@@ -1,0 +1,84 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @canlang/cloudflare
+   • Running build in 1 package
+   • Remote caching disabled
+
+@canlang/interfaces:build:prepare: cache bypass, force executing 0046b37b3843ea0b
+@canlang/cloudflare:build:prepare: cache bypass, force executing b129fd608b173da3
+@canlang/state:build:prepare: cache bypass, force executing 2456d2dab43497c1
+@canlang/ui:build:prepare: cache bypass, force executing 3864123de424696a
+@canlang/cloudflare:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/interfaces:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/ui:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/state:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/values:build:prepare: cache bypass, force executing 8731f1ba6524ea18
+@canlang/files:build:prepare: cache bypass, force executing b769b4ff2ccc3873
+@canlang/values:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/identity:build:prepare: cache bypass, force executing 88ce908c6a8e5add
+@canlang/files:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/identity:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/services:build:prepare: cache bypass, force executing ecaab43ff50805e4
+@canlang/services:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/work:build:prepare: cache bypass, force executing 61b47adba238749f
+@canlang/work:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build:prepare: cache bypass, force executing 2de7a0125a862985
+@canlang/contracts:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/stdlib:build:prepare: cache bypass, force executing 69cf95600152e60b
+@canlang/stdlib:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build: cache miss, executing 2938b1aa4d8c523c
+@canlang/contracts:build: $ node ../../scripts/build-package.mjs
+@canlang/contracts:build: $ tsc -p tsconfig.json
+@canlang/ui:build: cache miss, executing 14937bb0a0412299
+@canlang/values:build: cache miss, executing 5e9f4afee95b0096
+@canlang/identity:build: cache miss, executing 7829c3803e7639a5
+@canlang/state:build: cache miss, executing 3b76a555dd0a10b6
+@canlang/ui:build: $ node ../../scripts/build-package.mjs
+@canlang/identity:build: $ node ../../scripts/build-package.mjs
+@canlang/values:build: $ node ../../scripts/build-package.mjs
+@canlang/state:build: $ node ../../scripts/build-package.mjs
+@canlang/ui:build: $ tsc -p tsconfig.json && node scripts/build-browser.mjs
+@canlang/identity:build: $ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/
+@canlang/values:build: $ tsc -p tsconfig.json && node scripts/stage-semantics.mjs
+@canlang/state:build: $ tsc -p tsconfig.json
+@canlang/services:build: cache miss, executing 6050a253c2d2bab2
+@canlang/services:build: $ node ../../scripts/build-package.mjs
+@canlang/services:build: $ tsc -p tsconfig.json
+@canlang/files:build: cache miss, executing 25770d393f2cb7eb
+@canlang/files:build: $ node ../../scripts/build-package.mjs
+@canlang/state:build: test/effects/guards.test.ts(36,35): error TS2379: Argument of type '{ readonly memberships: readonly string[]; readonly canonical: undefined; }' is not assignable to parameter of type 'HandlerRoleContext' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+@canlang/state:build:   Types of property 'canonical' are incompatible.
+@canlang/state:build:     Type 'undefined' is not assignable to type '{ readonly builtinRoles?: readonly string[]; }'.
+@canlang/files:build: $ tsc -p tsconfig.json
+@canlang/state:build: error: script "build:emit" exited with code 1
+@canlang/state:build: node:internal/errors:986
+@canlang/state:build:   const err = new Error(message);
+@canlang/state:build:               ^
+@canlang/state:build: 
+@canlang/state:build: Error: Command failed: bun run build:emit
+@canlang/state:build:     at genericNodeError (node:internal/errors:986:15)
+@canlang/state:build:     at wrappedFn (node:internal/errors:540:14)
+@canlang/state:build:     at checkExecSyncError (node:child_process:942:11)
+@canlang/state:build:     at execFileSync (node:child_process:978:15)
+@canlang/state:build:     at file:///Users/vince/Projects/canlang/scripts/build-package.mjs:45:3
+@canlang/state:build:     at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+@canlang/state:build:     at async node:internal/modules/esm/loader:647:26
+@canlang/state:build:     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+@canlang/state:build:   status: 1,
+@canlang/state:build:   signal: null,
+@canlang/state:build:   output: [ null, null, null ],
+@canlang/state:build:   pid: 99892,
+@canlang/state:build:   stdout: null,
+@canlang/state:build:   stderr: null
+@canlang/state:build: }
+@canlang/state:build: 
+@canlang/state:build: Node.js v24.21.0
+@canlang/state:build: error: script "build" exited with code 1
+@canlang/state#build:  ERROR  command (/Users/vince/Projects/canlang/packages/state) /Users/vince/.bun/bin/bun run build exited (1)
+
+ Tasks:    15 successful, 18 total
+Cached:    0 cached, 18 total
+  Time:    3.444s 
+Failed:    @canlang/state#build
+
+ ERROR  run failed: command  exited (1)

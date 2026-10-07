@@ -1,0 +1,1059 @@
+{
+  "qualification": "Real public exports and actual assembleModules/buildInvoker; identity resolver and live membership reader with package memory stores. No durable or production deployment claim. Local getter matrices are behavior equivalence only.",
+  "publicUrls": {
+    "producer": "file:///Users/vince/Projects/canlang/packages/state/dist/src/effects/guards.js",
+    "facade": "file:///Users/vince/Projects/canlang/packages/stdlib/dist/src/index.js",
+    "compatibility": "file:///Users/vince/Projects/canlang/packages/cloudflare/dist/runtime/stdlib.js"
+  },
+  "sourcePins": [
+    {
+      "path": "packages/stdlib/src/index.ts",
+      "expected": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09",
+      "actual": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09",
+      "matches": true
+    },
+    {
+      "path": "packages/state/package.json",
+      "expected": "d90414f00530243e1ee386b4f9e070f8f3016da23f89993bacdcec21c6997f82",
+      "actual": "d90414f00530243e1ee386b4f9e070f8f3016da23f89993bacdcec21c6997f82",
+      "matches": true
+    },
+    {
+      "path": "packages/stdlib/test/assembly.test.ts",
+      "expected": "85879fc0f3df7200bfb9b599f47a84febde1f4f0f26f0ac83fc7264a63008c46",
+      "actual": "85879fc0f3df7200bfb9b599f47a84febde1f4f0f26f0ac83fc7264a63008c46",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/stdlib.ts",
+      "expected": "12505068df2bbe3b6cdf74d52d1e7f2533283c3649bb22333bd77516d437e272",
+      "actual": "12505068df2bbe3b6cdf74d52d1e7f2533283c3649bb22333bd77516d437e272",
+      "matches": true
+    },
+    {
+      "path": "packages/state/src/effects/guards.ts",
+      "expected": "ef1899105ff9e4ea7e63fd4f59e5c08b8320f6ee008bc6df2bc700a2bdd4a032",
+      "actual": "ef1899105ff9e4ea7e63fd4f59e5c08b8320f6ee008bc6df2bc700a2bdd4a032",
+      "matches": true
+    },
+    {
+      "path": "packages/state/test/effects/guards.test.ts",
+      "expected": "480be281e1b12d4bcc9dcd5ef08711065326420b4bf9202a8a9aa448f58b0289",
+      "actual": "480be281e1b12d4bcc9dcd5ef08711065326420b4bf9202a8a9aa448f58b0289",
+      "matches": true
+    },
+    {
+      "path": "packages/state/dist/src/effects/guards.js",
+      "expected": "738c039757390698531318aa29442fb6152cafeb3ea90c47a8a209b767061c85",
+      "actual": "738c039757390698531318aa29442fb6152cafeb3ea90c47a8a209b767061c85",
+      "matches": true
+    },
+    {
+      "path": "packages/state/dist/src/effects/guards.d.ts",
+      "expected": "ea12097485816751f3968694ec6cfbf2b3dfacc9cca2aba63f8fcf9e2602f4e0",
+      "actual": "ea12097485816751f3968694ec6cfbf2b3dfacc9cca2aba63f8fcf9e2602f4e0",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/dist/runtime/stdlib.js",
+      "expected": "a068f7db1ebae663db106ab4808cd091449e1b52191d23c7e9130a82bced3a0d",
+      "actual": "a068f7db1ebae663db106ab4808cd091449e1b52191d23c7e9130a82bced3a0d",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/dist/runtime/stdlib.d.ts",
+      "expected": "1877249adc100ebe488f841769ca3ff012d4a39b75ad44313158d3b13699cdf7",
+      "actual": "1877249adc100ebe488f841769ca3ff012d4a39b75ad44313158d3b13699cdf7",
+      "matches": true
+    },
+    {
+      "path": "packages/stdlib/dist/src/index.js",
+      "expected": "0aff4dc3cbd6da5dd9896e547ccee05d8e13b54e2d76956e0d2e175568e21293",
+      "actual": "0aff4dc3cbd6da5dd9896e547ccee05d8e13b54e2d76956e0d2e175568e21293",
+      "matches": true
+    },
+    {
+      "path": "packages/stdlib/dist/src/index.d.ts",
+      "expected": "8b9a65ff34c9ad0ae89ddf553b9318fc5f1905f0e27b027702a95b8fb79cc4d1",
+      "actual": "8b9a65ff34c9ad0ae89ddf553b9318fc5f1905f0e27b027702a95b8fb79cc4d1",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "expected": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "actual": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/dist/runtime/invoke.js",
+      "expected": "85a047c716fe78404db393b453877ded27da19b0c6751b9c9fa1d2e13b70dc29",
+      "actual": "85a047c716fe78404db393b453877ded27da19b0c6751b9c9fa1d2e13b70dc29",
+      "matches": true
+    },
+    {
+      "path": "packages/values/dist/catalog.json",
+      "expected": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "actual": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "matches": true
+    },
+    {
+      "path": "packages/state/src/policy/roles.ts",
+      "expected": "77bc09d257a5a69e40f5464c6f815730b7a065907e0bb4e4f71837ea1a68fe94",
+      "actual": "77bc09d257a5a69e40f5464c6f815730b7a065907e0bb4e4f71837ea1a68fe94",
+      "matches": true
+    },
+    {
+      "path": "turbo.json",
+      "expected": "2f908d0dfa6b20fb38ae182a66eeaf564da6007d4404299032dbf3fe5df2d2b4",
+      "actual": "2f908d0dfa6b20fb38ae182a66eeaf564da6007d4404299032dbf3fe5df2d2b4",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/guard.can",
+      "expected": "b32813b0d594bfdbec06f7dd4dca67d835cf972874ae58d14ad12af92730ed92",
+      "actual": "b32813b0d594bfdbec06f7dd4dca67d835cf972874ae58d14ad12af92730ed92",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/mutation-guard.can",
+      "expected": "46955bbec514c52877da5e017913397c0ba7a003ba438045c0d347cf1b01fbba",
+      "actual": "46955bbec514c52877da5e017913397c0ba7a003ba438045c0d347cf1b01fbba",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/guard.compile.json",
+      "expected": "1892701d6dd1525a9493e35c249f15635cfb43a39582c59632978f577494c4c2",
+      "actual": "1892701d6dd1525a9493e35c249f15635cfb43a39582c59632978f577494c4c2",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/mutation-guard.compile.json",
+      "expected": "2e4347ce06a284842a2500b3a7a9dc50f94e134d8f4af1bb5b9cbe2b3e2e994a",
+      "actual": "2e4347ce06a284842a2500b3a7a9dc50f94e134d8f4af1bb5b9cbe2b3e2e994a",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/consume.mjs",
+      "expected": "1801aff5cc939541d7c1fc2d9d865d0794082461aa9923a02b31ceb05462fbdc",
+      "actual": "1801aff5cc939541d7c1fc2d9d865d0794082461aa9923a02b31ceb05462fbdc",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/canonical-consumer.mjs",
+      "expected": "5263ede0da8dea095a140e27069f8c448a40d7bf3ce0fbc5f070eac18c41dd2f",
+      "actual": "5263ede0da8dea095a140e27069f8c448a40d7bf3ce0fbc5f070eac18c41dd2f",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/type-contract.ts",
+      "expected": "2aeb645e45b914970385c733128a58d47e439313d1d078333d688b7bc7b049fb",
+      "actual": "2aeb645e45b914970385c733128a58d47e439313d1d078333d688b7bc7b049fb",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/producer-request.md",
+      "expected": "1bbb36aa8df06f9257844fe238bcd8374f4e286edcff54197439e1b156ea0375",
+      "actual": "1bbb36aa8df06f9257844fe238bcd8374f4e286edcff54197439e1b156ea0375",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/report.md",
+      "expected": "0c566eae503084d39e2ee678f1d992b350ee9cd57a65232f9ad3d7f8af347455",
+      "actual": "0c566eae503084d39e2ee678f1d992b350ee9cd57a65232f9ad3d7f8af347455",
+      "matches": true
+    },
+    {
+      "path": "implementation/compiler-completion/runtime-export-join/implementation/changes.patch",
+      "expected": "df71be177932332bba503b5bf0b518b5a7baa493dd3cdee74819b06895b06e21",
+      "actual": "df71be177932332bba503b5bf0b518b5a7baa493dd3cdee74819b06895b06e21",
+      "matches": true
+    }
+  ],
+  "originalBodyComparison": {
+    "roleCases": [
+      {
+        "role": "public",
+        "mode": "present",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "canonical",
+          "builtinRoles"
+        ]
+      },
+      {
+        "role": "public",
+        "mode": "present",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "public",
+        "mode": "present",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "public",
+        "mode": "absent",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "memberships"
+        ]
+      },
+      {
+        "role": "public",
+        "mode": "absent",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "public",
+        "mode": "absent",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "public",
+        "mode": "missing",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "canonical",
+          "builtinRoles"
+        ]
+      },
+      {
+        "role": "public",
+        "mode": "missing",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "public",
+        "mode": "missing",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "public",
+        "mode": "throw",
+        "subject": "undefined",
+        "error": {
+          "name": "Error",
+          "message": "getter sentinel",
+          "sentinel": true
+        },
+        "reads": [
+          "canonical"
+        ]
+      },
+      {
+        "role": "public",
+        "mode": "throw",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "public",
+        "mode": "throw",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "public",
+        "mode": "second-null",
+        "subject": "undefined",
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'builtinRoles')",
+          "sentinel": false
+        },
+        "reads": [
+          "canonical",
+          "canonical"
+        ]
+      },
+      {
+        "role": "public",
+        "mode": "second-null",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "public",
+        "mode": "second-null",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "present",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "canonical",
+          "builtinRoles"
+        ]
+      },
+      {
+        "role": "authenticated",
+        "mode": "present",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "present",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "absent",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "memberships"
+        ]
+      },
+      {
+        "role": "authenticated",
+        "mode": "absent",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "absent",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "missing",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "canonical",
+          "builtinRoles"
+        ]
+      },
+      {
+        "role": "authenticated",
+        "mode": "missing",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "missing",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "throw",
+        "subject": "undefined",
+        "error": {
+          "name": "Error",
+          "message": "getter sentinel",
+          "sentinel": true
+        },
+        "reads": [
+          "canonical"
+        ]
+      },
+      {
+        "role": "authenticated",
+        "mode": "throw",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "throw",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "second-null",
+        "subject": "undefined",
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'builtinRoles')",
+          "sentinel": false
+        },
+        "reads": [
+          "canonical",
+          "canonical"
+        ]
+      },
+      {
+        "role": "authenticated",
+        "mode": "second-null",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "authenticated",
+        "mode": "second-null",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "present",
+        "subject": "undefined",
+        "result": true,
+        "reads": [
+          "canonical",
+          "canonical",
+          "builtinRoles"
+        ]
+      },
+      {
+        "role": "members",
+        "mode": "present",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "present",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "absent",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "memberships"
+        ]
+      },
+      {
+        "role": "members",
+        "mode": "absent",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "absent",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "missing",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "canonical",
+          "builtinRoles"
+        ]
+      },
+      {
+        "role": "members",
+        "mode": "missing",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "missing",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "throw",
+        "subject": "undefined",
+        "error": {
+          "name": "Error",
+          "message": "getter sentinel",
+          "sentinel": true
+        },
+        "reads": [
+          "canonical"
+        ]
+      },
+      {
+        "role": "members",
+        "mode": "throw",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "throw",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "second-null",
+        "subject": "undefined",
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'builtinRoles')",
+          "sentinel": false
+        },
+        "reads": [
+          "canonical",
+          "canonical"
+        ]
+      },
+      {
+        "role": "members",
+        "mode": "second-null",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "members",
+        "mode": "second-null",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "present",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "canonical",
+          "builtinRoles"
+        ]
+      },
+      {
+        "role": "owner",
+        "mode": "present",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "present",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "absent",
+        "subject": "undefined",
+        "result": true,
+        "reads": [
+          "canonical",
+          "memberships"
+        ]
+      },
+      {
+        "role": "owner",
+        "mode": "absent",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "absent",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "missing",
+        "subject": "undefined",
+        "result": false,
+        "reads": [
+          "canonical",
+          "canonical",
+          "builtinRoles"
+        ]
+      },
+      {
+        "role": "owner",
+        "mode": "missing",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "missing",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "throw",
+        "subject": "undefined",
+        "error": {
+          "name": "Error",
+          "message": "getter sentinel",
+          "sentinel": true
+        },
+        "reads": [
+          "canonical"
+        ]
+      },
+      {
+        "role": "owner",
+        "mode": "throw",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "throw",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "second-null",
+        "subject": "undefined",
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot read properties of null (reading 'builtinRoles')",
+          "sentinel": false
+        },
+        "reads": [
+          "canonical",
+          "canonical"
+        ]
+      },
+      {
+        "role": "owner",
+        "mode": "second-null",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "owner",
+        "mode": "second-null",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "present",
+        "subject": "undefined",
+        "result": true,
+        "reads": [
+          "canonical",
+          "memberships"
+        ]
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "present",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "present",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "absent",
+        "subject": "undefined",
+        "result": true,
+        "reads": [
+          "canonical",
+          "memberships"
+        ]
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "absent",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "absent",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "missing",
+        "subject": "undefined",
+        "result": true,
+        "reads": [
+          "canonical",
+          "memberships"
+        ]
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "missing",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "missing",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "throw",
+        "subject": "undefined",
+        "error": {
+          "name": "Error",
+          "message": "getter sentinel",
+          "sentinel": true
+        },
+        "reads": [
+          "canonical"
+        ]
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "throw",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "throw",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "second-null",
+        "subject": "undefined",
+        "result": true,
+        "reads": [
+          "canonical",
+          "memberships"
+        ]
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "second-null",
+        "subject": null,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      },
+      {
+        "role": "Shop.editor",
+        "mode": "second-null",
+        "subject": 0,
+        "error": {
+          "name": "Error",
+          "message": "unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory.",
+          "sentinel": false
+        },
+        "reads": []
+      }
+    ],
+    "requireCases": 55,
+    "publicFunctionIdentity": true,
+    "asyncPolicyRouteSeparate": true
+  },
+  "canonical": {
+    "artifactSha256": "2e4347ce06a284842a2500b3a7a9dc50f94e134d8f4af1bb5b9cbe2b3e2e994a",
+    "admitted": {
+      "result": {
+        "status": "committed",
+        "operation_id": "01a11857-fdf1-7c49-87b2-4367b3504d75",
+        "deliveries": []
+      }
+    },
+    "denied": {
+      "error": {
+        "code": "forbidden",
+        "message": "This operation is not permitted for the caller.",
+        "operation_id": "01a11857-fdf1-742f-8cad-7d02ba13c2ee",
+        "retryable": false
+      }
+    },
+    "deniedReplay": {
+      "error": {
+        "code": "forbidden",
+        "message": "This operation is not permitted for the caller.",
+        "operation_id": "01a11857-fdf1-742f-8cad-7d02ba13c2ee",
+        "retryable": false
+      }
+    },
+    "restored": {
+      "result": {
+        "status": "committed",
+        "operation_id": "01a11857-fdf1-71fc-849a-2c0407f1f175",
+        "deliveries": []
+      }
+    },
+    "historicalDenial": {
+      "result": {
+        "status": "committed",
+        "operation_id": "01a11857-fdf1-742f-8cad-7d02ba13c2ee",
+        "deliveries": []
+      }
+    }
+  },
+  "unchangedArtifact": true
+}

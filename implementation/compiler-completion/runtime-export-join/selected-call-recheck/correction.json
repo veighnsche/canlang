@@ -1,0 +1,7 @@
+{
+  "historical_probe_sha256": "5869dc40a9d711b01256df5b828cca970a0bd4cb2d2a020280f062288b90d820",
+  "current_fixture_sha256": "1972350ec866b50b229bd9d049ce835ae6bd41c658f1efb82955d945183eaaf9",
+  "historical_evidence_unchanged": true,
+  "reason": "New supported synchronous guard export closure removes previously genuine missing-export prerequisite. Current reusable regression executes real handler; canonical context admission remains separate.",
+  "change": "Move current harness into compiler test fixtures with loaded handler allow/deny. No old acceptance pin recredit."
+}

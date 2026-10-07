@@ -1,0 +1,20 @@
+▶ synchronous handler guards
+  ✔ preserves truthiness and plain guard error messages (1.023833ms)
+  ✔ keeps canonical built-ins separate from declared snapshot grants (0.090875ms)
+  ✔ refuses every defined subject before reading the context (0.097917ms)
+  ✔ preserves getter evaluation order for canonical and declared roles (0.237833ms)
+✔ synchronous handler guards (1.894083ms)
+▶ stdlib assembly
+  ✔ exports exactly the requested surface plus the assembly version (0.524292ms)
+  ✔ re-exports producer bindings identically (no wrappers) (0.148167ms)
+  ✔ holds all 66 type identity pins (0.062708ms)
+  ✔ executes façade bindings against the real producer (0.249584ms)
+✔ stdlib assembly (1.435625ms)
+ℹ tests 8
+ℹ suites 2
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.393375

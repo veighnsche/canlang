@@ -1,0 +1,46 @@
+app T
+Given
+ contract Box {left:text,right:text}
+ derive a(v:Box):text = v.left
+ derive b(v:Box):text = v.right
+ derive positional():text = format("Hi {n}",{n="Bo"})
+ derive named():text = format(template="Hi {n}",values={n="Bo"})
+ derive reversed():text = format(values={n="Bo"},template="Hi {n}")
+ derive ordered(v:Box):bool = starts_with(prefix=v.left,value=v.right)
+ derive mixed(v:Box):bool = starts_with(v.right,prefix=v.left)
+ derive format_order(v:Box):text = format(values={n=v.right},template=v.left)
+ derive nested(v:Box):bool = starts_with(prefix=a(v),value=b(v))
+ derive lazy(v:Box):bool = false and starts_with(prefix=v.left,value=v.right)
+ derive take(a:text,b:text):text = format("{a}|{b}",{a=a,b=b})
+ derive named_derive(v:Box):text = take(b=v.right,a=v.left)
+ derive f(a:text="D",b:text=a):text = format("{a}|{b}",{a=a,b=b})
+ derive defaults():text = f()
+ derive partial():text = f("A")
+ derive hole():text = f(b="B")
+ derive explicit():text = f(b="B",a="A")
+ derive nullable(a:text?="D"):text? = a
+ derive omitted_nullable():text? = nullable()
+ derive explicit_null():text? = nullable(null)
+ derive getter_defaults(v:Box,a:text=v.left,b:text=v.right):text = format("{a}|{b}",{a=a,b=b})
+ derive getter_suppressed(v:Box):text = getter_defaults(v,a="manual")
+ derive default_after_supplied(v:Box):text = getter_defaults(v,b=v.right)
+ derive async_default(v:Box,a:text=a(v),b:text=a):text = format("{a}|{b}",{a=a,b=b})
+ derive async_omitted(v:Box):text = async_default(v)
+ derive reserved(c:text="C",class:text=c,await:text=class):text = format("{a}|{b}|{d}",{a=c,b=class,d=await})
+ derive reserved_call():text = reserved()
+ message m(a:text="D",b:text=a)="{a}|{b}"@{}
+ message get(v:text,a:text=v,b:text=a)="{v}|{a}|{b}"@{}
+ derive text_identity(v:text):text = v
+ message async_get(v:text,a:text=text_identity(v),b:text=a)="{a}|{b}"@{}
+ derive descriptor_default():m = m()
+ derive descriptor_named(v:Box):m = m(b=v.right,a=v.left)
+ derive descriptor_hole(v:Box):m = m(b=v.right)
+ derive descriptor_earlier(v:Box):get = get(v=v.left)
+ derive descriptor_async(v:Box):async_get = async_get(v.left)
+ derive message_default():int = count([m()])
+ derive message_named(v:Box):int = count([m(b=v.right,a=v.left)])
+ derive message_hole(v:Box):int = count([m(b=v.right)])
+ derive message_earlier(v:Box):int = count([get(v=v.left)])
+ derive bad(template:text):text = format(values={other="X"},template=template)
+When
+Then

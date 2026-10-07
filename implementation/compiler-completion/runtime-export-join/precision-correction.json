@@ -1,0 +1,7 @@
+{
+  "original_assessment_sha256": "069b1ef3d5b6df4e21a42fce133b060898cac5af7038c927684fabd0e31bf65b",
+  "corrected_assessment_sha256": "17fd3b24e602239aad15b12f57c64864c65719fcd230aad9d8437de0b8247789",
+  "verified_source": "packages/state/src/index.ts:118 exports MembershipReader only; async hasRole at policy/roles.ts:41 through supported package subpath",
+  "preserved": "Original requests, responses, author research/report and review remain chronological frozen evidence. Separate state guard surface avoids incompatible synchronous/asynchronous contracts; no claimed root runtime name collision.",
+  "canonical_receipt_limit": "Immediate anonymous/live-removal repeat under unchanged state is admission denial; after membership restoration the same admission-denied operation ID may commit. This differs from persisted handler rule_failed rejection replay."
+}

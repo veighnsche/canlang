@@ -254,6 +254,10 @@
       "default": "./dist/test/mutation/fixtures.js"
     },
     "./testing/storage/do-test-worker": "./test/storage/do-test-worker.js",
+    "./effects/guards": {
+      "types": "./dist/src/effects/guards.d.ts",
+      "default": "./dist/src/effects/guards.js"
+    },
     "./effects/transition": {
       "types": "./dist/src/effects/transition.d.ts",
       "default": "./dist/src/effects/transition.js"

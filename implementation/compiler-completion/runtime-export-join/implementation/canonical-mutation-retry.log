@@ -1,0 +1,83 @@
+{
+  "moduleOwner": "Actual assembleModules -> actual buildInvoker canonical seam; original compiler artifact supplied unchanged; stdlib resolves through supported public package.",
+  "qualification": "Identity and storage use package test memory implementations; no durable storage or production identity deployment claim. Outcomes report the actual seam, including any unsupported read-scenario boundary.",
+  "rows": [
+    {
+      "name": "member",
+      "outcome": {
+        "error": {
+          "code": "validation",
+          "message": "Operation \"Guard.echo\" cannot serve reads in the T17 core scope: readable operations are named <Model>.read.",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "anonymous",
+      "outcome": {
+        "error": {
+          "code": "validation",
+          "message": "Operation \"Guard.echo\" cannot serve reads in the T17 core scope: readable operations are named <Model>.read.",
+          "retryable": false
+        }
+      }
+    }
+  ],
+  "mutationRows": [
+    {
+      "name": "member allow",
+      "outcome": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a11852-c67c-7af2-895d-dd0160a9e512",
+          "deliveries": []
+        }
+      },
+      "replay": {
+        "result": {
+          "status": "replayed",
+          "operation_id": "01a11852-c67c-7af2-895d-dd0160a9e512",
+          "result": null
+        }
+      }
+    },
+    {
+      "name": "member guard reject",
+      "outcome": {
+        "error": {
+          "code": "rule_failed",
+          "message": "forbidden",
+          "operation_id": "01a11852-c67c-78e7-8eb7-7d35f6025f99",
+          "retryable": false
+        }
+      },
+      "replay": {
+        "error": {
+          "code": "rule_failed",
+          "message": "forbidden",
+          "operation_id": "01a11852-c67c-78e7-8eb7-7d35f6025f99",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "anonymous admission reject",
+      "outcome": {
+        "error": {
+          "code": "forbidden",
+          "message": "This operation is not permitted for the caller.",
+          "operation_id": "01a11852-c67c-7d12-8f16-df1e82066149",
+          "retryable": false
+        }
+      },
+      "replay": {
+        "error": {
+          "code": "forbidden",
+          "message": "This operation is not permitted for the caller.",
+          "operation_id": "01a11852-c67c-7d12-8f16-df1e82066149",
+          "retryable": false
+        }
+      }
+    }
+  ]
+}

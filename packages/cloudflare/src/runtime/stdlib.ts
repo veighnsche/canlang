@@ -252,37 +252,8 @@ export function delivery(c: HandlerContext, ..._args: unknown[]): never {
   return unsupported('delivery', 'delivery status needs the L3 outbox dispatcher.');
 }
 
-/**
- * Guard assertion, emitted as `require as check`. Throws `Error(code)`
- * unless `condition` is truthy. `code` should be a `BusinessErrorCode`
- * (`'forbidden'` default); it stays a plain string here because the
- * compiler emits it verbatim and no producer owns the guard contract yet.
- */
-export function require(condition: unknown, code = 'forbidden'): void {
-  if (condition) return;
-  throw new Error(typeof code === 'string' && code !== '' ? code : 'forbidden');
-}
-
-/**
- * Role test against the context memberships. INTERIM trust root: B1
- * evaluates the caller-supplied `c.memberships` array as-is — membership
- * authentication is the L3 identity/policy join. Anonymous contexts
- * (memberships `[]`) deny every role: fail-closed by construction.
- *
- * Subject-scoped emission (`hasRole(c, role, person)`) is NOT evaluated:
- * testing the caller's memberships would silently widen "person X has
- * role R" to "anyone has role R". A defined third argument throws loud;
- * subject resolution is L3 work against the membership directory.
- */
-export function hasRole(c: HandlerContext, role: string, subject?: unknown): boolean {
-  if (subject !== undefined) {
-    return unsupported('hasRole-subject', 'subject-scoped role tests need the L3 membership directory.');
-  }
-  if (c.canonical !== undefined && ['public', 'authenticated', 'members', 'owner'].includes(role)) {
-    return c.canonical.builtinRoles?.includes(role) ?? false;
-  }
-  return c.memberships.includes(role);
-}
+// Compatibility bindings share the state-owned synchronous handler guards.
+export { require, hasRole } from '@canlang/state/effects/guards';
 
 /**
  * Supplied-array count, mirroring the lane-02 `count(domain:C<T>)->int`

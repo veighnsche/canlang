@@ -1,0 +1,44 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
++   result: {
++     deliveries: [],
+-   error: {
+-     code: 'forbidden',
+-     message: 'This operation is not permitted for the caller.',
+      operation_id: '01a11857-8b79-7b86-85f1-f1bccbc48013',
++     result: undefined,
++     status: 'committed'
+-     retryable: false
+    }
+  }
+
+    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/runtime-export-join/independent-review/control.mjs:60:74 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: {
+    result: {
+      status: 'committed',
+      operation_id: '01a11857-8b79-7b86-85f1-f1bccbc48013',
+      result: undefined,
+      deliveries: []
+    }
+  },
+  expected: {
+    error: {
+      code: 'forbidden',
+      message: 'This operation is not permitted for the caller.',
+      operation_id: '01a11857-8b79-7b86-85f1-f1bccbc48013',
+      retryable: false
+    }
+  },
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.21.0
