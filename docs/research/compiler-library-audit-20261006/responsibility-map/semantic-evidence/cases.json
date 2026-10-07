@@ -1,0 +1,434 @@
+[
+  {
+    "id": "default-earlier-param",
+    "source": "app T\nGiven\n derive g(a:text,b:text=a):text = b\nWhen\n scenario s() by=members\n  do\n   let x=g(\"A\")\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN parameters scoped left-to-right; earlier parameters available to defaults"
+  },
+  {
+    "id": "default-later-param",
+    "source": "app T\nGiven\n derive g(a:text=b,b:text=\"B\"):text = b\nWhen\n scenario s() by=members\n  do\n   let x=g(\"A\")\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E2001"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN parameters scoped left-to-right"
+  },
+  {
+    "id": "default-self",
+    "source": "app T\nGiven\n derive g(a:text=a,b:text=\"B\"):text = b\nWhen\n scenario s() by=members\n  do\n   let x=g(\"A\")\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E2001"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN parameters scoped left-to-right"
+  },
+  {
+    "id": "builtin-named-valid",
+    "source": "app T\nGiven\n derive g():text = lower(value=\"X\")\nWhen\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Owning lower signature lower(value:text)->text"
+  },
+  {
+    "id": "builtin-unknown",
+    "source": "app T\nGiven\n derive g():text = lower(unknown=\"X\")\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E3005"
+    ],
+    "forbidden_codes": [],
+    "authority": "Owning lower signature lower(value:text)->text"
+  },
+  {
+    "id": "builtin-missing",
+    "source": "app T\nGiven\n derive g():text = lower()\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E3005"
+    ],
+    "forbidden_codes": [],
+    "authority": "Owning lower signature lower(value:text)->text"
+  },
+  {
+    "id": "builtin-excess",
+    "source": "app T\nGiven\n derive g():text = lower(\"X\",\"Y\")\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E3005"
+    ],
+    "forbidden_codes": [],
+    "authority": "Owning lower signature lower(value:text)->text"
+  },
+  {
+    "id": "coalesce-null",
+    "source": "app T\nGiven\n derive g(x:text?):text = x ?? \"fallback\"\nWhen\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN null-coalescing unwraps nullable with compatible nonnull fallback"
+  },
+  {
+    "id": "array-fixed-first",
+    "source": "app T\nGiven\n derive take(xs:text[]):int = count(xs)\n derive g(x:text?):int = take([\"fixed\",x])\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E3005"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN139: nullable elements outside v1; text[] contract is identical under permutation"
+  },
+  {
+    "id": "array-nullable-first",
+    "source": "app T\nGiven\n derive take(xs:text[]):int = count(xs)\n derive g(x:text?):int = take([x,\"fixed\"])\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E3005"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN139: nullable elements outside v1; text[] contract is identical under permutation"
+  },
+  {
+    "id": "actor-r",
+    "source": "app T\nGiven\n role r\n M {t:text}\n policy M read=members\nWhen\n scenario s() by=r\n  require actor.email_verified\n  do\n   let x=1\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN actor nullable for public and nonnull after role authorization"
+  },
+  {
+    "id": "actor-public",
+    "source": "app T\nGiven\n role r\n M {t:text}\n policy M read=members\nWhen\n scenario s() by=public\n  require actor.email_verified\n  do\n   let x=1\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E3003"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN actor nullable for public and nonnull after role authorization"
+  },
+  {
+    "id": "event-valid",
+    "source": "app T\nGiven\n M {s:enum(a,b)=a}\n policy M read=members\n event Due {item:M,n:int}\nWhen\n scenario h on=Due\n  require event.item.s==a and event.n==1\n  do\n   let x=1\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN event payload contextual fields typed by declaration"
+  },
+  {
+    "id": "event-unknown",
+    "source": "app T\nGiven\n M {s:enum(a,b)=a}\n policy M read=members\n event Due {item:M,n:int}\nWhen\n scenario h on=Due\n  require event.item.s==a and event.zzz==1\n  do\n   let x=1\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E2013"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN event has only declared payload fields"
+  },
+  {
+    "id": "import-private",
+    "source": "app T uses=[p,q]\npackage p\n Given\n  M {a:int}\n  policy M read=members\n When\n Then\npackage q\n use p {M}\n Given\n When\n Then\n",
+    "clean": false,
+    "required_codes": [
+      "E2003"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN exports authorize cross-package access"
+  },
+  {
+    "id": "import-export",
+    "source": "app T uses=[p,q]\npackage p\n Given\n  export M {a:int}\n  policy M read=members\n When\n Then\npackage q\n use p {M}\n Given\n When\n Then\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN exports authorize cross-package access"
+  },
+  {
+    "id": "import-missing",
+    "source": "app T uses=[p,q]\npackage p\n Given\n  M {a:int}\n  policy M read=members\n When\n Then\npackage q\n use p {Zzz}\n Given\n When\n Then\n",
+    "clean": false,
+    "required_codes": [
+      "E2004"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN imported members must exist"
+  },
+  {
+    "id": "import-provider-unknown",
+    "source": "app T uses=[q]\npackage q\n use zzz {M}\n Given\n When\n Then\n",
+    "clean": false,
+    "required_codes": [
+      "E2005"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN absent providers must bind explicit deployment source"
+  },
+  {
+    "id": "import-deployment",
+    "source": "app T uses=[q]\npackage q\n use zzz {M} from=deployment.remote\n Given\n When\n Then\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN deployment-bound import opaque accepted boundary"
+  },
+  {
+    "id": "import-bad-binding",
+    "source": "app T uses=[q]\npackage q\n use zzz {M} from=other.remote\n Given\n When\n Then\n",
+    "clean": false,
+    "required_codes": [
+      "E2001"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN from expression owning deployment namespace"
+  },
+  {
+    "id": "catalog-implemented",
+    "source": "app T\nGiven\n derive g():text = lower(\"X\")\nWhen\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Published catalog availability distinct from signatures; controlled producer variant",
+    "catalog_override": {
+      "availability": "implemented"
+    }
+  },
+  {
+    "id": "catalog-planned",
+    "source": "app T\nGiven\n derive g():text = lower(\"X\")\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E6001"
+    ],
+    "forbidden_codes": [],
+    "authority": "Published catalog availability distinct from signatures; controlled producer variant",
+    "catalog_override": {
+      "availability": "planned"
+    }
+  },
+  {
+    "id": "catalog-external",
+    "source": "app T\nGiven\n derive g():text = lower(\"X\")\nWhen\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Published catalog availability distinct from signatures; controlled producer variant",
+    "catalog_override": {
+      "availability": "external"
+    }
+  },
+  {
+    "id": "catalog-helper",
+    "source": "app T\nGiven\n derive g():text = lower(\"X\")\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E2006"
+    ],
+    "forbidden_codes": [],
+    "authority": "Catalog helper is JS-private, not Can callable",
+    "catalog_override": {
+      "kind": "helper"
+    }
+  },
+  {
+    "id": "scope-direct",
+    "source": "app Scope\nGiven\n AppConfig in app {n:int}\n Todo {title:text}\n policy AppConfig read=members\nWhen\n scenario tick on=every(5m)\n  do\n   let team_count=count(Todo)\n   let app_total=count(AppConfig)\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E4051"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN526 scope inferred from owner-bound queries; mixed app/team handler invalid"
+  },
+  {
+    "id": "scope-derived",
+    "source": "app Scope\nGiven\n AppConfig in app {n:int}\n Todo {title:text}\n policy AppConfig read=members\n derive app_count():int = count(AppConfig)\nWhen\n scenario tick on=every(5m)\n  do\n   let team_count=count(Todo)\n   let app_total=app_count()\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E4051"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN314 derive inherits caller mode; DESIGN526 local-call query dependencies participate in scope"
+  },
+  {
+    "id": "scope-scenario",
+    "source": "app Scope\nGiven\n AppConfig in app {n:int}\n Todo {title:text}\n policy AppConfig read=members\nWhen\n scenario helper() by=members\n  do\n   let n=count(AppConfig)\n scenario tick on=every(5m)\n  do\n   let team_count=count(Todo)\n   call helper {}\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E4051"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN526 local-call query dependencies participate in scope"
+  },
+  {
+    "id": "call-cycle-upstream",
+    "source": "app T\nGiven\nWhen\n scenario u() by=members\n  do\n   call a {}\n scenario a() by=members\n  do\n   call b {}\n scenario b() by=members\n  do\n   call a {}\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E3005"
+    ],
+    "forbidden_codes": [],
+    "authority": "Static call cycle excluded upstream origin; deterministic complete diagnostic surface required"
+  },
+  {
+    "id": "ownership-cycle-upstream",
+    "source": "app T\nGiven\n U in A {n:int}\n A in B {n:int}\n B in A {n:int}\n policy U read=members\n policy A read=members\n policy B read=members\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E2008"
+    ],
+    "forbidden_codes": [],
+    "authority": "Ownership repeated ancestor invalidates upstream owner chain"
+  },
+  {
+    "id": "icu-date-time",
+    "source": "app T\nGiven\n message probe(d:date) = \"{d,time}\"@{}\nWhen\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN895 declared ICU type profile; UI generated seam distinct from values descriptor"
+  },
+  {
+    "id": "icu-date-date",
+    "source": "app T\nGiven\n message probe(d:date) = \"{d,date}\"@{}\nWhen\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN895 declared ICU type profile; UI generated seam distinct from values descriptor"
+  },
+  {
+    "id": "icu-decimal-integer",
+    "source": "app T\nGiven\n message probe(d:decimal) = \"{d,number,integer}\"@{}\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E5007"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN895 declared ICU type profile; UI generated seam distinct from values descriptor"
+  },
+  {
+    "id": "icu-decimal-number",
+    "source": "app T\nGiven\n message probe(d:decimal) = \"{d,number}\"@{}\nWhen\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN895 declared ICU type profile; UI generated seam distinct from values descriptor"
+  },
+  {
+    "id": "icu-decimal-ordinal",
+    "source": "app T\nGiven\n message probe(d:decimal) = \"{d,selectordinal,one {one} other {other}}\"@{}\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [
+      "E5007"
+    ],
+    "forbidden_codes": [],
+    "authority": "DESIGN895 declared ICU type profile; UI generated seam distinct from values descriptor"
+  },
+  {
+    "id": "icu-decimal-cardinal",
+    "source": "app T\nGiven\n message probe(d:decimal) = \"{d,plural,one {one} other {other}}\"@{}\nWhen\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN895 declared ICU type profile; UI generated seam distinct from values descriptor"
+  },
+  {
+    "id": "icu-url-plain",
+    "source": "app T\nGiven\n message probe(d:url) = \"{d}\"@{}\nWhen\nThen\n",
+    "clean": true,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "DESIGN895 declared ICU type profile; UI generated seam distinct from values descriptor"
+  },
+  {
+    "id": "value-email-0",
+    "source": "app T\nGiven\n derive g():email = \"a@b.com\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-email-1",
+    "source": "app T\nGiven\n derive g():email = \"a@b\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-email-2",
+    "source": "app T\nGiven\n derive g():email = \"a@localhost\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-email-3",
+    "source": "app T\nGiven\n derive g():email = \"a@-x.com\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-email-4",
+    "source": "app T\nGiven\n derive g():email = \"a@例子.公司\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-email-5",
+    "source": "app T\nGiven\n derive g():email = \"a @b.com\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-timezone-0",
+    "source": "app T\nGiven\n derive g():timezone = \"UTC\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-timezone-1",
+    "source": "app T\nGiven\n derive g():timezone = \"America/New_York\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-timezone-2",
+    "source": "app T\nGiven\n derive g():timezone = \"Mars/Olympus\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-timezone-3",
+    "source": "app T\nGiven\n derive g():timezone = \"GMT0\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  },
+  {
+    "id": "value-timezone-4",
+    "source": "app T\nGiven\n derive g():timezone = \"Etc/GMT+5\"\nWhen\nThen\n",
+    "clean": false,
+    "required_codes": [],
+    "forbidden_codes": [],
+    "authority": "Value policy differential observation; language floor/data qualification remains explicit"
+  }
+]

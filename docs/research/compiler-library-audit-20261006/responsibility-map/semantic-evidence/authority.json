@@ -1,0 +1,742 @@
+{
+  "schema": "semantic-evidence/authority-v1",
+  "stage": "Step8 planning/source audit only",
+  "source_ref": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "initial_head": "1db4516c645799ff3c2d7287ebd6d470ecd5896c",
+  "pins": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+      "source_ref_sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "sha256": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f",
+      "source_ref_sha256": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "sha256": "11a20d031e8c038ee9ba70fb5a55c6d5d6eafe508910e76f9bc9bdeae712c63d",
+      "source_ref_sha256": "11a20d031e8c038ee9ba70fb5a55c6d5d6eafe508910e76f9bc9bdeae712c63d",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "sha256": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa",
+      "source_ref_sha256": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "sha256": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+      "source_ref_sha256": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/src/analysis/migrate_check.rs",
+      "sha256": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb",
+      "source_ref_sha256": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/src/analysis/check.rs",
+      "sha256": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+      "source_ref_sha256": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "sha256": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005",
+      "source_ref_sha256": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "sha256": "1f1ef2bec0a008566ed800d746fc65feb90b9cc4683e9803940f83dac4b1eab8",
+      "source_ref_sha256": "1f1ef2bec0a008566ed800d746fc65feb90b9cc4683e9803940f83dac4b1eab8",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/tests/effects.rs",
+      "sha256": "017ffa89d034d034b74cf03facafc7a912f82e235d436cbfcffffb0117ad60d8",
+      "source_ref_sha256": "017ffa89d034d034b74cf03facafc7a912f82e235d436cbfcffffb0117ad60d8",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/tests/b4_check.rs",
+      "sha256": "0d4122ca2f1222f5891289b6b516cf8357c44bdca731a19b5cdca5d38d70403e",
+      "source_ref_sha256": "0d4122ca2f1222f5891289b6b516cf8357c44bdca731a19b5cdca5d38d70403e",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/tests/codegen.rs",
+      "sha256": "ff7ecd4aab382ae9978c00d1b6a63d25242a80989d56df3ed3e15d92a4ab470d",
+      "source_ref_sha256": "ff7ecd4aab382ae9978c00d1b6a63d25242a80989d56df3ed3e15d92a4ab470d",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/tests/analysis.rs",
+      "sha256": "69d974c2b7945fc15c209d5346c8e883ef81fe2954e8fa4d6e71331472ef2453",
+      "source_ref_sha256": "69d974c2b7945fc15c209d5346c8e883ef81fe2954e8fa4d6e71331472ef2453",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/tests/b3_migrate.rs",
+      "sha256": "6c8ed4ee07139b9cacade969218914e7a475574678a03ede7869b9c16dfb5de8",
+      "source_ref_sha256": "6c8ed4ee07139b9cacade969218914e7a475574678a03ede7869b9c16dfb5de8",
+      "source_ref_equal": true
+    },
+    {
+      "path": "compiler/tests/syntax.rs",
+      "sha256": "b0976f8de37a466c7d78479fa94b6b1b1f1a19c0b62a49c2bac949647c51ff22",
+      "source_ref_sha256": "b0976f8de37a466c7d78479fa94b6b1b1f1a19c0b62a49c2bac949647c51ff22",
+      "source_ref_equal": true
+    },
+    {
+      "path": "docs/specification/DESIGN.md",
+      "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+      "source_ref_sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+      "source_ref_equal": true
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/ASSESSMENT.md",
+      "sha256": "89cf1d71db5899d97c00f2d78fc70874992f479b5b2af17ef93701ba8f1ec955",
+      "source_ref_sha256": "89cf1d71db5899d97c00f2d78fc70874992f479b5b2af17ef93701ba8f1ec955",
+      "source_ref_equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "source_ref_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "source_ref_equal": true
+    }
+  ],
+  "responsibilities": [
+    {
+      "id": "A01",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_effects",
+          "lines": [
+            940,
+            1004
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "finish",
+          "lines": [
+            1038,
+            1061
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN \u00a7\u00a74\u20136; complete pipeline executes effects after resolve/types",
+      "test_witnesses": [
+        "effects.rs::emission_table_shapes"
+      ],
+      "accepted": "own declaration tables preserve source statement order",
+      "rejected": "Earlier erroneous subtrees are skipped; diagnostics do not prove runtime behavior",
+      "real_consumer": "analysis::check_program; codegen IR consumes EffectTables",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": ""
+    },
+    {
+      "id": "A02",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_own_mutation",
+          "lines": [
+            3341,
+            3366
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "walk_rule",
+          "lines": [
+            1732,
+            1930
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "walk_crud",
+          "lines": [
+            2215,
+            2334
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN85: models/rules/CRUD have one owning package; imports grant visibility only",
+      "test_witnesses": [
+        "cross_package_mutation",
+        "cross_package_member_mutation",
+        "cross_package_rule",
+        "cross_package_crud"
+      ],
+      "accepted": "local mutation/rule/CRUD; imported canonical call",
+      "rejected": "E4001/E4002/E4003 cross-package direct ownership",
+      "real_consumer": "Effect tables feed canonical target IDs to codegen",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Step7 recursive owner/File mask witnesses remain existing findings, not new"
+    },
+    {
+      "id": "A03",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_app_policies",
+          "lines": [
+            4024,
+            4051
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "scope_is_app",
+          "lines": [
+            4106,
+            4135
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN95\u201399: app root needs policy; containment inherits storage owner",
+      "test_witnesses": [
+        "app_scope_needs_policy",
+        "containment_cycle_terminates"
+      ],
+      "accepted": "app-scoped model with policy and finite parent chain",
+      "rejected": "E4004 absent policy; cycle already E2008 in resolver",
+      "real_consumer": "ModelData / recurring scope inference",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Presence of a policy grants no runtime data access by itself"
+    },
+    {
+      "id": "A04",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "check_scenario_read",
+          "lines": [
+            3646,
+            3659
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "collect_read_scenarios",
+          "lines": [
+            4922,
+            4956
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "walk_statement",
+          "lines": [
+            1074,
+            1115
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "callee_is_read",
+          "lines": [
+            1782,
+            1793
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN368: read operations pure, typed result and every-path return; authority report explicit",
+      "test_witnesses": [
+        "syntax.rs1238\u20131244",
+        "codegen.rs822"
+      ],
+      "accepted": "read=true with result and pure statements/calls",
+      "rejected": "E3001 scope without read/missing result/effect; E3005 mutation call from read",
+      "real_consumer": "ScenarioData.read; IR decode_scenario; JS read metadata",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "authority report cannot lower: IR4241\u20134250 E6008"
+    },
+    {
+      "id": "A05",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "walk_guard",
+          "lines": [
+            889,
+            901
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "phase2_derive",
+          "lines": [
+            5775,
+            5836
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "effectful_calls",
+          "lines": [
+            5492,
+            5498
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "check_when_pure",
+          "lines": [
+            5520,
+            5538
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN314,362,366: pure decisions, ordered require rollback; derive caller mode",
+      "test_witnesses": [
+        "effects.rs::emission_table_shapes",
+        "b4_check.rs::t06_no_leak_derive_call_never_admits"
+      ],
+      "accepted": "boolean require and pure derives/dispatch guards",
+      "rejected": "nonboolean E3001; effectful derive/when E3010",
+      "real_consumer": "IR checked guards and expression body; JS emitted guard order",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Catalog-dependent purity; bounded source review does not establish confidentiality of interpolated diagnostic values"
+    },
+    {
+      "id": "A06",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "auth_proves_actor",
+          "lines": [
+            3494,
+            3557
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "role_call_on_caller",
+          "lines": [
+            3604,
+            3645
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_redundant_actor",
+          "lines": [
+            3962,
+            4023
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN \u00a73\u20134: authorization narrows actor; bare role canonical literal-actor spelling",
+      "test_witnesses": [
+        "b4_check.rs::t06_role_call_on_caller_admits_body",
+        "t06_preauthorization_default_rejected",
+        "t06_trusted_actor_stays_null",
+        "effects.rs::redundant_actor_subject"
+      ],
+      "accepted": "by-role actor facts inside admitted body",
+      "rejected": "E4020 redundant Role(actor); unauthorized context reads remain type errors",
+      "real_consumer": "Typer narrow env; generated admission guards",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "No inference that role naming assigns runtime roles"
+    },
+    {
+      "id": "A07",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_secret_grant",
+          "lines": [
+            1984,
+            2019
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "selector_is_secret",
+          "lines": [
+            2020,
+            2066
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_secret_return",
+          "lines": [
+            3635,
+            3655
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_leaf_grant_reference_in",
+          "lines": [
+            2075,
+            2120
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN310\u2013320,368: secrets server-only, leaf grants not directory authority; return disclosure independent",
+      "test_witnesses": [
+        "secret_field_grant",
+        "nullable_secret_grant",
+        "secret_return",
+        "t25_l1_user_traversal_is_e4012",
+        "t25_l1_member_traversal_is_e4012"
+      ],
+      "accepted": "singular embedded nonsecret leaf selectors",
+      "rejected": "E4010 secret grants; E4011 scalar secret return; E4012 user/member traversal; unsupported types E2013",
+      "real_consumer": "Model policies/return expressions flow into IR/runtime query grants",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Structural secret/owner propagation Step7 remains existing work. General authority-dependent scalar taint not proved by these functions"
+    },
+    {
+      "id": "A08",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "call_operation",
+          "lines": [
+            1662,
+            1781
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "send_target_ok",
+          "lines": [
+            2805,
+            2845
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_call_local",
+          "lines": [
+            3522,
+            3555
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_action_call",
+          "lines": [
+            3556,
+            3634
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN85,91,147,157: canonical operations; bound imports asynchronous; data references grant no authority",
+      "test_witnesses": [
+        "call_remote_target",
+        "heterogeneous_action_call",
+        "bound_crud_call_exempt"
+      ],
+      "accepted": "local scenario/CRUD call; bound operation send",
+      "rejected": "E4040 remote scenario/capability call; E4041 differing heterogeneous input; E3009 trusted call/disabled CRUD",
+      "real_consumer": "IR canonical operations; packages/cloudflare/src/runtime/invoke.ts canonical generated descriptor path",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Bound CRUD exemption explicitly pinned existing behavior; no direct permission bypass asserted"
+    },
+    {
+      "id": "A09",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "decode_on",
+          "lines": [
+            2738,
+            2812
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_each",
+          "lines": [
+            2435,
+            2594
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_hook_staging_create",
+          "lines": [
+            3378,
+            3421
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_hook_staging_set",
+          "lines": [
+            3422,
+            3468
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_hook_staging_delete",
+          "lines": [
+            3469,
+            3498
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_hook_staging_timer",
+          "lines": [
+            3499,
+            3521
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN \u00a7\u00a76,8; trusted sources verified; T31 hook narrow staging; T33 cohort ownership",
+      "test_witnesses": [
+        "hook_on_disabled_op",
+        "hook_tables",
+        "f6_cross_owner_cohort_diagnosed",
+        "f6_anchored_collection_checks_with_only_the_standing_e1203"
+      ],
+      "accepted": "same-package supported trigger/cohort, hook adjustments",
+      "rejected": "E4050 disabled hook; E4052 same model; E4053 staged delete; E4054 delete-hook staging; E4055 unsupported cohort",
+      "real_consumer": "ScenarioData.on/cohort -> IR hook/cohort -> emitted runtime descriptors",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Source each currently also has standing parser E1203; accept at effect seam does not mean whole source workflow compiles"
+    },
+    {
+      "id": "A10",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "stmt_schedule",
+          "lines": [
+            2846,
+            2921
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "check_schedule_key_unique",
+          "lines": [
+            2922,
+            2943
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "stmt_send",
+          "lines": [
+            2396,
+            2506
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "walk_effect",
+          "lines": [
+            2942,
+            3215
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN \u00a7\u00a77\u20138: explicit keyed schedule, transactional intents, typed bound send",
+      "test_witnesses": [
+        "effects.rs emission_table_shapes; b4_check statement cases"
+      ],
+      "accepted": "typed event/queue/key and supported sends",
+      "rejected": "types owns E3010 validation/guard purity; delete hook timer E4054",
+      "real_consumer": "Effect.when/queue/key into IR and JS schedule/send",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "No distributed delivery/concurrency qualification from compiler checking"
+    },
+    {
+      "id": "A11",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "phase2_field",
+          "lines": [
+            728,
+            888
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "call_builtin",
+          "lines": [
+            13417,
+            13550
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN133,235: creation defaults parent/context authority; random_secret server only",
+      "test_witnesses": [
+        "b4_check.rs::t06_preauthorization_default_rejected",
+        "codegen.rs default/server lowering cases"
+      ],
+      "accepted": "typed ordinary defaults; typed server initializer; server random_secret",
+      "rejected": "E3011 invalid initializer; E3005 random_secret outside server defaults",
+      "real_consumer": "FieldData.default/server -> IR field metadata -> JS creation descriptors",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Execution/default replay remains runtime owner; default model dependencies omitted by E4051 graph (candidate)"
+    },
+    {
+      "id": "A12",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "check_every_scopes",
+          "lines": [
+            4052,
+            4105
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "collect_subtree_models",
+          "lines": [
+            5059,
+            5153
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN526: every infers owner-bound query/write/local-call dependencies; mixed family fails",
+      "test_witnesses": [
+        "mixed_handler_scope",
+        "transitive_handler_scope",
+        "write_only_handler_scope",
+        "containment_cycle_terminates"
+      ],
+      "accepted": "single-family transitive scenario/CRUD dependency closure",
+      "rejected": "E4051 mixed app/team models",
+      "real_consumer": "Checked ScenarioData -> emission; scenario_models/calls are private check facts",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Candidate omission: derives/default expressions outside scenario subtree do not expand dependency models; probe requested from root"
+    },
+    {
+      "id": "A13",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/resolve.rs",
+          "declaration": "check_fixture_cycles",
+          "lines": [
+            5175,
+            5247
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/resolve.rs",
+          "declaration": "check_derive_cycles",
+          "lines": [
+            5248,
+            5315
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/types.rs",
+          "declaration": "check_cycles",
+          "lines": [
+            4957,
+            5006
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN85: model references can cycle; containment/derive/synchronous calls cannot",
+      "test_witnesses": [
+        "Pass9 graphs ASSESSMENT + compiler_probe.rs source and pinned output"
+      ],
+      "accepted": "acyclic/upstream fixture/derive origins; preserved reference seed order",
+      "rejected": "E2017/E2018 return-to-origin; E2008 upstream containment; E3005 call witness policy distinct",
+      "real_consumer": "fixture_edges -> examples FixtureRecipe.seeds; graph diagnostics -> check aggregation",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Existing Pass9 gates/witness nondeterminism not rediscovered; no SCC policy selected"
+    },
+    {
+      "id": "A14",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/examples.rs",
+          "declaration": "check_fixture",
+          "lines": [
+            435,
+            460
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/migrate_check.rs",
+          "declaration": "check_migration",
+          "lines": [
+            188,
+            616
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/effects.rs",
+          "declaration": "migration_backfill",
+          "lines": [
+            3801,
+            3859
+          ]
+        }
+      ],
+      "independent_contract": "DESIGN403,407,966\u20131000: fixtures isolated; mapper maintenance bounded; old schema runtime owns transition validity",
+      "test_witnesses": [
+        "effects.rs::backfill_tables",
+        "b3_migrate.rs",
+        "migrate_check.rs internal unit cases"
+      ],
+      "accepted": "typed fixture recipe references; explicit predecessor/directive",
+      "rejected": "E6010 predecessor/owner missing; E6009 duplicate/directive conflicts",
+      "real_consumer": "FixtureRecipe.seeds -> codegen example metadata; MigrationData -> migration checker / runtime validateTransition",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Effects checks switched off for backfill suite; migration checker no graph replacement and cannot prove old-schema collisions"
+    },
+    {
+      "id": "A15",
+      "owners": [
+        {
+          "path": "compiler/src/analysis/check.rs",
+          "declaration": "dedup_diagnostics",
+          "lines": [
+            104,
+            121
+          ]
+        },
+        {
+          "path": "compiler/src/analysis/check.rs",
+          "declaration": "sort_diagnostics",
+          "lines": [
+            122,
+            129
+          ]
+        }
+      ],
+      "independent_contract": "Declared deterministic diagnostic surface; same code/start can still represent different findings",
+      "test_witnesses": [
+        "Pass9 raw/public duplicate composition witnesses"
+      ],
+      "accepted": "exact identical five-field tuples dedup, first pass retained",
+      "rejected": "same code/span with different messages remains multiple findings",
+      "real_consumer": "All check_program diagnostics",
+      "status": "source-reviewed; tests located, not rerun by this lane",
+      "limits": "Graph nondeterministic witness contents not repaired by sorting; root owns joins/probes"
+    }
+  ],
+  "executed_by_lane": [],
+  "probes_delegated_to_root": [
+    "every-derive-app-query",
+    "every-default-app-query"
+  ],
+  "policy_gates": "Existing Pass9 graph-origin/cycle/pound consultation remains; no new policy or consultation transmission attempted."
+}
