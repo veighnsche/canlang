@@ -207,3 +207,5 @@ Identity existing consume port and D1/memory owners provide the explicit one-use
 State engine-local typed secrecy and canonical own-data fact normalization retain their released owners. Finite independent metadata/read acceptance preserves genuine omitted selectors while refusing lost or accessor-derived rule identity; public-result/replay and fresh compiler/installed/durable qualifications stay open. No owner migration, merge or complete checkpoint advance.
 
 Cloudflare defining deployment preflight retains its current owner and now ends line comments at every ECMAScript line terminator. Independently accepted lexical correctness preserves offsets/error order; broader syntax/binding/namespace and installed/native map duties remain open. No new layer, merge or complete checkpoint advance.
+
+Testkit retains the defining table/RowScope lifetime owner; unexpected execution now attempts disposal once and preserves first failure. Independent narrow exception/caller acceptance leaves real isolation, source-loader and installed/native/evidence cleanup open. No new layer, merge or complete checkpoint advance.

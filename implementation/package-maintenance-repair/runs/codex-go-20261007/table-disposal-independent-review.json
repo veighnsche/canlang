@@ -1,0 +1,109 @@
+{
+  "packet": "DEL-E02 finite different-author table ownership review",
+  "disposition": "PASS exact unexpected executeRow rejection cleanup scope; root acceptance remains separate",
+  "sourceProof": {
+    "exactOnlyUnexpectedExecuteRowCleanupBranch": true,
+    "testSHA256": "2283c993bab6bd83abcf8b03b104fc40142912ff69c1f210f386cca0701d6ff9",
+    "rows": [
+      {
+        "path": "packages/testkit/src/runner/table.ts",
+        "beforeSHA256": "b714b1150c8b0b9b32e641e4fb3bd2056b5d0c065948533827f001e4670f67dd",
+        "endSHA256": "05bd6cdf4d063f71aea65d543b02e450c5ffe621f3d65e2ea6f1de6697dc8de3",
+        "sourceBefore": 221,
+        "sourceAfter": 230,
+        "declarationsBefore": 39,
+        "declarationsAfter": 39,
+        "declarationsByteIdentical": true,
+        "declarationSHA256": "00e82dc68d8c439b4b6cb58e71d2834ec146be2e35b7ea30b5b4d39eda5073f2"
+      },
+      {
+        "path": "packages/testkit/src/assertions/equal.ts",
+        "beforeSHA256": "d12014e23815bf21c0df9f6323e3c217d26ac5b0a9b5cacad04411cb78db7496",
+        "endSHA256": "d12014e23815bf21c0df9f6323e3c217d26ac5b0a9b5cacad04411cb78db7496",
+        "sourceBefore": 52,
+        "sourceAfter": 52,
+        "declarationsBefore": 2,
+        "declarationsAfter": 2,
+        "declarationsByteIdentical": true,
+        "declarationSHA256": "aa54cfcfae43292f1d3db28b553d73de76b09c7d004101dabb6d15ebfc74710c"
+      },
+      {
+        "path": "packages/testkit/src/fixtures/accounts.ts",
+        "beforeSHA256": "dc7fbff4e16d9d839618da8e8c7d44e4bfed6c4e30665e29178df2108becb84f",
+        "endSHA256": "dc7fbff4e16d9d839618da8e8c7d44e4bfed6c4e30665e29178df2108becb84f",
+        "sourceBefore": 70,
+        "sourceAfter": 70,
+        "declarationsBefore": 31,
+        "declarationsAfter": 31,
+        "declarationsByteIdentical": true,
+        "declarationSHA256": "f79c0cf74743935f320a9a4647bb0d2d4ea2ce21b8df62ea2a2a7620dd3040d0"
+      }
+    ],
+    "closure": {
+      "sourceBefore": 343,
+      "sourceAfter": 352,
+      "declarationsBefore": 72,
+      "declarationsAfter": 72
+    },
+    "scope": "Full changed owner plus unchanged two defining runtime dependency sources and maintained declaration outputs; comments/blanks/tests excluded. Correctness budget, no reduction claim."
+  },
+  "sourceTestPin": "2283c993bab6bd83abcf8b03b104fc40142912ff69c1f210f386cca0701d6ff9",
+  "actualRuns": {
+    "sourceCurrentFocusedTests": {
+      "pass": 18,
+      "fail": 0,
+      "exit": 0
+    },
+    "baselineFocusedTests": {
+      "pass": 10,
+      "fail": 8,
+      "exit": 1
+    },
+    "independentExportedRunTableCorpus": {
+      "unexpectedPathObservations": 8,
+      "currentDisposalAttemptsEach": 1,
+      "baselineDisposalAttemptsEach": 0,
+      "exactOriginalSymbolAndUndefinedIdentity": true,
+      "secondaryDisposeRejectionCovered": true,
+      "nextScopeAfterUnexpectedRejection": false,
+      "distinctTriggers": [
+        "invoke returns outcome whose ok getter throws Symbol",
+        "actual diffReportValues triggers Proxy ownKeys throwing undefined"
+      ],
+      "ordinaryControls": "Passing row/business rejection disposal-failure Symbol formatting byte-equivalent; scope creation scalar failure continues next row, never disposes unowned first scope; duplicate index refuses before any createScope.",
+      "exit": 0
+    },
+    "strictSourceNamedTestAndDeclarationPrograms": {
+      "beforeExit": 0,
+      "currentExit": 0,
+      "maintainedClosureDeclarationsByteIdentical": true
+    }
+  },
+  "evidenceSHA256": {
+    "corpus.cjs": "cd76cef7e5585043497c815d212f8e1a8276390559129e08e385f129370f47d4",
+    "corpus.json": "8a7e45f45a7d7f2435118a23dfb49016578783229818c7d6a6c4c278585b4aa6",
+    "proof.json": "44469a76b363a08d5398fddc438a3d8ddce6aa0bbc0ca4fe81acc4a97d772b61",
+    "current-tests.log": "bae2ecde4f803882822a7397ad9f72dc9d0fe1ba3a8e488c486c3b38ed32f1fd",
+    "before-tests.log": "4b61c2e721470fa04ce550e1eb3f7dc9ae31ae3a4b45fad933ec0e36888aad36",
+    "current-declarations.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "before-declarations.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "producerBaselineSHA256": "d6024831a7c44b90a5759dde1e8ee13c4281d2f75c6bbb4277cd1c0588efb87b",
+  "firstFailureMechanics": "Unexpected executeRow rejection enters added catch, attempts dispose once, suppresses secondary disposal rejection, rethrows exact original value. Normal result path and existing dispose-failure formatter outside new branch are byte unchanged. Scope creation and duplicate preflight remain byte unchanged.",
+  "privateHarnessFailure": "Initial focused test collection saw private CJS .js files beside typed ESM source and rejected exports. CJS files were isolated under commonjs/; typed tests then resolved fresh .ts owners. Failed logs/handles preserved. No product fix.",
+  "maintainedBudget": "Source changed owner221\u2192230; owner maintained declaration39\u219239. Full actual3-module runtime closure source343\u2192352, declarations72\u219272; comments/blanks/tests excluded. Correctness scope; no reduction claim.",
+  "limits": [
+    "Original isolation command stopped130 is explicitly NOT passed; reviewer did not run isolation.",
+    "In-memory fake scope/comparator ownership proof only; no full durable isolation, source-loader, installed/native or real resource cleanup acceptance.",
+    "A rejecting disposer is attempted, not certified to have released underlying resources; original unexpected failure remains observable.",
+    "No source/tests/Git/docs/state/shared outputs writes; exact read and command leases released."
+  ],
+  "readAndCommandLeasesReleased": true,
+  "rootDisposition": "accepted finite selected correctness only; parent residual retained",
+  "sourcePins": {
+    "packages/testkit/src/runner/table.ts": "05bd6cdf4d063f71aea65d543b02e450c5ffe621f3d65e2ea6f1de6697dc8de3",
+    "packages/testkit/test/table-disposal.test.ts": "2283c993bab6bd83abcf8b03b104fc40142912ff69c1f210f386cca0701d6ff9"
+  },
+  "fullPrivateEvidence": "/private/tmp/canlang-repair-go-20261007/row-scope-cleanup/independent-review.json",
+  "fullPrivateEvidenceSHA256": "38c8fa4ab4756854833e8aa300c2c1eb091d29a1e0344d836ede7df714f0e861"
+}
