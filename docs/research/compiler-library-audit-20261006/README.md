@@ -20,6 +20,8 @@ The proposed [compiler correctness, ownership and simplicity audit](compiler-cor
 
 [Audit Step 4 is executed](responsibility-map/compatibility.md): 83 bounded requirements challenge all 26 prior compatibility claim groups across the core packets, conditional families and 18 workflows. Independent review distinguishes actual owning requirements, current public byte promises, migration guards and incidental mechanisms; 82 supporting inputs are pinned. Existing public/accepted support remains binding pending explicit revision. No new execution or implementation/policy change; adapter simplification and whole semantic correctness remain later work.
 
+[Audit Step 5 is executed](responsibility-map/representations.md): the same ledger traces 35 stage/owner/conversion duties through source, checked facts, IR and actual output consumers, with eight selected carrier groups and all 18 workflow joins. Independent review qualifies repeated work and semantic-rule differences without declaring every parallel type redundant. Fresh library/public-API probes demonstrate unsealed mixed source/catalog inputs, with coherent/immutable controls; the normal CLI cohort stays distinct. No implementation or API/policy/cache choice; full semantics, measured integration reduction and product acceptance remain open.
+
 | Pass | Declared outcome / reference |
 | --- | --- |
 |0 |[Released contracts and witnesses](pass0/README.md) |
