@@ -1,0 +1,491 @@
+{
+  "schema": "canlang.test-evidence.counter-review.v1",
+  "pin": "449563a30e33c312fcc0e47750bba4a24cb84f4c",
+  "model": "Sol high, economical finite cross-file challenge",
+  "method": "Read-only primary-source/packet inspection. Conclusions visible, not cleanroom. No runtime/tests/build/install/network/Git or repository writes; all proposed verification remains unexecuted. No security policy/adoption selected.",
+  "reviewed_claim_ids": [
+    "TEI01",
+    "TEI02",
+    "TEI03",
+    "TEI04",
+    "TEI05",
+    "TEI06",
+    "TEI07",
+    "TEI08",
+    "TEI09",
+    "TEI10",
+    "TEI11",
+    "TEI12",
+    "TEI13",
+    "TEI14",
+    "TEW01",
+    "TEW02",
+    "TEW03",
+    "TEW04",
+    "TEW05",
+    "TEW06",
+    "TEW07",
+    "TEW08",
+    "TEW09",
+    "TEW10",
+    "TEW11",
+    "TEW12",
+    "TEW13",
+    "TEW14",
+    "TEW15"
+  ],
+  "reviews": [
+    {
+      "claim_ids": [
+        "TEW01",
+        "TEW02",
+        "TEW03"
+      ],
+      "verdict": "Confirmed comparator scope; complete-extra-value oracle needs explicit provenance.",
+      "opposing_review": "numeric-text line15 filters actual own keys to name/message/code/details and tests only expected extra key names. Actual StateError extra presence/order/value can escape. Core mandatory channels remain compared. Registered differential independently compares actual Rust observations but deliberately excludes fullTsFault; it captures TS entries separately. Do not characterize either as entirely fixture-self comparison. TEW03 correctly keeps direction-specific frozen donor quirks and null outside f64 sampling separate from a permanent shared policy.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/conformance/numeric-text.contract.test.ts",
+          "line": 13,
+          "end_line": 13
+        },
+        {
+          "path": "packages/work-kernel/conformance/numeric-text.contract.test.ts",
+          "line": 15,
+          "end_line": 15
+        },
+        {
+          "path": "packages/work-kernel/conformance/registered-differential.mjs",
+          "line": 116,
+          "end_line": 116
+        },
+        {
+          "path": "packages/work-kernel/conformance/registered-differential.mjs",
+          "line": 143,
+          "end_line": 143
+        },
+        {
+          "path": "packages/work-kernel/conformance/registered-differential.mjs",
+          "line": 158,
+          "end_line": 158
+        },
+        {
+          "path": "packages/work-kernel/conformance/fixtures/numeric-text.json",
+          "line": 1,
+          "end_line": 1
+        }
+      ],
+      "consolidation_correction": "Frozen numeric caller example stores extra own-key names, not extra scalar values. Name/order negatives can use that oracle now; any new full-extra-value assertion needs independently retained original owner capture/contract. Native full-envelope implementation remains separately held.",
+      "next_verification_gate": "Challenge the actual comparator using missing/ordered extra keys first; preserve code/details/builtin controls and immutable fixture identity."
+    },
+    {
+      "claim_ids": [
+        "TEW04"
+      ],
+      "verdict": "Confirmed; callback ordering remains authority-qualified.",
+      "opposing_review": "Every admission result is positional and occurrence IDs must match supplied callback components. Callback trace is sorted before comparison, so reordered demand can pass if returned admission order is restored. A noncommutative or throwing callback would distinguish it, but the supplied-ID callback shell may only require pure derivation at this stage.",
+      "anchors": [
+        {
+          "path": "packages/work-kernel/conformance/every.test.ts",
+          "line": 128,
+          "end_line": 128
+        },
+        {
+          "path": "packages/work-kernel/conformance/every.test.ts",
+          "line": 133,
+          "end_line": 133
+        }
+      ],
+      "consolidation_correction": "Do not convert the proposed ordered trace into a mandatory product sequencing rule until the selected caller/effect contract requires it. Host hash bytes remain separate.",
+      "next_verification_gate": "Trace actual derive-ID owner and existing evaluation-order authority before adding order-sensitive gate."
+    },
+    {
+      "claim_ids": [
+        "TEW05",
+        "TEW06",
+        "TEW07",
+        "TEW13",
+        "TEI09",
+        "TEI14"
+      ],
+      "verdict": "Shared implementation limits are qualifications, not grounds to discard tests.",
+      "opposing_review": "Roundtrip, prepared/legacy agreement, wrapper projection and strict facade identity can share defects, while direct coefficient/scale, exact getter/error identity, literal outcomes, independent Decimal.js/BigInt, fixed CSV digest and compile-time pins supply distinct oracles. Source identity/assembly tests are legitimate even when they do not prove arithmetic/compiler semantics.",
+      "anchors": [
+        {
+          "path": "packages/values/src/prepared/validation.ts",
+          "line": 434,
+          "end_line": 434
+        },
+        {
+          "path": "packages/interfaces/test/csv-review.test.ts",
+          "line": 368,
+          "end_line": 368
+        }
+      ],
+      "consolidation_correction": "Retain the concrete independent counters already identified. No separately implemented native validator is required merely to keep the selected TS plan/legacy contract tested; that prerequisite applies only to future native-validation adoption.",
+      "next_verification_gate": "Add only the missing independent observation at each current consumer; do not replace the shared wiring test or invent a new native architecture."
+    },
+    {
+      "claim_ids": [
+        "TEW08"
+      ],
+      "verdict": "Confirmed distinction between no initialization and asset-free dependency graph.",
+      "opposing_review": "The unit test statically imports backend/bootstrap before TS assertions. bootstrap reads WebAssembly.Module/Memory/Table at module evaluation. Passing TS smoke therefore proves no explicit initialization, not successful import when glue is absent or WebAssembly is unavailable. Explicit TS call after bootstrap failure is not selector rollback.",
+      "anchors": [
+        {
+          "path": "packages/values/test/exact-bootstrap.test.ts",
+          "line": 14,
+          "end_line": 14
+        },
+        {
+          "path": "packages/values/test/exact-bootstrap.test.ts",
+          "line": 40,
+          "end_line": 40
+        },
+        {
+          "path": "packages/values/bindings/bootstrap.ts",
+          "line": 25,
+          "end_line": 25
+        }
+      ],
+      "consolidation_correction": "Keep actual no-read-before-unknown-op, one-shot asset and original-error controls. Unsupported-Wasm-host and rollback behavior are proposed profiles, not implied current supported-host requirements.",
+      "next_verification_gate": "A later authorized fresh isolated graph can distinguish missing glue/import versus uninitialized glue. No fallback/default selection change follows from this audit."
+    },
+    {
+      "claim_ids": [
+        "TEW09",
+        "TEW10",
+        "TEW11",
+        "TEW12",
+        "TEW14"
+      ],
+      "verdict": "Finite/native and historical evidence limits retained.",
+      "opposing_review": "Structural binding controls concern real bit/unit/entry transports and scaffold owner lifecycle. The UTF16 corpus explicitly retains mismatch/exclusion rows; red emitted fixture-path receipt is not an unmodified green run. Historical source equality is freshness evidence, not fresh emission or broader installed/default/native Work acceptance.",
+      "anchors": [
+        {
+          "path": "packages/values/test/string-escape.contract.test.ts",
+          "line": 8,
+          "end_line": 8
+        },
+        {
+          "path": "packages/values/scripts/stage-semantics.mjs",
+          "line": 8,
+          "end_line": 8
+        }
+      ],
+      "consolidation_correction": "Keep actual Rust/JS original comparisons, altered-observation negatives and finite installed/workerd outcomes. Do not turn retained known mismatch into passing full-domain parity or demand an approved new carrier here.",
+      "next_verification_gate": "Repair/qualify the actual emitted test-fixture linkage before broader same-command credit; any native expansion remains at its explicit adoption gate."
+    },
+    {
+      "claim_ids": [
+        "TEW15",
+        "TEI02",
+        "TEI03"
+      ],
+      "verdict": "Confirmed actual durable substrate versus orderly restart/test driver distinction.",
+      "opposing_review": "Fanout restart implementation awaits Miniflare.dispose, then reopens the persistence directory; a method called kill is not abrupt termination during commit. Receipt test explicitly excludes restart/cross-store atomicity. Real D1/DO transaction, cross-handle fence and emitted Work loading remain substantive; memory identity/test-only driver does not silently make them fake.",
+      "anchors": [
+        {
+          "path": "packages/work/test/state-fanout/t34-f5-durable.test.ts",
+          "line": 110,
+          "end_line": 110
+        },
+        {
+          "path": "packages/work/test/state-fanout/t34-f5-durable.test.ts",
+          "line": 214,
+          "end_line": 214
+        },
+        {
+          "path": "packages/work/test/state-receipt/t25-receipt-durable.test.ts",
+          "line": 8,
+          "end_line": 8
+        }
+      ],
+      "consolidation_correction": "Separate single-owner State atomic outcomes, persistence after orderly close, and F7/identity production join. No arbitrary crash atomicity or rollback promise.",
+      "next_verification_gate": "Start with selected real driver/fence/effect chain; abrupt-crash phases are later authorized substrate-specific verification, not a prerequisite to retain current orderly-restart credit."
+    },
+    {
+      "claim_ids": [
+        "TEI01"
+      ],
+      "verdict": "Confirmed selected-glob gap; overlap is counterevidence, not exact-case equivalence.",
+      "opposing_review": "Identity test:unit selects only dist/test/**/*.test.js. Co-located src authentication suites are outside that glob; retained test/b4 credential suite can overlap behavior without selecting every original T16b/T32b case. Historical direct execution must remain separately labeled.",
+      "anchors": [
+        {
+          "path": "packages/identity/package.json",
+          "line": 34,
+          "end_line": 34
+        },
+        {
+          "path": "packages/identity/src/authentication/t32b-revocation.test.ts",
+          "line": 39,
+          "end_line": 39
+        }
+      ],
+      "consolidation_correction": "Use existing exact emitted filename/case inventory before inventing a sentinel or changing scheduler/tasks. Failure to select a particular suite is not proof that all its semantics are absent elsewhere.",
+      "next_verification_gate": "Highest early leverage: trace owning gate -> emit -> selected files -> actual named cases and receipt provenance, before expensive consumer integration."
+    },
+    {
+      "claim_ids": [
+        "TEI04",
+        "TEI06"
+      ],
+      "verdict": "Confirmed race witnesses; distinguish required invariants from unresolved partial-effect recovery.",
+      "opposing_review": "exchangeCode independently reads unspent row then awaits digest; D1 conditional UPDATE discards affected-row result, and helper mints afterward. A concurrent losing consumer can mint. Last-owner count and removal/demotion are separate awaits; two initially active owners can both pass the count. Remove cascade runs after membership mutation.",
+      "anchors": [
+        {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "line": 229,
+          "end_line": 229
+        },
+        {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "line": 240,
+          "end_line": 240
+        },
+        {
+          "path": "packages/identity/src/storage/d1.ts",
+          "line": 890,
+          "end_line": 890
+        },
+        {
+          "path": "packages/identity/src/teams/membership.ts",
+          "line": 30,
+          "end_line": 30
+        },
+        {
+          "path": "packages/identity/src/teams/membership.ts",
+          "line": 36,
+          "end_line": 36
+        },
+        {
+          "path": "packages/identity/src/teams/roles.ts",
+          "line": 55,
+          "end_line": 55
+        }
+      ],
+      "consolidation_correction": "One-use and retain-owner invariants are documented. Error cleanup/retry/grant-invitation reconciliation require observing/qualifying the existing port outcomes; do not silently require a new transaction/rollback mechanism. Production mount is unproved, independent-copy persistence is the critical store witness.",
+      "next_verification_gate": "Barrier actual independent store reads, preserve successful/expired/wrong-PKCE controls, inspect mint/owner effects and late faults. Mechanism/policy decisions remain outside scope."
+    },
+    {
+      "claim_ids": [
+        "TEI05"
+      ],
+      "verdict": "Confirmed impossible S256 challenge length vector; no blanket43 failure inference.",
+      "opposing_review": "Source admits base64url lengths43..128 for S256. RFC-vector 43 succeeds; current44 rejection appends ! and tests alphabet. SHA256 unpadded output cannot equal a valid-alphabet44 challenge. Hashing arbitrary verifier strings lacks independent shape admission; current comment says malformed verifier simply mismatches.",
+      "anchors": [
+        {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "line": 45,
+          "end_line": 45
+        },
+        {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "line": 150,
+          "end_line": 150
+        },
+        {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "line": 207,
+          "end_line": 207
+        },
+        {
+          "path": "packages/identity/test/oauth.test.ts",
+          "line": 160,
+          "end_line": 160
+        }
+      ],
+      "consolidation_correction": "Keep explicit authority/profile requirements for malformed verifier expectations; do not infer missing-verifier exploit or that all43 challenges fail. No new redirect/security policy selected.",
+      "next_verification_gate": "Independent standard-profile length/alphabet vectors at actual issuance/exchange/parser, plus no consume on mismatch."
+    },
+    {
+      "claim_ids": [
+        "TEI07",
+        "TEI08"
+      ],
+      "verdict": "Confirmed pre-invoker/mount seam gap without claiming State guard bypass.",
+      "opposing_review": "B4 revokes memory grant during permissions.canCall and observes zero recording invoker calls. This is a real route/live-read control but does not exercise a real durable effect after the read. Current Worker interim fetch handles /auth/ as501; direct manual helper assemblies do not prove default production auth/OAuth mount.",
+      "anchors": [
+        {
+          "path": "packages/interfaces/test/b4-spend-race.test.ts",
+          "line": 202,
+          "end_line": 202
+        },
+        {
+          "path": "packages/interfaces/test/b4-spend-race.test.ts",
+          "line": 227,
+          "end_line": 227
+        },
+        {
+          "path": "packages/cloudflare/src/worker/assembly.ts",
+          "line": 1365,
+          "end_line": 1365
+        }
+      ],
+      "consolidation_correction": "Do not assume stronger act-time credential authorization than the owning accepted contract; attach the actual credential/State join and existing authority before requiring a new commit guard. No blanket absence of every auth assembly or bypass claim.",
+      "next_verification_gate": "Trace selected deployed route -> actual identity -> real invoker -> commit/effect; place race barrier at the stated required boundary and observe durable effects independently."
+    },
+    {
+      "claim_ids": [
+        "TEI10"
+      ],
+      "verdict": "Confirmed source-row binding gap; exact two-row witness has a narrower effect.",
+      "opposing_review": "Digest covers valid mapped candidates only, while commit indexes all review rows. With one invalid row moved around one valid row, supplied witness keeps digest but old selected valid index becomes invalid. That demonstrates changed selected outcome without renewed-consent conflict; it does not itself invoke a different valid row. Replay test expects four recorded calls for two repeated rows, proving equal envelopes, not State dedupe.",
+      "anchors": [
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 272,
+          "end_line": 272
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 473,
+          "end_line": 473
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 519,
+          "end_line": 519
+        },
+        {
+          "path": "packages/interfaces/test/csv-review.test.ts",
+          "line": 265,
+          "end_line": 265
+        },
+        {
+          "path": "packages/interfaces/test/csv-review.test.ts",
+          "line": 368,
+          "end_line": 368
+        }
+      ],
+      "consolidation_correction": "Keep Node literal-byte digest and invalid-before-valid golden. Bind expectations to existing consent/row identity authority. Empty omission/parse-order pins are current profiles, not permanent mapping policy.",
+      "next_verification_gate": "First independently observe original selected raw row and commit verdict/effect across invalid/blank/duplicate movement; then real State one-effect replay. Do not count fake invoker repetition as duplicate durable writes."
+    },
+    {
+      "claim_ids": [
+        "TEI11"
+      ],
+      "verdict": "Source supports partial effects; proposed negative must be decision-qualified.",
+      "opposing_review": "FS journey replaces only blobs; intent/file ledgers and principal remain memory. Finalize writes final blob, removes staging, puts finalized file, mutates/puts intent. If final intent put throws after file put, readFinalizedBytes checks file state/receiver, not intent completion. A finalized object may be readable to its authorized owner despite the call throwing.",
+      "anchors": [
+        {
+          "path": "packages/files/test/helpers.ts",
+          "line": 109,
+          "end_line": 109
+        },
+        {
+          "path": "packages/files/test/upload-journey.test.ts",
+          "line": 42,
+          "end_line": 42
+        },
+        {
+          "path": "packages/files/src/finalize/index.ts",
+          "line": 193,
+          "end_line": 193
+        },
+        {
+          "path": "packages/files/src/finalize/index.ts",
+          "line": 207,
+          "end_line": 207
+        },
+        {
+          "path": "packages/files/src/finalize/index.ts",
+          "line": 335,
+          "end_line": 335
+        }
+      ],
+      "consolidation_correction": "Do not require no readable finalized object after every failed stage as already accepted semantics. Observe exact surviving blob/file/intent state and ownership, then qualify required retry/reconciliation versus rollback. A leaked unauthenticated read is a different claim and is not shown here. Fault scenario requires independently persisted/copying ledgers; memory aliases can obscure intent-put failure.",
+      "next_verification_gate": "Fault each actual store boundary, reopen selected independent stores, inspect authorized/foreign reads and count/digest/retry effects. Preserve current disk/provenance tests; no R2 or transaction mechanism selected."
+    },
+    {
+      "claim_ids": [
+        "TEI12",
+        "TEI13"
+      ],
+      "verdict": "Privacy/physical transport qualifications correct with explicit taint/host assumptions.",
+      "opposing_review": "Redaction accepts unchanged short one-line text and only recognizes account acct_ prefix; account number 123456789 suspended survives. It violates DESIGN656 only when the digits are actually confidential account data, not merely because a message contains digits. Scripted abort compliance is helper ordering evidence; real localhost drip/redirect/cap tests and controlled adapters provide stronger transport observations.",
+      "anchors": [
+        {
+          "path": "packages/services/src/mail/redact.ts",
+          "line": 25,
+          "end_line": 25
+        },
+        {
+          "path": "packages/services/src/mail/redact.ts",
+          "line": 45,
+          "end_line": 45
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 656,
+          "end_line": 656
+        }
+      ],
+      "consolidation_correction": "Retain contextual confidential labeling, safe specificity and actual completion-consumer provenance. Do not replace all error detail with generic policy by inference; no live upstream safety or arbitrary network cleanup guarantee.",
+      "next_verification_gate": "Use controlled confidential provider response -> completion -> authorized projection, and existing supported-host physical body/connection teardown. Timing stability separate from semantic winner/cancel order."
+    }
+  ],
+  "root_disposition": "Source/counterevidence preserved; five qualifications applied to findings and focused plan. Delivery reviewed by root against primary sources, not cleanroom.",
+  "verification_sequence": [
+    {
+      "order": 1,
+      "claim_ids": [
+        "TEI01",
+        "TEW11",
+        "TEW01",
+        "TEW02",
+        "TEW14",
+        "TEW03"
+      ],
+      "scope": "Establish actual producer/source/asset/test discovery and receipt identity first. Then exercise current comparator with independent expected observation; keep red/excluded/held domains explicit."
+    },
+    {
+      "order": 2,
+      "claim_ids": [
+        "TEI04",
+        "TEI06",
+        "TEI10",
+        "TEI11"
+      ],
+      "scope": "Use current selected owning independent stores and deterministic barriers/fault points. Observe actual effects and existing invariants; unresolved partial effects are decisions, not assumed rollback."
+    },
+    {
+      "order": 3,
+      "claim_ids": [
+        "TEI07",
+        "TEI08",
+        "TEW15",
+        "TEI02",
+        "TEI03"
+      ],
+      "scope": "Join selected production route/identity/invoker/State and actual durable driver. Retain isolated helper/transaction controls. State supported host/restart profile; no universal crash promise."
+    },
+    {
+      "order": 4,
+      "claim_ids": [
+        "TEW04",
+        "TEW05",
+        "TEW06",
+        "TEW07",
+        "TEW13",
+        "TEI09",
+        "TEI14"
+      ],
+      "scope": "Add missing independent semantics or ordered observation only where owning contract needs it; preserve wiring/type/surface and literal negative controls."
+    },
+    {
+      "order": 5,
+      "claim_ids": [
+        "TEW08",
+        "TEW09",
+        "TEW10",
+        "TEW12",
+        "TEI05",
+        "TEI12",
+        "TEI13"
+      ],
+      "scope": "Finite supported-host/import/taint/transport profiles remain explicit. Native/scaffold expansion stays behind existing held adoption gate; no new implementation or policy here."
+    }
+  ],
+  "retention": "No semantic corpus deletion/rebasing. Preserve independent original donors, mismatches/exclusions, failed receipt, real substrate/loader tests and exact package/type pins. Cleanup cannot convert quirks into permanent behavior or eliminate distinct oracle/caller domains."
+}

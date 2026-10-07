@@ -1,0 +1,131 @@
+{
+  "schema": "canlang.tests-evidence.cleanup-proposals.v1",
+  "status": "proposal-no-deletion",
+  "implementation_authorized": false,
+  "gate": "Preserve unique oracle, decisive counterexample, exact provenance and actual reader/coverage before any later authorized deletion.",
+  "items": [
+    {
+      "id": "EC01",
+      "disposition": "retain-now",
+      "target": "Original frozen oracle and decisive negative witnesses",
+      "claim_refs": [
+        "TEW03",
+        "TEW10",
+        "TEW11",
+        "TEW12",
+        "TE08",
+        "TE14"
+      ],
+      "retention_gate": "Keep original gzip, actual JS capture, astral mismatch/excluded domain, red fixture-layout run, stale-map wrong coordinate and pristine/patched identities.",
+      "limit": "Never update expected output on mismatch or retain only the latest green receipt."
+    },
+    {
+      "id": "EC02",
+      "disposition": "conditional-consolidation",
+      "target": "Repeated 10213-number primitive projection",
+      "claim_refs": [
+        "TEW12",
+        "TEW01"
+      ],
+      "retention_gate": "One pinned donor + deterministic package-local materialization may replace repeated primitive rows only after every standalone JS/Rust/public reader is mapped. Keep 131 Values and 72 Work caller rows, profiles, provenance and error channels separate.",
+      "limit": "Projection equality is not whole-corpus equality or interchangeable caller coverage."
+    },
+    {
+      "id": "EC03",
+      "disposition": "conditional-consolidation",
+      "target": "Old flat native corpus and embedded Rust fixture bodies",
+      "claim_refs": [
+        "TEW02",
+        "TEW12",
+        "TE07"
+      ],
+      "retention_gate": "Before reducing old unselected native-numeric-text.rs or the 2.88M-character modules.rs line, preserve immutable bytes/hash, generator/target graph, Cargo root selection, historical pins and explicit registered coverage correspondence.",
+      "limit": "Do not delete frozen153-module vectors because current graph is161; no TS/Rust array parser equivalence proved."
+    },
+    {
+      "id": "EC04",
+      "disposition": "conditional-consolidation",
+      "target": "Repeated test-only arithmetic/schema setup",
+      "claim_refs": [
+        "TEW05",
+        "TEW06",
+        "TEW07"
+      ],
+      "retention_gate": "Share pure construction or test-only digit-string oracle only; keep independent literal/default/order/lineage/proxy/error assertions and avoid importing production helpers as the oracle.",
+      "limit": "Two copies of the same test oracle are not two independent algorithms; consolidation must not couple expected output to implementation."
+    },
+    {
+      "id": "EC05",
+      "disposition": "conditional-reference",
+      "target": "Six repeated JSON array sections",
+      "claim_refs": [
+        "TEW14",
+        "TE08"
+      ],
+      "retention_gate": "Use canonical immutable manifest references only after all readers and exact source/run/tool/acceptance provenance are retained. Preserve original-failure versus repaired-run receipts and shared version metadata.",
+      "limit": "Equal arrays are not equal complete receipts.37source pins,29gate aliases,23transport rows,11checks,10pins,8coverage items are distinct categories."
+    },
+    {
+      "id": "EC06",
+      "disposition": "retain-now",
+      "target": "Four exact byte duplicate groups",
+      "claim_refs": [],
+      "retention_gate": "Keep the 770-byte bad/good fixture metadata pairs that isolate artifact capability differences; empty logs save 0bytes. Do not add helper layers merely to remove these.",
+      "limit": "Exact duplicate total is small and intentionally does not measure semantic duplication."
+    },
+    {
+      "id": "EC07",
+      "disposition": "retain-now",
+      "target": "Generated runtime assets and compile/public frontiers",
+      "claim_refs": [
+        "TEW13",
+        "TEI14"
+      ],
+      "retention_gate": "Wasm 653133 bytes and currency catalog are runtime inputs. Public conformance/testkit/helper APIs need explicit caller/contract review. Keep independent expected export/type/hash pins.",
+      "limit": "Do not classify runtime assets or compile constraints as dead tests. True-array removal needs enforced typecheck coverage first."
+    },
+    {
+      "id": "EC08",
+      "disposition": "conditional-harness-cleanup",
+      "target": "Owned scratch trees and fixture reset domains",
+      "claim_refs": [
+        "TE07",
+        "TEI02",
+        "TE13"
+      ],
+      "retention_gate": "Track mkdtemp/child/loader ownership; clean only after actual completion and preserving failure evidence. Reconcile DO reset migration_failures omission and unique-ID isolation.",
+      "limit": "No deletion of foreign/shared caches or old history; no broad no-effects claim from selected table observations."
+    },
+    {
+      "id": "EC09",
+      "disposition": "conditional-receipt-cleanup",
+      "target": "Status/count and observation fields",
+      "claim_refs": [
+        "TE04",
+        "TE05",
+        "TEW02",
+        "TEW11",
+        "TE01",
+        "TE02",
+        "TEI03"
+      ],
+      "retention_gate": "Label source/donor/helper/scaffold/compiled canonical-invoke/mounted/installed separately. Recordactual backend identity, input byte hash, emitted command selection, byte units and effect domain.",
+      "limit": "Do not erase original receipts: annotate their scope/error rather than rewrite historical success/failure. No canonical parent completion from counts."
+    },
+    {
+      "id": "EC10",
+      "disposition": "retain-now",
+      "target": "Real transaction/host/installed controls",
+      "claim_refs": [
+        "TEI02",
+        "TEI07",
+        "TEI13",
+        "TE08",
+        "TEW14",
+        "TEW15"
+      ],
+      "retention_gate": "Retain real D1/workerd/DO transactions and one-winner fences, independent Buffer/SHA/RFC/Decimal/BigInt checks, localhost caps/redirects, installed map and missing/corrupt asset refusals.",
+      "limit": "Mocks/helpers are useful at their own stage; their existence does not invalidate stronger observed consumers."
+    }
+  ]
+}

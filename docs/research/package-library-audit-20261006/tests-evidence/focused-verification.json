@@ -1,0 +1,543 @@
+{
+  "schema": "canlang.tests-evidence.verification-plan.v1",
+  "freeze": "449563a30e33c312fcc0e47750bba4a24cb84f4c",
+  "status": "proposal",
+  "implementation_authorized": false,
+  "canonical_task_status_changes": false,
+  "task_identity_rule": "TV IDs group verification proposals, not new canonical obligations. Original IDs remain in claims.jsonl. Preserve original prerequisites and current exact owners.",
+  "allocation_rule": "TV01 provenance first; ready TV02-15 finite checks may proceed independently with exact-file/output isolation. TV16/17 dependencies govern the corresponding cleanup/acceptance, not a blanket barrier. Held preparation and unresolved policy do not block disjoint checks.",
+  "economy_rule": "Recheck least expensive supported reliable model/effort for every finite dispatch. Extraction may be Luna medium; full cross-file judgments remain risk-matched Sol medium/high. No delegated implementation is started.",
+  "tasks": [
+    {
+      "id": "TV01",
+      "title": "Make discovery and provenance honest before adding tests",
+      "claim_refs": [
+        "TEI01",
+        "TEW11",
+        "TEW12",
+        "TEW14",
+        "TE07"
+      ],
+      "depends_on": [],
+      "producer": "Owning scripts, tsconfig emit, fixture staging, pinned source and generated assets.",
+      "actual_consumer": "Unmodified package/root command selection and exact installed/native entry.",
+      "independent_oracle": "Independent expected file/case list plus immutable source/fixture/toolchain hashes; historical receipt scope.",
+      "negative_witnesses": [
+        "Co-located Identity auth test omitted by dist/test-only selection.",
+        "Missing emitted Values string fixture must remain red; a wrongly loaded stale asset/source must fail identity."
+      ],
+      "readiness_gate": "Later execution requires human release, current exact owners and private emit/output roots; no compiler writes.",
+      "observable_acceptance": "Every credited case is demonstrably selected by the named command. Red/excluded tests stay explicit. Source-to-output correspondence is recorded independently.",
+      "acceptance_limit": "Selection, freshness and receipt identity only; no new semantic acceptance or automatic replay of unchanged accepted gates.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "medium",
+        "reason": "Finite command/glob/source reconciliation; escalate only an actual source/evidence conflict. Luna medium may extract specified manifests.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV02",
+      "title": "Calibrate comparators using actual observation mutations",
+      "claim_refs": [
+        "TEW01",
+        "TEW02",
+        "TEW04",
+        "TEW12"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Work caller errors, registered Rust observations and owning schedule callback trace.",
+      "actual_consumer": "The exact comparison invoked by the test/differential runner.",
+      "independent_oracle": "Frozen donor core and extra key names; full extra values require separately captured original owner evidence. Callback demand/effect contract must be independently authorized.",
+      "negative_witnesses": [
+        "Remove/change actual retryable, fields or conflict; alter actual own-key sequence.",
+        "Reverse actual callback demand, throw at first/second callback, mutate actual native keys/code/random observations."
+      ],
+      "readiness_gate": "Keep explicitly finite native projection separate. Resolve required error/demand-order authority before broadening a comparator.",
+      "observable_acceptance": "Each required-channel mutant fails the same comparator that accepts the real producer. Expected-versus-expected notDeepEqual is not counted as calibration.",
+      "acceptance_limit": "No new order policy; sorted derivation-set evidence remains valid. Default Cargo count is not the explicit ignored differential invocation.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Cross-file comparator, evaluation-order and fault-profile judgments can otherwise create false passes.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV03",
+      "title": "Separate independent arithmetic and representation oracles",
+      "claim_refs": [
+        "TEW03",
+        "TEW05",
+        "TEW06",
+        "TEW07",
+        "TEW09",
+        "TEW10",
+        "TEW13"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Values public codec/arithmetic/prepared validator, structural binding and owning stdlib exports.",
+      "actual_consumer": "Actual public operations and separately staged native/protected consumers.",
+      "independent_oracle": "Bounded pinned Decimal.js numerical outcomes, direct BigInt/digit-string formulas, literal coef/scale/wire bytes and independent export/type frontier.",
+      "negative_witnesses": [
+        "Numerically equal wrong scale/coefficient; paired decoder/encoder error; wrong required field.",
+        "Keep lone-surrogate, astral-cut mismatch, forged/retired owner and native excluded domains visible."
+      ],
+      "readiness_gate": "Required-behavior authority owns compatibility changes. Protected/native consumer prerequisites remain original A/V tasks.",
+      "observable_acceptance": "Tests identify which independent oracle protects each channel. Shared-core prepared/legacy agreement is labeled preservation. Original mismatches are retained.",
+      "acceptance_limit": "No full codec/validation authority or 139-operation semantic acceptance from roundtrip, scaffold or assembly pins.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Exact arithmetic, UTF16 and representation/provenance seams need source-aware independent judgment.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV04",
+      "title": "Prove actual backend selection, failure and filesystem observation",
+      "claim_refs": [
+        "TE04",
+        "TE05",
+        "TE07"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Preparation conformance CLI/host runner and mutated fixture bytes.",
+      "actual_consumer": "Child command through supported completion/result envelope and named filesystem domain.",
+      "independent_oracle": "Executed path/backend identity, independently hashed actual inputs, owned-tree before/after inventory and UTF8 byte lengths.",
+      "negative_witnesses": [
+        "Success-looking stdout followed by timeout/hang must fail.",
+        "Backend label with identical invocation must not earn native credit.",
+        "Different input mutations, overwrite/unrelated write and non-ASCII output must change relevant receipts."
+      ],
+      "readiness_gate": "Preparation/native release is human-held. Source review/schema planning may proceed; no native execution or adoption now.",
+      "observable_acceptance": "Nonnumeric timeout error cannot map to success; evidence distinguishes selected backend, actual input identity and exact observed side-effect domain.",
+      "acceptance_limit": "No global no-effects guarantee, native parity or new resource-limit policy; frozen 153-module vectors differ legitimately from current 161-module graph.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Runner identity, timeouts and observation domains are consequential evidence joins; Luna medium can index specified receipts.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV05",
+      "title": "Test reviewed-byte refusal through the real API",
+      "claim_refs": [
+        "TE06"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Actual stage/review artifacts and retained publication records.",
+      "actual_consumer": "verifyReviewed/publish and the writer that receives bytes.",
+      "independent_oracle": "Previously reviewed digest and independently captured writer inputs; owning reviewed-byte contract.",
+      "negative_witnesses": [
+        "Same-length and changed-length tamper after review; later reread must not silently pass unreviewed bytes.",
+        "A hash-only drift comparison cannot count as refusal evidence."
+      ],
+      "readiness_gate": "Held helper, not normal CLI incident. Obtain publication owner release; retain prior conditional SEC-C06 and no new atomicity mechanism.",
+      "observable_acceptance": "Call the real refusal boundary; changed bytes are rejected before required writer effects under the selected contract.",
+      "acceptance_limit": "No publication/deployment authorization and no filesystem transaction guarantee from this plan.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Reviewed-byte consumer/TOCTOU boundary needs cross-file source and effect review.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV06",
+      "title": "Add decisive identity race and admission witnesses",
+      "claim_refs": [
+        "TEI04",
+        "TEI05",
+        "TEI06"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "OAuth code store/PKCE parser and exported owner/cascade routines.",
+      "actual_consumer": "Actual owning store transition/token parser; mounted route remains separate.",
+      "independent_oracle": "Independent RFC-derived shape/well-known vectors and owning single-use/last-owner/partial-effect requirements.",
+      "negative_witnesses": [
+        "Barrier two reads then exchange: one mint, loser refuses; mint fault after consume.",
+        "Valid-alphabet 44-char challenge, illegal/missing verifier follow the owning contract.",
+        "Two owners concurrently remove each other; inject each cascade failure."
+      ],
+      "readiness_gate": "Confirm supported store and product/public/persisted authority first; do not infer production team caller or select transaction mechanism.",
+      "observable_acceptance": "Required one-winner/remaining-owner outcomes and defined failure/retry effects are independently observed; wrong PKCE fails before consume.",
+      "acceptance_limit": "Source-derived interleavings are unexecuted. Sequential replay/last-owner guards stay credited; no blanket authentication bypass claim.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Security/authority races and contract admission need focused high reasoning; persisted-policy changes require separate critical review.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV07",
+      "title": "Join authentication and act-time fences to owning effects",
+      "claim_refs": [
+        "TEI02",
+        "TEI07",
+        "TEI08",
+        "TE03"
+      ],
+      "depends_on": [
+        "TV01",
+        "TV06"
+      ],
+      "producer": "Real identity/session/grant, emitted app and canonical invoker/State guard.",
+      "actual_consumer": "Selected mounted Worker/HTTP/MCP route through durable effect.",
+      "independent_oracle": "Independent membership/expiry snapshots and persisted rows/history/outbox/receipts for the selected operation.",
+      "negative_witnesses": [
+        "Revoke/expire after live admission but before effect.",
+        "Wrong audience/principal/role/Origin and replayed presession refuse in the agreed effect domain."
+      ],
+      "readiness_gate": "Actual emitter, SDK/host and identity+commit binding; preserve safe-message parity and real State transaction tests.",
+      "observable_acceptance": "Real route and act-time guard demonstrate required refusal before the owning effect; handcrafted permission doubles remain labeled.",
+      "acceptance_limit": "No cross-store restart or all-app acceptance. This does not invalidate real D1/DO constraints, dispatch fences or granted tools/list.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Authority must be checked across producer, route and effect rather than helper-only assertions.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV08",
+      "title": "Verify CSV selection and consent through independent row identities",
+      "claim_refs": [
+        "TEI09",
+        "TEI10"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Shared grammar, public UI review and HTTP commit/consent mapping.",
+      "actual_consumer": "Real selected rows into State replay and effect.",
+      "independent_oracle": "Literal independent headers/cells/malformed outcomes and Node SHA over agreed canonical consent bytes; independent source-row identity.",
+      "negative_witnesses": [
+        "Invalid/blank/duplicate reorder cannot silently select a different row under the same consent.",
+        "Changed valid data conflicts; same real replay has one effect.",
+        "Parse-first 1001 rows plus malformed tail remains the current profile unless authority changes."
+      ],
+      "readiness_gate": "Confirm mapping/index/consent contract before treating the reorder witness as a defect: the supplied example becomes invalid, not a proved wrong-valid-row write. Real State consumer and installed browser ESM closure required.",
+      "observable_acceptance": "Selected row identity, reviewed consent and committed effect agree under replay; wrapper agreement is labeled shared-implementation evidence.",
+      "acceptance_limit": "No new grammar/early-limit policy and no deletion of legacy pins based solely on common implementation.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Grammar alone is bounded; consent/row-selection/replay join carries identity and effect risk.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV09",
+      "title": "Mount real browser initializer and poll lifecycle",
+      "claim_refs": [
+        "TE10"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Actual owning emitted markup and installed browser initializer.",
+      "actual_consumer": "Real Document/Window events, selected polling element and explicit initialization/stop/rescan.",
+      "independent_oracle": "Independent fetch/timer/listener/disposal trace from the DOM lifecycle, with actual emitted selectors.",
+      "negative_witnesses": [
+        "Document visibility while raw Window port lacks visibilityState.",
+        "Missing selector, detach, rescan and stop must not leave duplicate polling/listeners."
+      ],
+      "readiness_gate": "Browser/markup ownership and supported DOM host. Existing htmx poll markup is a distinct consumer, not proof of data-can-poll integration.",
+      "observable_acceptance": "Exact initializer-to-markup join and agreed stop/pause/resume effects are observed.",
+      "acceptance_limit": "No 68-binder/full browser policy adoption from three binder fixtures or HappyDOM helper tests.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Lifecycle and emitted markup integration needs owner/consumer analysis; fixed fixture extraction may use Luna medium.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV10",
+      "title": "Qualify mounted upload/report/export flows and durable file effects",
+      "claim_refs": [
+        "TE11",
+        "TEI11"
+      ],
+      "depends_on": [
+        "TV01",
+        "TV07",
+        "TV09"
+      ],
+      "producer": "Real upload intent/ledger/blob and owning report/resource/browser response.",
+      "actual_consumer": "Mounted authorized endpoints, reopened durable stores and actual browser download/print flow.",
+      "independent_oracle": "Independent persisted count/digest/authorized reads and generated response bytes.",
+      "negative_witnesses": [
+        "Fault each blob/ledger finalize step, reopen, retry and inspect readable-object/cleanup effects.",
+        "Server501, revoked grant, expired intent, missing export resource and foreign principal refuse."
+      ],
+      "readiness_gate": "Selected Files/auth/report/browser/durable joins; observe agreed partial-state/retry outcomes before choosing rollback. A late failed intent write may leave an authorized readable finalized file. Held preparation stays held.",
+      "observable_acceptance": "Correct sequence, byte/effect and refusal outcomes occur through real mounted consumers, not injected success responses only.",
+      "acceptance_limit": "No R2/whole-network provider or arbitrary crash transaction guarantee; existing filesystem bytes/resume/provenance controls remain.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Persistent partial effects and browser/server consumer correspondence are complex joins.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV11",
+      "title": "Separate real compiler/HTTP app proofs from convention fixtures",
+      "claim_refs": [
+        "TE02",
+        "TE12",
+        "TE14"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Real unchanged owning .can artifact/compiler output, with pristine/patch identities.",
+      "actual_consumer": "Actual public loader and selected production Worker HTTP route.",
+      "independent_oracle": "Independent expected scope/CRUD/persistence plus authored policy authority and original coordinate/source pins.",
+      "negative_witnesses": [
+        "Drop emitter binding or break route while canonical-invoke tests still pass.",
+        "Any patched anonymous/membership condition is challenged only against resolved source policy, not inferred intent."
+      ],
+      "readiness_gate": "Compiler owner transfer only for future authorized work; audit does not write compiler. Retain exact three-site pilot patch and unchanged controls.",
+      "observable_acceptance": "Real emitted loader and HTTP route are credited separately from hand-authored table/sequence or engine-free examples.",
+      "acceptance_limit": "Canonical invoke+D1 and handwritten browser/MCP fixtures remain valid at their declared stage; no pristine T37/T40 closure.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Cross-stage source intent, generator and HTTP/consumer qualification require strong reasoning.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV12",
+      "title": "Exercise actual Work fanout, receipt lifecycle and specified restart",
+      "claim_refs": [
+        "TEW15",
+        "TEI02",
+        "TEI03"
+      ],
+      "depends_on": [
+        "TV01",
+        "TV07"
+      ],
+      "producer": "Work/F7 dispatcher plus State atomic child/receipt/recovery owner.",
+      "actual_consumer": "Actual supported Work driver and durable serving/invocation path.",
+      "independent_oracle": "Persisted independent outcomes, one-winner fences, terminal replay and required member-scoped authority.",
+      "negative_witnesses": [
+        "Crash at defined before/after commit/ack points separately from orderly Miniflare dispose/reopen.",
+        "Terminal replay does not re-invoke; revoke sibling without suppressing permitted sibling.",
+        "Receipt correlation/late/duplicate/restart/notification paths use real producers and observers."
+      ],
+      "readiness_gate": "Preserve original F7/T26 joins, actual substrate and specified crash domain; source helper driver is not promoted to production.",
+      "observable_acceptance": "Required effect/receipt/fence/notification invariants hold in the stated restart domain through actual consumers.",
+      "acceptance_limit": "No arbitrary crash atomicity or whole T08/T26/app programme acceptance; strong existing D1/DO and orderly persistence remain.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Fanout, authority, persistence and receipt lifecycle are critical joined invariants.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV13",
+      "title": "Observe provider effects, cancellation and safe disclosure at the real boundary",
+      "claim_refs": [
+        "TE13",
+        "TEI12",
+        "TEI13"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Supported transport/provider adapter and actual completion/error projection.",
+      "actual_consumer": "Installed supported host, controlled localhost protocol and authorized result/log consumer.",
+      "independent_oracle": "Independently labeled confidential/nonconfidential data, connection/body/effect traces and source-defined reason order.",
+      "negative_witnesses": [
+        "Account detail outside regex prefixes; retain agreed nonsensitive specificity.",
+        "Abort with body still active, lost response and external send with unchanged D1.",
+        "Quota beats slow cancel; disposal/listener leak is independently observable."
+      ],
+      "readiness_gate": "Define observation domain and confidentiality authority. Prior critical Astra review remains approval-pending; do not claim security closure.",
+      "observable_acceptance": "Required result privacy, deadline/reason order and declared effect/disposal domain are proven with distinct oracles.",
+      "acceptance_limit": "No live-provider/economic/all-effects guarantee from mocks; genuine localhost caps/redirect/body controls are retained.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Privacy and lifecycle judgments need real enforcement points and opposing evidence; separate critical security review when authorized.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV14",
+      "title": "Give descriptor/type/hash tests the right independent oracle",
+      "claim_refs": [
+        "TEI14",
+        "TEW13"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Owning emitted descriptor, canonical hash bytes and public type/export frontier.",
+      "actual_consumer": "Actual intake plus independently enforced TypeScript typecheck/stdlib assembly.",
+      "independent_oracle": "Literal canonical bytes with independent SHA; authored expected exports and compile-time Equal constraints.",
+      "negative_witnesses": [
+        "Type drift must fail compilation; producer/hash mismatch and unsafe domains cannot be hidden by hand-authored roundtrip.",
+        "Wrong wrapper alias and missing/extra export fail owning assembly."
+      ],
+      "readiness_gate": "Real emitter/intake and command inclusion; compiler owner stays separate.",
+      "observable_acceptance": "Structural runtime, compile-time and hash-mechanism evidence are credited separately.",
+      "acceptance_limit": "Runtime array of true is not a typecheck, but its compile constraints/root typecheck are real; no blanket dead-code finding.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "medium",
+        "reason": "Finite type/hash/source joins with defined oracles; escalate new descriptor/security policy conflicts.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV15",
+      "title": "Retain exact installed diagnostics and qualify only changed consumer gaps",
+      "claim_refs": [
+        "TE08",
+        "TE01",
+        "TEW08",
+        "TEW14"
+      ],
+      "depends_on": [
+        "TV01"
+      ],
+      "producer": "Pinned fresh bundle/import/map/Wasm producer and exact delivered closure.",
+      "actual_consumer": "Outside-checkout written Node maps-on/off and real workerd diagnostic caller; separately fresh selected backend consumer.",
+      "independent_oracle": "Original .can coordinate, stale-offset counterexample, source/asset equality and literal supported outcomes.",
+      "negative_witnesses": [
+        "Original-handler24:9 versus stale25:12 must stay distinguishable after changed-length rewrite.",
+        "Missing/corrupt/changed-later asset and wrong entry path fail at the appropriate finite gate."
+      ],
+      "readiness_gate": "Reconcile unchanged Step9/12 source pins first; replay only on changed inputs or unresolved intended consumer gate, not historical count churn.",
+      "observable_acceptance": "Historical finite written-loader/diagnostic and six-op host scope remain inspectable; new claim requires its own actual consumer.",
+      "acceptance_limit": "No full Values/Work-native/default/installed-browser release or persisted/inflight rollback from ABI/add-int/warm measurements.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Installed source-to-consumer joins must preserve stronger evidence while narrowing unrelated acceptance.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV16",
+      "title": "Compact evidence without erasing independent observations",
+      "claim_refs": [],
+      "depends_on": [
+        "TV01",
+        "TV02",
+        "TV03",
+        "TV04",
+        "TV05",
+        "TV14",
+        "TV15"
+      ],
+      "producer": "Immutable original donors, corpus generators, registered roots and historical receipts.",
+      "actual_consumer": "Every current fixture/receipt reader and public test/support consumer.",
+      "independent_oracle": "Byte/source hashes plus coverage/provenance mapping and unchanged decisive witnesses.",
+      "negative_witnesses": [
+        "Mutation must still fail after factoring; retained golden cannot be regenerated to fit current code.",
+        "Old failing/fixed or held records cannot disappear behind identical checks arrays."
+      ],
+      "readiness_gate": "Cleanup candidates require exact reader/ownership release and proved correspondence. No deletions now.",
+      "observable_acceptance": "One canonical donor/reference may replace repeated materialization only when standalone consumers and failure provenance remain reproducible.",
+      "acceptance_limit": "Not all 18.46MiB are redundant; runtime Wasm/currency, public APIs and intentional bad/good fixture metadata are retained.",
+      "economical_model": {
+        "model": "Luna",
+        "reasoning": "medium",
+        "reason": "Mechanical factoring/receipt indexing after semantic gates are fixed; Sol medium reviews ambiguous oracle independence.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    },
+    {
+      "id": "TV17",
+      "title": "Record finite acceptance and original residuals independently",
+      "claim_refs": [],
+      "depends_on": [
+        "TV02",
+        "TV03",
+        "TV04",
+        "TV05",
+        "TV06",
+        "TV07",
+        "TV08",
+        "TV09",
+        "TV10",
+        "TV11",
+        "TV12",
+        "TV13",
+        "TV14",
+        "TV15",
+        "TV16"
+      ],
+      "producer": "Released exact-source candidate and unchanged retained evidence.",
+      "actual_consumer": "Independent selected scope review and living residual ledger, after future authorization.",
+      "independent_oracle": "Required-behavior authority and separate original task gates; calibrated real-consumer receipts.",
+      "negative_witnesses": [
+        "Broad claims unsupported by handcrafted fixture, shared oracle, label or helper must be refused.",
+        "Conditional/held/excluded and unexecuted source scenarios remain visible."
+      ],
+      "readiness_gate": "This plan is not a global waiting wave: close each independently released finite scope when its own dependencies pass; whole-programme review remains separate.",
+      "observable_acceptance": "Acceptance states exact producer/consumer/oracle/negative controls/host/toolchain and residual limits, preserving original IDs.",
+      "acceptance_limit": "No current canonical ticks, merge/checkpoint, deployment, backend adoption/retirement or resolved pending security review.",
+      "economical_model": {
+        "model": "Sol",
+        "reasoning": "high",
+        "reason": "Independent joined judgment is distinct from mechanical bookkeeping; Luna medium may index already reviewed receipts.",
+        "recheck_at_dispatch": true
+      },
+      "status": "proposed-verification-only",
+      "execution_authorized": false
+    }
+  ]
+}

@@ -1,0 +1,496 @@
+{
+  "pin": "449563a30e33c312fcc0e47750bba4a24cb84f4c",
+  "method": "Frozen Git blobs. Package tests/conformance/generated-name candidates plus selected orchestration records; compiler/editor trees, working-tree-only files, dist/target/node_modules excluded. Filename classes are metadata, not production/test authority. Canonical JSON section equality sorts object keys but preserves array order; not wire byte equality or semantic coverage. Top-level arrays only.",
+  "summary": {
+    "selected_files": 629,
+    "selected_bytes": 19352046,
+    "exact_duplicate_groups": 4,
+    "exact_duplicate_files": 8,
+    "exact_redundant_bytes": 770,
+    "by_primary_class": {
+      "orchestration-record": 210,
+      "conformance": 43,
+      "package-test-or-fixture": 370,
+      "generated-oracle-name-candidate": 5,
+      "runtime-generated-currency-catalog": 1
+    },
+    "json_array_sections": 398,
+    "substantive_repeated_json_arrays": 6
+  },
+  "top20_files": [
+    {
+      "path": "packages/values/conformance/numeric-text.json",
+      "git_blob": "a9cde80ec94c78909f9fa9d7f7a8bcdea84b461e",
+      "bytes": 3056344,
+      "tags": [
+        "conformance"
+      ],
+      "sha256": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8"
+    },
+    {
+      "path": "packages/cloudflare/preparation/tests/modules.rs",
+      "git_blob": "482afb50436861e7ae9da9c77cb548d0f4268c12",
+      "bytes": 2947072,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "dc4c32b06b80fdb16ce098a7094c488a67087f48dce340bee44bba7eafd3385c"
+    },
+    {
+      "path": "packages/work-kernel/conformance/fixtures/numeric-text.json",
+      "git_blob": "dd23afca81815a03d696f718b6fef50ae90b745f",
+      "bytes": 2352253,
+      "tags": [
+        "conformance"
+      ],
+      "sha256": "7e4ee0155f23a7f21b62dc44a62c8a8e6e567e911ae515c1bcba1b8b1d028fa2"
+    },
+    {
+      "path": "packages/work-kernel/conformance/native-numeric-text.rs",
+      "git_blob": "6e1c00bfda9be9ba90b00a6a3452df9b9737f00e",
+      "bytes": 828274,
+      "tags": [
+        "conformance"
+      ],
+      "sha256": "add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64"
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+      "git_blob": "c69f4c289866522ec594877c8710a9bc97cef7ec",
+      "bytes": 653133,
+      "tags": [
+        "generated-oracle-name-candidate"
+      ],
+      "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81"
+    },
+    {
+      "path": "packages/values/conformance/string-escape.json",
+      "git_blob": "6d1b24ca428510f5a73e694035d6e81c0f88af11",
+      "bytes": 600954,
+      "tags": [
+        "conformance"
+      ],
+      "sha256": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/installed-input-manifest.json",
+      "git_blob": "b82169fc5dd23b23ead50a59b8b3cb10a8c0424b",
+      "bytes": 465201,
+      "tags": [
+        "orchestration-record"
+      ],
+      "sha256": "49a7cc98ebea2fa2f760c089b70a2d0d03434fe1a82b2ae8e387610e36109610"
+    },
+    {
+      "path": "packages/cloudflare/test/fixtures/raw-source-map-contract.json",
+      "git_blob": "812f4c8b1f0e4e7f7ce0ea89b1d3b03a0a9d3d56",
+      "bytes": 397077,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "9099f386c64d25a8f848125213c18620aba5a13e4e520fe0f3219f08ebdca23a"
+    },
+    {
+      "path": "packages/cloudflare/preparation/tests/artifact.rs",
+      "git_blob": "fcbc462cdcf109017aef369a3b7685918376278d",
+      "bytes": 343437,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "e44c18580d4a67d2c1c6b166b3d94e286f6748fa6333f3c3b681111b9a7a0731"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/residual-task-index.json",
+      "git_blob": "9d4de80def59c4f6b891d454fca3e53be9145730",
+      "bytes": 213007,
+      "tags": [
+        "orchestration-record"
+      ],
+      "sha256": "21501e24392b2974b18b282fb53a192f686f8deb750d44f8b059ed9a74895b34"
+    },
+    {
+      "path": "packages/work-kernel/conformance/registered-native.rs",
+      "git_blob": "f54d6528f8b619220e5c3d2676438ba278764cb3",
+      "bytes": 178832,
+      "tags": [
+        "conformance"
+      ],
+      "sha256": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a"
+    },
+    {
+      "path": "packages/cloudflare/preparation/tests/release.rs",
+      "git_blob": "9d29761a9018a5e81e4d95747e86f991ad716bf9",
+      "bytes": 103796,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "423dbce8e4321a42b05e3430b03781659fbbc3c75a2388ad3f7c59977bdb658a"
+    },
+    {
+      "path": "packages/state/test/storage/conformance.ts",
+      "git_blob": "ed5e0d6129cff9d4ddc341ba0417dfdd8d6b94ec",
+      "bytes": 95771,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "b3a9416567deb1ae7f1fb833ea1cd2d5f1b64f5bf39c29b7a026530b298c800a"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "git_blob": "353c22f9f9f68bf40f01d9cd78caac15a3394a7e",
+      "bytes": 93026,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "4c28d92d60517d529329eab34fb823e00a0fbe97db903e45eadc6a8d495f5824"
+    },
+    {
+      "path": "packages/cloudflare/preparation/tests/outputs.rs",
+      "git_blob": "e665b1d166c48471b51b84c233ade2941fd5b737",
+      "bytes": 91643,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "3c65cbd634a0cd70ba810e8561263571f689b85684263ba96fb0cfa1c3d90ea7"
+    },
+    {
+      "path": "packages/cloudflare/test/fixtures/map-composition-contract.json",
+      "git_blob": "19eaa7b0a6a86d1c7f2a438be3f2fc7fd3983580",
+      "bytes": 83167,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "50c6811dfca95c129b8294f4ff2e1c87638b7e85e23bb1f3b64d7f39ed9d5f2b"
+    },
+    {
+      "path": "packages/cloudflare/preparation/tests/vectors.rs",
+      "git_blob": "ca53c0f6c66c60e622ff8afd7fce58daf1ba1f5e",
+      "bytes": 82241,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "ee10b8c79a575745b9b0a3089c048ecb24d193c49689d391d4273d9ea0cc9933"
+    },
+    {
+      "path": "packages/ui/test/collections.test.ts",
+      "git_blob": "2abfaba6f870efd421ee2d96843977a3a64e23d8",
+      "bytes": 78579,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "824069996c8a4cc54e13524ad77532396409689bff7684adbedc4ef75fe1458a"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "git_blob": "fcb94cde2d98a59228c878ef9efeb339d5be02f8",
+      "bytes": 75042,
+      "tags": [
+        "package-test-or-fixture"
+      ],
+      "sha256": "bd21a2bb17efc8f7b89c21e5e12610a2d77174c7b09281c203654fc47e3591a0"
+    },
+    {
+      "path": "packages/work-kernel/conformance/fixtures/receipts/recovery.json",
+      "git_blob": "9a72c458691914cfdbe42c0d3ebe6c7494970c6d",
+      "bytes": 71637,
+      "tags": [
+        "conformance"
+      ],
+      "sha256": "b5b64fda283461e245230a668c31afb42021e0ff99b37ace58efa1e0cc897d8c"
+    }
+  ],
+  "exact_duplicate_groups": [
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "redundant_bytes": 0,
+      "paths": [
+        "implementation/rust-port-orchestration/runs/codex-step11-20261007T024618Z/typecheck.log",
+        "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/fresh-cloudflare-emit.log"
+      ]
+    },
+    {
+      "sha256": "263cfcf90ba05629b32ba7bcecaa060e8eb4c9f167b4cccece545097af80503a",
+      "bytes": 403,
+      "redundant_bytes": 403,
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.descriptor.json",
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.descriptor.json"
+      ]
+    },
+    {
+      "sha256": "42f4eed2a09c0488326c2f83dd9b66ddefc45a9c68bd2ebc9cc4fef162cabb43",
+      "bytes": 176,
+      "redundant_bytes": 176,
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.local.environment.json",
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.local.environment.json"
+      ]
+    },
+    {
+      "sha256": "e8a200522182935dae5cc05006940e908279f7ff047f63df0ce010b382d120fb",
+      "bytes": 191,
+      "redundant_bytes": 191,
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.target.json",
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.target.json"
+      ]
+    }
+  ],
+  "repeated_json_arrays": [
+    {
+      "canonical_json_sha256": "5996534dc99c3688726f461a825ffb09402dcd36561209d7a6c7ff2bcb9c40d6",
+      "length": 29,
+      "sections": [
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/ready-blocked-queue.json",
+          "field": "original_unfinished_gate_map",
+          "length": 29,
+          "canonical_json_sha256": "5996534dc99c3688726f461a825ffb09402dcd36561209d7a6c7ff2bcb9c40d6"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/gate-map.json",
+          "field": "blocked_original_gates",
+          "length": 29,
+          "canonical_json_sha256": "5996534dc99c3688726f461a825ffb09402dcd36561209d7a6c7ff2bcb9c40d6"
+        }
+      ]
+    },
+    {
+      "canonical_json_sha256": "09c06eee87cf4d8bec5d8e09b09de4a700c43797cead594080225d0866c92e90",
+      "length": 37,
+      "sections": [
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/filetree-coverage-contribution.json",
+          "field": "source_pins",
+          "length": 37,
+          "canonical_json_sha256": "09c06eee87cf4d8bec5d8e09b09de4a700c43797cead594080225d0866c92e90"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json",
+          "field": "sources",
+          "length": 37,
+          "canonical_json_sha256": "09c06eee87cf4d8bec5d8e09b09de4a700c43797cead594080225d0866c92e90"
+        }
+      ]
+    },
+    {
+      "canonical_json_sha256": "36c1de035dd3c20a3fb86cfaac86362e315206fa4296efa14d7477a139ca667e",
+      "length": 8,
+      "sections": [
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z/review-R3-initial-harness-gap.json",
+          "field": "coverage",
+          "length": 8,
+          "canonical_json_sha256": "36c1de035dd3c20a3fb86cfaac86362e315206fa4296efa14d7477a139ca667e"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z/review-R3.json",
+          "field": "coverage",
+          "length": 8,
+          "canonical_json_sha256": "36c1de035dd3c20a3fb86cfaac86362e315206fa4296efa14d7477a139ca667e"
+        }
+      ]
+    },
+    {
+      "canonical_json_sha256": "a369342a84cfb6bd3df15bd790cfeef49d9afb8238b29689a1b9139a14f1f3b0",
+      "length": 10,
+      "sections": [
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json",
+          "field": "source_pins",
+          "length": 10,
+          "canonical_json_sha256": "a369342a84cfb6bd3df15bd790cfeef49d9afb8238b29689a1b9139a14f1f3b0"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-source-review.json",
+          "field": "source_pins",
+          "length": 10,
+          "canonical_json_sha256": "a369342a84cfb6bd3df15bd790cfeef49d9afb8238b29689a1b9139a14f1f3b0"
+        }
+      ]
+    },
+    {
+      "canonical_json_sha256": "42d40cda181c8192d0362953de1eb3f259943e46d47638ffc0f67cbfee307e2b",
+      "length": 11,
+      "sections": [
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-original-receipt.json",
+          "field": "checks",
+          "length": 11,
+          "canonical_json_sha256": "42d40cda181c8192d0362953de1eb3f259943e46d47638ffc0f67cbfee307e2b"
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+          "field": "checks",
+          "length": 11,
+          "canonical_json_sha256": "42d40cda181c8192d0362953de1eb3f259943e46d47638ffc0f67cbfee307e2b"
+        }
+      ]
+    },
+    {
+      "canonical_json_sha256": "adf59c9c54df8297fb1365193475ac4c69adbcac00d958fae45cefcceb9cf5f2",
+      "length": 23,
+      "sections": [
+        {
+          "path": "packages/values/conformance/owned-input/v1/cases.json",
+          "field": "transportCases",
+          "length": 23,
+          "canonical_json_sha256": "adf59c9c54df8297fb1365193475ac4c69adbcac00d958fae45cefcceb9cf5f2"
+        },
+        {
+          "path": "packages/values/conformance/owned-input/v2/cases.json",
+          "field": "transportCases",
+          "length": 23,
+          "canonical_json_sha256": "adf59c9c54df8297fb1365193475ac4c69adbcac00d958fae45cefcceb9cf5f2"
+        }
+      ]
+    }
+  ],
+  "large_array_sections": [
+    {
+      "path": "packages/values/conformance/numeric-text.json",
+      "field": "numbers",
+      "length": 10213,
+      "canonical_json_sha256": "c8ba1c017b7121235079a6f24f45834b6a42b42f2c9854d1e87d15267974a313"
+    },
+    {
+      "path": "packages/work-kernel/conformance/fixtures/numeric-text.json",
+      "field": "numbers",
+      "length": 10213,
+      "canonical_json_sha256": "511bd747191e239f038ff9d7766ca336bf61bdb40b36c1fe6db867fed739c010"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/installed-input-manifest.json",
+      "field": "files",
+      "length": 2208,
+      "canonical_json_sha256": "b0a6611e9ea640d1fa3f26d4ded005f1b130662cd075d39cb339c81c96562270"
+    },
+    {
+      "path": "packages/cloudflare/test/fixtures/raw-source-map-contract.json",
+      "field": "cases",
+      "length": 277,
+      "canonical_json_sha256": "e654a9e178b351ab61e3f59269b5711c71c966637fa161d38d9d41537b7ae8e8"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/baseline.json",
+      "field": "source_pins",
+      "length": 224,
+      "canonical_json_sha256": "fd733be75d7b05e5f26309553e16e1b96aa0e36d0d31195f673936b65d9a5a4f"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/residual-task-index.json",
+      "field": "indexed_records",
+      "length": 205,
+      "canonical_json_sha256": "04b05195b673436c067d866bbefdfc79615c9694df8665f1c9f22387b1b6ebf5"
+    },
+    {
+      "path": "packages/values/conformance/numeric-text.json",
+      "field": "callers",
+      "length": 131,
+      "canonical_json_sha256": "93c1c3e5809c9e70e48e26612b54469e7a334c5deaadb37a8b63ccaf64063a2a"
+    },
+    {
+      "path": "packages/values/conformance/v1/values.json",
+      "field": "builtinCalls",
+      "length": 126,
+      "canonical_json_sha256": "f3f19db292e22640d0508de54e555b1ca193f61773021481beffba3758f38456"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/installed-input-manifest.json",
+      "field": "fresh_emitted_delta",
+      "length": 111,
+      "canonical_json_sha256": "61a75c4baa5539c47c2b4a6cd70dc382b9490391c7bd40c47e6bb5acca4ddd92"
+    },
+    {
+      "path": "packages/values/conformance/string-escape.json",
+      "field": "strings",
+      "length": 93,
+      "canonical_json_sha256": "a846f652436e8bf666e1c0da4262e6e7d2669bf3d65a4ae8d303d4f99361112c"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/source-bridge.json",
+      "field": "checks",
+      "length": 80,
+      "canonical_json_sha256": "4c7bf2bd2d97c630aa69a5c5246da3e6a764cd7e277c1058618896b5b77f221b"
+    },
+    {
+      "path": "packages/values/conformance/v1/values.json",
+      "field": "wireSamples",
+      "length": 79,
+      "canonical_json_sha256": "acd0fd7d595e0247048231bb6cd557ecaaba9265463f5b763ab32f38f47f8e1d"
+    },
+    {
+      "path": "packages/work-kernel/conformance/fixtures/numeric-text.json",
+      "field": "callers",
+      "length": 72,
+      "canonical_json_sha256": "181823d970fbb72d6c85d003a7db63f25567ca047cd2fbdd99d216b93652482e"
+    },
+    {
+      "path": "packages/work-kernel/conformance/fixtures/receipts/recovery.json",
+      "field": "cases",
+      "length": 65,
+      "canonical_json_sha256": "297685f098cbf3948aa5f568c8964cc46eb31a97a5941480736ebc408587abbc"
+    },
+    {
+      "path": "packages/work-kernel/conformance/fixtures/receipts/receipt.json",
+      "field": "cases",
+      "length": 57,
+      "canonical_json_sha256": "77cb785b087fd5435e465e9d88f4297838ebadf143408f519d72f077ce10e3f1"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json",
+      "field": "files",
+      "length": 55,
+      "canonical_json_sha256": "7d8d4daa9171f786cfe8cf9b919e04ea5e777f3d8c12b77ea09b6ccdd9da859a"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z/joined-source-check.json",
+      "field": "same_emitted_js",
+      "length": 53,
+      "canonical_json_sha256": "e4580c13d1d703572d11b1b254f808a7cbcdc1f4fab54f7193647acb69aafa21"
+    },
+    {
+      "path": "packages/cloudflare/test/fixtures/import-policy-contract.json",
+      "field": "controls",
+      "length": 41,
+      "canonical_json_sha256": "9942879dd49d51a07e5d36d5235dc166095f2f0f4d49cd7315f5a2f716d62f4a"
+    },
+    {
+      "path": "packages/work-kernel/conformance/fixtures/rows/fanout_child.json",
+      "field": "cases",
+      "length": 41,
+      "canonical_json_sha256": "7d5220277fae425cfe6e8a0a2c4ddab81366ce13cde9d944d6d88fa9a7d7d124"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/released-step9-cleanup.json",
+      "field": "preserved_native_wasm_binaries",
+      "length": 37,
+      "canonical_json_sha256": "5f15d16b22bc444cc5127f686193650b14f01172e761c38cdfbc1e24e9058934"
+    }
+  ],
+  "retention_limits": [
+    "No deletion. Exact fixture metadata duplicates may intentionally isolate bad/good artifact scenarios.",
+    "Generated/public/runtime catalogs and compatibility oracles retain defining owners, provenance and actual reader gates.",
+    "Equal array sections are not equal complete corpora and never prove redundant consumer coverage.",
+    "No TS/Rust generated array parser used; count repetition there only through donor/generator references.",
+    "Historical accepted receipts, counterexamples, failed stages and held/unresolved evidence retained; no blanket latest-only rule."
+  ],
+  "records_canonical_json_sha256": "bba2f7b5a14ac907df2372d65ef6d881e535020d1774d148316735ab6fd4cbcb",
+  "full_records_retention": "Reconstruct with inventory.py from the immutable Git freeze; full 629-row copy is not duplicated in this audit.",
+  "initial_luna_scope_correction": "Initial mechanical exploration also included compiler/editor tests. Root applied strict package/orchestration selection; only this reproducible 629-file scope is reported. Filename candidates are not production/test classifications.",
+  "numeric_primitive_projection": {
+    "fields": [
+      "inputBits",
+      "observedBits",
+      "stringText",
+      "jsonTokenText"
+    ],
+    "rows_each": 10213,
+    "equal_ordered_projection": true,
+    "sha256": "511bd747191e239f038ff9d7766ca336bf61bdb40b36c1fe6db867fed739c010",
+    "values_caller_rows": 131,
+    "work_caller_rows": 72,
+    "limit": "Whole corpora differ. Metadata, profiles, classes, distinct caller/error observations and original frozen donor stay separate. Not cross-language array-body equality."
+  }
+}
