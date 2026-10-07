@@ -601,6 +601,10 @@ export class ComfyUINativeAdapter implements MediaPort {
     if (typeof job !== 'string' || job.length === 0) {
       throw new MappingValidationError('job must be a non-empty string');
     }
+    const deliveryId = options.deliveryId;
+    if (typeof deliveryId !== 'string' || deliveryId.length === 0) {
+      throw new MappingValidationError('deliveryId must be a non-empty string');
+    }
     let attempt: 'requested' | 'unsupported' | 'uncertain';
     try {
       await httpRequest(this.http, {
