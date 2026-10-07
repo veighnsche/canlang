@@ -1,0 +1,878 @@
+[
+  {
+    "id": "sibling-policy",
+    "source_sha256": "1c35c6737ee6a6e27107483380ca733e5466388e3f184bc8f3ec5318ca6b3a73",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-policy.stdout"
+  },
+  {
+    "id": "sibling-token",
+    "source_sha256": "3dc379b1a5ee95269b0ae014068934238a23220f92c03085e1081517e6aff593",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-token.stdout"
+  },
+  {
+    "id": "sibling-numeric-unit",
+    "source_sha256": "195775829c5121e8e22dc7dae28ffdce69db63c2c3aa9114189db50002e8c8a3",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-numeric-unit.stdout"
+  },
+  {
+    "id": "sibling-unknown-escape",
+    "source_sha256": "4ecbd8e691c9c6fb96e9d72017e48189c552745cb49c2d340d7dadb924223b04",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-unknown-escape.stdout"
+  },
+  {
+    "id": "sibling-lone-surrogate",
+    "source_sha256": "ee206b51209de8f737a7cd546473a5b1d62ddaf91b91c3554068a518aa9514f6",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-lone-surrogate.stdout"
+  },
+  {
+    "id": "sibling-unterminated-string",
+    "source_sha256": "40d6e412657a263e2059e292a4452f24edd00e8ba74e8675b04678072610db59",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-unterminated-string.stdout"
+  },
+  {
+    "id": "sibling-closer",
+    "source_sha256": "4624c6ac02c5a9f2f5cf244500c668671227e120f7c4c900a792df10e5079f5a",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-closer.stdout"
+  },
+  {
+    "id": "sibling-open-schema",
+    "source_sha256": "86224f18638782073b354c6a4f325881a4974e6491f7f8172da098b8c4703af6",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-open-schema.stdout"
+  },
+  {
+    "id": "sibling-open-call",
+    "source_sha256": "3a0ea5f0f77ff6c258434cbe690e3df0c268358da6eccc397b10a9ff18849068",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-open-call.stdout"
+  },
+  {
+    "id": "sibling-open-list",
+    "source_sha256": "0809055e67f4bda73e0298311115ff761e845dde1366ff73eee46db4228e17f3",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-open-list.stdout"
+  },
+  {
+    "id": "sibling-desc-ref",
+    "source_sha256": "a82c4449a37078bcfcce465dc3009c7ecf9a69d9c5f22cd6707c9bcb73e7abf9",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-desc-ref.stdout"
+  },
+  {
+    "id": "sibling-indent",
+    "source_sha256": "9e57a4d4ca39b55a63c37c4fcf9a4b697fc70947fd2f3e8ad4fcdc316d00aba9",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-indent.stdout"
+  },
+  {
+    "id": "sibling-policy-crlf",
+    "source_sha256": "040a4b8215fd0326a893d2ada2fd8b5917a0d66ef7346d6c3c606acda3212c30",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-policy-crlf.stdout"
+  },
+  {
+    "id": "sibling-policy-eof",
+    "source_sha256": "76c58bf59c1ed9f1c6a9a06876ce91f2726b68631f3269733eb5e0a848fa90e0",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-sibling-policy-eof.stdout"
+  },
+  {
+    "id": "independent-module-after-bad-owner",
+    "source_sha256": "ea6c60e3a2f13cc5154bab2ca4e081fea85bfd36c809b8bc2d112a7a09da3381",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-independent-module-after-bad-owner.stdout"
+  },
+  {
+    "id": "independent-module-after-open-schema",
+    "source_sha256": "95a34ab32fb83265d1f0d448b4cd9de2ad750371fa3035676e575fb496bebe2d",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-independent-module-after-open-schema.stdout"
+  },
+  {
+    "id": "control-app-policy",
+    "source_sha256": "ddbed206ebd47f1025fec5466530fdbdd0a4bcf8409769b3f8dd9e0306551674",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E4004",
+          "anchor": "Config",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-control-app-policy.stdout"
+  },
+  {
+    "id": "malformed-app-policy",
+    "source_sha256": "5a8ded64ed7625ce0b978d8511e627388e1754fb00fc1edc18db7773a3e2cabd",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E4004",
+          "anchor": "Config",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-malformed-app-policy.stdout"
+  },
+  {
+    "id": "control-secret-return",
+    "source_sha256": "eb458191f92ddd8b2f1ef25db3c357ef857017e683e2b830447c0333f154d1e7",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E4011",
+          "anchor": "sek",
+          "occurrence": 2
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-control-secret-return.stdout"
+  },
+  {
+    "id": "malformed-secret-return",
+    "source_sha256": "283b91430b9a39d86caab68f857aff70fdbe1d9b7b175605570cf266171b4bb9",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E4011",
+          "anchor": "sek",
+          "occurrence": 2
+        },
+        "pass": false
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-malformed-secret-return.stdout"
+  },
+  {
+    "id": "control-actor-subject",
+    "source_sha256": "0ae7fc3485eb295369f89fbd54bcf4ca946b4d6c522357e196bbe61382e0c71f",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E4020",
+          "anchor": "actor",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-control-actor-subject.stdout"
+  },
+  {
+    "id": "malformed-actor-subject",
+    "source_sha256": "c596d4a0e87c42a9223889ebddd9034190b2b1059e570d61c46e8f97fe9ea8b9",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E4020",
+          "anchor": "actor",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-malformed-actor-subject.stdout"
+  },
+  {
+    "id": "control-icu-sibling",
+    "source_sha256": "62d4a6fc50823729e245a85f3577e45f215201fc7481c4c0d85f0fed2a433e74",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E5007",
+          "anchor": "\"{n, plural, one {#}}\"",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-control-icu-sibling.stdout"
+  },
+  {
+    "id": "malformed-icu-sibling",
+    "source_sha256": "78249eb506435c426b3ec9bc68753067b27779d5fedb4faa2b38568b2bde8062",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E5007",
+          "anchor": "\"{n, plural, one {#}}\"",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-malformed-icu-sibling.stdout"
+  },
+  {
+    "id": "cross-module-actor",
+    "source_sha256": "faed163ff4d32690f1db4f8dd4ae71e5e17bac83528328ffe17ee208ecefb652",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E4020",
+          "anchor": "actor",
+          "occurrence": 1
+        },
+        "pass": false
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-cross-module-actor.stdout"
+  },
+  {
+    "id": "valid-decoded-default",
+    "source_sha256": "37dc2699e131ff1eeac69f6308a30cc62b1db37b7da16233c2014c4c1e977550",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      },
+      {
+        "contract": "parse-and-check-clean",
+        "pass": true
+      },
+      {
+        "contract": "independent-code-points",
+        "pass": true
+      }
+    ],
+    "observation": "case-valid-decoded-default.stdout"
+  },
+  {
+    "id": "valid-default-crlf",
+    "source_sha256": "3d8c36e4e97baeff6f8b5dccf8e0d9d960eacdd6fda5c45ae40d6e9dcb300bac",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      },
+      {
+        "contract": "parse-and-check-clean",
+        "pass": true
+      },
+      {
+        "contract": "independent-code-points",
+        "pass": true
+      }
+    ],
+    "observation": "case-valid-default-crlf.stdout"
+  },
+  {
+    "id": "valid-default-eof",
+    "source_sha256": "0ed5e82b46c5eadc518161eff4ef67735094bee5dd06a2e3b4467a8a27c16151",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      },
+      {
+        "contract": "parse-and-check-clean",
+        "pass": true
+      },
+      {
+        "contract": "independent-code-points",
+        "pass": true
+      }
+    ],
+    "observation": "case-valid-default-eof.stdout"
+  },
+  {
+    "id": "valid-description",
+    "source_sha256": "91bf667f29088e8ef6e46523d6f180dedc5e4c0ee9f5b682a22250c9de0b232e",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      },
+      {
+        "contract": "parse-and-check-clean",
+        "pass": true
+      }
+    ],
+    "observation": "case-valid-description.stdout"
+  },
+  {
+    "id": "invalid-unicode-name",
+    "source_sha256": "35f7a69994575cbdb59755a63f0e38f48b7d55c3c8e46961ae62399ed27adee0",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-invalid-unicode-name.stdout"
+  },
+  {
+    "id": "empty-eof",
+    "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      },
+      {
+        "contract": "parse-and-check-clean",
+        "pass": true
+      }
+    ],
+    "observation": "case-empty-eof.stdout"
+  },
+  {
+    "id": "comment-eof",
+    "source_sha256": "be9e6e7f2494f9553e61c19f5dde4d7f1d4f2f22ccffab93c3919c4e2257aa22",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      },
+      {
+        "contract": "parse-and-check-clean",
+        "pass": true
+      }
+    ],
+    "observation": "case-comment-eof.stdout"
+  },
+  {
+    "id": "string-physical-control",
+    "source_sha256": "834107e79b58b98dcd8a7c8557a68a7c4c1bac9c7463fdf61d9388e1015a8dbd",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": {
+          "code": "E3002",
+          "anchor": "1 + true",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": {
+          "code": "E2001",
+          "anchor": "nope",
+          "occurrence": 1
+        },
+        "pass": true
+      },
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-string-physical-control.stdout"
+  },
+  {
+    "id": "eof-unclosed-string",
+    "source_sha256": "4a62e134135c8db46f9d3a235c7a1ff1b1851852ec42e6c9164c966a2c1e477a",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-eof-unclosed-string.stdout"
+  },
+  {
+    "id": "eof-unclosed-delimiter",
+    "source_sha256": "b788ff5ba9a9e3f27631a7d39e94615626d5766c85b8971693ebc650d9dcbeab",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-eof-unclosed-delimiter.stdout"
+  },
+  {
+    "id": "dangling-description-eof",
+    "source_sha256": "5f0e9a95fb4df701f3e333434ac2662a8a4028fd1b0254614ed186e76cba0b20",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-dangling-description-eof.stdout"
+  },
+  {
+    "id": "bare-cr",
+    "source_sha256": "aa5c2e0a91daa60977916f2e424f90f19aa83f8d07b2af3949855b8dc776c6cf",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-bare-cr.stdout"
+  },
+  {
+    "id": "generic-ui-gap",
+    "source_sha256": "c107b8555d7b36e8cd60c3985bbb6b2437a331c838e4e6bb2b587c1e3c523948",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-generic-ui-gap.stdout"
+  },
+  {
+    "id": "decimal-emission-gap",
+    "source_sha256": "61c6a720de838ad97351755b98b41b4e5df9da6ab32ec6b05e1e9f33a84b8836",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "lossless-byte-coverage",
+        "pass": true
+      }
+    ],
+    "observation": "case-decimal-emission-gap.stdout"
+  },
+  {
+    "id": "invalid-utf8",
+    "source_sha256": "f7f6255a8e5ce3a8fd121b5517eee2d29720f1e88d0e4a8499062bad1ee66ddc",
+    "process_exit": 0,
+    "assertions": [
+      {
+        "contract": "strict-invalid-UTF8",
+        "pass": true
+      }
+    ],
+    "observation": "case-invalid-utf8.stdout"
+  }
+]

@@ -1,0 +1,5576 @@
+{
+  "schema": 1,
+  "generated_from": "working tree at inventory creation; hashes pin indexed inputs",
+  "grammar": {
+    "path": "docs/specification/GRAMMAR.md",
+    "production_count": 186,
+    "productions": [
+      {
+        "name": "NAME",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          16,
+          16
+        ],
+        "declaration_line": 16,
+        "section": "Tokens and layout",
+        "production": "NAME       = /[A-Za-z_][A-Za-z0-9_]*/ ;"
+      },
+      {
+        "name": "INTEGER",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          17,
+          17
+        ],
+        "declaration_line": 17,
+        "section": "Tokens and layout",
+        "production": "INTEGER    = /[0-9]+/ ;"
+      },
+      {
+        "name": "DECIMAL",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          18,
+          18
+        ],
+        "declaration_line": 18,
+        "section": "Tokens and layout",
+        "production": "DECIMAL    = /[0-9]+\\.[0-9]+/ ;"
+      },
+      {
+        "name": "DURATION",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          19,
+          19
+        ],
+        "declaration_line": 19,
+        "section": "Tokens and layout",
+        "production": "DURATION   = INTEGER (\"ms\" | \"s\" | \"m\" | \"h\" | \"d\") ;"
+      },
+      {
+        "name": "BYTES",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          20,
+          20
+        ],
+        "declaration_line": 20,
+        "section": "Tokens and layout",
+        "production": "BYTES      = INTEGER (\"B\" | \"KiB\" | \"MiB\" | \"GiB\") ;"
+      },
+      {
+        "name": "STRING",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          21,
+          21
+        ],
+        "declaration_line": 21,
+        "section": "Tokens and layout",
+        "production": "STRING     = JSON double-quoted string ;"
+      },
+      {
+        "name": "path",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          22,
+          22
+        ],
+        "declaration_line": 22,
+        "section": "Tokens and layout",
+        "production": "path       = NAME {\".\" NAME} ;"
+      },
+      {
+        "name": "file_source",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          138,
+          138
+        ],
+        "declaration_line": 138,
+        "section": "Files, composition and sections",
+        "production": "file_source     = {app_composed | app_implicit | package | migration} EOF ;"
+      },
+      {
+        "name": "app_composed",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          139,
+          140
+        ],
+        "declaration_line": 139,
+        "section": "Files, composition and sections",
+        "production": "app_composed    = line(\"app\" NAME app_attributes) [context] {line(import {\";\" import})} ;"
+      },
+      {
+        "name": "app_implicit",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          141,
+          141
+        ],
+        "declaration_line": 141,
+        "section": "Files, composition and sections",
+        "production": "app_implicit    = line(\"app\" NAME app_attributes) [context] {line(import {\";\" import})} sections ;"
+      },
+      {
+        "name": "context",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          142,
+          142
+        ],
+        "declaration_line": 142,
+        "section": "Files, composition and sections",
+        "production": "context         = \"context\" suite(context_items) ;"
+      },
+      {
+        "name": "context_items",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          143,
+          143
+        ],
+        "declaration_line": 143,
+        "section": "Files, composition and sections",
+        "production": "context_items   = leaf_lines(context_declaration) ;"
+      },
+      {
+        "name": "context_declaration",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          144,
+          147
+        ],
+        "declaration_line": 144,
+        "section": "Files, composition and sections",
+        "production": "context_declaration = \"theme\" attributes | \"files\" attributes | \"locale\" attributes | \"binding\" NAME \"DurableObject\" attributes | \"queue\" NAME attributes | \"cache\" \"KV\" attributes | \"analytics\" NAME schema ;"
+      },
+      {
+        "name": "package",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          148,
+          148
+        ],
+        "declaration_line": 148,
+        "section": "Files, composition and sections",
+        "production": "package         = \"package\" NAME attributes suite(package_body) ;"
+      },
+      {
+        "name": "app_attributes",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          149,
+          149
+        ],
+        "declaration_line": 149,
+        "section": "Files, composition and sections",
+        "production": "app_attributes  = attributes with uses present for app_composed and absent for app_implicit ;"
+      },
+      {
+        "name": "package_body",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          150,
+          150
+        ],
+        "declaration_line": 150,
+        "section": "Files, composition and sections",
+        "production": "package_body    = {line(import {\";\" import})} sections ;"
+      },
+      {
+        "name": "sections",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          151,
+          151
+        ],
+        "declaration_line": 151,
+        "section": "Files, composition and sections",
+        "production": "sections        = section_given section_when section_then ;"
+      },
+      {
+        "name": "section_given",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          152,
+          152
+        ],
+        "declaration_line": 152,
+        "section": "Files, composition and sections",
+        "production": "section_given   = line(\"Given\") given_items ;"
+      },
+      {
+        "name": "section_when",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          153,
+          153
+        ],
+        "declaration_line": 153,
+        "section": "Files, composition and sections",
+        "production": "section_when    = line(\"When\") when_items ;"
+      },
+      {
+        "name": "section_then",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          154,
+          154
+        ],
+        "declaration_line": 154,
+        "section": "Files, composition and sections",
+        "production": "section_then    = line(\"Then\") then_items ;"
+      },
+      {
+        "name": "then_items",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          155,
+          155
+        ],
+        "declaration_line": 155,
+        "section": "Files, composition and sections",
+        "production": "then_items      = {then_item} ;"
+      },
+      {
+        "name": "import",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          156,
+          156
+        ],
+        "declaration_line": 156,
+        "section": "Files, composition and sections",
+        "production": "import          = \"use\" path \"{\" import_members \"}\" [\"from\" \"=\" path] ;"
+      },
+      {
+        "name": "import_members",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          157,
+          157
+        ],
+        "declaration_line": 157,
+        "section": "Files, composition and sections",
+        "production": "import_members  = separated(import_member) [\",\"] ;"
+      },
+      {
+        "name": "import_member",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          158,
+          158
+        ],
+        "declaration_line": 158,
+        "section": "Files, composition and sections",
+        "production": "import_member   = NAME [\"as\" NAME] ;"
+      },
+      {
+        "name": "deployment",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          159,
+          159
+        ],
+        "declaration_line": 159,
+        "section": "Files, composition and sections",
+        "production": "deployment      = \"deployment\" \".\" NAME ;"
+      },
+      {
+        "name": "type",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          173,
+          173
+        ],
+        "declaration_line": 173,
+        "section": "Types, schemas and signatures",
+        "production": "type             = type_base [\"[\" \"]\"] [\"?\"] ;"
+      },
+      {
+        "name": "type_base",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          174,
+          174
+        ],
+        "declaration_line": 174,
+        "section": "Types, schemas and signatures",
+        "production": "type_base        = path {\"|\" path} | enum_type | action_type | delivery_type | invocation_type ;"
+      },
+      {
+        "name": "enum_type",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          175,
+          175
+        ],
+        "declaration_line": 175,
+        "section": "Types, schemas and signatures",
+        "production": "enum_type        = \"enum\" \"(\" separated(NAME) [\",\"] \")\" ;"
+      },
+      {
+        "name": "action_type",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          176,
+          176
+        ],
+        "declaration_line": 176,
+        "section": "Types, schemas and signatures",
+        "production": "action_type      = \"action\" \"(\" separated(path) [\",\"] \")\" ;"
+      },
+      {
+        "name": "delivery_type",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          177,
+          177
+        ],
+        "declaration_line": 177,
+        "section": "Types, schemas and signatures",
+        "production": "delivery_type    = \"delivery\" \"(\" path \")\" ;"
+      },
+      {
+        "name": "invocation_type",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          178,
+          178
+        ],
+        "declaration_line": 178,
+        "section": "Types, schemas and signatures",
+        "production": "invocation_type  = \"invocation\" \"(\" separated(path) [\",\"] \")\" ;"
+      },
+      {
+        "name": "field_type",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          179,
+          179
+        ],
+        "declaration_line": 179,
+        "section": "Types, schemas and signatures",
+        "production": "field_type       = type [\"!\"] ;"
+      },
+      {
+        "name": "schema",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          180,
+          180
+        ],
+        "declaration_line": 180,
+        "section": "Types, schemas and signatures",
+        "production": "schema           = \"{\" bracketed(field) \"}\" ;"
+      },
+      {
+        "name": "field",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          181,
+          181
+        ],
+        "declaration_line": 181,
+        "section": "Types, schemas and signatures",
+        "production": "field            = NAME \":\" field_type [initializer] {field_modifier} [desc_attribute] [field_label_attribute] ;"
+      },
+      {
+        "name": "initializer",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          182,
+          182
+        ],
+        "declaration_line": 182,
+        "section": "Types, schemas and signatures",
+        "production": "initializer      = \"=\" expr | \"server\" \"=\" expr ;"
+      },
+      {
+        "name": "field_modifier",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          183,
+          183
+        ],
+        "declaration_line": 183,
+        "section": "Types, schemas and signatures",
+        "production": "field_modifier   = \"trim\" | \"unique\" | \"min\" \"=\" expr | \"max\" \"=\" expr ;"
+      },
+      {
+        "name": "parameters",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          184,
+          184
+        ],
+        "declaration_line": 184,
+        "section": "Types, schemas and signatures",
+        "production": "parameters       = \"(\" bracketed(parameter) \")\" ;"
+      },
+      {
+        "name": "parameter",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          185,
+          185
+        ],
+        "declaration_line": 185,
+        "section": "Types, schemas and signatures",
+        "production": "parameter        = NAME \":\" type [\"=\" expr] [desc_attribute] [field_label_attribute] ;"
+      },
+      {
+        "name": "desc_attribute",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          186,
+          186
+        ],
+        "declaration_line": 186,
+        "section": "Types, schemas and signatures",
+        "production": "desc_attribute   = \"desc\" \"=\" (STRING [message_variants] | path) ;"
+      },
+      {
+        "name": "expr",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          208,
+          208
+        ],
+        "declaration_line": 208,
+        "section": "Expressions and values",
+        "production": "expr           = ordinary [query_tail] ;"
+      },
+      {
+        "name": "ordinary",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          209,
+          209
+        ],
+        "declaration_line": 209,
+        "section": "Expressions and values",
+        "production": "ordinary       = fallback ;"
+      },
+      {
+        "name": "fallback",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          210,
+          210
+        ],
+        "declaration_line": 210,
+        "section": "Expressions and values",
+        "production": "fallback       = disjunction [\"??\" fallback] ;"
+      },
+      {
+        "name": "disjunction",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          211,
+          211
+        ],
+        "declaration_line": 211,
+        "section": "Expressions and values",
+        "production": "disjunction    = conjunction {\"or\" conjunction} ;"
+      },
+      {
+        "name": "conjunction",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          212,
+          212
+        ],
+        "declaration_line": 212,
+        "section": "Expressions and values",
+        "production": "conjunction    = negation {\"and\" negation} ;"
+      },
+      {
+        "name": "negation",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          213,
+          213
+        ],
+        "declaration_line": 213,
+        "section": "Expressions and values",
+        "production": "negation       = \"not\" negation | comparison ;"
+      },
+      {
+        "name": "comparison",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          214,
+          214
+        ],
+        "declaration_line": 214,
+        "section": "Expressions and values",
+        "production": "comparison     = additive [comparison_op additive] ;"
+      },
+      {
+        "name": "comparison_op",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          215,
+          215
+        ],
+        "declaration_line": 215,
+        "section": "Expressions and values",
+        "production": "comparison_op  = \"==\" | \"!=\" | \"<\" | \"<=\" | \">\" | \">=\" | \"in\" | \"is\" ;"
+      },
+      {
+        "name": "additive",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          216,
+          216
+        ],
+        "declaration_line": 216,
+        "section": "Expressions and values",
+        "production": "additive       = multiplicative {(\"+\" | \"-\") multiplicative} ;"
+      },
+      {
+        "name": "multiplicative",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          217,
+          217
+        ],
+        "declaration_line": 217,
+        "section": "Expressions and values",
+        "production": "multiplicative = unary {(\"*\" | \"/\" | \"%\") unary} ;"
+      },
+      {
+        "name": "unary",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          218,
+          218
+        ],
+        "declaration_line": 218,
+        "section": "Expressions and values",
+        "production": "unary          = \"-\" unary | postfix ;"
+      },
+      {
+        "name": "postfix",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          219,
+          219
+        ],
+        "declaration_line": 219,
+        "section": "Expressions and values",
+        "production": "postfix        = primary {\".\" NAME | \"?.\" NAME | arguments} ;"
+      },
+      {
+        "name": "primary",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          220,
+          222
+        ],
+        "declaration_line": 220,
+        "section": "Expressions and values",
+        "production": "primary        = INTEGER | DECIMAL | DURATION | BYTES | STRING [message_variants] | \"true\" | \"false\" | \"null\" | VALUE_NAME | \"(\" expr \")\" | array | values | typed_value ;"
+      },
+      {
+        "name": "array",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          223,
+          223
+        ],
+        "declaration_line": 223,
+        "section": "Expressions and values",
+        "production": "array          = \"[\" bracketed(expr) \"]\" ;"
+      },
+      {
+        "name": "values",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          224,
+          224
+        ],
+        "declaration_line": 224,
+        "section": "Expressions and values",
+        "production": "values         = \"{\" bracketed(value_field) \"}\" ;"
+      },
+      {
+        "name": "value_field",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          225,
+          225
+        ],
+        "declaration_line": 225,
+        "section": "Expressions and values",
+        "production": "value_field    = NAME [\"=\" expr] ;"
+      },
+      {
+        "name": "typed_value",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          226,
+          226
+        ],
+        "declaration_line": 226,
+        "section": "Expressions and values",
+        "production": "typed_value    = VALUE_NAME {\".\" NAME} values ;"
+      },
+      {
+        "name": "VALUE_NAME",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          227,
+          227
+        ],
+        "declaration_line": 227,
+        "section": "Expressions and values",
+        "production": "VALUE_NAME     = NAME except \"true\", \"false\", \"null\", \"not\" ;"
+      },
+      {
+        "name": "arguments",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          228,
+          229
+        ],
+        "declaration_line": 228,
+        "section": "Expressions and values",
+        "production": "arguments      = \"(\" [positional [\",\" named_arguments] [\",\"] | named_arguments [\",\"]] \")\" ;"
+      },
+      {
+        "name": "positional",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          230,
+          230
+        ],
+        "declaration_line": 230,
+        "section": "Expressions and values",
+        "production": "positional     = separated(expr) ;"
+      },
+      {
+        "name": "named_arguments",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          231,
+          231
+        ],
+        "declaration_line": 231,
+        "section": "Expressions and values",
+        "production": "named_arguments = separated(NAME \"=\" expr) ;"
+      },
+      {
+        "name": "call_expr",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          232,
+          232
+        ],
+        "declaration_line": 232,
+        "section": "Expressions and values",
+        "production": "call_expr      = postfix with a final arguments suffix ;"
+      },
+      {
+        "name": "query_tail",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          246,
+          247
+        ],
+        "declaration_line": 246,
+        "section": "Queries and scope",
+        "production": "query_tail    = [archive_clause] [alias_clause] [where_clause] [order_clause] [select_clause] ;"
+      },
+      {
+        "name": "archive_clause",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          248,
+          248
+        ],
+        "declaration_line": 248,
+        "section": "Queries and scope",
+        "production": "archive_clause = \"archived\" \"=\" \"include\" ;"
+      },
+      {
+        "name": "alias_clause",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          249,
+          249
+        ],
+        "declaration_line": 249,
+        "section": "Queries and scope",
+        "production": "alias_clause  = \"as\" NAME ;"
+      },
+      {
+        "name": "where_clause",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          250,
+          250
+        ],
+        "declaration_line": 250,
+        "section": "Queries and scope",
+        "production": "where_clause  = \"where\" ordinary ;"
+      },
+      {
+        "name": "order_clause",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          251,
+          251
+        ],
+        "declaration_line": 251,
+        "section": "Queries and scope",
+        "production": "order_clause  = \"order\" \"=\" ordinary ;"
+      },
+      {
+        "name": "select_clause",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          252,
+          252
+        ],
+        "declaration_line": 252,
+        "section": "Queries and scope",
+        "production": "select_clause = \"select\" ordinary ;"
+      },
+      {
+        "name": "given_items",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          266,
+          266
+        ],
+        "declaration_line": 266,
+        "section": "Given declarations",
+        "production": "given_items    = {line(given_leaf {\";\" given_leaf}) | [\"export\"] (capability | judgment)} ;"
+      },
+      {
+        "name": "given_leaf",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          267,
+          268
+        ],
+        "declaration_line": 267,
+        "section": "Given declarations",
+        "production": "given_leaf     = corpus | preferences | [\"export\"] (model | contract | event | role | pure_function | fixture | message) | ordinary_given ;"
+      },
+      {
+        "name": "ordinary_given",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          269,
+          269
+        ],
+        "declaration_line": 269,
+        "section": "Given declarations",
+        "production": "ordinary_given = derive_field | policy | invariant | unique | lock | retain ;"
+      },
+      {
+        "name": "preferences",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          270,
+          270
+        ],
+        "declaration_line": 270,
+        "section": "Given declarations",
+        "production": "preferences    = \"preferences\" schema attributes ;"
+      },
+      {
+        "name": "model",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          271,
+          271
+        ],
+        "declaration_line": 271,
+        "section": "Given declarations",
+        "production": "model          = NAME [\"in\" (path | \"app\")] [\"at\" \"=\" path] schema [scalar_label_attribute] ;"
+      },
+      {
+        "name": "contract",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          272,
+          272
+        ],
+        "declaration_line": 272,
+        "section": "Given declarations",
+        "production": "contract       = \"contract\" NAME schema [scalar_label_attribute] ;"
+      },
+      {
+        "name": "event",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          273,
+          273
+        ],
+        "declaration_line": 273,
+        "section": "Given declarations",
+        "production": "event          = \"event\" NAME schema ;"
+      },
+      {
+        "name": "role",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          274,
+          274
+        ],
+        "declaration_line": 274,
+        "section": "Given declarations",
+        "production": "role           = \"role\" NAME [scalar_label_attribute] ;"
+      },
+      {
+        "name": "derive_field",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          275,
+          275
+        ],
+        "declaration_line": 275,
+        "section": "Given declarations",
+        "production": "derive_field   = \"derive\" path \":\" type \"=\" expr [field_label_attribute] ;"
+      },
+      {
+        "name": "pure_function",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          276,
+          276
+        ],
+        "declaration_line": 276,
+        "section": "Given declarations",
+        "production": "pure_function  = \"derive\" path parameters \":\" type \"=\" expr ;"
+      },
+      {
+        "name": "policy",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          277,
+          277
+        ],
+        "declaration_line": 277,
+        "section": "Given declarations",
+        "production": "policy         = \"policy\" path attributes ;"
+      },
+      {
+        "name": "invariant",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          278,
+          278
+        ],
+        "declaration_line": 278,
+        "section": "Given declarations",
+        "production": "invariant      = \"invariant\" path \":\" expr ;"
+      },
+      {
+        "name": "unique",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          279,
+          279
+        ],
+        "declaration_line": 279,
+        "section": "Given declarations",
+        "production": "unique         = \"unique\" path attributes ;"
+      },
+      {
+        "name": "lock",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          280,
+          280
+        ],
+        "declaration_line": 280,
+        "section": "Given declarations",
+        "production": "lock           = \"lock\" path attributes ;"
+      },
+      {
+        "name": "retain",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          281,
+          281
+        ],
+        "declaration_line": 281,
+        "section": "Given declarations",
+        "production": "retain         = \"retain\" path attributes ;"
+      },
+      {
+        "name": "fixture",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          282,
+          282
+        ],
+        "declaration_line": 282,
+        "section": "Given declarations",
+        "production": "fixture        = \"fixture\" NAME \"=\" (path values | \"file\" values | \"user\" values) ;"
+      },
+      {
+        "name": "corpus",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          283,
+          283
+        ],
+        "declaration_line": 283,
+        "section": "Given declarations",
+        "production": "corpus         = \"corpus\" NAME attributes ;"
+      },
+      {
+        "name": "capability",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          284,
+          284
+        ],
+        "declaration_line": 284,
+        "section": "Given declarations",
+        "production": "capability     = \"capability\" NAME attributes suite(capability_items) ;"
+      },
+      {
+        "name": "capability_items",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          285,
+          285
+        ],
+        "declaration_line": 285,
+        "section": "Given declarations",
+        "production": "capability_items = leaf_lines(capability_leaf) ;"
+      },
+      {
+        "name": "capability_leaf",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          286,
+          286
+        ],
+        "declaration_line": 286,
+        "section": "Given declarations",
+        "production": "capability_leaf = NAME parameters \"->\" type | event ;"
+      },
+      {
+        "name": "judgment",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          287,
+          287
+        ],
+        "declaration_line": 287,
+        "section": "Given declarations",
+        "production": "judgment       = \"judgment\" NAME attributes suite(judgment_items) ;"
+      },
+      {
+        "name": "judgment_items",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          288,
+          288
+        ],
+        "declaration_line": 288,
+        "section": "Given declarations",
+        "production": "judgment_items = leaf_lines(judgment_leaf) ;"
+      },
+      {
+        "name": "judgment_leaf",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          289,
+          291
+        ],
+        "declaration_line": 289,
+        "section": "Given declarations",
+        "production": "judgment_leaf  = NAME \"noul\" caption [\"yes\" \"=\" caption \"no\" \"=\" caption] | NAME \"choice\" caption (judgment_choices | \"options\" \"=\" \"runtime\" [judgment_choices]) | NAME \"score\" caption \"[\" separated(judgment_option) [\",\"] \"]\" ;"
+      },
+      {
+        "name": "judgment_choices",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          292,
+          292
+        ],
+        "declaration_line": 292,
+        "section": "Given declarations",
+        "production": "judgment_choices = \"{\" separated(judgment_option) [\",\"] \"}\" ;"
+      },
+      {
+        "name": "judgment_option",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          293,
+          293
+        ],
+        "declaration_line": 293,
+        "section": "Given declarations",
+        "production": "judgment_option = NAME \"=\" caption ;"
+      },
+      {
+        "name": "message",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          305,
+          305
+        ],
+        "declaration_line": 305,
+        "section": "Inline messages, labels and locales",
+        "production": "message          = \"message\" NAME [message_parameters] \"=\" message_value ;"
+      },
+      {
+        "name": "message_parameters",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          306,
+          306
+        ],
+        "declaration_line": 306,
+        "section": "Inline messages, labels and locales",
+        "production": "message_parameters = \"(\" separated(parameter) [\",\"] \")\" ;"
+      },
+      {
+        "name": "message_value",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          307,
+          307
+        ],
+        "declaration_line": 307,
+        "section": "Inline messages, labels and locales",
+        "production": "message_value    = STRING message_variants ;"
+      },
+      {
+        "name": "message_variants",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          308,
+          308
+        ],
+        "declaration_line": 308,
+        "section": "Inline messages, labels and locales",
+        "production": "message_variants = \"@\" \"{\" [separated(message_variant) [\",\"]] \"}\" ;"
+      },
+      {
+        "name": "message_variant",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          309,
+          309
+        ],
+        "declaration_line": 309,
+        "section": "Inline messages, labels and locales",
+        "production": "message_variant  = (NAME | STRING) \"=\" (STRING | \"null\") ;"
+      },
+      {
+        "name": "caption",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          310,
+          310
+        ],
+        "declaration_line": 310,
+        "section": "Inline messages, labels and locales",
+        "production": "caption          = STRING [message_variants] | path ;"
+      },
+      {
+        "name": "scalar_label_attribute",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          311,
+          311
+        ],
+        "declaration_line": 311,
+        "section": "Inline messages, labels and locales",
+        "production": "scalar_label_attribute = \"label\" \"=\" caption ;"
+      },
+      {
+        "name": "field_label_attribute",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          312,
+          312
+        ],
+        "declaration_line": 312,
+        "section": "Inline messages, labels and locales",
+        "production": "field_label_attribute = \"label\" \"=\" field_label_value ;"
+      },
+      {
+        "name": "field_label_value",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          313,
+          313
+        ],
+        "declaration_line": 313,
+        "section": "Inline messages, labels and locales",
+        "production": "field_label_value = caption | \"{\" separated(field_label_entry) [\",\"] \"}\" ;"
+      },
+      {
+        "name": "field_label_entry",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          314,
+          314
+        ],
+        "declaration_line": 314,
+        "section": "Inline messages, labels and locales",
+        "production": "field_label_entry = \"text\" \"=\" caption | \"values\" \"=\" case_labels ;"
+      },
+      {
+        "name": "case_labels",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          315,
+          315
+        ],
+        "declaration_line": 315,
+        "section": "Inline messages, labels and locales",
+        "production": "case_labels      = \"{\" separated(case_label) [\",\"] \"}\" ;"
+      },
+      {
+        "name": "case_label",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          316,
+          316
+        ],
+        "declaration_line": 316,
+        "section": "Inline messages, labels and locales",
+        "production": "case_label       = NAME \"=\" caption ;"
+      },
+      {
+        "name": "crud_labels",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          317,
+          317
+        ],
+        "declaration_line": 317,
+        "section": "Inline messages, labels and locales",
+        "production": "crud_labels      = \"{\" separated(crud_label_entry) [\",\"] \"}\" ;"
+      },
+      {
+        "name": "crud_label_entry",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          318,
+          318
+        ],
+        "declaration_line": 318,
+        "section": "Inline messages, labels and locales",
+        "production": "crud_label_entry = (\"create\" | \"update\" | \"delete\") \"=\" caption ;"
+      },
+      {
+        "name": "when_items",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          334,
+          335
+        ],
+        "declaration_line": 334,
+        "section": "When declarations and execution",
+        "production": "when_items      = {line(crud_head {\";\" crud_head}) | crud_head suite(crud_examples) | user_scenario | trusted_scenario} ;"
+      },
+      {
+        "name": "crud_head",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          336,
+          336
+        ],
+        "declaration_line": 336,
+        "section": "When declarations and execution",
+        "production": "crud_head       = \"crud\" path attributes ;"
+      },
+      {
+        "name": "user_scenario",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          337,
+          337
+        ],
+        "declaration_line": 337,
+        "section": "When declarations and execution",
+        "production": "user_scenario   = [\"export\"] \"scenario\" NAME parameters attributes suite(scenario_body) ;"
+      },
+      {
+        "name": "trusted_scenario",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          338,
+          338
+        ],
+        "declaration_line": 338,
+        "section": "When declarations and execution",
+        "production": "trusted_scenario = \"scenario\" NAME attributes suite(scenario_body) ;"
+      },
+      {
+        "name": "handler_source",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          339,
+          339
+        ],
+        "declaration_line": 339,
+        "section": "When declarations and execution",
+        "production": "handler_source  = path | \"every\" \"(\" DURATION [\",\"] \")\" ;"
+      },
+      {
+        "name": "scenario_body",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          340,
+          340
+        ],
+        "declaration_line": 340,
+        "section": "When declarations and execution",
+        "production": "scenario_body   = {guard_line} do_body {scenario_examples} ;"
+      },
+      {
+        "name": "guard_line",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          341,
+          341
+        ],
+        "declaration_line": 341,
+        "section": "When declarations and execution",
+        "production": "guard_line      = line(guard {\";\" guard}) ;"
+      },
+      {
+        "name": "guard",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          342,
+          342
+        ],
+        "declaration_line": 342,
+        "section": "When declarations and execution",
+        "production": "guard           = \"require\" expr [\"message\" \"=\" expr] ;"
+      },
+      {
+        "name": "do_body",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          343,
+          343
+        ],
+        "declaration_line": 343,
+        "section": "When declarations and execution",
+        "production": "do_body         = \"do\" (line(effect_leaves) | suite(effect_body)) ;"
+      },
+      {
+        "name": "effect_body",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          344,
+          344
+        ],
+        "declaration_line": 344,
+        "section": "When declarations and execution",
+        "production": "effect_body     = {effect_line | conditional | loop} ;"
+      },
+      {
+        "name": "effect_line",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          345,
+          345
+        ],
+        "declaration_line": 345,
+        "section": "When declarations and execution",
+        "production": "effect_line     = line(effect_leaves) ;"
+      },
+      {
+        "name": "effect_leaves",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          346,
+          346
+        ],
+        "declaration_line": 346,
+        "section": "When declarations and execution",
+        "production": "effect_leaves   = effect_leaf {\";\" effect_leaf} ;"
+      },
+      {
+        "name": "effect_leaf",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          347,
+          348
+        ],
+        "declaration_line": 347,
+        "section": "When declarations and execution",
+        "production": "effect_leaf     = let | guard | create | set | delete | call | emit | send | schedule | cancel | return ;"
+      },
+      {
+        "name": "let",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          349,
+          349
+        ],
+        "declaration_line": 349,
+        "section": "When declarations and execution",
+        "production": "let             = \"let\" NAME \"=\" expr ;"
+      },
+      {
+        "name": "create",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          350,
+          350
+        ],
+        "declaration_line": 350,
+        "section": "When declarations and execution",
+        "production": "create          = \"create\" path values \"as\" NAME ;"
+      },
+      {
+        "name": "set",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          351,
+          351
+        ],
+        "declaration_line": 351,
+        "section": "When declarations and execution",
+        "production": "set             = \"set\" mutation_target values ;"
+      },
+      {
+        "name": "delete",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          352,
+          352
+        ],
+        "declaration_line": 352,
+        "section": "When declarations and execution",
+        "production": "delete          = \"delete\" mutation_target ;"
+      },
+      {
+        "name": "call",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          353,
+          353
+        ],
+        "declaration_line": 353,
+        "section": "When declarations and execution",
+        "production": "call            = \"call\" ordinary values [\"as\" NAME] ;"
+      },
+      {
+        "name": "emit",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          354,
+          354
+        ],
+        "declaration_line": 354,
+        "section": "When declarations and execution",
+        "production": "emit            = \"emit\" path values ;"
+      },
+      {
+        "name": "send",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          355,
+          355
+        ],
+        "declaration_line": 355,
+        "section": "When declarations and execution",
+        "production": "send            = \"send\" ordinary values [\"when\" \"=\" ordinary] \"as\" NAME ;"
+      },
+      {
+        "name": "schedule",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          356,
+          356
+        ],
+        "declaration_line": 356,
+        "section": "When declarations and execution",
+        "production": "schedule        = \"schedule\" expr \"at\" \"=\" expr \"event\" \"=\" path values ;"
+      },
+      {
+        "name": "cancel",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          357,
+          357
+        ],
+        "declaration_line": 357,
+        "section": "When declarations and execution",
+        "production": "cancel          = \"cancel\" expr ;"
+      },
+      {
+        "name": "return",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          358,
+          358
+        ],
+        "declaration_line": 358,
+        "section": "When declarations and execution",
+        "production": "return          = \"return\" expr ;"
+      },
+      {
+        "name": "conditional",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          359,
+          359
+        ],
+        "declaration_line": 359,
+        "section": "When declarations and execution",
+        "production": "conditional     = \"if\" expr suite(effect_body) [\"else\" suite(effect_body)] ;"
+      },
+      {
+        "name": "loop",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          360,
+          360
+        ],
+        "declaration_line": 360,
+        "section": "When declarations and execution",
+        "production": "loop            = \"for\" NAME \"in\" expr \"limit\" \"=\" expr suite(effect_body) ;"
+      },
+      {
+        "name": "mutation_target",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          361,
+          361
+        ],
+        "declaration_line": 361,
+        "section": "When declarations and execution",
+        "production": "mutation_target = path ;"
+      },
+      {
+        "name": "scenario_examples",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          375,
+          376
+        ],
+        "declaration_line": 375,
+        "section": "Inline behavior examples",
+        "production": "scenario_examples = \"examples\" (example_bindings suite(example_table) | [\"seed\" \"=\" expr] suite(example_sequence)) ;"
+      },
+      {
+        "name": "crud_examples",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          377,
+          377
+        ],
+        "declaration_line": 377,
+        "section": "Inline behavior examples",
+        "production": "crud_examples     = {\"examples\" crud_action example_bindings suite(example_table)} ;"
+      },
+      {
+        "name": "crud_action",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          378,
+          378
+        ],
+        "declaration_line": 378,
+        "section": "Inline behavior examples",
+        "production": "crud_action       = \"create\" | \"update\" | \"delete\" ;"
+      },
+      {
+        "name": "example_bindings",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          379,
+          379
+        ],
+        "declaration_line": 379,
+        "section": "Inline behavior examples",
+        "production": "example_bindings  = {NAME \"=\" expr} ;"
+      },
+      {
+        "name": "example_table",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          380,
+          380
+        ],
+        "declaration_line": 380,
+        "section": "Inline behavior examples",
+        "production": "example_table     = line(observations \"->\" observations) example_row {example_row} ;"
+      },
+      {
+        "name": "observations",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          381,
+          381
+        ],
+        "declaration_line": 381,
+        "section": "Inline behavior examples",
+        "production": "observations      = separated(expr) ;"
+      },
+      {
+        "name": "example_row",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          382,
+          382
+        ],
+        "declaration_line": 382,
+        "section": "Inline behavior examples",
+        "production": "example_row       = line(separated(expr) \"->\" (separated(expr) | expected_error)) ;"
+      },
+      {
+        "name": "expected_error",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          383,
+          383
+        ],
+        "declaration_line": 383,
+        "section": "Inline behavior examples",
+        "production": "expected_error    = call_expr with bare callee \"error\" and exactly one argument ;"
+      },
+      {
+        "name": "example_sequence",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          384,
+          384
+        ],
+        "declaration_line": 384,
+        "section": "Inline behavior examples",
+        "production": "example_sequence  = \"do\" suite(example_step {example_step}) ;"
+      },
+      {
+        "name": "example_step",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          385,
+          385
+        ],
+        "declaration_line": 385,
+        "section": "Inline behavior examples",
+        "production": "example_step      = line(let | example_call | example_assertion) ;"
+      },
+      {
+        "name": "example_call",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          386,
+          387
+        ],
+        "declaration_line": 386,
+        "section": "Inline behavior examples",
+        "production": "example_call      = \"call\" ordinary values \"by\" \"=\" example_caller [\"request\" \"=\" values] [\"as\" NAME] [\"->\" expected_error] ;"
+      },
+      {
+        "name": "example_caller",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          388,
+          388
+        ],
+        "declaration_line": 388,
+        "section": "Inline behavior examples",
+        "production": "example_caller    = path ;"
+      },
+      {
+        "name": "example_assertion",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          389,
+          389
+        ],
+        "declaration_line": 389,
+        "section": "Inline behavior examples",
+        "production": "example_assertion = observations \"->\" observations ;"
+      },
+      {
+        "name": "then_item",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          403,
+          403
+        ],
+        "declaration_line": 403,
+        "section": "Presentation and routes",
+        "production": "then_item      = page ;"
+      },
+      {
+        "name": "page",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          404,
+          404
+        ],
+        "declaration_line": 404,
+        "section": "Presentation and routes",
+        "production": "page           = \"page\" route attributes optional_suite(ui_body) ;"
+      },
+      {
+        "name": "ui_body",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          405,
+          405
+        ],
+        "declaration_line": 405,
+        "section": "Presentation and routes",
+        "production": "ui_body        = {ui_item} ;"
+      },
+      {
+        "name": "ui_item",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          406,
+          406
+        ],
+        "declaration_line": 406,
+        "section": "Presentation and routes",
+        "production": "ui_item        = core_ui_item | catalog_item | preference_panel | edit_group ;"
+      },
+      {
+        "name": "core_ui_item",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          407,
+          407
+        ],
+        "declaration_line": 407,
+        "section": "Presentation and routes",
+        "production": "core_ui_item   = line(ui_leaves) | ui_group | collection | form | tabs_group ;"
+      },
+      {
+        "name": "preference_panel",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          408,
+          408
+        ],
+        "declaration_line": 408,
+        "section": "Presentation and routes",
+        "production": "preference_panel = \"preferences\" suite(ui_body) ;"
+      },
+      {
+        "name": "edit_group",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          409,
+          409
+        ],
+        "declaration_line": 409,
+        "section": "Presentation and routes",
+        "production": "edit_group     = \"edit\" attributes suite(ui_body) ;"
+      },
+      {
+        "name": "slot_item",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          410,
+          410
+        ],
+        "declaration_line": 410,
+        "section": "Presentation and routes",
+        "production": "slot_item      = \"slot\" NAME suite(ui_body) ;"
+      },
+      {
+        "name": "ui_leaves",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          411,
+          411
+        ],
+        "declaration_line": 411,
+        "section": "Presentation and routes",
+        "production": "ui_leaves      = ui_leaf {\";\" ui_leaf} ;"
+      },
+      {
+        "name": "ui_leaf",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          412,
+          415
+        ],
+        "declaration_line": 412,
+        "section": "Presentation and routes",
+        "production": "ui_leaf        = \"require\" expr | \"title\" expr | \"text\" observations | \"content\" observations | \"metrics\" observations | \"copy\" expr | \"edit\" attributes | \"delete\" | \"action\" expr | \"actions\" separated(expr) | \"history\" | collection_header | form_header | \"tabs\" expr ;"
+      },
+      {
+        "name": "ui_group",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          416,
+          417
+        ],
+        "declaration_line": 416,
+        "section": "Presentation and routes",
+        "production": "ui_group       = \"card\" expr attributes suite(ui_body) | \"details\" expr attributes suite(ui_body) ;"
+      },
+      {
+        "name": "tabs_group",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          418,
+          418
+        ],
+        "declaration_line": 418,
+        "section": "Presentation and routes",
+        "production": "tabs_group     = \"tabs\" [expr] suite(tab_items) ;"
+      },
+      {
+        "name": "tab_items",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          419,
+          419
+        ],
+        "declaration_line": 419,
+        "section": "Presentation and routes",
+        "production": "tab_items      = {\"tab\" expr suite(ui_body)} ;"
+      },
+      {
+        "name": "collection",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          420,
+          420
+        ],
+        "declaration_line": 420,
+        "section": "Presentation and routes",
+        "production": "collection     = collection_header suite(ui_body) ;"
+      },
+      {
+        "name": "collection_header",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          421,
+          421
+        ],
+        "declaration_line": 421,
+        "section": "Presentation and routes",
+        "production": "collection_header = collection_head expr attributes ;"
+      },
+      {
+        "name": "collection_head",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          422,
+          422
+        ],
+        "declaration_line": 422,
+        "section": "Presentation and routes",
+        "production": "collection_head = \"list\" | \"table\" | \"board\" | \"calendar\" | \"gallery\" ;"
+      },
+      {
+        "name": "form",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          423,
+          423
+        ],
+        "declaration_line": 423,
+        "section": "Presentation and routes",
+        "production": "form           = form_header suite(ui_body) ;"
+      },
+      {
+        "name": "form_header",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          424,
+          424
+        ],
+        "declaration_line": 424,
+        "section": "Presentation and routes",
+        "production": "form_header    = \"form\" expr attributes ;"
+      },
+      {
+        "name": "selector",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          425,
+          425
+        ],
+        "declaration_line": 425,
+        "section": "Presentation and routes",
+        "production": "selector       = path ;"
+      },
+      {
+        "name": "selectors",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          426,
+          426
+        ],
+        "declaration_line": 426,
+        "section": "Presentation and routes",
+        "production": "selectors      = separated([\"-\"] selector) ;"
+      },
+      {
+        "name": "ordering",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          427,
+          427
+        ],
+        "declaration_line": 427,
+        "section": "Presentation and routes",
+        "production": "ordering       = selectors ;"
+      },
+      {
+        "name": "ui_order",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          428,
+          428
+        ],
+        "declaration_line": 428,
+        "section": "Presentation and routes",
+        "production": "ui_order       = ordering | preference_order ;"
+      },
+      {
+        "name": "preference_order",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          429,
+          429
+        ],
+        "declaration_line": 429,
+        "section": "Presentation and routes",
+        "production": "preference_order = \"{\" separated(preference_order_member) [\",\"] \"}\" ;"
+      },
+      {
+        "name": "preference_order_member",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          430,
+          432
+        ],
+        "declaration_line": 430,
+        "section": "Presentation and routes",
+        "production": "preference_order_member = \"by\" \"=\" path | \"default\" \"=\" \"[\" ordering [\",\"] \"]\" | \"cases\" \"=\" \"{\" separated(order_case) [\",\"] \"}\" ;"
+      },
+      {
+        "name": "order_case",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          433,
+          433
+        ],
+        "declaration_line": 433,
+        "section": "Presentation and routes",
+        "production": "order_case     = NAME \"=\" \"[\" ordering [\",\"] \"]\" ;"
+      },
+      {
+        "name": "route",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          434,
+          434
+        ],
+        "declaration_line": 434,
+        "section": "Presentation and routes",
+        "production": "route          = \"/\" [route_segment {\"/\" route_segment}] ;"
+      },
+      {
+        "name": "route_segment",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          435,
+          436
+        ],
+        "declaration_line": 435,
+        "section": "Presentation and routes",
+        "production": "route_segment  = STATIC_SEGMENT | \"{\" path \".\" \"id\" \"}\" | \"{\" NAME \":\" type \"}\" ;"
+      },
+      {
+        "name": "STATIC_SEGMENT",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          437,
+          437
+        ],
+        "declaration_line": 437,
+        "section": "Presentation and routes",
+        "production": "STATIC_SEGMENT = /[A-Za-z0-9_-]+/ ;"
+      },
+      {
+        "name": "migration",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          451,
+          451
+        ],
+        "declaration_line": 451,
+        "section": "Maintenance declarations",
+        "production": "migration       = \"migration\" NAME attributes optional_suite(migration_items) ;"
+      },
+      {
+        "name": "migration_items",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          452,
+          452
+        ],
+        "declaration_line": 452,
+        "section": "Maintenance declarations",
+        "production": "migration_items = {migration_item} ;"
+      },
+      {
+        "name": "migration_item",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          453,
+          453
+        ],
+        "declaration_line": 453,
+        "section": "Maintenance declarations",
+        "production": "migration_item  = line(migration_leaves) | backfill ;"
+      },
+      {
+        "name": "migration_leaves",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          454,
+          454
+        ],
+        "declaration_line": 454,
+        "section": "Maintenance declarations",
+        "production": "migration_leaves = migration_leaf {\";\" migration_leaf} ;"
+      },
+      {
+        "name": "migration_leaf",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          455,
+          457
+        ],
+        "declaration_line": 455,
+        "section": "Maintenance declarations",
+        "production": "migration_leaf  = \"rename\" \"owner\" | \"drop\" \"owner\" | \"rename\" before_path \"to\" path | \"drop\" before_path | \"invalidate\" before_path ;"
+      },
+      {
+        "name": "before_path",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          458,
+          458
+        ],
+        "declaration_line": 458,
+        "section": "Maintenance declarations",
+        "production": "before_path    = \"before\" \".\" NAME [\".\" NAME] ;"
+      },
+      {
+        "name": "backfill",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          459,
+          459
+        ],
+        "declaration_line": 459,
+        "section": "Maintenance declarations",
+        "production": "backfill       = \"backfill\" NAME suite(mapper_body) ;"
+      },
+      {
+        "name": "mapper_body",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          460,
+          460
+        ],
+        "declaration_line": 460,
+        "section": "Maintenance declarations",
+        "production": "mapper_body    = {guard_line} mapper_do ;"
+      },
+      {
+        "name": "mapper_do",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          461,
+          461
+        ],
+        "declaration_line": 461,
+        "section": "Maintenance declarations",
+        "production": "mapper_do      = \"do\" (line(mapper_leaves) | suite(mapper_effects)) ;"
+      },
+      {
+        "name": "mapper_effects",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          462,
+          462
+        ],
+        "declaration_line": 462,
+        "section": "Maintenance declarations",
+        "production": "mapper_effects = {line(mapper_leaves) | mapper_conditional} ;"
+      },
+      {
+        "name": "mapper_leaves",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          463,
+          463
+        ],
+        "declaration_line": 463,
+        "section": "Maintenance declarations",
+        "production": "mapper_leaves  = mapper_leaf {\";\" mapper_leaf} ;"
+      },
+      {
+        "name": "mapper_leaf",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          464,
+          464
+        ],
+        "declaration_line": 464,
+        "section": "Maintenance declarations",
+        "production": "mapper_leaf    = let | guard | \"set\" \"row\" values ;"
+      },
+      {
+        "name": "mapper_conditional",
+        "path": "docs/specification/GRAMMAR.md",
+        "lines": [
+          465,
+          466
+        ],
+        "declaration_line": 465,
+        "section": "Maintenance declarations",
+        "production": "mapper_conditional = \"if\" expr suite(mapper_effects) [\"else\" suite(mapper_effects)] ;"
+      }
+    ]
+  },
+  "cst": {
+    "syntax_kind": [
+      {
+        "name": "Trivia",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          21,
+          21
+        ]
+      },
+      {
+        "name": "Comment",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          23,
+          23
+        ]
+      },
+      {
+        "name": "BadToken",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          25,
+          25
+        ]
+      },
+      {
+        "name": "Name",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          26,
+          26
+        ]
+      },
+      {
+        "name": "Integer",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          27,
+          27
+        ]
+      },
+      {
+        "name": "Decimal",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          28,
+          28
+        ]
+      },
+      {
+        "name": "Duration",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          29,
+          29
+        ]
+      },
+      {
+        "name": "Bytes",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          30,
+          30
+        ]
+      },
+      {
+        "name": "String",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          31,
+          31
+        ]
+      },
+      {
+        "name": "Punct",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          32,
+          32
+        ]
+      },
+      {
+        "name": "Description",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          34,
+          34
+        ]
+      },
+      {
+        "name": "File",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          36,
+          36
+        ]
+      },
+      {
+        "name": "App",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          37,
+          37
+        ]
+      },
+      {
+        "name": "Package",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          38,
+          38
+        ]
+      },
+      {
+        "name": "Migration",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          39,
+          39
+        ]
+      },
+      {
+        "name": "Context",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          40,
+          40
+        ]
+      },
+      {
+        "name": "ContextDecl",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          41,
+          41
+        ]
+      },
+      {
+        "name": "Import",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          42,
+          42
+        ]
+      },
+      {
+        "name": "ImportMember",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          43,
+          43
+        ]
+      },
+      {
+        "name": "Section",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          44,
+          44
+        ]
+      },
+      {
+        "name": "Preferences",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          46,
+          46
+        ]
+      },
+      {
+        "name": "Model",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          47,
+          47
+        ]
+      },
+      {
+        "name": "Contract",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          48,
+          48
+        ]
+      },
+      {
+        "name": "Event",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          49,
+          49
+        ]
+      },
+      {
+        "name": "Role",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          50,
+          50
+        ]
+      },
+      {
+        "name": "Derive",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          51,
+          51
+        ]
+      },
+      {
+        "name": "Policy",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          52,
+          52
+        ]
+      },
+      {
+        "name": "Invariant",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          53,
+          53
+        ]
+      },
+      {
+        "name": "Unique",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          54,
+          54
+        ]
+      },
+      {
+        "name": "Lock",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          55,
+          55
+        ]
+      },
+      {
+        "name": "Retain",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          56,
+          56
+        ]
+      },
+      {
+        "name": "Fixture",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          57,
+          57
+        ]
+      },
+      {
+        "name": "Corpus",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          58,
+          58
+        ]
+      },
+      {
+        "name": "Capability",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          59,
+          59
+        ]
+      },
+      {
+        "name": "CapabilityOp",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          60,
+          60
+        ]
+      },
+      {
+        "name": "Judgment",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          61,
+          61
+        ]
+      },
+      {
+        "name": "JudgmentItem",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          62,
+          62
+        ]
+      },
+      {
+        "name": "JudgmentOption",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          63,
+          63
+        ]
+      },
+      {
+        "name": "Message",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          64,
+          64
+        ]
+      },
+      {
+        "name": "Field",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          65,
+          65
+        ]
+      },
+      {
+        "name": "Parameter",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          66,
+          66
+        ]
+      },
+      {
+        "name": "NamedType",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          68,
+          68
+        ]
+      },
+      {
+        "name": "UnionType",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          69,
+          69
+        ]
+      },
+      {
+        "name": "ArrayType",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          70,
+          70
+        ]
+      },
+      {
+        "name": "NullableType",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          71,
+          71
+        ]
+      },
+      {
+        "name": "EnumType",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          72,
+          72
+        ]
+      },
+      {
+        "name": "ActionType",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          73,
+          73
+        ]
+      },
+      {
+        "name": "DeliveryType",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          74,
+          74
+        ]
+      },
+      {
+        "name": "InvocationType",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          75,
+          75
+        ]
+      },
+      {
+        "name": "Label",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          76,
+          76
+        ]
+      },
+      {
+        "name": "LabelCase",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          77,
+          77
+        ]
+      },
+      {
+        "name": "CrudLabels",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          78,
+          78
+        ]
+      },
+      {
+        "name": "MessageValue",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          79,
+          79
+        ]
+      },
+      {
+        "name": "MessageVariant",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          80,
+          80
+        ]
+      },
+      {
+        "name": "Annotation",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          84,
+          84
+        ]
+      },
+      {
+        "name": "DescriptionValue",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          92,
+          92
+        ]
+      },
+      {
+        "name": "Attribute",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          94,
+          94
+        ]
+      },
+      {
+        "name": "Selectors",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          95,
+          95
+        ]
+      },
+      {
+        "name": "Descending",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          96,
+          96
+        ]
+      },
+      {
+        "name": "Path",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          97,
+          97
+        ]
+      },
+      {
+        "name": "Crud",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          99,
+          99
+        ]
+      },
+      {
+        "name": "Scenario",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          100,
+          100
+        ]
+      },
+      {
+        "name": "DoBlock",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          101,
+          101
+        ]
+      },
+      {
+        "name": "Let",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          102,
+          102
+        ]
+      },
+      {
+        "name": "Create",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          103,
+          103
+        ]
+      },
+      {
+        "name": "Set",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          104,
+          104
+        ]
+      },
+      {
+        "name": "Delete",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          105,
+          105
+        ]
+      },
+      {
+        "name": "Call",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          106,
+          106
+        ]
+      },
+      {
+        "name": "Emit",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          107,
+          107
+        ]
+      },
+      {
+        "name": "Send",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          108,
+          108
+        ]
+      },
+      {
+        "name": "Schedule",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          109,
+          109
+        ]
+      },
+      {
+        "name": "Cancel",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          110,
+          110
+        ]
+      },
+      {
+        "name": "Return",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          111,
+          111
+        ]
+      },
+      {
+        "name": "Require",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          112,
+          112
+        ]
+      },
+      {
+        "name": "If",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          113,
+          113
+        ]
+      },
+      {
+        "name": "For",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          114,
+          114
+        ]
+      },
+      {
+        "name": "Examples",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          116,
+          116
+        ]
+      },
+      {
+        "name": "ExampleRow",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          117,
+          117
+        ]
+      },
+      {
+        "name": "ExampleAssert",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          118,
+          118
+        ]
+      },
+      {
+        "name": "ExampleCall",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          119,
+          119
+        ]
+      },
+      {
+        "name": "ExpectedError",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          120,
+          120
+        ]
+      },
+      {
+        "name": "Page",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          122,
+          122
+        ]
+      },
+      {
+        "name": "Route",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          123,
+          123
+        ]
+      },
+      {
+        "name": "RouteStatic",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          124,
+          124
+        ]
+      },
+      {
+        "name": "RouteRecord",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          125,
+          125
+        ]
+      },
+      {
+        "name": "RouteScalar",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          126,
+          126
+        ]
+      },
+      {
+        "name": "Card",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          127,
+          127
+        ]
+      },
+      {
+        "name": "Details",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          128,
+          128
+        ]
+      },
+      {
+        "name": "Tabs",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          129,
+          129
+        ]
+      },
+      {
+        "name": "Tab",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          130,
+          130
+        ]
+      },
+      {
+        "name": "Collection",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          131,
+          131
+        ]
+      },
+      {
+        "name": "Form",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          132,
+          132
+        ]
+      },
+      {
+        "name": "Edit",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          133,
+          133
+        ]
+      },
+      {
+        "name": "CatalogItem",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          134,
+          134
+        ]
+      },
+      {
+        "name": "Slot",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          135,
+          135
+        ]
+      },
+      {
+        "name": "PreferencePanel",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          136,
+          136
+        ]
+      },
+      {
+        "name": "UiLeaf",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          137,
+          137
+        ]
+      },
+      {
+        "name": "PreferenceOrder",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          138,
+          138
+        ]
+      },
+      {
+        "name": "OrderList",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          139,
+          139
+        ]
+      },
+      {
+        "name": "OrderCases",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          140,
+          140
+        ]
+      },
+      {
+        "name": "OrderCase",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          141,
+          141
+        ]
+      },
+      {
+        "name": "Literal",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          143,
+          143
+        ]
+      },
+      {
+        "name": "NameRef",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          144,
+          144
+        ]
+      },
+      {
+        "name": "Group",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          145,
+          145
+        ]
+      },
+      {
+        "name": "Array",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          146,
+          146
+        ]
+      },
+      {
+        "name": "Object",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          147,
+          147
+        ]
+      },
+      {
+        "name": "ObjectEntry",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          148,
+          148
+        ]
+      },
+      {
+        "name": "Construct",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          149,
+          149
+        ]
+      },
+      {
+        "name": "Member",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          150,
+          150
+        ]
+      },
+      {
+        "name": "Argument",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          151,
+          151
+        ]
+      },
+      {
+        "name": "Unary",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          152,
+          152
+        ]
+      },
+      {
+        "name": "Binary",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          153,
+          153
+        ]
+      },
+      {
+        "name": "Query",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          154,
+          154
+        ]
+      },
+      {
+        "name": "QueryClause",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          155,
+          155
+        ]
+      },
+      {
+        "name": "Rename",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          157,
+          157
+        ]
+      },
+      {
+        "name": "Drop",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          158,
+          158
+        ]
+      },
+      {
+        "name": "Invalidate",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          159,
+          159
+        ]
+      },
+      {
+        "name": "Backfill",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          160,
+          160
+        ]
+      },
+      {
+        "name": "Error",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          162,
+          162
+        ]
+      }
+    ],
+    "node_detail": [
+      {
+        "name": "Interior",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          188,
+          188
+        ]
+      },
+      {
+        "name": "Token",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          190,
+          190
+        ]
+      },
+      {
+        "name": "Trivia",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          192,
+          192
+        ]
+      },
+      {
+        "name": "Description",
+        "path": "compiler/src/syntax/cst.rs",
+        "lines": [
+          194,
+          194
+        ]
+      }
+    ]
+  },
+  "parser_functions": [
+    {
+      "name": "new",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        33,
+        33
+      ]
+    },
+    {
+      "name": "diag",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        41,
+        41
+      ]
+    },
+    {
+      "name": "new",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        55,
+        55
+      ]
+    },
+    {
+      "name": "peek",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "peek2",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        68,
+        68
+      ]
+    },
+    {
+      "name": "peek3",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        72,
+        72
+      ]
+    },
+    {
+      "name": "done",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        76,
+        76
+      ]
+    },
+    {
+      "name": "span_here",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        80,
+        80
+      ]
+    },
+    {
+      "name": "next",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        88,
+        88
+      ]
+    },
+    {
+      "name": "at_p",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        94,
+        94
+      ]
+    },
+    {
+      "name": "at_name",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        98,
+        98
+      ]
+    },
+    {
+      "name": "at_any_name",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        102,
+        102
+      ]
+    },
+    {
+      "name": "peek_is_eq",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        107,
+        107
+      ]
+    },
+    {
+      "name": "at_legacy_annotation",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        114,
+        114
+      ]
+    },
+    {
+      "name": "word",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        126,
+        126
+      ]
+    },
+    {
+      "name": "expect_p",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        133,
+        133
+      ]
+    },
+    {
+      "name": "expect_name",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        141,
+        141
+      ]
+    },
+    {
+      "name": "expect_name_is",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        149,
+        149
+      ]
+    },
+    {
+      "name": "expect_string",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        157,
+        157
+      ]
+    },
+    {
+      "name": "end",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        167,
+        167
+      ]
+    },
+    {
+      "name": "piece_eof",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        183,
+        183
+      ]
+    },
+    {
+      "name": "new",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        200,
+        200
+      ]
+    },
+    {
+      "name": "push_leaf",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        211,
+        211
+      ]
+    },
+    {
+      "name": "leaf",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        222,
+        222
+      ]
+    },
+    {
+      "name": "push_inner",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        228,
+        228
+      ]
+    },
+    {
+      "name": "gap",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        237,
+        237
+      ]
+    },
+    {
+      "name": "finish",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        268,
+        268
+      ]
+    },
+    {
+      "name": "split_pieces",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        279,
+        279
+      ]
+    },
+    {
+      "name": "is_compound_head",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        324,
+        324
+      ]
+    },
+    {
+      "name": "check_semi_heads",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        347,
+        347
+      ]
+    },
+    {
+      "name": "piece_has_error",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        368,
+        368
+      ]
+    },
+    {
+      "name": "app_has_uses_attr",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        376,
+        376
+      ]
+    },
+    {
+      "name": "header_has_attr",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        382,
+        382
+      ]
+    },
+    {
+      "name": "cursor",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        445,
+        445
+      ]
+    },
+    {
+      "name": "line_eof",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        449,
+        449
+      ]
+    },
+    {
+      "name": "push_description",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        454,
+        454
+      ]
+    },
+    {
+      "name": "push_dangling",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        463,
+        463
+      ]
+    },
+    {
+      "name": "push_tokens_with_descs",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        475,
+        475
+      ]
+    },
+    {
+      "name": "error_for_tokens",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        513,
+        513
+      ]
+    },
+    {
+      "name": "error_for_children",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        523,
+        523
+      ]
+    },
+    {
+      "name": "error_for_line",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        533,
+        533
+      ]
+    },
+    {
+      "name": "cap_suite",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        591,
+        591
+      ]
+    },
+    {
+      "name": "recover",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        617,
+        617
+      ]
+    },
+    {
+      "name": "swallow_children",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        653,
+        653
+      ]
+    },
+    {
+      "name": "parse_program",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        675,
+        675
+      ]
+    },
+    {
+      "name": "parse_app",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        752,
+        752
+      ]
+    },
+    {
+      "name": "parse_app_header",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        838,
+        838
+      ]
+    },
+    {
+      "name": "parse_package",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        852,
+        852
+      ]
+    },
+    {
+      "name": "parse_package_body",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        888,
+        888
+      ]
+    },
+    {
+      "name": "parse_import_line",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1036,
+        1036
+      ]
+    },
+    {
+      "name": "parse_import",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1086,
+        1086
+      ]
+    },
+    {
+      "name": "parse_context",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1130,
+        1130
+      ]
+    },
+    {
+      "name": "parse_context_line",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1161,
+        1161
+      ]
+    },
+    {
+      "name": "parse_context_decl",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1214,
+        1214
+      ]
+    },
+    {
+      "name": "attr_count",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1291,
+        1291
+      ]
+    },
+    {
+      "name": "text_of_owned",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1297,
+        1297
+      ]
+    },
+    {
+      "name": "never",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1308,
+        1308
+      ]
+    },
+    {
+      "name": "enter_expr",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1314,
+        1314
+      ]
+    },
+    {
+      "name": "parse_expr",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1329,
+        1329
+      ]
+    },
+    {
+      "name": "parse_expr_inner",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1343,
+        1343
+      ]
+    },
+    {
+      "name": "stopped",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1425,
+        1425
+      ]
+    },
+    {
+      "name": "infix_power",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1449,
+        1449
+      ]
+    },
+    {
+      "name": "parse_value",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1472,
+        1472
+      ]
+    },
+    {
+      "name": "parse_value_inner",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1486,
+        1486
+      ]
+    },
+    {
+      "name": "parse_primary",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1586,
+        1586
+      ]
+    },
+    {
+      "name": "parse_call",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1693,
+        1693
+      ]
+    },
+    {
+      "name": "parse_object",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1756,
+        1756
+      ]
+    },
+    {
+      "name": "is_optional_member",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1813,
+        1813
+      ]
+    },
+    {
+      "name": "is_path_value",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1817,
+        1817
+      ]
+    },
+    {
+      "name": "is_comparison_binary",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1838,
+        1838
+      ]
+    },
+    {
+      "name": "mixes_fallback_boolean",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1848,
+        1848
+      ]
+    },
+    {
+      "name": "parse_message_suffix",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1879,
+        1879
+      ]
+    },
+    {
+      "name": "parse_annotation",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        1967,
+        1967
+      ]
+    },
+    {
+      "name": "parse_caption",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2050,
+        2050
+      ]
+    },
+    {
+      "name": "parse_description_value",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2073,
+        2073
+      ]
+    },
+    {
+      "name": "parse_label",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2128,
+        2128
+      ]
+    },
+    {
+      "name": "parse_path_node",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2260,
+        2260
+      ]
+    },
+    {
+      "name": "parse_path",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2280,
+        2280
+      ]
+    },
+    {
+      "name": "parse_selectors",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2291,
+        2291
+      ]
+    },
+    {
+      "name": "parse_selector",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2318,
+        2318
+      ]
+    },
+    {
+      "name": "parse_expression_list",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2335,
+        2335
+      ]
+    },
+    {
+      "name": "parse_type",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2355,
+        2355
+      ]
+    },
+    {
+      "name": "parse_enum_items",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2430,
+        2430
+      ]
+    },
+    {
+      "name": "parse_path_items",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2458,
+        2458
+      ]
+    },
+    {
+      "name": "named_type_parts",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2483,
+        2483
+      ]
+    },
+    {
+      "name": "parse_schema_fields",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2501,
+        2501
+      ]
+    },
+    {
+      "name": "parse_params",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2541,
+        2541
+      ]
+    },
+    {
+      "name": "push_inline_description",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2584,
+        2584
+      ]
+    },
+    {
+      "name": "parse_field_or_param",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2626,
+        2626
+      ]
+    },
+    {
+      "name": "attr_kind",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2849,
+        2849
+      ]
+    },
+    {
+      "name": "required_attrs",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2930,
+        2930
+      ]
+    },
+    {
+      "name": "parse_attributes",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        2955,
+        2955
+      ]
+    },
+    {
+      "name": "parse_no_attributes",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3057,
+        3057
+      ]
+    },
+    {
+      "name": "parse_members",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3071,
+        3071
+      ]
+    },
+    {
+      "name": "parse_preference_order",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3096,
+        3096
+      ]
+    },
+    {
+      "name": "parse_order_list",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3163,
+        3163
+      ]
+    },
+    {
+      "name": "parse_order_cases",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3179,
+        3179
+      ]
+    },
+    {
+      "name": "route_ended",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3224,
+        3224
+      ]
+    },
+    {
+      "name": "parse_route",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3238,
+        3238
+      ]
+    },
+    {
+      "name": "line_of",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3363,
+        3363
+      ]
+    },
+    {
+      "name": "parse_section_items",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3371,
+        3371
+      ]
+    },
+    {
+      "name": "parse_given_line",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3392,
+        3392
+      ]
+    },
+    {
+      "name": "parse_given_piece",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3479,
+        3479
+      ]
+    },
+    {
+      "name": "parse_preferences",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3570,
+        3570
+      ]
+    },
+    {
+      "name": "parse_message",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3593,
+        3593
+      ]
+    },
+    {
+      "name": "parse_contract_or_event",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3637,
+        3637
+      ]
+    },
+    {
+      "name": "parse_role",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3673,
+        3673
+      ]
+    },
+    {
+      "name": "parse_derive",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3697,
+        3697
+      ]
+    },
+    {
+      "name": "parse_fixture",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3754,
+        3754
+      ]
+    },
+    {
+      "name": "parse_policy_rule",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3782,
+        3782
+      ]
+    },
+    {
+      "name": "parse_invariant",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3816,
+        3816
+      ]
+    },
+    {
+      "name": "parse_model",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3846,
+        3846
+      ]
+    },
+    {
+      "name": "parse_capability",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3897,
+        3897
+      ]
+    },
+    {
+      "name": "parse_capability_member",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        3980,
+        3980
+      ]
+    },
+    {
+      "name": "parse_corpus",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4015,
+        4015
+      ]
+    },
+    {
+      "name": "parse_judgment",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4043,
+        4043
+      ]
+    },
+    {
+      "name": "parse_judgment_item",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4127,
+        4127
+      ]
+    },
+    {
+      "name": "parse_judgment_options",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4222,
+        4222
+      ]
+    },
+    {
+      "name": "parse_when_line",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4299,
+        4299
+      ]
+    },
+    {
+      "name": "parse_when_piece",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4352,
+        4352
+      ]
+    },
+    {
+      "name": "parse_scenario",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4374,
+        4374
+      ]
+    },
+    {
+      "name": "parse_each_attribute",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4584,
+        4584
+      ]
+    },
+    {
+      "name": "is_periodic_source",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4625,
+        4625
+      ]
+    },
+    {
+      "name": "parse_crud",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4654,
+        4654
+      ]
+    },
+    {
+      "name": "parse_execution",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4688,
+        4688
+      ]
+    },
+    {
+      "name": "parse_do",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4822,
+        4822
+      ]
+    },
+    {
+      "name": "parse_statements",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4901,
+        4901
+      ]
+    },
+    {
+      "name": "parse_statements_inner",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        4917,
+        4917
+      ]
+    },
+    {
+      "name": "parse_else",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5009,
+        5009
+      ]
+    },
+    {
+      "name": "parse_statement",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5060,
+        5060
+      ]
+    },
+    {
+      "name": "parse_examples_line",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5275,
+        5275
+      ]
+    },
+    {
+      "name": "parse_example_table",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5383,
+        5383
+      ]
+    },
+    {
+      "name": "is_expected_error",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5484,
+        5484
+      ]
+    },
+    {
+      "name": "error_arg_count",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5493,
+        5493
+      ]
+    },
+    {
+      "name": "parse_example_sequence",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5501,
+        5501
+      ]
+    },
+    {
+      "name": "parse_example_call",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5611,
+        5611
+      ]
+    },
+    {
+      "name": "is_bare_do",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5675,
+        5675
+      ]
+    },
+    {
+      "name": "binding_value_end",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5681,
+        5681
+      ]
+    },
+    {
+      "name": "parse_ui_line",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5708,
+        5708
+      ]
+    },
+    {
+      "name": "parse_ui_line_inner",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5719,
+        5719
+      ]
+    },
+    {
+      "name": "parse_ui_tab_children",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5749,
+        5749
+      ]
+    },
+    {
+      "name": "parse_ui_tab_children_inner",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5760,
+        5760
+      ]
+    },
+    {
+      "name": "parse_ui_pieces",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5791,
+        5791
+      ]
+    },
+    {
+      "name": "parse_ui_piece",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        5827,
+        5827
+      ]
+    },
+    {
+      "name": "parse_collection",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        6125,
+        6125
+      ]
+    },
+    {
+      "name": "parse_catalog_item",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        6153,
+        6153
+      ]
+    },
+    {
+      "name": "parse_ui_child",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        6209,
+        6209
+      ]
+    },
+    {
+      "name": "has_attribute",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        6218,
+        6218
+      ]
+    },
+    {
+      "name": "parse_migration",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        6228,
+        6228
+      ]
+    },
+    {
+      "name": "parse_migration_line",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        6257,
+        6257
+      ]
+    },
+    {
+      "name": "parse_migration_directive",
+      "path": "compiler/src/syntax/parser.rs",
+      "lines": [
+        6310,
+        6310
+      ]
+    }
+  ],
+  "witnesses": [
+    {
+      "test": "coverage_detects_gaps_and_overlaps",
+      "path": "compiler/src/syntax/cst.rs",
+      "lines": [
+        422,
+        422
+      ],
+      "stage": "cst",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "traversal_visits_preorder",
+      "path": "compiler/src/syntax/cst.rs",
+      "lines": [
+        434,
+        434
+      ],
+      "stage": "cst",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "brackets_join_without_blocks",
+      "path": "compiler/src/syntax/layout.rs",
+      "lines": [
+        769,
+        769
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "one_space_indent_and_dedent",
+      "path": "compiler/src/syntax/layout.rs",
+      "lines": [
+        781,
+        781
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "blank_and_comment_lines_emit_nothing",
+      "path": "compiler/src/syntax/layout.rs",
+      "lines": [
+        791,
+        791
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "prose_attaches_at_same_column",
+      "path": "compiler/src/syntax/layout.rs",
+      "lines": [
+        799,
+        799
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "ref_rules_and_suffix_rules",
+      "path": "compiler/src/syntax/layout.rs",
+      "lines": [
+        812,
+        812
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "ineligible_heads_rejected",
+      "path": "compiler/src/syntax/layout.rs",
+      "lines": [
+        847,
+        847
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "mismatched_and_unclosed_delimiters",
+      "path": "compiler/src/syntax/layout.rs",
+      "lines": [
+        861,
+        861
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "longest_match_punctuation",
+      "path": "compiler/src/syntax/lexer.rs",
+      "lines": [
+        824,
+        824
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "numeric_units_and_adjacency",
+      "path": "compiler/src/syntax/lexer.rs",
+      "lines": [
+        852,
+        852
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "strings_decode_json_escapes",
+      "path": "compiler/src/syntax/lexer.rs",
+      "lines": [
+        874,
+        874
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "crlf_ok_bare_cr_rejected",
+      "path": "compiler/src/syntax/lexer.rs",
+      "lines": [
+        894,
+        894
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "tabs_prose_ok_code_rejected",
+      "path": "compiler/src/syntax/lexer.rs",
+      "lines": [
+        904,
+        904
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "inline_hash_and_backslash_continuation_rejected",
+      "path": "compiler/src/syntax/lexer.rs",
+      "lines": [
+        914,
+        914
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "explain_round_trips_every_emitted_code",
+      "path": "compiler/tests/authoring.rs",
+      "lines": [
+        789,
+        789
+      ],
+      "stage": "parse_source/lex_bytes plus explanation catalog lookup and JSON/text renderer for diagnostic catalog witness",
+      "oracle": "self-authored expected diagnostics/tree/consumer output",
+      "input": "compiler diagnostic catalog examples plus repository corpus",
+      "consumer_class": "test of a downstream repository consumer",
+      "downstream_stages_proven": true
+    },
+    {
+      "test": "explain_e1xxx_valid_examples_parse_clean",
+      "path": "compiler/tests/authoring.rs",
+      "lines": [
+        883,
+        883
+      ],
+      "stage": "parse_source/lex_bytes plus explanation catalog lookup and JSON/text renderer for diagnostic catalog witness",
+      "oracle": "self-authored expected diagnostics/tree/consumer output",
+      "input": "compiler diagnostic catalog examples plus repository corpus",
+      "consumer_class": "self-authored test fixture; no external consumer",
+      "downstream_stages_proven": false
+    },
+    {
+      "test": "each_keeps_e1203_without_error_node",
+      "path": "compiler/tests/b4_parse.rs",
+      "lines": [
+        88,
+        88
+      ],
+      "stage": "parse_source; for *_body_still_checked, parse + resolve + types + unresolved-name emission",
+      "oracle": "self-authored expected diagnostics/tree/consumer output",
+      "input": "synthetic inline fixture",
+      "consumer_class": "self-authored test fixture; no external consumer",
+      "downstream_stages_proven": false
+    },
+    {
+      "test": "each_package_body_still_checked",
+      "path": "compiler/tests/b4_parse.rs",
+      "lines": [
+        104,
+        104
+      ],
+      "stage": "parse_source; for *_body_still_checked, parse + resolve + types + unresolved-name emission",
+      "oracle": "self-authored expected diagnostics/tree/consumer output",
+      "input": "synthetic inline fixture",
+      "consumer_class": "test of a downstream repository consumer",
+      "downstream_stages_proven": true
+    },
+    {
+      "test": "desc_delimits_default_bounds_label",
+      "path": "compiler/tests/b4_parse.rs",
+      "lines": [
+        378,
+        378
+      ],
+      "stage": "parse_source; for *_body_still_checked, parse + resolve + types + unresolved-name emission",
+      "oracle": "self-authored expected diagnostics/tree/consumer output",
+      "input": "synthetic inline fixture",
+      "consumer_class": "self-authored test fixture; no external consumer",
+      "downstream_stages_proven": false
+    },
+    {
+      "test": "desc_hash_plus_compact_rejected",
+      "path": "compiler/tests/b4_parse.rs",
+      "lines": [
+        412,
+        412
+      ],
+      "stage": "parse_source; for *_body_still_checked, parse + resolve + types + unresolved-name emission",
+      "oracle": "self-authored expected diagnostics/tree/consumer output",
+      "input": "synthetic inline fixture",
+      "consumer_class": "self-authored test fixture; no external consumer",
+      "downstream_stages_proven": false
+    },
+    {
+      "test": "desc_dynamic_rejected",
+      "path": "compiler/tests/b4_parse.rs",
+      "lines": [
+        482,
+        482
+      ],
+      "stage": "parse_source; for *_body_still_checked, parse + resolve + types + unresolved-name emission",
+      "oracle": "self-authored expected diagnostics/tree/consumer output",
+      "input": "synthetic inline fixture",
+      "consumer_class": "self-authored test fixture; no external consumer",
+      "downstream_stages_proven": false
+    },
+    {
+      "test": "desc_record_query_rejected",
+      "path": "compiler/tests/b4_parse.rs",
+      "lines": [
+        514,
+        514
+      ],
+      "stage": "parse_source; for *_body_still_checked, parse + resolve + types + unresolved-name emission",
+      "oracle": "self-authored expected diagnostics/tree/consumer output",
+      "input": "synthetic inline fixture",
+      "consumer_class": "self-authored test fixture; no external consumer",
+      "downstream_stages_proven": false
+    },
+    {
+      "test": "golden_corpus_parses_clean",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        83,
+        83
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored acceptance predicate over real corpus files; expected diagnostics pinned for known defects",
+      "input": "repository examples/ and draft/ .can files",
+      "downstream_stages_proven": false,
+      "consumer_class": "repository corpus input (real source files)"
+    },
+    {
+      "test": "longest_match_punctuation",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        155,
+        155
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "single_char_punctuation",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        184,
+        184
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "numeric_kinds",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        216,
+        216
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "invalid_numeric_units",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        238,
+        238
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "json_strings_decode",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        257,
+        257
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "strings_cannot_span_lines",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        283,
+        283
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "desc_and_comment_markers",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        291,
+        291
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "at_suffix_and_route_slashes",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        308,
+        308
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "lexer_error_codes_and_spans",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        336,
+        336
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "lex_fragment_offsets",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        367,
+        367
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "brackets_join_physical_lines",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        388,
+        388
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "unbalanced_delimiters",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        408,
+        408
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "one_space_indent_nests",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        418,
+        418
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "bad_indentation",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        430,
+        430
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "blank_and_comment_lines_emit_nothing",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        441,
+        441
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "description_attaches_at_same_column",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        451,
+        451
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "description_reference_and_suffix_attach",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        462,
+        462
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "description_codes",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        470,
+        470
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "misplaced_and_invalid_suffix",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        501,
+        501
+      ],
+      "stage": "layout",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "file_structure",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        514,
+        514
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "given_declarations",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        533,
+        533
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "types_and_labels",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        561,
+        561
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "when_execution",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        588,
+        588
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "crud_and_examples",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        617,
+        617
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "examples_sequence",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        627,
+        627
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "presentation",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        637,
+        637
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "expressions_and_queries",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        669,
+        669
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "migration_directives",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        696,
+        696
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "semicolon_leaves",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        713,
+        713
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "parser_error_codes_and_spans",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        726,
+        726
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "lexer_errors_preserve_bytes_as_bad_tokens",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        911,
+        911
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "suite_structure_failures_keep_partial_nodes",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        924,
+        924
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "invalid_app_header_layout_wraps_identity_and_preserves_body",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        945,
+        945
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "multiple_errors_recover_per_declaration",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        965,
+        965
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "cst_invariants",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        984,
+        984
+      ],
+      "stage": "cst",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "malformed_unicode_escapes_are_diagnostics",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1014,
+        1014
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "desc_inside_delimiter_runs_decodes_without_panic",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1054,
+        1054
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "app_uses_attribute_selects_composed",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1075,
+        1075
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "failed_attempts_emit_no_duplicate_diagnostics",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1092,
+        1092
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "trusted_handlers_reject_sequence_examples",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1106,
+        1106
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "nesting_budgets_diagnose_instead_of_crashing",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1119,
+        1119
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "invalid_shapes_rejected",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1194,
+        1194
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "oracle_deviations_parse_per_grammar",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1233,
+        1233
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "do_colon_recovery",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1249,
+        1249
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "mapper_rejects_examples_line",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1298,
+        1298
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "corpus_given_leaf",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1311,
+        1311
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "judgment_compound",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1356,
+        1356
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "invocation_type_and_constructor",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1436,
+        1436
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "gallery_collection",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1458,
+        1458
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "slot_and_preferences_panel",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1480,
+        1480
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "edit_group_and_bare_card",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1513,
+        1513
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "catalog_items_shape",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1549,
+        1549
+      ],
+      "stage": "parser+lexer+layout+CST via parse_source",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    },
+    {
+      "test": "c01_invalid_string_payloads_keep_source_diagnostics",
+      "path": "compiler/tests/syntax.rs",
+      "lines": [
+        1615,
+        1615
+      ],
+      "stage": "lexer",
+      "oracle": "self-authored expected tokens/tree/diagnostics/coverage",
+      "input": "synthetic inline fixture",
+      "downstream_stages_proven": false,
+      "consumer_class": "self-authored test fixture; no external consumer"
+    }
+  ],
+  "corpus": {
+    "test": "golden_corpus_parses_clean",
+    "root_paths": [
+      "examples",
+      "draft"
+    ],
+    "file_count": 54,
+    "manifest_sha256": "cf9810d97ebc60bacfc4448cb9d3637e4616a9e8da7767d8e0a4478c47cab0ae",
+    "files": [
+      {
+        "path": "examples/ExpenseFlow.can",
+        "sha256": "f5dc2988336e9368445f92cb9ba11d4517b23de07226f504bd6dfb707f19b98b"
+      },
+      {
+        "path": "examples/TeamTasks.can",
+        "sha256": "78020054ba06d0282047d4c400487ea1da070e7ebdb624637f0ff1802683f3d0"
+      },
+      {
+        "path": "draft/CanAffiliate.can",
+        "sha256": "faa275fa9870e055391e14099458bc30f8193be6ab95ce798897983a3ac6936c"
+      },
+      {
+        "path": "draft/CanApprove.can",
+        "sha256": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981"
+      },
+      {
+        "path": "draft/CanBoard.can",
+        "sha256": "8543ef7f369204a1bfcd4c3f4cef3076979d5505238699fea651339a7b0d4f25"
+      },
+      {
+        "path": "draft/CanBook.can",
+        "sha256": "ad7f51eef69d5f48dc862142c38d4796ead0e3f383270b2288f0210c92d36029"
+      },
+      {
+        "path": "draft/CanCRM.can",
+        "sha256": "a057251d367686c7b58be3892bcebe0c8765a04db04305272a396767cbd53a0a"
+      },
+      {
+        "path": "draft/CanCatch.can",
+        "sha256": "2b1ba7bb44e5e0da8cc87580851b84f3e81c5f566b97762e545e00e0b78a1467"
+      },
+      {
+        "path": "draft/CanChat.can",
+        "sha256": "a507e133cd29022b873f50ae6b856a34bd8caf3abac28c691bde56ad103de2f1"
+      },
+      {
+        "path": "draft/CanCheck.can",
+        "sha256": "6551ecf90dbadecff18e888d6ffb23dc9e20bb32d5dff50eced0b387bb29a663"
+      },
+      {
+        "path": "draft/CanContract.can",
+        "sha256": "a952eb4c5b3a3e18d6d5ea0e2db73e62066ece04adc3592accd9dc791f6a719c"
+      },
+      {
+        "path": "draft/CanCreative.can",
+        "sha256": "a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52"
+      },
+      {
+        "path": "draft/CanCustomer.can",
+        "sha256": "6ad2631ef725d61f389dfad873df27fa4c28a67fea02662ca313c0b2ccc7d9d1"
+      },
+      {
+        "path": "draft/CanDecide.can",
+        "sha256": "15a7e021e3400e6cb48620efcb48fb7dacda978c0b39d06a77c7a74a8ad89b15"
+      },
+      {
+        "path": "draft/CanDesk.can",
+        "sha256": "6a24957d8f85a11ab30bde21b030519f6ff40c1f8191e0ccf5a44a350e865cf0"
+      },
+      {
+        "path": "draft/CanDiscover.can",
+        "sha256": "99e2c4b84554bc7da82eca1f6b1d62443a752fac43772104de0ffed4a9ad54d6"
+      },
+      {
+        "path": "draft/CanDo.can",
+        "sha256": "15761cc422c6d11827a6f13aa3cc3318a8bb393ef2110169f1a02ff046e4ec35"
+      },
+      {
+        "path": "draft/CanEnrich.can",
+        "sha256": "81c2917899e84754c49e398be97f32da8a72dd045ab8767ad0bcab213156fe9a"
+      },
+      {
+        "path": "draft/CanEvent.can",
+        "sha256": "1815b81afd22614cab410faa973c89d040ed8fe2a4e135ae7431db6abae6151b"
+      },
+      {
+        "path": "draft/CanExpense.can",
+        "sha256": "6fa07ded3b52d97eb0e3c73bb5c0bcb64c9bece7b5167155de37cf0622ee2aa9"
+      },
+      {
+        "path": "draft/CanFeedback.can",
+        "sha256": "2328f6463eb5ae5cd8ff4b0dc903c6a008c9c0e08cdf5ac1d1f95a93cd7d7b65"
+      },
+      {
+        "path": "draft/CanField.can",
+        "sha256": "dbcf20e445eddc4477152cd4288ccb3875e0f4d62cbc66a209aaed8626013482"
+      },
+      {
+        "path": "draft/CanGallery.can",
+        "sha256": "a5eedb40bbe9b3efab41fd3576058a6b100b5b3f151f2b1a3410897798023083"
+      },
+      {
+        "path": "draft/CanGrant.can",
+        "sha256": "3d3e1f86aa1bad27927cf05932e67b4ee40b4baa3b613459334327399941f4c2"
+      },
+      {
+        "path": "draft/CanHire.can",
+        "sha256": "37c5a6255fc04dfc8ebd33355a9e1fb4252c3c2356753456852ef1e890d9f877"
+      },
+      {
+        "path": "draft/CanInbox.can",
+        "sha256": "1f1b42f9527cdeacccd9f033d68331c1359b975f67ec8d480242f45ba2992c39"
+      },
+      {
+        "path": "draft/CanInvoice.can",
+        "sha256": "a79c22bd8797f5a9463933b218c210bff539e0408dbab4dafc1d4640f2e6de14"
+      },
+      {
+        "path": "draft/CanKnowledge.can",
+        "sha256": "ce08ee68b969820747157d5412675f8179e7b0424c4087b886885aef2f78871d"
+      },
+      {
+        "path": "draft/CanLearn.can",
+        "sha256": "8880fe150887da7797f239a01e0d835ea379f32060d5663476ccbe61b93dacdf"
+      },
+      {
+        "path": "draft/CanLeave.can",
+        "sha256": "5965a2ff4a1e5294b4a3aac97ab99fb62f48be3c92bb2059a60e24cc47d09dca"
+      },
+      {
+        "path": "draft/CanLoyalty.can",
+        "sha256": "15705d0052f4a7173b6b4477fd2131d2014286618ddd7732aa50e2740881e7e3"
+      },
+      {
+        "path": "draft/CanMail.can",
+        "sha256": "c780a1d702ea54575e08645595b3b356bb6039693dc42532ca73a0ef2a7909bb"
+      },
+      {
+        "path": "draft/CanMaintain.can",
+        "sha256": "1735b59a307e705e85642cd41f01d52dac0f8b421d2b60c838d02e1de414ae2b"
+      },
+      {
+        "path": "draft/CanMember.can",
+        "sha256": "8494c035fb36c268d138cbd77c145f4f13d7aa965b3c342941e5afe316389426"
+      },
+      {
+        "path": "draft/CanOnboard.can",
+        "sha256": "d6bfe20cc4e3fa47fcb92ed9329fe931a5df8bc443a5be608c22538878441a78"
+      },
+      {
+        "path": "draft/CanPropose.can",
+        "sha256": "50d1d835f2bcb622864e522013cff5c942dd8378aeee3d1d698e356ce4036b35"
+      },
+      {
+        "path": "draft/CanPurchase.can",
+        "sha256": "2f4b6beef27c4329f03b7b0903b23326c47be2b775857862bf197a2e16e5be99"
+      },
+      {
+        "path": "draft/CanReception.can",
+        "sha256": "c647d5430d82e16e40e95dfb364f80e2d11d3b2aee37b091a3aae369d2ccdf9c"
+      },
+      {
+        "path": "draft/CanRefer.can",
+        "sha256": "87a3fee1ba5c4c86c43fa29c9df2e8ef31926b37f43b39ed622e9625d321c196"
+      },
+      {
+        "path": "draft/CanRent.can",
+        "sha256": "38122784280f5bc9e32cd4b62e7b236eb3bf3f51121a75751cfb087b25960654"
+      },
+      {
+        "path": "draft/CanReport.can",
+        "sha256": "1f045a477832a2ec30dd7475fb7db70f837913fb3f4c7f7459732d57a9f3a779"
+      },
+      {
+        "path": "draft/CanShift.can",
+        "sha256": "2377c3229156d495a9d3c06bfcbc7eb527ad196001d61765445d9d52e0a40998"
+      },
+      {
+        "path": "draft/CanStats.can",
+        "sha256": "f618315a53963ff2efeaaef16167ee3af551e783a5f7d069491922b0ccae7581"
+      },
+      {
+        "path": "draft/CanStock.can",
+        "sha256": "378c331736d493a3bd25a729731e3c5b5358a2aab931e8286c18fd47260d49f2"
+      },
+      {
+        "path": "draft/CanSuccess.can",
+        "sha256": "f88453355369a4a098f865f1282fe969dc10ab3576cbcd60ed834e7a1618dd5f"
+      },
+      {
+        "path": "draft/CanSync.can",
+        "sha256": "250407a5684f9d8cbf9a87bcc12dcc56a238672cfeb68e5715a0923e7df87fc2"
+      },
+      {
+        "path": "draft/CanTable.can",
+        "sha256": "4291e10b8cdb6162de0df6fd4bc7a78b9c35fe6c00c0402b7361e1e99795c0ef"
+      },
+      {
+        "path": "draft/CanTime.can",
+        "sha256": "3ebf5b368b249faf59b7760bb877f13ad51d9b3faa77510ff1e2bccd33efdf52"
+      },
+      {
+        "path": "draft/CanTrade.can",
+        "sha256": "b58402d59a30f902492b425a27270dfca4872a8e24f6814e914e1a09d80ec3e2"
+      },
+      {
+        "path": "draft/CanVolunteer.can",
+        "sha256": "7ad2d4d3e862473da3841c5e2718340caa5e8b79467798848ee09023c3280b06"
+      },
+      {
+        "path": "draft/CanWorkbench.can",
+        "sha256": "c25965b58d7347a4fbdcc645494cac4056117ca6096e15a64ff656ef204288ba"
+      },
+      {
+        "path": "draft/shared/Employees.can",
+        "sha256": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4"
+      },
+      {
+        "path": "draft/shared/Locations.can",
+        "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a"
+      },
+      {
+        "path": "draft/shared/Suppliers.can",
+        "sha256": "828931c2fed61c24b269e5653c871f8576d7f798722da58635141645aaaa7878"
+      }
+    ],
+    "known_defects": [
+      {
+        "path_suffix": "draft/CanShift.can",
+        "expected_codes": [
+          "E1203",
+          "E1203"
+        ]
+      },
+      {
+        "path_suffix": "draft/CanVolunteer.can",
+        "expected_codes": [
+          "E1203",
+          "E1203"
+        ]
+      }
+    ]
+  },
+  "source_pins": [
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "sha256": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6",
+      "lines": [
+        1,
+        456
+      ]
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "sha256": "3f8cda7a4ba1f18c98af49a6c78f518c89b699e7ccc92ea72679129e6d338a87",
+      "lines": [
+        1,
+        873
+      ]
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "sha256": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0",
+      "lines": [
+        1,
+        920
+      ]
+    },
+    {
+      "path": "compiler/src/syntax/mod.rs",
+      "sha256": "2a1517f81512614a7761082b3b03700023f51e6444175f69c8d865dca318b04d",
+      "lines": [
+        1,
+        103
+      ]
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "sha256": "1b70f50c11b20fa23ab7f938d872f02b373b89129c2af3235b47ba0c5f0febf1",
+      "lines": [
+        1,
+        6423
+      ]
+    },
+    {
+      "path": "compiler/tests/authoring.rs",
+      "sha256": "d579e6820e83511f8335962c8b6a55337e51e2d5c1c4c6cbaeb48796ddca74d1",
+      "lines": [
+        1,
+        911
+      ]
+    },
+    {
+      "path": "compiler/tests/b4_parse.rs",
+      "sha256": "9b19ad9bb2a3caa57eaf018212b5387c57aadc4836a0a40573938123ecc0a348",
+      "lines": [
+        1,
+        542
+      ]
+    },
+    {
+      "path": "compiler/tests/syntax.rs",
+      "sha256": "b0976f8de37a466c7d78479fa94b6b1b1f1a19c0b62a49c2bac949647c51ff22",
+      "lines": [
+        1,
+        1644
+      ]
+    },
+    {
+      "path": "docs/specification/GRAMMAR.md",
+      "sha256": "ace09efbe7df6326fb3fa35090b76befeb8d554dab3e3a3123b7ddf285590c36",
+      "lines": [
+        1,
+        503
+      ]
+    }
+  ]
+}

@@ -24,6 +24,8 @@ The proposed [compiler correctness, ownership and simplicity audit](compiler-cor
 
 [Audit Step 6 is executed](responsibility-map/integrations.md): all seven direct dependencies are traced through 22 engine/consumer-family closures, with 15 retain, six defer and one bounded simplify result. Exact source ranges, shared/recursive callers, public orphan helpers, typed versus compatibility models, roundtrips, fallback policies and private implementation assumptions are independently reviewed. Conditional retirement targets include all replacement/support code; no source reduction is credited. Published count replay confirms current production 69,255 versus original 69,119 (+136); full semantic, upgrade/cost and product qualification remain open.
 
+[Audit Step 7 is executed](responsibility-map/syntax.md): 186 full grammar productions, 119 CST kinds and 27 stage families are mapped in the same ledger. Fresh native evidence has 345 selected harness passes, 50 public stage probes, 54 corpus replays and 16 CLI calls. Independent review confirms residual effects/source-metadata recovery bugs, silent tab/order/corpus loss and separate delimiter/support gates. Six actual emitted-string/testkit witnesses pass; whole syntax branch execution, application/product/other-host acceptance and the eight proposed repair packets remain open. No production or policy change occurs.
+
 | Pass | Declared outcome / reference |
 | --- | --- |
 |0 |[Released contracts and witnesses](pass0/README.md) |

@@ -1,0 +1,346 @@
+{
+  "schema": 1,
+  "auditor": "Luna independent mechanical validation",
+  "scope": "Final mechanical refresh of Step7 syntax inventory/forms/recovery and integrated receipt facts. No Cargo, semantic judgment, production edit, Git operation, or shared-ledger edit.",
+  "basis": {
+    "task_start_head": "f3dd798c866916b526b72e0a53c1ddf257748587",
+    "compiler_source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+    "step1_collection": "docs/research/compiler-library-audit-20261006/baseline-verification/compiler-inventory.jsonl",
+    "syntax_inputs": "inputs.json",
+    "grammar": "docs/specification/GRAMMAR.md",
+    "integrated_observed_head": "fecf84196e38679646d221ee18aa4383ed0d0e83",
+    "coverage_ledger_sha256": "5b359a9f4d44ce0bcdc008cf7fbe7597977bef3f51348c7f005c6ca78d925af5",
+    "inventory_sha256": "3c9f062074600c2fb11f6c8d586fcb764b818b67e5553c4154ba3dc7392601f8",
+    "forms_inventory_sha256": "3c9f062074600c2fb11f6c8d586fcb764b818b67e5553c4154ba3dc7392601f8"
+  },
+  "results": {
+    "pass": 13,
+    "findings": 0,
+    "checks": [
+      {
+        "name": "inventory source SHA256 pins and ranges",
+        "result": "pass",
+        "observed": {
+          "count": 9,
+          "issues": []
+        }
+      },
+      {
+        "name": "complete EBNF production replay",
+        "result": "pass",
+        "observed": {
+          "inventory": 186,
+          "replayed": 186,
+          "multiline_count": 17,
+          "mismatches": []
+        }
+      },
+      {
+        "name": "forms production assignments",
+        "result": "pass",
+        "observed": {
+          "mapped": 186,
+          "expected": 186,
+          "unassigned": [],
+          "extra": [],
+          "duplicates": {},
+          "rhs_alternatives_preserved_in_production_text": true
+        }
+      },
+      {
+        "name": "forms SyntaxKind family assignments",
+        "result": "pass",
+        "observed": {
+          "mapped_occurrences": 121,
+          "unique_kinds": 119,
+          "expected": 119,
+          "unassigned": [],
+          "extra": [],
+          "explicit_shared_family_kinds": {
+            "Description": 2,
+            "Call": 2
+          },
+          "families": {
+            "LEX": [
+              "Description"
+            ],
+            "METADATA": [
+              "Description"
+            ],
+            "EXPR": [
+              "Call"
+            ],
+            "STATEMENTS": [
+              "Call"
+            ]
+          }
+        }
+      },
+      {
+        "name": "SyntaxKind exact variants",
+        "result": "pass",
+        "observed": {
+          "inventory": 119,
+          "source": 119,
+          "missing": [],
+          "extra": []
+        }
+      },
+      {
+        "name": "NodeDetail exact variants",
+        "result": "pass",
+        "observed": {
+          "inventory": 4,
+          "source": 4,
+          "missing": [],
+          "extra": []
+        }
+      },
+      {
+        "name": "forms finite catalog count",
+        "result": "pass",
+        "observed": {
+          "words": 68,
+          "unique": 68
+        }
+      },
+      {
+        "name": "finite enumeration limits stated",
+        "result": "pass",
+        "observed": {
+          "unassigned_productions": 0,
+          "unassigned_kinds": 0,
+          "explicit_limit": "Finite productions/kinds/catalog words; not every cross-product of attributes, expressions, contextual parents, semantic values or runtime branches.",
+          "boundary_count": 4
+        }
+      },
+      {
+        "name": "current Step7 source/input pins",
+        "result": "pass",
+        "observed": {
+          "pin_count": 119,
+          "bad": []
+        }
+      },
+      {
+        "name": "current 107 compiler input pins match Step1 collection manifest",
+        "result": "pass",
+        "observed": {
+          "current_input_compiler_count": 107,
+          "manifest_count": 107,
+          "missing": [],
+          "extra": [],
+          "manifest_sha256_matches_step1": true,
+          "Step1_files": 107
+        }
+      },
+      {
+        "name": "54 corpus input hashes and manifest",
+        "result": "pass",
+        "observed": {
+          "recorded": 54,
+          "current": 54,
+          "manifest_sha256": "cf9810d97ebc60bacfc4448cb9d3637e4616a9e8da7767d8e0a4478c47cab0ae"
+        }
+      },
+      {
+        "name": "recovery 258 return lines",
+        "result": "pass",
+        "observed": {
+          "record_count": 258,
+          "raw_keyword_lines": 261,
+          "excluded_noncode_lines": [
+            [
+              "compiler/src/syntax/lexer.rs",
+              232,
+              "\"bare carriage return is not a line ending\".to_string(),"
+            ],
+            [
+              "compiler/src/syntax/parser.rs",
+              751,
+              "/// Parse an app header plus following siblings; return next index."
+            ],
+            [
+              "compiler/src/syntax/parser.rs",
+              5240,
+              "\"cancel\" | \"return\" => {"
+            ]
+          ],
+          "stale_entries": [],
+          "definition": "All executable lines containing return keyword after quoted literal text is excluded in the four assigned syntax files; symbol is nearest fn declaration (includes local fn). Implicit ?, Err expressions and loop continue handled by phase/transaction descriptions, not misrepresented as keyword inventory. Test bodies included where return occurs."
+        }
+      },
+      {
+        "name": "local Markdown links",
+        "result": "pass",
+        "observed": {
+          "local_targets_checked": 6,
+          "broken": []
+        }
+      }
+    ],
+    "final_delta_pass": 11,
+    "final_delta_findings": 0
+  },
+  "interpretation": [
+    "The finite forms matrix covers each LHS name exactly once; the complete production RHS text now includes every line and alternative. This does not prove every alternative has an independent test witness.",
+    "The two duplicate family assignments are explicit reuse: Description appears in LEX and METADATA; Call appears in EXPR and STATEMENTS. No SyntaxKind is unassigned.",
+    "The source return inventory has 258 entries. Naive whole-line keyword counting gives 261; the three non-executable occurrences are one diagnostic string containing “return carriage” wording, one doc comment, and one grammar-word string literal. This aligns with the recorded quoted-literal exclusion and explains earlier 260 count as one comment excluded but both string occurrences retained.",
+    "The 54 corpus SHA pins match a current sorted examples/ and draft/ walk; the 107 compiler source pins match Step1 compiler-inventory.jsonl and its Step1 ledger digest. These are integrity checks, not semantic evidence."
+  ],
+  "limitations": [
+    "No Cargo commands run.",
+    "Local Markdown targets were checked for path existence only, not fragment-anchor validity.",
+    "Family-name partitions do not validate Semantic judgments or exhaustive source-form cross-products; explicit limits in forms.json remain applicable.",
+    "Recovery line checking verifies the recorded lines and excluded lexical occurrences; it does not claim an AST-derived Rust control-flow proof."
+  ],
+  "final_delta_checks": [
+    {
+      "name": "integrated 27-family forms join and 8 ledger findings",
+      "result": "pass",
+      "observed": {
+        "families": 27,
+        "forms": 27,
+        "findings": 8,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "final finite form counts",
+      "result": "pass",
+      "observed": {
+        "productions": 186,
+        "kinds": 119,
+        "node_details": 4,
+        "custom_keys": 21,
+        "header_rules": 75
+      }
+    },
+    {
+      "name": "forms derived inventory hash",
+      "result": "pass",
+      "observed": {
+        "inventory_sha256": "3c9f062074600c2fb11f6c8d586fcb764b818b67e5553c4154ba3dc7392601f8",
+        "forms_sha256": "3c9f062074600c2fb11f6c8d586fcb764b818b67e5553c4154ba3dc7392601f8"
+      }
+    },
+    {
+      "name": "integrated all-source pin/range counts",
+      "result": "pass",
+      "observed": {
+        "pin_references": 806,
+        "anchor_bounds": 1253,
+        "errors": []
+      }
+    },
+    {
+      "name": "current 119/107 input pins",
+      "result": "pass",
+      "observed": {
+        "count": 119,
+        "bad_after_historical_prefix_rule": [],
+        "compiler_count": 107,
+        "Step1_manifest_count": 107,
+        "compiler_paths_and_hashes_match": true,
+        "historical_prefix_path": "docs/specification/DECISIONS.md"
+      }
+    },
+    {
+      "name": "forms 30 and corpus 54 source pins",
+      "result": "pass",
+      "observed": {
+        "forms": 30,
+        "forms_bad": [],
+        "corpus_current": 54,
+        "corpus_match": true
+      }
+    },
+    {
+      "name": "historical Decisions prefix and initial task status",
+      "result": "pass",
+      "observed": {
+        "prefix_bytes": 239376,
+        "prefix_match": true,
+        "initial_git_status": "",
+        "provenance": "Initial read-only git status was empty; dirty_at_collection includes audit files already being authored, not pre-existing compiler/package edits."
+      }
+    },
+    {
+      "name": "integrated ledger hash and 118 local links",
+      "result": "pass",
+      "observed": {
+        "ledger_sha256": "5b359a9f4d44ce0bcdc008cf7fbe7597977bef3f51348c7f005c6ca78d925af5",
+        "recorded_links": 118,
+        "checked_links": 118,
+        "broken": []
+      }
+    },
+    {
+      "name": "raw stream hashes and 16 CLI calls",
+      "result": "pass",
+      "observed": {
+        "commands": 74,
+        "CLI calls": 16,
+        "bad_streams": []
+      }
+    },
+    {
+      "name": "outcome arithmetic",
+      "result": "pass",
+      "observed": {
+        "initial": [
+          94,
+          81,
+          13,
+          8
+        ],
+        "later": [
+          76,
+          69,
+          7
+        ],
+        "failed_cases": [
+          "valid-policy-malformed-sibling",
+          "source-fr-fr-malformed",
+          "source-fr-en-malformed",
+          "tabs-caption-children",
+          "tabs-caption-children",
+          "preference-order",
+          "corpus-unresolved-owners"
+        ]
+      }
+    },
+    {
+      "name": "recovery return count correction retained",
+      "result": "pass",
+      "observed": {
+        "recorded": 258,
+        "raw": 261,
+        "excluded_noncode": [
+          [
+            "compiler/src/syntax/lexer.rs",
+            232,
+            "\"bare carriage return is not a line ending\".to_string(),"
+          ],
+          [
+            "compiler/src/syntax/parser.rs",
+            751,
+            "/// Parse an app header plus following siblings; return next index."
+          ],
+          [
+            "compiler/src/syntax/parser.rs",
+            5240,
+            "\"cancel\" | \"return\" => {"
+          ]
+        ]
+      }
+    }
+  ],
+  "preserved_correction": "The recorded executable return inventory is 258. A raw whole-line keyword scan returns 261 rows: two quoted-string occurrences and one doc-comment occurrence are excluded. This is a textual inventory check, not AST/control-flow evidence.",
+  "final_limits": [
+    "Full EBNF RHS text/ranges and forms family joins were replayed mechanically; this does not establish every alternative has an independent witness.",
+    "Seven later outcome mismatches remain listed by the saved receipt; no semantic adjudication is made here.",
+    "Markdown link checks verify local target file existence, not fragment anchors.",
+    "No Cargo commands run."
+  ]
+}

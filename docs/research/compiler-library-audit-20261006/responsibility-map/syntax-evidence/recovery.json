@@ -1,0 +1,3338 @@
+{
+  "schema": 1,
+  "scope": "Step7 syntax recovery and public caller gates; planning only",
+  "snapshot_commit": "f3dd798c866916b526b72e0a53c1ddf257748587",
+  "source_pins": [
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "sha256": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "sha256": "3f8cda7a4ba1f18c98af49a6c78f518c89b699e7ccc92ea72679129e6d338a87"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "sha256": "1b70f50c11b20fa23ab7f938d872f02b373b89129c2af3235b47ba0c5f0febf1"
+    },
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "sha256": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6"
+    },
+    {
+      "path": "compiler/src/syntax/mod.rs",
+      "sha256": "2a1517f81512614a7761082b3b03700023f51e6444175f69c8d865dca318b04d"
+    },
+    {
+      "path": "compiler/src/analysis/mod.rs",
+      "sha256": "4debfe707daf81d33d5f67e10b3a0da3d1f0bd0e465c62204ae8ace19fef99ec"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "sha256": "11a20d031e8c038ee9ba70fb5a55c6d5d6eafe508910e76f9bc9bdeae712c63d"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "sha256": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "sha256": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "sha256": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5"
+    },
+    {
+      "path": "compiler/src/analysis/check.rs",
+      "sha256": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "sha256": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679"
+    },
+    {
+      "path": "compiler/src/ide/queries.rs",
+      "sha256": "070e6a13702a5da87bd1da5b1ec92ee27361d682cf31849c37502076556215d8"
+    },
+    {
+      "path": "compiler/tests/syntax.rs",
+      "sha256": "b0976f8de37a466c7d78479fa94b6b1b1f1a19c0b62a49c2bac949647c51ff22"
+    },
+    {
+      "path": "compiler/tests/analysis.rs",
+      "sha256": "69d974c2b7945fc15c209d5346c8e883ef81fe2954e8fa4d6e71331472ef2453"
+    },
+    {
+      "path": "compiler/tests/effects.rs",
+      "sha256": "017ffa89d034d034b74cf03facafc7a912f82e235d436cbfcffffb0117ad60d8"
+    },
+    {
+      "path": "compiler/tests/lsp_typed_output.rs",
+      "sha256": "90e1f426e136fac00e8acda84be017a94e9541f6caed8eabbb83e484da7b2116"
+    },
+    {
+      "path": "docs/specification/GRAMMAR.md",
+      "sha256": "ace09efbe7df6326fb3fa35090b76befeb8d554dab3e3a3123b7ddf285590c36"
+    }
+  ],
+  "contract": "A malformed declaration must not hide independent diagnostics in valid siblings; suppress local dependent cascades. Parser admission, check_program best effort, and compile refusal are distinct.",
+  "landed_fixes": [
+    {
+      "commit": "4ecd991a80ca025b6d5899ffdcea96075c60c25e",
+      "summary": "Removed whole-subtree Resolver::index_module gate; malformed owner identity wrapped in Error, preventing false ownership.",
+      "current_symbols": [
+        {
+          "path": "compiler/src/analysis/resolve.rs",
+          "symbol": "Resolver::index_module",
+          "lines": [
+            647,
+            760
+          ]
+        },
+        {
+          "path": "compiler/src/syntax/parser.rs",
+          "symbol": "Parser::parse_app",
+          "lines": [
+            752,
+            855
+          ]
+        }
+      ],
+      "witnesses": [
+        "compiler/tests/analysis.rs:154-236",
+        "compiler/tests/syntax.rs:942-962",
+        "compiler/tests/lsp_typed_output.rs:266-310"
+      ],
+      "classification": "supported invariant; do not rediscover removed resolver gate as current bug"
+    },
+    {
+      "commit": "e835db88",
+      "summary": "Shared decoded strings across analysis callers; invalid strings retain no payload and valid siblings remain checked.",
+      "witnesses": [
+        "compiler/tests/syntax.rs:1615-1653",
+        "compiler/tests/analysis.rs:1809-1890"
+      ],
+      "classification": "supported invariant"
+    }
+  ],
+  "findings": [
+    {
+      "id": "effects-module-recovery",
+      "classification": "demonstrated bug",
+      "symbols": [
+        "compiler/src/analysis/effects.rs:Cx::walk_message_prepass:1079-1108",
+        "compiler/src/analysis/effects.rs:Cx::walk_module:1136-1151",
+        "compiler/src/analysis/effects.rs:has_error:4240-4243",
+        "compiler/src/analysis/effects.rs:Cx::check_app_policies:4024-4048"
+      ],
+      "impact": "Fresh public CatalogAnalyzer controls show E4011 at valid secret-return sibling drops after malformed policy, despite preserved module/scenario CST. Effect module/scenario records also disappear. E4004 survives via check_app_policies iterating resolver symbols independently; do not claim all E4 findings disappear. Additional executed clean valid-policy control becomes E1200 [22,22) plus false E4004 Config [24,30) after an unrelated malformed policy. Valid Policy and Model CST survive, but module/model effect records are empty; finish interprets absent effect policy data as absence of authored policy.",
+      "evidence": [
+        "case-control-secret-return.stdout",
+        "case-malformed-secret-return.stdout",
+        "case-control-app-policy.stdout",
+        "case-malformed-app-policy.stdout",
+        "extra-valid-policy-control.stdout",
+        "extra-valid-policy-malformed-sibling.stdout",
+        "cli-check-valid-policy-malformed-sibling.stdout",
+        "cli-compile-valid-policy-malformed-sibling.stdout"
+      ]
+    },
+    {
+      "id": "effects-file-recovery",
+      "classification": "demonstrated bug",
+      "symbols": [
+        "compiler/src/analysis/effects.rs:Cx::walk_calls_and_descriptions:3860-3866",
+        "compiler/src/analysis/effects.rs:Cx::walk_tree_calls:3868-3871"
+      ],
+      "impact": "Fresh public CatalogAnalyzer E4020 control drops after malformed policy in same module and after malformed policy in another module in same source. Crossmodule effects still record valid scenario, isolating root-wide position-independent walk from module-level gate.",
+      "evidence": [
+        "case-control-actor-subject.stdout",
+        "case-malformed-actor-subject.stdout",
+        "case-cross-module-actor.stdout"
+      ]
+    },
+    {
+      "id": "module-source-collection",
+      "classification": "demonstrated bug",
+      "symbols": [
+        "compiler/src/analysis/types.rs:Typer::collect_module_sources:4899-4920",
+        "compiler/src/analysis/types.rs:Typer::module_source_tag:4562-4567",
+        "compiler/src/analysis/types.rs:Typer::check_message_value:4351-4461 (source-tag lookup 4378; duplicate check 4418-4424)"
+      ],
+      "impact": "Unrelated malformed policy causes recursive owner gate to omit valid source=\"fr\" metadata. module_source_tag defaults to en, so check_message_value loses real E3016 duplicate fr (control [51,53), shifted malformed fr [59,61) absent), and invents false E3016 duplicate en [59,61) for a valid en translation (clean control). E1200 [34,34) remains; full CST coverage and valid Message admission hold in all cases. Production CLI check and compile reproduce both diagnostic differences.",
+      "evidence": [
+        "extra-source-fr-fr-control.stdout",
+        "extra-source-fr-fr-malformed.stdout",
+        "extra-source-fr-en-control.stdout",
+        "extra-source-fr-en-malformed.stdout",
+        "cli-check-source-fr-fr-malformed.stdout",
+        "cli-compile-source-fr-fr-malformed.stdout",
+        "cli-check-source-fr-en-malformed.stdout",
+        "cli-compile-source-fr-en-malformed.stdout"
+      ]
+    },
+    {
+      "id": "unclosed-delimiter-synchronization",
+      "classification": "demonstrated admission limit; synchronization policy boundary",
+      "symbols": [
+        "compiler/src/syntax/layout.rs:layout:99-188"
+      ],
+      "impact": "Open delimiter joins all following physical code lines until close or EOF; independent-looking declaration/section lines are never handed to parser as siblings. Existing grammar says newline ends only at depth zero; no unrequested synchronization policy selected.",
+      "evidence": [
+        "case-sibling-open-schema.stdout",
+        "case-eof-unclosed-string.stdout"
+      ]
+    },
+    {
+      "id": "public-decoder-admission",
+      "classification": "source-only risk / helper precondition boundary",
+      "symbols": [
+        "compiler/src/syntax/lexer.rs:decode_json_string:692-702"
+      ],
+      "impact": "Public helper assumes quoted nonempty raw string via debug_assert and len-1; malformed raw helper argument may panic (empty input). Production lexer only calls it after matching quotes; source text escape recovery already has witnesses."
+    },
+    {
+      "id": "cst-has-errors-semantics",
+      "classification": "supported API distinction",
+      "symbols": [
+        "compiler/src/syntax/cst.rs:SyntaxNode::has_errors:313-315"
+      ],
+      "impact": "Checks Error nodes only, unlike semantic has_error including BadToken; invalid String payload E1006 also need not create Error. Consumers must gate compilation on diagnostics, as CLI does."
+    }
+  ],
+  "pipeline": [
+    {
+      "path": "compiler/src/syntax/mod.rs",
+      "symbol": "parse_source",
+      "lines": [
+        77,
+        99
+      ],
+      "behavior": "lex/layout/parse all execute; concatenate and sort diagnostics; debug coverage assertion"
+    },
+    {
+      "path": "compiler/src/analysis/mod.rs",
+      "symbol": "check_program",
+      "lines": [
+        108,
+        160
+      ],
+      "behavior": "No global errors gate: parses all files, executes resolve/types/emit_unresolved/effects/examples then dedup/sort"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "symbol": "CatalogAnalyzer::analyze_owned",
+      "lines": [
+        174,
+        210
+      ],
+      "behavior": "Loads catalog and always check_program; complete means passes available, not errors absent"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "lines": [
+        727,
+        766
+      ],
+      "behavior": "Compile file read failures E7002 early return; after all analysis errors emit diagnostics and refuse codegen; emission errors refuse artifact"
+    },
+    {
+      "path": "compiler/src/ide/queries.rs",
+      "symbol": "Snapshot::analyze",
+      "lines": [
+        225,
+        240
+      ],
+      "behavior": "Retains parse tree, check_program diagnostics/program, separately resolved tables without syntax error global return"
+    }
+  ],
+  "lexical_and_layout_invariants": [
+    {
+      "classification": "supported invariant",
+      "symbols": [
+        "lexer.rs:lex_bytes:195-208",
+        "lexer.rs:lex_code_tokens:416-422",
+        "lexer.rs:lex_punct_or_error:666-675"
+      ],
+      "behavior": "Input API str valid UTF8; raw bytes lex_bytes rejects invalid UTF8 E1002 at valid_up_to one byte. Names ASCII A-Z a-z underscore then ASCII alnum/underscore; no Unicode normalization. Strings/prose Unicode scalar text allowed; unknown code scalar full byte span E1007."
+    },
+    {
+      "classification": "supported invariant",
+      "symbols": [
+        "lexer.rs:lex:213-266",
+        "lexer.rs:lex_line:270-342"
+      ],
+      "behavior": "LF and CRLF preserved as CST trivia; bare CR E1001, code error token prevents duplicate lex diagnostic. Space indentation, tabs E1003; tabs inside #/## prose allowed; tabs inside string rejected E1006."
+    },
+    {
+      "classification": "supported invariant",
+      "symbols": [
+        "lexer.rs:lex_string:447-504",
+        "lexer.rs:decode_json_string:692-812"
+      ],
+      "behavior": "JSON escapes quote backslash slash b f n r t and u four hex; paired high/low surrogates decode scalar, lone/malformed surrogate E1006; physical newline terminates invalid string. Invalid String retained, payload None, not fabricated empty string. Multibyte malformed escapes use checked get slices."
+    },
+    {
+      "classification": "supported invariant",
+      "symbols": [
+        "layout.rs:layout:99-289",
+        "layout.rs:attach_level:373-469",
+        "layout.rs:decode_description_set:473-562"
+      ],
+      "behavior": "Mismatched close E1101 pops one open level; EOF E1102 flush pending tokens. Blank/comments do not join. Descriptions attach same column, ineligible/inert E1126, dangling E1125 marker preserved. Malformed ref/suffix local return empty reference/None rather than abandoning file."
+    },
+    {
+      "classification": "supported invariant",
+      "symbols": [
+        "parser.rs:piece_eof:185-190",
+        "parser.rs:Builder:194-276",
+        "parser.rs:Parser::attempt:625-652",
+        "parser.rs:Parser::error_for_line:533-587",
+        "cst.rs:SyntaxNode::verify_coverage:319-347"
+      ],
+      "behavior": "Missing token uses zero-width piece EOF; transactional builder rewinds byte/comment cursors and diagnostics before raw recovery; iterative Error wrapping avoids recursive runaway; trivia/comments and Description leaves retain bytes exactly once."
+    }
+  ],
+  "return_inventory_definition": "All executable lines containing return keyword after quoted literal text is excluded in the four assigned syntax files; symbol is nearest fn declaration (includes local fn). Implicit ?, Err expressions and loop continue handled by phase/transaction descriptions, not misrepresented as keyword inventory. Test bodies included where return occurs.",
+  "syntax_explicit_returns": [
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 299,
+      "symbol": "lex_line",
+      "source": "return PhysLine {",
+      "scope": "one physical line/token; lex continues; lex_bytes invalid UTF8 uses Result admission rather than return keyword"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 311,
+      "symbol": "lex_line",
+      "source": "return PhysLine {",
+      "scope": "one physical line/token; lex continues; lex_bytes invalid UTF8 uses Result admission rather than return keyword"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 320,
+      "symbol": "lex_line",
+      "source": "return PhysLine {",
+      "scope": "one physical line/token; lex continues; lex_bytes invalid UTF8 uses Result admission rather than return keyword"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 491,
+      "symbol": "lex_string",
+      "source": "return j;",
+      "scope": "one physical line/token; lex continues; lex_bytes invalid UTF8 uses Result admission rather than return keyword"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 554,
+      "symbol": "lex_number",
+      "source": "return k;",
+      "scope": "one physical line/token; lex continues; lex_bytes invalid UTF8 uses Result admission rather than return keyword"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 567,
+      "symbol": "lex_number",
+      "source": "return j;",
+      "scope": "one physical line/token; lex continues; lex_bytes invalid UTF8 uses Result admission rather than return keyword"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 579,
+      "symbol": "lex_number",
+      "source": "return j;",
+      "scope": "one physical line/token; lex continues; lex_bytes invalid UTF8 uses Result admission rather than return keyword"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 633,
+      "symbol": "lex_punct_or_error",
+      "source": "return at + spell.len();",
+      "scope": "one physical line/token; lex continues; lex_bytes invalid UTF8 uses Result admission rather than return keyword"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 708,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(\"unescaped quote in string\".to_string(), i));",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 713,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(\"unfinished escape at end of string\".to_string(), i));",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 732,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 759,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 768,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 774,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 782,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 790,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 800,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(\"unescaped tab in string; use `\\\\t`\".to_string(), i));",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "line": 802,
+      "symbol": "decode_json_string",
+      "source": "return Err(fail(\"unescaped control character in string\".to_string(), i));",
+      "scope": "one string decode; lexer records E1006 and keeps String token without payload"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 504,
+      "symbol": "decode_description_set",
+      "source": "return decode_reference(file, text, &descs[0], diagnostics);",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 577,
+      "symbol": "decode_reference",
+      "source": "return DescriptionData::Reference { path: Vec::new() };",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 608,
+      "symbol": "decode_reference",
+      "source": "return DescriptionData::Reference { path: Vec::new() };",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 626,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 643,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 650,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 660,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 676,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 682,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 694,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 707,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 720,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 740,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "line": 748,
+      "symbol": "decode_suffix",
+      "source": "return None;",
+      "scope": "one description reference/suffix; layout stages continue"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 116,
+      "symbol": "at_legacy_annotation",
+      "source": "return false;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 281,
+      "symbol": "split_pieces",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 299,
+      "symbol": "split_pieces",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 313,
+      "symbol": "split_pieces",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 352,
+      "symbol": "check_semi_heads",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 399,
+      "symbol": "header_has_attr",
+      "source": "return true;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 536,
+      "symbol": "error_for_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1041,
+      "symbol": "parse_import_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1055,
+      "symbol": "parse_import_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1059,
+      "symbol": "parse_import_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1098,
+      "symbol": "parse_import",
+      "source": "return cursor.err(\"E1204\", \"an import must enumerate at least one member\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1146,
+      "symbol": "parse_context",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1164,
+      "symbol": "parse_context_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1170,
+      "symbol": "parse_context_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1184,
+      "symbol": "parse_context_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1188,
+      "symbol": "parse_context_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1233,
+      "symbol": "parse_context_decl",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1245,
+      "symbol": "parse_context_decl",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1279,
+      "symbol": "parse_context_decl",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1316,
+      "symbol": "enter_expr",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1352,
+      "symbol": "parse_expr_inner",
+      "source": "return Ok(domain);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1373,
+      "symbol": "parse_expr_inner",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1415,
+      "symbol": "parse_expr_inner",
+      "source": "return Ok(domain);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1427,
+      "symbol": "stopped",
+      "source": "return true;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1440,
+      "symbol": "stopped",
+      "source": "return true;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1443,
+      "symbol": "stopped",
+      "source": "return true;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1497,
+      "symbol": "parse_value_inner",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1524,
+      "symbol": "parse_value_inner",
+      "source": "return cursor.err(\"E1215\", \"optional calls are not supported\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1529,
+      "symbol": "parse_value_inner",
+      "source": "return cursor.err(\"E1215\", \"typed value constructor requires a type path\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1536,
+      "symbol": "parse_value_inner",
+      "source": "return cursor.err(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1556,
+      "symbol": "parse_value_inner",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1576,
+      "symbol": "parse_value_inner",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1633,
+      "symbol": "parse_primary",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1674,
+      "symbol": "parse_primary",
+      "source": "return cursor.err(\"E1200\", \"expected `]` to close the array\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1711,
+      "symbol": "parse_call",
+      "source": "return cursor.err(\"E1200\", \"expected `)` to close the call\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1717,
+      "symbol": "parse_call",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1729,
+      "symbol": "parse_call",
+      "source": "return cursor.err(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1734,
+      "symbol": "parse_call",
+      "source": "return cursor.err(\"E1215\", \"positional arguments must precede named arguments\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1750,
+      "symbol": "parse_call",
+      "source": "return cursor.err(\"E1215\", \"omit an empty anonymous message call\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1763,
+      "symbol": "parse_object",
+      "source": "return cursor.err(\"E1200\", \"expected `}` to close the object\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1768,
+      "symbol": "parse_object",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1823,
+      "symbol": "is_path_value",
+      "source": "SyntaxKind::NameRef => return true,",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1826,
+      "symbol": "is_path_value",
+      "source": "return false;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1830,
+      "symbol": "is_path_value",
+      "source": "None => return false,",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1833,
+      "symbol": "is_path_value",
+      "source": "_ => return false,",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1864,
+      "symbol": "mixes_fallback_boolean",
+      "source": "return true;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1888,
+      "symbol": "parse_message_suffix",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1899,
+      "symbol": "parse_message_suffix",
+      "source": "return cursor.err(\"E1214\", \"expected `}` to close the message suffix\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1909,
+      "symbol": "parse_message_suffix",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1917,
+      "symbol": "parse_message_suffix",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1938,
+      "symbol": "parse_message_suffix",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1972,
+      "symbol": "parse_annotation",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1981,
+      "symbol": "parse_annotation",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1990,
+      "symbol": "parse_annotation",
+      "source": "return cursor.err(\"E1214\", \"expected `}` to close the annotation\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 1994,
+      "symbol": "parse_annotation",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2002,
+      "symbol": "parse_annotation",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2009,
+      "symbol": "parse_annotation",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2027,
+      "symbol": "parse_annotation",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2098,
+      "symbol": "parse_description_value",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2108,
+      "symbol": "parse_description_value",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2117,
+      "symbol": "parse_description_value",
+      "source": "return cursor.err(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2135,
+      "symbol": "parse_label",
+      "source": "return cursor.err(\"E1214\", \"CRUD label requires a closed operation map\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2139,
+      "symbol": "parse_label",
+      "source": "return self.parse_caption(cursor);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2142,
+      "symbol": "parse_label",
+      "source": "return cursor.err(\"E1214\", \"label requires a string caption or message path\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2147,
+      "symbol": "parse_label",
+      "source": "return cursor.err(\"E1214\", \"this declaration label requires a scalar caption\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2155,
+      "symbol": "parse_label",
+      "source": "return cursor.err(\"E1214\", \"expected `}` to close the label object\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2165,
+      "symbol": "parse_label",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2172,
+      "symbol": "parse_label",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2190,
+      "symbol": "parse_label",
+      "source": "return cursor.err(\"E1214\", \"expected `}` to close the label cases\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2195,
+      "symbol": "parse_label",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2220,
+      "symbol": "parse_label",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2245,
+      "symbol": "parse_label",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2323,
+      "symbol": "parse_selector",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2421,
+      "symbol": "parse_type",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2436,
+      "symbol": "parse_enum_items",
+      "source": "return cursor.err(\"E1213\", \"enum requires at least one entry\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2465,
+      "symbol": "parse_path_items",
+      "source": "return cursor.err(\"E1213\", format!(\"{what} requires at least one entry\"));",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2485,
+      "symbol": "named_type_parts",
+      "source": "return None;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2489,
+      "symbol": "named_type_parts",
+      "source": "return None;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2510,
+      "symbol": "parse_schema_fields",
+      "source": "return cursor.err(\"E1200\", \"expected `}` to close the schema\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2551,
+      "symbol": "parse_params",
+      "source": "return cursor.err(\"E1200\", \"expected `)` to close the parameter list\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2645,
+      "symbol": "parse_field_or_param",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2671,
+      "symbol": "parse_field_or_param",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2689,
+      "symbol": "parse_field_or_param",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2696,
+      "symbol": "parse_field_or_param",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2718,
+      "symbol": "parse_field_or_param",
+      "source": "return cursor.err(\"E1203\", format!(\"unsupported field modifier `{word}`\"));",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2723,
+      "symbol": "parse_field_or_param",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2734,
+      "symbol": "parse_field_or_param",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2751,
+      "symbol": "parse_field_or_param",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2759,
+      "symbol": "parse_field_or_param",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2769,
+      "symbol": "parse_field_or_param",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2926,
+      "symbol": "attr_kind",
+      "source": "_ => return None,",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 2969,
+      "symbol": "parse_attributes",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3046,
+      "symbol": "parse_attributes",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3077,
+      "symbol": "parse_members",
+      "source": "return cursor.err(\"E1200\", \"expected `]` to close the member list\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3103,
+      "symbol": "parse_preference_order",
+      "source": "return cursor.err(\"E1200\", \"expected `}` to close the preference order\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3108,
+      "symbol": "parse_preference_order",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3115,
+      "symbol": "parse_preference_order",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3152,
+      "symbol": "parse_preference_order",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3186,
+      "symbol": "parse_order_cases",
+      "source": "return cursor.err(\"E1200\", \"expected `}` to close the order cases\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3190,
+      "symbol": "parse_order_cases",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3214,
+      "symbol": "parse_order_cases",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3226,
+      "symbol": "route_ended",
+      "source": "return true;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3252,
+      "symbol": "parse_route",
+      "source": "return cursor.err(\"E1209\", \"route segments cannot be empty\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3266,
+      "symbol": "parse_route",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3279,
+      "symbol": "parse_route",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3312,
+      "symbol": "parse_route",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3321,
+      "symbol": "parse_route",
+      "source": "return cursor.err(\"E1209\", \"route segments cannot be empty\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3330,
+      "symbol": "parse_route",
+      "source": "return cursor.err(\"E1209\", \"expected `/` between route segments\");",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3335,
+      "symbol": "parse_route",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3351,
+      "symbol": "parse_route",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3402,
+      "symbol": "parse_given_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3416,
+      "symbol": "parse_given_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3420,
+      "symbol": "parse_given_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3512,
+      "symbol": "parse_given_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3518,
+      "symbol": "parse_given_piece",
+      "source": "return self.parse_preferences(cursor, kids, children);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3524,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3528,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3532,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3536,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3540,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3544,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3548,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3552,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3556,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3560,
+      "symbol": "parse_given_piece",
+      "source": "return Ok(None);",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3611,
+      "symbol": "parse_message",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3622,
+      "symbol": "parse_message",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3731,
+      "symbol": "parse_derive",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3790,
+      "symbol": "parse_policy_rule",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3824,
+      "symbol": "parse_invariant",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3865,
+      "symbol": "parse_model",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3881,
+      "symbol": "parse_model",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3915,
+      "symbol": "parse_capability",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 3998,
+      "symbol": "parse_capability_member",
+      "source": "return Ok(());",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4023,
+      "symbol": "parse_corpus",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4061,
+      "symbol": "parse_judgment",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4150,
+      "symbol": "parse_judgment_item",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4174,
+      "symbol": "parse_judgment_item",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4187,
+      "symbol": "parse_judgment_item",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4198,
+      "symbol": "parse_judgment_item",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4207,
+      "symbol": "parse_judgment_item",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4242,
+      "symbol": "parse_judgment_options",
+      "source": "return cursor.err(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4250,
+      "symbol": "parse_judgment_options",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4278,
+      "symbol": "parse_judgment_options",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4304,
+      "symbol": "parse_when_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4318,
+      "symbol": "parse_when_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4322,
+      "symbol": "parse_when_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4405,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4424,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4431,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4455,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4473,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4498,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4522,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4529,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4536,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4549,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4557,
+      "symbol": "parse_scenario",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4592,
+      "symbol": "parse_each_attribute",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4627,
+      "symbol": "is_periodic_source",
+      "source": "return false;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4634,
+      "symbol": "is_periodic_source",
+      "source": "return false;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4637,
+      "symbol": "is_periodic_source",
+      "source": "return false;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4645,
+      "symbol": "is_periodic_source",
+      "source": "return false;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 4909,
+      "symbol": "parse_statements",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5070,
+      "symbol": "parse_statement",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5084,
+      "symbol": "parse_statement",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5113,
+      "symbol": "parse_statement",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5149,
+      "symbol": "parse_statement",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5197,
+      "symbol": "parse_statement",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5254,
+      "symbol": "parse_statement",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5284,
+      "symbol": "parse_examples_line",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5298,
+      "symbol": "parse_examples_line",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5311,
+      "symbol": "parse_examples_line",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5341,
+      "symbol": "parse_examples_line",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5348,
+      "symbol": "parse_examples_line",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5356,
+      "symbol": "parse_examples_line",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5369,
+      "symbol": "parse_examples_line",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5410,
+      "symbol": "parse_example_table",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5420,
+      "symbol": "parse_example_table",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5427,
+      "symbol": "parse_example_table",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5447,
+      "symbol": "parse_example_table",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5464,
+      "symbol": "parse_example_table",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5471,
+      "symbol": "parse_example_table",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5486,
+      "symbol": "is_expected_error",
+      "source": "return false;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5508,
+      "symbol": "parse_example_sequence",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5517,
+      "symbol": "parse_example_sequence",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5532,
+      "symbol": "parse_example_sequence",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5539,
+      "symbol": "parse_example_sequence",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5579,
+      "symbol": "parse_example_sequence",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5591,
+      "symbol": "parse_example_sequence",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5598,
+      "symbol": "parse_example_sequence",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5648,
+      "symbol": "parse_example_call",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5659,
+      "symbol": "parse_example_call",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5711,
+      "symbol": "parse_ui_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5724,
+      "symbol": "parse_ui_line_inner",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5738,
+      "symbol": "parse_ui_line_inner",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5742,
+      "symbol": "parse_ui_line_inner",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5752,
+      "symbol": "parse_ui_tab_children",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5765,
+      "symbol": "parse_ui_tab_children_inner",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5779,
+      "symbol": "parse_ui_tab_children_inner",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5784,
+      "symbol": "parse_ui_tab_children_inner",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5838,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5845,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5852,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5859,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5891,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5915,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 5987,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6006,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6034,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6082,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6090,
+      "symbol": "parse_ui_piece",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6183,
+      "symbol": "parse_catalog_item",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6212,
+      "symbol": "parse_ui_child",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6262,
+      "symbol": "parse_migration_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6276,
+      "symbol": "parse_migration_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6280,
+      "symbol": "parse_migration_line",
+      "source": "return;",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6324,
+      "symbol": "parse_migration_directive",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6354,
+      "symbol": "parse_migration_directive",
+      "source": "return Ok(());",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6358,
+      "symbol": "parse_migration_directive",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6365,
+      "symbol": "parse_migration_directive",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6377,
+      "symbol": "parse_migration_directive",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "line": 6402,
+      "symbol": "parse_migration_directive",
+      "source": "return Err(Fail::new(",
+      "scope": "local predicate/production/suite; Fail returned to transactional declaration boundary, or raw wrapping ends local routine; no parse_program global error return"
+    },
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "line": 322,
+      "symbol": "verify_coverage",
+      "source": "return Err(CoverageError {",
+      "scope": "coverage verification failure; not analysis admission"
+    },
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "line": 329,
+      "symbol": "verify_coverage",
+      "source": "return Err(CoverageError {",
+      "scope": "coverage verification failure; not analysis admission"
+    },
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "line": 338,
+      "symbol": "verify_coverage",
+      "source": "return Err(CoverageError {",
+      "scope": "coverage verification failure; not analysis admission"
+    }
+  ],
+  "semantic_recursive_error_gate_inventory": [
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 802,
+      "symbol": "has_error",
+      "source": "pub(crate) fn has_error(node: &SyntaxNode) -> bool {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 907,
+      "symbol": "index_given",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 965,
+      "symbol": "index_when",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 1554,
+      "symbol": "index_capability",
+      "source": "matches!(c.kind, SyntaxKind::CapabilityOp | SyntaxKind::Event) && !has_error(c)",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 2621,
+      "symbol": "resolve_description_value",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 2759,
+      "symbol": "resolve_context",
+      "source": "if child.kind != SyntaxKind::ContextDecl || has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 2847,
+      "symbol": "resolve_given",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 3260,
+      "symbol": "resolve_capability",
+      "source": "matches!(c.kind, SyntaxKind::CapabilityOp | SyntaxKind::Event) && !has_error(c)",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 3554,
+      "symbol": "resolve_type",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 3863,
+      "symbol": "resolve_when",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 4019,
+      "symbol": "resolve_example_headers",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 4065,
+      "symbol": "walk_guard",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 4084,
+      "symbol": "walk_statement",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 4497,
+      "symbol": "resolve_then",
+      "source": "if has_error(node) || node.kind != SyntaxKind::Page {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 4716,
+      "symbol": "walk_ui",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 4882,
+      "symbol": "walk_expr",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 5192,
+      "symbol": "check_fixture_cycles",
+      "source": ".filter(|n| n.kind == SyntaxKind::Fixture && !has_error(n))",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "line": 5265,
+      "symbol": "check_derive_cycles",
+      "source": ".filter(|n| n.kind == SyntaxKind::Derive && !has_error(n))",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 573,
+      "symbol": "phase2_module",
+      "source": "if has_error(item) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 691,
+      "symbol": "phase2_record",
+      "source": "if field.kind == SyntaxKind::Field && !has_error(field) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 715,
+      "symbol": "phase2_preferences",
+      "source": "if field.kind == SyntaxKind::Field && !has_error(field) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 1075,
+      "symbol": "walk_statement",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 3328,
+      "symbol": "phase2_scenario",
+      "source": "if child.kind == SyntaxKind::Require && !has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 3365,
+      "symbol": "phase2_scenario",
+      "source": "if child.kind == SyntaxKind::DoBlock && !has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 3385,
+      "symbol": "phase2_scenario",
+      "source": "if child.kind == SyntaxKind::Examples && !has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4278,
+      "symbol": "check_description_slot",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4904,
+      "symbol": "collect_module_sources",
+      "source": "if !matches!(child.kind, SyntaxKind::App | SyntaxKind::Package) || has_error(child)",
+      "classification": "demonstrated bug: recursive owner gate omits valid source tag and alters independent sibling E3016 diagnostics"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4937,
+      "symbol": "collect_read_scenarios",
+      "source": "if item.kind != SyntaxKind::Scenario || has_error(item) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 5544,
+      "symbol": "phase2_context",
+      "source": "if context.kind != SyntaxKind::Context || has_error(context) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 5548,
+      "symbol": "phase2_context",
+      "source": "if decl.kind != SyntaxKind::ContextDecl || has_error(decl) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 5686,
+      "symbol": "phase2_context",
+      "source": "if field.kind != SyntaxKind::Field || has_error(field) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 5884,
+      "symbol": "phase2_capability",
+      "source": "if has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 5904,
+      "symbol": "phase2_capability",
+      "source": "if field.kind == SyntaxKind::Field && !has_error(field) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 6049,
+      "symbol": "phase2_crud",
+      "source": "if child.kind == SyntaxKind::Examples && !has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 6390,
+      "symbol": "phase2_page",
+      "source": "if has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 6809,
+      "symbol": "walk_ui_page",
+      "source": "if has_error(child) || is_expression(child.kind) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 8633,
+      "symbol": "phase1_module",
+      "source": "if has_error(item) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 8672,
+      "symbol": "phase1_given",
+      "source": "&& !has_error(c)",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 8775,
+      "symbol": "phase1_then",
+      "source": ".filter(|n| n.kind == SyntaxKind::RouteScalar && !has_error(n))",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 8795,
+      "symbol": "phase1_field",
+      "source": "if has_error(field) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 8871,
+      "symbol": "phase1_params",
+      "source": "if has_error(param_node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 8960,
+      "symbol": "resolve_type_node",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 9675,
+      "symbol": "expr",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 12462,
+      "symbol": "type_object",
+      "source": "if has_error(entry) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 12532,
+      "symbol": "type_structural_literal",
+      "source": "if has_error(entry) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 12753,
+      "symbol": "check_record_entries",
+      "source": "if has_error(entry) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 12903,
+      "symbol": "check_message_entries",
+      "source": "if has_error(entry) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 13067,
+      "symbol": "type_query",
+      "source": "if part.kind != SyntaxKind::QueryClause || has_error(part) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 1083,
+      "symbol": "walk_message_prepass",
+      "source": "if !matches!(child.kind, SyntaxKind::App | SyntaxKind::Package) || has_error(child)",
+      "classification": "demonstrated bug: recursive owner/file gate suppresses valid sibling effects; module gate can invent E4004"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 1102,
+      "symbol": "walk_message_prepass",
+      "source": "if item.kind == SyntaxKind::Message && !has_error(item) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 1137,
+      "symbol": "walk_module",
+      "source": "if has_error(node) {",
+      "classification": "demonstrated bug: recursive owner/file gate suppresses valid sibling effects; module gate can invent E4004"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 1159,
+      "symbol": "walk_context",
+      "source": "if decl.kind != SyntaxKind::ContextDecl || has_error(decl) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 1195,
+      "symbol": "walk_section",
+      "source": "if has_error(item) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 1392,
+      "symbol": "record_fields",
+      "source": "if has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 1454,
+      "symbol": "signature_params",
+      "source": "if has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 1548,
+      "symbol": "walk_capability",
+      "source": "matches!(c.kind, SyntaxKind::CapabilityOp | SyntaxKind::Event) && !has_error(c)",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 2943,
+      "symbol": "walk_effect",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 3744,
+      "symbol": "walk_migration",
+      "source": "if has_error(node) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 3869,
+      "symbol": "walk_tree_calls",
+      "source": "if node.kind == SyntaxKind::Examples || has_error(node) {",
+      "classification": "demonstrated bug: recursive owner/file gate suppresses valid sibling effects; module gate can invent E4004"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "line": 4240,
+      "symbol": "has_error",
+      "source": "fn has_error(node: &SyntaxNode) -> bool {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "line": 324,
+      "symbol": "check_module",
+      "source": "if has_error(item) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "line": 358,
+      "symbol": "check_scenario",
+      "source": "if child.kind == SyntaxKind::Examples && !has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "line": 377,
+      "symbol": "check_crud",
+      "source": "if child.kind != SyntaxKind::Examples || has_error(child) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "line": 534,
+      "symbol": "check_message_value",
+      "source": "if has_error(node) || subtree_has(node, SyntaxKind::BadToken) {",
+      "classification": "local declaration/expression cascade suppression; inspect named caller for scope"
+    }
+  ],
+  "fresh_public_api_probe_requests": [
+    {
+      "id": "landed-sibling-recovery",
+      "utf8_source": "app T\nGiven\n policy\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+      "sha256": "1c35c6737ee6a6e27107483380ca733e5466388e3f184bc8f3ec5318ca6b3a73",
+      "assertions": [
+        "check_program ordered codes E1200,E3002,E2001",
+        "E1200 empty span [19,19); E3002 span authored 1 + true; E2001 span authored nope",
+        "parse_source CST verify_coverage succeeds; Derive nodes retained"
+      ],
+      "status": "supported invariant via existing witness analysis.rs:154-183; fresh root execution pending"
+    },
+    {
+      "id": "invalid-owner-local-suppression",
+      "utf8_source": "app T bad=\nGiven\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+      "sha256": "c5e9ef5abaa37d5db7585661f1ac92612fd20aa426c68ee6e67a2424f6677d65",
+      "assertions": [
+        "check_program only E1203; no module identity or sibling semantics that depend on malformed owner"
+      ],
+      "status": "supported invariant via analysis.rs:220-236"
+    },
+    {
+      "id": "effect-model-control",
+      "utf8_source": "app Shop\nGiven\n Config in app { name:text }\nWhen\nThen\n",
+      "sha256": "ddbed206ebd47f1025fec5466530fdbdd0a4bcf8409769b3f8dd9e0306551674",
+      "assertions": [
+        "check_program reports E4004 at Config; control validates semantic fault independently of syntax error"
+      ],
+      "status": "root fresh execution: E4004 survives both; predicted absence falsified; model records disappear in malformed case"
+    },
+    {
+      "id": "effect-model-malformed-sibling",
+      "utf8_source": "app Shop\nGiven\n policy\n Config in app { name:text }\nWhen\nThen\n",
+      "sha256": "5a8ded64ed7625ce0b978d8511e627388e1754fb00fc1edc18db7773a3e2cabd",
+      "assertions": [
+        "independent E4004 must survive added E1200 under existing sibling contract"
+      ],
+      "status": "root fresh execution: E4004 survives both; predicted absence falsified; model records disappear in malformed case"
+    },
+    {
+      "id": "effect-secret-control",
+      "utf8_source": "app Shop\nGiven\nWhen\n scenario leak(sek:secret) -> secret by=members\n  do return sek\nThen\n",
+      "sha256": "eb458191f92ddd8b2f1ef25db3c357ef857017e683e2b830447c0333f154d1e7",
+      "assertions": [
+        "check_program reports E4011 at return sek; control validates semantic fault independently of syntax error"
+      ],
+      "status": "root fresh control and malformed-sibling execution demonstrates independent finding suppression; see fresh_execution_evidence"
+    },
+    {
+      "id": "effect-secret-malformed-sibling",
+      "utf8_source": "app Shop\nGiven\n policy\nWhen\n scenario leak(sek:secret) -> secret by=members\n  do return sek\nThen\n",
+      "sha256": "283b91430b9a39d86caab68f857aff70fdbe1d9b7b175605570cf266171b4bb9",
+      "assertions": [
+        "independent E4011 must survive added E1200 under existing sibling contract",
+        "source predicts absent finding due recursive effects gates; root execution decides demonstrated-bug status"
+      ],
+      "status": "root fresh control and malformed-sibling execution demonstrates independent finding suppression; see fresh_execution_evidence"
+    },
+    {
+      "id": "effect-file-control",
+      "utf8_source": "app Shop\nGiven\n role reviewer\nWhen\n scenario flagged(n:int) -> int by=members\n  require reviewer(actor)\n  do return n\nThen\n",
+      "sha256": "0ae7fc3485eb295369f89fbd54bcf4ca946b4d6c522357e196bbe61382e0c71f",
+      "assertions": [
+        "check_program reports E4020 at actor; control validates semantic fault independently of syntax error"
+      ],
+      "status": "root fresh control and malformed-sibling execution demonstrates independent finding suppression; see fresh_execution_evidence"
+    },
+    {
+      "id": "effect-file-malformed-sibling",
+      "utf8_source": "app Shop\nGiven\n policy\n role reviewer\nWhen\n scenario flagged(n:int) -> int by=members\n  require reviewer(actor)\n  do return n\nThen\n",
+      "sha256": "c596d4a0e87c42a9223889ebddd9034190b2b1059e570d61c46e8f97fe9ea8b9",
+      "assertions": [
+        "independent E4020 must survive added E1200 under existing sibling contract",
+        "source predicts absent finding due recursive effects gates; root execution decides demonstrated-bug status"
+      ],
+      "status": "root fresh control and malformed-sibling execution demonstrates independent finding suppression; see fresh_execution_evidence"
+    },
+    {
+      "id": "delimiter-eof-boundary",
+      "utf8_source": "app T\nGiven\n M { a:int\n derive b(): int = nope\nWhen\nThen\n",
+      "sha256": "4619335003fdf08f5225a88dd2430ce595d56017cb93ba9154d7af1c3d9ac2d4",
+      "assertions": [
+        "E1102 anchored at authored {; coverage still succeeds",
+        "observe whether derive is parsed independently: source joining admits entire suffix as same pending logical line",
+        "do not assert E2001 as implemented contract; synchronization policy is a separate open boundary"
+      ],
+      "status": "proposed fresh probe; root owns execution"
+    },
+    {
+      "id": "unicode-name-and-prose",
+      "utf8_source": "app T\nGiven\n role café\n ## café 😀\nWhen\nThen\n",
+      "sha256": "a8b185d2ab7f1fd8ae25770d76500e5a4c27e41d7edcd0b2f535e9e0cdd811ef",
+      "assertions": [
+        "E1007 covers full UTF8 é scalar; comment Unicode retained in CST; no crash",
+        "NAME is ASCII contextual vocabulary per GRAMMAR.md:16, lexer.rs:416-422"
+      ],
+      "status": "proposed fresh probe; root owns execution"
+    },
+    {
+      "id": "invalid-string-local-payload",
+      "utf8_source": "app T\nGiven\n M { value:text=\"\\q\", n:int=true }\nWhen\n scenario s() by=members\n  do\n   let value = unknown\nThen\n",
+      "sha256": "4d5ab3a85a5ad02811be70cc3992febb8333989834a87ca92e2869d01a7ac5cb",
+      "assertions": [
+        "E1006 on q, invalid String token string_value=None",
+        "independent E3011 on true and E2001 on unknown survive",
+        "parse CST covers full input"
+      ],
+      "status": "supported invariant with broader existing C01 analysis.rs:1809-1840"
+    }
+  ],
+  "verification": "Agent read source/history/tests and root-generated fresh probe outputs. Root executed real CatalogAnalyzer public API probes. Root result: all 39 valid-UTF8 cases retained lossless CST; E4011 and E4020 sibling failures demonstrated, E4004 survives, E5007 survives. No tests/probes executed by this agent. Extra root controls demonstrate false E4004 with valid authored policy and both lost/false E3016 under valid source=\"fr\"; production CLI check/compile corroborate exact spans. SHA256 of extra input strings verified against public output source hashes while documenting; no fresh probes run by recovery agent.",
+  "jev_gate": "No consequential policy alternatives selected. Existing sibling contract defines effects acceptance; delimiter synchronization/Unicode expansion/API arbitrary decoder-input acceptance require separately scoped design decision if pursued. No JEV calls.",
+  "fresh_execution_evidence": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/case-control-app-policy.stdout",
+      "sha256": "4fef59328f19294ed0c4e3680983493d92e7c66b569a0fd4c6351318d7ad6022",
+      "source_sha256": "ddbed206ebd47f1025fec5466530fdbdd0a4bcf8409769b3f8dd9e0306551674",
+      "diagnostics": [
+        {
+          "code": "E4004",
+          "primary": {
+            "end": 22,
+            "file": 0,
+            "start": 16
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 1,
+        "modules": 1,
+        "scenarios": 0
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/case-malformed-app-policy.stdout",
+      "sha256": "e7237f6377021256207d033c00796f852c83f40f6651d3d31db0572994ab7e81",
+      "source_sha256": "5a8ded64ed7625ce0b978d8511e627388e1754fb00fc1edc18db7773a3e2cabd",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "primary": {
+            "end": 22,
+            "file": 0,
+            "start": 22
+          }
+        },
+        {
+          "code": "E4004",
+          "primary": {
+            "end": 30,
+            "file": 0,
+            "start": 24
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 0,
+        "scenarios": 0
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/case-control-secret-return.stdout",
+      "sha256": "f1e22a44452aad5656938cfb2a2b322caa2f75af50222626aed8b4680ab33a1a",
+      "source_sha256": "eb458191f92ddd8b2f1ef25db3c357ef857017e683e2b830447c0333f154d1e7",
+      "diagnostics": [
+        {
+          "code": "E4011",
+          "primary": {
+            "end": 83,
+            "file": 0,
+            "start": 80
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 1,
+        "scenarios": 1
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/case-malformed-secret-return.stdout",
+      "sha256": "5a8e4c5e3d8d6a66d5bb46a69c9106b269cd124220c29cea919788dfc1da769a",
+      "source_sha256": "283b91430b9a39d86caab68f857aff70fdbe1d9b7b175605570cf266171b4bb9",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "primary": {
+            "end": 22,
+            "file": 0,
+            "start": 22
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 0,
+        "scenarios": 0
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/case-control-actor-subject.stdout",
+      "sha256": "4b5321f5d4334c160952f7938ee0a50ad34edb4ee9c49780c1fa277b333a828e",
+      "source_sha256": "0ae7fc3485eb295369f89fbd54bcf4ca946b4d6c522357e196bbe61382e0c71f",
+      "diagnostics": [
+        {
+          "code": "E4020",
+          "primary": {
+            "end": 102,
+            "file": 0,
+            "start": 97
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 1,
+        "scenarios": 1
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/case-malformed-actor-subject.stdout",
+      "sha256": "f9e7fc365504a74e48766ded90313ff3811a29d71cad5a3104adba3097ffcb5b",
+      "source_sha256": "c596d4a0e87c42a9223889ebddd9034190b2b1059e570d61c46e8f97fe9ea8b9",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "primary": {
+            "end": 22,
+            "file": 0,
+            "start": 22
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 0,
+        "scenarios": 0
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/case-cross-module-actor.stdout",
+      "sha256": "e02db02dfe785fbcbef2d2d531cf1e5688b55be23c985f977d8d9808d9632f46",
+      "source_sha256": "faed163ff4d32690f1db4f8dd4ae71e5e17bac83528328ffe17ee208ecefb652",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "primary": {
+            "end": 24,
+            "file": 0,
+            "start": 24
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 1,
+        "scenarios": 1
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/case-malformed-icu-sibling.stdout",
+      "sha256": "bc9ed5bc34114f5253e2c1d55c0d699d6842138d863a7fe50443e2047710d6ec",
+      "source_sha256": "78249eb506435c426b3ec9bc68753067b27779d5fedb4faa2b38568b2bde8062",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "primary": {
+            "end": 22,
+            "file": 0,
+            "start": 22
+          }
+        },
+        {
+          "code": "E5007",
+          "primary": {
+            "end": 65,
+            "file": 0,
+            "start": 43
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 0,
+        "scenarios": 0
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-valid-policy-control.stdout",
+      "sha256": "48f08dc6b354fa8058a72d3918a419294d54c6c8d5f10a82b0bb5184bd520734",
+      "utf8_source": "app Shop\nGiven\n Config in app { name:text }\n policy Config read=members\nWhen\nThen\n",
+      "source_sha256": "7d8f59ee2f3277dee6b42ec5f71acf77a7fe8f2942b2882b22445fa365e200f2",
+      "diagnostics": [],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 1,
+        "modules": 1,
+        "scenarios": 0
+      },
+      "emission": {
+        "artifact": {
+          "artifact_version": 1,
+          "callables": [],
+          "language_version": "1.0",
+          "migrations": [],
+          "models": [
+            {
+              "deleteMode": "none",
+              "fields": [
+                {
+                  "field": {
+                    "kind": "string"
+                  },
+                  "name": "name",
+                  "required": true,
+                  "serverOnly": false
+                }
+              ],
+              "name": "Shop.Config",
+              "scope": "app"
+            }
+          ],
+          "modules": [
+            {
+              "js": "// Generated by can compile from Shop; do not edit.\nimport { hasRole } from \"@canlang/stdlib\";\nexport const appDefinition={id:\"Shop\",uses:[],packages:{Shop:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{\"Shop.Config\":{scope:\"app\",readGrants:[{rule:\"Config.read.1\"}],fields:{name:{type:\"text\"}}}},preferences:{},operations:{},policy:{roles:[],models:{\"Shop.Config\":{read:[\"Config.read.1\"]}},operations:{}},pages:[],disabled:[\"Shop.Config.create\",\"Shop.Config.update\",\"Shop.Config.delete\"]};\nexport function canApp(){\nreturn {\noperations:[{\"name\":\"Shop.Config.read\",\"kind\":\"read\",\"description\":\"\",\"inputs\":{\"fields\":[]}}],\nread:{\"Config.read.1\":(c,row)=>hasRole(c,\"members\")},\npolicy:{roles:[],models:{\"Shop.Config\":{read:[\"Config.read.1\"]}},operations:{}},\n};}\n",
+              "map": {
+                "file": "shop.mjs",
+                "mappings": "AAAA;AAAA;AAAAA;AAAAC;AAAAA;AAAAA;AAAAA;AAAAA;AAAAA",
+                "names": [
+                  "appDefinition",
+                  "canApp"
+                ],
+                "sources": [
+                  "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step7-extra-u4nszhgd/valid-policy-control.can"
+                ],
+                "sourcesContent": [
+                  "app Shop\nGiven\n Config in app { name:text }\n policy Config read=members\nWhen\nThen\n"
+                ],
+                "version": 3
+              },
+              "path": "shop.mjs"
+            }
+          ],
+          "operations": [
+            {
+              "description": "",
+              "inputs": {
+                "fields": []
+              },
+              "kind": "read",
+              "name": "Shop.Config.read"
+            }
+          ],
+          "pages": [],
+          "requires": [
+            {
+              "capability": "canlang.builtins",
+              "min_version": 0
+            }
+          ],
+          "sources": [
+            {
+              "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step7-extra-u4nszhgd/valid-policy-control.can",
+              "sha256": "7d8f59ee2f3277dee6b42ec5f71acf77a7fe8f2942b2882b22445fa365e200f2"
+            }
+          ],
+          "tests": [],
+          "tool_version": "0.1.0"
+        },
+        "codes": [],
+        "diagnostics": []
+      },
+      "profile": "root fresh real CatalogAnalyzer public API probe; production CLI corroboration below"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-valid-policy-malformed-sibling.stdout",
+      "sha256": "8ca02d704196c2062a164e9b9c738e8e8d6d0c32caf75003b332954468d19755",
+      "utf8_source": "app Shop\nGiven\n policy\n Config in app { name:text }\n policy Config read=members\nWhen\nThen\n",
+      "source_sha256": "c09d7763a77c790e0a6e41608c9df91312a77ce67dc1be60c2ccacaab1db77ab",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "message": "expected identifier",
+          "primary": {
+            "end": 22,
+            "file": 0,
+            "start": 22
+          }
+        },
+        {
+          "code": "E4004",
+          "message": "app-scoped model 'Config' requires at least one policy",
+          "primary": {
+            "end": 30,
+            "file": 0,
+            "start": 24
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 0,
+        "scenarios": 0
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe; production CLI corroboration below"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-source-fr-fr-control.stdout",
+      "sha256": "68c0c30848ba7bd65e30f028287f0069bb4847a0a85830f96c4aee7af5dc6581",
+      "utf8_source": "app Shop source=\"fr\"\nGiven\n message m = \"Bonjour\"@{fr=\"Salut\"}\nWhen\nThen\n",
+      "source_sha256": "c3bcf4a462f36afb65269de811f08822a1b3f7ec8ed79fc0dd94dd6ce5d34f8f",
+      "diagnostics": [
+        {
+          "code": "E3016",
+          "message": "message variant 'fr' repeats the source language 'fr'",
+          "primary": {
+            "end": 53,
+            "file": 0,
+            "start": 51
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 1,
+        "scenarios": 0
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe; production CLI corroboration below"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-source-fr-fr-malformed.stdout",
+      "sha256": "d3494a4e9557c01c4384fc3759a0a6c858ee15b3d49bc8233350f556c4384b64",
+      "utf8_source": "app Shop source=\"fr\"\nGiven\n policy\n message m = \"Bonjour\"@{fr=\"Salut\"}\nWhen\nThen\n",
+      "source_sha256": "46d4f47b78f2411e89211305556638dfa6857f4f8059e20e9e777a948409115d",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "message": "expected identifier",
+          "primary": {
+            "end": 34,
+            "file": 0,
+            "start": 34
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 0,
+        "scenarios": 0
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe; production CLI corroboration below"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-source-fr-en-control.stdout",
+      "sha256": "a297d8e8d8b0e3f5dce374e5e3af02f711cc04827ebbaeedbd0cccf7de1251ec",
+      "utf8_source": "app Shop source=\"fr\"\nGiven\n message m = \"Bonjour\"@{en=\"Salut\"}\nWhen\nThen\n",
+      "source_sha256": "088b5fbea3ab842147fe115a2184cfb37eacd8ad576a0ad709af61465079145e",
+      "diagnostics": [],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 1,
+        "scenarios": 0
+      },
+      "emission": {
+        "artifact": {
+          "artifact_version": 1,
+          "callables": [],
+          "language_version": "1.0",
+          "migrations": [],
+          "models": [],
+          "modules": [
+            {
+              "js": "// Generated by can compile from Shop; do not edit.\nexport const appDefinition={id:\"Shop\",uses:[],packages:{Shop:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{},preferences:{},operations:{},pages:[],disabled:[]};\nexport function canApp(){\nreturn {\n};}\n",
+              "map": {
+                "file": "shop.mjs",
+                "mappings": "AAAA;AAAAA;AAAAC;AAAAA;AAAAA",
+                "names": [
+                  "appDefinition",
+                  "canApp"
+                ],
+                "sources": [
+                  "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step7-extra-u4nszhgd/source-fr-en-control.can"
+                ],
+                "sourcesContent": [
+                  "app Shop source=\"fr\"\nGiven\n message m = \"Bonjour\"@{en=\"Salut\"}\nWhen\nThen\n"
+                ],
+                "version": 3
+              },
+              "path": "shop.mjs"
+            }
+          ],
+          "operations": [],
+          "pages": [],
+          "requires": [
+            {
+              "capability": "canlang.builtins",
+              "min_version": 0
+            }
+          ],
+          "sources": [
+            {
+              "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step7-extra-u4nszhgd/source-fr-en-control.can",
+              "sha256": "088b5fbea3ab842147fe115a2184cfb37eacd8ad576a0ad709af61465079145e"
+            }
+          ],
+          "tests": [],
+          "tool_version": "0.1.0"
+        },
+        "codes": [],
+        "diagnostics": []
+      },
+      "profile": "root fresh real CatalogAnalyzer public API probe; production CLI corroboration below"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-source-fr-en-malformed.stdout",
+      "sha256": "2beb70b6a2d3c1c254c0cdee7d8206497857a8b8c1cacffd997afaeef3a81477",
+      "utf8_source": "app Shop source=\"fr\"\nGiven\n policy\n message m = \"Bonjour\"@{en=\"Salut\"}\nWhen\nThen\n",
+      "source_sha256": "864e10937c55b5421133804e0de243bdbfba389ddb096329cd20dbe30d0df5b6",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "message": "expected identifier",
+          "primary": {
+            "end": 34,
+            "file": 0,
+            "start": 34
+          }
+        },
+        {
+          "code": "E3016",
+          "message": "message variant 'en' repeats the source language 'en'",
+          "primary": {
+            "end": 61,
+            "file": 0,
+            "start": 59
+          }
+        }
+      ],
+      "coverage": true,
+      "effect_table_counts": {
+        "descriptions": 0,
+        "models": 0,
+        "modules": 0,
+        "scenarios": 0
+      },
+      "emission": "blocked-by-analysis-errors",
+      "profile": "root fresh real CatalogAnalyzer public API probe; production CLI corroboration below"
+    }
+  ],
+  "prediction_corrections": [
+    {
+      "initial_prediction": "Malformed declaration would suppress independent E4004 for app model without authored policy.",
+      "result": "Falsified by initial no-policy control/malformed execution: E4004 survives because finish checks resolver symbols, independent of gated module walk.",
+      "subsequent_refinement": "Separate pre-execution valid-policy companion then demonstrates false E4004 caused by omitted checked policy data. The later finding does not retroactively validate the initial absence prediction.",
+      "evidence": [
+        "case-control-app-policy.stdout",
+        "case-malformed-app-policy.stdout",
+        "extra-valid-policy-control.stdout",
+        "extra-valid-policy-malformed-sibling.stdout"
+      ]
+    }
+  ],
+  "cli_corroboration": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/cli-check-valid-policy-malformed-sibling.stdout",
+      "sha256": "7abb56feaf9d80a0954b750ed8e239c0b24d975be4c23168ba86f26b759a9d67",
+      "source_sha256": "c09d7763a77c790e0a6e41608c9df91312a77ce67dc1be60c2ccacaab1db77ab",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "message": "expected identifier",
+          "primary": {
+            "file": 0,
+            "start": 22,
+            "end": 22
+          }
+        },
+        {
+          "code": "E4004",
+          "message": "app-scoped model 'Config' requires at least one policy",
+          "primary": {
+            "file": 0,
+            "start": 24,
+            "end": 30
+          }
+        }
+      ],
+      "complete": true,
+      "command": "check",
+      "profile": "production CLI; compile returns diagnostic payload and blocks artifact output"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/cli-compile-valid-policy-malformed-sibling.stdout",
+      "sha256": "7abb56feaf9d80a0954b750ed8e239c0b24d975be4c23168ba86f26b759a9d67",
+      "source_sha256": "c09d7763a77c790e0a6e41608c9df91312a77ce67dc1be60c2ccacaab1db77ab",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "message": "expected identifier",
+          "primary": {
+            "file": 0,
+            "start": 22,
+            "end": 22
+          }
+        },
+        {
+          "code": "E4004",
+          "message": "app-scoped model 'Config' requires at least one policy",
+          "primary": {
+            "file": 0,
+            "start": 24,
+            "end": 30
+          }
+        }
+      ],
+      "complete": true,
+      "command": "compile",
+      "profile": "production CLI; compile returns diagnostic payload and blocks artifact output"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/cli-check-source-fr-fr-malformed.stdout",
+      "sha256": "ecd18bcc3ef1333fca8066d0ed42ebb32abd74885555f8cc70d047c5c4a72739",
+      "source_sha256": "46d4f47b78f2411e89211305556638dfa6857f4f8059e20e9e777a948409115d",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "message": "expected identifier",
+          "primary": {
+            "file": 0,
+            "start": 34,
+            "end": 34
+          }
+        }
+      ],
+      "complete": true,
+      "command": "check",
+      "profile": "production CLI; compile returns diagnostic payload and blocks artifact output"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/cli-compile-source-fr-fr-malformed.stdout",
+      "sha256": "ecd18bcc3ef1333fca8066d0ed42ebb32abd74885555f8cc70d047c5c4a72739",
+      "source_sha256": "46d4f47b78f2411e89211305556638dfa6857f4f8059e20e9e777a948409115d",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "message": "expected identifier",
+          "primary": {
+            "file": 0,
+            "start": 34,
+            "end": 34
+          }
+        }
+      ],
+      "complete": true,
+      "command": "compile",
+      "profile": "production CLI; compile returns diagnostic payload and blocks artifact output"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/cli-check-source-fr-en-malformed.stdout",
+      "sha256": "38a9c29eccf1f2b138b09b427b07a7114e2da63bcab6efd0f5745ab92183b436",
+      "source_sha256": "864e10937c55b5421133804e0de243bdbfba389ddb096329cd20dbe30d0df5b6",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "message": "expected identifier",
+          "primary": {
+            "file": 0,
+            "start": 34,
+            "end": 34
+          }
+        },
+        {
+          "code": "E3016",
+          "message": "message variant 'en' repeats the source language 'en'",
+          "primary": {
+            "file": 0,
+            "start": 59,
+            "end": 61
+          }
+        }
+      ],
+      "complete": true,
+      "command": "check",
+      "profile": "production CLI; compile returns diagnostic payload and blocks artifact output"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/cli-compile-source-fr-en-malformed.stdout",
+      "sha256": "38a9c29eccf1f2b138b09b427b07a7114e2da63bcab6efd0f5745ab92183b436",
+      "source_sha256": "864e10937c55b5421133804e0de243bdbfba389ddb096329cd20dbe30d0df5b6",
+      "diagnostics": [
+        {
+          "code": "E1200",
+          "message": "expected identifier",
+          "primary": {
+            "file": 0,
+            "start": 34,
+            "end": 34
+          }
+        },
+        {
+          "code": "E3016",
+          "message": "message variant 'en' repeats the source language 'en'",
+          "primary": {
+            "file": 0,
+            "start": 59,
+            "end": 61
+          }
+        }
+      ],
+      "complete": true,
+      "command": "compile",
+      "profile": "production CLI; compile returns diagnostic payload and blocks artifact output"
+    }
+  ],
+  "execution_manifest_pins": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-cases.json",
+      "sha256": "309712b6444b6b5b5f555579d3a8222e84bb8c4864dc0e635b461a082c10e593"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-execution.json",
+      "sha256": "db582bcd939c5a57d7979c24ff7cddcc23f7f8c945cd986bc71e9a6e29278b77"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/extra-observations.json",
+      "sha256": "b0d4e684446f3cf44d04d4935713052b885dcfd6f79a4f314633ccfb61d3a6c2"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/verify.py",
+      "sha256": "fa6ea239c8a7e4874993d7e3816e06d23885b5d9d34088ced05a51934b9553e4"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/syntax-evidence/outcome-verification.json",
+      "sha256": "6e13a728f66a23201927a48ac316b623b015439c7def18eb4eca2082ad191252"
+    }
+  ]
+}
