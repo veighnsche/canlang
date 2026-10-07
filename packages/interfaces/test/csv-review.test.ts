@@ -351,3 +351,28 @@ test('FP.CSV: unknown operation, bad header, and unparseable CSV reject at the r
   assert.equal(wrongMethod.status, 404);
   assert.equal(t.invoker.mutations.length, 0);
 });
+
+test('FP.CSV: an invalid partial input cannot suppress a later valid candidate', async () => {
+  const t = await csvDeps({
+    mutations: {
+      [OPERATION]: (envelope) => ({
+        result: { status: 'committed', operation_id: envelope.operation_id },
+      }),
+    },
+  });
+  const csv='customer,urgent\nc-1,yes\nc-1,\nc-1,';
+  const reviewed=await reviewOk(t,csv);
+  assert.deepEqual(reviewed.rows.map(row=>row.status),['invalid','valid','duplicate']);
+  assert.equal(reviewed.rows[2]?.duplicate_of,1);
+  assert.equal(reviewed.consent.candidate_count,1);
+  // Golden canonical candidate digest is independent of the review implementation.
+  const {createHash}=await import('node:crypto');
+  const expected=createHash('sha256').update('{"candidates":[{"customer":"c-1"}],"operation":"Billing.Invoice.issue"}').digest('hex');
+  assert.equal(reviewed.consent.candidates_digest,expected);
+  const response=await handleCsvRequest(t.deps,postCsv('/api/csv/commit',t.identity.cookie,t.csrf,commitRows(reviewed.consent,csv,[1,2])));
+  assert.equal(response.status,200);
+  const committed=await response.json() as CsvCommitOutcome;
+  assert.deepEqual(committed.rows.map(row=>row.status),['committed','duplicate']);
+  assert.equal(t.invoker.mutations.length,1);
+  assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs,{customer:'c-1'});
+});
