@@ -15466,14 +15466,26 @@ fn validated_shape(leaf: Scalar, value: &str) -> Option<String> {
     }
 }
 
-/// Email shape: one `@`, non-empty local part, dotted domain with an
-/// alpha top-level domain. (Lane-02 defines no email validator, so the
-/// checker pins this shallow shape; verification belongs to auth.)
+/// Email shape: exactly one interior ASCII `@`, excluding the public values
+/// codec's explicit whitespace/C0/DEL scalar set. Preserve authored text;
+/// domain grammar and ownership verification are outside shape admission.
 fn valid_email(value: &str) -> Option<String> {
-    if value
-        .bytes()
-        .any(|b| b.is_ascii_whitespace() || b.is_ascii_control())
-    {
+    if value.chars().any(|c| {
+        matches!(
+            c,
+            '\u{0000}'..='\u{0020}'
+                | '\u{007f}'
+                | '\u{00a0}'
+                | '\u{1680}'
+                | '\u{2000}'..='\u{200a}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202f}'
+                | '\u{205f}'
+                | '\u{3000}'
+                | '\u{feff}'
+        )
+    }) {
         return Some("whitespace is not allowed".to_string());
     }
     let mut parts = value.split('@');
@@ -15484,26 +15496,6 @@ fn valid_email(value: &str) -> Option<String> {
             }
             if domain.is_empty() {
                 return Some("empty domain".to_string());
-            }
-            let labels: Vec<&str> = domain.split('.').collect();
-            if labels.len() < 2 {
-                return Some("domain needs a dot".to_string());
-            }
-            for label in &labels {
-                if label.is_empty()
-                    || label.len() > 63
-                    || !label
-                        .bytes()
-                        .all(|b| b.is_ascii_alphanumeric() || b == b'-')
-                    || label.starts_with('-')
-                    || label.ends_with('-')
-                {
-                    return Some(format!("invalid domain label '{label}'"));
-                }
-            }
-            let tld = labels[labels.len() - 1];
-            if tld.len() < 2 || !tld.bytes().all(|b| b.is_ascii_alphabetic()) {
-                return Some("top-level domain needs at least 2 letters".to_string());
             }
             None
         }
