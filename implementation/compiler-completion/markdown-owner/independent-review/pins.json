@@ -1,0 +1,14 @@
+{
+  "inheritedHead": "d4b041fbab45f03c76a954edc310ace906b2a780",
+  "sha256": {
+    "packages/interfaces/src/docs/reference.ts": "326100d81a28ec07a751f7c93aa87518da8e41b5a1692f5210fa34f46835a08c",
+    "packages/interfaces/test/docs-reference.test.ts": "73757234276ff038b0dab248d7968d4f5436211e94ac70c72f67eb6383b4428c",
+    "implementation/compiler-completion/markdown-owner/research/raw.json": "79c44a27eb16955b19d8da913028c2951f1365c1ee7f610516822bdfeda8c0ff",
+    "packages/interfaces/dist/src/docs/reference.js": "d379318667ab19260d17623ddd92b9c4e9436872afa4d2d4f0c06fbd1faa984a",
+    "packages/interfaces/dist/test/docs-reference.test.js": "cb12bc28ed42d9b5ede0444b2dd56ab49142c1af2f163568b635dbbcb793f414",
+    "implementation/compiler-completion/markdown-owner/implementation/test.log": "07bcdc49221a155a23757847ec97746db2a39b55ba6a03a1fa338837fa515420",
+    "implementation/compiler-completion/markdown-owner/implementation/typecheck.log": "1290f4f7551d18f68fd15c8899723b12aae7f0da491325e239c0bb9b0bbf228c",
+    "implementation/compiler-completion/markdown-owner/implementation/build.log": "bc6a496e792f9bd975a58f7c021da8a8b16235fb160a3043814e8e0bd62e479b",
+    "implementation/compiler-completion/markdown-owner/independent-review/reproduce.mjs": "29045acf5c70cdf0cea6e269f5ebe67e657af999f67b0dd35bbd27d14753afd9"
+  }
+}

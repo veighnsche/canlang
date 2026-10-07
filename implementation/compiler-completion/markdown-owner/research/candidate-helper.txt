@@ -1,0 +1,13 @@
+function codeSpan(text: string, table = false): string {
+  if (text === "" || (table && text.includes("|"))) {
+    // Entities prevent authored content from becoming HTML or Markdown.
+    const safe = text.replace(/[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/g,
+      (char) => "&#" + char.charCodeAt(0) + ";");
+    return "<code>" + safe + "</code>";
+  }
+  const longest = Math.max(0, ...(text.match(/[\x60]+/g) ?? []).map(run => run.length));
+  const fence = String.fromCharCode(96).repeat(longest + 1);
+  const pad = text.startsWith(String.fromCharCode(96)) || text.endsWith(String.fromCharCode(96)) ||
+    (text.startsWith(" ") && text.endsWith(" ") && /[^ ]/.test(text));
+  return fence + (pad ? " " : "") + text + (pad ? " " : "") + fence;
+}

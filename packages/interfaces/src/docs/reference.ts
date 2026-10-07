@@ -169,13 +169,21 @@ function escapeMarkdown(text: string): string {
     .join("\n");
 }
 
-/** Escapes a value rendered inside a Markdown code span. */
-function escapeCodeSpan(text: string): string {
-  return text.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
-}
-
-function codeSpan(text: string): string {
-  return `\`${escapeCodeSpan(text)}\``;
+/** Preserves single-line authored code text in inline and GFM table contexts. */
+function codeSpan(text: string, table = false): string {
+  if (text === "" || (table && text.includes("|"))) {
+    // Entities keep literal punctuation out of HTML parsing and table boundaries.
+    const safe = text.replace(/[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/g,
+      (char) => `&#${char.charCodeAt(0)};`);
+    return `<code>${safe}</code>`;
+  }
+  let longest = 0;
+  for (const run of text.matchAll(/`+/g)) longest = Math.max(longest, run[0].length);
+  const fence = "`".repeat(longest + 1);
+  // CommonMark strips one space at both edges unless the content is all spaces.
+  const pad = text.startsWith("`") || text.endsWith("`") ||
+    (text.startsWith(" ") && text.endsWith(" ") && /[^ ]/.test(text));
+  return `${fence}${pad ? " " : ""}${text}${pad ? " " : ""}${fence}`;
 }
 
 /**
@@ -591,7 +599,7 @@ function renderDeclaration(
               .map((constraint) => escapeMarkdown(`${constraint.kind}: ${constraint.detail}`))
               .join("; ");
       lines.push(
-        `| ${codeSpan(field.name)} | ${codeSpan(field.type)} | ${field.nullable ? "yes" : "no"} | ${field.creationRequired ? "yes" : "no"} | ${field.default === undefined ? "—" : codeSpan(field.default)} | ${constraints} | ${describeText(field.description, context)} |`,
+        `| ${codeSpan(field.name, true)} | ${codeSpan(field.type, true)} | ${field.nullable ? "yes" : "no"} | ${field.creationRequired ? "yes" : "no"} | ${field.default === undefined ? "—" : codeSpan(field.default, true)} | ${constraints} | ${describeText(field.description, context)} |`,
       );
     }
     lines.push("");
@@ -665,7 +673,7 @@ function renderOperation(
               .map((constraint) => escapeMarkdown(`${constraint.kind}: ${constraint.detail}`))
               .join("; ");
       lines.push(
-        `| ${codeSpan(input.name)} | ${codeSpan(input.type)} | ${input.nullable ? "yes" : "no"} | ${input.creationRequired ? "yes" : "no"} | ${input.default === undefined ? "—" : codeSpan(input.default)} | ${constraints} | ${describeText(input.description, context)} |`,
+        `| ${codeSpan(input.name, true)} | ${codeSpan(input.type, true)} | ${input.nullable ? "yes" : "no"} | ${input.creationRequired ? "yes" : "no"} | ${input.default === undefined ? "—" : codeSpan(input.default, true)} | ${constraints} | ${describeText(input.description, context)} |`,
       );
     }
     lines.push("");
