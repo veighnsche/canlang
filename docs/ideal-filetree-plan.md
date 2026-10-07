@@ -240,3 +240,6 @@ Root bounded maintenance reconciliation: DEL-D03 mixed physical preflight reuses
 
 
 Root bounded capability integration: State retains checked artifact nullable-reference association and the current/prepared admission plus mutation owners. Exact six-source/test candidate is independently accepted for singular explicit null and actual local persisted D1 reopening; src/mutation/nullable-ref.test.ts is its owning pipeline proof. Typed carriers, void-result replay, installed identity/owner routing and full task9/F1 remain open. This is required correctness, not production-reduction credit, an actual merge or a complete checkpoint advance. See nullable-ref-root-integration.json.
+
+
+Root bounded DEL-D03 reconciliation: Mixed and Package writers share the existing planned file/ancestor check. Source-current clean-room336-case ancestry matrix, exact-error/declaration and actual FS pairs accept finite pre-effect collision refusal, including internal trailing-slash identity. Raw output names and unrelated native trailing-path failures remain unchanged; runtime+466bytes/eight lines and163-line owning proof are correctness cost. Wider sidecar, child/lifetime, race/atomic, installed/native and complete checkpoint review remain open; no merge or new responsibility owner.

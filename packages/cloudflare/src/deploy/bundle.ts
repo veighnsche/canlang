@@ -1227,6 +1227,8 @@ export function writeDeployBundleMixed(bundle: MixedDeployBundle, outDir: string
       "deploy bundle: mixed digest mismatch — the bundle changed after attach; refusing to write",
     );
   }
+  const outputKeys = [...Object.keys(modules), ...Object.keys(binaries), ...RESERVED_MIXED_OUTPUTS];
+  assertPlannedOutputFiles(new Set(outputKeys.map((key) => posix.normalize(key))));
   // Inspect complete mixed output before the text half publishes anything.
   assertPackageOutputFiles(outDir, [...Object.keys(modules).sort(), ...Object.keys(binaries).sort(), ...RESERVED_MIXED_OUTPUTS]);
   const written = writeDeployBundle({ ...bundle, modules }, outDir);
@@ -1355,10 +1357,16 @@ function assertPackageOutputLayout(
   // A file cannot also be an ancestor directory of a second output.
   // Include manifests so paths beneath writer-owned files also refuse.
   const outputs = new Set([...seen.keys(), ...RESERVED_MIXED_OUTPUTS, "bundle.resources.json"]);
-  for (const key of outputs) {
+  assertPlannedOutputFiles(outputs);
+}
+
+function assertPlannedOutputFiles(outputs: ReadonlySet<string>): void {
+  // A trailing slash does not distinguish a file from a directory ancestor.
+  const files = new Set([...outputs].map((key) => key.endsWith("/") ? key.slice(0, -1) : key));
+  for (const key of files) {
     let parent = posix.dirname(key);
     while (parent !== ".") {
-      if (outputs.has(parent)) {
+      if (files.has(parent)) {
         throw new Error(`deploy bundle: output ${JSON.stringify(key)} has file/directory collision with ${JSON.stringify(parent)}`);
       }
       parent = posix.dirname(parent);
