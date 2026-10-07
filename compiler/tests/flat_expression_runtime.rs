@@ -332,3 +332,111 @@ fn unsupported_binary_retains_skipped_operand_diagnostics() {
         assert!(!output.contains("int64"));
     }
 }
+
+#[test]
+fn enum_claims_and_membership_execute_with_binding_and_order_controls() {
+    let scratch = Scratch::new();
+    let prefix = vec!["true"; 80].join(" and ");
+    let mut source = String::from(
+        "app Joins\nGiven\n contract Row { s:enum(a,b),a:int,b:int,items:int[],ordinary:enum(draft,approved) }\n derive identity(value:int):int = value\n derive itemsIdentity(value:int[]):int[] = value\n derive enumIdentity(value:Row.s):Row.s = value\n derive shadow(a:Row.s,b:Row.s,row:Row):bool = a==row.s and row.s in [a,b]\n derive ordinary(row:Row):bool = draft==row.ordinary and row.ordinary in [draft,approved]\n derive expected(row:Row):bool = enumIdentity(a)==row.s\n",
+    );
+    source.push_str(&format!(" derive shadowLong(a:Row.s,b:Row.s,row:Row):bool = {prefix} and a==row.s and row.s in [a,b]\n"));
+    for (name, expression) in [
+        ("cases", "a==row.s and row.s in [a,b]".to_string()),
+        (
+            "casesLong",
+            format!("{prefix} and a==row.s and row.s in [a,b]"),
+        ),
+        ("member", "row.a in row.items".to_string()),
+        ("memberLong", format!("{prefix} and row.a in row.items")),
+        ("grouped", format!("{prefix} and (row.a in row.items)")),
+        (
+            "awaited",
+            "identity(row.a) in itemsIdentity(row.items)".to_string(),
+        ),
+        (
+            "awaitedLong",
+            format!("{prefix} and (identity(row.a) in itemsIdentity(row.items))"),
+        ),
+        (
+            "lazy",
+            "false and (identity(row.a) in itemsIdentity(row.items))".to_string(),
+        ),
+        (
+            "lazyLong",
+            format!("{prefix} and false and (identity(row.a) in itemsIdentity(row.items))"),
+        ),
+    ] {
+        source.push_str(&format!(" derive {name}(row:Row):bool = {expression}\n"));
+    }
+    source.push_str("When\nThen\n");
+    let artifact = compile(&scratch.0, &source, "joins");
+    execute(
+        &scratch.0,
+        &[("joins", artifact)],
+        r#"
+const call=await load('joins');
+for(const name of ['cases','casesLong','expected']){
+ assert.equal(await call(name)(context,{s:'a'}),true);
+ assert.equal(await call(name)(context,{s:'b'}),false);
+}
+assert.equal(await call('ordinary')(context,{ordinary:'draft'}),true);
+assert.equal(await call('ordinary')(context,{ordinary:'approved'}),false);
+for(const name of ['shadow','shadowLong']){
+ assert.equal(await call(name)(context,'b','a',{s:'b'}),true);
+ assert.equal(await call(name)(context,'b','a',{s:'a'}),false);
+}
+for(const name of ['member','memberLong','grouped','awaited','awaitedLong']){
+ for(const expected of [true,false]){
+  const trace=[];const row={};
+  Object.defineProperty(row,'a',{get(){trace.push('left');return 2n;}});
+  Object.defineProperty(row,'items',{get(){trace.push('right');return expected?[2n]:[3n];}});
+  assert.equal(await call(name)(context,row),expected);assert.deepEqual(trace,['left','right']);
+ }
+ const trace=[];const row={};const error=Error('left failed');
+ Object.defineProperty(row,'a',{get(){trace.push('left');throw error;}});
+ Object.defineProperty(row,'items',{get(){trace.push('right');return [2n];}});
+ await assert.rejects(call(name)(context,row),e=>e===error);assert.deepEqual(trace,['left']);
+ const rightTrace=[];const rightRow={};const rightError=Error('right failed');
+ Object.defineProperty(rightRow,'a',{get(){rightTrace.push('left');return 2n;}});
+ Object.defineProperty(rightRow,'items',{get(){rightTrace.push('right');throw rightError;}});
+ await assert.rejects(call(name)(context,rightRow),e=>e===rightError);assert.deepEqual(rightTrace,['left','right']);
+}
+for(const name of ['lazy','lazyLong']){
+ const row={};for(const key of ['a','items'])Object.defineProperty(row,key,{get(){throw Error('lazy operand read');}});
+ assert.equal(await call(name)(context,row),false);
+}
+"#,
+    );
+}
+
+/// Scenario import gates are a separate stdlib gap. This control qualifies
+/// admitted local ownership through the compiled artifact, not execution.
+#[test]
+fn enum_local_shadowing_keeps_resolved_slots_in_compiled_scenario() {
+    let scratch = Scratch::new();
+    let source = "app Local\nGiven\n contract Row { s:enum(a,b),a:int,b:int }\nWhen\n scenario local(row:Row) read=true -> bool by=members\n  do\n   let a = row.s\n   let b = row.s\n   return a==row.s and row.s in [a,b]\nThen\n";
+    let output = compile(&scratch.0, source, "locals");
+    let json = canlang_compiler::json::parse(&output).unwrap();
+    let js = json.get("modules").unwrap().as_arr().unwrap()[0]
+        .get("js")
+        .unwrap()
+        .as_str()
+        .unwrap();
+    let returned = js
+        .lines()
+        .find(|line| line.starts_with("return ("))
+        .unwrap();
+    assert!(
+        returned.contains("$can$l$313a61 === $can$l$303a726f77.s"),
+        "{returned}"
+    );
+    assert!(
+        returned.contains("[$can$l$313a61,$can$l$323a62]"),
+        "{returned}"
+    );
+    assert!(
+        !returned.contains("\"a\"") && !returned.contains("\"b\""),
+        "{returned}"
+    );
+}

@@ -375,6 +375,9 @@ fn record_name(tables: &ResolveTables, module: ModuleId, id: SymbolId) -> String
 /// Types per symbol and per typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Name references with a lexical value binding. Retained for IR so
+    /// enum-valued locals are not reconstructed as case spellings.
+    pub bound_names: HashSet<NodeKey>,
     /// Resolved type of each typed CST node (absent = untyped position).
     pub node_types: HashMap<NodeKey, ResolvedType>,
     /// Additional unbound names found by the types pass (pass 2 `E2001`).
@@ -413,6 +416,17 @@ pub fn check_types(
     typer.check_cycles();
     typer.types.symbol_types = std::mem::take(&mut typer.decl);
     typer.types.symbol_results = std::mem::take(&mut typer.results);
+    typer.types.bound_names = tables
+        .node_binding
+        .iter()
+        .filter(|(_, binding)| {
+            !matches!(
+                binding,
+                Binding::Builtin { .. } | Binding::Predicate | Binding::Error
+            )
+        })
+        .map(|(key, _)| *key)
+        .collect();
     typer.types
 }
 

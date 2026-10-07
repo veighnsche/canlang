@@ -2065,7 +2065,10 @@ impl<'a> Emitter<'a> {
                     );
                     return self.throw_expr("in over non-collection");
                 }
-                format!("{}.includes({l})", parenthesize_operand(&r, &right.expr))
+                // Call arguments evaluate once in authored left-to-right
+                // order, including awaits. The lambda's parameters cannot
+                // capture either operand and introduce no Promise turn.
+                format!("(($member,$collection)=>$collection.includes($member))({l},{r})")
             }
             IrBinOp::Eq | IrBinOp::Ne => self.lower_equality(op, left, right, span, l, r),
             IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge => {

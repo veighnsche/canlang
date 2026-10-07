@@ -1,0 +1,66 @@
+{
+  "source_pins": {
+    "compiler/src/analysis/types.rs": "4ef262e2b341b9caebe225921d0a4c7e6db18d637443d46fcbfad17bed94817e",
+    "compiler/src/codegen/ir.rs": "e8c2554ace88f61569e977598020a34ea4b8002d1ed3d7829507719a65a5422a",
+    "compiler/src/codegen/js.rs": "249419ed51f2f1dab78c5e42f7591ac914a9f4ba870689bcd3c52001d00e1494",
+    "compiler/tests/codegen.rs": "d794dce6f7680e678dab83b9cc201eb69127fe221decff2918100688c0fded98",
+    "compiler/tests/flat_expression_runtime.rs": "0f2d6eb84fa2d80b291702382a6aa6595f74963c0f047c96e0934fdb361a04e3"
+  },
+  "results": [
+    {
+      "name": "check",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/enum-membership/review-source.can"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "compile",
+      "command": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/enum-membership/review-source.can"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "node",
+      "exit": 0
+    }
+  ],
+  "authored_sha256": "09c389d1096fe24049503e4e424ee2bf6dbb08797b137c3edd609971ab96905f",
+  "binary_sha256": "5a8bf24c59559a7690e389120837cf48d9e5c7d4067ab411c9ae3522ce0f197a",
+  "node": "v24.21.0",
+  "runtime_pins": {
+    "packages/stdlib/package.json": "1f5dda9a1bc0390590943772e7665e357e1337e705bb15c825c40eb2fcf5883b",
+    "packages/stdlib/dist/src/index.js": "7b3c6ca1193bd3a12a72dcd5a25e1baeafae28d5ca7013d8716e2a6b975c577c",
+    "packages/values/dist/src/index.js": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c"
+  },
+  "retained_hashes": {
+    "review-compile.stdout": "ced99349b9fc43ba046b9afe3b7235a9cbaa7370927049c7c5889d004d927332",
+    "review-runner.mjs": "b66fa4c439b9a16a752839d1d43199f33e951871b7bddd7d1987fae12ad7d49a",
+    "review-compile.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-check.stdout": "5137fff58b204c07ffd2ced3419b4655f5034238f2e3fe61872dbee304bcc023",
+    "review-source.can": "09c389d1096fe24049503e4e424ee2bf6dbb08797b137c3edd609971ab96905f",
+    "review-node.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-focused.stdout": "649d28e0270acef97082fa164796dd22a30de05d9a6d0dfb98e501ed53756ed2",
+    "review-focused.stderr": "7037515c26dfd2c5c7b3ec8c2e609bae42c03603a200a07f20b2835a4f1403ba",
+    "review-check.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review-node.stdout": "a70df0294530edaf54d100b3da1cd3e6d50527ae147f88fd950115403d5148a0"
+  },
+  "independent_focused_tests": {
+    "filter": "enum_",
+    "passed": 2,
+    "filtered": 4,
+    "serial": true
+  },
+  "worker_frozen_raw_hashes_validated": true
+}

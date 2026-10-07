@@ -2359,6 +2359,12 @@ impl<'a> Cx<'a> {
             .iter()
             .find_map(|n| name_text(self.db, n))
             .unwrap_or_default();
+        // Analysis owns enum-case claims, including spellings also used
+        // by unrelated fields or fixed scope slots such as `b`.
+        let key = NodeKey::of(node);
+        if self.program.types.resolved_cases.contains(&key) && is_enum_ty(ty) {
+            return IrExpr::Text(name);
+        }
         // Query-alias rewrite inside one anchored expression.
         if let Some(row) = scope.row_rewrite.get(&name) {
             return IrExpr::Name(row.clone());
@@ -2372,6 +2378,9 @@ impl<'a> Cx<'a> {
         if let Some(fixture) = scope.bindings.get(&name) {
             let fixture_name = self.local_name(*fixture);
             return member_of("s", &fixture_name, &self.fixture_type(*fixture), node.span);
+        }
+        if is_enum_ty(ty) && self.program.types.bound_names.contains(&key) {
+            return IrExpr::Name(name);
         }
         // Fixture references resolve through the example tables.
         if let Some(id) = self.fixture_in_scope(scope.module, &name) {

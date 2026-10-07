@@ -1,0 +1,10 @@
+app Local
+Given
+ contract Row { s:enum(a,b),a:int,b:int }
+When
+ scenario local(row:Row) read=true -> bool by=members
+  do
+   let a = row.s
+   let b = row.s
+   return a==row.s and row.s in [a,b]
+Then
