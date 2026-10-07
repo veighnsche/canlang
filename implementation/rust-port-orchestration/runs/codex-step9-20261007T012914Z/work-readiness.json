@@ -1,0 +1,49 @@
+{
+  "scope": "Registered native source evidence reuse and actual production/installed path readiness",
+  "all_step6_committed_blobs_unchanged": true,
+  "exact_checks": {
+    "packages/work-kernel/Cargo.toml": true,
+    "packages/work-kernel/Cargo.lock": true,
+    "packages/work-kernel/rust/lib.rs": true,
+    "packages/work-kernel/decisions/lib.rs": true,
+    "packages/work-kernel/conformance/registered-native.rs": true,
+    "packages/work-kernel/conformance/registered-differential.mjs": true,
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json": true,
+    "packages/work-kernel/decisions/rows.rs": true,
+    "packages/work-kernel/decisions/receipt.rs": true,
+    "packages/work-kernel/decisions/recovery.rs": true,
+    "packages/work-kernel/decisions/linkage.rs": true,
+    "packages/work-kernel/decisions/numeric_text.rs": true,
+    "packages/work-kernel/conformance/numeric-text.contract.test.ts": true,
+    "packages/work-kernel/conformance/numeric-text.oracle.d.mts": true
+  },
+  "source_sha256": {
+    "packages/work-kernel/Cargo.toml": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+    "packages/work-kernel/Cargo.lock": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+    "packages/work-kernel/rust/lib.rs": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+    "packages/work-kernel/decisions/lib.rs": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+    "packages/work-kernel/conformance/registered-native.rs": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a",
+    "packages/work-kernel/conformance/registered-differential.mjs": "bdbb31eff01512d79d0ed3f4e7a41e7928e7867035d75cc06da71b8ca41574f9",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json": "560c250bf7b45cc6f38b5302037695090ef98d395248b3a117784db60efde230",
+    "packages/work-kernel/decisions/rows.rs": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+    "packages/work-kernel/decisions/receipt.rs": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+    "packages/work-kernel/decisions/recovery.rs": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+    "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+    "packages/work-kernel/decisions/numeric_text.rs": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+    "packages/work-kernel/conformance/numeric-text.contract.test.ts": "08d5ad8c3773c1fcf14dbe1d9a7a2891139ab85f0e4391e0a6d2a88dc709e0bc",
+    "packages/work-kernel/conformance/numeric-text.oracle.d.mts": "dc8dbae0939b9d88b8f14f2caf5c13224c1706c6d142ea5a8c00420010da2369"
+  },
+  "reuse": "Step6 315 native +93 shared Rust/TS cases only; no new full native rerun when unchanged",
+  "production_selected_rust_imports": [],
+  "missing_files": [
+    "packages/work-kernel/bindings/wasm.rs",
+    "packages/work-kernel/bindings/loader.ts",
+    "packages/work-kernel/src/backend.ts",
+    "packages/work-kernel/measurement/complete-calls.ts"
+  ],
+  "build_wasm": "cargo build --locked --manifest-path Cargo.toml --target wasm32-unknown-unknown --release",
+  "declared_features": false,
+  "root_wasm_export_present": false,
+  "consumer_claim": "Cannot qualify W05/W06 real Rust backend or W07 measurement/W08 rollback: no selected Wasm adapter, consumer or measurement runner. Existing public work kernel entry has facts only. Compiler/durable glue remains original prerequisite.",
+  "entire_package_unchanged_since_R3_commit": "git diff5a4e827 -- packages/work-kernel returned empty; no expansion of original native sample scope"
+}

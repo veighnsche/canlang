@@ -1,0 +1,132 @@
+{
+  "scope": "Exact-source source-emitted installed work TS facts readiness ONLY",
+  "accepted_profile": "No new Rust backend consumer",
+  "limits": [
+    "Native 315/93 accepted unchanged candidate reused separately",
+    "No W05 Wasm wrapper/glue/loader/backend selection",
+    "No W06 state/Cloudflare producer selects Rust",
+    "No W07 whole-flow measurement or W08 persisted swap rollback"
+  ],
+  "source_stable": true,
+  "tarballs": {
+    "canlang-contracts-0.1.0.tgz": "16b3bb318a4b2da560b720170c17c2d179e243bb96e5571916307f54ce6aeaf8",
+    "canlang-work-kernel-0.1.0.tgz": "e7ffb5bc554eb1e4ce9747caaad9a7e75e8c754bafebbb8101bd38f69f1b0a41"
+  },
+  "probe": {
+    "node": "v24.21.0",
+    "resolved": "file:///private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/installed/node_modules/@canlang/work-kernel/dist/src/index.js",
+    "public_exports": [
+      "DECISION_PROFILES",
+      "PRESENCE_TAGS",
+      "TRANSPORT_REJECTIONS",
+      "TRANSPORT_VERSION",
+      "WORK_KERNEL_VERSION",
+      "validateCount",
+      "validatePayloadRef",
+      "validateVersions"
+    ],
+    "pass": true,
+    "rust_consumer": false,
+    "profile": "installed TS facts only; no W05/W06 Rust acceptance"
+  },
+  "commands": [
+    {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "/Users/vince/Projects/canlang/packages/contracts/tsconfig.json",
+        "--outDir",
+        "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/packages/contracts/dist"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "start": "2026-10-07T01:30:56.579Z",
+      "end": "2026-10-07T01:30:56.921Z",
+      "exit": 0,
+      "signal": null,
+      "log": "contracts-emit.log"
+    },
+    {
+      "command": [
+        "npm",
+        "pack",
+        "--offline",
+        "--ignore-scripts",
+        "--json",
+        "--pack-destination",
+        "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/packages/contracts",
+      "start": "2026-10-07T01:30:56.928Z",
+      "end": "2026-10-07T01:30:57.295Z",
+      "exit": 0,
+      "signal": null,
+      "log": "contracts-pack.log"
+    },
+    {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "/Users/vince/Projects/canlang/packages/work-kernel/tsconfig.json",
+        "--outDir",
+        "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/packages/work-kernel/dist"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "start": "2026-10-07T01:30:57.302Z",
+      "end": "2026-10-07T01:30:57.710Z",
+      "exit": 0,
+      "signal": null,
+      "log": "work-kernel-emit.log"
+    },
+    {
+      "command": [
+        "npm",
+        "pack",
+        "--offline",
+        "--ignore-scripts",
+        "--json",
+        "--pack-destination",
+        "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/packages/work-kernel",
+      "start": "2026-10-07T01:30:57.717Z",
+      "end": "2026-10-07T01:30:57.885Z",
+      "exit": 0,
+      "signal": null,
+      "log": "work-kernel-pack.log"
+    },
+    {
+      "command": [
+        "npm",
+        "install",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/canlang-contracts-0.1.0.tgz",
+        "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/canlang-work-kernel-0.1.0.tgz"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/installed",
+      "start": "2026-10-07T01:30:57.891Z",
+      "end": "2026-10-07T01:30:58.087Z",
+      "exit": 0,
+      "signal": null,
+      "log": "installed-install.log"
+    },
+    {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "probe.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/installed",
+      "start": "2026-10-07T01:30:58.094Z",
+      "end": "2026-10-07T01:30:58.121Z",
+      "exit": 0,
+      "signal": null,
+      "log": "installed-probe.log"
+    }
+  ],
+  "private_root": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work",
+  "raw_receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/receipt.json"
+}

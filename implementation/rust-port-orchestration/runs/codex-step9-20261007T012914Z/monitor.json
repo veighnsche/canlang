@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "run_id": "codex-step9-20261007T012914Z",
+  "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z",
+  "private_root": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z",
+  "base": "b1261858b271ebbdfde6d65523918ec02eec1128",
+  "previous_run": "codex-step8-20261007T005702Z",
+  "phase": "step9_readiness_and_consumer_qualification",
+  "human_release": "Human step9 actual Rust backend consumer qualification",
+  "execution_authorized": true,
+  "future_dispatch_authorized": false,
+  "preparation_hold": true,
+  "source_pins_role": "Baseline only; final acceptance pins recorded separately",
+  "baseline_reference": "baseline.json",
+  "roles": [
+    {
+      "owner": "/root/step9_values",
+      "scope": "Private fresh values/validation scaffold regeneration and installed qualification",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack": true,
+      "source_lease": false
+    },
+    {
+      "owner": "/root",
+      "scope": "Work and global delivery qualification, independent values review",
+      "source_lease": false
+    }
+  ],
+  "heavy_grants": [
+    {
+      "slot": 1,
+      "owner": "/root/step9_values",
+      "scope": "Private fresh values Rust regeneration then private TS/installed consumers; max2workers",
+      "released": false
+    },
+    {
+      "slot": 2,
+      "owner": "/root",
+      "scope": "Private work/contracts source emit and tarball-installed export verification; TS-only readiness not Rust acceptance",
+      "released": true,
+      "handle": 14828,
+      "result": "exit0;6 actual commands;140 emitted installed files byte-equal; TS facts only, no Rust consumer"
+    }
+  ],
+  "native_timers": [],
+  "supervisor_status": "ACTIVE",
+  "foreign_writer": "Compiler and six dirty shared documentation paths remain foreign-owned",
+  "remaining_gates": [],
+  "updated_at_utc": "2026-10-07T01:31:57.902401+00:00",
+  "material_progress": {
+    "values": "Locked native and fresh Wasm generation succeeded; committed vs fresh binary differs, same JS glue; installed emit in progress",
+    "work": "All package sources equal5a4e827; prior registered315/93 evidence reused at narrow scope. Fresh installed public exports TS-only; W05/W06 consumer absent."
+  }
+}

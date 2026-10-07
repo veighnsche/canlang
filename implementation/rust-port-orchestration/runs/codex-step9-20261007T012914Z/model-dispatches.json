@@ -1,0 +1,27 @@
+{
+  "selection_skill": "/Users/vince/.codex/skills/model-selection/SKILL.md",
+  "official_sources": [
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+    "https://developers.openai.com/api/docs/models/gpt-6-luna"
+  ],
+  "checked_at_utc": "2026-10-07T01:29:14.411556+00:00",
+  "dispatches": [
+    {
+      "agent": "/root/step9_values",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "User step9 full producer/ABI/installed qualification requires cross-file risk judgment. Sol high least expensive reliable approved tier; Luna fits later mechanical extraction only. Actual dispatcher accepted."
+    }
+  ],
+  "dispatcher_limits": [
+    {
+      "attempt": "new step9_work Sol high",
+      "result": "agent thread limit reached; no dispatch"
+    },
+    {
+      "attempt": "reuse completed step8_delivery",
+      "result": "agent thread limit reached; no turn triggered"
+    }
+  ],
+  "bookkeeping": "Root performs compact mechanical receipt writes while agent thread quota prevents economical Luna dispatch; no undisclosed model substitution."
+}
