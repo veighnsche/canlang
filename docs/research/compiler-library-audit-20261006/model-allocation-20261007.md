@@ -1,5 +1,7 @@
 # Compiler task model allocation
 
+This is the historical C-series allocation. Use the [current remaining-reference settings](resumption/model-allocation.md) for work phases, independent review and owner lanes after the resumed audit. Historical source pins and receipts retain their original scope.
+
 **PROPOSED starting settings, researched 2026-10-07 (Europe/Brussels).** These allocations apply to delegated compiler packets. They do not change the coordinating chat's model, release an implementation gate or claim a measured optimum. The previous ten reminders repeated a general policy; they were not ten independently researched task selections.
 
 The inspected sequence is at `b2d54b5029d1426b85994c95dc84ae01a95c88d6`. [Pass 0](pass0/README.md) supplies the contracts and [16 packet boundaries](pass0/packets.json). The current collaboration dispatcher offers the selected model/effort combinations. Check it again at dispatch; public model documentation does not prove account or client availability.
