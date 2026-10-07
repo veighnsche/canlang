@@ -211,52 +211,11 @@ fn js_stringify(v: &Value) -> String {
 }
 
 fn encode_uri_component(units: &[u16]) -> Result<U16, LinkageError> {
-    fn unreserved(b: u16) -> bool {
-        matches!(b,
-            0x41..=0x5A | 0x61..=0x7A | 0x30..=0x39 |
-            0x2D | 0x5F | 0x2E | 0x21 | 0x7E | 0x2A | 0x27 | 0x28 | 0x29)
-    }
-    fn push_utf8_escaped(cp: u32, out: &mut Vec<u16>) {
-        let c = char::from_u32(cp).unwrap_or('\u{FFFD}');
-        let mut buf = [0u8; 4];
-        for b in c.encode_utf8(&mut buf).bytes() {
-            let hex = format!("%{:02X}", b);
-            out.extend(hex.encode_utf16());
-        }
-    }
-    let mut out: Vec<u16> = Vec::new();
-    let mut i = 0;
-    while i < units.len() {
-        let u = units[i];
-        if u < 0x80 && unreserved(u) {
-            out.push(u);
-            i += 1;
-            continue;
-        }
-        if (0xD800..0xDC00).contains(&u) {
-            if i + 1 < units.len() && (0xDC00..0xE000).contains(&units[i + 1]) {
-                let cp = 0x10000 + (((u - 0xD800) as u32) << 10) + (units[i + 1] - 0xDC00) as u32;
-                push_utf8_escaped(cp, &mut out);
-                i += 2;
-                continue;
-            }
-            return Err(LinkageError {
-                name: "URIError".to_string(),
-                code: None,
-                message: "URI malformed".to_string(),
-            });
-        }
-        if (0xDC00..0xE000).contains(&u) {
-            return Err(LinkageError {
-                name: "URIError".to_string(),
-                code: None,
-                message: "URI malformed".to_string(),
-            });
-        }
-        push_utf8_escaped(u as u32, &mut out);
-        i += 1;
-    }
-    Ok(U16(out))
+    super::uri_component::encode(units).map(U16).map_err(|_| LinkageError {
+            name: "URIError".to_string(),
+            code: None,
+            message: "URI malformed".to_string(),
+        })
 }
 
 fn get<'a>(record: &'a [(U16, Value)], field: &str) -> Option<&'a Value> {
