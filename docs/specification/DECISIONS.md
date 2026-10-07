@@ -1610,3 +1610,10 @@ Independent source/emitted comparison, getter and sentinel controls, and all 496
 Keep the shared private keyedPromise primitive inside worker/main.ts: the proposed separate file would violate the existing static-runtime-import boundary. Two WeakMaps and policy accessors remain separate. Exact Promise identity, immediate factory execution and synchronous throw, rejection retry, and identity-guarded old-rejection eviction are preserved without deferred factory invocation or a new loader.
 
 Independent source review, package noEmit check, unchanged public declarations, all 17 worker/main-boundary tests and direct actual-accessor/assembly rejection controls pass. Readable production decreases by three lines; the two-line physical reduction and unchanged generated declaration bytes also establish a strictly smaller complete source closure. This is the cache primitive scope, not full installed/deployment/backend acceptance. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/keyed-promise-independent-review.json) preserves inferred types, source pins and residual gates.
+
+
+## 2026-10-07 — One acyclic Gregorian leaf owner (accepted)
+
+Values kinds and temporal owners share their exact pure daysInMonth/isLeapYear bodies through internal/gregorian.ts. Invalid dates/year/month and original Date.UTC profile remain with callers; the helper imports neither owner, so no kinds/temporal cycle is introduced. Public owner declaration bytes remain unchanged.
+
+Independent baseline/current comparison, direct centuries/leap/invalid/endpoint/calendar controls and all 48 selected kinds/temporal tests pass. Readable production decreases by 22 lines; after charging two private generated declaration lines, the measured closure decreases by 20. This accepts private leaf consolidation, not global host/timezone/locale, Wasm or backend adoption. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/gregorian-independent-review.json) retains exact source hashes and limits.

@@ -1,0 +1,70 @@
+{
+  "packet": "TECH-V02-gregorian",
+  "base": "890fc3b637993cd28b697f2ccd3a97ac678a8024",
+  "files": [
+    {
+      "path": "packages/values/src/kinds.ts",
+      "baselineSha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+      "currentSha256": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+      "declarationBaselineSha256": "00d0c007216802e24036660d15d4d715f2a92b8d35eb5d9c2ba58961c840cb92",
+      "declarationCurrentSha256": "00d0c007216802e24036660d15d4d715f2a92b8d35eb5d9c2ba58961c840cb92",
+      "privateEmittedJsSha256": "45c3c4990042482221f22168a66dd34e044946c2b9f0d9104eb1246f487bd9ac",
+      "exactHelperBodies": true,
+      "otherSourceByteUnchanged": true,
+      "publicDeclarationByteIdentical": true,
+      "privateOutputSourceCurrent": true
+    },
+    {
+      "path": "packages/values/src/temporal.ts",
+      "baselineSha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+      "currentSha256": "51d8ab0f6bf7aeed7cd06420e660111bbf6b82997d76fedeab5c0602728481dc",
+      "declarationBaselineSha256": "73b64921825a0654cc9b9e68e894f773a223fbf4b6f3d9211c76b93a619fa91e",
+      "declarationCurrentSha256": "73b64921825a0654cc9b9e68e894f773a223fbf4b6f3d9211c76b93a619fa91e",
+      "privateEmittedJsSha256": "92a8b3d1fc67604e43f4547efa59a811590ca0d79b041e54088bfee824acb4f7",
+      "exactHelperBodies": true,
+      "otherSourceByteUnchanged": true,
+      "publicDeclarationByteIdentical": true,
+      "privateOutputSourceCurrent": true
+    }
+  ],
+  "helper": {
+    "path": "packages/values/src/internal/gregorian.ts",
+    "currentSha256": "99142cba4caf04ca931e445f03b073afc0336542e1a79a346c36acce15f0320f",
+    "privateEmittedJsSha256": "3fc81b23cbb7fa7c2d8b99635d5403425ed0048101bbbba89bc084d8a6825936",
+    "noImports": true
+  },
+  "counts": {
+    "measure": "Nonblank noncomment source using parsed TS comment ranges; tests/generated output/maps excluded",
+    "productionBefore": 645,
+    "productionAfter": 623,
+    "declarationsBefore": 53,
+    "declarationsAfter": 55,
+    "totalBefore": 698,
+    "totalAfter": 678
+  },
+  "controls": [
+    {
+      "name": "Baseline/current constructors, date predicates/parsers, datetime endpoints, month addition and civil epoch arithmetic including 0001/0099/centuries and invalid values",
+      "passed": true,
+      "DateUTCInvocationCount": 0
+    },
+    {
+      "name": "Direct Gregorian helpers: invalid months, negative/zero/century/fractional/NaN/infinite years preserve baseline behavior",
+      "passed": true
+    }
+  ],
+  "tests": {
+    "tests": 48,
+    "passed": 48,
+    "failed": 0,
+    "log": "/private/tmp/canlang-repair-go-20261007/gregorian-independent-test.log"
+  },
+  "defects": [],
+  "limits": [
+    "Only shared Gregorian leaf extraction in kinds/temporal",
+    "No temporal to kinds cycle added: helper imports neither; kinds still does not import temporal",
+    "Public declarations unchanged; helper declarations fully charged",
+    "No Date.UTC was used by baseline or current controlled calendar paths",
+    "No broader runtime/backend/foreign compiler acceptance"
+  ]
+}

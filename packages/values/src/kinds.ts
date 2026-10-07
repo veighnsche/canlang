@@ -14,6 +14,7 @@ import type {
 } from "@canlang/contracts/values";
 import { CURRENCY_MINOR_UNITS } from "./currency-data.js";
 import { ValueError } from "./errors.js";
+import { daysInMonth } from "./internal/gregorian.js";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -77,32 +78,6 @@ export function makeMoney(minor: bigint, currency: string): MoneyValue {
   }
   const value: MoneyValue = { kind: "money", minor, currency };
   return freeze(value);
-}
-
-function isLeapYear(year: number): boolean {
-  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-}
-
-function daysInMonth(year: number, month: number): number {
-  switch (month) {
-    case 1:
-    case 3:
-    case 5:
-    case 7:
-    case 8:
-    case 10:
-    case 12:
-      return 31;
-    case 4:
-    case 6:
-    case 9:
-    case 11:
-      return 30;
-    case 2:
-      return isLeapYear(year) ? 29 : 28;
-    default:
-      return 0;
-  }
 }
 
 function isValidDateParts(year: unknown, month: unknown, day: unknown): boolean {
