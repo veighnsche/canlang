@@ -1,0 +1,1 @@
+$ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/

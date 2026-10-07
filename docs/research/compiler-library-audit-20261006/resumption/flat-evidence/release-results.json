@@ -1,0 +1,68 @@
+{
+  "scope": "Same final-source native stripped z/LTO release binary as matched cost profile; bounded retained original source ladder, core0/15s each, no portable budget/otherhost claim",
+  "binary": "/private/tmp/can-resume-profile/after-final-can",
+  "binary_sha256": "3af77b115496b147e9265ba4af0a1e202dac9b1aa7a0e60b9a57d63556533707",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "results": [
+    {
+      "terms": 1024,
+      "stage": "check",
+      "exit": 0,
+      "stdout": "release-1024-check.stdout",
+      "stderr": "release-1024-check.stderr",
+      "stdout_sha256": "70537b9598de45a86b4fbfc0117c2ff557fece7419a87a7710e8b6240ba2311d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_sha256": "21a3fc16d97f2865aa9d1501fa8ecae6859003e932a61b6119b1eb2fb6a0ca8c"
+    },
+    {
+      "terms": 1024,
+      "stage": "compile",
+      "exit": 0,
+      "stdout": "release-1024-compile.stdout",
+      "stderr": "release-1024-compile.stderr",
+      "stdout_sha256": "03b07e8988d039e18201996ec2caaeb3791ef530ac32b5680192d4fc882a8fc1",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_sha256": "21a3fc16d97f2865aa9d1501fa8ecae6859003e932a61b6119b1eb2fb6a0ca8c"
+    },
+    {
+      "terms": 2048,
+      "stage": "check",
+      "exit": 0,
+      "stdout": "release-2048-check.stdout",
+      "stderr": "release-2048-check.stderr",
+      "stdout_sha256": "c633e66f0147e3446892947d58d09c2c078f0f995e8889d52f63ff1731569412",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_sha256": "331a09ca070132f926b051f885a50c5406d437011c63949cc48fff1ecbc634ee"
+    },
+    {
+      "terms": 2048,
+      "stage": "compile",
+      "exit": 0,
+      "stdout": "release-2048-compile.stdout",
+      "stderr": "release-2048-compile.stderr",
+      "stdout_sha256": "ab54817c9f80276c53688cb835436d2073d2636e2211d83cda88faf229df111d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_sha256": "331a09ca070132f926b051f885a50c5406d437011c63949cc48fff1ecbc634ee"
+    },
+    {
+      "terms": 3000,
+      "stage": "check",
+      "exit": 0,
+      "stdout": "release-3000-check.stdout",
+      "stderr": "release-3000-check.stderr",
+      "stdout_sha256": "9b4204e8cf4730ea0f657bba6c11d6fec8c920ce9a18429b58e1dbac1edbbca1",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_sha256": "a25d5ac5829b51afdbfecc74e2665bde5874594a91d096d6be1aecc5684db329"
+    },
+    {
+      "terms": 3000,
+      "stage": "compile",
+      "exit": 0,
+      "stdout": "release-3000-compile.stdout",
+      "stderr": "release-3000-compile.stderr",
+      "stdout_sha256": "1014e81282d704573655b0f3c8191426269201edb95fd6afd17193209cbe1cf1",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_sha256": "a25d5ac5829b51afdbfecc74e2665bde5874594a91d096d6be1aecc5684db329"
+    }
+  ]
+}

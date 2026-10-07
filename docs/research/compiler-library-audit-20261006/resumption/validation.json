@@ -1,0 +1,176 @@
+{
+  "schema": 1,
+  "scope": "Saved receipt/hash/count/outcome consistency; no production suites or workload executions",
+  "validator_sha256": "779dd67798223995c182cbed2875aeadb6899d303b2f41679fe1115c14d15792",
+  "checks": {
+    "release_pins": {
+      "input": 117,
+      "stream": 100,
+      "source_head": "7f4b26cfc6a4d8c77a012387eebf1c373d90be75",
+      "receipt_sha256": "868424981b887dd9b2d515410fc47a3f9d1f96119e9ae1350d81936f6ed0e29c"
+    },
+    "compiler_raw_results": {
+      "compiler_harnesses": 52,
+      "compiler_passed": 1070,
+      "compiler_failed": 0,
+      "compiler_ignored": 0,
+      "body_skips": [
+        "SKIP mode 4750: this host did not retain the requested fixture bits"
+      ],
+      "measured": 0,
+      "filtered": 0
+    },
+    "editor_session_exports": {
+      "executions": 4,
+      "PASS_lines": {
+        "strict-typescript": 0,
+        "protocol-39": 39,
+        "startup-11": 11,
+        "currentness-5": 5
+      },
+      "origin": "Verbatim retained tool-output session exports; not independently redirected native raw or a new execution. Exact commands/timestamps/exit and original stream hashes retained. Owning source did not change after these checks.",
+      "limit": "Retained session exports; no new native raw redirection or execution"
+    },
+    "production_counts": {
+      "files": 41,
+      "before_ref": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
+      "before": 69255,
+      "after": 69416,
+      "net": 161,
+      "versus_original": 297,
+      "counter_sha256": "9d3ea91b27f750c6b4bfe74b7f6dcfd13271eeb9e90367ea9a81fe431b9ed95a",
+      "bounded_simplification_replayed": 26,
+      "closure_accounting": [
+        {
+          "id": "BDD-QUOTE",
+          "commit": "c84b815",
+          "method": "Published compiler production counter, selected complete changed production closure at commit parent vs commit",
+          "files": {
+            "compiler/src/codegen/bdd.rs": {
+              "before": 434,
+              "after": 429
+            },
+            "compiler/src/codegen/js.rs": {
+              "before": 5842,
+              "after": 5842
+            }
+          },
+          "net": -5
+        },
+        {
+          "id": "OUT-R02",
+          "commit": "cdfd1ed",
+          "method": "Published compiler production counter, selected complete changed production closure at commit parent vs commit",
+          "files": {
+            "compiler/src/diagnostic.rs": {
+              "before": 326,
+              "after": 341
+            },
+            "compiler/src/codegen/mod.rs": {
+              "before": 223,
+              "after": 208
+            },
+            "compiler/src/lsp/server.rs": {
+              "before": 1211,
+              "after": 1196
+            }
+          },
+          "net": -15
+        },
+        {
+          "id": "OR-BDD-ID+OR-BDD-SEQUENCE",
+          "commit": "25263de",
+          "method": "Published compiler production counter; testkit steps physical lines includes comments/blank lines, owning package tests separate",
+          "files": {
+            "compiler/src/codegen/bdd.rs": {
+              "before": 429,
+              "after": 420
+            },
+            "compiler/src/codegen/js.rs": {
+              "before": 5887,
+              "after": 5887
+            },
+            "packages/testkit/src/runner/steps.ts": {
+              "before": 306,
+              "after": 309
+            }
+          },
+          "net": -6
+        }
+      ],
+      "bounded_scope_attribution": "Complete selected changed production closures at each commit; semantic attribution reviewed separately"
+    },
+    "flat_cases": {
+      "debug": 9,
+      "debug_aborts": 4,
+      "release": 6,
+      "release_all_exit_zero": true
+    },
+    "matched_profile": {
+      "warmups_per_side": 3,
+      "samples_per_side": 20,
+      "median_ms": {
+        "cli": {
+          "before": 6.1601455,
+          "after": 6.099645499999999
+        },
+        "lsp": {
+          "before": 1.2834375,
+          "after": 1.3438335000000001
+        }
+      },
+      "artifact_projection_equal": true,
+      "historical_input_pins": 107
+    },
+    "advice": {
+      "requests": 3,
+      "answers": [
+        {
+          "choice": "iterative",
+          "confidence": 0.49,
+          "iterative_probability": 0.66
+        },
+        {
+          "choice": "iterative",
+          "confidence": 0.94,
+          "iterative_probability": 0.96
+        },
+        {
+          "choice": "iterative",
+          "confidence": 0.86,
+          "iterative_probability": 0.91
+        }
+      ],
+      "scope": "advice only; equivalence/fairness reviewed separately"
+    },
+    "ledger_and_local_links": {
+      "historical": 591,
+      "appended": 76,
+      "total": 667,
+      "record_counts": {
+        "resumption_scope": 1,
+        "resumption_lowering_duty": 11,
+        "resumption_lowering_followup": 8,
+        "resumption_cost_oracle_followup": 12,
+        "resumption_disposition": 37,
+        "resumption_repair": 4,
+        "resumption_integration_disposition": 1,
+        "resumption_independent_review": 1,
+        "resumption_execution": 1
+      },
+      "exact_finding_joins": 37,
+      "local_file_targets": 138,
+      "fragment_limit": "File existence only; Markdown anchors not evaluated",
+      "historical_sha256": "17979e58b31907ee45bb8f02688fb05c2a774646a28f326717171c28ebcb7d8f",
+      "current_sha256": "8f00f254f1a0088769b1bcc9f5e655ded7a0a6098800e0b6eca7cf0b86228faa"
+    }
+  },
+  "errors": [],
+  "limitations": [
+    "Hash coherence is not full semantic correctness or execution provenance reconstruction",
+    "Harness passes remain distinct from raw body markers/skips and platform cfg exclusions",
+    "Stored timing samples are recomputed, not rerun; no causal or general performance inference",
+    "Bounded mechanism simplification attribution is separate from parser-free physical counts",
+    "Historical source/build pins are preserved; later test-only strengthening is not recredited to old full harness"
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "binary_sha256": "3cd604481b863f7515cc0c0367abf8ef31eca89a7f4ea04c65724a4be832b8b8",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "scope": "Actual existing native debug compiler controls; no final release or whole current source freeze claim. The renamed source exactly follows the offered parameter declaration/read edits, leaving set target unchanged.",
+  "cases": [
+    {
+      "case": "control",
+      "source_sha256": "b16b4b84b7095e7e80e1163f1d064789f040d8381671375a0e78fe38688db657",
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E3002",
+          "severity": "error",
+          "message": "cannot compute text + text",
+          "primary": {
+            "file": 0,
+            "start": 107,
+            "end": 124
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stdout_sha256": "e558bc4599211e41c507accb444477cf6985d6c06c66d41139cf77bfd6500482",
+      "stderr": ""
+    },
+    {
+      "case": "offered-renamed",
+      "source_sha256": "57ba6239b37836f9c431c6adf1ef4134f04a04bdaa24e531c01ca9e3cbaddda5",
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E3002",
+          "severity": "error",
+          "message": "cannot compute text + text",
+          "primary": {
+            "file": 0,
+            "start": 106,
+            "end": 122
+          },
+          "related": [],
+          "tags": []
+        },
+        {
+          "code": "E2001",
+          "severity": "error",
+          "message": "unresolved name 'task'",
+          "primary": {
+            "file": 0,
+            "start": 131,
+            "end": 135
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stdout_sha256": "1f1b191cc2d57f19be256f915f58ab3962a7b61c062cda6690da04d023316c61",
+      "stderr": ""
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "command": "cost-probe.py --before before-can --after after-can --output observer1",
+  "exit": 1,
+  "observer_error": "Expected before includeDeclaration=false to exclude declaration; retained original server ignores this option, returns two declaration/read locations. Fixed baseline expectation uses two locations, independently differentiated from repaired read/set locations. No benchmark result credited."
+}

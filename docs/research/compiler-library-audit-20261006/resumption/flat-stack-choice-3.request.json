@@ -1,0 +1,15 @@
+{
+  "model": "jev-latest",
+  "state": "Tested valid flat arithmetic exposes stack exhaustion downstream of parsing. The parser creates a left-associated tree with loops, so its existing parser-frame bounds do not cap expression-tree height. The native debug stage observer completed 512 terms, failed in JS at 1024, in type analysis at 2048 and in resolution at 3000; earlier stages were clean, with 2\u20136 KiB inputs. This evidence is host/profile specific. Recursive analysis/emission, clones and destruction must be considered as a complete closure. Maintain authored evaluation order, numeric overflow semantics, local error suppression and unaffected sibling diagnostics. The language aims for adoption, concise authoring and demonstrably simple implementation. Structural admission policy remains undecided.",
+  "questions": {
+    "repair_direction": {
+      "type": "choice",
+      "instructions": "Pick the most justified first investigation from these alternatives using the stated evidence and common preservation/adoption/complexity criteria. Treat the answer as advice and retain uncertainty about untested closure and hosts.",
+      "criteria": {
+        "structural_limit": "Adopt a specified expression-tree height boundary at admission, reporting the affected expression without suppressing independent siblings. It provides a small central mechanism but changes the language support contract and needs threshold/compatibility evidence.",
+        "stack_support": "Add bounded stack support or a chosen execution-stack budget around existing recursion. It may reduce immediate rewriting while retaining more inputs, but introduces dependency/host qualification and residual finite-budget failures.",
+        "iterative": "Keep accepted flat source through explicit ordered work stacks across the actual vulnerable consumer/clone/drop closure. It avoids a new language limit and can preserve order, but requires more implementation ownership and regression work."
+      }
+    }
+  }
+}

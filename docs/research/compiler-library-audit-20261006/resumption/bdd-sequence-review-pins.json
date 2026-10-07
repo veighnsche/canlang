@@ -1,0 +1,48 @@
+{
+  "scope": "Post-independent-replay observation pins while parent integration remains active; not an immutable final release binary/source freeze. Dist source join separately verified by owner successful direct build:emit and observed matching scopeFacade integration.",
+  "command": {
+    "argv": [
+      "cargo",
+      "test",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--locked",
+      "--offline",
+      "--test",
+      "bdd_binding_runtime",
+      "--",
+      "--nocapture"
+    ],
+    "cwd": "/Users/vince/Projects/canlang",
+    "exit": 0,
+    "passes": 1,
+    "failed": 0,
+    "ignored": 0,
+    "observation": "Final corrected source replay: exact3 collision scopes/one row each/independent owner vector + exact as outcome identity;1 passed0failed0ignored; tool output confirms actual body."
+  },
+  "prior_invalid_control": {
+    "exit": 101,
+    "passes": 0,
+    "phase": "clean source compilation before consumer",
+    "code": "E5004",
+    "message": "unknown caller 'caller'",
+    "source_sha256": "3ec661517ddc56a182288bcbf116f63919610bbce08ab4624f1f039ffde5485e",
+    "classification": "Invalid newly extended by=caller positive control; no scope policy implementation or consumer acceptance credited. Author reverted source self/other and separately exercised bound by through constructed public sequence."
+  },
+  "pins": {
+    "compiler/src/codegen/bdd.rs": "13f465b553276046198bda84db340dc1bfbfeef4327ae273698cc200093f68a4",
+    "compiler/src/codegen/js.rs": "dbd68e5fa390c754d314ffac20e0c63a5f4f9f349a80f2b5841f1935578c2f0f",
+    "compiler/tests/bdd_binding_runtime.rs": "15f01fdac956155f5cfbf66f162415542d993835679f61b2ebf375b708007f81",
+    "packages/testkit/src/runner/steps.ts": "e53f34b3b7cb5c6a7528ba354799bbfd1b0003af9d22d4f385b3a4028ba607a3",
+    "packages/testkit/src/fixtures/recipes.ts": "3744f19bb8b0667e2228e19ed2e6e88ab65f2f7fa4bf095484a3a0be5c4c0cb5",
+    "packages/testkit/dist/runner/steps.js": "9e8bc492d3095e4b6f945d54ba50f01f7a271c217e552e797c6fd2974a38230d",
+    "packages/testkit/dist/fixtures/recipes.js": "9517d3eb9b4ec7469c12d4e2010a95ff5847dd0b39a66ed95a9a0122188ae19f",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "packages/testkit/package.json": "d4836564d2f24cb9181944e53f1c37596af4ca88c61bd117252ffa0b368b2ced",
+    "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+    "bun.lock": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64"
+  },
+  "oracle_correction": "Earlier uniqueness-only collision assertion could be vacuous on0 suites; independent expected3 canonical scopes and markers added before final accepted replay."
+}
