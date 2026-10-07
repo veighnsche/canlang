@@ -42,8 +42,8 @@ export const AUTH_CODE_TTL_MS = 600_000;
 /** Registration bounds: 1..5 redirect URIs per client (lane-06 authored). */
 export const OAUTH_MAX_REDIRECT_URIS = 5;
 
-/** PKCE S256 challenge: base64url, 43..128 chars (RFC 7636 section 4.2). */
-const CODE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43,128}$/;
+/** S256 encodes a 32-byte SHA-256 digest as 43 unpadded base64url symbols. */
+const CODE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 /** `state` passthrough cap: opaque to us, bounded for the redirect line. */
 export const OAUTH_MAX_STATE_LENGTH = 1024;
@@ -148,7 +148,7 @@ export async function validateAuthorizationRequest(
     throw new IdentityError('validation', 'redirect_uri does not match this client.');
   }
   if (!CODE_CHALLENGE_PATTERN.test(input.code_challenge)) {
-    throw new IdentityError('validation', 'code_challenge must be base64url, 43..128 characters (S256).');
+    throw new IdentityError('validation', 'code_challenge must be base64url, 43 characters (S256).');
   }
   return client;
 }
