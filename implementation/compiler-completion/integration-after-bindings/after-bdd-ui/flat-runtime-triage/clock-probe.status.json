@@ -1,0 +1,5 @@
+{
+  "compile_exit": 0,
+  "exit": 0,
+  "purpose": "same six-thread timestamp naming inputs only; no compiler/package build"
+}

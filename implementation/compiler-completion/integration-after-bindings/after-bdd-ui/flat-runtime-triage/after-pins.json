@@ -1,0 +1,22 @@
+{
+  "compiler/tests/flat_expression_runtime.rs": {
+    "sha256": "2c6c5dcbdaa00e888a780ea6762f4967624892360d0032a142c87a31c21d6e97",
+    "size": 17993
+  },
+  "compiler/target/debug/deps/flat_expression_runtime-abc8893a3f3824dc": {
+    "sha256": "18ac597631d615bb9698e32f30662ec2183ca4cf2670708fd57276c90f792874",
+    "size": 13476296
+  },
+  "compiler/target/debug/can": {
+    "sha256": "2f6a848a2f2c14d0ca7fbc6ebc79ae0912022e770822bcb369c8e78b195a8733",
+    "size": 20903496
+  },
+  "packages/stdlib/package.json": {
+    "sha256": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+    "size": 1279
+  },
+  "packages/values/dist/catalog.json": {
+    "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "size": 22290
+  }
+}

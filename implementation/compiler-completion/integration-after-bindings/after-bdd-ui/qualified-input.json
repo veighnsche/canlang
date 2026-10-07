@@ -1,0 +1,6 @@
+{
+  "reviewed_binary_sha256": "b0e5c51a26d55fbbaad0e2a51ce68c25dc66a656b7ae2508265ce5be1d6f723c",
+  "compiler_input_count": 114,
+  "source_status": "writers frozen; BDD review pending, UI static and guard export reviews accepted",
+  "whole_package_freeze": false
+}

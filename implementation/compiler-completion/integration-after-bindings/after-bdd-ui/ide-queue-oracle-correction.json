@@ -1,0 +1,13 @@
+{
+  "original_full_suite_exit": 101,
+  "failure": "ide::server_stale_version_suppressed_with_real_backend",
+  "initial_text": "app A\\n",
+  "changed_text": "FIXTURE (distinct)",
+  "original_pending_count": 2,
+  "correct_current_pending_count": 1,
+  "preserved_assertions": "exact one published notification, version2 present andversion1 absent",
+  "prior_inventory_review_correction": "Previous narrow review incorrectly categorized this site as equal-text duplicate behavior. Actual distinct replacement takes the accepted prune/remap path.",
+  "test_sha256": "49625acf4796e14ff68c043562741b78615c3dce74aa6123b33be7f76e58425f",
+  "source_behavior_change": false,
+  "raw_failure": "full-suite.log"
+}
