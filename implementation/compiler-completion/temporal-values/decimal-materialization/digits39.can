@@ -1,0 +1,5 @@
+app T
+Given
+ derive value():decimal = 999999999999999999999.123456789012345678
+When
+Then
