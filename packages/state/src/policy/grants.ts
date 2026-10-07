@@ -11,6 +11,7 @@
  * import it without a dependency cycle.
  */
 
+import { deepFreeze } from '../internal/own-data.js';
 import type {
   ModelName,
   QueryPredicate,
@@ -85,27 +86,6 @@ function checkDotPath(path: string, what: string): void {
   if (path === '' || path.split('.').some((segment) => segment === '')) {
     throw new Error(`Invalid ${what} dot path: ${JSON.stringify(path)}`);
   }
-}
-
-/**
- * Deep-freeze a policy AST so post-build mutation cannot alter enforcement.
- * Policy ASTs are trees (no cycles); the guard is defense in depth.
- */
-function deepFreeze<T>(value: T, seen: Set<unknown> = new Set()): T {
-  if (typeof value !== 'object' || value === null || seen.has(value)) {
-    return value;
-  }
-  seen.add(value);
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      deepFreeze(entry, seen);
-    }
-  } else {
-    for (const entry of Object.values(value)) {
-      deepFreeze(entry, seen);
-    }
-  }
-  return Object.freeze(value);
 }
 
 /**
