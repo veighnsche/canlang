@@ -1,0 +1,30 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--test",
+    "lsp_typed_output",
+    "--test",
+    "lsp_admission",
+    "--test",
+    "ide"
+  ],
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_NET_OFFLINE": "true"
+  },
+  "exit_code": 0,
+  "elapsed_seconds": 15.315,
+  "pinned_files": 98,
+  "changed_inputs": [],
+  "preexisting_dirty_test_inputs": [
+    "compiler/src/analysis/resolve.rs",
+    "compiler/tests/analysis.rs",
+    "compiler/tests/lsp_typed_output.rs"
+  ],
+  "qualification": "current frozen worktree; concurrent dirty inputs are pinned, not attributed to output refactor"
+}
