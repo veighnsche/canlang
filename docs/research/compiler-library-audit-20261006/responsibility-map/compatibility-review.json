@@ -942,5 +942,137 @@
     }
   },
   "correction_policy": "all reviewer refinements integrated or preserved as explicit mixed-scope qualification",
-  "final_artifact_review": "pending"
+  "final_artifact_review": {
+    "verdict": "accept_with_minor_integration_corrections",
+    "reviewed_commit": "814bca63aa0cbe051497210c5751fd5148bfea88",
+    "scope": "Final independent artifact/integration challenge, no fresh execution. Input/LSP family authored by this reviewer was checked only for integration consistency; root/output/crosswalk/readable/final claims independently challenged. No tests/builds/network/runtime/repository edits.",
+    "verified": {
+      "records": {
+        "compatibility_requirement": 83,
+        "compatibility_claim": 26,
+        "workflow": 18
+      },
+      "core_packet_coverage": "All16 Pass0 core IDs present in original-packet crosswalk, alongside explicitly conditional/prior families. This is finite navigation coverage, not every public API branch coverage.",
+      "pins": {
+        "compatibility_inputs": {
+          "count": 82,
+          "mismatches": 0,
+          "DECISIONS_scope": "observed prefix before Step4 append"
+        },
+        "workflow_inputs": {
+          "count": 85,
+          "mismatches": 0
+        },
+        "interface_inputs": {
+          "count": 31,
+          "mismatches": 0
+        }
+      },
+      "ledger_sha256": "e34af789c6093625bd39cb9a4b772a1a5226b6e110de945adc67f38aeab4a64c",
+      "validation_ledger_hash_matches": true,
+      "requirement_ids_unique": true,
+      "claim_requirement_and_requirement_workflow_joins_valid": true,
+      "compiler_diff_from_1fd07722090fe70228a6b661e3c6e136275ca84b": "empty",
+      "classification_counts": {
+        "required_semantic": 43,
+        "migration_guard": 18,
+        "required_bytes": 7,
+        "incidental_representation": 3,
+        "test_only": 2,
+        "unresolved": 9,
+        "invalid_behavior": 1
+      }
+    },
+    "integrated_corrections_confirmed": [
+      "OUT03 semantic decoded fidelity is separated from short/raw/slash release byte profile.",
+      "OUT19/25 now required_bytes with explicit current public rustdoc authority and limited API scope; named-field consumers do not waive those promises.",
+      "OUT14/17 semantic default embedding and lazy/evaluation order separated from snapshots.",
+      "OUT13 authored scale classified retained migration guard, with exact scalar semantics separate and general unsupported decimal lowering admitted.",
+      "MAP04 actual public decoder test callers replaced independent decoder oracle; public external-use risk remains.",
+      "Root docs equal-output no-op applies only fmt; docs replacement is explicit.",
+      "POS01 distinguishes live UTF16 server from public byte conversion; no live UTF8 negotiation claim.",
+      "VAL06 current host Intl identity separated from pinned-language-data obligation; ICU profile owner corrected to examples.rs.",
+      "MIG01 added explicit public checker and actual IR pre-emission caller; runtime old-schema lineage remains later semantic work.",
+      "Input aggregate API02 test_only scope constrained to notification; response helpers remain live."
+    ],
+    "corrections": [
+      {
+        "id": "FINAL-01",
+        "target": "coverage.jsonl OUT-07 incidental_or_migration_only",
+        "issue": "Stale sentence says current compiler emits empty operations/models and migrations, despite evidence_and_limits correctly saying arrays possibly empty.",
+        "required_edit": "Replace with current compiler emits operations/models/migrations array keys, possibly empty.",
+        "sources": [
+          "compiler/src/codegen/artifact.rs:573",
+          "compiler/src/codegen/artifact.rs:198-210",
+          "packages/contracts/src/artifact.ts:412"
+        ]
+      },
+      {
+        "id": "FINAL-02",
+        "target": "coverage.jsonl OUT-12 required_minimum",
+        "issue": "decimal authored spelling string remains inside required_semantic minimum although OUT13 correctly classifies stronger authored-scale promise as lexical guard.",
+        "required_edit": "State exact legal decimal value/string wire representation in OUT12, and point to OUT13 for separately retained authored spelling/scale guard. Do not weaken current guard.",
+        "sources": [
+          "compiler/src/codegen/js.rs:429",
+          "docs/specification/DECISIONS.md:1158",
+          "packages/values/src/internal/wire-core.ts:1592-1600"
+        ]
+      },
+      {
+        "id": "FINAL-03",
+        "target": "compatibility.md observation-head paragraph versus compatibility-validation.json/compatibility_scope",
+        "issue": "Readable view calls b66199a the compatibility observation head; validation and scope report7870143465cf3d73e68339a6aa8d82109bd58397. Both are real docs-only commits but stages are unlabeled.",
+        "required_edit": "Distinguish initial workflow/context head b66199a from later compatibility collection/integration observation head7870143. Compiler source checkpoint remains1fd077.",
+        "sources": [
+          "compatibility.md:5",
+          "compatibility-validation.json observed_head",
+          "coverage.jsonl compatibility_scope observed_head"
+        ]
+      },
+      {
+        "id": "FINAL-04",
+        "target": "compatibility-review.json final_artifact_review and compatibility_scope review",
+        "issue": "Pending status is accurate while this review runs, but should be finalized after incorporation.",
+        "required_edit": "Record this bounded final review outcome after corrections; recompute ledger hash if ledger changes.",
+        "sources": [
+          "compatibility-review.json final_artifact_review",
+          "coverage.jsonl compatibility_scope"
+        ]
+      }
+    ],
+    "accepted_scope": [
+      "Readable view explicitly refuses exhaustive648-API/every-branch certification, new execution, product/host acceptance and architecture/library choice.",
+      "18 previous workflows retain original-app/installed-release, BDD-runtime, GUI, version-enforcement and4750-host gaps.",
+      "Allocation is reported as same-day economical selection, not measured task optimum; no escalation claim.",
+      "No classification grants policy/API deletion authority; accepted migration promises remain binding pending explicit owning revision.",
+      "No merge or living-plan checkpoint advancement claimed."
+    ],
+    "limitations": [
+      "No receipt reruns; this is current metadata/source consistency rather than new product evidence.",
+      "82 compatibility and85 workflow source pins do not constitute full release execution closure.",
+      "Six requirements not directly linked from prior26 claims are additional family details, including new MIG01, not broken joins; finite workflow navigation is preserved.",
+      "Exact scalar/resource/authority/lineage correctness and complete external consumers remain later work."
+    ]
+  },
+  "allocation": {
+    "input_lsp": "Sol6.1 medium",
+    "output_maps": "Sol6.1 medium",
+    "cross_and_root_family_review": "Sol6.1 medium",
+    "claims_crosswalk": "Luna6 low",
+    "common_writer_and_delta_verification": "root",
+    "escalation": "none; same-day researched allocation reused"
+  },
+  "final_incorporation": {
+    "status": "all four final review corrections applied",
+    "checks": [
+      "OUT07 arrays possibly empty without stale contradiction",
+      "OUT12 exact decimal string/value minimum; OUT13 retains authored-scale guard",
+      "readable collection head7870143 consistent with pinned ledger scope; source1fd unchanged",
+      "pending review finalized; mechanical ledger/pin validation rerun below"
+    ],
+    "execution": "no fresh runtime/build/test execution",
+    "validated_ledger_sha256": "48ff53d052c3c4965d0d7b6716ebbe823b8f6d5bb6677e17eeda5d88c89f1a2d",
+    "mechanical_errors": [],
+    "review_receipt_hash_scope": "final reviewer hash describes reviewed commit814bca6; corrected current hash is recorded here and in compatibility-validation.json"
+  }
 }
