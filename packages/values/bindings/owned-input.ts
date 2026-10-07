@@ -2,10 +2,11 @@
 //
 // The owned parser calls an unchanged capped reader (injected: the host
 // `readCappedBody`), a default TextDecoder and JSON.parse, then records
-// provenance in a WeakMap BEFORE the token is exposed. Token creation
-// performs no semantic traversal, plan selection, conversion or budget
-// check: scalar roots, deep nests and duplicate keys tokenize exactly
-// as parsed. Only tokens enter owned execution: there is no
+// provenance in a WeakMap BEFORE the token is exposed. Reader bytes are
+// copied and parser-created containers are frozen by an iterative ownership
+// traversal, without semantic validation, plan selection, conversion or a
+// new budget check: scalar roots, deep nests and duplicate keys retain their
+// parsed content. Only tokens enter owned execution: there is no
 // adopt(unknown), and forged tokens, proxies or bare values are
 // rejected at the handoff.
 //
@@ -44,7 +45,7 @@ export class OwnedJsonToken {
   }
 }
 
-/** Controlled data definitions: parsed data only, no host envelope. */
+/** Stable frozen record and parsed value; each bytes access returns a copy. */
 export interface OwnedJsonRecord {
   readonly bytes: Uint8Array;
   readonly text: string;
@@ -62,18 +63,37 @@ function resolve(token: OwnedJsonToken): OwnedJsonRecord {
   return record;
 }
 
+/** Ownership-only traversal of the fresh JSON.parse tree, never arbitrary input. */
+function freezeParsedContainers(value: unknown): void {
+  const pending: unknown[] = [value];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (typeof current !== "object" || current === null) {
+      continue;
+    }
+    const record = current as Record<string, unknown>;
+    for (const key of Object.keys(record)) {
+      const child = record[key];
+      if (typeof child === "object" && child !== null) {
+        pending.push(child);
+      }
+    }
+    Object.freeze(current);
+  }
+}
+
 /**
  * Parses a JSON request body into an owned token. Reader errors (caps,
  * cancellation) propagate untouched by identity. Empty and malformed
- * bodies report the host validation stage. The parsed value is stored
- * as produced: no traversal, validation, conversion or budget check.
+ * bodies report the host validation stage. Parsed contents are preserved;
+ * ownership freezing adds no semantic validation, conversion or depth cap.
  */
 export async function parseOwnedJsonBody(
   request: Request,
   readBody: CappedBodyReader,
   maxBytes: number = OWNED_JSON_MAX_BYTES,
 ): Promise<OwnedJsonToken> {
-  const bytes = await readBody(request, maxBytes);
+  const bytes = new Uint8Array(await readBody(request, maxBytes));
   const text = new TextDecoder().decode(bytes);
   if (text.trim().length === 0) {
     throw new OwnedInputError("validation", "Invalid JSON body.");
@@ -84,15 +104,22 @@ export async function parseOwnedJsonBody(
   } catch {
     throw new OwnedInputError("validation", "Invalid JSON body.");
   }
+  freezeParsedContainers(value);
   const token = new OwnedJsonToken();
-  lineage.set(token, { bytes, text, value, byteLength: bytes.byteLength });
+  lineage.set(token, Object.freeze({
+    get bytes(): Uint8Array { return new Uint8Array(bytes); },
+    text,
+    value,
+    byteLength: bytes.byteLength,
+  }));
   Object.freeze(token);
   return token;
 }
 
 /**
  * Canonical bridge handoff: the only consumer of owned tokens. Returns
- * the recorded data with original enumeration/duplicate semantics.
+ * the stable frozen record/value with original enumeration/duplicate
+ * semantics. Bytes are an accessor returning a fresh defensive copy.
  */
 export function readOwnedJson(token: OwnedJsonToken): OwnedJsonRecord {
   return resolve(token);

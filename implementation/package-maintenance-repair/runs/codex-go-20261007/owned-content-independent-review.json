@@ -1,0 +1,186 @@
+{
+  "packet": "TECH-V03 stable-frozen owned JSON independent review",
+  "disposition": "PASS finite released trusted-reader JSON ownership correction",
+  "base": "36417cc3b0fc9909f4854ac8fac00e93cbfad84e",
+  "reviewHead": "b7e18b9b7da7af07ec7e0672347e2d6f173b3ae2",
+  "baselinePins": {
+    "packages/values/bindings/owned-input.ts": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+    "packages/values/test/owned-input.test.ts": "c7efd84ad346ca6b2336de3242aaf5039249dfe6a7e506b283c66270cd4a5217"
+  },
+  "startEndPins": {
+    "packages/values/bindings/owned-input.ts": "edbd86ee44cf2a235411f426d0e6d6801e452c66423516aa91c18c4a6f2919d6",
+    "packages/values/test/owned-input.test.ts": "d3d31cc346bd85eb625a491f582f583d97aa550bbc74ce63d009c8d85000085b"
+  },
+  "contract": {
+    "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/owned-content-contract.json",
+    "sha256": "5b74e3efc50432e99aaab3390ae31b13d1d48bd52e743f15c67a9eee0b44526f",
+    "selected": "stable_frozen; comments and mutation/byte-access reflection/identity behavioral change explicitly released"
+  },
+  "additionalDefiningReads": {
+    "packages/interfaces/src/http/limits.ts": "1b9718453c391292418fb60dfbf683bc649fef25b96b6a917821c1a60101d51c",
+    "packages/values/tsconfig.json": "ec1f36490ca95056639fee4dbc7d6240e5d8370fd2bded3eb3547770ff95722e",
+    "tsconfig.base.json": "56d05912029f16842996d66df2e6fc4279950a243874a794d9ff2e13e220ded8"
+  },
+  "compileSupport": "inputs.json pins complete private Interfaces source tree and both Values snapshots. Real current readCappedBody/parseJsonBody imported from private emitted owning source with preserved existing package exports/dependencies; source module closure read by compiler is support only, not broader acceptance.",
+  "results": {
+    "currentRegistered": "21/21 pass",
+    "baselineRegistered": "18/21 pass; new buffer/record isolation, deep freeze and wide freeze expectations fail as intended",
+    "strict": "before/current targeted emit0 and noEmit0; actual source-current Interfaces reader support emit0",
+    "fresh": "distinct raw corpus exit0 both snapshots; actual reader cap cancellation/released lock, exact injected Error/Symbol/undefined throw identity, parser1 reader1,3000 stable record/value/text derivatives, retained-buffer and returned subarray/DataView/set/ArrayBuffer.transfer isolation, nested/record/prototype/array method refusal,25 defensive copies, JSON semantic differential against real parseJsonBody,deep30000/wide180001",
+    "semanticCoverage": [
+      "-0, negative overflow and arrayInfinity",
+      "lone low surrogate",
+      "integer-key order and duplicate last-wins",
+      "ordinary own __proto__ original prototype and nested freezing",
+      "constructor/toString own strings",
+      "BOM and malformedUTF8 replacement preserve raw defensive bytes",
+      "empty/whitespace/malformed/invalidUTF8outsideJSON validation stage",
+      "scalar/deep/wide no added cap; existing real body cap exact2 accepted,1 refused"
+    ]
+  },
+  "publicAPI": {
+    "signatureAndTypeDeclarationsEqual": true,
+    "declarationBytesEqual": false,
+    "hashes": {
+      "before": "0e5b882cfb120a1628188983e8830965bcc133c91491eac6530e6cc93520e9a3",
+      "current": "9aa2df7fa76d6512bd251d30194f72b5c86e4683979526c4d2ffb84875ff00db"
+    },
+    "changes": "Only ownership comments differ in maintained dts; public interface/class/function names/signatures/readonly types remain unchanged. Behavior intentionally changes frozen record/value, frozen property descriptors, bytes data property\u2192getter, original shared byte identity\u2192fresh copy each access. Original interface augmentation capability retained."
+  },
+  "accounting": {
+    "before": {
+      "readableProduction": 61,
+      "readableMaintainedDeclarations": 21,
+      "sourceBytes": 3836,
+      "declarationBytes": 1909
+    },
+    "current": {
+      "readableProduction": 84,
+      "readableMaintainedDeclarations": 21,
+      "sourceBytes": 4749,
+      "declarationBytes": 1999
+    },
+    "publicSignaturesEqual": true
+  },
+  "maintenance": "Readable owned source61\u219284 (+23), readable maintained declarations21\u219221; source bytes3836\u21924749(+913), maintained declaration bytes1909\u21921999(+90 ownership comments). No helper file/import/dependency/type module added. Correctness growth, no reduction credit from tests/generated artifacts.",
+  "resource": {
+    "model": "One B-byte input snapshot before decode; one original JSON.parse tree frozen in place; Object.keys scratch per container and iterative pending-container worklist (O(containers+edges) work, width/depth-dependent scratch). No reparse, recursive call stack or second graph copy. Stable record/value/text derivative returns reuse identity. Each bytes accessor allocates/copiesB,25 accesses yielded25 distinct copies ofB.",
+    "actualOwnerSamples": [
+      {
+        "label": "small",
+        "scope": "before",
+        "inputBytes": 13,
+        "actualOwnerParseMs": [
+          0.06733299999999076,
+          0.019915999999994938,
+          0.012667000000007533,
+          0.011207999999996332,
+          0.021875000000008527,
+          0.0105829999999969,
+          0.010166999999995596
+        ],
+        "medianMs": 0.012667000000007533
+      },
+      {
+        "label": "small",
+        "scope": "current",
+        "inputBytes": 13,
+        "actualOwnerParseMs": [
+          0.029375000000001705,
+          0.015957999999997696,
+          0.013417000000004009,
+          0.01479099999998823,
+          0.016334000000000515,
+          0.013249999999999318,
+          0.02166599999999619
+        ],
+        "medianMs": 0.015957999999997696
+      },
+      {
+        "label": "deep12000",
+        "scope": "before",
+        "inputBytes": 24001,
+        "actualOwnerParseMs": [
+          0.4034159999999929,
+          0.3829589999999996,
+          0.3675829999999962,
+          0.41662500000001046,
+          0.36258399999999824,
+          0.3717089999999956,
+          0.3902920000000023
+        ],
+        "medianMs": 0.3829589999999996
+      },
+      {
+        "label": "deep12000",
+        "scope": "current",
+        "inputBytes": 24001,
+        "actualOwnerParseMs": [
+          1.1211659999999881,
+          3.416792000000001,
+          1.12254200000001,
+          0.903499999999994,
+          0.9272500000000008,
+          0.9438329999999979,
+          0.9203749999999928
+        ],
+        "medianMs": 0.9438329999999979
+      },
+      {
+        "label": "wide30000",
+        "scope": "before",
+        "inputBytes": 60003,
+        "actualOwnerParseMs": [
+          0.12250000000000227,
+          0.13474999999999682,
+          0.13033400000000483,
+          0.11866700000000208,
+          0.13979100000000244,
+          0.13716700000000515,
+          0.12879200000000424
+        ],
+        "medianMs": 0.13033400000000483
+      },
+      {
+        "label": "wide30000",
+        "scope": "current",
+        "inputBytes": 60003,
+        "actualOwnerParseMs": [
+          0.910624999999996,
+          0.7987499999999983,
+          0.7060419999999965,
+          0.6764999999999901,
+          0.6643339999999966,
+          0.6507079999999945,
+          1.1095419999999905
+        ],
+        "medianMs": 0.7060419999999965
+      }
+    ],
+    "limits": "Descriptive warm in-process baseline/current7 samples per tiny/deep12000/wide30000; no copied-tree timing attributed to this variant, no memory/latency threshold or whole workload qualification."
+  },
+  "harnessCorrection": "Initial JSON.parse instrumentation included Node Request construction and counted2; original script/log and failed PID retained. Request now constructed before instrumentation; parser counted1 for baseline/current. Product unchanged.",
+  "rawSha256": {
+    "fresh.mjs": "e608e5f0d63e78a08b4208765aede83d64a439874aaf55bcaf9c39b0c7b0e24a",
+    "fresh-initial.mjs": "47b423605e608bce8b442ac15845cbebedd62276691ac18172b9f06a2059413c",
+    "fresh-initial.log": "54a333346e7359ba0166ca75b4f9073a3be098aa133eec6857e732870ae8376b",
+    "fresh-final.log": "8d92d41c94b3df42f710a29aa7ecaf32cafa072b7d99aa8e119de73b2fdb3d64",
+    "current-test.log": "e9b12ae8d4e292bdfb9352a67362351287c8fd9923609d5783f611b5c4389320",
+    "before-test.log": "0353ee17a1e8659e32ee5f300c2ed28d25f09cabb1acfb1637cdf326d81331da"
+  },
+  "defects": [],
+  "limits": [
+    "Trusted injected Uint8Array reader and parser-created JSON tree only; no arbitrary adopt/proxy/graph-clone domain expanded.",
+    "Unknown exported consumers may rely on mutable values/record or byte identity; released correction intentionally changes those behaviors and still needs release communication.",
+    "No production caller, genuine prepared-plan/provenance/default-registration/security/installed/native acceptance.",
+    "Existing capped-reader policy/errors delegated; no new limits, semantic validation, origin policy or protocol."
+  ],
+  "release": "Both exact read leases and all command handles RELEASED; session40506 completed and all child PIDs exited; no production/tests/Git/docs/state/shared output writes.",
+  "rootDisposition": "accepted exact released trusted-reader JSON ownership correction; prepared factory/default and real caller/installed gates remain open",
+  "sourcePins": {
+    "packages/values/bindings/owned-input.ts": "edbd86ee44cf2a235411f426d0e6d6801e452c66423516aa91c18c4a6f2919d6",
+    "packages/values/test/owned-input.test.ts": "d3d31cc346bd85eb625a491f582f583d97aa550bbc74ce63d009c8d85000085b"
+  },
+  "fullPrivateEvidence": "/private/tmp/canlang-repair-go-20261007/owned-content-independent/independent-review.json",
+  "fullPrivateEvidenceSHA256": "4dd71eac62bb713a9aefee1341b34360d3b33a22d2ac2fc554cb8f61ee05c278"
+}
