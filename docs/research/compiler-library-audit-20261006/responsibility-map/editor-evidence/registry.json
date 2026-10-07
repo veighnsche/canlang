@@ -1,0 +1,1030 @@
+{
+  "duties": [
+    {
+      "record": "editor_duty",
+      "id": "ES-01",
+      "lane": "server",
+      "detail": {
+        "id": "ES-01",
+        "duty": "Envelope admission before state mutation",
+        "defining_declarations": [
+          "compiler/src/lsp/transport.rs:111\u2013215",
+          "compiler/src/lsp/server.rs:580\u2013598,1012\u20131092"
+        ],
+        "caller_closure": [
+          "read_message -> strict json parse -> parse_call -> handle_json -> known method valid_params"
+        ],
+        "actual_supported_behavior": "Unique legal request correlation, duplicate reserved keys rejected; required consumed schemas validated. Malformed method notifications silently leave lifecycle/docs unchanged; envelope errors can emit InvalidRequest with safe ID/null.",
+        "independent_expected_witness": "Before-init malformed sync and bad version/range/change arrays preserve docs/pending; requests get typed protocol errors, legal notifications no response.",
+        "authority_ids": [
+          "BASE",
+          "INIT"
+        ],
+        "inspected_regressions": [
+          "lsp_admission.rs:633\u2013811; server.rs:1244\u20131295"
+        ],
+        "limits": "Preserved Step4 admission scope. Nonreserved extension fields accepted/ignored; no full arbitrary client-capability schema validation. No fresh worker execution."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-02",
+      "lane": "server",
+      "detail": {
+        "id": "ES-02",
+        "duty": "Initialize state transition and advertised scope",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:531\u2013560,616\u2013658,932\u2013972,1027\u20131033"
+        ],
+        "caller_closure": [
+          "Server new PreInit -> initialize request -> Ready capabilities -> initialized no-op"
+        ],
+        "actual_supported_behavior": "Single valid initialize moves directly Ready; repeat initialize errors. UTF16, Full sync, hover/completion/definition/references/rename/full semanticTokens/codeAction advertised. rootUri/workspaceFolders/client schemas not stored; initialized does no registration. processId is validated but not stored or monitored; a non-null parent disappearing cannot itself trigger exit.",
+        "independent_expected_witness": "Preinit requests -32002; valid initialize response then initialized, document operations; repeat init -32600. No advertised workspaceFolders/project symbol/dynamic registration/pull diagnostics/incremental sync.",
+        "authority_ids": [
+          "INIT",
+          "INITIALIZED",
+          "BASE"
+        ],
+        "inspected_regressions": [
+          "server.rs:1299\u20131339; lsp_typed_output.rs:129\u2013139,311 onward"
+        ],
+        "limits": "initialized ordering is client precondition; server accepting data before initialized is not independently shown protocol violation. Current custom client sends processId/rootUri null. Official parent-exit guidance uses should; the bundled client uses null. Root process review owns any orphan-parent witness."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-03",
+      "lane": "server",
+      "detail": {
+        "id": "ES-03",
+        "duty": "Open client-owned buffer and source identity",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:835\u2013864",
+          "compiler/src/source.rs:26\u201373"
+        ],
+        "caller_closure": [
+          "didOpen -> docs URI key -> reused live id if same text else SourceDb add -> pending(uri,version)"
+        ],
+        "actual_supported_behavior": "Accepts any validated languageId string; URI exact protocol key, display path separately projected. Open text supplied by client, no URI filesystem reads. Identical duplicate opens share SourceId; new text appends.",
+        "independent_expected_witness": "Balanced open/close normal sequence; duplicate open probe classified invalid-client robustness. Opaque URI open/query remains same identity.",
+        "authority_ids": [
+          "OPEN",
+          "BASE"
+        ],
+        "inspected_regressions": [
+          "lsp_admission.rs:690\u2013712; lsp_typed_output.rs:543 onward; server.rs:1531\u20131556"
+        ],
+        "limits": "Does not check extension/languageId equals can; likely future filtering choice, not automatic defect. Duplicate opens overwrite current version/text rather than reject; client must balance them."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-04",
+      "lane": "server",
+      "detail": {
+        "id": "ES-04",
+        "duty": "Full-text edits and actual change-array selection",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:865\u2013916,1069\u20131092"
+        ],
+        "caller_closure": [
+          "didChange validation -> existing docs selector -> last event without range -> id reuse/new add -> pending"
+        ],
+        "actual_supported_behavior": "Only events with no range replace whole text; last full event wins. Range-only incremental edits ignored with no version advance; mixed array applies final full event and discards range edits. Empty array leaves state unchanged.",
+        "independent_expected_witness": "Two full replacement events yield last text; only ranged event preserves prior buffer/version (unsupported mode); invalid range shape rejects whole notification before mutation.",
+        "authority_ids": [
+          "CHANGE",
+          "BASE"
+        ],
+        "inspected_regressions": [
+          "lsp_admission.rs:714\u2013750; server.rs:1269\u20131283"
+        ],
+        "limits": "FULL advertised; a client sending ranged incremental edits violates selected mode. Do not label ignored incremental edits as supported-feature defect. Mixed event sequencing not implemented generally; no new policy selection."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-05",
+      "lane": "server",
+      "detail": {
+        "id": "ES-05",
+        "duty": "Document versions and equal-content updates",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:849\u2013863,897\u2013915"
+        ],
+        "caller_closure": [
+          "OpenDoc version -> change -> reuse live SourceId for equal text but replace version and enqueue"
+        ],
+        "actual_supported_behavior": "Any admitted i32 version overwrites current, including same/decreasing/negative versions; no monotonic guard. Equal-content versions reuse current SourceId and still enqueue/publish.",
+        "independent_expected_witness": "Increasing versions with gaps and equal text yield latest version publication; same/decreasing edits probe robustness and show replacement, not normative rejection obligation.",
+        "authority_ids": [
+          "VERSION",
+          "CHANGE"
+        ],
+        "inspected_regressions": [
+          "server.rs:1531\u20131556; lsp_typed_output.rs:465\u2013541"
+        ],
+        "limits": "Client must increase version; illegal repeated/decreasing versions are not valid-client protocol correctness witnesses. Finite i32 bound from input contract; no generation/epoch number apart from version."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-06",
+      "lane": "server",
+      "detail": {
+        "id": "ES-06",
+        "duty": "Queued task identity and stale filtering",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:540\u2013543,572\u2013575,600\u2013613"
+        ],
+        "caller_closure": [
+          "handle_json sync enqueues -> pump drains VecDeque -> docs.get(uri) version equality -> diagnostics"
+        ],
+        "actual_supported_behavior": "Queue entries contain only URI/version; superseded different version or absent doc skips. No actual background task/future/thread; pump calls backend synchronously. Same-version queued entries each recompute latest text.",
+        "independent_expected_witness": "Public batch open v1/change v2/change v3 before pump publishes only v3; close before pump skips all. Public close/reopen same URI + version before pump invokes new buffer twice (old epoch entry resurrected).",
+        "authority_ids": [
+          "VERSION",
+          "DIAGNOSTICS"
+        ],
+        "inspected_regressions": [
+          "server.rs:1531\u20131556",
+          "compiler/tests/ide.rs:755\u2013769 (real backend, public batch v1/v2 before pump; recipe inspected only)"
+        ],
+        "limits": "Epoch/repeated-version bug lead is duplicate current work/public promised stale cancellation gap, not publication of old bytes; production pumps each message and normally cannot create such batch. pending_count is only queue introspection, not active async work count."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-07",
+      "lane": "server",
+      "detail": {
+        "id": "ES-07",
+        "duty": "Real diagnostic analysis and result currentness",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:286\u2013326,974\u2013995",
+          "compiler/src/lsp/output.rs:66\u201383"
+        ],
+        "caller_closure": [
+          "pump docs id/text -> RealAnalysis snapshot -> check_program diagnostics+catalog errors+lint -> span_to_range -> versioned publish"
+        ],
+        "actual_supported_behavior": "Current SourceId used for snapshot; errors and lint merge even mid-edit; catalog failures reanchor to doc start; current file diagnostics filtered, sorted and published with version. Empty result sent on valid open/change.",
+        "independent_expected_witness": "Invalid source open emits errors; repaired increasing change emits empty/current diagnostic set, replacing old. Distinct URI version routing and UTF16 span consistency.",
+        "authority_ids": [
+          "DIAGNOSTICS",
+          "CHANGE"
+        ],
+        "inspected_regressions": [
+          "lsp_typed_output.rs:266\u2013310,465\u2013541",
+          "compiler/tests/ide.rs:732\u2013751 (real backend publish E3002; recipe inspected only)"
+        ],
+        "limits": "Emitter carries coherent diagnostics supplied by backend; external trait implementors can hand wrong file spans. Client filtering/version use is another owner; no source-map/runtime correctness inference."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-08",
+      "lane": "server",
+      "detail": {
+        "id": "ES-08",
+        "duty": "Close diagnostics lifecycle",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:917\u2013926",
+          "editors/vscode/src/client.ts:719\u2013727"
+        ],
+        "caller_closure": [
+          "didClose -> docs remove; later pump absent doc skip; custom client diagnostics.delete separately"
+        ],
+        "actual_supported_behavior": "Server sends no empty publish on close and no explicit close response; pending queue is not pruned immediately. Custom client clears diagnostic collection locally.",
+        "independent_expected_witness": "Valid malformed open/nonempty publication -> close -> request barrier: server should emit empty clear under single-file VS Code diagnostic rule; actual source predicts no clear. Bundled editor may show correct UI due local delete.",
+        "authority_ids": [
+          "CLOSE",
+          "DIAGNOSTICS"
+        ],
+        "inspected_regressions": [
+          "lsp_typed_output.rs current coverage has no close-clear assertion; existing lifecycle unit tests"
+        ],
+        "limits": "Probable server diagnostic lifecycle gap requiring root fresh transcript. Protocol quote is stated VS Code single-file guidance; do not claim bundled visible stale diagnostics already witnessed. Closing drops live docs not historical SourceDb bytes."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-09",
+      "lane": "server",
+      "detail": {
+        "id": "ES-09",
+        "duty": "Synchronous request query state and reply ordering",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:659\u2013809",
+          "compiler/src/ide/queries.rs:220\u2013241"
+        ],
+        "caller_closure": [
+          "request -> docs current id -> RealAnalysis trait method -> fresh Snapshot analyze -> typed output"
+        ],
+        "actual_supported_behavior": "Each supported data request reads current synchronized open doc and returns before later input read; no persistent Snapshot/query cache. Unknown docs usually InvalidParams; rename returns null. references context includeDeclaration validated but not passed to backend.",
+        "independent_expected_witness": "Open/change/request barriers query latest text; known URI after close has controlled error/null outcomes. Rename edit version equals current live document; query locations remain single-file.",
+        "authority_ids": [
+          "BASE",
+          "CHANGE",
+          "OPEN",
+          "REFERENCES"
+        ],
+        "inspected_regressions": [
+          "lsp_typed_output.rs:311\u2013541; ide.rs query tests read previously in Step5/Step10"
+        ],
+        "limits": "No asynchronous stale request machinery. Supported includeDeclaration false is now independently witnessed to return declaration in root server-options receipts; no disk project query for closed files. Actual GUI interpretation is separate."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-10",
+      "lane": "server",
+      "detail": {
+        "id": "ES-10",
+        "duty": "Rename/code-action source and document-version binding",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:379\u2013455,730\u2013778",
+          "compiler/src/lsp/output.rs:85\u2013175"
+        ],
+        "caller_closure": [
+          "fresh snapshot -> hash-filter lint fix -> byte ranges -> current version -> WorkspaceEdit"
+        ],
+        "actual_supported_behavior": "Rename current file edits carry live version; lint actions filter source id/hash/range then package by URI with known live versions (unknown cross-doc version null). Server offers edits, does not apply source mutations.",
+        "independent_expected_witness": "Increasing edit changes queried action/rename byte/UTF16 ranges and version; fake backend multiURI groups keep URI and known/null versions.",
+        "authority_ids": [
+          "VERSION",
+          "BASE",
+          "WORKSPACE_EDIT"
+        ],
+        "inspected_regressions": [
+          "lsp_typed_output.rs:238\u2013264,465\u2013541; Step10 fix source/receipts"
+        ],
+        "limits": "Root server-options witnesses rename documentChanges even when corresponding client capability is absent: carrier negotiation defect, separate from client wire-version application. No GUI edit application or server mutation atomicity proof; lint-action carrier shares emitter but was not independently probed here."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-11",
+      "lane": "server",
+      "detail": {
+        "id": "ES-11",
+        "duty": "Cancellation and blocking work boundary",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:824\u2013826,1155\u20131208",
+          "compiler/src/lsp/transport.rs:89\u201392"
+        ],
+        "caller_closure": [
+          "request synchronous handle -> write response -> pump -> next read; cancel notification ignored"
+        ],
+        "actual_supported_behavior": "Valid $/cancelRequest no-op; no request map/active task token and no RequestCancelled emission. Stale notification diagnostics queue skip is unrelated request cancellation.",
+        "independent_expected_witness": "Slow fake backend request followed by cancel still completes response; cancellation arriving after synchronous completion harmless; valid notification silent.",
+        "authority_ids": [
+          "BASE"
+        ],
+        "inspected_regressions": [
+          "server.rs lifecycle tests and lsp_admission notification admission; no fresh slow callback probe"
+        ],
+        "limits": "Spec explicitly allows ignoring $ notifications for synchronous implementations. Responsiveness/latency limitation is distinct from protocol defect; no claimed interruptible analysis or async queue execution."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-12",
+      "lane": "server",
+      "detail": {
+        "id": "ES-12",
+        "duty": "Shutdown and exit state ordering",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:531\u2013537,641\u2013665,814\u2013834,1206\u20131208"
+        ],
+        "caller_closure": [
+          "Ready shutdown -> Shutdown null response; later requests InvalidRequest; exit -> exited/code -> run loop stop"
+        ],
+        "actual_supported_behavior": "Postshutdown ordinary notifications dropped, all requests except special initialize reject. Valid exit code 0 after shutdown,1 otherwise; no source cleanup needed at process exit. Public handle_json can still be called after exited flag; pump lacks lifecycle guard.",
+        "independent_expected_witness": "Valid initialize/shutdown/exit0; direct exit1; repeatshutdown/postshutdown request errors. Public queued-open -> shutdown -> pump may still publish; inventory boundary not a proven normative requirement.",
+        "authority_ids": [
+          "SHUTDOWN",
+          "EXIT",
+          "INIT"
+        ],
+        "inspected_regressions": [
+          "server.rs:1284\u20131316,1520\u20131529; lsp_admission.rs:633\u2013687"
+        ],
+        "limits": "Production pump after each sync leaves no pending task by subsequent shutdown normally. EOF without exit uses default selected code rather than normative exit notification logic. Signal handling separate root process review."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-13",
+      "lane": "server",
+      "detail": {
+        "id": "ES-13",
+        "duty": "Framed stdio disconnect and malformed frame recovery",
+        "defining_declarations": [
+          "compiler/src/lsp/transport.rs:19\u201372",
+          "compiler/src/lsp/server.rs:1144\u20131208"
+        ],
+        "caller_closure": [
+          "blocking read -> UTF8/JSON parse -> response/pump write; EOF/UnexpectedEof flush best effort"
+        ],
+        "actual_supported_behavior": "Clean/torn EOF ends session with selected code; broken output ends loop. Framing InvalidData continues reading using same server state; parsing invalid UTF8/JSON emits ParseError.64MiB body cap but no total header cap or reader timeout.",
+        "independent_expected_witness": "Clean/torn EOF terminates finite process; malformed frame may fail resynchronization. Root must bound hanging client/longbody/header streams and distinguish memory/time/protocol outcome.",
+        "authority_ids": [
+          "BASE",
+          "EXIT"
+        ],
+        "inspected_regressions": [
+          "lsp_admission.rs transcript helper98 onward; transport unit tests"
+        ],
+        "limits": "No claim connection state actually resets despite source comment. Resource/header policy gaps and OS signals owned root; stable std no signal handler. Body cap does not limit retained sources or total session traffic."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-14",
+      "lane": "server",
+      "detail": {
+        "id": "ES-14",
+        "duty": "Catalog lifetime and workspace invalidation policy",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:243\u2013271,1027\u20131033,1155\u20131163",
+          "compiler/src/cli.rs:220\u2013221,356"
+        ],
+        "caller_closure": [
+          "run_stdio RealAnalysis::from_process once -> env CAN_CATALOG/process cwd discovery -> immutable backend catalog"
+        ],
+        "actual_supported_behavior": "Catalog/version/load errors captured once. rootUri/rootPath/workspaceFolders/initializationOptions not consumed; no didChangeConfiguration/watched files/save reload or per-root catalog. Server capabilities omit workspace support. CLI can lsp dispatches run_stdio and rejects --catalog; catalog selection is through process environment/discovery.",
+        "independent_expected_witness": "Start catalog A in process cwd, then modify catalog/send watched/config notifications; existing backend remains A. New process loads B. Multi-root initialize does not alter lookup.",
+        "authority_ids": [
+          "INIT",
+          "BASE"
+        ],
+        "inspected_regressions": [
+          "catalog loader integration tests navigation; actual client.ts545\u2013563 null root"
+        ],
+        "limits": "Unsupported project invalidation/multi-root gap, not advertised capability regression. User requested desired workspaces require separate future policy decision; no invented API. Client serverPath restart may refresh process catalog, not live invalidator."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-15",
+      "lane": "server",
+      "detail": {
+        "id": "ES-15",
+        "duty": "Cross-file declarations and session-file independence",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:223\u2013232,270\u2013271,341\u2013379",
+          "compiler/src/ide/queries.rs:225\u2013241"
+        ],
+        "caller_closure": [
+          "Snapshot single file check_program(db,[file]) +resolve_program[(file,tree)] -> current URI locations"
+        ],
+        "actual_supported_behavior": "Open multiple docs shares retained db but each query/check sees single file program. Cross-file imports/references/rename are not tracked; same-file multiple package modules remain possible. No dependency graph or workspace file load.",
+        "independent_expected_witness": "Open a provider file with exported declaration and a separate consumer file importing it. Opening both does not enable cross-file binding; a joint CLI analysis may resolve them. Historical lint traversal does not enable cross-file semantic resolution.",
+        "authority_ids": [
+          "OPEN",
+          "BASE",
+          "REFERENCES"
+        ],
+        "inspected_regressions": [
+          "ide.rs:954\u2013964 import within single snapshot; existing integration evidence at declared scope"
+        ],
+        "limits": "Backend explicitly limits analysis to one file; trait cross-URI locations and shared SourceDb do not prove project support. However referencesProvider is advertised and official references are project-wide: absent workspace capabilities do not erase that broader promise. Root valid joint-CLI versus both-open LSP import contrast confirms current bounded scope."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-16",
+      "lane": "server",
+      "detail": {
+        "id": "ES-16",
+        "duty": "Fresh per-request analysis and history-scaled lint work",
+        "defining_declarations": [
+          "compiler/src/ide/queries.rs:225\u2013241",
+          "compiler/src/lsp/server.rs:286\u2013303,411\u2013455",
+          "compiler/src/lint/driver.rs:466\u2013483"
+        ],
+        "caller_closure": [
+          "Every RealAnalysis query creates a Snapshot; diagnostics/actions call lint run_with_files, parsing and running lint rules over every retained SourceDb revision with the current CheckedProgram."
+        ],
+        "actual_supported_behavior": "Snapshot parses directly, check_program reparses current file, resolve_program resolves current tree; no revision cache. Diagnostics/actions parse and lint historical/closed files then filter current-file results. Historical files are not each typechecked.",
+        "independent_expected_witness": "N distinct text revisions retain N entries; diagnostic at revision N traverses N lint sources; equal-content live change no new source. Timing/RSS cannot substitute for direct traversal source proof.",
+        "authority_ids": [
+          "DIAGNOSTICS"
+        ],
+        "inspected_regressions": [
+          "Step5 repeated frontend/caller evidence reused; source.rs tests; server.rs1531\u20131556"
+        ],
+        "limits": "History-scaled source work and direct retention observed with delegated RealAnalysis; timing is one-host observational, not isolated lint cost or measured RSS. No stale old diagnostic leak/crash/exhaustion shown."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "ES-17",
+      "lane": "server",
+      "detail": {
+        "id": "ES-17",
+        "duty": "Long-session source retention and reopen epochs",
+        "defining_declarations": [
+          "compiler/src/lsp/server.rs:540\u2013543,849\u2013863,899\u2013925",
+          "compiler/src/source.rs:26\u201373"
+        ],
+        "caller_closure": [
+          "distinctopen/change -> appendonly SourceDb; close only docs.remove; reopen no live id -> new SourceDb add"
+        ],
+        "actual_supported_behavior": "Distinct edited-text snapshots persist for the session; equal text only deduplicates against the live OpenDoc; repeated close/reopen with identical text still appends. The pending deque drains through pump, while SourceDb/by_path are not compacted.",
+        "independent_expected_witness": "Count backend-observed db.len over increasing changed buffers, thenclose/reopen; count remains after close and increases reopen. Inspect old id stillsame bytes/current doc pointer fresh.",
+        "authority_ids": [
+          "OPEN",
+          "CLOSE"
+        ],
+        "inspected_regressions": [
+          "server.rs:1531\u20131556; source immutable revision tests"
+        ],
+        "limits": "No boundedmemory contract/APIclaimed; compaction explicitly future source comment. Root process/RSS expected witness must define workloads/limits; no crash/overflow/exhaustion execution byworker."
+      },
+      "evidence_view": "editor-evidence/server.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC01",
+      "lane": "client",
+      "detail": {
+        "id": "EC01",
+        "source": "client.ts:465-578 start/isRunning/serverCapabilities; extension.ts:357-407 startClient",
+        "caller_consumer": "activate -> spawn can lsp -> initialize -> initialized -> replay open documents",
+        "authority": "LSP initialize first-message ordering; README separate binary prerequisite",
+        "witness": "server-startup.cjs:101-126 mocked spawn/registration; lsp-capabilities.cjs initialization direct binary",
+        "result": "One process; isRunning becomes true before initialize response, so listeners/providers can send pre-initialization messages; initialize RPC error resolves null and still sends initialized.",
+        "gap": "No initialize timeout, protocol-error rejection, handshake-state gate, or real-host startup witness."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC02",
+      "lane": "client",
+      "detail": {
+        "id": "EC02",
+        "source": "client.ts:683-717 didOpen/didChange/didSave; extension.ts:444-465 document listeners",
+        "caller_consumer": "VSCode documents -> full UTF-8 framed notifications -> server document store",
+        "authority": "server full-sync capability; LSP full synchronization; project source-version promise",
+        "witness": "server-startup.cjs:143-171 mocked full-text changes; lsp-capabilities.cjs real didOpen",
+        "result": "Authored document.version and URI.toString transmitted; full text on change, URI only on save. No local version/open registry.",
+        "gap": "No fresh client incremental/non-ASCII/unsaved version witness; didSave presently ignored server-side."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC03",
+      "lane": "client",
+      "detail": {
+        "id": "EC03",
+        "source": "client.ts:839-896 onPublishDiagnostics; compiler/src/lsp/output.rs typed diagnostics",
+        "caller_consumer": "notification -> VSCode diagnostic collection",
+        "authority": "DIAGNOSTICS.md:25 source-version promise; initialize advertises versionSupport",
+        "witness": "server-startup.cjs:153-171 sequential versions only; ide.rs:755 server stale suppression",
+        "result": "Range/message validation and severity/code/source conversion; ignores params.version, accepts old versions and notifications for closed/unknown documents.",
+        "gap": "Source-confirmed missing stale/closed filtering; root controlled client probe requested. Server stale suppression alone does not validate client boundary."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC04",
+      "lane": "client",
+      "detail": {
+        "id": "EC04",
+        "source": "client.ts:719-729 didClose; 666-681 finish; extension.ts:467-471 close listener",
+        "caller_consumer": "close -> notification and collection.delete; process exit -> dispose",
+        "authority": "LSP document lifecycle; project no stale buffer diagnostics",
+        "witness": "server-startup.cjs child-exit/reopen control",
+        "result": "Close deletes current diagnostics; finish once-guards process error/exit, clears collection, resolves pending null.",
+        "gap": "Late publish after close can recreate diagnostics; no URI equivalence normalization/closed-document set."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC05",
+      "lane": "client",
+      "detail": {
+        "id": "EC05",
+        "source": "client.ts:584-586 request,731-837 transport/correlation,899-906 failAllPending",
+        "caller_consumer": "all providers -> numeric request ID -> pending resolver",
+        "authority": "LSP JSON-RPC response/error and cancellation contracts",
+        "witness": "lsp-capabilities.cjs own transport bypasses this client; startup mocks limited",
+        "result": "Numeric IDs correlate independent replies; duplicate/unmatched ignored; errors become null; no token cancellation or ordinary timeout. UTF-8 Content-Length codec present.",
+        "gap": "No client error propagation, cancelled-request cleanup, stale response guard, disconnect-on-stdout-end handling; malformed envelope/URI can throw. Resource/framing limits also server-review lane."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC06",
+      "lane": "client",
+      "detail": {
+        "id": "EC06",
+        "source": "extension.ts:86-95 request;164-352 all provider methods",
+        "caller_consumer": "VSCode CancellationToken -> provider -> client request -> host result",
+        "authority": "DIAGNOSTICS.md:25 cancel stale; LSP cancellation recommendation permits synchronous server ignore",
+        "witness": "lsp-capabilities.cjs seven direct-server features",
+        "result": "Provider tokens unused; no $/cancelRequest, captured version or replacement-client guard. Delayed result can be returned after edit/restart.",
+        "gap": "Must distinguish recommendation/project gap from universal LSP MUST cancellation; no GUI stale-result certification."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC07",
+      "lane": "client",
+      "detail": {
+        "id": "EC07",
+        "source": "extension.ts:98-162 toTextEdit/toWorkspaceEdit;272-287 rename;316-352 actions",
+        "caller_consumer": "server versioned edits -> unversioned WorkspaceEdit -> VSCode host applies",
+        "authority": "DIAGNOSTICS.md:29 reject stale fixes; LSP TextDocumentEdit version purpose",
+        "witness": "lsp-capabilities.cjs:267-285 rename shape; compiler/tests/ide.rs:911 backend fix application",
+        "result": "documentChanges.textDocument.version discarded; malformed individual edits skipped; resource operations unsupported; both changes and documentChanges processed. Providers return edits, no workspace.applyEdit call.",
+        "gap": "Root probe stale document version before conversion/application requested. Server content-hash safety at computation is not safety after async client delivery; no actual-host apply receipt."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC08",
+      "lane": "client",
+      "detail": {
+        "id": "EC08",
+        "source": "extension.ts:187-221 completionProvider; client.ts:94-120 ambient CompletionItemKind",
+        "caller_consumer": "LSP CompletionItem.kind -> vscode CompletionItem.kind direct numeric cast",
+        "authority": "official vscode 1.91 CompletionItemKind enum; LSP wire completion kinds",
+        "witness": "lsp-capabilities.cjs:214-216 asserts wire Class7 Variable6 Keyword14",
+        "result": "Host Class6 Variable5 Keyword13 differ: direct cast assigns wrong host kinds. Also drops completion metadata beyond label/kind.",
+        "gap": "Source/API defect, root controlled provider probe requested; does not certify visible GUI icons."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC09",
+      "lane": "client",
+      "detail": {
+        "id": "EC09",
+        "source": "extension.ts:164-185 hover;223-270 definitions/references;289-314 tokens;316-352 actions",
+        "caller_consumer": "protocol payload projections -> host constructors",
+        "authority": "README advertised seven providers; negotiated token legend",
+        "witness": "server-startup.cjs registration mocks; lsp-capabilities.cjs feature roundtrips bypass projections",
+        "result": "Hover contents retained but range dropped; location arrays supported; tokens copied to Uint32Array, resultId dropped; quickfix title/edit retained; action context diagnostics sent empty.",
+        "gap": "Semantic numbers above u32 wrap; no quintuple/legend validation; unsupported protocol optional fields omitted. Current server subset mostly fits, needs host behavior evidence."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC10",
+      "lane": "client",
+      "detail": {
+        "id": "EC10",
+        "source": "client.ts:593-681 stop/finish; extension.ts:410-417 restartServer,484-488 deactivate",
+        "caller_consumer": "restart/config/deactivate -> shutdown -> exit -> kill fallback",
+        "authority": "LSP shutdown/exit sequence; README restart command",
+        "witness": "server-startup.cjs exit/reopen mock, not graceful lifecycle",
+        "result": "Two-second shutdown and exit fallbacks; intentional stop suppresses onExit; deactivate starts stop but returns void. Restarts not serialized.",
+        "gap": "No awaited host deactivation, concurrent restart/open race prevention, pipe-close recovery or real-host crash restart witness; root child harness requested."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC11",
+      "lane": "client",
+      "detail": {
+        "id": "EC11",
+        "source": "extension.ts:357-372 cwd selection,472-478 config; client.ts:544-570 initialize; server.rs:254-268 RealAnalysis::from_process",
+        "caller_consumer": "active Can owning local folder else first local folder -> child cwd -> load_catalog once",
+        "authority": "catalog producer ownership; README configuration scope",
+        "witness": "server-startup.cjs:101-113 six cwd mocks",
+        "result": "rootUri null, no workspaceFolders; inherited CAN_CATALOG/process cwd used; only serverPath/trace changes restart. No folder/catalog file watchers.",
+        "gap": "Catalog mutations not reloaded until new process; multi-root docs share selected catalog; workspace-folder changes and nonfile roots unsupported beyond cwd fallback. No per-root catalog promise established."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC12",
+      "lane": "client",
+      "detail": {
+        "id": "EC12",
+        "source": "server.rs:270-273 snapshot,285-430 query consumers; queries.rs:225-241 Snapshot::analyze",
+        "caller_consumer": "open SourceDb -> check_program &[file] and resolve one tree -> host locations/edits",
+        "authority": "DIAGNOSTICS.md:25 explicitly current-document; query ownership",
+        "witness": "ide.rs:951 import_member_resolves_to_export SAME FILE; direct LSP fixture one file",
+        "result": "Each request checks one document; open database does not create workspace module graph; definitions/references/rename filter to current file.",
+        "gap": "Cross-file imports/workspace rename not implemented; same-file module witness must not be promoted to cross-file support."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC13",
+      "lane": "client",
+      "detail": {
+        "id": "EC13",
+        "source": "client.ts:683-729 authored URI;839-895 parse diagnostics; extension.ts:115-162,223-247 Uri.parse; server.rs:1138 URI path conversion",
+        "caller_consumer": "host URI identity -> server exact string key -> host URI constructors",
+        "authority": "LSP DocumentUri identity; server exact URI/path roundtrip policy",
+        "witness": "server-startup.cjs only simple file URI; root server admission lane",
+        "result": "No client canonical URI registry; remote documents accepted selector despite cwd local-only; parsing external URI can throw.",
+        "gap": "Equivalent spellings, fragments, encoded paths, remote URI and close/reopen identity need controlled probes; no claimed remote filesystem support."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    },
+    {
+      "record": "editor_duty",
+      "id": "EC14",
+      "lane": "client",
+      "detail": {
+        "id": "EC14",
+        "source": "editors/vscode/README.md;package.json;test/server-startup.cjs;test/lsp-capabilities.cjs",
+        "caller_consumer": "documentation/package feature claims -> extension -> actual host",
+        "authority": "README VSCode1.91+/compatible Cursor and seven features",
+        "witness": "Mock startup plus direct native LSP suite are distinct existing witnesses",
+        "result": "Package wires activation/providers; zero dependency ambient API declarations; binary separately installed. No real VSCode/Cursor GUI run in inspected witnesses.",
+        "gap": "Host activation, icons, diagnostics rendering, cancellation, edit application and packaged install remain distinct acceptance work; root packaging lane owns distribution."
+      },
+      "evidence_view": "editor-evidence/client.json",
+      "allocation": "reused gpt-6.1-sol medium",
+      "status": "bounded source/caller review; executed joins recorded separately, not every branch"
+    }
+  ],
+  "findings": [
+    {
+      "record": "editor_finding",
+      "id": "ED-R01",
+      "title": "diagnostic currentness",
+      "classification": "observed module/client defect",
+      "defining_writers": [
+        "editors/vscode/src/client.ts"
+      ],
+      "duty_refs": [
+        "EC03",
+        "EC04",
+        "ES-07"
+      ],
+      "case_refs": [
+        "client-stale-diagnostic",
+        "client-closed-diagnostic"
+      ],
+      "status": "proposed; planning only",
+      "allocation": "Sol medium; low for released fixtures; justified escalation only",
+      "acceptance_reference": "editor.md bounded repair sequence",
+      "evidence_refs": [
+        "editor-evidence/outcome-verification.json",
+        "editor-evidence/review-process.json",
+        "editor-evidence/review-client.json"
+      ]
+    },
+    {
+      "record": "editor_finding",
+      "id": "ED-R02",
+      "title": "provider edit versions and cancellation",
+      "classification": "observed module/client version and cancellation defects",
+      "defining_writers": [
+        "editors/vscode/src/extension.ts",
+        "editors/vscode/src/client.ts"
+      ],
+      "duty_refs": [
+        "EC06",
+        "EC07",
+        "ES-10"
+      ],
+      "case_refs": [
+        "stale-versioned-rename",
+        "cancelled-provider"
+      ],
+      "status": "proposed; planning only",
+      "allocation": "Sol medium; low for released fixtures; justified escalation only",
+      "acceptance_reference": "editor.md bounded repair sequence",
+      "evidence_refs": [
+        "editor-evidence/outcome-verification.json",
+        "editor-evidence/review-process.json",
+        "editor-evidence/review-client.json"
+      ]
+    },
+    {
+      "record": "editor_finding",
+      "id": "ED-R03",
+      "title": "completion host enum identity",
+      "classification": "observed module conversion defect",
+      "defining_writers": [
+        "editors/vscode/src/extension.ts",
+        "editors/vscode/src/client.ts"
+      ],
+      "duty_refs": [
+        "EC08"
+      ],
+      "case_refs": [
+        "completion-kinds"
+      ],
+      "status": "proposed; planning only",
+      "allocation": "Sol medium; low for released fixtures; justified escalation only",
+      "acceptance_reference": "editor.md bounded repair sequence",
+      "evidence_refs": [
+        "editor-evidence/outcome-verification.json",
+        "editor-evidence/review-process.json",
+        "editor-evidence/review-client.json"
+      ]
+    },
+    {
+      "record": "editor_finding",
+      "id": "ED-R04",
+      "title": "server clear on close",
+      "classification": "observed server wire close gap",
+      "defining_writers": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/lsp/output.rs"
+      ],
+      "duty_refs": [
+        "ES-08",
+        "EC04"
+      ],
+      "case_refs": [
+        "reopen"
+      ],
+      "status": "proposed; planning only",
+      "allocation": "Sol medium; low for released fixtures; justified escalation only",
+      "acceptance_reference": "editor.md bounded repair sequence",
+      "evidence_refs": [
+        "editor-evidence/outcome-verification.json",
+        "editor-evidence/review-process.json",
+        "editor-evidence/review-client.json"
+      ]
+    },
+    {
+      "record": "editor_finding",
+      "id": "ED-R05",
+      "title": "references includeDeclaration and edit capability negotiation",
+      "classification": "observed supported-option wire defects",
+      "defining_writers": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/lsp/output.rs",
+        "compiler/src/ide/queries.rs"
+      ],
+      "duty_refs": [
+        "ES-09",
+        "ES-10",
+        "EC07"
+      ],
+      "case_refs": [
+        "server-options-absent",
+        "server-options-versioned"
+      ],
+      "status": "proposed; planning only",
+      "allocation": "Sol medium; low for released fixtures; justified escalation only",
+      "acceptance_reference": "editor.md bounded repair sequence",
+      "evidence_refs": [
+        "editor-evidence/outcome-verification.json",
+        "editor-evidence/review-process.json",
+        "editor-evidence/review-client.json"
+      ]
+    },
+    {
+      "record": "editor_finding",
+      "id": "ED-R06",
+      "title": "session source history ownership",
+      "classification": "observed retention plus source-traced historical lint; policy/resource gate",
+      "defining_writers": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/source.rs",
+        "compiler/src/lint/driver.rs"
+      ],
+      "duty_refs": [
+        "ES-16",
+        "ES-17"
+      ],
+      "case_refs": [
+        "public-retention"
+      ],
+      "status": "proposed; planning only",
+      "allocation": "Sol medium; low for released fixtures; justified escalation only",
+      "acceptance_reference": "editor.md bounded repair sequence",
+      "evidence_refs": [
+        "editor-evidence/outcome-verification.json",
+        "editor-evidence/review-process.json",
+        "editor-evidence/review-client.json"
+      ]
+    },
+    {
+      "record": "editor_finding",
+      "id": "ED-R07",
+      "title": "workspace cross-file and catalog support",
+      "classification": "executed supported-scope contrast; policy/feature gate",
+      "defining_writers": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/ide/queries.rs",
+        "editors/vscode/src/client.ts",
+        "editors/vscode/src/extension.ts"
+      ],
+      "duty_refs": [
+        "ES-14",
+        "ES-15",
+        "EC11",
+        "EC12"
+      ],
+      "case_refs": [
+        "catalog-invalidation",
+        "catalog-restart",
+        "cross-file-cli-check",
+        "cross-file-server"
+      ],
+      "status": "proposed; planning only",
+      "allocation": "Sol medium; low for released fixtures; justified escalation only",
+      "acceptance_reference": "editor.md bounded repair sequence",
+      "evidence_refs": [
+        "editor-evidence/outcome-verification.json",
+        "editor-evidence/review-process.json",
+        "editor-evidence/review-client.json"
+      ]
+    },
+    {
+      "record": "editor_finding",
+      "id": "ED-R08",
+      "title": "public queued epochs and shutdown",
+      "classification": "observed public batching robustness gap; not async stdio",
+      "defining_writers": [
+        "compiler/src/lsp/server.rs"
+      ],
+      "duty_refs": [
+        "ES-06",
+        "ES-12"
+      ],
+      "case_refs": [
+        "public-batch"
+      ],
+      "status": "proposed; planning only",
+      "allocation": "Sol medium; low for released fixtures; justified escalation only",
+      "acceptance_reference": "editor.md bounded repair sequence",
+      "evidence_refs": [
+        "editor-evidence/outcome-verification.json",
+        "editor-evidence/review-process.json",
+        "editor-evidence/review-client.json"
+      ]
+    },
+    {
+      "record": "editor_finding",
+      "id": "ED-R09",
+      "title": "startup and host lifecycle qualification",
+      "classification": "source-only leads; no new execution failure",
+      "defining_writers": [
+        "editors/vscode/src/client.ts",
+        "editors/vscode/src/extension.ts"
+      ],
+      "duty_refs": [
+        "ES-02",
+        "EC01",
+        "EC10"
+      ],
+      "case_refs": [
+        "client-stop",
+        "extension-restart-replay",
+        "extension-deactivate",
+        "client-death-pending"
+      ],
+      "status": "proposed; planning only",
+      "allocation": "Sol medium; low for released fixtures; justified escalation only",
+      "acceptance_reference": "editor.md bounded repair sequence",
+      "evidence_refs": [
+        "editor-evidence/outcome-verification.json",
+        "editor-evidence/review-process.json",
+        "editor-evidence/review-client.json"
+      ]
+    }
+  ],
+  "registry": {
+    "record": "editor_registry",
+    "id": "ED-REGISTRY",
+    "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+    "duties": [
+      "ES-01",
+      "ES-02",
+      "ES-03",
+      "ES-04",
+      "ES-05",
+      "ES-06",
+      "ES-07",
+      "ES-08",
+      "ES-09",
+      "ES-10",
+      "ES-11",
+      "ES-12",
+      "ES-13",
+      "ES-14",
+      "ES-15",
+      "ES-16",
+      "ES-17",
+      "EC01",
+      "EC02",
+      "EC03",
+      "EC04",
+      "EC05",
+      "EC06",
+      "EC07",
+      "EC08",
+      "EC09",
+      "EC10",
+      "EC11",
+      "EC12",
+      "EC13",
+      "EC14"
+    ],
+    "findings": [
+      "ED-R01",
+      "ED-R02",
+      "ED-R03",
+      "ED-R04",
+      "ED-R05",
+      "ED-R06",
+      "ED-R07",
+      "ED-R08",
+      "ED-R09"
+    ],
+    "scope": "31 finite duties/9 proposed packets; no production change, full protocol/GUI/host/resource certification or framework selected"
+  }
+}

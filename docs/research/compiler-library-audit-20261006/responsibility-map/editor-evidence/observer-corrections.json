@@ -20,5 +20,11 @@
     "kind": "audit-script indentation error",
     "effect": "Python parse rejected correction before any process execution",
     "correction": "Restore with-block indentation; barriers use explicit object params instead of invalid null envelope"
+  },
+  {
+    "attempt": "integration validator",
+    "kind": "audit schema assumption",
+    "effect": "validator expected header record meta; actual existing ledger header is scope; prior rows were unchanged apart from declared navigation; a second check assumed IDs globally unique although existing workflow/representation joins deliberately reuse IDs in different record namespaces; a third check conflated the historical compiler tree snapshot pin1fd07722 (documentation commit) with last actual compiler-path change4ecd991a",
+    "correction": "Use existing scope tag and (record,id) namespace; compare exact prior records, input-recorded last source change and equivalent compiler subtree hashes. No compiler/product failure"
   }
 ]

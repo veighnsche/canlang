@@ -1,4 +1,4 @@
-# Compiler responsibility coverage — audit Steps 2–8 and 10
+# Compiler responsibility coverage — audit Steps 2–8 and 10–11
 
 The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. Structural inventory maps duties and review scope; it does not qualify semantic correctness or test adequacy. [Step 3 workflow tracing](workflows.md) extends this same ledger with actual consumers and bounded executed witnesses. [Step 4 compatibility challenge](compatibility.md) distinguishes owning outcomes, current public byte promises, migration guards and incidental mechanisms. [Step 5 representations](representations.md) traces stage authorities, conversions, reconstructed facts and source/catalog coherence. [Step 6 integrations](integrations.md) records complete scoped library caller/adapter closures and conditional retirement results. [Step 7 syntax/recovery](syntax.md) maps finite admitted forms through stage owners and records independently corroborated recovery/meaning-loss findings.
 
@@ -134,5 +134,28 @@ classified separately from comment preservation and unsupported profile gates.
 [Independent review](output-evidence/review-transforms.json) and
 [validation](output-validation.json) retain corrections and evidence limits.
 Structural preservation and selected consumers do not certify all semantics,
-runtime attribution or the final release. Step 9 and Steps 11 onward remain
-proposed; no production/package implementation, merge or checkpoint changes.
+runtime attribution or the final release. Step 9 and Steps 12 onward remain
+proposed; Step 11 has its bounded execution below; no production/package implementation, merge or checkpoint changes.
+
+
+## Editor state and lifecycle — Step 11
+
+[Editor findings](editor.md) add 17 server and 14 client/consumer duties, nine
+proposed repair/qualification packets and three joins to the same ledger
+(494→537 rows). Currentness, close, options, enum identity, source lifetime and
+workspace/catalog scope have explicit owning writers and actual witnesses.
+
+Fresh native evidence comprises 128 selected Rust passes, 11 existing startup
+mock passes, 17 actual server processes, two CLI controls and 129 RealAnalysis
+callbacks. Freshly compiled actual client/providers install old/closed diagnostics,
+drop rename document versions and misconvert completion kinds. References false
+and workspace-edit capabilities are ignored; server close has no clear publication.
+Static catalog and single-document editor analysis are supported-scope contrasts;
+retained history, public batched epochs and startup races have separate gates.
+[Independent client review](editor-evidence/review-client.md),
+[process/resource review](editor-evidence/review-process.md) and
+[verification](editor-evidence/outcome-verification.json) preserve controls and
+failed observer attempts. Selective host stand-ins qualify module behavior,
+not GUI/application; no RSS/benchmark/other-host/full-release conclusion follows.
+Step 9 and Steps 12 onward remain proposed. Production and package implementation,
+merge and the living-plan checkpoint are unchanged.
