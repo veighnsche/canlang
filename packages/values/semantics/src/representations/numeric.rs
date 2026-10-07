@@ -317,20 +317,7 @@ pub fn make_date(year: f64, month: f64, day: f64) -> Result<DateParts, Failure> 
 /// round-trip digits, plain notation for magnitudes in [1e-6, 1e21),
 /// `Ne±M` exponent form outside it (`-0` prints as `0`).
 pub fn format_js_number(value: f64) -> String {
-    if value == 0.0 {
-        return "0".to_string();
-    }
-    if value.is_nan() {
-        return "NaN".to_string();
-    }
-    if value.is_infinite() {
-        return if value > 0.0 {
-            "Infinity".to_string()
-        } else {
-            "-Infinity".to_string()
-        };
-    }
-    ryu_js::Buffer::new().format_finite(value).to_owned()
+    ryu_js::Buffer::new().format(value).to_owned()
 }
 
 /// Range-checks ms against the decided 0001-9999 UTC range

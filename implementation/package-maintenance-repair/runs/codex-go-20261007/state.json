@@ -1,0 +1,167 @@
+{
+  "schema": "canlang.package-maintenance-repair-run/v1",
+  "started_utc": "2026-10-07T18:30:21.210151+00:00",
+  "human_authorization": "Latest human go releases economical repair-queue implementation; preserves explicit native preparation HOLD and foreign compiler ownership.",
+  "execution_authorized": true,
+  "base": "e5ad5cf767004a892c0ae1937aedd67629170786",
+  "planning_queue": "docs/research/package-library-audit-20261006/repair-queue/queue.json",
+  "planning_queue_sha256": "95d740da589ab642edfce2cb7b195df7b90c2e5221315a1f390b049efc610bfb",
+  "orchestrator": "originating Codex; finite subagents, root Git/review",
+  "lanes": 3,
+  "scope": "Selected 48-packet package maintenance queue, source-current readiness and original acceptance gates; no false original parent completion.",
+  "historical_planning_execution_flags": "Retained as historical evidence; this run record supplies new human implementation authorization.",
+  "outputs": "/private/tmp/canlang-repair-go-20261007",
+  "foreign_writers": [
+    "Compiler agent owns compiler source/docs/tests; preserve shared decisions and Git index."
+  ],
+  "dispatched": [
+    {
+      "id": "TECH-V01-values",
+      "model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "files": [
+        "packages/values/semantics/src/representations/numeric.rs"
+      ],
+      "baseline_source_sha256": {
+        "packages/values/semantics/src/representations/numeric.rs": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+      },
+      "state": "independently accepted numeric reduction candidate; local commit pending",
+      "agent": "/root/impl_values_numeric",
+      "acceptance": "pending independent source-current review and exact qualified caller evidence",
+      "provenance": "Fresh private source-current oracle regenerated: 10213 numbers/131 callers match; historical donor hash drift reconciled as core extraction, independent review pending.",
+      "review": "numeric-independent-review.json"
+    },
+    {
+      "id": "TECH-V01-work",
+      "model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "files": [
+        "packages/work-kernel/decisions/numeric_text.rs",
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs"
+      ],
+      "baseline_source_sha256": {
+        "packages/work-kernel/decisions/numeric_text.rs": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+        "packages/work-kernel/decisions/rows.rs": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+        "packages/work-kernel/decisions/receipt.rs": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+        "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+        "packages/work-kernel/decisions/recovery.rs": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068"
+      },
+      "state": "independently accepted numeric reduction candidate; local commit pending",
+      "agent": "/root/impl_work_numeric",
+      "acceptance": "pending independent source-current review and exact qualified caller evidence",
+      "review": "numeric-independent-review.json"
+    },
+    {
+      "id": "DEL-U01-appearance",
+      "model": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium"
+      },
+      "files": [
+        "packages/ui/src/collections.ts",
+        "packages/ui/src/controls.ts",
+        "packages/ui/src/groups.ts",
+        "packages/ui/src/leaves.ts",
+        "packages/ui/src/media.ts",
+        "packages/ui/src/navigation.ts",
+        "packages/ui/src/overlays.ts",
+        "packages/ui/src/panels.ts",
+        "packages/ui/src/review.ts",
+        "packages/ui/src/settings.ts",
+        "packages/ui/src/internal/appearance-props.ts"
+      ],
+      "baseline_source_sha256": {
+        "packages/ui/src/collections.ts": "c9568ffd924ba2ba842c776adb1cf75cbb5df7af73702d12fe3718d572bde3ab",
+        "packages/ui/src/controls.ts": "ddf2dc4c1a098bcbf2f2beb92e2df551ffc09843b84bafd7ffdc4d9bbd56ccd8",
+        "packages/ui/src/groups.ts": "a9c4b976518a73c5905480ab86352b02f794db161335c0129f47dde1b3ea5e0f",
+        "packages/ui/src/leaves.ts": "7b6adec794d80689be67a03993632d8ef9fa107b266ae613c3f8bc58d5051e4e",
+        "packages/ui/src/media.ts": "22de7f0408016471ec6d84ca62498a59c2ee7e6732a5ff866321008fa1f43a52",
+        "packages/ui/src/navigation.ts": "b361c673d0cef45297673394e08679f8f55d5458bbff2a0847f5f40ed244e869",
+        "packages/ui/src/overlays.ts": "125ddc7c0d491a9056b55db5e4fd8d14dbd69e156b995f5fb3d3d9769ade4b4c",
+        "packages/ui/src/panels.ts": "3d8bd4461930b48e326ec2f733f7d95acb5e01b52dc3a4fe8097e51fbdd7838e",
+        "packages/ui/src/review.ts": "b01e6fa2923dae76cbd4e743b9618d891cfd07dc79060e77bec2c04d381bcfea",
+        "packages/ui/src/settings.ts": "f82458311f13871649ff392368efb17fc85c17250eede1153450b5f509b8136f"
+      },
+      "state": "implementation released; independent review running",
+      "agent": "/root/impl_ui_appearance",
+      "acceptance": "pending independent source-current review and exact qualified caller evidence"
+    }
+  ],
+  "remaining_packet_ids": [
+    "TECH-W01-quote",
+    "TECH-W01-uri",
+    "TECH-V03",
+    "TECH-V04",
+    "TECH-V05",
+    "TECH-S01",
+    "TECH-S01-own-key",
+    "TECH-S02",
+    "TECH-S03",
+    "TECH-W02",
+    "TECH-W03",
+    "TECH-I01",
+    "TECH-I02",
+    "TECH-F01",
+    "TECH-F02",
+    "TECH-SV01",
+    "TECH-SV02",
+    "TECH-SV03",
+    "TECH-SV04",
+    "DEL-D01",
+    "DEL-D02",
+    "DEL-C01",
+    "DEL-C02",
+    "DEL-C02-order",
+    "DEL-B01",
+    "DEL-B02",
+    "DEL-D03",
+    "DEL-D04",
+    "DEL-D05",
+    "DEL-R01",
+    "DEL-E02",
+    "REPLAY-IP07",
+    "PARSER-DP01",
+    "VERIFY-TV01",
+    "TECH-V02-violations",
+    "TECH-V02-gregorian",
+    "TECH-S04-admission",
+    "TECH-S04-query",
+    "TECH-S04-cohort",
+    "DEL-U01-draft",
+    "DEL-A01-error",
+    "DEL-A01-binding",
+    "DEL-A01-admission",
+    "DEL-A01-canonical",
+    "FINAL-R03"
+  ],
+  "prohibited": [
+    "No native preparation/release activation while held",
+    "No automatic backend default or TS retirement",
+    "No publication/deployment",
+    "No Muse/worker timers or duplicate coordinators"
+  ],
+  "scheduler": {
+    "id": "canlang-challenge-implementation",
+    "status": "ACTIVE",
+    "cadence_minutes": 15,
+    "owner": "originating Codex, no worker timers"
+  },
+  "additional_dispatch": {
+    "id": "DEL-D02",
+    "agent": "/root/impl_keyed_promise",
+    "model": "gpt-6.1-sol",
+    "effort": "low",
+    "files": [
+      "packages/cloudflare/src/worker/main.ts"
+    ],
+    "state": "ACK received; inline private shared primitive preserves static-import contract; check/review pending"
+  },
+  "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain."
+}
