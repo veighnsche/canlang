@@ -718,63 +718,10 @@ export function mapScenarioPolicyToBy(opName: string, entry: unknown): Canonical
 }
 
 /* ------------------------------------------------------------------ */
-/* T17b read-policy transcription (PolicyTable grants).                 */
-/*                                                                      */
-/* Mirrors the CRUD by-transcription above, over the `policy.models`    */
-/* manifest map (`compiler/src/codegen/js.rs` `emit_policy_member`:     */
-/* `models: { Model: { read?: [ruleIds], public?: [ruleIds],            */
-/* invariants?: [...], locks?: [...] } }`). The emitted read rules are  */
-/* boolean FUNCTIONS (`(c,row) => ...` in the registry `read` map) —    */
-/* code, not admittable data, exactly like CRUD `when` — so they are    */
-/* NEVER transcribed, except through the B7 `public` provenance union  */
-/* below (S4: matching grants union; only provable-public slices are    */
-/* honored, unevaluable slices are omitted fail-closed):                */
-/*                                                                      */
-/* - Absent entry (or an entry with no `read` member, or an empty       */
-/*   `read` array): no read content — B7 fail-closed: ZERO grants       */
-/*   (deny-with-empty; S4 "no policy means deny"). The read gate stays  */
-/*   `public` — visibility comes from the grants, and zero grants      */
-/*   serve zero rows.                                                   */
-/* - Present non-empty `read` array with NO `public` marks: the model   */
-/*   is RULED — its reads refuse LOUD at serve time with `validation`   */
-/*   naming T04b (T04b carries generated policy; serving would run      */
-/*   unguarded). Per-read refusal, not whole-set: read rules gate only  */
-/*   reads, so CRUD/scenario serving stays up with precise per-read     */
-/*   errors (unlike CRUD gates, where the gate is the op's only guard). */
-/* - Present `public` marks (B7 phase-1 provenance: rule ids the        */
-/*   emitter proves unconditionally public — `read=` exactly            */
-/*   `public`, no `where=`): honor ONE public grant over all declared   */
-/*   model fields (S4 omitted-fields rule; secret-kind values still     */
-/*   omitted by the engine). RULED iff rules exist beyond the marks:    */
-/*   pure-public models serve; pure-where models refuse loud            */
-/*   (unchanged); mixed models serve the public slice (fail-closed      */
-/*   under-grant — the unevaluable slices are omitted, never            */
-/*   widened).                                                          */
-/* - Malformed shapes (non-object entry, unknown members, malformed     */
-/*   `read`/`public` arrays): refuse LOUD at preload — the              */
-/*   programmer-bug class, mirroring the CRUD malformed handling.       */
-/*                                                                      */
-/* Read-`by` posture (T17b decision, kept): KEEP PUBLIC + GRANTS. Read  */
-/* defs keep `by: public` at the canonical gate and visibility for      */
-/* servable models comes from the transcribed grants. Consequence,      */
-/* pinned: gateless models serve NOTHING to anyone (zero grants);       */
-/* public-marked models serve full rows to every caller; ruled models   */
-/* never serve (loud `validation`, never silent empty).                 */
-/*                                                                      */
-/* `secretFields` transcribes as `[]`: T15a descriptors carry no secret */
-/* marking in the core scope, so there is nothing to transcribe — and   */
-/* the engine omits secret-kind VALUES regardless of policy, so no      */
-/* secret leaks through the empty list. Grant fields are the model's    */
-/* declared field names (the pipeline rejects undeclared fields on      */
-/* write, so stored data never exceeds them); metadata always ships in  */
-/* the projected record envelope.                                       */
-/*                                                                      */
-/* Join-point note (B7: resolved): like the CRUD manifest above, this   */
-/* reads `canApp().policy` (the T16b join point). The B7 phase-1        */
-/* emitter emits `policy` into BOTH `appDefinition` and `canApp()`      */
-/* from the same builder — identical content — so the loader keeps      */
-/* its existing `canApp().policy` read (the A2-vs-A1 distinction is     */
-/* moot on content; no fixture churn, no second source).                */
+/* Read-policy transcription joins public rule marks to their owning   */
+/* appDefinition model readGrants. State owns typed-secret metadata and */
+/* grant validation/projection; serverOnly governs caller inputs only. */
+/* Unevaluable rules retain their existing per-read refusal posture.    */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -790,7 +737,8 @@ export function readModelPolicyEntry(registry: unknown, model: string): unknown 
         `(canApp() registry is not an object)`,
     );
   }
-  const policy: unknown = registry["policy"];
+  const where = `t17b: model ${JSON.stringify(model)}`;
+  const policy = readMetadataMember(registry, "policy", where)?.value;
   if (policy === undefined || policy === null) return undefined;
   if (!isUnknownRecord(policy)) {
     throw new Error(
@@ -798,7 +746,7 @@ export function readModelPolicyEntry(registry: unknown, model: string): unknown 
         `(policy member is not an object)`,
     );
   }
-  const models: unknown = policy["models"];
+  const models = readMetadataMember(policy, "models", where)?.value;
   if (models === undefined || models === null) return undefined;
   if (!isUnknownRecord(models)) {
     throw new Error(
@@ -806,7 +754,7 @@ export function readModelPolicyEntry(registry: unknown, model: string): unknown 
         `(policy.models is not an object)`,
     );
   }
-  return models[model];
+  return readMetadataMember(models, model, where)?.value;
 }
 
 /** One model's transcribed read posture: servable grants or ruled refusal. */
@@ -817,93 +765,202 @@ export interface TranscribedReadPolicy {
   readonly input: CanonicalModelPolicyInput | null;
 }
 
-/**
- * Transcribe one model manifest entry to its table-builder input.
- * B7 fail-closed: absent entry / no `read` member / empty `read`
- * array -> ZERO grants (deny-with-empty). A well-formed non-empty
- * `read` array with no `public` marks -> RULED (`ruled: true`, no
- * input — the serve paths refuse loud naming T04b). Present
- * `public` marks (B7 phase-1 emitter provenance) -> ONE honored
- * public grant over `declaredFields`, RULED iff rules exist beyond
- * the marks (mixed models serve the public slice; pure-where
- * models refuse loud, unchanged). Malformed shapes and unknown
- * members throw LOUD at preload (the programmer-bug class,
- * mirroring `mapCrudPolicyToBy`). Plain `Error` (caller-side
- * refusal, mirroring the loader's engine-local policy channel).
- */
-export function mapReadRulesToPolicy(
-  model: string,
-  entry: unknown,
-  declaredFields: ReadonlyArray<string>,
-): TranscribedReadPolicy {
-  const where = `t17b: model ${JSON.stringify(model)} cannot serve reads in the T17 core scope (T04b carries generated policy)`;
-  const servable = (inputs: CanonicalModelPolicyInput): TranscribedReadPolicy => ({
-    ruled: false,
-    input: inputs,
-  });
-  const emptyInput = (): CanonicalModelPolicyInput => ({
-    model,
-    secretFields: [],
-    grants: [],
-  });
-  const publicInput = (): CanonicalModelPolicyInput => ({
-    model,
-    secretFields: [],
-    grants: [{ by: "public", fields: [...declaredFields] }],
-  });
-  if (entry === undefined || entry === null) return servable(emptyInput());
-  if (!isUnknownRecord(entry)) {
-    throw new Error(`${where}: malformed policy entry (not an object).`);
+/** Owning declaration and callable registry from the same assembled module. */
+export interface ReadPolicyProvenance {
+  readonly secretFields: ReadonlyArray<string>;
+  readonly declaration?: unknown;
+  readonly readRules?: unknown;
+}
+
+interface ReadPolicyFacts {
+  readonly read?: ReadonlyArray<string>;
+  readonly public?: ReadonlyArray<string>;
+  readonly invariants?: ReadonlyArray<string>;
+  readonly locks?: ReadonlyArray<string>;
+}
+interface ReadSelectorFacts {
+  readonly fields: ReadonlyArray<string>;
+  readonly grants: ReadonlyMap<string, ReadonlyArray<string> | undefined>;
+}
+
+/** Emitted metadata owns data properties; accessor execution is not provenance. */
+function readMetadataMember(object: object, key: string, where: string): { readonly value: unknown } | undefined {
+  const descriptor = Object.getOwnPropertyDescriptor(object, key);
+  if (descriptor === undefined) return undefined;
+  if (!Object.hasOwn(descriptor, "value")) {
+    throw new Error(`${where}: accessor metadata member ${JSON.stringify(key)} is unsupported.`);
   }
+  return { value: descriptor.value as unknown };
+}
+
+/** Admit one fixed dense interval of own data; array methods/getters are not evidence. */
+function readMetadataArray(value: unknown, where: string, member: string): unknown[] {
+  if (!Array.isArray(value)) throw new Error(`${where}: malformed ${member} (array).`);
+  const length = readMetadataMember(value, "length", where)?.value;
+  if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0) {
+    throw new Error(`${where}: malformed ${member} length.`);
+  }
+  const indices = Object.getOwnPropertyNames(value).filter((key) =>
+    /^(0|[1-9][0-9]*)$/.test(key) && Number(key) < 0xffff_ffff);
+  if (indices.length !== length) throw new Error(`${where}: malformed ${member} (dense own keys).`);
+  const result: unknown[] = [];
+  for (let index = 0; index < length; index++) {
+    const element = readMetadataMember(value, String(index), where);
+    if (element === undefined) throw new Error(`${where}: malformed ${member} (dense own elements).`);
+    result.push(element.value);
+  }
+  return result;
+}
+
+function readMetadataStrings(value: unknown, where: string, member: string): string[] {
+  const elements = readMetadataArray(value, where, member);
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const element of elements) {
+    if (typeof element !== "string" || element.length === 0 || seen.has(element)) {
+      throw new Error(`${where}: malformed ${member} (dense own unique non-empty strings).`);
+    }
+    seen.add(element);
+    result.push(element);
+  }
+  return result;
+}
+
+function readPolicyFacts(entry: unknown, where: string): ReadPolicyFacts {
+  if (entry === undefined || entry === null) return {};
+  if (!isUnknownRecord(entry)) throw new Error(`${where}: malformed policy entry (not an object).`);
   for (const key of Object.keys(entry)) {
     if (key !== "read" && key !== "public" && key !== "invariants" && key !== "locks") {
       throw new Error(`${where}: unknown policy member ${JSON.stringify(key)}.`);
     }
   }
-  const rules: unknown = entry["read"];
-  const marks: unknown = entry["public"];
-  if (marks !== undefined) {
-    if (!Array.isArray(marks) || !marks.every((id) => typeof id === "string" && id.length > 0)) {
-      throw new Error(`${where}: malformed public marks (array of non-empty rule ids).`);
+  const facts: { read?: string[]; public?: string[]; invariants?: string[]; locks?: string[] } = {};
+  for (const key of ["public", "read", "invariants", "locks"] as const) {
+    const value = readMetadataMember(entry, key, where)?.value;
+    if (value !== undefined) facts[key] = readMetadataStrings(value, where,
+      key === "public" ? "public marks" : key === "read" ? "read rules" : key);
+  }
+  const rules = new Set(facts.read ?? []);
+  if (rules.size === 0 && (facts.public?.length ?? 0) > 0) {
+    throw new Error(`${where}: public marks without read rules (emitter skew?).`);
+  }
+  for (const id of facts.public ?? []) {
+    if (!rules.has(id)) throw new Error(`${where}: public mark ${JSON.stringify(id)} names no emitted rule (emitter skew?).`);
+  }
+  return facts;
+}
+
+function readSelectorFacts(
+  policy: ReadPolicyFacts,
+  declaredFields: ReadonlyArray<string>,
+  provenance: ReadPolicyProvenance | undefined,
+  where: string,
+): ReadSelectorFacts | undefined {
+  if ((policy.public?.length ?? 0) === 0) return undefined;
+  const declaration = provenance === undefined ? undefined : readMetadataMember(provenance, "declaration", where)?.value;
+  const readRules = provenance === undefined ? undefined : readMetadataMember(provenance, "readRules", where)?.value;
+  if (!isUnknownRecord(declaration) || !isUnknownRecord(readRules)) {
+    throw new Error(`${where}: missing owning read selector provenance.`);
+  }
+  const grantsMember = readMetadataMember(declaration, "readGrants", where);
+  if (grantsMember === undefined) throw new Error(`${where}: missing owning read selector provenance.`);
+  const fields = readMetadataMember(declaration, "fields", where)?.value;
+  if (!isUnknownRecord(fields) || Object.keys(fields).length !== declaredFields.length) {
+    throw new Error(`${where}: owning model fields disagree with loaded model (emitter skew?).`);
+  }
+  for (const field of declaredFields) {
+    if (!Object.hasOwn(fields, field)) throw new Error(`${where}: owning model fields disagree with loaded model (emitter skew?).`);
+  }
+  const declarations = readMetadataArray(grantsMember.value, where, "readGrants declaration");
+  const rules = new Set(policy.read ?? []);
+  const fieldNames = new Set(declaredFields);
+  const selectors = new Map<string, ReadonlyArray<string> | undefined>();
+  for (const grant of declarations) {
+    const id = isUnknownRecord(grant) ? readMetadataMember(grant, "rule", where)?.value : undefined;
+    if (!isUnknownRecord(grant) || typeof id !== "string" || !rules.has(id) || selectors.has(id)) {
+      throw new Error(`${where}: malformed or skewed readGrants rule identity.`);
     }
-  }
-  if (rules === undefined) {
-    // No rules but provenance marks is emitter skew (the emitter
-    // always walks the same grant list for both) — loud, never
-    // honored-into-public.
-    if (marks !== undefined && (marks as string[]).length > 0) {
-      throw new Error(`${where}: public marks without read rules (emitter skew?).`);
+    if (typeof readMetadataMember(readRules, id, where)?.value !== "function") {
+      throw new Error(`${where}: read rule ${JSON.stringify(id)} has no owning callable.`);
     }
-    return servable(emptyInput());
-  }
-  if (
-    !Array.isArray(rules) ||
-    !rules.every((rule) => typeof rule === "string" && rule.length > 0)
-  ) {
-    throw new Error(
-      `${where}: malformed read rules (array of non-empty rule ids).`,
-    );
-  }
-  if (rules.length === 0) {
-    if (marks !== undefined && (marks as string[]).length > 0) {
-      throw new Error(`${where}: public marks without read rules (emitter skew?).`);
+    const fieldsMember = readMetadataMember(grant, "fields", where);
+    if (fieldsMember === undefined && "fields" in grant) {
+      throw new Error(`${where}: inherited read selector on ${JSON.stringify(id)}.`);
     }
-    return servable(emptyInput());
-  }
-  const marked = new Set((marks ?? []) as string[]);
-  for (const id of marked) {
-    if (!(rules as string[]).includes(id)) {
-      throw new Error(
-        `${where}: public mark ${JSON.stringify(id)} names no emitted rule (emitter skew?).`,
-      );
+    let selected: string[] | undefined;
+    if (fieldsMember !== undefined) {
+      selected = readMetadataStrings(fieldsMember.value, where, `read selector on ${JSON.stringify(id)}`);
+      if (selected.length === 0) throw new Error(`${where}: malformed empty read selector on ${JSON.stringify(id)}.`);
+      for (const field of selected) {
+        const parts = field.split(".");
+        if (parts.some((part) => part.length === 0) || !fieldNames.has(parts[0]!)) {
+          throw new Error(`${where}: malformed or undeclared read selector on ${JSON.stringify(id)}.`);
+        }
+      }
     }
+    selectors.set(id, selected);
   }
-  if (marked.size === 0) return { ruled: true, input: null };
-  // Marked: honor the provable-public slice. Rules beyond the marks
-  // are omitted fail-closed (mixed models serve the public slice,
-  // never the unevaluable remainder) — ruled stays false because
-  // the served content is fully guarded by the honored grant.
-  return servable(publicInput());
+  if (selectors.size !== rules.size) throw new Error(`${where}: readGrants and policy rule identities disagree (emitter skew?).`);
+  for (const id of rules) {
+    if (!selectors.has(id)) throw new Error(`${where}: readGrants and policy rule identities disagree (emitter skew?).`);
+  }
+  return { fields: [...declaredFields], grants: selectors };
+}
+
+function sameReadStrings(left: ReadonlyArray<string> | undefined, right: ReadonlyArray<string> | undefined): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index++) if (left[index] !== right[index]) return false;
+  return true;
+}
+function sameReadPolicies(left: ReadPolicyFacts, right: ReadPolicyFacts): boolean {
+  return sameReadStrings(left.read, right.read) && sameReadStrings(left.public, right.public) &&
+    sameReadStrings(left.invariants, right.invariants) && sameReadStrings(left.locks, right.locks);
+}
+function sameReadSelectors(left: ReadSelectorFacts | undefined, right: ReadSelectorFacts | undefined): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (!sameReadStrings(left.fields, right.fields) || left.grants.size !== right.grants.size) return false;
+  for (const [id, fields] of left.grants) {
+    if (!right.grants.has(id) || !sameReadStrings(fields, right.grants.get(id))) return false;
+  }
+  return true;
+}
+
+function transcribeReadFacts(
+  model: string,
+  policy: ReadPolicyFacts,
+  declaredFields: ReadonlyArray<string>,
+  secretFields: ReadonlyArray<string>,
+  selectors: ReadSelectorFacts | undefined,
+): TranscribedReadPolicy {
+  if ((policy.read?.length ?? 0) > 0 && (policy.public?.length ?? 0) === 0) return { ruled: true, input: null };
+  const secrets = new Set(secretFields);
+  return { ruled: false, input: {
+    model, secretFields: [...secretFields],
+    grants: (policy.public ?? []).map((id) => {
+      if (selectors === undefined || !selectors.grants.has(id)) {
+        throw new Error(`t17b: model ${JSON.stringify(model)} read selector identity is missing.`);
+      }
+      const selected = selectors.grants.get(id);
+      return { by: "public", fields: [...(selected ?? declaredFields.filter((field) => !secrets.has(field)))] };
+    }),
+  } };
+}
+
+/** Transcribe only proven public rules, preserving their exact declared selectors. */
+export function mapReadRulesToPolicy(
+  model: string,
+  entry: unknown,
+  declaredFields: ReadonlyArray<string>,
+  provenance?: ReadPolicyProvenance,
+): TranscribedReadPolicy {
+  const where = `t17b: model ${JSON.stringify(model)} cannot serve reads in the T17 core scope (T04b carries generated policy)`;
+  const policy = readPolicyFacts(entry, where);
+  const fields = readMetadataStrings(declaredFields, where, "declared fields");
+  const selectors = readSelectorFacts(policy, fields, provenance, where);
+  const secretFields = provenance === undefined ? undefined : readMetadataMember(provenance, "secretFields", where)?.value;
+  const secrets = readMetadataStrings(secretFields ?? [], where, "secret fields");
+  return transcribeReadFacts(model, policy, fields, secrets, selectors);
 }
 
 /* ------------------------------------------------------------------ */
@@ -953,6 +1010,7 @@ interface StateRegistryProducer {
      */
     readonly serverInits: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
     readonly nullableFields: ReadonlyMap<string, ReadonlySet<string>>;
+    readonly secretFields: ReadonlyMap<string, ReadonlySet<string>>;
     readonly containment: ReadonlyMap<string, unknown>;
     readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   };
@@ -1720,9 +1778,11 @@ const canonicalCache = new WeakMap<CompileArtifact, LoadedCanonicalDescriptors>(
  * ABSENT (deny) rather than rule-less-public — an empty scan yields
  * no entries and every model transcribes zero grants.
  */
-async function collectModelPolicyManifests(asm: AssembledModules): Promise<Map<string, unknown>> {
-  const merged = new Map<string, unknown>();
-  const fingerprints = new Map<string, string>();
+async function collectModelPolicyManifests(
+  asm: AssembledModules,
+  modelFields: ReadonlyMap<string, ReadonlyArray<string>>,
+): Promise<Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined }>> {
+  const merged = new Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined }>();
   for (const module of Object.keys(asm.moduleUrls)) {
     const url: unknown = (asm.moduleUrls as Record<string, unknown>)[module];
     if (typeof url !== "string" || url.length === 0) continue;
@@ -1750,41 +1810,51 @@ async function collectModelPolicyManifests(asm: AssembledModules): Promise<Map<s
         `t17b: module ${JSON.stringify(module)} canApp() returned a non-object while establishing read policy`,
       );
     }
-    const policy: unknown = registry["policy"];
+    const moduleWhere = `t17b: module ${JSON.stringify(module)}`;
+    const policy = readMetadataMember(registry, "policy", moduleWhere)?.value;
     if (policy === undefined || policy === null) continue;
     if (!isUnknownRecord(policy)) {
       throw new Error(
         `t17b: module ${JSON.stringify(module)} carries a malformed policy member (not an object)`,
       );
     }
-    const models: unknown = policy["models"];
+    const models = readMetadataMember(policy, "models", moduleWhere)?.value;
     if (models === undefined || models === null) continue;
     if (!isUnknownRecord(models)) {
       throw new Error(
         `t17b: module ${JSON.stringify(module)} carries a malformed policy.models map (not an object)`,
       );
     }
-    for (const [model, entry] of Object.entries(models)) {
-      let fingerprint: string;
-      try {
-        fingerprint = JSON.stringify(entry) ?? "undefined";
-      } catch {
-        throw new Error(
-          `t17b: model ${JSON.stringify(model)} carries a non-serializable read policy entry`,
-        );
+    for (const model of Object.keys(models)) {
+      const where = `t17b: model ${JSON.stringify(model)}`;
+      const entry = readMetadataMember(models, model, where)?.value;
+      const facts = readPolicyFacts(entry, where);
+      const definition = mod["appDefinition"];
+      const declaredModels = isUnknownRecord(definition) ? readMetadataMember(definition, "models", where)?.value : undefined;
+      const declaration = isUnknownRecord(declaredModels) ? readMetadataMember(declaredModels, model, where)?.value : undefined;
+      const readRules = readMetadataMember(registry, "read", where)?.value;
+      if ((facts.public?.length ?? 0) > 0) {
+        const definitionPolicy = isUnknownRecord(definition) ? readMetadataMember(definition, "policy", where)?.value : undefined;
+        const definitionModels = isUnknownRecord(definitionPolicy) ? readMetadataMember(definitionPolicy, "models", where)?.value : undefined;
+        const definitionEntry = isUnknownRecord(definitionModels) ? readMetadataMember(definitionModels, model, where) : undefined;
+        if (definitionEntry === undefined || !sameReadPolicies(readPolicyFacts(definitionEntry.value, where), facts)) {
+          throw new Error(`${where} appDefinition/canApp policy disagreement.`);
+        }
       }
-      const seen = fingerprints.get(model);
-      if (seen === undefined) {
-        fingerprints.set(model, fingerprint);
-        merged.set(model, entry);
-      } else if (seen !== fingerprint) {
-        throw new Error(
-          `t17b: model ${JSON.stringify(model)} carries contradictory read policy across ` +
-            `assembled modules (refusing an incoherent set)`,
-        );
+      const fields = modelFields.get(model);
+      if (fields === undefined && (facts.public?.length ?? 0) > 0) {
+        throw new Error(`${where}: public selector names no loaded model.`);
+      }
+      const selectors = readSelectorFacts(facts, fields ?? [], { secretFields: [], declaration, readRules }, where);
+      const previous = merged.get(model);
+      if (previous === undefined) {
+        merged.set(model, { policy: facts, selectors });
+      } else if (!sameReadPolicies(previous.policy, facts) || !sameReadSelectors(previous.selectors, selectors)) {
+        throw new Error(`${where} carries contradictory read policy across assembled modules (refusing an incoherent set)`);
       }
     }
   }
+
   return merged;
 }
 
@@ -2171,15 +2241,25 @@ export async function loadCanonicalDescriptors(
   // names + declared fields — never the raw artifact). Ruled models are
   // omitted from the table (fail-closed even under a missed check) and
   // recorded for serve-time refusal; the builder validates every input.
-  const manifests = await collectModelPolicyManifests(asm);
+  const modelFields = new Map(loaded.models.map((model, index) => {
+    const name = canonicalModelName(model, index);
+    return [name, canonicalModelFields(model, `loaded model ${JSON.stringify(name)}`)] as const;
+  }));
+  const manifests = await collectModelPolicyManifests(asm, modelFields);
   const policyInputs: CanonicalModelPolicyInput[] = [];
   const ruledModels = new Set<string>();
   for (const [index, model] of loaded.models.entries()) {
     const name = canonicalModelName(model, index);
-    const transcribed = mapReadRulesToPolicy(
+    const manifest = manifests.get(name);
+    if (!(loaded.secretFields instanceof Map) || !loaded.secretFields.has(name)) {
+      throw new Error(`t17b: model ${JSON.stringify(name)} installed State producer lacks typed-secret metadata.`);
+    }
+    const transcribed = transcribeReadFacts(
       name,
-      manifests.get(name),
-      canonicalModelFields(model, `loaded model ${JSON.stringify(name)}`),
+      manifest?.policy ?? {},
+      modelFields.get(name)!,
+      [...loaded.secretFields.get(name)!],
+      manifest?.selectors,
     );
     if (transcribed.ruled) {
       ruledModels.add(name);

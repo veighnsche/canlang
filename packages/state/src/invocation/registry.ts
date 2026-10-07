@@ -226,6 +226,8 @@ export interface ConvertedArtifactDescriptors {
   >;
   readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
   readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
+  /** Typed-secret field names, independent of caller-input serverOnly restrictions. */
+  readonly secretFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
   readonly containment: ReadonlyMap<ModelName, InterimContainment>;
   readonly deliveryFields: DeliveryFieldSchema;
 }
@@ -235,6 +237,8 @@ export interface LoadedArtifactDescriptors extends LoadedDescriptorSet {
   readonly refs: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
   readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
   readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
+  /** Typed-secret field names, independent of caller-input serverOnly restrictions. */
+  readonly secretFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
   readonly containment: ReadonlyMap<ModelName, InterimContainment>;
   readonly deliveryFields: DeliveryFieldSchema;
 }
@@ -800,6 +804,7 @@ export function artifactToDescriptorSet(
   const refs = new Map<ModelName, InterimRefDef[]>();
   const serverInits = new Map<ModelName, Map<string, ServerInitKind>>();
   const nullableFields = new Map<ModelName, Set<string>>();
+  const secretFields = new Map<ModelName, Set<string>>();
   const containment = new Map<ModelName, InterimContainment>();
   const deliveryEntries: Array<readonly [string, ReadonlyArray<string>]> = [];
   const models: CanonicalModelDescriptor[] = [];
@@ -815,6 +820,7 @@ export function artifactToDescriptorSet(
     const modelRefs: InterimRefDef[] = [];
     const modelInits = new Map<string, ServerInitKind>();
     const modelNullable = new Set<string>();
+    const modelSecrets = new Set<string>();
     const modelDelivery: string[] = [];
     for (const field of model.fields) {
       if (typeof field.name !== 'string' || field.name === '') {
@@ -916,6 +922,9 @@ export function artifactToDescriptorSet(
       // other tag — scalars, enum, T04b previews, unknown futures — is
       // ignored per the T04a intake contract.
       const tag: unknown = field.field;
+      if (Object.hasOwn(field, 'field') && isRecord(tag) && Object.hasOwn(tag, 'kind') && tag.kind === 'secret') {
+        modelSecrets.add(field.name);
+      }
       if (isRecord(tag) && tag['kind'] === 'ref' && array === undefined) {
         if (typeof tag['model'] !== 'string' || tag['model'] === '') {
           fail('malformed_descriptor', `Invalid ${what}: ref fields name a non-empty model.`);
@@ -977,6 +986,7 @@ export function artifactToDescriptorSet(
     refs.set(model.name as ModelName, modelRefs);
     serverInits.set(model.name as ModelName, modelInits);
     nullableFields.set(model.name as ModelName, modelNullable);
+    secretFields.set(model.name as ModelName, modelSecrets);
     deliveryEntries.push([model.name, modelDelivery]);
     // B5 declared ownership (adopted T28-A): `parent` marks a contained
     // child of that canonical model; `scope: 'app'` marks an app root;
@@ -1155,7 +1165,7 @@ export function artifactToDescriptorSet(
   // them). `createDeliverySchema` is the shared builder: its
   // validation doubles as this conversion's whole-set guard.
   const deliveryFields = createDeliverySchema(deliveryEntries);
-  return { set, refs, inputArrays, serverInits, nullableFields, containment, deliveryFields };
+  return { set, refs, inputArrays, serverInits, nullableFields, secretFields, containment, deliveryFields };
 }
 
 /**
@@ -1189,6 +1199,9 @@ export function loadArtifactDescriptors(
   const containment: Map<ModelName, InterimContainment> = new Map(
     [...converted.containment].map(([model, declared]) => [model, { ...declared }]),
   );
+  const secretFields: Map<ModelName, ReadonlySet<string>> = new Map(
+    [...converted.secretFields].map(([model, names]) => [model, new Set(names)]),
+  );
   const deliveryFields: Map<ModelName, ReadonlySet<string>> = new Map(
     [...converted.deliveryFields].map(([model, fields]) => [model, new Set(fields)]),
   );
@@ -1198,6 +1211,7 @@ export function loadArtifactDescriptors(
     refs,
     serverInits,
     nullableFields,
+    secretFields,
     containment,
     deliveryFields,
   };
