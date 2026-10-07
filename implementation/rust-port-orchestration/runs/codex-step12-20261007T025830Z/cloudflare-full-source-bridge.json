@@ -1,0 +1,225 @@
+{
+  "all_source_files_equal": true,
+  "files": [
+    {
+      "path": "packages/cloudflare/src/index.ts",
+      "sha256": "a70f7ed1df1459334d9065428aeb0b2bb00bc94f8d3630a6980c2d54a82665db"
+    },
+    {
+      "path": "packages/cloudflare/src/upgrade/apply.ts",
+      "sha256": "167c77f7be30b29a3cbc37125d112208472ccf504a7f70e70e45e9d3aff73cca"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/activate.ts",
+      "sha256": "1f39bfea83761034d1f93665c4f2fc80f444d0706148670637f8b1f7eae8db2c"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/installed.ts",
+      "sha256": "512b47b2785c452ff500e9331783833ed4064bd26c9ffe1dc37f0c34d3ce34b1"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/producer-files.ts",
+      "sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/review.ts",
+      "sha256": "7483e3867b3eaf0f7087d5846196512e96707acd6093667227cf78f94c1cbf5a"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "sha256": "75bb7fb5eeb0cebafdf5c31079c12c63075b00d5708edaedf5a7f9c89b5bc980"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/compat.ts",
+      "sha256": "f78595dfc66957678a187e78b6fd3bd2ab20ec560c850637d7cb7425bbca2138"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/plan.ts",
+      "sha256": "b3e90850bc619c6f1e8df843f393f639fef7c8dc0e59e3bdeae50eb2ed9ab335"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/package-assets.ts",
+      "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "sha256": "bd21a2bb17efc8f7b89c21e5e12610a2d77174c7b09281c203654fc47e3591a0"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
+      "sha256": "d03d63f44510185d70fdf7f5208f126311c04875e610ed92960b9c4e889e550d"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/mcp-registry.ts",
+      "sha256": "cf8cf482728036635a1d964ab8fc94ff365eb900e3efb0a99d9f9daa69f34c14"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts",
+      "sha256": "880a5f3d5055f655ec39531d7d729f4483529b33ff305231b5070a0a2651ea9e"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
+      "sha256": "1ce647814f81ebcd9657c28fb1dec37ab439acba4a1b67997805f0e184d9de53"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/stdlib.ts",
+      "sha256": "ced1c72a0244f7691471dd2aae3a88a3ae6198f67837af4008549df8bbc1662e"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t34-f7-emitted-cohorts.test.ts",
+      "sha256": "a90182ca1d333f76a4072d6175356d04b280edd1055b68a2a26c5bd08a053d08"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/grant-route.ts",
+      "sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "sha256": "4c28d92d60517d529329eab34fb823e00a0fbe97db903e45eadc6a8d495f5824"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/env-assembly.ts",
+      "sha256": "d39b218d24926884b627a30dadb5a1bf46db87cfbc1e6834b6f01ee136b95c25"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/context.ts",
+      "sha256": "9f628244197b61fc376319c9a4fe5aed82fbd04a62b283c96e564f6877a614d8"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+      "sha256": "a4b7ad1f3028e9480bbb514c30c642f3c990fcb710f1743f24cd0e950aebaba1"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/executors.ts",
+      "sha256": "76d481665ae5c9ada116e797d91b8848fcaa4c2171a5126970f9b83fcf6d33c1"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/mcp-permissions.ts",
+      "sha256": "59f0d5aa713c3c114d1426a5e2354aa7f5672fd138276e30242061de13f8f61e"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t17b-durable.test.ts",
+      "sha256": "e331d4c9d724b31e5c2b1479357f60fd9b8798ae95ef17972f51b150bcf84b14"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/artifact.ts",
+      "sha256": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "sha256": "8636320772fbf995fd66bf122678d14a9047d996ab6b2502f761454abbba0c2d"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/d3b-selected-receipt.test.ts",
+      "sha256": "54b17d8280f4cef50f165f49dd89d158e5efc8558e5ec8991347d45076d92c0f"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/d3b-join-assembly.test.ts",
+      "sha256": "824a5829be67d7bb167b120265b1b5298d7e645067163ad5a9bc38432b7a20e9"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts",
+      "sha256": "a838d4ae2f4bc895e2d3cd483389f5114e862882dd729d0bc0ae5c99c402925a"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/d3b-observer-seam.test.ts",
+      "sha256": "d7fc8c4f963927ead2f8af67f45431739d58d1083afc3744f1fb0f55ef805db2"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts",
+      "sha256": "a5678d07514194e8d4e03b84c4d1fd79ad588d89d83d25960f45ad27cb838ffc"
+    },
+    {
+      "path": "packages/cloudflare/src/release/stamp.ts",
+      "sha256": "d731f609c69be92b2fce043e8670b08a40da5c4f23dd72f0647e33d628be6863"
+    },
+    {
+      "path": "packages/cloudflare/src/release/manifest.ts",
+      "sha256": "0f1253522b0ee681173f788700835facdeb3bd2028daf2a461b75f1dc4c8a48d"
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a"
+    },
+    {
+      "path": "packages/cloudflare/src/cli/docs.ts",
+      "sha256": "dd15d0f9fbe4a0b4836f371e471d45f35c806f79c90139018a15d50847638bf1"
+    },
+    {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a"
+    },
+    {
+      "path": "packages/cloudflare/src/dev/row-scope.ts",
+      "sha256": "e291abb4f1b5d171f9f1949b1e8f30c4590377128c6d069ba56c8db235208183"
+    },
+    {
+      "path": "packages/cloudflare/src/dev/zero-config.ts",
+      "sha256": "66cf73a6e9ae19695d652afa9ffee80647cda04a6d3e90ad47a88d67499635fe"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/entry.ts",
+      "sha256": "106bfa11b9075dca53d4f4933497e5cb382d317471278d4f90c56402bad1580f"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable.ts",
+      "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "sha256": "d479c648351dc2b13116d4f96bb83817f80fefbd472a95f24d77bf17048a442e"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383"
+    }
+  ]
+}

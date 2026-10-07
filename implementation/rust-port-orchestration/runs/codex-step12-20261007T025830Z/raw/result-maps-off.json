@@ -1,0 +1,33 @@
+{
+  "runtime": "v26.10.0",
+  "engineStack": "Error: installed-kaboom\n    at Object.boom (file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/staged-maps-off/app/main.js:1:251)\n    at file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/diagnostic-probe.mjs:25:70\n    at async file:///private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/diagnostic-probe.mjs:25:19",
+  "writtenReadBack": true,
+  "invoke": {
+    "ok": false,
+    "error": "installed-kaboom",
+    "mapped": {
+      "source": "original-handler.can",
+      "line": 24,
+      "column": 9
+    }
+  },
+  "artifactSha256": "f0791ee9f40a6bbca1dce874225f34c5ea7bbc98dc28dde9e473d22554e5b72f",
+  "bundleSha256": "a4dd815909733693108f49222f4bfbb5390a75510f9c7e3179df54be674fe999",
+  "bundleModules": 161,
+  "originalMapFalseWitness": {
+    "generatedColumn": 250,
+    "originalThrowColumn": 141,
+    "stale": {
+      "source": "original-handler.can",
+      "line": 25,
+      "column": 12
+    },
+    "expected": {
+      "source": "original-handler.can",
+      "line": 24,
+      "column": 9
+    }
+  },
+  "sourceMaps": "",
+  "publicInstalled": true
+}

@@ -1,0 +1,344 @@
+{
+  "captured_at_utc": "2026-10-07T03:01:09.858740+00:00",
+  "base": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+  "sources": [
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "bytes": 18589,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "bytes": 26093,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/values/semantics/Cargo.toml",
+      "sha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+      "bytes": 535,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/values/bindings/src/lib.rs",
+      "sha256": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+      "bytes": 511,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/values/bindings/src/exact.rs",
+      "sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+      "bytes": 845,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "bytes": 4241,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "sha256": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "bytes": 4847,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/values/package.json",
+      "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "bytes": 2763,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "bytes": 859,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/work-kernel/bindings/host-values.ts",
+      "sha256": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+      "bytes": 6658,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/work-kernel/src/index.ts",
+      "sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+      "bytes": 726,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "bytes": 12176,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "bytes": 5985,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "bytes": 62748,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "bytes": 6534,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "bytes": 6362,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/cloudflare/package.json",
+      "sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+      "bytes": 3427,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "bytes": 3462,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "bytes": 3685,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "bytes": 307,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-node.ts",
+      "sha256": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "bytes": 153,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-worker.ts",
+      "sha256": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "bytes": 447,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "bytes": 3612,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/csrf.ts",
+      "sha256": "b577b2619951a51f1aaccc62ae3db942a7d2237aec5f6d5c2d6d65a815040d60",
+      "bytes": 1500,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/src/authentication/oauth.ts",
+      "sha256": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+      "bytes": 9309,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/package.json",
+      "sha256": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "bytes": 1629,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "bytes": 2662,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "bytes": 7779,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/ui/package.json",
+      "sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "bytes": 1747,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "bytes": 22419,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "bytes": 19098,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "bytes": 15711,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "sha256": "e3523e94de4052d6d908ff248be11ae2e2e7fc2805afcebfd7108686eb4bc9c5",
+      "bytes": 35022,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/identity/test/comparison.test.ts",
+      "sha256": "384a94a493c83baabbd2b588dda973e8bb075b102e30bf8a670c9aad90add572",
+      "bytes": 3879,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/interfaces/test/csv-grammar-join.test.ts",
+      "sha256": "87c4017b36b806b58caa6f7264b5c497ba5f77930c0d133d2c7c0c4e2deda399",
+      "bytes": 1708,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/services/test/http-lifecycle.test.ts",
+      "sha256": "e572900ef6ba07c957a62646a015c20f255d231d340b3a63f5090ec0b2a4121c",
+      "bytes": 5473,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "bytes": 319853,
+      "source_commit": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+      "working_bytes_equal": true,
+      "review_excerpt": "invoke-diagnostic-lines-180-420.txt",
+      "lines": [
+        180,
+        420
+      ]
+    }
+  ],
+  "raw_receipts": [
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/node-written-maps-off-attempt4.log",
+      "packet_path": "raw/step8-node-written-maps-off-attempt4.log",
+      "sha256": "246f322450e57bd325419b956a176d8915898abad1b370fe43e3b719a7423a2e",
+      "bytes": 1036,
+      "purpose": "Actual installed changed-length raw/composed/invalid-sidecar diagnostics"
+    },
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-edges-attempt3.log",
+      "packet_path": "raw/step8-installed-edges-attempt3.log",
+      "sha256": "c18a72507e0c29e6f1cd839603a839b70ac9c89e818e0b722132ef5ab4075ff7",
+      "bytes": 196,
+      "purpose": "Installed malformed/raw identity negative controls"
+    },
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-independent-corrected.json",
+      "packet_path": "raw/step9-values-root-independent-corrected.json",
+      "sha256": "b9d6485a9a7cde27a8df67a35e64f1cadda053a97d4d1d2ddae007dfba16bed9",
+      "bytes": 2672,
+      "purpose": "Exact original JS-number transport corrections"
+    },
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-workerd-corrected.log",
+      "packet_path": "raw/step9-values-root-workerd-corrected.log",
+      "sha256": "bde2b2d559ec4ee0585548493f583373ac4ec6a9e1efb5989bdf97904ec1c853",
+      "bytes": 1597,
+      "purpose": "Actual opt-in supported Worker isolate"
+    },
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/installed-node22-final-current.log",
+      "packet_path": "raw/step10-installed-node22-final-current.log",
+      "sha256": "8e7db5b319ff24ccd276aba39055e9af8c4b9f95a40b167482dcdc53d081eacc",
+      "bytes": 231,
+      "purpose": "Actual installed identity/CSV source-current Node22"
+    },
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/installed-node24-final.log",
+      "packet_path": "raw/step10-installed-node24-final.log",
+      "sha256": "048538264fce8ad8f5e52349e92a188a6e94523cb7b353becc2adef254b6d2ac",
+      "bytes": 232,
+      "purpose": "Actual installed identity/CSV Node24"
+    },
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/installed-workerd-receipt.json",
+      "packet_path": "raw/step10-installed-workerd-receipt.json",
+      "sha256": "27d77885311202f1cfafa3d1d5425e8034a92a98a21e6303190f0fc3733c5743",
+      "bytes": 1305,
+      "purpose": "Actual staged module/consumer host results"
+    },
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/services/H01-host-receipt.json",
+      "packet_path": "raw/step10-H01-host-receipt.json",
+      "sha256": "51be6c96cd6dee0517f785cd2130cb9b1e93f4ba81991dad8c011c8df50b2dc0",
+      "bytes": 280,
+      "purpose": "Actual HTTP cancellation host controls"
+    },
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/installed-policy.log",
+      "packet_path": "raw/step10-installed-policy.log",
+      "sha256": "40ce9708f5d7b7ed9d110c37520375ddfe241f977a981c01e8bec9388191904b",
+      "bytes": 66,
+      "purpose": "Pinned unsupported dependency closure negative controls"
+    },
+    {
+      "original_path": "/private/tmp/canlang-rust-port-codex-step11-20261007T024618Z/loadability-link.log",
+      "packet_path": "raw/step11-loadability-link.log",
+      "sha256": "13f21c7c116b1c9b79fbfeb80a11fa51ed1c405230618267f0020732637633a1",
+      "bytes": 360,
+      "purpose": "Actual current cleanup consumer controls"
+    }
+  ],
+  "review_boundary": "Package selected sources + scoped raw results only. No compiler or foreign source, no producer verdict premise. No source writes/Git/topology/publication.",
+  "total_source_bytes": 623354
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "accepted_at_utc": "2026-10-07T03:18:55.364850+00:00",
+  "scope": "Only actual released finite step4-11 package numeric/scaffold/import-map/identity/CSV/services/work-carrier profiles",
+  "verdict": "selected_released_scope_accepted",
+  "source_manifest": "review-source-manifest.json",
+  "current_source_check": "final-source-equivalence.json",
+  "independent_review": {
+    "Sol_high": "reviews/SOL-QUALIFICATION.md; completed before fresh bundler gates; no successful renewal claimed",
+    "Astra_high": "reviews/ASTRA-CRITICAL.md; actual current raw gates and critical source/probes accepted",
+    "root": "Fresh source emit/actual installed build/policy/Node native-fallback/workerd and source bridge"
+  },
+  "raw_current_gates": "fresh-joined-gates.json",
+  "selected_record_map": "selected-scope-ledger.json",
+  "remaining": "REMAINING.md",
+  "original_ID_index": "residual-task-index.json",
+  "all_original_programme_tasks_complete": false,
+  "canonical_ledger_mutated": false,
+  "native_preparation_and_release": "HUMAN HOLD",
+  "TS_backend_retired": false,
+  "default_adoption": false,
+  "conditional_and_deferred_preserved": true,
+  "writers_and_commands": "released",
+  "cleanup": "resource-release.json",
+  "shared_docs": "filetree-coverage-contribution.json and DECISIONS-PENDING-HANDOFF.md; exact owner delivery/reconciliation pending",
+  "complete_filetree_checkpoint_advanced": false,
+  "merge_or_rebase": false,
+  "future_dispatch_authorized": false,
+  "publication_or_deployment": false
+}

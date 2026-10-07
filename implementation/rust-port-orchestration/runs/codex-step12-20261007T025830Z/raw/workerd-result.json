@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "error": "installed-kaboom",
+  "mapped": {
+    "source": "original-handler.can",
+    "line": 24,
+    "column": 9
+  }
+}

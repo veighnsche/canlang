@@ -1,0 +1,9 @@
+{
+  "old_source": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/installed/bundle.json",
+  "new_source": "/private/tmp/canlang-rust-port-codex-step12-20261007T025830Z/installed/bundle.json",
+  "old_sha": "d067681ec7f34ea9592d3d402cc6437de0b5a7a13233f29db97c5dd854c9bc52",
+  "new_sha": "e69c187cf8cccbb31c3582e33ee4eff341224611358136dc41a8a090734b5e0c",
+  "actual_module_bytes_equal": false,
+  "module_count": 161,
+  "scope": "Same exact fixture and admitted production modules; fresh current host bundler cleanup does not change staged bytegraph. Other fixtures/profiles retain own gates."
+}

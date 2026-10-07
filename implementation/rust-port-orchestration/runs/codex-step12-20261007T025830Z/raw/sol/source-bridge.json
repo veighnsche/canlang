@@ -1,0 +1,581 @@
+{
+  "base": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+  "checks": [
+    {
+      "path": "packages/identity/package.json",
+      "prior": "step11 reviewed source",
+      "expected": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "current": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "prior": "step11 reviewed source",
+      "expected": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "current": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "prior": "step11 reviewed source",
+      "expected": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "current": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "equal": true
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "prior": "step11 reviewed source",
+      "expected": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "current": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "prior": "step11 reviewed source",
+      "expected": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "current": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-node.ts",
+      "prior": "step11 reviewed source",
+      "expected": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "current": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "equal": true
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-worker.ts",
+      "prior": "step11 reviewed source",
+      "expected": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "current": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "equal": true
+    },
+    {
+      "path": "packages/identity/test/accounts.test.ts",
+      "prior": "step11 reviewed source",
+      "expected": "f781848aec4423040a429cf5df26a9cf43c40e1aa6ab7669b7bbbd52a9de4fe4",
+      "current": "f781848aec4423040a429cf5df26a9cf43c40e1aa6ab7669b7bbbd52a9de4fe4",
+      "equal": true
+    },
+    {
+      "path": "packages/identity/test/comparison.test.ts",
+      "prior": "step11 reviewed source",
+      "expected": "384a94a493c83baabbd2b588dda973e8bb075b102e30bf8a670c9aad90add572",
+      "current": "384a94a493c83baabbd2b588dda973e8bb075b102e30bf8a670c9aad90add572",
+      "equal": true
+    },
+    {
+      "path": "packages/identity/test/sessions.test.ts",
+      "prior": "step11 reviewed source",
+      "expected": "2e8b9808c058a14a023e35cdd1bb6048dca3b0c4edaf8f190aac11aef9817b9c",
+      "current": "2e8b9808c058a14a023e35cdd1bb6048dca3b0c4edaf8f190aac11aef9817b9c",
+      "equal": true
+    },
+    {
+      "path": "packages/ui/package.json",
+      "prior": "step11 reviewed source",
+      "expected": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "current": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "equal": true
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "prior": "step11 reviewed source",
+      "expected": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "current": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "equal": true
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "prior": "step11 reviewed source",
+      "expected": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "current": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "equal": true
+    },
+    {
+      "path": "packages/ui/test/csv-grammar.test.ts",
+      "prior": "step11 reviewed source",
+      "expected": "3fa423003ac468e9ab812d62718acbcb2e9210c90c698555849eacea756956f3",
+      "current": "3fa423003ac468e9ab812d62718acbcb2e9210c90c698555849eacea756956f3",
+      "equal": true
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "prior": "step11 reviewed source",
+      "expected": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "current": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "equal": true
+    },
+    {
+      "path": "packages/interfaces/test/csv-grammar-join.test.ts",
+      "prior": "step11 reviewed source",
+      "expected": "87c4017b36b806b58caa6f7264b5c497ba5f77930c0d133d2c7c0c4e2deda399",
+      "current": "87c4017b36b806b58caa6f7264b5c497ba5f77930c0d133d2c7c0c4e2deda399",
+      "equal": true
+    },
+    {
+      "path": "packages/interfaces/test/csv-review.test.ts",
+      "prior": "step11 reviewed source",
+      "expected": "6d76f7c35ad047ab04051614697e19b89b5cae588329e68d88f0f3c7311cce4c",
+      "current": "6d76f7c35ad047ab04051614697e19b89b5cae588329e68d88f0f3c7311cce4c",
+      "equal": true
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "prior": "step11 reviewed source",
+      "expected": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "current": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "equal": true
+    },
+    {
+      "path": "packages/services/test/http-lifecycle.test.ts",
+      "prior": "step11 reviewed source",
+      "expected": "e572900ef6ba07c957a62646a015c20f255d231d340b3a63f5090ec0b2a4121c",
+      "current": "e572900ef6ba07c957a62646a015c20f255d231d340b3a63f5090ec0b2a4121c",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "prior": "step11 reviewed source",
+      "expected": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "current": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "prior": "step11 reviewed source",
+      "expected": "e3523e94de4052d6d908ff248be11ae2e2e7fc2805afcebfd7108686eb4bc9c5",
+      "current": "e3523e94de4052d6d908ff248be11ae2e2e7fc2805afcebfd7108686eb4bc9c5",
+      "equal": true
+    },
+    {
+      "path": "packages/work-kernel/bindings/host-values.ts",
+      "prior": "step11 reviewed source",
+      "expected": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+      "current": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+      "equal": true
+    },
+    {
+      "path": "packages/work-kernel/conformance/host-values.test.ts",
+      "prior": "step11 reviewed source",
+      "expected": "054d2a2aaee37e331abb940cb68473e4f612501065342c6105adfb4ad221018b",
+      "current": "054d2a2aaee37e331abb940cb68473e4f612501065342c6105adfb4ad221018b",
+      "equal": true
+    },
+    {
+      "path": "bun.lock",
+      "prior": "step11 reviewed source",
+      "expected": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+      "current": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "prior": "step11 reviewed source",
+      "expected": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "current": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "prior": "step11 reviewed source",
+      "expected": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "current": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "equal": true
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "prior": "step11 reviewed source",
+      "expected": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "current": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "prior": "step11 reviewed source",
+      "expected": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "current": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "prior": "step11 reviewed source",
+      "expected": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "current": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "prior": "step11 reviewed source",
+      "expected": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "current": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "prior": "step11 reviewed source",
+      "expected": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "current": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "prior": "step11 reviewed source",
+      "expected": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "current": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "equal": true
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "prior": "step11 reviewed source",
+      "expected": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "current": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/Cargo.toml",
+      "prior": "step9 corrected actual values source",
+      "expected": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450",
+      "current": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "prior": "step9 corrected actual values source",
+      "expected": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "current": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "prior": "step9 corrected actual values source",
+      "expected": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "current": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/carriers.ts",
+      "prior": "step9 corrected actual values source",
+      "expected": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "current": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/generated/BUILD.json",
+      "prior": "step9 corrected actual values source",
+      "expected": "528bd710b2cd8fedaf95486baf94f03635b92efa0567e0e05e9c1e39558d75eb",
+      "current": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+      "equal": false
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics.d.ts",
+      "prior": "step9 corrected actual values source",
+      "expected": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "current": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics.js",
+      "prior": "step9 corrected actual values source",
+      "expected": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "current": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+      "prior": "step9 corrected actual values source",
+      "expected": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+      "current": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+      "equal": false
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts",
+      "prior": "step9 corrected actual values source",
+      "expected": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "current": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "prior": "step9 corrected actual values source",
+      "expected": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+      "current": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/plans.ts",
+      "prior": "step9 corrected actual values source",
+      "expected": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+      "current": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/src/exact.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+      "current": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/src/lib.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+      "current": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/src/validation.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+      "current": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+      "equal": true
+    },
+    {
+      "path": "packages/values/bindings/validation.ts",
+      "prior": "step9 corrected actual values source",
+      "expected": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+      "current": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/Cargo.toml",
+      "prior": "step9 corrected actual values source",
+      "expected": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+      "current": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/aggregates/decimal.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "5bb363c93fd640aa16b64ab83520169dee7d2e4d548275f54b0d8fc03c717313",
+      "current": "5bb363c93fd640aa16b64ab83520169dee7d2e4d548275f54b0d8fc03c717313",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/aggregates/integer.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "fd7feb03a1148a4912dcf40e049b7428aaa3a828e072a2d3564485b1834c148c",
+      "current": "fd7feb03a1148a4912dcf40e049b7428aaa3a828e072a2d3564485b1834c148c",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/aggregates/mod.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "561bee0d2993130b272568ea1b51e41700d8f99a08745c2ec0049c2fde169c9c",
+      "current": "561bee0d2993130b272568ea1b51e41700d8f99a08745c2ec0049c2fde169c9c",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/aggregates/money.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "60736655950fabdc910bb145118ca4e185880074ddf2b18dec0525400532cb0e",
+      "current": "60736655950fabdc910bb145118ca4e185880074ddf2b18dec0525400532cb0e",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/aggregates/numeric.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4",
+      "current": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/mod.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "4c8b202d2524e440fc9979aa01245da7adbdfbabc24506e8ed75a84e1ceacf20",
+      "current": "4c8b202d2524e440fc9979aa01245da7adbdfbabc24506e8ed75a84e1ceacf20",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "current": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/currency_facts.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "48e84ddf56c44e698e5d382e68736877b32c3773c56b8421ebe3b8893ed40c3f",
+      "current": "48e84ddf56c44e698e5d382e68736877b32c3773c56b8421ebe3b8893ed40c3f",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/failures.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "28dca38a0670f354a25e5a9ab6e531c216f161c929413adc9c7276cddb51fc07",
+      "current": "28dca38a0670f354a25e5a9ab6e531c216f161c929413adc9c7276cddb51fc07",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/input.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+      "current": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/lib.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+      "current": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/decimal.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6",
+      "current": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/integer.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae",
+      "current": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/mod.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "93ea4c83e9d8abae1d96bb4e4b2c93930f81c542893152705b9933845e0cae92",
+      "current": "93ea4c83e9d8abae1d96bb4e4b2c93930f81c542893152705b9933845e0cae92",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/money.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad",
+      "current": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/rounding.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd",
+      "current": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+      "current": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/profiles.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+      "current": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/representations/mod.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "fce7ed1dc892ccd4c8377b6c69fdfb19d6901793709da60a833cc27b6314b830",
+      "current": "fce7ed1dc892ccd4c8377b6c69fdfb19d6901793709da60a833cc27b6314b830",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "current": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/temporal/civil.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d",
+      "current": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/temporal/duration.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39",
+      "current": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/temporal/instant.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c",
+      "current": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/temporal/mod.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "08df69e5fb8c6a9a9d3c6a2d655648da3d3d9ad1e5a72bbf74a9c81f4c6ead28",
+      "current": "08df69e5fb8c6a9a9d3c6a2d655648da3d3d9ad1e5a72bbf74a9c81f4c6ead28",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+      "current": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+      "equal": true
+    },
+    {
+      "path": "packages/values/semantics/src/transport/mod.rs",
+      "prior": "step9 corrected actual values source",
+      "expected": "fb7a358c36dd919ccba66c2a290c1e7ea6af0e50dbfe64353daae13cde3c10f6",
+      "current": "fb7a358c36dd919ccba66c2a290c1e7ea6af0e50dbfe64353daae13cde3c10f6",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "prior": "step8 raw map consumer delivery source",
+      "expected": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "current": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "prior": "step8 raw map consumer delivery source",
+      "expected": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "current": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "prior": "step8 raw map consumer delivery source",
+      "expected": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "current": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "prior": "step8 raw map consumer delivery source",
+      "expected": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "current": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "equal": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "prior": "step8 raw map consumer delivery source",
+      "expected": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "current": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "equal": true
+    }
+  ],
+  "mismatches": [
+    {
+      "path": "packages/values/bindings/generated/BUILD.json",
+      "prior": "step9 corrected actual values source",
+      "expected": "528bd710b2cd8fedaf95486baf94f03635b92efa0567e0e05e9c1e39558d75eb",
+      "current": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+      "equal": false
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+      "prior": "step9 corrected actual values source",
+      "expected": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+      "current": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+      "equal": false
+    }
+  ]
+}

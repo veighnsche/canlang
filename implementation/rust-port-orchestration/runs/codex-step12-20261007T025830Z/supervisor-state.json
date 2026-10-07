@@ -1,0 +1,9 @@
+{
+  "verified_at_utc": "2026-10-07T03:19:28.444656+00:00",
+  "automation_id": "canlang-challenge-implementation",
+  "status": "PAUSED",
+  "cadence": "FREQ=MINUTELY;INTERVAL=15",
+  "scope_closed": "Only finite step12 actual released selected scope",
+  "future_dispatch_authorized": false,
+  "native_timers": []
+}

@@ -1,0 +1,805 @@
+{
+  "schema_version": 1,
+  "captured_at_utc": "2026-10-07T03:16:09.608695+00:00",
+  "selected_scope": "Actual released step4-11 finite package-library/port scaffold changes; R03 independent joined review",
+  "source_sequence": "docs/research/package-library-audit-20261006/adoption-sequence.json",
+  "source_sequence_sha256": "799a3617b0d497ecaced883dcf76427508e8de22d7ec07c266c97b4aa32c9b22",
+  "records_are_additional_original_obligations": false,
+  "original_ledger_unchanged": true,
+  "scope_completion_does_not_complete_parents": true,
+  "units": [
+    {
+      "id": "library-sequence:P01",
+      "title": "Refresh source, callers and remaining evidence",
+      "scope_status": "released_planning_checkpoint",
+      "accepted_or_recorded_scope": "Source-current scope/ownership and queue reconciled; no new original task count",
+      "remaining_boundary": "Original scope/holds and unqualified producer consumers retained",
+      "local_sequence_dependencies": [],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:P02",
+      "title": "Amend scope, task crosswalk and exact owners",
+      "scope_status": "released_planning_checkpoint",
+      "accepted_or_recorded_scope": "Source-current scope/ownership and queue reconciled; no new original task count",
+      "remaining_boundary": "Original scope/holds and unqualified producer consumers retained",
+      "local_sequence_dependencies": [
+        "library-sequence:P01"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:N01",
+      "title": "Freeze numeric text contracts and independent oracles",
+      "scope_status": "released_contract",
+      "accepted_or_recorded_scope": "Finite separate compatibility/owner contracts",
+      "remaining_boundary": "Upstream documentation is not acceptance; caller/host evidence remains required",
+      "local_sequence_dependencies": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:N02",
+      "title": "Replace values number-formatting mechanics",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Admitted f64 ECMAScript numeric text via pinned formatter, original nonfinite/zero channels",
+      "remaining_boundary": "Full Decimal/profile/consumer gates retain original prerequisites",
+      "local_sequence_dependencies": [
+        "library-sequence:N01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:A03.1",
+          "historical_ledger_status": "complete",
+          "depends_on": [
+            "ports:A02",
+            "ports:C03.ready"
+          ],
+          "original_acceptance": [
+            "Foundation compiles and supplies stable representations/errors/transport with no integer or rational algorithm dependency; compiler is excluded."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:N03",
+      "title": "Repair work number-formatting mechanics before assembly",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Checked work formatter and real registered native numeric caller",
+      "remaining_boundary": "Full W04.4 unsampled/producer compatibility and Rust backend adoption remain open",
+      "local_sequence_dependencies": [
+        "library-sequence:N01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:W04.1",
+          "historical_ledger_status": "needs_verification",
+          "depends_on": [
+            "ports:W02.2",
+            "ports:W03.1",
+            "ports:C03.ready"
+          ],
+          "original_acceptance": [
+            "Native row/identity/set vectors agree with independent TS oracle for shape, first fault, metadata/presence, count rounding and lossless UTF-16; no host I/O.",
+            "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:W04.3",
+          "historical_ledger_status": "needs_verification",
+          "depends_on": [
+            "ports:W02.4",
+            "ports:W03.1",
+            "ports:C03.ready"
+          ],
+          "original_acceptance": [
+            "Native ordered batch decisions/faults/ref indices and proposed conditional writes agree with separate stored-pending and wrapper profiles; no stronger converse linkage policy.",
+            "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:N04",
+      "title": "Use existing serde_json for Rust-str escaping",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Existing serde_json escape mechanics for concrete Rust str",
+      "remaining_boundary": "A04.5 lossless UTF-16/truncation residual not closed",
+      "local_sequence_dependencies": [
+        "library-sequence:N01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:A04.5",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "ports:A04.1",
+            "ports:A04.3",
+            "ports:C03.ready"
+          ],
+          "original_acceptance": [
+            "Validation can reuse proven numeric codecs without awaiting unrelated money factor math or aggregate work."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:N05",
+      "title": "Qualify affected values and validation consumers",
+      "scope_status": "partial_original_consumer_scope",
+      "accepted_or_recorded_scope": "Values six-op opt-in scaffold plus finite private validation core/ABI transport gates",
+      "remaining_boundary": "Full semantic registration, protected owner/default/Decimal profiles, arbitrary JS evaluation effects, actual validation handler/state joins and whole-flow benefit/rollback remain open",
+      "local_sequence_dependencies": [
+        "library-sequence:N02",
+        "library-sequence:N04"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:A04.5",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "ports:A04.1",
+            "ports:A04.3",
+            "ports:C03.ready"
+          ],
+          "original_acceptance": [
+            "Validation can reuse proven numeric codecs without awaiting unrelated money factor math or aggregate work."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:A07.foundation",
+          "historical_ledger_status": "complete",
+          "depends_on": [
+            "ports:A07.1",
+            "ports:A07.2"
+          ],
+          "original_acceptance": [
+            "Actual tiny glue/module imports and synchronous bootstrap/carrier contract are usable in Node/Bun/local workerd; validation can integrate independently of exact algorithm completion."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:A07.3",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "ports:A03",
+            "ports:A04",
+            "ports:A05",
+            "ports:A06",
+            "ports:A07.foundation",
+            "ports:V03.5"
+          ],
+          "original_acceptance": [
+            "Full semantic vectors and asset/version/error checks pass through real binding and actual host delivery."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:N06",
+      "title": "Assemble and qualify actual work decisions and consumers",
+      "scope_status": "partial_original_consumer_scope",
+      "accepted_or_recorded_scope": "Real Cargo decisions registration/shared native conformance plus installed TS facts readiness",
+      "remaining_boundary": "Actual work Rust/Wasm loader/asset/binary consumers and W03.4/W04.4/W05/W06/W07/W08 remain open",
+      "local_sequence_dependencies": [
+        "library-sequence:N03"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:W04.4",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "ports:W04.1",
+            "ports:W04.2",
+            "ports:W04.3",
+            "ports:W03.4"
+          ],
+          "original_acceptance": [
+            "Only integrator edits lib.rs/module registrations; matching immutable vectors drive native and prepared TS outputs.",
+            "Run cargo test --locked, cargo fmt --check and cargo clippy --locked --all-targets -- -D warnings; inspect imports/features for forbidden host authority, preserve exact faults and materialization demand."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:W05.1",
+          "historical_ledger_status": "not_started",
+          "depends_on": [
+            "ports:W04.4",
+            "ports:W03.2",
+            "ports:C04.ready",
+            "ports:C04.graph"
+          ],
+          "original_acceptance": [
+            "Implement pinned build:wasm/glue toolchain against Cargo binding version; compile wasm32 target and use one synchronously callable initialized instance.",
+            "Select TS/Rust before evaluating operations; selected Rust missing/corrupt/ABI/init errors fail visibly, no lazy call bootstrap or fallback rerun."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:W05.2",
+          "historical_ledger_status": "not_started",
+          "depends_on": [
+            "ports:W05.1"
+          ],
+          "original_acceptance": [
+            "Provide exact vendor/work-kernel entry, bare-import rewriting, binary asset/integrity and required dist-root manifest facts to C04 owner; do not edit bundle.ts, local-run.ts, testkit globals, root build or root lock.",
+            "Done when exact generated asset hashes/import keys/shipping requirements and loader contract are accepted by the C04 owner; request publication is not final generated-binary delivery proof."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:C04.work-assets",
+          "historical_ledger_status": "not_started",
+          "depends_on": [
+            "ports:W05.2",
+            "ports:C04.graph",
+            "ports:C04.ready"
+          ],
+          "original_acceptance": [
+            "Actual work binary and package are in built runtime/deploy/testkit inventory; W05.4/W05.3 certify installed package and workerd afterward."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:W05.4",
+          "historical_ledger_status": "not_started",
+          "depends_on": [
+            "ports:W05.2",
+            "ports:C04.work-assets"
+          ],
+          "original_acceptance": [
+            "Verify actual packaged installation outside checkout, 0.1.0 release:stamp and required dist/binary manifest coverage; test-loader exclusions remain intact.",
+            "C04.work-assets fulfils W05.2 after shared graph and independent smoke readiness; verify the final generated kernel/glue, exact vendor/import map, required binary hashes and packaged release outside checkout. The tiny C04.ready smoke alone cannot certify these outputs."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:W05.3",
+          "historical_ledger_status": "not_started",
+          "depends_on": [
+            "ports:W05.4",
+            "ports:C04.ready"
+          ],
+          "original_acceptance": [
+            "Run package build:wasm and cargo --features wasm-bindings plus owning C04 actual module-map workerd checks; use non-UTF8 bytes, compare written hashes, missing/corrupt/wrong ABI and cold/warm bootstrap.",
+            "Prove one instance across bundled/vendor consumer paths and text-only legacy byte parity; installed package acceptance does not rely on source checkout imports."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:D01",
+      "title": "Freeze import and diagnostic contracts independently",
+      "scope_status": "released_contract",
+      "accepted_or_recorded_scope": "Finite separate compatibility/owner contracts",
+      "remaining_boundary": "Upstream documentation is not acceptance; caller/host evidence remains required",
+      "local_sequence_dependencies": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:C04.asset",
+          "historical_ledger_status": "complete",
+          "depends_on": [
+            "ports:C03.ready"
+          ],
+          "original_acceptance": [
+            "Binary lengths/hashes are exact; CompiledWasm is verified against the installed API; text-only hash/order/serialization fixtures pass."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:C04.graph",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "original_acceptance": [
+            "Root/consumer build and lockfile graph is executable, no state\u2192full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:D02",
+      "title": "Replace import scanning and produce edit maps",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Actual authored import collection/edit map adoption",
+      "remaining_boundary": "Bounded Unicode separator restoration can be quadratic; existing Bun lone-surrogate path normalization remains residual",
+      "local_sequence_dependencies": [
+        "library-sequence:D01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:C04.asset",
+          "historical_ledger_status": "complete",
+          "depends_on": [
+            "ports:C03.ready"
+          ],
+          "original_acceptance": [
+            "Binary lengths/hashes are exact; CompiledWasm is verified against the installed API; text-only hash/order/serialization fixtures pass."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:C04.graph",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "original_acceptance": [
+            "Root/consumer build and lockfile graph is executable, no state\u2192full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:D03",
+      "title": "Replace source-map decoding and lookup",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Codec/lookup for admitted raw ordinary finite V3 point maps",
+      "remaining_boundary": "Indexed/range/arbitrary getter/proxy map profiles and universal engine behavior not credited",
+      "local_sequence_dependencies": [
+        "library-sequence:D01"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:D04",
+      "title": "Compose maps and qualify the actual staged bundle",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Composed rewrite maps consumed by actual installed Node/Bun/workerd diagnostics; current source fresh gate renewed",
+      "remaining_boundary": "Actual fixture original source24:9; not full compiler/app/business journey acceptance",
+      "local_sequence_dependencies": [
+        "library-sequence:D02",
+        "library-sequence:D03"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:C04.ready",
+          "historical_ledger_status": "needs_verification",
+          "depends_on": [
+            "ports:C04.2"
+          ],
+          "original_acceptance": [
+            "Runtime plans may verify their own generated bindings next. This gate does not certify actual values/work assets, final vendor maps or installed consumers. Native JS-only preparation is independent of this Wasm proof."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:C04.graph",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "original_acceptance": [
+            "Root/consumer build and lockfile graph is executable, no state\u2192full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:W06.runtimehandoff",
+          "historical_ledger_status": "not_started",
+          "depends_on": [
+            "ports:W06.2"
+          ],
+          "original_acceptance": [
+            "Record exact reviewed invoke.ts source hash, exports/producer seams and work consumer traces; no work lane writes runtime/invoke.ts after this handoff.",
+            "Validation canonical runtime writer depends on W06.runtimehandoff in root global DAG; state pure validation can proceed earlier. Integrator resolves queued patches serially and refreshes downstream fixtures against final runtime source."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "challenge:T08",
+          "historical_ledger_status": "needs_verification",
+          "depends_on": [],
+          "original_acceptance": [
+            "Canonical parent/safe metadata/money selectors agree across policy/UI; unknown leaf, invalid descent, disclosure and metadata-write controls retained; selector checking provides no flow or permission fact."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:D05",
+      "title": "Record the future native preparation parser seam",
+      "scope_status": "human_held",
+      "accepted_or_recorded_scope": "Future native preparation seam recorded only",
+      "remaining_boundary": "Human native preparation/native release HOLD remains",
+      "local_sequence_dependencies": [
+        "library-sequence:D01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:P05.1",
+          "historical_ledger_status": "needs_verification",
+          "depends_on": [
+            "ports:P04.1",
+            "ports:P02.1"
+          ],
+          "original_acceptance": [
+            "JS-only keys/text/markers/v1 hashes and current string.length counts match; unresolved/bare imports retain refusal; no binary decoding as JS."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:P05.2",
+          "historical_ledger_status": "needs_verification",
+          "depends_on": [
+            "ports:P02.2",
+            "ports:P03.4",
+            "ports:P02.1"
+          ],
+          "original_acceptance": [
+            "Requests preserve module/page checks before worker probe, vendor outputs before Bun, verdict render before catalog and loadability before links; legacy worker-missing path invokes neither phase."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "ports:C04.preparation-join",
+          "historical_ledger_status": "complete",
+          "depends_on": [
+            "ports:P05.2",
+            "ports:C04.asset"
+          ],
+          "original_acceptance": [
+            "P05 host/native lanes receive reviewed exports/source hash; no duplicated catalog or arbitrary asset format; initial JS-only native consumer does not wait for C04.ready."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:I01",
+      "title": "Freeze identity encoding, cookie and host profiles",
+      "scope_status": "released_contract",
+      "accepted_or_recorded_scope": "Finite separate compatibility/owner contracts",
+      "remaining_boundary": "Upstream documentation is not acceptance; caller/host evidence remains required",
+      "local_sequence_dependencies": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:I02",
+      "title": "Replace byte codecs and reject malformed hex",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Pinned exact codec domains, strict hex refusal, compatible unused base64 tail bits",
+      "remaining_boundary": "Exact presented bearer text remains hash identity; no persisted production-data claim",
+      "local_sequence_dependencies": [
+        "library-sequence:I01"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:I03",
+      "title": "Use supported host secret-comparison primitives",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Actual supported Node22/24/Worker native comparison with no JS fallback and unsupported-host refusal",
+      "remaining_boundary": "Only comparison primitive has timing property; whole auth handler/universalhost claim excluded",
+      "local_sequence_dependencies": [
+        "library-sequence:I01",
+        "library-sequence:I02"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:I04",
+      "title": "Replace cookie grammar under the existing session helpers",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Pinned cookie grammar, first target/one decode/exact error ordering",
+      "remaining_boundary": "Declared finite caller/domain profile only",
+      "local_sequence_dependencies": [
+        "library-sequence:I01"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:C01",
+      "title": "Freeze CSV behavior and agree one shared grammar owner",
+      "scope_status": "released_contract",
+      "accepted_or_recorded_scope": "Finite separate compatibility/owner contracts",
+      "remaining_boundary": "Upstream documentation is not acceptance; caller/host evidence remains required",
+      "local_sequence_dependencies": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [
+        {
+          "id": "finished-product:FP.CSV",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "challenge:T19",
+            "challenge:T20",
+            "challenge:T32"
+          ],
+          "original_acceptance": [
+            "Preserve invalid/duplicate rows, renewed consent on changed candidates, authorized pure review before each frozen-identity confirmation, canonical independent replay-safe outcomes/partial failure."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "finished-product:FP.AW-REPLAY-IMPORT",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "finished-product:FP.CSV",
+            "finished-product:FP.FILES-DURABLE"
+          ],
+          "original_acceptance": [
+            "Join selected P-CSV ui parse/preview/confirm + interfaces HTTP adapter and canonical owner admission; no new presentation package or alternate coordinator. Confirm rows through one current canonical replay-safe operation path. Full app-specific cause/retry/current-authority/termination and actual installed producer negatives remain required."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:C02",
+      "title": "Implement the shared library grammar and advisory wrapper",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Shared UI-owned pure CSV grammar and advisory export",
+      "remaining_boundary": "Actual mounted browser advisory journey not demonstrated",
+      "local_sequence_dependencies": [
+        "library-sequence:C01"
+      ],
+      "original_task_references": [
+        {
+          "id": "finished-product:FP.CSV",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "challenge:T19",
+            "challenge:T20",
+            "challenge:T32"
+          ],
+          "original_acceptance": [
+            "Preserve invalid/duplicate rows, renewed consent on changed candidates, authorized pure review before each frozen-identity confirmation, canonical independent replay-safe outcomes/partial failure."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:C03",
+      "title": "Adopt the grammar in authoritative review/commit consumers",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Real authoritative review/commit wrapper, valid-row duplicates, digest/replay/deny",
+      "remaining_boundary": "Recorded installed memory identity/scripted invoker; durable deployed CSV mount remains open",
+      "local_sequence_dependencies": [
+        "library-sequence:C02"
+      ],
+      "original_task_references": [
+        {
+          "id": "finished-product:FP.CSV",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "challenge:T19",
+            "challenge:T20",
+            "challenge:T32"
+          ],
+          "original_acceptance": [
+            "Preserve invalid/duplicate rows, renewed consent on changed candidates, authorized pure review before each frozen-identity confirmation, canonical independent replay-safe outcomes/partial failure."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "finished-product:FP.AW-REPLAY-IMPORT",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "finished-product:FP.CSV",
+            "finished-product:FP.FILES-DURABLE"
+          ],
+          "original_acceptance": [
+            "Join selected P-CSV ui parse/preview/confirm + interfaces HTTP adapter and canonical owner admission; no new presentation package or alternate coordinator. Confirm rows through one current canonical replay-safe operation path. Full app-specific cause/retry/current-authority/termination and actual installed producer negatives remain required."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:C04",
+      "title": "Evaluate CSV export quoting separately",
+      "scope_status": "conditional_retain_existing",
+      "accepted_or_recorded_scope": "Evaluation complete: retain small serializer and formula neutralization",
+      "remaining_boundary": "No writer dependency adopted; FP.EXPORT/browser/export product claims open",
+      "local_sequence_dependencies": [
+        "library-sequence:C01"
+      ],
+      "original_task_references": [
+        {
+          "id": "finished-product:FP.EXPORT",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "challenge:T20",
+            "challenge:T24",
+            "challenge:T32"
+          ],
+          "original_acceptance": [
+            "Current row/field/file grants, explicit completeness/limits/currency/ID/version columns/formula handling; durable status/expiry guarded downloads for large exports; Print declared authorized view."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:H01",
+      "title": "Replace cancellation signal fan-in",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Native first-winning signal/deadline and all reader cleanup",
+      "remaining_boundary": "Recorded supported hosts/readers; no changed origin/method/hop policy",
+      "local_sequence_dependencies": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:H02",
+      "title": "Reconcile redirect-body quota as adjacent corrective scope",
+      "scope_status": "conditional_correction_qualified",
+      "accepted_or_recorded_scope": "Confirmed redirect quota repair with detected-overflow precedence",
+      "remaining_boundary": "No retries or automatic other policy changes",
+      "local_sequence_dependencies": [
+        "library-sequence:H01"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:E01",
+      "title": "Dispose of uncertain library candidates without blocking ready work",
+      "scope_status": "retain_now_disposition",
+      "accepted_or_recorded_scope": "Eleven uncertain library families retain current implementation with named reopening inputs",
+      "remaining_boundary": "No prototypes/adoption or semantic parent closure",
+      "local_sequence_dependencies": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:R01",
+      "title": "Independently review each released slice",
+      "scope_status": "per_slice_reviewed",
+      "accepted_or_recorded_scope": "Released slices independently challenged, concrete defects repaired and renewed",
+      "remaining_boundary": "Not exhaustive unrelated compiler/source closure",
+      "local_sequence_dependencies": [],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:R02",
+      "title": "Integrate accepted slices and retire replaced mechanics",
+      "scope_status": "finite_qualified",
+      "accepted_or_recorded_scope": "Only superseded mechanics after actual caller switches removed",
+      "remaining_boundary": "TS backend/independent oracles/admission/authority wrappers retained",
+      "local_sequence_dependencies": [
+        "library-sequence:R01"
+      ],
+      "original_task_references": [],
+      "source_plan_statuses_mutated": false
+    },
+    {
+      "id": "library-sequence:R03",
+      "title": "Qualify the joined selected scope and resume original port progression",
+      "scope_status": "selected_released_scope_qualified",
+      "accepted_or_recorded_scope": "Sol high selected source/prior receipts qualification, root fresh actual installed gates and independent Astra high current joined review all completed at actual scope",
+      "remaining_boundary": "Only selected actual released scope; original port progression not automatically dispatched",
+      "local_sequence_dependencies": [],
+      "original_task_references": [
+        {
+          "id": "challenge:T08",
+          "historical_ledger_status": "needs_verification",
+          "depends_on": [],
+          "original_acceptance": [
+            "Canonical parent/safe metadata/money selectors agree across policy/UI; unknown leaf, invalid descent, disclosure and metadata-write controls retained; selector checking provides no flow or permission fact."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "challenge:T26",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "challenge:T25"
+          ],
+          "original_acceptance": [
+            "Correlated observation proves duplicates/cancellation/late usage/restart/terminal immutability/notification per relation using existing machinery; no new incompatible progress engine."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "challenge:T37",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "challenge:T02",
+            "challenge:T05",
+            "challenge:T06",
+            "challenge:T08",
+            "challenge:T18",
+            "challenge:T19",
+            "challenge:T20",
+            "challenge:T21",
+            "challenge:T22",
+            "challenge:T23"
+          ],
+          "original_acceptance": [
+            "One unchanged small authoritative app proves generated operations, two actors, denied read, persistence, stale update, replay, browser/MCP parity and genuine executed examples; no reduced source projection."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "challenge:T41",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "challenge:T02",
+            "challenge:T37",
+            "challenge:T38",
+            "challenge:T39",
+            "challenge:T40"
+          ],
+          "original_acceptance": [
+            "Recheck all 52 sources with current source-built compiler; reattribute roots, positive/negative guarantees and real runtime evidence; version supported scope and precise deferred/undecided gaps; no blanket suppression/count edits or false full-backlog completion."
+          ],
+          "advanced_by_selected_scope": false
+        },
+        {
+          "id": "finished-product:FP.FULL",
+          "historical_ledger_status": "partial",
+          "depends_on": [
+            "challenge:T41",
+            "description:D08",
+            "ports:A11",
+            "ports:V12",
+            "ports:W08",
+            "ports:P11",
+            "ports:C04.complete",
+            "ports:C05.complete",
+            "finished-product:FP.QUALIFY",
+            "finished-product:FP.INSTALLED-RELEASE",
+            "finished-product:FP.DOC-REQUIREDNESS",
+            "finished-product:FP.SOURCE-CLOSURE"
+          ],
+          "original_acceptance": [
+            "Complete source/duty review, independently challenged owners, actual source/artifact/runtime/examples/installed workflow proofs, package/current/prepared/Rust economics, precise required/conditional/deferred/declined ledger and upgrade/rollback. Optional W09 stays outside. Reconcile every accumulated merge delta before checkpoint advance."
+          ],
+          "advanced_by_selected_scope": false
+        }
+      ],
+      "source_plan_statuses_mutated": false
+    }
+  ],
+  "future_dispatch_authorized": false,
+  "final_review": "reviews/ASTRA-CRITICAL.md",
+  "fresh_gates": "fresh-joined-gates.json"
+}
