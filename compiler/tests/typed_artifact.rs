@@ -66,6 +66,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
         kind: "operation".into(),
         module: "app/z.mjs".into(),
         export: "canApp".into(),
+        input_style: None,
         member: vec!["z".into(), "a".into()],
     }];
     artifact.operations = vec![JsOperation {
@@ -106,6 +107,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
                 r#""12345678901234567890.1200""#.into(),
             )),
             description: None,
+            machine: None,
         }],
         delete_mode: "archive".into(),
         unique_keys: vec!["z".into(), "a".into()],

@@ -403,6 +403,7 @@ fn is_introducer(parent_kind: Option<SyntaxKind>, word: &str) -> bool {
             | (Some(SyntaxKind::Let), "let")
             | (Some(SyntaxKind::Create), "create")
             | (Some(SyntaxKind::Set), "set")
+            | (Some(SyntaxKind::Transition), "transition")
             | (Some(SyntaxKind::Delete), "delete")
             | (Some(SyntaxKind::Call), "call")
             | (Some(SyntaxKind::Emit), "emit")

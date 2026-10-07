@@ -796,7 +796,20 @@ export interface CanonicalOperationDescriptor {
  * ratified {@link CanonicalDeliveryDescriptor} shared with operation
  * inputs (one shape, no drift). T04a-era consumers ignore it.
  */
+/** Flat lifecycle metadata owned by one stored enum field. Edges describe sites,
+ * not actor authorization; the containing operation retains its policy. */
+export interface FieldMachine {
+  readonly initial: string;
+  readonly states: ReadonlyArray<string>;
+  readonly transitions: ReadonlyArray<{
+    readonly from: string;
+    readonly to: string;
+    readonly operation: string;
+  }>;
+}
+
 export interface CanonicalFieldDef {
+  readonly machine?: FieldMachine;
   readonly required: boolean;
   readonly serverOnly: boolean;
   readonly array?: { readonly required: boolean };

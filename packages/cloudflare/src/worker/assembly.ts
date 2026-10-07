@@ -600,6 +600,8 @@ const KNOWN_CALLABLE_KINDS: ReadonlySet<string> = new Set([
 const T16B_KNOWN_REQUIRES_IDS: ReadonlySet<string> = new Set([
   "canlang.builtins",
   "state",
+  "state.machines",
+  "state.parameters",
   "values.decimal",
   "values.int64",
   "values.money",
@@ -617,6 +619,12 @@ function assertArtifactCompatible(artifact: CompileArtifact): void {
       throw new Error(
         `assembly: unknown callable kind ${JSON.stringify(callable.kind)} for ${JSON.stringify(callable.id)}`,
       );
+    }
+    if (callable.inputStyle !== undefined &&
+        (callable.inputStyle !== "parameters" || callable.kind !== "operation" ||
+         !artifact.requires.some((requirement) => requirement.capability === "state.parameters" && requirement.min_version >= 1) ||
+         !artifact.operations?.some((operation) => operation.name === callable.id && operation.kind === "scenario"))) {
+      throw new Error(`assembly: invalid inputStyle for callable ${JSON.stringify(callable.id)}`);
     }
     const member: unknown = callable.member;
     if (
@@ -647,7 +655,7 @@ function assertArtifactCompatible(artifact: CompileArtifact): void {
       throw new Error(
         `assembly: artifact requires unknown capability ${JSON.stringify(requirement.capability)} ` +
           `(min_version ${requirement.min_version}); known: ` +
-          `canlang.builtins, state, values.decimal, values.int64, values.money, values.temporal`,
+          `canlang.builtins, state, state.machines, state.parameters, values.decimal, values.int64, values.money, values.temporal`,
       );
     }
   }

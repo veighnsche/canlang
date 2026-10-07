@@ -400,7 +400,7 @@ fn collect_reads(node: &SyntaxNode, text: &str, out: &mut Vec<Read>) {
                     out.push((name.to_string(), parts[0].span));
                 }
             }
-            SyntaxKind::Set | SyntaxKind::Delete => {
+            SyntaxKind::Set | SyntaxKind::Transition | SyntaxKind::Delete => {
                 for child in kids(current) {
                     if child.kind == SyntaxKind::Path {
                         for segment in kids(child) {
@@ -589,6 +589,7 @@ fn is_statement_kind(kind: SyntaxKind) -> bool {
         SyntaxKind::Let
             | SyntaxKind::Create
             | SyntaxKind::Set
+            | SyntaxKind::Transition
             | SyntaxKind::Delete
             | SyntaxKind::Call
             | SyntaxKind::Emit

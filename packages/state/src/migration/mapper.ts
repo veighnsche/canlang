@@ -232,6 +232,9 @@ export function validateMappedRow(
           `field ${JSON.stringify(field)} uninitialized.`,
       );
     }
+    if (fieldDef.machine !== undefined && !fieldDef.machine.states.includes(value as string)) {
+      throw new StateError('validation', `Migration row machine field ${JSON.stringify(field)} has no declared state.`);
+    }
     if (fieldDef.required && value === null) {
       throw new StateError(
         'validation',

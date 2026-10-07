@@ -15,7 +15,7 @@
 
 use crate::analysis::catalog::{Availability, Catalog};
 use crate::codegen::bdd::BddModule;
-use crate::codegen::ir::{IrMigrationDirective, IrProgram, ReferencedBuiltin};
+use crate::codegen::ir::{IrItemKind, IrMigrationDirective, IrProgram, ReferencedBuiltin};
 use crate::codegen::js::{Emitter, JsModel, JsOperation, JsOutput};
 use crate::codegen::sourcemap::{self, SourceMap};
 use crate::diagnostic::Diagnostic;
@@ -81,6 +81,8 @@ pub struct ArtifactCallable {
     pub export: String,
     /// Path segments into the module's `canApp()` registry object.
     pub member: Vec<String>,
+    /// Scenario argument convention; absent means the legacy runtime envelope.
+    pub input_style: Option<String>,
 }
 
 /// One lowered migration directive in interim-intake vocabulary: `kind`
@@ -247,7 +249,7 @@ pub fn assemble(
             map: sourcemap::build(&package.path, db, &package.lines),
         });
     }
-    let callables = js
+    let callables: Vec<ArtifactCallable> = js
         .callables
         .iter()
         .map(|c| ArtifactCallable {
@@ -256,6 +258,7 @@ pub fn assemble(
             module: js.entry.path.clone(),
             export: c.export.clone(),
             member: c.member.clone(),
+            input_style: c.input_style.clone(),
         })
         .collect();
     let pages = js
@@ -268,8 +271,29 @@ pub fn assemble(
             export: p.export.clone(),
         })
         .collect();
-    let (requires, mut require_diags) =
+    let (mut requires, mut require_diags) =
         compute_requires(&ir.catalog_version, &js.stdlib_imports, db);
+    if callables
+        .iter()
+        .any(|callable| callable.input_style.is_some())
+    {
+        requires.push(ArtifactRequirement {
+            capability: "state.parameters".to_string(),
+            min_version: 1,
+        });
+        requires.sort_by(|a, b| a.capability.cmp(&b.capability));
+    }
+    if ir
+        .items
+        .iter()
+        .any(|item| matches!(&item.kind, IrItemKind::Field { modifiers, .. } if modifiers.machine))
+    {
+        requires.push(ArtifactRequirement {
+            capability: "state.machines".to_string(),
+            min_version: 1,
+        });
+        requires.sort_by(|a, b| a.capability.cmp(&b.capability));
+    }
     diags.append(&mut require_diags);
     let mut referenced: Vec<ReferencedBuiltin> = ir.referenced_builtins.clone();
     referenced.extend(js.referenced_builtins.iter().cloned());
@@ -397,6 +421,7 @@ fn compute_requires(
     if [
         "create",
         "set",
+        "transition",
         "deleteRecord",
         "send",
         "schedule",
@@ -512,6 +537,7 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
                 module: &callable.module,
                 export: &callable.export,
                 member: &callable.member,
+                input_style: callable.input_style.as_deref(),
             })
             .collect(),
         operations: &artifact.operations,
@@ -615,6 +641,8 @@ struct CallableWire<'a> {
     module: &'a str,
     export: &'a str,
     member: &'a [String],
+    #[serde(rename = "inputStyle", skip_serializing_if = "Option::is_none")]
+    input_style: Option<&'a str>,
 }
 
 #[derive(Serialize)]

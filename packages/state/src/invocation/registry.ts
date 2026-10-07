@@ -1,3 +1,4 @@
+import { checkFieldMachine } from '../internal/machine.js';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -459,11 +460,21 @@ function checkCanonicalModel(value: unknown): CanonicalModelDescriptor {
       array = { required: marker['required'] as boolean };
     }
     const fallback = checkDefault(fieldValue['default'], what);
+    let machine: ReturnType<typeof checkFieldMachine> | undefined;
+    if (fieldValue['machine'] !== undefined) {
+      try { machine = checkFieldMachine(fieldValue['machine']); }
+      catch (error) { fail('malformed_descriptor', `Invalid ${what}: ${String(error)}`); }
+      if (fieldValue['required'] !== false || fieldValue['serverOnly'] !== false || fieldValue['nullable'] === true || array !== undefined ||
+          fallback?.kind !== 'literal' || fallback.value !== machine.initial) {
+        fail('malformed_descriptor', `Invalid ${what}: machine requires a singular omitted-only literal initial default.`);
+      }
+    }
     fields[fieldName] = {
       required: fieldValue['required'] as boolean,
       serverOnly: fieldValue['serverOnly'] as boolean,
       ...(array !== undefined ? { array } : {}),
       ...(fallback !== undefined ? { default: fallback } : {}),
+      ...(machine !== undefined ? { machine } : {}),
     };
   }
   if (typeof value['deleteMode'] !== 'string' || !KNOWN_DELETE_MODES.has(value['deleteMode'])) {
@@ -839,11 +850,24 @@ export function artifactToDescriptorSet(
       }
       const what = `field ${JSON.stringify(field.name)} on model ${JSON.stringify(model.name)}`;
       const fallback = checkDefault(field.default, what);
+      let machine: ReturnType<typeof checkFieldMachine> | undefined;
+      if (field.machine !== undefined) {
+        try { machine = checkFieldMachine(field.machine); }
+        catch (error) { fail('malformed_descriptor', `Invalid ${what}: ${String(error)}`); }
+        const tag = field.field;
+        if (field.required !== false || field.serverOnly !== false || field.nullable === true ||
+            array !== undefined || tag?.kind !== 'enum' || !Array.isArray(tag.values) ||
+            tag.values.length !== machine.states.length || tag.values.some((state, index) => state !== machine!.states[index]) ||
+            fallback?.kind !== 'literal' || fallback.value !== machine.initial) {
+          fail('malformed_descriptor', `Invalid ${what}: machine requires a nonnullable enum with matching states and literal initial default.`);
+        }
+      }
       fields[field.name] = {
         required: field.required,
         serverOnly: field.serverOnly,
         ...(array !== undefined ? { array } : {}),
         ...(fallback !== undefined ? { default: fallback } : {}),
+        ...(machine !== undefined ? { machine } : {}),
       };
       // T18 engine-local channels (the frozen intake has no slots; the
       // model-table builder consumes these beside the intake, like refs).

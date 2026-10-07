@@ -20,7 +20,8 @@
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "dependencies": {
-    "@canlang/values": "workspace:*"
+    "@canlang/values": "workspace:*",
+    "@canlang/state": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

@@ -102,6 +102,7 @@ pub enum SyntaxKind {
     Let,
     Create,
     Set,
+    Transition,
     Delete,
     Call,
     Emit,

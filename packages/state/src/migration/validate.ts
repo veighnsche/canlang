@@ -496,6 +496,17 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       viewRows.set(`${desiredName as string}\0${row.id as string}`, row);
     }
   }
+  // A lifecycle declaration can change without a data mapper. Validate
+  // retained rows too; adoption never resets an existing row to initial.
+  for (const [rowKey, row] of viewRows) {
+    const desiredDef = desiredModels.get(rowKey.slice(0, rowKey.indexOf('\0')) as ModelName);
+    if (desiredDef === undefined) continue;
+    for (const [field, fieldDef] of Object.entries(desiredDef.fields)) {
+      if (fieldDef.machine !== undefined && !fieldDef.machine.states.includes(row.data[field] as string)) {
+        throw new StateError('validation', `Migration retained machine field ${JSON.stringify(field)} has no declared state.`);
+      }
+    }
+  }
   const view = {
     get(model: ModelName, id: RecordId): StoredRow | null {
       return viewRows.get(`${model as string}\0${id as string}`) ?? null;

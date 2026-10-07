@@ -51,6 +51,7 @@ import {
  * precondition supplied by the CRUD defs.
  */
 export interface MutationWrite {
+  readonly transition?: { readonly field: string; readonly from: string; readonly to: string };
   readonly op: 'create' | 'update' | 'remove';
   readonly model: ModelName;
   readonly id?: RecordId;
@@ -365,6 +366,9 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       if (value === undefined) {
         continue;
       }
+      if (fieldDef.machine !== undefined) {
+        throw new StateError('validation', `Machine field ${JSON.stringify(field)} can only be changed by transition.`);
+      }
       if (fieldDef.serverOnly) {
         throw new StateError(
           'validation',
@@ -433,6 +437,9 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       `Hook ${JSON.stringify(hookName)} on model ${JSON.stringify(def.model as string)}`;
     if (typeof staged !== 'object' || staged === null || Array.isArray(staged)) {
       throw new StateError('validation', `${hookTag} staged a write that must be an object.`);
+    }
+    if (Object.hasOwn(staged, 'transition')) {
+      throw new StateError('validation', `${hookTag} cannot stage transitions.`);
     }
     const stagedOp: unknown = (staged as { readonly op?: unknown }).op;
     if (stagedOp !== 'create' && stagedOp !== 'update') {
@@ -685,7 +692,13 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       if (typeof next !== 'object' || next === null || Array.isArray(next)) {
         throw new Error(`${hookTag} must return a candidate object.`);
       }
-      current = jsonClone(next as Record<string, unknown>, 'Hook result');
+      const checked = jsonClone(next as Record<string, unknown>, 'Hook result');
+      for (const [field, fieldDef] of Object.entries(def.fields)) {
+        if (fieldDef.machine !== undefined && checked[field] !== current[field]) {
+          throw new StateError('validation', `${hookTag} cannot change machine field ${JSON.stringify(field)}.`);
+        }
+      }
+      current = checked;
     }
     return current;
   };
@@ -883,6 +896,9 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       );
       outSchedules.push(...sink.schedules);
     };
+    if (write.transition !== undefined && (write.op !== 'update' || stagedBy !== null)) {
+      throw new StateError('validation', 'Transition is available only on explicit scenario updates.');
+    }
     const def = table.get(write.model);
     if (def === undefined) {
       // Unknown models are programmer bugs: models come from program defs,
@@ -899,6 +915,13 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     // Admission pre-loads update/remove targets, but the pipeline re-loads
     // via the provisional map for uniformity (batch-earlier writes visible).
     const before = await getRow(write.model, id);
+    if (before !== null) {
+      for (const [field, fieldDef] of Object.entries(def.fields)) {
+        if (fieldDef.machine !== undefined && !fieldDef.machine.states.includes(before.data[field] as string)) {
+          throw new StateError('validation', `Stored machine state for ${JSON.stringify(field)} is incompatible; migration is required.`);
+        }
+      }
+    }
     // B1: first-touch before-row (committed state at batch start; null for
     // batch-created rows). Captured once per record: later touches see
     // provisional state, but unique-netting needs the committed keys.
@@ -1124,6 +1147,28 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       }
       // Updates apply NO defaults: only the patch lands on before.data.
       applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
+      if (write.transition !== undefined) {
+        const edge = write.transition;
+        if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
+            typeof edge.field !== 'string' || typeof edge.from !== 'string' || typeof edge.to !== 'string') {
+          throw new StateError('validation', 'Malformed transition.');
+        }
+        if (write.data !== undefined && Object.hasOwn(write.data, edge.field)) {
+          throw new StateError('validation', 'Transition cannot carry a patch for its machine field.');
+        }
+        const machine = def.fields[edge.field]?.machine;
+        if (machine === undefined || !machine.transitions.some((site) =>
+            site.from === edge.from && site.to === edge.to && site.operation === context.operation)) {
+          throw new StateError('validation', 'Transition is not declared for the current operation.');
+        }
+        if (!machine.states.includes(before.data[edge.field] as string)) {
+          throw new StateError('validation', 'Stored machine state is incompatible with its declaration.');
+        }
+        if (before.data[edge.field] !== edge.from) {
+          throw new StateError('rule_failed', 'Transition source state does not match.');
+        }
+        safeSet(candidate, edge.field, edge.to);
+      }
       checkRequired(candidate, def);
       // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
       // check below plus locks and end-of-batch invariants still runs.

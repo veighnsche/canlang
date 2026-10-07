@@ -12,6 +12,7 @@ export interface StateCatalog {
   readonly name: '@canlang/state';
   readonly version: string;
   readonly contractVersion: number;
+  readonly capabilities: Readonly<Record<string, number>>;
   readonly entries: ReadonlyArray<string>;
 }
 
@@ -20,6 +21,7 @@ export function stateCatalog(): StateCatalog {
     name: '@canlang/state',
     version: STATE_ENGINE_VERSION,
     contractVersion: STATE_CONTRACT_VERSION,
+    capabilities: { 'state.machines': STATE_CONTRACT_VERSION, 'state.parameters': STATE_CONTRACT_VERSION },
     entries: [],
   };
 }

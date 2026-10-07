@@ -343,6 +343,8 @@ pub struct IrModifiers {
     pub max: Option<TypedExpr>,
     /// Whether field-level `unique` was written.
     pub unique: bool,
+    /// Stored enum lifecycle opt-in.
+    pub machine: bool,
 }
 
 /// One field caption: plain message, or `text` plus per-case values for
@@ -1230,6 +1232,15 @@ pub enum IrStmt {
         record: TypedExpr,
         changes: TypedExpr,
         when: Option<String>,
+        span: Span,
+    },
+    /// Explicit ordered transition of one managed enum field.
+    Transition {
+        model: String,
+        record: TypedExpr,
+        field: String,
+        from: String,
+        to: String,
         span: Span,
     },
     /// `delete record` with its authored mode.
@@ -3660,6 +3671,43 @@ impl<'a> Cx<'a> {
             }
             EffectVerb::Create => self.decode_create(scope, effect, what, span),
             EffectVerb::Set => self.decode_set(scope, effect, what, span),
+            EffectVerb::Transition => {
+                let Some(stmt) = self.node(&effect.node).cloned() else {
+                    return unsupported_stmt("transition", "missing statement", span);
+                };
+                let parts = kids(&stmt);
+                let Some(path) = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied() else {
+                    return unsupported_stmt("transition", "missing record", span);
+                };
+                let names: Vec<_> = parts
+                    .iter()
+                    .filter(|n| n.kind == SyntaxKind::Name)
+                    .map(|n| {
+                        self.db
+                            .get(n.span.file)
+                            .map(|s| &s.text[n.span.start as usize..n.span.end as usize])
+                            .unwrap_or("")
+                            .to_string()
+                    })
+                    .collect();
+                let model = match effect.target {
+                    Some(crate::analysis::effects::EffectTarget::Record { model: Some(id) }) => {
+                        self.canonical(id)
+                    }
+                    _ => return unsupported_stmt("transition", "missing stored owner", span),
+                };
+                if names.len() != 4 {
+                    return unsupported_stmt("transition", "missing states", span);
+                }
+                IrStmt::Transition {
+                    model,
+                    record: self.decode_record_path(scope, path),
+                    field: names[1].clone(),
+                    from: names[2].clone(),
+                    to: names[3].clone(),
+                    span,
+                }
+            }
             EffectVerb::Delete => self.decode_delete(scope, effect, what, span),
             EffectVerb::Call => {
                 let operation = self.effect_operation(effect);
@@ -4499,6 +4547,7 @@ impl<'a> Cx<'a> {
             match modifier.name.as_str() {
                 "trim" => modifiers.trim = true,
                 "unique" => modifiers.unique = true,
+                "machine" => modifiers.machine = true,
                 "min" => {
                     modifiers.min = modifier
                         .value

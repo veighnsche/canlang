@@ -868,6 +868,7 @@ impl<'a> Typer<'a> {
             let which = match modifier {
                 FieldModifier::Trim(_) => "trim",
                 FieldModifier::Unique(_) => "unique",
+                FieldModifier::Machine(_) => "machine",
                 FieldModifier::Min(_) => "min",
                 FieldModifier::Max(_) => "max",
             };
@@ -983,7 +984,7 @@ impl<'a> Typer<'a> {
     /// initializers and conditions are pure expressions.
     fn scan_invalid(&self, text: &str, stmt: &SyntaxNode, out: &mut ScanInvalid) {
         match stmt.kind {
-            SyntaxKind::Set => {
+            SyntaxKind::Set | SyntaxKind::Transition => {
                 if let Some(decl) = self.set_target_decl(text, stmt)
                     && !out.drop_roots.contains(&decl)
                 {
@@ -1006,6 +1007,7 @@ impl<'a> Typer<'a> {
                         SyntaxKind::Let
                             | SyntaxKind::Create
                             | SyntaxKind::Set
+                            | SyntaxKind::Transition
                             | SyntaxKind::Delete
                             | SyntaxKind::Call
                             | SyntaxKind::Emit
@@ -1095,6 +1097,7 @@ impl<'a> Typer<'a> {
                 node.kind,
                 SyntaxKind::Create
                     | SyntaxKind::Set
+                    | SyntaxKind::Transition
                     | SyntaxKind::Delete
                     | SyntaxKind::Emit
                     | SyntaxKind::Send
@@ -1112,6 +1115,7 @@ impl<'a> Typer<'a> {
             SyntaxKind::Let => self.stmt_let(cx, node),
             SyntaxKind::Create => self.stmt_create(cx, node),
             SyntaxKind::Set => self.stmt_set(cx, node),
+            SyntaxKind::Transition => self.stmt_transition(cx, node),
             SyntaxKind::Delete => self.stmt_delete(cx, node),
             SyntaxKind::Call => self.stmt_call(cx, node),
             SyntaxKind::Emit => self.stmt_emit(cx, node),
@@ -1226,6 +1230,9 @@ impl<'a> Typer<'a> {
                 self.entry_value(cx, key_node, value, None);
                 continue;
             };
+            if self.machines.contains(&field) {
+                self.diags.push(Diagnostic::error("E3001", format!("machine field '{key}' starts at its declared default and cannot be supplied to create"), tight_span(cx.text, key_node)));
+            }
             if self.field_is_server(field) {
                 self.diags.push(Diagnostic::error(
                     "E3001",
@@ -1354,6 +1361,48 @@ impl<'a> Typer<'a> {
     }
 
     /// `set target {...}`: stored-model-record target, partial values.
+    fn stmt_transition(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
+        let parts = kids(node);
+        let Some(target) = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied() else {
+            return;
+        };
+        let Some((model, pending)) = self.mutation_target_model(cx, target, "transition") else {
+            return;
+        };
+        let names: Vec<_> = parts
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::Name)
+            .copied()
+            .collect();
+        if names.len() != 4 {
+            return;
+        }
+        let field_name = name_text(names[1], cx.text).unwrap_or("");
+        let field = self.model_field_named(model, field_name);
+        if pending || field.is_none_or(|id| !self.machines.contains(&id)) {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "transition needs a machine field on a stored record; hooks cannot transition"
+                    .to_string(),
+                tight_span(cx.text, node),
+            ));
+            return;
+        }
+        let expected = self.decl_type(field.expect("checked field"));
+        if let ResolvedType::Enum { cases, .. } = expected {
+            for case in &names[2..] {
+                let word = name_text(case, cx.text).unwrap_or("");
+                if !cases.iter().any(|c| c == word) {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!("unknown machine state '{word}'"),
+                        tight_span(cx.text, case),
+                    ));
+                }
+            }
+        }
+    }
+
     fn stmt_set(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
         let parts = kids(node);
         let target = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
@@ -1399,6 +1448,13 @@ impl<'a> Typer<'a> {
                 self.entry_value(cx, key_node, value, None);
                 continue;
             };
+            if self.machines.contains(&field) {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!("machine field '{key}' must use transition"),
+                    tight_span(cx.text, key_node),
+                ));
+            }
             if !pending && self.field_is_server(field) {
                 self.diags.push(Diagnostic::error(
                     "E3001",
@@ -4653,6 +4709,23 @@ impl<'a> Typer<'a> {
             other => other,
         };
         match modifier {
+            FieldModifier::Machine(word) => {
+                let parts = field_parts(field, cx.text);
+                let name_span = kids(field).first().map(|n| n.span);
+                let stored = self.tables.symbols.iter().any(|symbol| {
+                    Some(symbol.span) == name_span && matches!(symbol.kind,
+                        SymbolKind::Field { owner, .. } if matches!(self.tables.symbols[owner.0 as usize].kind, SymbolKind::Model { .. }))
+                });
+                let initial = parts.default.and_then(|n| nameref_word(n, cx.text));
+                let valid = stored
+                    && parts.server.is_none()
+                    && matches!(expected, ResolvedType::Enum { cases, .. } if initial.is_some_and(|v| cases.iter().any(|c| c == v)));
+                if !valid {
+                    self.diags.push(Diagnostic::error("E3012",
+                        format!("field '{name}': machine needs a stored nonnullable enum with a constant initial case"),
+                        tight_span(cx.text, word)));
+                }
+            }
             FieldModifier::Trim(word) => {
                 let ok = matches!(unwrapped, ResolvedType::Scalar(s) if s.is_string_like());
                 if !ok {
@@ -6050,11 +6123,18 @@ impl<'a> Typer<'a> {
     ) {
         for name in selected {
             if let Some(field) = self.model_field_named(model, name)
-                && self.field_is_server(field)
+                && (self.field_is_server(field) || self.machines.contains(&field))
             {
                 self.diags.push(Diagnostic::error(
                     "E3009",
-                    format!("'{name}' is server-owned and cannot be a CRUD input"),
+                    format!(
+                        "'{name}' is {} and cannot be a CRUD input",
+                        if self.machines.contains(&field) {
+                            "machine-managed"
+                        } else {
+                            "server-owned"
+                        }
+                    ),
                     tight_span(text, node),
                 ));
             }
@@ -6338,10 +6418,10 @@ impl<'a> Typer<'a> {
                         tight_span(text, poll),
                     ));
                 }
-                Some(ms) if !(1000..=3_600_000).contains(&ms) => {
+                Some(ms) if !(1000..=3_600_000).contains(&ms) || ms % 1000 != 0 => {
                     self.diags.push(Diagnostic::error(
                         "E3001",
-                        "page poll must be between 1s and 1h".to_string(),
+                        "page poll must be whole seconds between 1s and 1h".to_string(),
                         tight_span(text, poll),
                     ));
                 }
@@ -8248,6 +8328,7 @@ struct Typer<'a> {
     /// Initializer shape of every Field/Param/DeriveField symbol:
     /// (has default, has server initializer, has `!`).
     shapes: HashMap<SymbolId, (bool, bool, bool)>,
+    machines: HashSet<SymbolId>,
     /// Declared result of every Scenario/CapabilityOp symbol
     /// (`None` = void).
     results: HashMap<SymbolId, Option<ResolvedType>>,
@@ -8313,6 +8394,7 @@ impl<'a> Typer<'a> {
             types: TypeTable::default(),
             decl: HashMap::new(),
             shapes: HashMap::new(),
+            machines: HashSet::new(),
             results: HashMap::new(),
             lets: HashMap::new(),
             fors: HashMap::new(),
@@ -8476,6 +8558,7 @@ struct FieldParts<'n> {
 enum FieldModifier<'n> {
     Trim(&'n SyntaxNode),
     Unique(&'n SyntaxNode),
+    Machine(&'n SyntaxNode),
     Min(&'n SyntaxNode),
     Max(&'n SyntaxNode),
 }
@@ -8534,6 +8617,8 @@ fn field_parts<'n>(node: &'n SyntaxNode, text: &str) -> FieldParts<'n> {
             parts.modifiers.push(FieldModifier::Trim(part));
         } else if is_name(part, text, "unique") {
             parts.modifiers.push(FieldModifier::Unique(part));
+        } else if is_name(part, text, "machine") {
+            parts.modifiers.push(FieldModifier::Machine(part));
         } else if is_name(part, text, "min") {
             parts.modifiers.push(FieldModifier::Min(part));
         } else if is_name(part, text, "max") {
@@ -8797,6 +8882,13 @@ impl<'a> Typer<'a> {
             .copied();
         let Some(id) = found else { return };
         let shape = field_parts(field, text);
+        if shape
+            .modifiers
+            .iter()
+            .any(|m| matches!(m, FieldModifier::Machine(_)))
+        {
+            self.machines.insert(id);
+        }
         self.shapes.insert(
             id,
             (shape.default.is_some(), shape.server.is_some(), shape.bang),

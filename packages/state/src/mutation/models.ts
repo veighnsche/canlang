@@ -11,6 +11,7 @@
 import { deepFreeze } from '../internal/own-data.js';
 import type {
   CanonicalModelDescriptor,
+  FieldMachine,
   DeleteMode,
   ModelName,
   OperationName,
@@ -21,6 +22,7 @@ import type {
   StoredRow,
 } from '@canlang/contracts';
 import type { FenceScope } from '../invocation/admission.js';
+import { checkFieldMachine } from '../internal/machine.js';
 import { validatePredicateShape } from '../policy/grants.js';
 
 /** Hook operations, by caller intent (`remove` covers the archive path too). */
@@ -88,6 +90,7 @@ export type InterimServerInit = 'actor' | 'now' | 'random_secret';
  * fixtures omit it).
  */
 export interface InterimFieldDef {
+  readonly machine?: FieldMachine;
   readonly required: boolean;
   readonly serverOnly: boolean;
   readonly default?: unknown;
@@ -373,6 +376,13 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
                 `${JSON.stringify(model)}: defaults must be serializable data.`,
             );
           }
+        }
+      }
+      if (field.machine !== undefined) {
+        const machine = checkFieldMachine(field.machine);
+        if (field.required || field.serverOnly || field.array !== undefined || field.nullable === true ||
+            field.server !== undefined || field.default !== machine.initial) {
+          throw new Error(`Invalid machine field ${JSON.stringify(name)}: requires an omitted-only literal initial default on a singular nonnullable field.`);
         }
       }
       // T18: closed init set; `server` and `default` are mutually
@@ -751,6 +761,7 @@ export function buildModelTableFromCanonical(
         required: field.required,
         serverOnly: field.serverOnly,
         ...(hasFallback ? { default: fallback } : {}),
+        ...(field.machine !== undefined ? { machine: checkFieldMachine(field.machine) } : {}),
         ...(field.array !== undefined ? { array: { required: field.array.required } } : {}),
         ...(serverInit !== undefined ? { server: serverInit } : {}),
         ...(knownNullable ? { nullable: true } : {}),
