@@ -1060,7 +1060,7 @@ fn module_path(name: &str) -> String {
 
 /// Injective implementation identity, disjoint from ambient imports/context/temps.
 /// UTF-8 hex preserves every source spelling without JS reserved-word assumptions.
-fn binding_ident(domain: &str, identity: &str) -> String {
+pub(super) fn binding_ident(domain: &str, identity: &str) -> String {
     let encoded: String = identity.bytes().map(|byte| format!("{byte:02x}")).collect();
     format!("$can${domain}${encoded}")
 }

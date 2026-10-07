@@ -16,7 +16,7 @@ use crate::codegen::ir::{
     IrFixture, IrFixtureKind, IrItem, IrItemKind, IrProgram, IrSequence, IrStep, IrTable,
     IrTableRow,
 };
-use crate::codegen::js::{Emitter, JsModule, JsWriter, js_string};
+use crate::codegen::js::{Emitter, JsModule, JsWriter, binding_ident, js_string};
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
 
@@ -101,10 +101,14 @@ pub fn emit_suite(
         body.push(
             fixture.span,
             Some(fixture.canonical.clone()),
-            &format!("const {}={};", sanitize(&fixture.name), recipe),
+            &format!("const {}={};", binding_ident("f", &fixture.name), recipe),
         );
     }
-    let names: Vec<String> = suite.fixtures.iter().map(|f| sanitize(&f.name)).collect();
+    let names: Vec<String> = suite
+        .fixtures
+        .iter()
+        .map(|f| format!("[{}]:{}", js_string(&f.name), binding_ident("f", &f.name)))
+        .collect();
     let mut examples = Vec::new();
     for table in &suite.tables {
         examples.push(lower_table(&mut emitter, table));
@@ -134,7 +138,7 @@ pub fn emit_suite(
     out.append(&body);
     let (diags, builtins, _, _) = emitter.finish();
     let fixtures = suite.fixtures.iter().map(|f| f.canonical.clone()).collect();
-    let module = out.finish(format!("tests/{}.mjs", sanitize(&suite.scope)));
+    let module = out.finish(format!("tests/{}.mjs", binding_ident("t", &suite.scope)));
     (
         BddModule {
             scope: suite.scope.clone(),
@@ -211,21 +215,22 @@ pub fn emit_fixture_shell(ir: &IrProgram, item: &IrItem) -> BddModule {
     out.push(
         item.span,
         Some(item.canonical.clone()),
-        &format!("const {}={};", sanitize(&item.name), recipe),
+        &format!("const {}={};", binding_ident("f", &item.name), recipe),
     );
     out.push(
         item.span,
         Some(item.canonical.clone()),
         &format!(
-            "return {{fixtures:{{{}}},examples:[]}};",
-            sanitize(&item.name)
+            "return {{fixtures:{{[{}]:{}}},examples:[]}};",
+            js_string(&item.name),
+            binding_ident("f", &item.name)
         ),
     );
     out.push(item.span, Some(item.canonical.clone()), "}");
     BddModule {
         scope: item.canonical.clone(),
         fixtures: vec![item.canonical.clone()],
-        module: out.finish(format!("tests/{}.mjs", sanitize(&item.canonical))),
+        module: out.finish(format!("tests/{}.mjs", binding_ident("t", &item.canonical))),
     }
 }
 
@@ -235,7 +240,7 @@ fn lower_recipe(emitter: &mut Emitter<'_>, fixture: &IrFixture) -> String {
     let deps = fixture
         .dependencies
         .iter()
-        .map(|d| sanitize(d))
+        .map(|d| binding_ident("f", d))
         .collect::<Vec<_>>()
         .join(",");
     match &fixture.kind {
@@ -408,23 +413,9 @@ fn lower_step(emitter: &mut Emitter<'_>, step: &IrStep) -> String {
 fn names_list(names: &[String]) -> String {
     names
         .iter()
-        .map(|n| sanitize(n))
+        .map(|n| binding_ident("f", n))
         .collect::<Vec<_>>()
         .join(",")
-}
-
-/// Sanitize a scope/recipe name into a JS identifier or path segment.
-fn sanitize(name: &str) -> String {
-    name.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' || c == '$' || c == '.' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>()
-        .replace('.', "_")
 }
 
 #[cfg(test)]
