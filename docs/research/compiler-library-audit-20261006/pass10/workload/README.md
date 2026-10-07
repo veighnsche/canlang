@@ -1,0 +1,7 @@
+# Pass 10 equivalent actual CLI workload
+
+`python3 docs/research/compiler-library-audit-20261006/pass10/workload/cli-cost.py` compares the original audit native compiler (`309644a`) with the final source snapshot (`db495c6`). Both snapshot binaries have absent Git metadata (`commit unknown`), identical toolchain/profile/host, and the same committed ExpenseFlow/catalog copies. Exact input hashes, all measured samples and alternating order are in [results.json](results.json); the independent arithmetic VLQ decoder and full artifact comparator are in [cli-cost.py](cli-cost.py).
+
+Three warmups per side precede 20 alternating process launches per side. Both compile the actual fixed fixture successfully. Full artifact semantic equality and independently decoded map equality pass: three modules and 55 points. [baseline.json](baseline.json) and [current.json](current.json) preserve the parsed artifacts. This receipt asserts semantic/decoded equality; the script does not preserve raw stdout for a new byte-equality claim.
+
+Median end-to-end times are 7.953 ms baseline and 7.931 ms final, including process startup and complete compilation. Existing caches and a concurrently used local host make these a bounded workload characterization, not a general performance improvement or clean-build comparison. The successful exit-checked final snapshot retry preserves the exact binary hash used here. Production consumers separately use the actual-Git release binary, whose source and profile are equivalent but whose embedded commit hash differs.

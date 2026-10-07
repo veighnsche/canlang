@@ -1,0 +1,7 @@
+app Shop
+Given
+ Gadget { title:text="é😀\b\f", stock:int=9223372036854775807, price:decimal, active:bool=true, nick:text? }
+ policy Gadget read=members
+When
+ crud Gadget by=members fields=title,stock,price,active,nick
+Then
