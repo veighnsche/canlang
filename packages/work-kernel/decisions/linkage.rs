@@ -11,7 +11,7 @@
 //! prefix); W04.4 assembly consolidates them. Row-identity reads preserve
 //! the donor's ReceiptTableError-to-StateError wrap.
 
-use super::numeric_text;
+use super::numeric_text::{json_token as js_json_num, string as js_num};
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -209,15 +209,6 @@ fn json_escape_into(units: &[u16], out: &mut String) {
     out.push('"');
 }
 
-/// JS `String(n)` number rendering (also JSON for finite values).
-fn js_num(n: f64) -> String {
-    numeric_text::string(n)
-}
-
-/// `JSON.stringify` number rendering (non-finite becomes null).
-fn js_json_num(n: f64) -> String {
-    numeric_text::json_token(n)
-}
 
 /// V8-compatible `JSON.stringify` for the value model.
 fn js_stringify(v: &Value) -> String {

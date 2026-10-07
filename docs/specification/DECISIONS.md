@@ -1589,3 +1589,10 @@ Three independently worded equivalent, verified-context JEV choices favor invest
 Use existing ryu-js1.0.3 Buffer::format for the String channel, removing duplicate zero/NaN/infinity branches. Its all-f64 category behavior matches the old owner; the JSON channel and structured errors are unchanged. Complete changed production closure removes13 readable and13 total production/declaration lines, independently measured.
 
 Three native corpus checks cover10,213 numbers and131 owning caller observations; source-current private Node qualification passes2/2. The old wire donor drift is reconciled by exact core extraction normalization and fresh equal observations, without rewriting historical evidence. Independent source/raw-witness review accepts this narrow reduction, not full wire-domain, Wasm, installed, durable or backend adoption. [Current evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/numeric-independent-review.json) retains source hashes and original residual gates.
+
+
+## 2026-10-07 — Remove Work numeric forwarding and special cases (accepted)
+
+Work String delegates all f64 categories to existing pinned ryu-js1.0.3 Buffer::format; its JSON nonfinite guard stays unchanged. Seven private forwarding functions become direct import aliases, preserving leaf carriers, argument evaluation, faults and identity builders. Independent full-closure measurement removes33 readable code lines and36 total production/declaration lines.
+
+Seventy-three registered tests,171 leaf tests and10,213 current V8 comparisons pass, with an original observer explicitly unexecuted. Independent source review checks all-f64 category equivalence and actual native caller witnesses. This is the numeric reduction scope only: public installed routing, Wasm, durable consumers and original producer/transport/backend gates remain separate. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/work-numeric-result.json) preserves exact commands and limits.

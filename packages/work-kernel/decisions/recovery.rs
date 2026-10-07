@@ -11,7 +11,7 @@
 //! assembly consolidates it. Suppliers, resolvers and evidence lookups
 //! arrive injected; scans decide purely from them and write nothing.
 
-use super::numeric_text;
+use super::numeric_text::string as js_num;
 
 use std::collections::HashMap;
 
@@ -1252,10 +1252,7 @@ pub fn plan_related_progress_resume(
     })
 }
 
-/// JS `String(n)` number rendering for integer-valued revisions.
-fn js_num(n: f64) -> String {
-    numeric_text::string(n)
-} // W04.3 vectors: transcribed from conformance/fixtures/receipts/recovery.json
+// W04.3 vectors: transcribed from conformance/fixtures/receipts/recovery.json
   // (sha256 b5b64fda283461e245230a668c31afb42021e0ff99b37ace58efa1e0cc897d8c); 65 cases. `$resolver`/`$supplierPages` tags
   // revive to stub lookups/suppliers in each test. The frozen file is the
   // oracle: this module is generated, never hand-edited.
