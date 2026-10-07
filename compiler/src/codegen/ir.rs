@@ -560,7 +560,9 @@ impl IrProgram {
 /// from `symbol_types`/`symbol_results`, and decodes the PR5
 /// effects/examples tables anchored by [`NodeKey`] into the CST of `db`
 /// (see the module docs for the span-anchored re-read contract). `catalog`
-/// drives the G12 awaited rule and builtin classification. Never fails:
+/// drives the G12 awaited rule and builtin classification. A different
+/// source/catalog owner returns empty IR and `E6011` before parsing.
+/// This low-level builder has no analysis-completeness/shipping gate:
 /// absent table rows are `E6006`, unlowerable checked positions become
 /// [`IrExpr::Unsupported`]/[`IrStmt::Unsupported`] for loud `E6008` at the
 /// lowering stages.
@@ -569,8 +571,28 @@ pub fn build(
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> (IrProgram, Vec<Diagnostic>) {
+    if let Err(diagnostic) = program.validate_cohort(db, catalog) {
+        return (empty_program(&program.catalog_version), vec![diagnostic]);
+    }
     let mut cx = Cx::new(program, db, catalog);
     cx.build_program()
+}
+
+fn empty_program(catalog_version: &str) -> IrProgram {
+    IrProgram {
+        modules: Vec::new(),
+        items: Vec::new(),
+        catalog_version: catalog_version.to_string(),
+        referenced_builtins: Vec::new(),
+        read_rules: Vec::new(),
+        invariants: Vec::new(),
+        locks: Vec::new(),
+        retention: Vec::new(),
+        crud_when: Vec::new(),
+        preferences_valid: Vec::new(),
+        suites: Vec::new(),
+        migrations: Vec::new(),
+    }
 }
 
 /// Resolve a declared symbol type, recording an `E6006` when the analysis
@@ -736,7 +758,7 @@ struct Cx<'a> {
 impl<'a> Cx<'a> {
     fn new(program: &'a CheckedProgram, db: &'a SourceDb, catalog: Option<&'a Catalog>) -> Self {
         let mut trees = Vec::new();
-        for (id, _) in db.iter() {
+        for &id in program.checked_files() {
             let (tree, _) = crate::syntax::parse(db, id);
             trees.push((id, tree));
         }

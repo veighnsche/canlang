@@ -27,6 +27,7 @@
 
 pub mod catalog;
 pub mod check;
+mod cohort;
 pub mod effects;
 pub mod examples;
 pub mod migrate_check;
@@ -75,11 +76,20 @@ impl NodeKey {
 
 /// Checked program: the PR5/codegen input contract.
 ///
-/// Stability: `modules` and `symbols` are append-only in
-/// `(file, span.start)` order; ids are indices and never reused.
+/// Constructed by [`check_program`] for one [`SourceDb`] owner and one
+/// immutable [`Catalog`] owner (or no catalog). Lowering requires those
+/// owners; moving them, appending sources, and cloning the catalog preserve
+/// the association. Independently reconstructed equivalent inputs require
+/// rechecking. The private association prevents external struct literals.
+///
+/// Stability: `modules` and `symbols` follow the selected file order and
+/// declaration order within each file; ids are indices and never reused.
 /// [`NodeKey`]s name CST nodes of the analyzed sources. [`ResolvedType`]
 /// may gain variants as later stages type more positions; unknown future
 /// positions are simply absent from [`TypeTable::node_types`].
+/// Public tables remain editable: the input association does not authenticate
+/// them or establish semantic correctness. Callers still own diagnostics and
+/// shipping decisions.
 pub struct CheckedProgram {
     /// One module per `app`/`package` declaration: identity, imports,
     /// ownership and declaration spans. Composed apps carry their `uses`
@@ -97,6 +107,25 @@ pub struct CheckedProgram {
     /// `catalog_version` of the producer catalog consulted, or the empty
     /// string when no catalog was available (an `E6xxx` is then reported).
     pub catalog_version: String,
+    cohort: cohort::CheckedCohort,
+}
+
+impl CheckedProgram {
+    /// Files selected for checking, in the caller's original order.
+    ///
+    /// Other entries in the source database are metadata inventory, not
+    /// additional checked semantics. Appending sources does not extend this list.
+    pub fn checked_files(&self) -> &[SourceId] {
+        self.cohort.files()
+    }
+
+    pub(crate) fn validate_cohort(
+        &self,
+        db: &SourceDb,
+        catalog: Option<&Catalog>,
+    ) -> Result<(), Diagnostic> {
+        self.cohort.validate(db, catalog)
+    }
 }
 
 /// Run the full check pipeline over `files`.
@@ -145,6 +174,7 @@ pub fn check_program(
         effects,
         examples,
         catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
+        cohort: cohort::CheckedCohort::new(db, files, catalog),
     };
     (program, diagnostics)
 }

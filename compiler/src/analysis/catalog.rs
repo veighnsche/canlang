@@ -132,17 +132,22 @@ use crate::json::{self, Json};
 use crate::source::Span;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// `CAN_CATALOG` environment variable: catalog path override.
 pub const CATALOG_ENV_VAR: &str = "CAN_CATALOG";
 
 /// Producer catalog: builtin overload shapes plus helper/codegen records.
+///
+/// Immutable after loading. Clones preserve the loaded catalog's identity;
+/// independently loading equivalent bytes creates a different checked owner.
 #[derive(Debug, Clone)]
 pub struct Catalog {
     /// Envelope `catalog_version` (e.g. `0.1.0-lane02-draft`).
     version: String,
     entries: HashMap<String, CatalogEntry>,
     order: Vec<String>,
+    identity: Arc<()>,
 }
 
 /// Builtin vs codegen-only helper vs lane-05 component.
@@ -428,6 +433,7 @@ fn parse_catalog(text: &str, origin: &str, primary: Span) -> (Option<Catalog>, V
         version: version.to_string(),
         entries: HashMap::new(),
         order: Vec::new(),
+        identity: Arc::new(()),
     };
     for entry in entries {
         match parse_entry(entry) {
@@ -1112,6 +1118,10 @@ impl SigParser<'_> {
 }
 
 impl Catalog {
+    pub(crate) fn identity(&self) -> &Arc<()> {
+        &self.identity
+    }
+
     /// Envelope `catalog_version`.
     pub fn version(&self) -> &str {
         &self.version
