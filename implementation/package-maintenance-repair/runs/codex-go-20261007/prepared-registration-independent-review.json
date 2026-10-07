@@ -1,0 +1,179 @@
+{
+  "verdict": "PASS for finite TECH-V03 synchronous registration publication correction; no blocking finding",
+  "finishedAt": "2026-10-07T22:52:14.115490+00:00",
+  "releasedSourcePins": [
+    {
+      "path": "packages/values/src/prepared/plan.ts",
+      "sha256": "3e8a556376e7fa80bec2889589ea64a20a720b262f7dea744a58e717c9d24fc3"
+    },
+    {
+      "path": "packages/values/test/prepared-registration-atomic.test.ts",
+      "sha256": "358628da08541606e0a42504ddc9d9493a26b4f9c94cacecfbe987581b77b234"
+    }
+  ],
+  "baselineSourcePin": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+  "strict": {
+    "before": {
+      "diagnostics": [],
+      "emitSkipped": false,
+      "closureSourceFiles": 235
+    },
+    "current": {
+      "diagnostics": [],
+      "emitSkipped": false,
+      "closureSourceFiles": 235
+    }
+  },
+  "declarationHashes": {
+    "before": "3a70db671d2292bbfeffbeac734f5a721a7c690e38df790ba87fa676a7f1e7ab",
+    "current": "3a70db671d2292bbfeffbeac734f5a721a7c690e38df790ba87fa676a7f1e7ab"
+  },
+  "declarationsByteEqual": true,
+  "tests": {
+    "before-maintained": {
+      "tests": 51,
+      "pass": 46,
+      "fail": 5,
+      "cancelled": 0
+    },
+    "current-maintained": {
+      "tests": 51,
+      "pass": 51,
+      "fail": 0,
+      "cancelled": 0
+    },
+    "before-independent-final": {
+      "tests": 13,
+      "pass": 2,
+      "fail": 11,
+      "cancelled": 0
+    },
+    "current-independent-final": {
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "cancelled": 0
+    }
+  },
+  "witness": {
+    "before": {
+      "error": {
+        "name": "PlanError",
+        "code": "uncopyable-value",
+        "message": "validation plan: plan metadata must be plain data (no class instances)"
+      },
+      "defaultState": {
+        "published": true,
+        "value": [
+          "LEAK-WITNESS"
+        ],
+        "frozen": true
+      },
+      "planState": "unknown-plan",
+      "nextId": "plan:abi:witness:witness:rev:g0:2",
+      "priorIdentityRetained": true,
+      "priorValue": [
+        "PRIOR"
+      ]
+    },
+    "current": {
+      "error": {
+        "name": "PlanError",
+        "code": "uncopyable-value",
+        "message": "validation plan: plan metadata must be plain data (no class instances)"
+      },
+      "defaultState": {
+        "published": false,
+        "code": "unknown-default",
+        "message": "validation plan: no registered default for this reference"
+      },
+      "planState": "unknown-plan",
+      "nextId": "plan:abi:witness:witness:rev:g0:2",
+      "priorIdentityRetained": true,
+      "priorValue": [
+        "PRIOR"
+      ]
+    }
+  },
+  "staticReview": [
+    "Only registerDefault destination moved from owner defaults into a local Map; copying stays in original traversal. Owner/profile/legacy/provenance/normalized-shape gates and consumed sequence position unchanged.",
+    "Contracts, enums and operations plus final deeply frozen plan are completed before staged defaults merge into owner registry; failed traversal never reaches publication.",
+    "The normal published values are the exact frozen copies created by the existing copier, preserving per-registration object identity and lifetime. releaseValidationPlan still retains defaults.",
+    "No new branding/authority/budget/backend/profile or provenance production association introduced."
+  ],
+  "independentCases": [
+    "Fresh actual normalizeSchema contract and operation defaults, later genuine Decimal copy failure, original uncopiable code/message, consumed failed sequence, failed plan/default unreadable.",
+    "Later enum cases getter failure after whole copied contract, and operation mutation getter failure after contract+operation defaults, including original undefined/Symbol/Error.",
+    "Existing default read twice then copy-index then bounds getter; exact thrown value and first-copy/access order preserved.",
+    "Prior successful plan/default identity remains stable, later successful registration consumes next sequence, immutable default copies distinct per registration, release retains defaults.",
+    "Foreign owner, invalid profile, string wrapper, missing/stale provenance and normalized shape gate retain precedence/non-consuming behavior."
+  ],
+  "sourceAndFullMaintainedAccounting": {
+    "fullPackageProductionTextBefore": {
+      "files": 36,
+      "bytes": 428363,
+      "physicalLines": 11562,
+      "nonblankLines": 10875
+    },
+    "fullPackageProductionTextCurrent": {
+      "files": 36,
+      "bytes": 428569,
+      "physicalLines": 11565,
+      "nonblankLines": 10878
+    },
+    "ownedPlanBefore": {
+      "files": 1,
+      "bytes": 21288,
+      "physicalLines": 565,
+      "nonblankLines": 525
+    },
+    "ownedPlanCurrent": {
+      "files": 1,
+      "bytes": 21494,
+      "physicalLines": 568,
+      "nonblankLines": 528
+    },
+    "fullPackageAuthoredMaintainedBefore": {
+      "files": 29,
+      "bytes": 413247,
+      "physicalLines": 10031,
+      "nonblankLines": 9234
+    },
+    "fullPackageAuthoredMaintainedCurrent": {
+      "files": 30,
+      "bytes": 420482,
+      "physicalLines": 10176,
+      "nonblankLines": 9374
+    },
+    "counterfactualMaintainedProofOnBoth": {
+      "files": 30,
+      "bytes": 420482,
+      "physicalLines": 10176,
+      "nonblankLines": 9374
+    },
+    "newMaintainedProof": {
+      "files": 1,
+      "bytes": 7235,
+      "physicalLines": 145,
+      "nonblankLines": 140
+    },
+    "runtimeGrowthBytes": 206,
+    "runtimeGrowthPhysicalLines": 3,
+    "claim": "Correctness growth, no code/library reduction benefit. Production text includes every frozen values src and bindings TS/JS source; full maintained includes all package test TS files. Full strict compiles that package; executable regression is the four named defining suites, not all package tests."
+  },
+  "limitations": [
+    "All recordFactoryProvenance calls are the existing integrator-private test substitution. Real normalizeSchema production owner/provenance association remains missing; do not claim genuine production admission.",
+    "Genuine Decimal metadata still fails unchanged copier, and successful default retention after release is unchanged; Decimal carrier/default lifetime/owner boundary remain open.",
+    "Existing frozen WASM/backend tests execute their available scaffold; no new backend gating, preparation/HOLD/profile/authority feature claimed.",
+    "Private freshly copied full values sources and strict outputs use separately pinned installed dependency copies (contracts distribution, TypeScript, Node/undici types, decimal.js); no fresh full workspace/installed/deployment acceptance."
+  ],
+  "iterationRecord": [
+    "Private undici-types resolution through symlink-spelled Node-types package path initially failed; corrected require base to its actual resolved path and retained failed preparation log.",
+    "Independent normal-success fixture initially treated genuine normalized array default as mutable; actual factory had frozen it. Corrected to assert its existing freeze/TypeError, then normal copy and retention. Retained before/current iteration failures."
+  ],
+  "closedHandles": "All bounded recorded compile/test/witness subprocesses exited; tests synchronous, no outstanding timers or native child handles; all read/command leases released.",
+  "packet": "TECH-V03 private-hook registration publication correction",
+  "fullPrivateEvidence": "/private/tmp/canlang-repair-go-20261007/prepared-registration-independent/result.json",
+  "fullPrivateEvidenceSHA256": "a80f903b5a31088307c8d3fb0f70fc7cc016eca411af2475a9fa05516022d591",
+  "rootDisposition": "Accepted bounded synchronous publication behavior; production association/default carrier/lifetime/profile/backend parent remain open"
+}
