@@ -229,7 +229,7 @@
     },
     "TECH-W01-uri": {
       "planning_status": "blocked",
-      "state": "private pinned dependency native/Wasm preflight passed; no product release",
+      "state": "ACKed private registered caller/resource/closure qualification active",
       "files": [
         "packages/work-kernel/decisions/rows.rs",
         "packages/work-kernel/decisions/receipt.rs",
@@ -244,7 +244,11 @@
       "outputs": "/private/tmp/canlang-repair-go-20261007/uri-preflight",
       "limit": "Pinned percent-encoding2.3.2 no-default-features native/Wasm existence test only; full caller/error/resource/closure qualification still required",
       "preflight": "Offline native2/2; wasm32 release compile0, sole percent-encoding2.3.2 no-default-features. Pure probe only, actual callers/error/resource/closure gates still open",
-      "handle": "exec session84957 finished0; no live process"
+      "handle": "exec session84957 finished0; no live process",
+      "agent": "/root/review_ui_appearance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Frozen private leaf fit/caller/resource test without new policy or production source writes"
     },
     "TECH-V03": {
       "planning_status": "blocked",
@@ -322,7 +326,7 @@
     },
     "TECH-S02": {
       "planning_status": "blocked",
-      "state": "verified source-current defining contract ready; exact JEV payload approval pending",
+      "state": "ACKed bounded secret metadata/exact selector implementation active; public result/replay joins remain blocked",
       "files": [
         "packages/state/src/mutation/crud.ts",
         "packages/state/src/mutation/pipeline.ts",
@@ -333,13 +337,30 @@
         "packages/interfaces/src/http/operations.ts"
       ],
       "evidence": "security-joins.json",
-      "agent": "/root/review_numeric_reduction",
+      "agent": "/root/review_state_private",
       "model": "gpt-6.1-sol",
       "effort": "high",
-      "reason": "Current persisted confidentiality/result/replay metadata seam; prior advice retained, new material question only",
+      "reason": "Persisted confidentiality and owning metadata/policy seam; high is least expensive reliable finite choice",
       "context_sha256": "89e8b47b43534fa7de54375046b77076ac1adf4e24eb0857b9ab9860e184dcd6",
-      "approval_blocker": "Automatic review rejected sensitive source/security-contract payload to api.typesafe.ai: general repo JEV preauthorization did not clearly cover exact payload/destination; explicit scoped question pending",
-      "calls": "none: exec CreateProcess rejected, no transmission or workaround"
+      "approval_blocker": "resolved by exact human scoped JEV approval",
+      "calls": "Three actual exit0; no retries, finished handles retained in security-contract/consultation.json",
+      "consultation": "security-contract/consultation.json",
+      "disposition": "security-contract/disposition.md",
+      "active_files": [
+        "packages/state/src/invocation/registry.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/state/test/invocation/secret-metadata.test.ts",
+        "packages/cloudflare/test/canonical-read-selectors.test.ts"
+      ],
+      "start_pins": {
+        "registry": "fd88acbc2fdfc7ccb5ee1c75ee5ac14cd20c335dd159a9c65a6a0474acc9aaf7",
+        "canonical_runtime": "5e11d09fede0f0b1265d8f05fe4e308ea02b0a2911846f65375596305c0b82c9"
+      },
+      "open_subscopes": [
+        "Raw/public result split and current first/replay response projection",
+        "Trusted immutable result/dependency provenance and old receipts",
+        "Fresh compiler/installed/native/durable/HTTP/MCP qualification"
+      ]
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -729,11 +750,12 @@
         "policy": "No fixture observation/assertion weakening; historic capture preserved by Git/evidence, original native/installed gates open",
         "outputs": "/private/tmp/canlang-repair-go-20261007/values-discovery",
         "test_model_choice": "Root bounded test-recipe repair; reusable independent Sol-medium review preferred when reliable slot available, no new broad audit",
-        "state": "independently accepted; committing scoped repair",
+        "state": "accepted and committed dfd0587",
         "reviewer": "/root/review_ui_appearance",
         "review": "values-discovery-independent-review.json",
         "acceptance": "Source2/2 emitted2/2; missing fixture/oracle and stale provenance refusal; all existing observation/assertion/frozen oracle bytes unchanged",
-        "commit_pending": true
+        "commit_pending": false,
+        "commit": "dfd0587"
       }
     },
     "TECH-V02-violations": {
@@ -911,13 +933,25 @@
     "roots": [
       "/private/tmp/canlang-repair-go-20261007"
     ],
-    "state": "active readers/commands and private evidence; no cleanup while actual readers remain"
+    "state": "active readers/commands and private evidence; no cleanup while actual readers remain",
+    "security_source_payloads": {
+      "owner": "root",
+      "state": "retained for actual active reader; no repository source-payload commit",
+      "paths": [
+        "/Users/vince/Projects/canlang/implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/context.json",
+        "/Users/vince/Projects/canlang/implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/request-1.json",
+        "/Users/vince/Projects/canlang/implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/request-2.json",
+        "/Users/vince/Projects/canlang/implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/request-3.json",
+        "/Users/vince/Projects/canlang/implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract/assessment.md",
+        "/Users/vince/Projects/canlang/implementation/package-maintenance-repair/runs/codex-go-20261007/critical-review-request/source-excerpts.txt"
+      ]
+    }
   },
   "native_goal": {
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T20:24:11.235682+00:00",
+  "updated_utc": "2026-10-07T20:25:36.336241+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
