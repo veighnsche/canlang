@@ -1,0 +1,48 @@
+{
+  "runtime": "v24.21.0",
+  "checks": 5,
+  "publicExportResolution": {
+    "@canlang/cloudflare/runtime/modules": "file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/node_modules/@canlang/cloudflare/dist/runtime/modules.js",
+    "@canlang/cloudflare/runtime/invoke": "file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/node_modules/@canlang/cloudflare/dist/runtime/invoke.js",
+    "@canlang/stdlib": "file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/node_modules/@canlang/stdlib/dist/src/index.js",
+    "@jridgewell/sourcemap-codec": "file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.umd.js"
+  },
+  "originalColumn": 141,
+  "artifactSha256": "891a76d3f4396eba35286cf0f65841bdb12f295fd905ea357c996f074dfb7f23",
+  "derived": {
+    "ok": false,
+    "error": "root-map-counterfactual",
+    "mapped": {
+      "source": "raw/./root-handler.can",
+      "line": 11,
+      "column": 6
+    }
+  },
+  "absenceCounterfactual": {
+    "ok": false,
+    "error": "root-map-counterfactual",
+    "mapped": {
+      "source": "raw/./root-handler.can",
+      "line": 40,
+      "column": 14
+    }
+  },
+  "invalid": {
+    "ok": false,
+    "error": "root-map-counterfactual"
+  },
+  "presentUndefined": {
+    "ok": false,
+    "error": "root-map-counterfactual"
+  },
+  "renewed": {
+    "ok": false,
+    "error": "root-map-counterfactual",
+    "mapped": {
+      "source": "raw/./root-handler.can",
+      "line": 11,
+      "column": 6
+    }
+  },
+  "artifactIdentityUnchanged": true
+}

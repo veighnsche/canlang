@@ -1,0 +1,282 @@
+{
+  "scope": "Finite D04 delivery integration; sibling producers are existing read-only distribution snapshots, not fresh whole-programme builds.",
+  "sourcePins": {
+    "packages/cloudflare/src/runtime/modules.ts": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+    "packages/cloudflare/src/runtime/invoke.ts": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+    "packages/cloudflare/src/deploy/bundle.ts": "7875284ee7f630d0834a5dc484691ad04999a81ea4cfcb8a77114eb521ab5fc8",
+    "packages/cloudflare/src/deploy/module-maps.ts": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+    "packages/cloudflare/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+    "packages/cloudflare/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "packages/cloudflare/package.json": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+    "packages/cloudflare/test/modules.test.ts": "12668e01c80841304ff3fa11d52b4a9f2f79a8cb03ccd305364a30e8a69b52e7",
+    "packages/cloudflare/test/sourcemap.test.ts": "f872355aafd2706e45680a2e75a255a0a5b5a2571eb7f7c66d1ac5f9837efb6c",
+    "packages/cloudflare/test/deploy-bundle.test.ts": "54f690ff648cc954047c8dc0b81b6e1f413ead0703d7c22ea884e7ab956650ed"
+  },
+  "packageInputs": [
+    {
+      "name": "@canlang/cloudflare",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/cloudflare.tgz",
+      "sha256": "ac1fd850e3f8400020460822fdcaf763d0d615730e9a3027d0ee03cd60c5bca9"
+    },
+    {
+      "name": "@canlang/contracts",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/contracts.tgz",
+      "sha256": "16743e8fcb82be5edb55d2249f058fe7672fc1e30921f9b6ca8a5752fdcb8272"
+    },
+    {
+      "name": "@canlang/files",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/files.tgz",
+      "sha256": "eb92c5ed4580fada591e6d246cfffcc8d100a5d218d80a0c9d39be760061b70a"
+    },
+    {
+      "name": "@canlang/identity",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/identity.tgz",
+      "sha256": "633aa5d593913203d0b7b11f69c01afa14410cbd0d46ccddbbb844ef40d0efc3"
+    },
+    {
+      "name": "@canlang/interfaces",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/interfaces.tgz",
+      "sha256": "cd72b67b1197f18c56bab4339ec8ba3c77488332876fe650307208cde798362b"
+    },
+    {
+      "name": "@canlang/services",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/services.tgz",
+      "sha256": "c5e82981c9da7f85c5ea37f24159746ec8d0c2251525160fa589e3a862a097f0"
+    },
+    {
+      "name": "@canlang/state",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/state.tgz",
+      "sha256": "a0d5d19f2ab9ffacd0ac33fc426f027f58104c432ed76127010a7772b7c52e04"
+    },
+    {
+      "name": "@canlang/stdlib",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/stdlib.tgz",
+      "sha256": "146a9976a115a53eb1c74ddd912d6e6f15070ce52fcca3f4d363b8f07d88516c"
+    },
+    {
+      "name": "@canlang/testkit",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/testkit.tgz",
+      "sha256": "2d96ce58e9db33900ffc94fa50412ca5ca7c3f68ca2b27502080983b53f16fdc"
+    },
+    {
+      "name": "@canlang/ui",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/ui.tgz",
+      "sha256": "25b92a29f5365421fc12e898d925cd2e18defcd912e5afd38d3b50ac6ec1f632"
+    },
+    {
+      "name": "@canlang/values",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/values.tgz",
+      "sha256": "61bf7c5b140844396fb89fd0bb65687f80d2dfc43f2950ced34a96657915f193"
+    },
+    {
+      "name": "@canlang/work",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/work.tgz",
+      "sha256": "3f33748d224e5619dae3934f77629ae74f1466db2b38af5c1d46cd00f82d8202"
+    },
+    {
+      "name": "@canlang/work-kernel",
+      "tar": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/tarballs-final/work-kernel.tgz",
+      "sha256": "82da265d45a646ad7afa68a310234e4a2441c338213a40d14e555dfb2958649e"
+    }
+  ],
+  "freshness": [
+    {
+      "name": "@canlang/cloudflare",
+      "distFiles": 220,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "fresh strict TypeScript emit from exact source pins",
+      "rootDistEqualsCopiedSnapshot": null,
+      "sourceTreeSha256": "1115f580664a3f0ae9a70581022b66a31ada5136a47d2c2656eeb9077ecdd96e"
+    },
+    {
+      "name": "@canlang/contracts",
+      "distFiles": 64,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "a3b86e1d7601973e8f356fdb536521c7cf555bb663373df4881567ce9e191ce2"
+    },
+    {
+      "name": "@canlang/files",
+      "distFiles": 88,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "7d4b51ea52897df06bffbe6a98b4dfe7e0f622d27166a3209a1b3f815723695b"
+    },
+    {
+      "name": "@canlang/identity",
+      "distFiles": 134,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "8ba3b6ca702e44c1e7ded1a908fd5a155bc5b8a1afa32775514dabcba1a494f9"
+    },
+    {
+      "name": "@canlang/interfaces",
+      "distFiles": 308,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "8dd9a76a0b0c80d00a4ca201d95bed7d756d3f5d607f38ece9e43d2dd06cc61b"
+    },
+    {
+      "name": "@canlang/services",
+      "distFiles": 104,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "16eb28cbd905568f44ba1af6afbc2d2d1ee2c644f8ec48cd23cab8848981f2ff"
+    },
+    {
+      "name": "@canlang/state",
+      "distFiles": 488,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "a9ddeabaaf5df685c66d640ce28d65430870938f803e99751b5cfe48dc2e8eae"
+    },
+    {
+      "name": "@canlang/stdlib",
+      "distFiles": 12,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "2c77c5720aae483ce10fd00cd11f248d7ee35e18ae76c32fd1f5da44eaccac27"
+    },
+    {
+      "name": "@canlang/testkit",
+      "distFiles": 64,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "1e89b5d57160f991c2163dc96ad25cc0813c29056c9492069de2b7b4f34cd0ac"
+    },
+    {
+      "name": "@canlang/ui",
+      "distFiles": 244,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "364c1b9fc8af347bde6fbabb00650db310ce70ab81d29b24a53cc01785d1febb"
+    },
+    {
+      "name": "@canlang/values",
+      "distFiles": 226,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "a4d9677d116d4e77ea6bbdc0b526c0d22b0f72b3f9fbd3782868f17a72b7873b"
+    },
+    {
+      "name": "@canlang/work",
+      "distFiles": 224,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "f7573de2c4805446e9a518839e40f32a7b8a19869b2a7d878aaeb73110d8a48a"
+    },
+    {
+      "name": "@canlang/work-kernel",
+      "distFiles": 72,
+      "installedEqualsPackedSnapshot": true,
+      "distOrigin": "read-only current repository dist snapshot",
+      "rootDistEqualsCopiedSnapshot": true,
+      "sourceTreeSha256": "487c0986f7e903263a68ef1813f08d12418bc7420ba1513a4e60ce94b39fe4a9"
+    }
+  ],
+  "installedTree": {
+    "path": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final",
+    "packageSourceAliases": 0,
+    "symlinks": 5,
+    "symlinkScope": "only npm executable .bin shims targeting this installed tree"
+  },
+  "versions": {
+    "@jridgewell/remapping": "2.3.5",
+    "@jridgewell/gen-mapping": "0.3.13",
+    "@jridgewell/trace-mapping": "0.3.31",
+    "@jridgewell/resolve-uri": "3.1.2",
+    "@jridgewell/sourcemap-codec": "1.6.0",
+    "es-module-lexer": "3.0.3",
+    "magic-string": "1.4.3",
+    "miniflare": "4.20260730.0",
+    "workerd": "1.20260730.1"
+  },
+  "checks": {
+    "strictEmit": "tsc-attempt2.log exit0",
+    "focusedTests": 78,
+    "sourceWarnings": "copied sibling dist maps may name unavailable source files; no source regression or installed-source freshness credit from these warnings",
+    "nodeMapsOff": {
+      "runtime": "v26.10.0",
+      "engineStack": "Error: installed-kaboom\n    at Object.boom (file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/staged-maps-off/app/main.js:1:265)\n    at file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/installed-probe.mjs:25:70\n    at async file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/installed-probe.mjs:25:19",
+      "writtenReadBack": true,
+      "invoke": {
+        "ok": false,
+        "error": "installed-kaboom",
+        "mapped": {
+          "source": "original-handler.can",
+          "line": 24,
+          "column": 9
+        }
+      },
+      "artifactSha256": "f0791ee9f40a6bbca1dce874225f34c5ea7bbc98dc28dde9e473d22554e5b72f",
+      "bundleSha256": "61a1f2f36815ea392feed6e9b940184caaf99d7feaad8d264bbb1b6e6abfacb0",
+      "bundleModules": 153,
+      "originalMapFalseWitness": {
+        "generatedColumn": 264,
+        "originalThrowColumn": 141,
+        "stale": {
+          "source": "original-handler.can",
+          "line": 25,
+          "column": 12
+        },
+        "expected": {
+          "source": "original-handler.can",
+          "line": 24,
+          "column": 9
+        }
+      },
+      "sourceMaps": "",
+      "publicInstalled": true
+    },
+    "nodeMapsOn": {
+      "runtime": "v26.10.0",
+      "engineStack": "Error: installed-kaboom\n    at Object.boom (/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/staged-maps-on/app/original-handler.can:24:9)\n    at file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/installed-probe.mjs:25:70\n    at async file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/installed-probe.mjs:25:19",
+      "writtenEngineStack": "Error: installed-kaboom\n    at Object.boom (/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/written-bundle/app/original-handler.can:24:9)\n    at file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/installed-probe.mjs:38:158\n    at async file:///private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/installed-probe.mjs:38:83",
+      "writtenReadBack": true,
+      "invoke": {
+        "ok": false,
+        "error": "installed-kaboom",
+        "mapped": {
+          "source": "original-handler.can",
+          "line": 24,
+          "column": 9
+        }
+      },
+      "artifactSha256": "f0791ee9f40a6bbca1dce874225f34c5ea7bbc98dc28dde9e473d22554e5b72f",
+      "bundleSha256": "61a1f2f36815ea392feed6e9b940184caaf99d7feaad8d264bbb1b6e6abfacb0",
+      "bundleModules": 153,
+      "sourceMaps": "--enable-source-maps",
+      "publicInstalled": true
+    },
+    "workerd": {
+      "ok": false,
+      "error": "installed-kaboom",
+      "mapped": {
+        "source": "original-handler.can",
+        "line": 24,
+        "column": 9
+      }
+    }
+  },
+  "failuresPreserved": [
+    "tsc-attempt1.log",
+    "vitest-attempt1-stalled.log",
+    "vitest-narrow-attempt2-stalled.log",
+    "node-maps-off-attempt1.log",
+    "node-maps-off-attempt2.log",
+    "installed-edges-attempt1.log",
+    "root-lock/bun.lock.attempt1-invalid"
+  ],
+  "regexInvestigation": "Initial fixture discarded quote escapes and produced invalid JS. Exact invalid input+syntax+records and baseline comparison retained in regex-investigation.json; three valid standalone/assigned/prose regex controls pass current helper and fail original baseline. No valid-JS parser defect."
+}

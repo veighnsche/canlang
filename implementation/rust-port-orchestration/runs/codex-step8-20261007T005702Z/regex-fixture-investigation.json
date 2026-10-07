@@ -1,0 +1,45 @@
+[
+  {
+    "id": "exact-failed-fixture",
+    "js": "const x=\"from \"./missing.js\"\"; /import(\"ghost\")/; export const y=1;",
+    "syntax": "Unexpected token '/'",
+    "records": [
+      {
+        "t": 2,
+        "n": "ghost",
+        "s": 39,
+        "e": 46,
+        "ss": 32,
+        "se": 47,
+        "d": 38,
+        "a": -1
+      }
+    ],
+    "current": "deploy bundle: module \"a.js\" has bare import \"ghost\" (no package resolution in workerd)",
+    "baseline": "deploy bundle: module \"a.js\" has bare import \"ghost\" (no package resolution in workerd)"
+  },
+  {
+    "id": "valid-standalone-regex",
+    "js": "const marker=1; /import(\"ghost\")/; export const y=1;",
+    "syntax": "valid",
+    "records": [],
+    "current": "pass",
+    "baseline": "deploy bundle: module \"a.js\" has bare import \"ghost\" (no package resolution in workerd)"
+  },
+  {
+    "id": "valid-assigned-regex",
+    "js": "const marker=1; const matcher=/import(\"ghost\")/; export const y=1;",
+    "syntax": "valid",
+    "records": [],
+    "current": "pass",
+    "baseline": "deploy bundle: module \"a.js\" has bare import \"ghost\" (no package resolution in workerd)"
+  },
+  {
+    "id": "valid-prose-and-standalone",
+    "js": "const x=\"from \\\"./missing.js\\\"\"; /import(\"ghost\")/; export const y=1;",
+    "syntax": "valid",
+    "records": [],
+    "current": "pass",
+    "baseline": "deploy bundle: module \"a.js\" has bare import \"ghost\" (no package resolution in workerd)"
+  }
+]

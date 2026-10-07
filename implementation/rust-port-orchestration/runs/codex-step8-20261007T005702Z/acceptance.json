@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "accepted_at_utc": "2026-10-07T01:19:40.678030+00:00",
+  "scope": "Finite D04 actual import rewrite map composition, diagnostic sidecar and genuine installed Node/workerd joined profile",
+  "status": "independently_accepted_finite_D04",
+  "source_pins": {
+    "packages/cloudflare/src/runtime/modules.ts": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+    "packages/cloudflare/src/runtime/invoke.ts": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+    "packages/cloudflare/src/deploy/bundle.ts": "7875284ee7f630d0834a5dc484691ad04999a81ea4cfcb8a77114eb521ab5fc8",
+    "packages/cloudflare/src/deploy/module-maps.ts": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+    "packages/cloudflare/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+    "packages/cloudflare/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "packages/cloudflare/package.json": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+    "packages/cloudflare/test/modules.test.ts": "12668e01c80841304ff3fa11d52b4a9f2f79a8cb03ccd305364a30e8a69b52e7",
+    "packages/cloudflare/test/sourcemap.test.ts": "f872355aafd2706e45680a2e75a255a0a5b5a2571eb7f7c66d1ac5f9837efb6c",
+    "packages/cloudflare/test/deploy-bundle.test.ts": "54f690ff648cc954047c8dc0b81b6e1f413ead0703d7c22ea884e7ab956650ed"
+  },
+  "lock_sha256": "5fe8461dd833437857a5265f44c3755c7f74497c2f9443c67521005e58083da7",
+  "critical_proofs": {
+    "helper_contract_tests": 27,
+    "joined_focused_tests": 78,
+    "installed_failure_controls": 14,
+    "independent_installed_counterfactual_controls": 5,
+    "Node": [
+      "v24.21.0 root independent counterfactual",
+      "v26.10.0 cold installed external and written-inline map engine/fallback"
+    ],
+    "Bun": "1.4.2 cold public consumer; nodecompat26.3.0",
+    "workerd": "1.20260730.1 real invoke from read-back written bundle, compatibilityDate2026-07-15",
+    "Astra_medium": "Actual ephemeral read-only source review no actionable findings; exact source hashes retained",
+    "sharp_false_witness": "rewritten generated col264 vs original141: stale originalmap=>25:12; composed actual Node/workerd=>24:9",
+    "identity": "Original artifact/verdict bytes and hashes unchanged; raw sources preserved; present invalid sidecar refuses stale positions"
+  },
+  "producer_freshness_limit": "Cloudflare freshly emitted from exact source; sibling producers installed from fresh tarballs of current read-only dist snapshots, not claimed whole-source rebuild. Actual installed package files equal packed inputs.",
+  "profile_limits": [
+    "Ordinary finite JSON V3 point maps + accepted import edit stages, no indexed/range arbitrary-object certification",
+    "Large/negative raw-coordinate carrier compatibility is Can fallback only; stock-engine pathological-coordinate behavior not asserted",
+    "No new source-map fetch, raw identity normalization, range interpolation or content synthesis",
+    "Handwritten sharp diagnostic fixture qualifies this real runtime/host integration, not complete current compiler T08/business-workflow proof",
+    "Pinned workerd recipe uses2026-07-15; unsupported2026-10-04 fixture failure retained",
+    "D02 Unicode-separator retry budget and Bun lone-surrogate path behavior remain prior explicit residuals"
+  ],
+  "parent_tasks_not_closed": [
+    "ports:C04.ready",
+    "ports:C04.graph",
+    "ports:W06.runtimehandoff",
+    "challenge:T08",
+    "challenge:T26",
+    "full installed/default/native/Wasm/package programme"
+  ],
+  "human_hold": "Native preparation/native-release; future unrelated dispatch remains false",
+  "shared_documentation_handoff": "Foreign dirty shared DECISIONS/filetree preserved. No merge/checkpoint advance. Own pending decisions record retained.",
+  "source_commit": "324d624",
+  "fixture_format_only_commit": "aaa09fe",
+  "current_fixture_sha256": "50c6811dfca95c129b8294f4ff2e1c87638b7e85e23bb1f3b64d7f39ed9d5f2b",
+  "fixture_semantics_unchanged_evidence": "fixture-format-equality.json"
+}

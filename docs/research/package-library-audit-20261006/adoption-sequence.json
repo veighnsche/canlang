@@ -1210,6 +1210,18 @@
       "original_task_statuses_and_dependencies_unchanged": true,
       "future_execution_authorized": false,
       "native_preparation_and_native_release_held": true
+    },
+    {
+      "run": "codex-step8-20261007T005702Z",
+      "source_commit": "324d624",
+      "fixture_format_only_commit": "aaa09fe",
+      "D04": "Independently accepted selected composition/caller/diagnostic sidecar and genuine outside-checkout Node/workerd profile",
+      "D02": "Previously accepted leaf now used in actual modules/deploy/link callers",
+      "D03": "Existing preserving raw decoder retained; original source/name identities and odd-map Can fallback semantics preserved",
+      "completion_record": "../../../implementation/rust-port-orchestration/runs/codex-step8-20261007T005702Z/completion.json",
+      "original_task_statuses_and_dependencies_unchanged": true,
+      "future_execution_authorized": false,
+      "native_preparation_and_native_release_held": true
     }
   ]
 }
