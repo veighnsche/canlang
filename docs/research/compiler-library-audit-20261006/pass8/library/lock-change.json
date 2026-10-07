@@ -235,5 +235,10 @@
   "changed_common": [
     "canlang-compiler root dependency only"
   ],
-  "no_upgrades": true
+  "no_upgrades": true,
+  "before_registry_packages": 66,
+  "after_registry_packages": 93,
+  "before_total_lock_entries": 67,
+  "after_total_lock_entries": 94,
+  "count_note": "before_packages/after_packages include the workspace compiler; registry entry counts are 66\u219293, total lock entries67\u219294"
 }
