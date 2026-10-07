@@ -1,0 +1,1870 @@
+{
+  "schema": "canlang.economical-repair-model-allocation/v1",
+  "checked_on": "2026-10-07",
+  "timezone": "Europe/Brussels",
+  "stage": "Planning only; implementation remains deferred",
+  "execution_authorized": false,
+  "applies_to": "Future delegated finite packets only; does not change the coordinating chat or global settings",
+  "source_queue_before_allocation_sha256": "2b673985707fc076febc14f6f832ed918f6cb0828141e2bdd39061f4f0a7ccd3",
+  "task_identity_and_acceptance_changes": false,
+  "allocation_is_inference_not_measured_optimum": true,
+  "representative_benchmarks_or_paid_api_runs": false,
+  "implementation_lanes": 3,
+  "orchestrator": "Root review/integration; no permanent whole-package middle coordinator, local worker timer or busy polling",
+  "policy": {
+    "goal": "Minimize expected complete-task cost, including context, reasoning/output, retries and required reviews; preserve acceptance quality.",
+    "cheap_work": "Luna low for deterministic records, Luna medium for released fixtures/exact mechanical substeps, Sol low for narrowly specified technical leaves, Sol medium for ordinary code. Cheap assistance performs no contract or acceptance adjudication.",
+    "strong_work": "Sol high only for already substantive unresolved joins/contract/ABI/authority/lifecycle/host work; frozen disjoint leaf work can be a cheaper finite subpacket. Astra only required critical/expert stages.",
+    "review": "Risk-matched finite independent review, with requirements/raw witness/source pins and no implementer verdicts; reuse unchanged accepted evidence at proved scope and combine only compatible released slices. Root retains acceptance and Git.",
+    "context": "No full-history fork by default. Supply exact finite task/files/contract/witness/owner inputs; read long source selectively and return compact changed-source/command/negative/result receipts.",
+    "failure": "A failed product check is not automatically a model failure. Reuse active handles, diagnose once within finite scope, then escalate actual uncertainty; no blind repeated whole-task attempts.",
+    "effort": "No xhigh/max/Ultra or Pro by habit. Only select supported settings; hidden or unsupported tier/mode/token controls are not configured by this file.",
+    "freshness": "Recheck actual dispatcher availability, per-slice risks and official prices before cost-sensitive dispatch. Never silently substitute an unsupported model.",
+    "guards": "Do not use cheap model choice to lift owner, security-review, human HOLD, original runtime/consumer/installed/retirement or execution_authorized=false gates."
+  },
+  "official_sources": [
+    {
+      "title": "Official API pricing",
+      "url": "https://developers.openai.com/api/docs/pricing",
+      "checked": "2026-10-07"
+    },
+    {
+      "title": "GPT-6.1 Sol API model",
+      "url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "checked": "2026-10-07"
+    },
+    {
+      "title": "Model selection guidance",
+      "url": "https://developers.openai.com/api/docs/guides/model-selection",
+      "checked": "2026-10-07"
+    },
+    {
+      "title": "Reasoning effort guidance",
+      "url": "https://developers.openai.com/api/docs/guides/reasoning",
+      "checked": "2026-10-07"
+    }
+  ],
+  "api_price_comparison_only": {
+    "units": "USD per 1M text tokens, Standard short context; not Codex subscription usage, actual account bill or a Can savings forecast",
+    "gpt-6-luna": {
+      "input": 0.1,
+      "cached_input": 0.01,
+      "output": 0.5
+    },
+    "gpt-6.1-sol": {
+      "input": 2,
+      "cached_input": 0.1,
+      "output": 10
+    },
+    "gpt-6-astra": {
+      "input": 10,
+      "cached_input": 1,
+      "output": 50
+    }
+  },
+  "special_review_gates": {
+    "existing-critical-security-review": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "Existing critical review remains approval-pending; preserve its actual selected scope and required effort. No invocation or egress retry here.",
+      "reuse": "One matched scope/source-current critical review covers its associated packet crosswalks; ordinary Sol review does not replace it and rows do not create separate duplicate Astra obligations."
+    },
+    "persisted-security-and-timing-contract-if-changed": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "Preserve existing I01 persisted security/I03 timing guarantee stage when its actual contract is changed or a consequential guarantee is selected; unchanged accepted codec/cookie/library evidence is reused at its exact scope.",
+      "reuse": "Single finite contract/guarantee stage; pure later frozen adapters use their local allocation. Owner/JEV release precedes coding."
+    },
+    "consequential-owner-store-contract-if-selected": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "Only an evidenced consequential new owner/store security topology decision calls for this expert judgment; current alternatives are unreleased.",
+      "reuse": "Share a matching existing critical review when its scope/evidence genuinely covers the decision; otherwise name one finite new stage and preserve access/approval rules."
+    },
+    "C03-critical-consent-authority-review": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "medium",
+      "state": "Existing required authoritative review-to-commit critical join, after actual selected producer/consumer release.",
+      "reuse": "Local source-row ordering and canonical helper changes do not each create an additional consent-critical review."
+    },
+    "D04-critical-staged-diagnostic-review": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "medium",
+      "state": "Existing required actual changed-length staged/installed diagnostic join when affected; reuse unchanged previously accepted source-current critical evidence.",
+      "reuse": "No blanket repeat of all map/source/API reviews merely because a namespace leaf changed."
+    },
+    "R03-final-selected-critical-review": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "Existing finite independent critical combined-invariant review after actual selected required scope and writer/command release.",
+      "reuse": "One final selected joined review. No implementation worker on this review-only packet; do not re-review unselected/held work as accepted."
+    }
+  },
+  "counts": {
+    "gpt-6.1-sol/medium": 14,
+    "gpt-6.1-sol/high": 24,
+    "gpt-6.1-sol/low": 5,
+    "gpt-6-luna/medium": 4,
+    "review-only": 1
+  },
+  "ready_counts": {
+    "gpt-6.1-sol/medium": 10,
+    "gpt-6.1-sol/high": 1,
+    "gpt-6.1-sol/low": 5,
+    "gpt-6-luna/medium": 4
+  },
+  "allocations": [
+    {
+      "id": "TECH-V01-values",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Frozen pinned numeric adapter; finite owner-specific diagnostics and text corpus.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-V01-work",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Frozen numeric adapter and private forwarding deletion; persisted bytes require independent review.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-W01-quote",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Frozen UTF16 quote extraction across leaf-local carriers; exhaustive unit corpus and bytes.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-W01-uri",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-exact-contract-and-target-dependency-qualification. Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Pinned URI adapter after target/lock qualification and exact corpus; unresolved qualification is not cheap coding.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-V03",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-owned-content-and-successful-default-lifetime-contract-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Parser issuance/content authority, scalar carriers, transactional failed registration and mutation aliasing.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-V04",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-selected-native-codec-carrier-and-public-error-projection-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Codec domain/resource/unique-key contract plus installed ABI/glue/startup and capacity joins.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-V05",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-environment-data-and-cache-key-profile-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Exact ICU/tzdb/currency host contract qualification; cache and zone policy remain unselected.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-S01",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Existing private backend leaf equivalence; ordinary technical extraction with full current caller profiles.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-S01-own-key",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-security-review-release. Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Existing own-property lookup correction once pending review/release permits it; no new metadata policy.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-S02",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-current-result-read-replay-contract-and-security-review-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Secret-aware first-success/public-read/replay projection through generated authoritative joined callers.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-S03",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-owner-to-storage-correspondence-and-deployment-contract-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Actual app/team/owner store resolution and scoped authority topology; unresolved consequential choice cannot be delegated to cheap worker.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review",
+        "consequential-owner-store-contract-if-selected"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-W02",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Child lifecycle, fresh facts, atomic fanout outcome and durable crash/restart callers.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-W03",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-original-demand-facts-backend-and-consumer-gates. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Synchronous ABI/bootstrap/assets, demand/provenance, staging and installed/durable whole-call joins.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-I01",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-FP.IDENTITY-CONTRACT-J2-reconciliation-and-security-review. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Identity consume/recovery/last-owner transactional winner and bearer replay authority; freeze consequential contract first.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review",
+        "persisted-security-and-timing-contract-if-changed"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-I02",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-finite-PKCE-browser-origin-and-fence-contract-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Mounted OAuth challenge/presession/Origin profiles and revocation-during-effect; pure released S256 leaf can be Sol medium.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review",
+        "persisted-security-and-timing-contract-if-changed"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-F01",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-real-durable-blob-metadata-intent-ownership-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Durable append/count/blob recovery, retry identity and finalization crash phases.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-F02",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-current-record-field-lifetime-and-provider-namespace-contract-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Attachment/download authority, resumable retention, provider receiving ingress and generated descriptor joins.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-SV01",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-selected-critical-security-review. Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Bounded configured UTF8 request-byte and cancel lexical checks after selected security release.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-SV02",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-safe-projection-and-effect-lifetime-contract-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Provider safe projection, late outcome correlation, hang uncertainty and stream lifecycle.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-SV03",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-admitted-host-data-identity-domain-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Submitted graph domain/hash/copy identity and provider file bridge; new graph-domain policy remains unreleased.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-SV04",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Frozen portable harness/profile extraction with transport and lifecycle kept local.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-D01",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Existing shared bundle-body ownership and wrapper cleanup; packed freshness qualified separately.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-D02",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low"
+      },
+      "implementation_scope": "tightly specified technical leaf only",
+      "eligibility": "Existing released contract and independent negative corpus; preserve all receiver, first error, construction/evaluation and identity behavior. Broader profile/authority changes are out of this cheap slice.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Frozen WeakMap primitive, two maps retained and exact rejection eviction supplied.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-C01",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-type-mapping-and-parser-allocation-contract-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Type-directed normalized authority/schema/error order plus pre-parser resource admission.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-C02",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-row-selection-review-context-contract-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6-astra",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Frozen review producer/commit integrity and app/user/team/session/expiry authority join.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review",
+        "C03-critical-consent-authority-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-C02-order",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Source-row invocation order correction, preserving selected statuses and partial/unknown failures.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-B01",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-actual-DOM-markup-and-supported-callback-lifecycle-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Real Document initializer/selectors plus teardown and body-await cancellation races.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-B02",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-mounted-file-export-print-assets-and-byte-ownership-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Mounted browser auth/file/export/resource lifetime and immutable bytes/URL sinks.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-D03",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-selected-local-resource-contract-and-critical-security-review. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Contained writer/symlink refusal, temp ownership, child command lifetime and uncertain remote effects.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-D04",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-artifact-namespace-loadability-and-actual-map-consumer-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6-astra",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Trusted producer namespace, CommonJS/lexer/map contract and installed diagnostic joins.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review",
+        "D04-critical-staged-diagnostic-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-D05",
+      "status_preserved": "deferred",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: held-explicit-human-preparation-and-native-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Held native protocol/resources/publication byte/keyset/child lifecycle qualification; no dispatch before HOLD release.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-R01",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-selected-source-emission-host-and-installed-closure-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Exact emitted packed installed dependency, transport, schema, cancellation and Wasm ABI correspondence.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-E02",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-exact-readers-provenance-and-owned-lifecycle-release. Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Current RowScope disposal correction and finite conditional cleanup after exact relevant gates; frozen receipt copy/deletion can be Luna medium.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "REPLAY-IP07",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Bounded premature age-gate removal under existing canonical replay contract; authority negatives mandatory.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "PARSER-DP01",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low"
+      },
+      "implementation_scope": "tightly specified technical leaf only",
+      "eligibility": "Existing released contract and independent negative corpus; preserve all receiver, first error, construction/evaluation and identity behavior. Broader profile/authority changes are out of this cheap slice.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Own-property correction under existing declared wire keys; no new admission policy.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "VERIFY-TV01",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "frozen mechanical/record slice only",
+      "eligibility": "Owner supplies exact frozen body/caller/oracle or extraction recipe. No new API, policy, algorithm, lifecycle, provenance interpretation or acceptance conclusion delegated to Luna.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Frozen runner discovery and exact hash/receipt extraction only; technical interpretation stays with reviewer.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-V02-violations",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low"
+      },
+      "implementation_scope": "tightly specified technical leaf only",
+      "eligibility": "Existing released contract and independent negative corpus; preserve all receiver, first error, construction/evaluation and identity behavior. Broader profile/authority changes are out of this cheap slice.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Private duplicate leaf extraction, preserving receiver/context and ordered traversal.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-V02-gregorian",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "frozen mechanical/record slice only",
+      "eligibility": "Owner supplies exact frozen body/caller/oracle or extraction recipe. No new API, policy, algorithm, lifecycle, provenance interpretation or acceptance conclusion delegated to Luna.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Pure duplicate leap/month pair with frozen values and acyclic imports.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-S04-admission",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-canonical-input-and-storage-driver-resource-profile-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Canonical input pre-hash/copy budget and preserved identity/evaluation order after owner profile release.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-S04-query",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-canonical-input-and-storage-driver-resource-profile-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Real durable scanned-work/continuation/fence query and recovery limits.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "TECH-S04-cohort",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "implementation_scope": "full substantive join or contract-qualified implementation",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-canonical-input-and-storage-driver-resource-profile-release. The complete packet already crosses ABI, authority, resource/lifecycle, durability or actual installed-host seams. Preserve original owner/JEV/critical review gates; a frozen subleaf may be split and priced separately.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Frozen durable fanout representation and continuation/progress bounds.",
+      "special_review_gate_refs": [
+        "existing-critical-security-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run.",
+        "high_effort_limit": "High is already selected for the complete substantive packet. Reconcile the exact failure/input first; further expert escalation is not automatic and must be justified for the finite remaining judgment."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-U01-appearance",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "frozen mechanical/record slice only",
+      "eligibility": "Owner supplies exact frozen body/caller/oracle or extraction recipe. No new API, policy, algorithm, lifecycle, provenance interpretation or acceptance conclusion delegated to Luna.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Exact private appearance leaves and fixed ten caller substitutions; byte oracle must already be frozen.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-U01-draft",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Six frozen draft leaves with getter/read/error order and raw-display semantics.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-A01-error",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "frozen mechanical/record slice only",
+      "eligibility": "Owner supplies exact frozen body/caller/oracle or extraction recipe. No new API, policy, algorithm, lifecycle, provenance interpretation or acceptance conclusion delegated to Luna.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Two exact private digest profiles, with no new error projection policy.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-A01-binding",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low"
+      },
+      "implementation_scope": "tightly specified technical leaf only",
+      "eligibility": "Existing released contract and independent negative corpus; preserve all receiver, first error, construction/evaluation and identity behavior. Broader profile/authority changes are out of this cheap slice.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Fixed private binding/deferral extraction, with construction demand and throw order unchanged.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-A01-admission",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low"
+      },
+      "implementation_scope": "tightly specified technical leaf only",
+      "eligibility": "Existing released contract and independent negative corpus; preserve all receiver, first error, construction/evaluation and identity behavior. Broader profile/authority changes are out of this cheap slice.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "reason": "Frozen lexical object/Bearer leaves only; no trust/auth policy decision.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "medium"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "DEL-A01-canonical",
+      "status_preserved": "ready",
+      "implementation_or_qualification": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium"
+      },
+      "implementation_scope": "ordinary bounded implementation/qualification",
+      "eligibility": "Exact per-owner contract/inputs/files and source-current narrow qualification. Unfrozen contract design or assembly contradiction is a separately named stronger stage.",
+      "independent_review": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high"
+      },
+      "reason": "Two exact recursive canonical leaves with existing getter-before-sort, holes and error behavior.",
+      "special_review_gate_refs": [],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Stop the cheap slice if an independent witness contradicts the frozen profile, a required owner/input is missing, an API/persisted/authority/lifecycle choice is needed, or one bounded diagnostic attempt cannot resolve the concrete failure. Do not blindly retry the same broad prompt.",
+        "next_combination": {
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "Use Astra medium/high only for an existing required special review or an evidenced consequential/difficult judgment, with its actual access/approval/owner gates. No habitual Astra coding or paid comparison run."
+      },
+      "execution_authorized": false
+    },
+    {
+      "id": "FINAL-R03",
+      "status_preserved": "blocked",
+      "implementation_or_qualification": null,
+      "implementation_scope": "review-only; no implementation worker",
+      "eligibility": "NOT DISPATCHABLE NOW: blocked-affected-source-consumer-handoff. Only released selected joined scope; original critical review and writer/command handoff gates apply.",
+      "independent_review": {
+        "model": "gpt-6-astra",
+        "reasoning_effort": "high"
+      },
+      "reason": "Review-only final selected joined invariants; retain required Astra high independent review.",
+      "special_review_gate_refs": [
+        "R03-final-selected-critical-review"
+      ],
+      "prepared_records": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "low",
+        "scope": "Specified deterministic receipt/index/crosswalk transcription only; no readiness or acceptance adjudication."
+      },
+      "prepared_fixtures": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "scope": "Generate specified seeded cases from an already released oracle; no inventing expected behavior."
+      },
+      "escalation": {
+        "observable_trigger": "Do not downgrade the required final reviewer. If its scope/evidence/owner handoff is incomplete, return the finite missing input to the owning packet; any cheaper record assistance is separately specified.",
+        "next_combination": {
+          "model": "gpt-6-astra",
+          "reasoning_effort": "high"
+        },
+        "astra_rule": "This is the pre-existing required Astra high final review. It stays gated on actual selected source/consumer and writer release, with existing access/approval rules."
+      },
+      "execution_authorized": false
+    }
+  ],
+  "technical_queue_projection_sha256": "714367bcfe3973a1737ae3b8b09ff8fdb1e32c5f33f9b778500304ed810a1063",
+  "projection_fields": "base/counts/topological_order/common_gates/external_gates and all packet fields except delegation and historical technical-planning allocation"
+}

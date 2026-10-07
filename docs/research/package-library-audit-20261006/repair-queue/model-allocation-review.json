@@ -1,0 +1,48 @@
+{
+  "stage": "bounded independent allocation consistency review only",
+  "verdict": "pass",
+  "scope": "Four named planning metadata files only; no product execution, critical security acceptance, new audit, Git, or dispatch.",
+  "source_hashes": {
+    "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/repair-queue/model-allocation.json": "91f1b0e3f8a9c23c455037a9b5977ecac0f47fbb02f0ae86c69a0da2e1f12522",
+    "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/repair-queue/model-allocation.md": "c3da77c7e201649a177187c8066ce38e3ac1506349267c31cc6fae516bdf3622",
+    "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/repair-queue/queue.json": "95d740da589ab642edfce2cb7b195df7b90c2e5221315a1f390b049efc610bfb",
+    "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/repair-queue/packets.md": "3780e6b2940f41c0a4d8a0ab62e1b3f571a710e89d36d7e3156aa3fe4c0ff337"
+  },
+  "verification": {
+    "48_unique_ids": true,
+    "same_queue_id_set": true,
+    "human_machine_settings_and_queue_delegation": true,
+    "supported_pairs": true,
+    "counts": {
+      "gpt-6.1-sol/medium": 14,
+      "gpt-6.1-sol/high": 24,
+      "gpt-6.1-sol/low": 5,
+      "gpt-6-luna/medium": 4,
+      "review-only": 1
+    },
+    "ready_counts": {
+      "gpt-6.1-sol/medium": 10,
+      "gpt-6.1-sol/high": 1,
+      "gpt-6.1-sol/low": 5,
+      "gpt-6-luna/medium": 4
+    },
+    "all_execution_authorized_false": true
+  },
+  "errors": [],
+  "corrections": [],
+  "risk_policy_confirmation": "The ordinary Sol high local reviewer change is acceptable because mandatory/pending Astra security/persisted/timing stages remain separate binding source-current gates; local review is explicitly insufficient for critical acceptance. Existing C03/D04 finite Astra medium and final Astra high stages remain allocated. Deduplication is allowed only when selected scope/evidence truly covers the gates; cannot erase approval-pending stages. Unreleased consequential owner/store and identity/security policy needs owner/JEV release and stronger expert judgment before cheap coding.",
+  "limits": "This verifies metadata consistency and preservation wording, not completeness of any critical review scope, actual runtime acceptance, representative model performance or savings.",
+  "resolved_corrections": [
+    {
+      "id": "FINAL-R03",
+      "issue": "Generic escalation.next_combination names Sol high despite this being a review-only required Astra high packet.",
+      "fix": "Set next_combination to gpt-6-astra/high, or explicitly restrict Sol escalation to prepared-record/fixture subwork so it cannot select the final reviewer."
+    }
+  ],
+  "final_correction_reread": {
+    "scope": "Only FINAL-R03 escalation correction, explicit cheap-work guard and four current hashes reread; earlier bounded consistency findings preserved.",
+    "FINAL_R03_required_reviewer_preserved": true,
+    "cheap_work_cannot_adjudicate_contract_or_acceptance": true,
+    "validator_37_of_37": "Reported by root; not independently rerun in this correction-only reread."
+  }
+}

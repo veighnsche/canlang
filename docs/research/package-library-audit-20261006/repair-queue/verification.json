@@ -109,8 +109,48 @@
     {
       "check": "security approval/HOLD/compiler boundaries explicit",
       "passed": true
+    },
+    {
+      "check": "all 48 packet-specific model allocations unique and exact",
+      "passed": true
+    },
+    {
+      "check": "model allocation remains planning only",
+      "passed": true
+    },
+    {
+      "check": "delegated model and reasoning pairs supported by current policy",
+      "passed": true
+    },
+    {
+      "check": "queue and independent model allocation rows agree",
+      "passed": true
+    },
+    {
+      "check": "critical stage references resolve without invented duplicate tasks",
+      "passed": true
+    },
+    {
+      "check": "final review-only packet preserves required Astra high reviewer",
+      "passed": true
+    },
+    {
+      "check": "cheap assistance cannot adjudicate unreleased contracts",
+      "passed": true
+    },
+    {
+      "check": "technical queue unchanged by economical model amendment",
+      "passed": true
+    },
+    {
+      "check": "economical implementation and ready-role counts match rows",
+      "passed": true
+    },
+    {
+      "check": "historical high planning settings are not dispatch defaults",
+      "passed": true
     }
   ],
-  "passed": 27,
-  "total": 27
+  "passed": 37,
+  "total": 37
 }

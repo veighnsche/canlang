@@ -16,7 +16,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Only actual Values malformed numeric codec diagnostics and String/JSON owner execute the changed Values helper. Work identities are an independently released packet, not a prerequisite.
 - **Positive acceptance:** Compare exact String/JSON text for threshold neighbors, subnormal, signed zero, NaN/±Infinity and f64 bits; retain historical diagnostics and persisted identity bytes.
 - **Negative acceptance:** JSON nonfinite is null while String stays words; 1e20 cannot saturate to i64; invalid input keeps original structured errors and fault order. No TS retirement.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Frozen pinned numeric adapter; finite owner-specific diagnostics and text corpus. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-V01-work
 
@@ -32,7 +37,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Only actual Work row/receipt/linkage/recovery String/JSON and persisted identity builders execute the Work helper. Registered Rust functions alone do not prove public Work routing; Values release is independent.
 - **Positive acceptance:** Compare exact String/JSON text for threshold neighbors, subnormal, signed zero, NaN/±Infinity and f64 bits; retain historical diagnostics and persisted identity bytes.
 - **Negative acceptance:** JSON nonfinite is null while String stays words; 1e20 cannot saturate to i64; invalid input keeps original structured errors and fault order. No TS retirement.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Frozen numeric adapter and private forwarding deletion; persisted bytes require independent review. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-W01-quote
 
@@ -48,7 +58,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Independent native row/receipt/linkage IDs plus JSON payload identity call the new leaves; not a generic object/value bridge.
 - **Positive acceptance:** Every raw UTF16 unit, lone surrogate, valid pair, control unit and JSON payload identity has the same exact bytes; real independent leaf callers execute shared helper.
 - **Negative acceptance:** Lone units are escaped, never replaced; URI encoding is separate and still refuses malformed pairs. No enum/graph/public type unification.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Frozen UTF16 quote extraction across leaf-local carriers; exhaustive unit corpus and bytes. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-W01-uri
 
@@ -64,7 +79,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Independent native row/receipt/linkage IDs plus JSON payload identity call the new leaves; not a generic object/value bridge.
 - **Positive acceptance:** encodeURIComponent allowed punctuation -_.!~*'(), uppercase hex and %20; valid astral text; exact escaping/control-unit/lone-surrogate JSON quote bytes; unchanged stored IDs.
 - **Negative acceptance:** URI lone surrogates retain leaf URIError code/field presence; quoting must preserve lone units rather than U+FFFD; do not merge enum_entries, graph clones, retry profiles or public types.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Pinned URI adapter after target/lock qualification and exact corpus; unresolved qualification is not cheap coding. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-V03
 
@@ -80,7 +100,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** parseOwnedJsonBody→readOwnedJson and provenance-bearing registerValidationPlan; private hook qualification only until actual serving join exists.
 - **Positive acceptance:** Normalized decimal default retains coefficient/scale/-0 and specified identity; successful registration/release content behavior remains; controlled text/value/bytes agree.
 - **Negative acceptance:** Mutate retained reader buffer, returned value and byte record; authority cannot silently change. First valid default then later invalid Decimal/reserved field leaves no inaccessible partial state or accepted plan. Forged/frozen schema still refuses.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Parser issuance/content authority, scalar carriers, transactional failed registration and mutation aliasing. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-V04
 
@@ -96,7 +121,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Raw decode-value→wasmBackend→owning SchemaError facade for selected profile; actual installed Node/Bun/workerd admission required only when that scope is claimed.
 - **Positive acceptance:** Unique tuple money/int decode values + ordered violations; supported errors retain codes/paths/fields; same asset startup control; existing six-op receipts reused at their narrow scope.
 - **Negative acceptance:** Duplicate tuples refuse before guards; astral truncation/lone surrogates remain explicit TS exclusions until lossless carrier release; shape≠canonical JSON bytes; input.digest echo cannot be dedupe/signature/privacy hash; retired capacity mismatch/startup failure cannot return accepted backend.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Codec domain/resource/unique-key contract plus installed ABI/glue/startup and capacity joins. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-V05
 
@@ -112,7 +142,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Owning date/timezone/locale public operations in exact supported released host, with current raw timezone values preserved.
 - **Positive acceptance:** Released fold/gap/timezone/calendar and exact decimal retained-zero/minus/grouping corpus with actual data identities.
 - **Negative acceptance:** Case/alias-heavy raw keys must satisfy released memory bound without normalizing public semantic value; unsupported data/host cannot silently pass pin claim; bidi/localized digit output cannot be introduced through unapproved Intl transition.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Exact ICU/tzdb/currency host contract qualification; cache and zone policy remain unselected. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-S01
 
@@ -128,7 +163,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual D1/DO queryRecords ordering/filter/row decode and mutation/migration/grant callers import shared leaves; ordinary generated read separately retains full outcome gates.
 - **Positive acceptance:** Same SQL bindings, own identifiers, JSON normalization, first errors, all-or-reject query result; both backend transactions still own commit.
 - **Negative acceptance:** constructor/toString metadata names cannot resolve inherited function as column; invalid names refuse safely; getter/own-data path and freeze timing unchanged; no moving full transactions into generic adapter.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Existing private backend leaf equivalence; ordinary technical extraction with full current caller profiles. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-S01-own-key
 
@@ -144,7 +184,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual D1/DO queryRecords ordering/filter/row decode and mutation/migration/grant callers import shared leaves; ordinary generated read separately retains full outcome gates.
 - **Positive acceptance:** Same SQL bindings, own identifiers, JSON normalization, first errors, all-or-reject query result; both backend transactions still own commit.
 - **Negative acceptance:** constructor/toString metadata names cannot resolve inherited function as column; invalid names refuse safely; getter/own-data path and freeze timing unchanged; no moving full transactions into generic adapter.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Existing own-property lookup correction once pending review/release permits it; no new metadata policy. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-S02
 
@@ -160,7 +205,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Generated CRUD→canonical invoke→assembly buildInvoker→HTTP outcome.result plus supported public query and replay; current helper source establishes gap, not deployed/compiler acceptance.
 - **Positive acceptance:** Receipt/current authorized fields remain useful; persisted success replays same semantic outcome through current authority projection.
 - **Negative acceptance:** Plain random_secret hex never readable even explicit grant; no-read-policy mutation cannot leak hidden ordinary fields; first-success/public-read/replay negative controls all run on actual joined producer.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Secret-aware first-success/public-read/replay projection through generated authoritative joined callers. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-S03
 
@@ -176,7 +226,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Assembled deps.store read/ref and mutation against two same-model owner datasets; actual installed host routing, not memory-double or receipt namespace proof.
 - **Positive acceptance:** A reads/writes own rows and authorized explicit public exceptions; host routing matches resolved owner.
 - **Negative acceptance:** A cannot read/ref B same-model rows from mixed injected store; unknown/mixed host binding refuses before operations. Conditional configuration witness is not a deployed IDOR claim.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review, consequential-owner-store-contract-if-selected
+- **Economical dispatch:** Actual app/team/owner store resolution and scoped authority topology; unresolved consequential choice cannot be delegated to cheap worker. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-W02
 
@@ -192,7 +247,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** F7 actual source/child/scheduler caller and owner transaction; direct memory witnesses only partial evidence, then actual D1/DO crash/restart path.
 - **Positive acceptance:** Stable terminal-prefix sweep reaches stale child; freshly admitted B facts drive B effect; child outcome and own checkpoint commit together; cursor-only maintenance remains distinct.
 - **Negative acceptance:** Completed a before stale running b at pageLimit1 cannot strand b forever; old A effects cannot follow fresh B admission; outcomeA/coverA cannot authorize unrelated checkpointB; read failure remains unknown rather than deleted.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Child lifecycle, fresh facts, atomic fanout outcome and durable crash/restart callers. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-W03
 
@@ -208,7 +268,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Original State/Work source producer→already-demanded closed facts→single startup-selected synchronous adapter→owner staging/conditional commit, separately on actual installed target.
 - **Positive acceptance:** f64/-0 until JSON sink; Work alias refusal vs State clone-only; presence/undefined; duplicate last-wins; empty cursor≠done; original callback throw/random/evidence demand traces.
 - **Negative acceptance:** No eager fact collection, fixed-width coercion, generic graph clone, second shadow effects, implicit fallback/default native, authority verdict crossing or callback-driven native bridge. 86 registered Rust functions do not establish ABI/product adoption.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Synchronous ABI/bootstrap/assets, demand/provenance, staging and installed/durable whole-call joins. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-I01
 
@@ -224,7 +289,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual authoritative IdentityStore OAuth/verification/presession/invitation consume and recovery/last-owner cascades on D1, then mounted generated state join.
 - **Positive acceptance:** Exactly one valid contender wins; completed rotation revokes old password/session/grant capabilities; declared burn-before-mint/expiry/first failure policy retained.
 - **Negative acceptance:** Zero-row loser cannot mint; crash after each recovery phase can finish or rolls back truthfully; concurrent last owners cannot both disappear; response-loss replay cannot recreate bearer authority without approved policy.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review, persisted-security-and-timing-contract-if-changed
+- **Economical dispatch:** Identity consume/recovery/last-owner transactional winner and bearer replay authority; freeze consequential contract first. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-I02
 
@@ -240,7 +310,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** OAuth issue/exchange actual mounted route; cookie-auth grant issuance; MCP SDK transport and per-call current-session checks; suspended body/effect revocation caller.
 - **Positive acceptance:** Canonical43 challenge permits valid verifier; exact redirect/client/generic failures; approved legitimate browser/nonbrowser sessions work; current authority at released effect boundary.
 - **Negative acceptance:** 44/128 challenge fails before issuance; missing/malformed verifier cannot succeed; foreign browser presession/origin and hostile bodies refuse under released contract; pre-invoker reread never advertised as atomic commit fencing or valid-bearer Origin acceptance as auth bypass.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review, persisted-security-and-timing-contract-if-changed
+- **Economical dispatch:** Mounted OAuth challenge/presession/Origin profiles and revocation-during-effect; pure released S256 leaf can be Sol medium. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-F01
 
@@ -256,7 +331,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual upload HTTP PUT→durable blob+metadata→finalized receiving file→canonical mutation replay; independently persisted stores, restart, multiple owner clients.
 - **Positive acceptance:** Exact declared bytes/count/digest and MIME prefix/length guard; retry same mutation recovers same finalized ref; no resurrection of tombstoned ref.
 - **Negative acceptance:** Declared1 append A then crash-before-count, retry A cannot finalize AA as size1; reply-loss partial PUT cannot blindly append duplicate chunk; crash at each final-write/staging-remove/file-row/intent-row phase reconciles or refuses before immutable acceptance.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Durable append/count/blob recovery, retry identity and finalization crash phases. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-F02
 
@@ -272,7 +352,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Mounted upload intent→current writable slot; finalized attachment→canonical record/field authority/read/download; durable retention and verified provider receiving-file ingress.
 - **Positive acceptance:** Current same-owner readable attachment works; bounded retention respects every shared reference; receipt availability and original finalized identity truthful; verified fresh provider event finalizes once.
 - **Negative acceptance:** Unavailable operation/field, deleted/missing bytes, expired retention, foreign record and replayed provider event refuse; delete-before-stateput restart cannot leave live attachment authority; multiple attachment references cannot be overwritten as a single sole blocker.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Attachment/download authority, resumable retention, provider receiving ingress and generated descriptor joins. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-SV01
 
@@ -288,7 +373,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** SystemOne actual allowlisted wire submission and ComfyUI cancel(job,{deliveryId}) route, with provider effect recorder.
 - **Positive acceptance:** ASCII77 under cap77 and é body78 under cap78 send exact original bytes; valid job/delivery cancellation remains best effort with truthful observation.
 - **Negative acceptance:** é UTF8 body78 under cap77 refuses before send; cancel valid job with empty deliveryId refuses before POST; no truncation, remint, generic serializer or claimed preallocation bound.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Bounded configured UTF8 request-byte and cancel lexical checks after selected security release. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-SV02
 
@@ -304,7 +394,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual Mail/Ollama safe error consumers and ComfyUI failure detail; real dispatch provider call with stale recovery while original remains live; supported stream consumer returns iterator.
 - **Positive acceptance:** Legitimate contract-consistent safe specificity; normal SDK/NDJSON final-only and early-return cleanup; original delivery/job identity reconciliation returns succeeded/failed/unknown truthfully.
 - **Negative acceptance:** Lowercase bearer/account-email/body/trace cannot leak; provider hang/late response remains uncertain and cannot duplicate acceptance; suspended/abandoned generator not falsely independently closed; failed POST redirect/cancel reply never proves remote no-effect.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Provider safe projection, late outcome correlation, hang uncertainty and stream lifecycle. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-SV03
 
@@ -320,7 +415,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual admitted graph mapping→hash→copy→provider submission and file receiving bridge with same-input retry.
 - **Positive acceptance:** Released ordinary graph values, original identity and submission shape preserved; provider/file retry IDs remain stable.
 - **Negative acceptance:** undefined/nonfinite/accessor/toJSON controls cannot hash one graph and submit another; invalid host profile refuses before provider effect; private arbitrary-JS witnesses not automatically remote JSON requirements.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Submitted graph domain/hash/copy identity and provider file bridge; new graph-domain policy remains unreleased. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-SV04
 
@@ -336,7 +436,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Real supported scenario fixture loading→Node harness and Worker playback; accepted fixture scopes remain fake/scripted, not durable provider acceptance.
 - **Positive acceptance:** Equivalent script admission, bounded status/body and provider fixture routing; close releases acquired servers and timer resources.
 - **Negative acceptance:** Malformed script first errors unchanged; unsupported node endpoints not adopted in Worker; close leaves no mail drip timer; public mail harness compatibility and storage doubles retained, not relocated for fake savings.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Frozen portable harness/profile extraction with transport and lifecycle kept local. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-D01
 
@@ -352,7 +457,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual TS preparation host→buildDeployBundle and separate explicit phase callers; privately emitted packed CLI/API resolves producer imports.
 - **Positive acceptance:** Same object/result/error and two-phase bytes, shell-free argv, marker/catalog order and cleanup; production Work receipt observer fallback remains reachable.
 - **Negative acceptance:** Absent Bun/producer/worker/marker/malformed catalog refuse at original stage; fresh/stale archive cannot vendor old state test-loader keys or Node-only/test-suffix files; wrapper removal is not duplicate execution savings.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Existing shared bundle-body ownership and wrapper cleanup; packed freshness qualified separately. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-D02
 
@@ -368,7 +478,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** createMainFetch production deps and worker construction on actual env identities.
 - **Positive acceptance:** Same env concurrent callers share exact Promise; different env isolated; grant routes use deps without eager worker artifacts/DDL.
 - **Negative acceptance:** Sync factory throw/timing stays exact; old rejected Promise cannot evict replacement; rejected construction retries; immutable artifact cache ownership remains separate TECH native/source gate.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / low — tightly specified technical leaf only.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Frozen WeakMap primitive, two maps retained and exact rejection eviction supplied. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-C01
 
@@ -384,7 +499,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Authoritative review maps shared-grammar headers/cells→owner-decoded candidates, browser advisory agrees at current profile; real State row invocation later DELC02.
 - **Positive acceptance:** Nullable mapped blank→null, required unconstrained text→empty string; unmapped optional/default remains absent; -0/0 and 00/0 normalized integer duplicates, exact int64 distinct.
 - **Negative acceptance:** Unknown all-blank header/protected/overlapping path and __proto__ reject rather than assignment loss; constrained empty text fails own constraint; decimal scale equality and old digest identity not silently redefined.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Type-directed normalized authority/schema/error order plus pre-parser resource admission. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-C02
 
@@ -400,7 +520,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Real CSV review producer freezes row identity/index/status and normalized input; commit verifies the matching app/user/team/session/expiry context. DEL-C02-order owns source order and REPLAY-IP07 owns replay admission; their receipts are acceptance cross-references only.
 - **Positive acceptance:** Valid review selection commits exactly its frozen selected inputs/context; row reorder/filter/tamper cannot silently select different source input. Qualify real mounted review and commit consumer.
 - **Negative acceptance:** Different review/session/team/user, expired context and altered selected input refuse before effects. Preserve distinct invalid/duplicate/unselected/partial/unknown outcomes. Order and replay failures are tested through their own remedy packets.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Astra 6 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review, C03-critical-consent-authority-review
+- **Economical dispatch:** Frozen review producer/commit integrity and app/user/team/session/expiry authority join. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-C02-order
 
@@ -416,7 +541,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual CSV commit entry invokes selected rows in original source-row order; independently observe effect order with a reversed caller selection. Review-context and replay admission remain separately owned.
 - **Positive acceptance:** Pass a reversed selected-row array and observe real invocation effect trace in original source-row order; preserve partial rejection/unknown results.
 - **Negative acceptance:** Duplicate/invalid/unselected rows cannot create extra effects; do not sort native rows outputs or change callback demand order.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Source-row invocation order correction, preserving selected statuses and partial/unknown failures. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-B01
 
@@ -432,7 +562,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Installed initializer on real Document/Window with emitted data-can-poll selectors, events/stop/rescan and body-await suspended fetch.
 - **Positive acceptance:** Context-visible alive poll delivers once; pause/resume/stop/detach/rescan and settled once-action behave under real markup; supported hooks acquire/dispose exactly once.
 - **Negative acceptance:** Logout/context/alive/visibility changes during body await cannot apply stale view; thrown supported hook cannot strand prior listeners; missing selector/no settle producer not silently credited; result suppression never claimed physical transport stop.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Real Document initializer/selectors plus teardown and body-await cancellation races. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-B02
 
@@ -448,7 +583,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual browser upload→finalized file before operation; authorized bounded download/print using real server assets/result URLs and current caller context.
 - **Positive acceptance:** Same upload retry mutation/finalized identity and progress; ordinary resources/CSS/module/htmx/context load; real bounded body/cleanup; authorized download/print output.
 - **Negative acceptance:** 501/revoked/expired/missing resource fails truthfully; body-read failure never false success; input/getter mutations cannot silently change pinned served bytes; tainted javascript href/external form needs released sink refusal while ordinary links stay useful.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Mounted browser auth/file/export/resource lifetime and immutable bytes/URL sinks. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-D03
 
@@ -464,7 +604,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Normal confirmed CLI text writer and Bun process; test scratch local-run/workerd lifecycle; mocked deploy child effects observed independently.
 - **Positive acceptance:** Contained symlink-free reviewed output works; each owned temp acquisition phase and instance disposal ends; original failures retained; returned run URL usable for promised lifetime.
 - **Negative acceptance:** Root/worker/target symlink refuses before external overwrite; mkdtemp→entry-write failure leaves no scratch; hung child bounded truthfully after local contract release; second-file failure reports partial writes; Wrangler start→nonzero/timeout leaves remote outcome uncertain, never automatic retry/no-effect.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Contained writer/symlink refusal, temp ownership, child command lifetime and uncertain remote effects. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-D04
 
@@ -480,7 +625,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual staged Node/workerd/installed module loader and diagnostic source-map location; trusted producer graph computed imports/error class crossings qualified.
 - **Positive acceptance:** Legal relative keys digest/loadability and original equal-column/source order/map errors preserved; installed diagnostic exact source coordinate.
 - **Negative acceptance:** Declared disjoint profile rejects worker/main.js and bundle.json collisions before publication; malformed import/free CommonJS binding cannot pass existing required loadability; stale/wrong source map reports wrong coordinate and must fail decisive caller check. T08 remains broader readable selector task.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Astra 6 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review, D04-critical-staged-diagnostic-review
+- **Economical dispatch:** Trusted producer namespace, CommonJS/lexer/map contract and installed diagnostic joins. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-D05
 
@@ -496,7 +646,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Future explicitly selected native process/session/job and PublicationSession API (not ordinary CLI); actual wire/child/disk observations after release.
 - **Positive acceptance:** Finite valid version/tag/token/resume protocol and exact-budget UTF16/f64/entries; exact reviewed bytes/keyset published once with truthful partial effect/cleanup.
 - **Negative acceptance:** Under64MiB frame flood during onNeed stall, stderr flood, Prepared/abortack+hang and extra complete terminal frame bound/refuse; large known-sized arrays/text refuse before unnecessary copies; stage a/review a/disk b and missing/extra/duplicate inventory refuse before shipping b; no TS retry or claimed peak bound from semantic cap.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Held native protocol/resources/publication byte/keyset/child lifecycle qualification; no dispatch before HOLD release. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-R01
 
@@ -512,7 +667,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Privately emitted packed public entries/CLI and authenticated Worker/browser APIs on earliest declared Node/Bun/workerd profiles; actual source paths/asset/backend identities recorded.
 - **Positive acceptance:** Exact delivered selected dependency closure and emitted freshness; class identity, SDK stateless initialize/result/cancellation and supported host crypto controls; real assets at permitted scope.
 - **Negative acceptance:** Old self-consistent manifest/source cannot claim current release; omitted offline fixture dependencies not install defect; facts-only Work import/ABI1/add-int not adoption; normal emit-after-native-pack inventory loss remains held future release gate. TECHV04/W03 own native fixes, this only delivery correspondence.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Exact emitted packed installed dependency, transport, schema, cancellation and Wasm ABI correspondence. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-E02
 
@@ -528,7 +688,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual runner comparator throw→returned RowScope.dispose; cleanup readers materialize original fixtures independently at existing JS/Rust/public command; reopen DO reset rows.
 - **Positive acceptance:** Original failure+cleanup failure retained; exact immutable donor/generator/Cargo root/history/source/run/tool pins reconstructible; source/donor/helper/scaffold/compiled/mounted/installed receipts truthfully labeled.
 - **Negative acceptance:** Unexpected comparator throw cannot skip scope disposal; scratch cleaned only after owned completion while failure evidence preserved; DO migration_failures reset or unique-ID isolation explicit; never erase gzip/JS donors/astral mismatch/exclusions/red fixture/stale map/pristine-patch identities/runtime Wasm+currency/type frontiers/intentional770byte bad-good fixtures/real substrate controls.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Current RowScope disposal correction and finite conditional cleanup after exact relevant gates; frozen receipt copy/deletion can be Luna medium. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## REPLAY-IP07
 
@@ -544,7 +709,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual HTTP and CSV invocation entry reaches the canonical retained receipt before unseen-age admission; observe storage calls/effects and public projection.
 - **Positive acceptance:** Old matching retained receipt replays with current authority and no repeated effect; source-row-order CSV correction remains separately owned.
 - **Negative acceptance:** Unseen expired ID refuses; changed-input reuse conflicts; revoked actor sees no saved secret result; trace proves no repeated effect.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Bounded premature age-gate removal under existing canonical replay contract; authority negatives mandatory. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## PARSER-DP01
 
@@ -560,7 +730,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual form operation and supported collection-filter caller retain own declared key; filter passthrough has no broad mounted consumer claim.
 - **Positive acceptance:** Own __proto__/constructor/toString and ordinary keys have matching own-property presence and values in admitted source formats.
 - **Negative acceptance:** Malformed/unknown keys preserve refusal; prototype cannot mutate; test helper alone does not qualify production query effects.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / low — tightly specified technical leaf only.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Own-property correction under existing declared wire keys; no new admission policy. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## VERIFY-TV01
 
@@ -576,7 +751,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Enumerate actual discovered files through owning runners; trace pristine emitted source/asset hashes against the matching invoked consumer.
 - **Positive acceptance:** Identity colocated tests are honestly discovered or explicitly excluded; Values fixture layout/source parity and Work full observation comparator pins are named.
 - **Negative acceptance:** An omitted test, stale dist or changed actual observation fails the receipt; do not edit oracle expectations to fit implementation.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Luna 6 / medium — frozen mechanical/record slice only.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Frozen runner discovery and exact hash/receipt extraction only; technical interpretation stays with reviewer. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-V02-violations
 
@@ -592,7 +772,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual normalizeSchema/decodeValue traversal calls the one private pushViolation leaf with original receiver/context.
 - **Positive acceptance:** Exact ordered path/code/expected/actual arrays and call position are unchanged.
 - **Negative acceptance:** First invalid member/error remains first; no traversal or caller-error projection is moved.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / low — tightly specified technical leaf only.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Private duplicate leaf extraction, preserving receiver/context and ordered traversal. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-V02-gregorian
 
@@ -608,7 +793,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual kinds/temporal calendar callers use one private pure Gregorian pair, with acyclic imports.
 - **Positive acceptance:** Same leap/century/month-boundary values and date results.
 - **Negative acceptance:** Invalid day/year refusal stays owned; do not introduce temporal↔kinds import cycle or Date.UTC profile change.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Luna 6 / medium — frozen mechanical/record slice only.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Pure duplicate leap/month pair with frozen values and acyclic imports. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-S04-admission
 
@@ -624,7 +814,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual canonical input admission/hash/copy and Work command input consumption enforce a released byte/depth/node/work profile before costly work.
 - **Positive acceptance:** Boundary-valid inputs preserve canonical identity, evaluation order and current authority.
 - **Negative acceptance:** Hostile huge/deep input refuses before excessive allocation/hash; no query/cohort claim or arbitrary new threshold.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Canonical input pre-hash/copy budget and preserved identity/evaluation order after owner profile release. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-S04-query
 
@@ -640,7 +835,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual queryRecords/recovery scanner and Work dispatch.recover(limit) control visited rows/work, not only returned array size.
 - **Positive acceptance:** Exact continuation/order/fence behavior on selected actual D1/DO and Work recovery consumer.
 - **Negative acceptance:** A tiny returned limit cannot hide an unbounded full scan; preserve first failure and no partial published progress. Hash/cohort limits are context-only.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Real durable scanned-work/continuation/fence query and recovery limits. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## TECH-S04-cohort
 
@@ -656,7 +856,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual frozen fanout membership/progress representation enforces the owner-selected finite cohort profile and durable continuation.
 - **Positive acceptance:** Unchanged admitted child order/identity, snapshot membership and progress bytes.
 - **Negative acceptance:** Hostile cohort cannot allocate unbounded representation or bypass checkpoint; query/hash policies are separate.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / high — full substantive join or contract-qualified implementation.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** existing-critical-security-review
+- **Economical dispatch:** Frozen durable fanout representation and continuation/progress bounds. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-U01-appearance
 
@@ -672,7 +877,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Ten renderer owners call the one private appearance leaf at the original composition position.
 - **Positive acceptance:** Byte-identical classes/attributes/defaults and local renderer output.
 - **Negative acceptance:** Caller options/errors/composition stay local; forms/raw-date and browser lifecycle are separate.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Luna 6 / medium — frozen mechanical/record slice only.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Exact private appearance leaves and fixed ten caller substitutions; byte oracle must already be frozen. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-U01-draft
 
@@ -688,7 +898,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Controls/forms call the six selected shared private draft leaves with unchanged raw-display/read traces.
 - **Positive acceptance:** Same draft value/missing/raw text and valid date/time display profiles.
 - **Negative acceptance:** Getter/first-error/read order stays exact; historical year0–99 discrepancy does not become mandatory policy or claimed repair.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Six frozen draft leaves with getter/read/error order and raw-display semantics. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-A01-error
 
@@ -704,7 +919,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** UI CSV parse/export callers share only the exact private business-error digest leaf.
 - **Positive acceptance:** Same trusted error shape/fallback/detail bytes.
 - **Negative acceptance:** Hostile/unexpected errors preserve refusal/fallback; provider secret projection and CSV grammar/consent are separately owned.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Luna 6 / medium — frozen mechanical/record slice only.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Two exact private digest profiles, with no new error projection policy. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-A01-binding
 
@@ -720,7 +940,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Envelope/MCP prepared callers share only exact toBindingEntry/deferralFor private leaves.
 - **Positive acceptance:** Same projection/default/deferral output and construction call order.
 - **Negative acceptance:** No eager construction, changed throw order or wider prepared/public ABI qualification.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / low — tightly specified technical leaf only.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Fixed private binding/deferral extraction, with construction demand and throw order unchanged. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-A01-admission
 
@@ -736,7 +961,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** CSV/export/MCP callers share exact object-body/Bearer lexical leaves; optional upload borrower requires its own release.
 - **Positive acceptance:** Same admitted body/auth lexical profile, owner error/result shape and call position.
 - **Negative acceptance:** Malformed body/Bearer preserves first refusal; no authentication policy, route or upload capability acceptance.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / low — tightly specified technical leaf only.
+- **Independent local review model:** Sol 6.1 / medium.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Frozen lexical object/Bearer leaves only; no trust/auth policy decision. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## DEL-A01-canonical
 
@@ -752,7 +982,12 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Actual CSV reviewed digest and export cell callers import one Interfaces-private canonicalJson leaf.
 - **Positive acceptance:** Exact recursive bytes, own key/value observations and getter-before-sort evaluation.
 - **Negative acceptance:** Holes/undefined/function fallback, bigint/cycle errors and side-effect order remain; no State/media identity unification.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Sol 6.1 / medium — ordinary bounded implementation/qualification.
+- **Independent local review model:** Sol 6.1 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** No extra critical stage selected; original required gates remain.
+- **Economical dispatch:** Two exact recursive canonical leaves with existing getter-before-sort, holes and error behavior. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).
 
 ## FINAL-R03
 
@@ -768,4 +1003,9 @@ Packet records below are transcribed from `queue.json`. Existing task IDs and pr
 - **Actual caller recipe:** Enumerate actual discovered files through owning runners; trace pristine emitted source/asset hashes against the matching invoked consumer.
 - **Positive acceptance:** Trace real selected caller/host chains, critical cross-package invariants and separate failure/rollback controls. Preserve explicit conditional/held/native/prototype limits.
 - **Negative acceptance:** Reject helper-only acceptance, stale artifacts, test-mirror oracles, changed persisted/security contracts without owner release and gross/overlapping savings.
-- **Technical planning model:** gpt-6.1-sol / high
+- **Historical planning model (not dispatch default):** gpt-6.1-sol / high
+- **Implementation / qualification model:** Review only — review-only; no implementation worker.
+- **Independent local review model:** Astra 6 / high.
+- **Cheap prepared records / fixtures:** Luna 6 low / medium, only for specified released recipes.
+- **Special review gates:** R03-final-selected-critical-review
+- **Economical dispatch:** Review-only final selected joined invariants; retain required Astra high independent review. Recheck the cheapest reliable supported pair before dispatch; see [allocation](model-allocation.md).

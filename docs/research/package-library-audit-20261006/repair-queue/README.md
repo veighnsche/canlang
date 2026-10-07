@@ -29,11 +29,11 @@ The conflict index records 44 exact-file conflicts. Acknowledgments are not yet 
 
 Common replacement, correctness, original-acceptance, security, native-preparation, ownership, and timer gates are defined once in `queue.json`; packet details below do not restate them. Preserve original task status/prerequisites and accepted helper scope. Old evidence credits remain limited to their recorded scope. Pending security review, native HOLD, and foreign compiler ownership remain active.
 
-See [packets.md](packets.md) for packet-level task IDs, files, prerequisites, deletions, caller checks, and planning model.
+See [packets.md](packets.md) for packet-level task IDs, files, prerequisites, deletions, caller checks, and separate implementation/review settings.
 
 ## Independent challenge and verification
 
-[Independent review](independent-review.md) verified seven corrections with no unresolved findings in its bounded planning scope. [Metadata verification](verification.json) passes 27/27 checks; rerun `python3 docs/research/package-library-audit-20261006/repair-queue/verify.py`. No product build/test was run.
+[Independent review](independent-review.md) verified seven corrections with no unresolved findings in its bounded planning scope. [Metadata verification](verification.json) passes 37/37 checks; rerun `python3 docs/research/package-library-audit-20261006/repair-queue/verify.py`. No product build/test was run.
 
 Disposition records: 44 retained, 29 selected refinements and three human-held native simplifications. These are not added to the 48 packet count. Production reductions are unmeasured: replacement-only candidates must reduce both readable production implementation and implementation plus maintained declarations over the complete changed closure, or retain the current mechanism. Correctness/capability changes use a separate budget.
 
@@ -105,3 +105,10 @@ The names below are packet labels refining existing IDs. Follow each link for ex
 | Packet | Owner / work |
 | --- | --- |
 | [DEL-D05](packets.md#del-d05) | HELD NATIVE PREPARATION · qualification |
+
+
+## Economical dispatch settings
+
+[Per-packet implementation/review allocation](model-allocation.md) covers all 48 packets. Each packet now has separate implementation/qualification and independent-review model/effort, with cheap prepared records/fixtures and concrete escalation gates. The old Sol/high field is historical planning evidence, not a blanket worker setting. Ordinary local review does not replace the existing critical gates. Three implementation lanes use finite packet-specific models; no implementation is released.
+
+The 20 ready packets allocate four to Luna medium, five to Sol low, ten to Sol medium, and one to Sol high. Stronger blocked joins retain risk-matched settings; no model change releases their prerequisites. [Allocation consistency review](model-allocation-review.json) checks all 48 rows and preserves required critical reviews.
