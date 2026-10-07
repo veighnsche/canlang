@@ -163,48 +163,6 @@ function resolveRequestUrl(config: HttpClientConfig, request: HttpRequest): URL 
   return url;
 }
 
-/**
- * Combined abort wiring for one HTTP call. The caller-supplied signal is
- * combined with the client's own deadline/redirect controller so either
- * side can stop the transfer. The combination is wired by hand (not
- * `AbortSignal.any`) so the client depends only on `addEventListener`
- * on the caller signal, which every fetch-compatible runtime provides.
- * `release()` removes the listeners so a long-lived caller signal
- * never accumulates one listener pair per request. Distinguishing
- * caller cancellation from the deadline stays the caller's job: it
- * owns its signal and can read `signal.aborted`.
- */
-interface CombinedSignals {
-  readonly signal: AbortSignal;
-  readonly release: () => void;
-}
-
-function combinedSignals(
-  controller: AbortController,
-  request: HttpRequest,
-): CombinedSignals {
-  if (request.signal === undefined) {
-    return { signal: controller.signal, release: () => {} };
-  }
-  const merged = new AbortController();
-  const forward = (): void => {
-    if (!merged.signal.aborted) merged.abort();
-  };
-  if (controller.signal.aborted || request.signal.aborted) {
-    merged.abort();
-  } else {
-    controller.signal.addEventListener('abort', forward, { once: true });
-    request.signal.addEventListener('abort', forward, { once: true });
-  }
-  return {
-    signal: merged.signal,
-    release: () => {
-      controller.signal.removeEventListener('abort', forward);
-      request.signal?.removeEventListener('abort', forward);
-    },
-  };
-}
-
 interface FetchedResponse {
   readonly response: Response;
   readonly url: URL;
@@ -278,7 +236,7 @@ async function fetchWithRedirects(
       throw new HttpTransportError('timeout');
     }
     if (request.signal?.aborted === true) {
-      throw new DOMException('The operation was aborted.', 'AbortError');
+      throw signal.reason;
     }
     if (location === null) {
       return { response, url };
@@ -305,14 +263,24 @@ async function fetchWithRedirects(
 
 function startDeadline(
   config: HttpClientConfig,
-): { controller: AbortController; timer: ReturnType<typeof setTimeout>; timedOut: () => boolean } {
+  request: HttpRequest,
+): { signal: AbortSignal; timer: ReturnType<typeof setTimeout>; timedOut: () => boolean } {
   const controller = new AbortController();
-  let expired = false;
+  const signal = request.signal === undefined
+    ? controller.signal
+    : AbortSignal.any([request.signal, controller.signal]);
   const timer = setTimeout(() => {
-    expired = true;
     controller.abort();
   }, config.timeoutMs);
-  return { controller, timer, timedOut: () => expired };
+  // The deadline's private abort reason identifies whether it won. A later
+  // deadline must not relabel caller cancellation while fetch/body rejection
+  // is still pending. AbortSignal.any retains the first reason without our
+  // own listeners on long-lived caller signals.
+  return {
+    signal,
+    timer,
+    timedOut: () => controller.signal.aborted && signal.reason === controller.signal.reason,
+  };
 }
 
 export async function httpRequest(
@@ -321,11 +289,7 @@ export async function httpRequest(
 ): Promise<HttpResponse> {
   assertValidHttpConfig(config);
   const startUrl = resolveRequestUrl(config, request);
-  const { controller, timer, timedOut } = startDeadline(config);
-  const { signal, release: releaseSignals } = combinedSignals(
-    controller,
-    request,
-  );
+  const { signal, timer, timedOut } = startDeadline(config, request);
   let bodyText: string;
   let fetched: FetchedResponse;
   try {
@@ -356,7 +320,6 @@ export async function httpRequest(
     }
   } finally {
     clearTimeout(timer);
-    releaseSignals();
   }
   if (fetched.response.status < 200 || fetched.response.status > 299) {
     throw new HttpStatusError(fetched.response.status, bodyText);
@@ -389,11 +352,7 @@ export async function httpRequestBinary(
 ): Promise<HttpBinaryResponse> {
   assertValidHttpConfig(config);
   const startUrl = resolveRequestUrl(config, request);
-  const { controller, timer, timedOut } = startDeadline(config);
-  const { signal, release: releaseSignals } = combinedSignals(
-    controller,
-    request,
-  );
+  const { signal, timer, timedOut } = startDeadline(config, request);
   let bytes: Uint8Array;
   let fetched: FetchedResponse;
   try {
@@ -424,7 +383,6 @@ export async function httpRequestBinary(
     }
   } finally {
     clearTimeout(timer);
-    releaseSignals();
   }
   if (fetched.response.status < 200 || fetched.response.status > 299) {
     throw new HttpStatusError(
@@ -466,11 +424,7 @@ export async function* httpStreamText(
 ): AsyncGenerator<HttpStreamProgress, { status: number; url: string }, void> {
   assertValidHttpConfig(config);
   const startUrl = resolveRequestUrl(config, request);
-  const { controller, timer, timedOut } = startDeadline(config);
-  const { signal, release: releaseSignals } = combinedSignals(
-    controller,
-    request,
-  );
+  const { signal, timer, timedOut } = startDeadline(config, request);
   try {
     const fetched = await fetchWithRedirects(
       config,
@@ -566,6 +520,5 @@ export async function* httpStreamText(
     return { status: response.status, url: fetched.url.href };
   } finally {
     clearTimeout(timer);
-    releaseSignals();
   }
 }
