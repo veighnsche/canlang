@@ -145,11 +145,13 @@ async function denyOrRerender(
 function coerceFormBody(form: Record<string, string>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(form)) {
+    let coerced: unknown;
     try {
-      out[key] = JSON.parse(value) as unknown;
+      coerced = JSON.parse(value) as unknown;
     } catch {
-      out[key] = value;
+      coerced = value;
     }
+    Object.defineProperty(out, key, { value: coerced, enumerable: true, writable: true, configurable: true });
   }
   return out;
 }
