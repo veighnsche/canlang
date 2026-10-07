@@ -1,0 +1,28 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running tests/catalog_input_contract.rs (/private/tmp/canlang-compiler-pass6/debug/deps/catalog_input_contract-fc3e3554280ef78f)
+
+running 3 tests
+PROFILE packages/values/src/catalog.ts: bytes=18748 sha256=443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb
+PROFILE packages/values/scripts/emit-catalog.mjs: bytes=2518 sha256=45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d
+PROFILE packages/values/dist/src/catalog.js: bytes=18732 sha256=1b5a52a148437ee7301cff8a68efa439448b7304b4ff85f6189ecaf75ad8925f
+PROFILE packages/values/dist/src/index.js: bytes=630 sha256=51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c
+PROFILE packages/values/dist/catalog.json: bytes=22290 sha256=cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62
+test loader_and_cli_retain_first_decoded_member_and_ignore_unknown_extras ... ok
+test available_producer_catalog_loads_without_rebuilding_packages ... ok
+test syntax_envelope_entry_and_signature_failures_keep_codes_and_source_anchor ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/json_input_contract.rs (/private/tmp/canlang-compiler-pass6/debug/deps/json_input_contract-4b50ef73a0c8c0df)
+
+running 6 tests
+test framing_body_limit_remains_independent_of_json_depth ... ok
+test heterogeneous_whitespace_unicode_and_number_looking_strings ... ok
+test number_lexemes_and_lexical_integer_accessor_stay_distinct ... ok
+test malformed_grammar_and_strings_reject_with_byte_anchors ... ok
+test ordered_decoded_duplicates_and_marker_objects_are_ordinary_values ... ok
+test depth_is_value_entry_depth_including_empty_deepest_containers ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

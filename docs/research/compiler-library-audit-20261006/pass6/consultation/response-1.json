@@ -1,0 +1,55 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "Pass 6 replaces only the compiler's catalog/LSP JSON input grammar. The verified representation is an ordered vector of decoded key/value pairs, including duplicates; lookup returns the first member. Legal number text, including -0, huge integers, exponent case and zero padding, must survive exactly. The i64 accessor admits only lexical integers in range; LSP separately accepts exact mathematical integers in signed i32 range and echoes their original spelling. Keys and strings must reject lone surrogates, and parsing must consume one complete document. Root depth is zero with value-entry limit 64, including acceptance of an empty terminal container at depth 64. The limit must stop parsing before an unbounded tree forms. LSP's existing inclusive 64 MiB body limit is checked before body allocation; strict UTF-8 is already enforced by input callers. Reserved top-level LSP member duplicates reject; unknown and nested duplicate policies remain as implemented.\nSerde 1.0.229 and serde_json 1.0.151 are already pinned with std/derive and std/raw_value, default features disabled. Candidate A uses a roughly 90-line bounded seed/visitor and tracked std::io reader cursor in place of about 280 lines of handwritten grammar/UTF-8 handling. Only numeric primitives use IgnoredAny, so Serde validates their grammar while the adapter copies the exact source slice. All other values and keys use strict decoded string/value visitors and ordered maps. Explicit root/object/array origin accounts for pinned single-byte reader lookahead: arrays peek before invoking the seed, objects consume the colon without peeking the value. Cached library source verifies this. No new feature, full grammar scanner, synthetic number marker or whole-subtree ignored scan is needed. The scratch candidate passed 297 independently expected numeric/context cases, 25 malformed grammar/Unicode cases, 3 marker/decoded-duplicate cases and 28 historical depth comparisons. A 20,001-byte document nested 10,000 levels stopped after 66 bytes. A mixed 360 KB benchmark took about 98 ms over 30 parses versus 50 ms for the existing parser; this is about a twofold throughput cost, not measured production latency. Actual catalog/LSP qualification remains required.\nCandidate B would first perform bounded strict library validation and then reconstruct raw values; it may require arbitrary_precision for large numbers and greater reparsing/adaptation. It has not been fully qualified. A bare library Value loses order/duplicates/lexemes; naive arbitrary_precision can confuse real private-marker objects and alter number spellings. Whole-document RawValue alone does not supply strict Unicode and the required parse-time budget. Candidate C retains the proven bounded handwritten parser, avoiding new coupling and the measured cost, but leaves the requested grammar retirement incomplete; no new parser defect was observed.\nThe public ParseError has offset: usize and message: &'static str, and displays invalid JSON at byte N: reason. No repository production code reads the fields or constructs it except its definition. Catalog errors include that display under E6003 with the same origin and source span. LSP discards parser details and returns fixed -32700/null invalid JSON. Current tests do not freeze the old exact wording/positions. The compiler crate is publish=false; external Rust source consumers are unqualified. Serde offers public error category, line and column plus an owned detailed display reason. Any migration must explicitly classify byte positions and diagnostic wording/type changes without leaking strings or rebuilding grammar to mimic legacy reasons.",
+    "questions": {
+      "engine_policy": {
+        "type": "choice",
+        "instructions": "Which engine policy best satisfies the frozen outcomes with proportionate maintenance and runtime expense, using only the evidence actually established?",
+        "criteria": {
+          "pinned_cursor": "Adopt qualified single-pass cursor glue, document and requalify pinned reader behavior, measure actual consumers before acceptance, and accept its observed prototype cost if production is proportionate.",
+          "two_pass": "Develop and qualify bounded validation plus raw reconstruction before retiring the parser, trading extra code, passes and possible features for less cursor reliance.",
+          "retain_bounded": "Keep the proven bounded grammar now and defer retirement explicitly; its simpler compatibility and faster measured path outweigh replacement benefits at this boundary."
+        }
+      },
+      "error_policy": {
+        "type": "choice",
+        "instructions": "Choose how ParseError should carry reasons, balancing declared source compatibility with useful catalog diagnostics.",
+        "criteria": {
+          "static_categories": "Retain &'static str and use broad public syntax/EOF/IO categories with an explicit depth reason and byte position; this preserves the field type but coarsens catalog details.",
+          "owned_native_reason": "Use an owned String reason from the library while retaining byte offset, display prefix and caller mappings; explicitly record public field-type and detailed wording/position changes.",
+          "mapped_static_details": "Preserve static reasons through a pinned native-message mapping with fallback categories; this keeps the field type and more detail at the expense of string coupling and mapping upkeep."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "engine_policy": {
+        "type": "choice",
+        "choice": "retain_bounded",
+        "confidence": 0.36,
+        "probabilities": {
+          "two_pass": 0.01,
+          "retain_bounded": 0.57,
+          "pinned_cursor": 0.42
+        }
+      },
+      "error_policy": {
+        "type": "choice",
+        "choice": "owned_native_reason",
+        "confidence": 0.34,
+        "probabilities": {
+          "owned_native_reason": 0.55,
+          "static_categories": 0.39,
+          "mapped_static_details": 0.06
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1359,
+      "output_tokens": 92
+    }
+  }
+}
