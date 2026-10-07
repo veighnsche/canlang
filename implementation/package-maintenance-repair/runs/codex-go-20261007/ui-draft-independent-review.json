@@ -1,0 +1,185 @@
+{
+  "packet": "DEL-U01-draft",
+  "role": "independent source and finite runtime reviewer",
+  "baseline": "108e81c",
+  "verdict": "accept within exact three-file native TypeScript/server-rendered caller scope",
+  "actionableFindings": [],
+  "sourceHashes": {
+    "controls": "febfd0138192a285dea86b7a3d11bce7849d0a803b08a26254a8ff16793646e8",
+    "forms": "6b53fc1fb2bbc794476b1d922fdd9225d16e45c69da5e1d93c5609e94e662674",
+    "internal/draft-values": "e1b71afa0fe544254e6c0c84505b16341e8216c405369adf6c95f7fe9c73df71"
+  },
+  "sourceStable": true,
+  "structural": [
+    {
+      "owner": "controls",
+      "sharedBodies": 8,
+      "remainingTopLevelStatements": 56,
+      "allRemainingStatementsExact": true,
+      "baselineSha256": "04eb1095f1cc7f3f1773d7509337e1fd468b27256b926dcaf9a2d4ea32ac8e02"
+    },
+    {
+      "owner": "forms",
+      "sharedBodies": 8,
+      "remainingTopLevelStatements": 81,
+      "allRemainingStatementsExact": true,
+      "baselineSha256": "8c4e1890c0d7a52bf6e91be83b26f2d40f675bed8bfab222797f19eaf4b67f71"
+    }
+  ],
+  "commonSourceFilesIdentical": 32,
+  "helperRuntimeImports": 0,
+  "checks": [
+    "All eight moved function bodies match both original owner bodies exactly; all other owning statements match after excluding only moved leaves and duplicate regex declarations",
+    "Controls retains original INT_RE and DATE_RE needed by remaining owner functions; helper regex values and raw profiles match original",
+    "Datetime exception wrappers remain local, differing and unchanged; module contains one type-only import and introduces no runtime cycle",
+    "Public controls/forms declaration bytes and hashes unchanged; no owner augmentation statement changed",
+    "Fresh exact strict package emits and source-current controls/forms/generated caller tests pass on independently copied baseline/current; common inputs held equal",
+    "502 independently authored caller cases per variant compare complete HTML and fault/property/getter/fallback observations; reject a mutation of getter trace, HTML byte string or exception message"
+  ],
+  "freshRuntime": {
+    "existingCallerTestsPerVariant": 183,
+    "independentCasesPerVariant": 502,
+    "wholeObservationParity": true,
+    "independentCaseCoverage": [
+      "all eight leaves through controls/forms/conflict render paths",
+      "null/undefined, arrays/objects, booleans, safe and unsafe/fractional/nonfinite numbers, bigint and preserved lexical drafts",
+      "Date.UTC 0..99 year rejection, leap/invalid dates and Date.UTC throwing marker",
+      "proxy getter paths/types/values with throwing and changing reads",
+      "invalid timezone and unchanged distinct datetime exception context",
+      "rawText nested getter, toJSON throwing/undefined/bigint, cyclic and Symbol coercion, string fallback throwing and exact exception identity"
+    ]
+  },
+  "economics": {
+    "baseline": {
+      "production": {
+        "readable": 3017,
+        "physical": 3077,
+        "bytes": 111957
+      },
+      "declarations": {
+        "readable": 39,
+        "physical": 253,
+        "bytes": 14026
+      },
+      "complete": {
+        "readable": 3056,
+        "physical": 3330,
+        "bytes": 125983
+      }
+    },
+    "current": {
+      "production": {
+        "readable": 2896,
+        "physical": 2967,
+        "bytes": 108649
+      },
+      "declarations": {
+        "readable": 48,
+        "physical": 263,
+        "bytes": 14667
+      },
+      "complete": {
+        "readable": 2944,
+        "physical": 3230,
+        "bytes": 123316
+      }
+    }
+  },
+  "productionReadableDelta": -121,
+  "completeReadableDelta": -112,
+  "completePhysicalDelta": -100,
+  "completeBytesDelta": -2667,
+  "privateDeclarationReadableOverhead": 9,
+  "publicOwnerDeclarations": [
+    {
+      "owner": "controls",
+      "sha256": "9ce5268efe7ed6b9ddad3ab9234b42b4060f2d20554cdbc99d4f9efaa30e368c",
+      "same": true
+    },
+    {
+      "owner": "forms",
+      "sha256": "4bceac554fd05815ea651e27e96914f776554dbccf78ef745d5092a5a4406801",
+      "same": true
+    }
+  ],
+  "commands": [
+    {
+      "label": "baseline-fresh-strict-emit",
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.json",
+        "--incremental",
+        "false"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/baseline/ui",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/baseline-fresh-strict-emit.log"
+    },
+    {
+      "label": "baseline-real-caller-tests",
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "--test",
+        "dist/test/controls.test.js",
+        "dist/test/forms.test.js",
+        "dist/test/t20a-generated-forms.test.js",
+        "dist/test/t20b-generated-depth.test.js"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/baseline/ui",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/baseline-real-caller-tests.log"
+    },
+    {
+      "label": "current-fresh-strict-emit",
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.json",
+        "--incremental",
+        "false"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/current/ui",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/current-fresh-strict-emit.log"
+    },
+    {
+      "label": "current-real-caller-tests",
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "--test",
+        "dist/test/controls.test.js",
+        "dist/test/forms.test.js",
+        "dist/test/t20a-generated-forms.test.js",
+        "dist/test/t20b-generated-depth.test.js"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/current/ui",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/current-real-caller-tests.log"
+    },
+    {
+      "command": [
+        "node",
+        "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/callers.mjs"
+      ],
+      "exit": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/independent-callers.log"
+    }
+  ],
+  "evidence": {
+    "static": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/static-review.json",
+    "rawCallerObservations": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/independent-caller-observations.json",
+    "reviewDriver": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent-driver.mjs",
+    "callerDriver": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/callers.mjs",
+    "negativeControls": "/private/tmp/canlang-repair-go-20261007/ui-draft-independent/comparison-negative-controls.json"
+  },
+  "limits": [
+    "Finite private strict TypeScript and server-rendered real callers only; no browser/UI accessibility end-to-end, backend, installed package or release acceptance",
+    "No native kernel/transport/security/opaque-ref lifecycle/default adoption claim",
+    "No source, Git, docs, compiler, shared distribution, install or state mutations; outputs are private",
+    "Existing controls/forms runtime cycle is retained; shared helper introduces no new runtime import"
+  ],
+  "ownership": "Exact source read lease released; no outstanding edits or writes."
+}

@@ -164,3 +164,5 @@ Interfaces internal/prepared-binding.ts owns shared private entry/deferral mecha
 Interfaces internal/input-admission.ts owns only shared object-body and Bearer lexical mechanics; local authorization, error/status and uploads availability remain with handlers. Source/declaration reduction is accepted with test maintenance separately charged. Security/installed joins and complete checkpoint reconciliation remain open.
 
 Identity default unit discovery includes its emitted authentication source tests; Work emit stages the existing owning numeric oracle/capture for its default contract tests. Narrow private source-current recipe checks are accepted, with Values provenance, installed and native observer obligations remaining. No new production owner or complete checkpoint advance.
+
+UI internal/draft-values.ts shares matching control/form private value profiles; differing datetime exception context and caller composition remain local. Source/declaration reduction is independently accepted without broader browser/backend/installed acceptance. Complete checkpoint unchanged.
