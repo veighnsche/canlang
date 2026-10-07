@@ -166,25 +166,25 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "TECH-S02 metadata",
+      "id": "TECH-S02 R1/R2 fix-forward",
       "agent": "/root/review_state_private",
       "model": "gpt-6.1-sol",
       "effort": "high",
-      "state": "ACKed exact source leases"
+      "state": "ACKed4exactwriteleases; fixing provenance bypasses"
     },
     {
-      "id": "TECH-W02 GAP-L04 independent review",
-      "agent": "/root/review_numeric_reduction",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "state": "ACKed read leases"
-    },
-    {
-      "id": "TECH-W01-uri private qualification",
+      "id": "DEL-D03 entry-write cleanup",
       "agent": "/root/review_ui_appearance",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "state": "ACKed frozen prerequisite qualification"
+      "state": "ACKed2exactwriteleases; source10/10passed, baseline leaked2scratchdirs"
+    },
+    {
+      "id": "TECH-I01 current prerequisite reconciliation",
+      "agent": "/root/review_numeric_reduction",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "state": "ACKedread-only exactsource; metadata renewed review priority"
     }
   ],
   "packet_state": {
@@ -229,7 +229,7 @@
     },
     "TECH-W01-uri": {
       "planning_status": "blocked",
-      "state": "ACKed private registered caller/resource/closure qualification active",
+      "state": "independently accepted finite extraction; scoped source commit prepared",
       "files": [
         "packages/work-kernel/decisions/rows.rs",
         "packages/work-kernel/decisions/receipt.rs",
@@ -240,7 +240,7 @@
         "packages/work-kernel/Cargo.lock",
         "packages/work-kernel/decisions/uri_text.rs"
       ],
-      "owner": "root",
+      "owner": "/root/review_ui_appearance",
       "outputs": "/private/tmp/canlang-repair-go-20261007/uri-preflight",
       "limit": "Pinned percent-encoding2.3.2 no-default-features native/Wasm existence test only; full caller/error/resource/closure qualification still required",
       "preflight": "Offline native2/2; wasm32 release compile0, sole percent-encoding2.3.2 no-default-features. Pure probe only, actual callers/error/resource/closure gates still open",
@@ -248,7 +248,28 @@
       "agent": "/root/review_ui_appearance",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "reason": "Frozen private leaf fit/caller/resource test without new policy or production source writes"
+      "reason": "Frozen private leaf fit/caller/resource test without new policy or production source writes",
+      "active_files": [
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/lib.rs",
+        "packages/work-kernel/decisions/uri_component.rs",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock"
+      ],
+      "private_v2_result": "/private/tmp/canlang-repair-go-20261007/uri-preflight/qualification/result-v2.json",
+      "qualification": "All sampled21 allocation profiles no worse than original; exact caller/errors/native controls pass. OUR maintained closure -100 lines, non-vendored dependency burden separate. Actual changed source and independent high review still required; original ABI/installed adoption not implied",
+      "writer_released": true,
+      "reviewer": "/root/review_state_private",
+      "producer_receipt": "/private/tmp/canlang-repair-go-20261007/uri-production/result.json",
+      "review": "uri-library-independent-review.json",
+      "readable_reduction": 100,
+      "full_closure_reduction": 100,
+      "external_upstream_readable_lines": 320,
+      "review_read_released": true,
+      "commit_pending": true,
+      "limits": "Original installed/native/Wasm ABI/backend/measurement gates open; no source payload or generated-output reduction credit"
     },
     "TECH-V03": {
       "planning_status": "blocked",
@@ -326,7 +347,7 @@
     },
     "TECH-S02": {
       "planning_status": "blocked",
-      "state": "ACKed bounded secret metadata/exact selector implementation active; public result/replay joins remain blocked",
+      "state": "independent review found policy JSON/toJSON and virtual array validation bypasses; candidate not accepted",
       "files": [
         "packages/state/src/mutation/crud.ts",
         "packages/state/src/mutation/pipeline.ts",
@@ -360,6 +381,17 @@
         "Raw/public result split and current first/replay response projection",
         "Trusted immutable result/dependency provenance and old receipts",
         "Fresh compiler/installed/native/durable/HTTP/MCP qualification"
+      ],
+      "reviewer": "/root/review_numeric_reduction",
+      "writer_released": true,
+      "source_pins": {
+        "registry": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
+        "runtime": "cce3bb7c384dc086ec6ccb67f6e235a80c73ba152e5bef6c0e42bf1b13c7ab02"
+      },
+      "producer_receipt": "/private/tmp/canlang-repair-go-20261007/secret-metadata/producer-receipt.json",
+      "review_defects": [
+        "Raw JSON comparison can conceal appDefinition/canApp public marks and contradictory selectors",
+        "Array instance virtual includes can forge read rule membership"
       ]
     },
     "TECH-S03": {
@@ -376,7 +408,7 @@
     },
     "TECH-W02": {
       "planning_status": "ready",
-      "state": "GAP-L04 independently accepted; source facts/pagination prerequisites active",
+      "state": "GAP-L04 committed; GAP-L01/L03 actual consumer regression packet ready for runtime handoff",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/state/src/fanout/lifecycle.ts",
@@ -400,12 +432,16 @@
       "reviewer": "/root/review_numeric_reduction",
       "review": "fanout-converse-independent-review.json",
       "subscopes": {
-        "GAP-L04": "independently accepted actual child port and memory/D1/DO same-owner transactions; committing",
+        "GAP-L04": "accepted and committed 8a61be6",
         "GAP-L01": "ACKed finite source-current consumer regression prep; runtime metadata writer holds source",
         "GAP-L03": "ACKed finite source-current consumer regression prep; runtime metadata writer holds source",
         "full_parent": "open original compiled/durable/installed qualification"
       },
-      "limit": "No process restart or cross-store/universal concurrent scope from local adapter witnesses"
+      "limit": "No process restart or cross-store/universal concurrent scope from local adapter witnesses",
+      "gap_l04_commit": "8a61be6",
+      "regression_receipt": "/private/tmp/canlang-repair-go-20261007/fanout-fresh-facts/result.json",
+      "regression_recipe": "/private/tmp/canlang-repair-go-20261007/fanout-fresh-facts/recipe.json",
+      "write_handoff_gate": "Metadata exact runtime read lease and scoped commit must release first; no competing source writer"
     },
     "TECH-W03": {
       "planning_status": "blocked",
@@ -437,7 +473,8 @@
         "packages/identity/src/teams/roles.ts",
         "packages/contracts/src/identity.ts",
         "packages/state/src/ports/identity.ts"
-      ]
+      ],
+      "current_bounded_prerequisite": "FP.IDENTITY-CONTRACT remains proposed; prior JEV shared-fence trio retained. Four actual shared-db/fence/guard/batch/memory questions need current-source owner reconciliation before broad identity atomicity implementation; void D1 OAuth consume remains concrete SEC01 gap, not fixed by metadata work."
     },
     "TECH-I02": {
       "planning_status": "blocked",
@@ -595,7 +632,23 @@
         "packages/ui/src/csv/parse.ts",
         "packages/ui/src/csv/grammar.ts"
       ],
-      "residual_evidence": "canonical-json-independent-review.json: declared optional __proto__ cells drop/collapse into duplicate candidates in both original/current actual CSV mapper; existing grammar/integrity parent remains open"
+      "residual_evidence": "canonical-json-independent-review.json: declared optional __proto__ cells drop/collapse into duplicate candidates in both original/current actual CSV mapper; existing grammar/integrity parent remains open",
+      "finite_own_data_slice": {
+        "state": "independently accepted actual own-data/consent correction; scoped commit pending shared-doc handback",
+        "files": [
+          "packages/interfaces/src/http/csv.ts",
+          "packages/interfaces/test/csv-own-data.test.ts"
+        ],
+        "base": "8a61be6",
+        "input_sha256": "a7aa6ee00728dde7a06f4589f3316a8aef81d75d7a73d2555110eb750925add1",
+        "requirement": "Declared keys are own enumerable ordinary data; optional __proto__ distinct rows must not collapse candidates/hash. Preserve boolean/empty/binding order and all consent/source-order behavior. Existing PARSE-DP01/Contracts own-data intent reused; separate correctness budget.",
+        "receipt": "/private/tmp/canlang-repair-go-20261007/csv-own-data/result.json",
+        "source_sha256": "3d40ad3ca05f4833a0c207fea0fc35765ad28f797cae1a57936e455ef59c8537",
+        "root_write_lease_released": true,
+        "reviewer": "/root/review_ui_appearance",
+        "review": "csv-own-data-independent-review.json",
+        "review_read_released": true
+      }
     },
     "DEL-C02": {
       "planning_status": "blocked",
@@ -654,7 +707,7 @@
     },
     "DEL-D03": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "finite pre-existing entry-write cleanup repair active; broad resource prerequisites still open",
       "files": [
         "packages/cloudflare/src/deploy/bundle.ts",
         "packages/cloudflare/src/preparation/build-adapter.ts",
@@ -663,7 +716,16 @@
         "packages/cloudflare/src/dev/local-run.ts",
         "packages/cloudflare/src/dev/row-scope.ts",
         "packages/cloudflare/src/upgrade/apply.ts"
-      ]
+      ],
+      "agent": "/root/review_ui_appearance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Existing owned scratch lifecycle defect; bounded technical correction, no new resource policy",
+      "active_files": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/test/bundle-entry-cleanup.test.ts"
+      ],
+      "start_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741"
     },
     "DEL-D04": {
       "planning_status": "blocked",
@@ -979,7 +1041,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T20:31:20.619447+00:00",
+  "updated_utc": "2026-10-07T20:57:39.747339+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1010,5 +1072,18 @@
     "handback": "7f92c05f77841fe724bd804c2d7b83666c775b1f",
     "foreign_scope": "Human-authorized state-machine/refresh feature; its verification retained as external source-current input, not root package acceptance",
     "checkpoint": "824934 unchanged; foreign integrator explicitly leaves accumulated allocation review open"
+  },
+  "shared_doc_handoff": {
+    "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+    "human_authority": "actual source chat Yes, coordinate with both agents",
+    "state": "root permits one append-only PROPOSED evaluation entry; explicit completion/release pending",
+    "files": [
+      "docs/specification/DECISIONS.md"
+    ],
+    "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
+    "package_decision_notes_pending": [
+      "URI library extraction",
+      "CSV own-data correction"
+    ]
   }
 }

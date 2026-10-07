@@ -15,3 +15,5 @@ pub mod rows;
 
 pub(crate) mod numeric_text;
 pub(crate) mod utf16_json;
+
+pub(crate) mod uri_component;

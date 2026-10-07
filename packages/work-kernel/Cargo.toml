@@ -9,6 +9,7 @@ crate-type = ["cdylib", "rlib"]
 path = "rust/lib.rs"
 
 [dependencies]
+percent-encoding = { version = "=2.3.2", default-features = false }
 ryu-js = { version = "=1.0.3", default-features = false }
 
 [dev-dependencies]
