@@ -773,5 +773,106 @@
     "protocol": "external body spans, stack/frame helper and testkit boundary added; private/public target limits applied",
     "counts": "delta equal-pair classification correction independently replayed"
   },
-  "final_integrated_review": "pending"
+  "final_integrated_review": {
+    "schema": "canlang-step6-final-independent-review/v1",
+    "reviewer": "integration_cross_review (different author from integrated packet)",
+    "reviewed_stage": "Early Step6 integrated packet associated with commit39d9f45 in task context; no Git commands run by reviewer",
+    "source_pin": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+    "verdict": "accepted for bounded Step6 audit after one readable count wording correction and status finalization; no substantive blocking gap",
+    "scope": "Independent read-only source, integrated ledger/readable/count/receipt/script inspection plus hash/count checks. No repository edits/Git/build/test/runtime/JEV/merge/checkpoint operations. Protocol conclusions are independently source-grounded earlier; final review challenges shared/root joins and evidence attribution at declared stage.",
+    "checks": {
+      "pins": {
+        "inherited107": 107,
+        "interface_inputs": 31,
+        "workflow_inputs": 85,
+        "compatibility_inputs": 82,
+        "representation_inputs": 37,
+        "library_integration_inputs": 49,
+        "public_probe_inputs": 108
+      },
+      "all_pins": 499,
+      "aggregate": {
+        "source_units": 383,
+        "files": 25,
+        "physical_union": 15841,
+        "nonblank_union": 15726
+      },
+      "prod": 69255,
+      "inline": 3529,
+      "delta_arithmetic": {
+        "before_production_lines": 69119,
+        "after_production_lines": 69255,
+        "gross_removed": 2067,
+        "gross_added": 2203,
+        "net": 136
+      },
+      "errors": []
+    },
+    "additional_checks": {
+      "cached_dependency_source_anchors_hashed": 13,
+      "integration_evidence_files_hashed": 8,
+      "published_script_AST_parse": [
+        "count.py",
+        "items.py",
+        "delta.py",
+        "validate.py"
+      ],
+      "ledger_hash_matches_validation": true,
+      "22_linked_closure_metrics_recomputed": true,
+      "counted_unit_bounds_and_inline_test_exclusion": "pass",
+      "seven_manifest_roots": "serde,serde_json,url,sha2,tempfile,lsp-types,sourcemap"
+    },
+    "accepted": [
+      "All22 unique integration result records cover7 direct compiler dependency roots; verdicts15retain,6defer,1simplify and0replace agree across ledger/counts/validation. Simplify is planning, not implementation authorization.",
+      "383 unique source-range units across25compiler files give15841physical and15726nonblank unionlines; linked family closures independently reconcile. Nested/shared ranges are unioned, package boundary bodies excluded, and readable/context metrics explicitly disavow overhead/removableLOC/semanticcomplexity interpretation. Do not sum linked closures.",
+      "499 input pin references verified:107 inherited inventory +31interface +85workflow +82compatibility +37representation +49Step6support +108publicprobe. Prefix pins checked at their declared bytes. References overlap; this is not499unique paths.13cached dependency anchors and8evidence files also match recorded SHA256/bytes.",
+      "Current compiler production count69255 and inline-test count3529 replay exactly using published counter functions. Saved delta per-file arithmetic gives69119old\u219269255current; removed2067added2203net136. All current delta source hashes agree. Historical diff was not rerun with Git in this review; prior independently replayed family receipt remains authority for old snapshot/grossdiff.",
+      "Source/API/dependency behavior is unchanged by Step6; zero Step6 production change and unmet reduction criterion are clearly stated. Mixed-file programme/correctness growth is not causally allocated to individual libraries.",
+      "Prior protocol fixes applied: constructor482\u2013487LOC6; resolveLocalDefaults92\u2013106LOC15; fail70\u201381LOC12; emit66\u201368 and stack URI/frame helpers added; testkit location carrier/formatter helpers ranged and pinned. Public orphan API support and absent runtime-report chain remain visible.",
+      "INT-LSP-INPUT-JSON-FRAMING shared_engine_join names JSON-INPUT-ENGINE/JSON-VIEWS-RENDER/JSON-OUTPUT-ENGINE, with parser/reexports identity preserved. JSON engine owns exact tree/raw/depth/byte-error support and private lookahead/errorformat coupling. Typed output library neither owns input admission nor authorizes framing migration.",
+      "SourceMap_RawValue_join_count0 matches actual borrowed ModuleWire map: &SourceMap and Serialize implementation. One incidental map encode\u2192parse extraction remains; public builder key/set_source private state assumption retained. Private encoder entry is explicitly unqualified; no direct Uri/library-map replacement selected.",
+      "JSON custom six-variant carrier is necessary multiplicity/order/raw-number representation, not copied Serde internals. Domain DTO/fallback policy counts are separated from structural encoders. Legitimate public fragment methods and test-only public views cannot be removed based on repository nonuse.",
+      "Root SHA2 adapter hashes exact bytes/lowerhex;5 direct callers/domain framing counted. Tempfile5functions+1metadata type99LOC owns staging/race/mode policy around one allocation engine, including existingpersist versus absentnoclobber. URL value7LOCparse/scheme adapter preserves authored values;86Typer ownerfunctions are domain context, URI display has separate47LOC seam and no filesystem/identity reroute.",
+      "Retirement targets are numeric acceptance budgets under support/layout/carrier/API decisions, include substitutes/fallbacks/dependencies and require retiring actual named mechanisms.16map extraction lines include4comments versus12executable/derive; minimum1net is a future gate.85decoder production retirement via cfg(test) can delete0repository lines. LegacyLSP29 and publicpositions18 are conditional maxima, not achieved savings.",
+      "BDDquote target3net across both owners is feasible only with no net additive wrapper/import lines.143combined source uses (122JS+21BDD) and shared expression joins remain; no AST/value rewrite is inferred. Reader40/docs44/policy120/default10 are acceptance thresholds, not forecasts.",
+      "Actual editor, catalog/process, contracts/artifact, cloudflare runtime/composition and testkit first-consumer seams are bounded joins. Public external Rust users, entire downstream package closure, installed app/GUI/runtime host and whole semantic correctness remain unqualified. Current adopted dependency profiles differ from rejected/deferred locale/graph/ICU candidates; transitive IDNA ICU is not compiler Locale adoption.",
+      "Published mask handles strings/rawstrings/comments/chars/lifetimes and exact cfg(test) spans at declared parser-free scope. Scripts parse as Python; source counter functions are used for read-only counting, not compiler execution. Saved failed delta attempt is preserved and correction described; no success receipt invented for failure."
+    ],
+    "corrections": [
+      {
+        "id": "FINAL-READABLE-01",
+        "severity": "minor exact-count wording",
+        "path": "docs/research/compiler-library-audit-20261006/responsibility-map/integrations.md",
+        "anchor": "Public descriptor/fix fragments row",
+        "finding": "Readable11unusedJSfragmentmethods(41bodylines) conflates11fragmentmethods38lines with models_json3lines. Ledger JSON-JS-DESCRIPTORS target correctly contains11fragmentmethods +1modelsarrayhelper,12helpers41bodylines.",
+        "required_fix": "Write11fragmentmethods plus models_json (41total bodylines), retaining3fixwrappers9lines and publicAPI gate."
+      },
+      {
+        "id": "FINAL-STATUS-01",
+        "severity": "finalization",
+        "paths": [
+          "coverage.jsonl:library_integration review_status / library_integration_scope.review",
+          "integration-counts.json:scope",
+          "integration-review.json:final_integrated_review",
+          "integrations.md:opening/final paragraphs"
+        ],
+        "finding": "Pending initial statuses are honest for early packet; after accepting this review update them consistently. JSON/protocol family reviews already incorporated, so family pending language should not remain. Readable/status procedure README may advance to Step6executed after this acceptance; no implementation/merge/checkpoint completion follows."
+      }
+    ],
+    "remaining_limits": [
+      "Review does not establish replacement feasibility/equivalence, actual measured overhead/performance/feature footprint or achieved retirement. Conditional target failure means revise or retain.",
+      "Lexical graphs/ranges and explicit trait/derive joins are source evidence, not Rust compiler callgraph or allbranches coverage. Every semantic branch and public carrier precondition remain later audit work.",
+      "Counter scripts and validator publish artifacts when run normally; this reviewer extracted counterfunctions/read sources and wrote only /private/tmp evidence. No repository validator/delta replay script execution.",
+      "Inherited validation limitation about fresh lockedoffline build/probe refers earlier evidence; keep its historical scope rather than implying freshStep6behavior execution."
+    ]
+  },
+  "final_incorporation": {
+    "status": "readable count corrected; pending states finalized; published count/item/delta replay passes; current ledger revalidated",
+    "readable_correction": "11 fragment methods38bodylines plus models_json3 =12helpers41; separate current internal nonuse from public support",
+    "source_change": 0,
+    "scope": "Final reviewer own protocol source findings reviewed for integration consistency; root/JSON/readable/metrics/support pins independently challenged. Family source reviews retained separately.",
+    "validated_ledger_sha256": "24547f0cae36bbb87deea5ce6b3342c6882f7f484bc66d6576ad47b9775978ed",
+    "mechanical_errors": [],
+    "hash_scope": "Final reviewer hash names initial39d9f45 ledger; root finalization changes statuses only, preserves semantic/results/ranges and records corrected current validation hash."
+  }
 }

@@ -1,0 +1,44 @@
+{
+  "scope": "Fresh published audit-tool/count replay only; no Rust compilation, tests, emitted JS, package/GUI or product execution",
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/integration-evidence/count.py"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "started_utc": "2026-10-07T12:04:11.441771+00:00",
+      "exit": 0,
+      "stdout": "{'files': 41, 'physical_lines': 72784, 'production_lines': 69255, 'inline_test_lines': 3529}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/integration-evidence/items.py"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "started_utc": "2026-10-07T12:04:11.967552+00:00",
+      "exit": 0,
+      "stdout": "{\"files\": 41, \"physical_lines\": 72784, \"nonblank_lines\": 70348, \"decl_union_lines\": 62125, \"production_lines\": 69255, \"production_nonblank_lines\": 66979, \"production_decl_union_lines\": 59067, \"inline_test_lines\": 3529}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/integration-evidence/delta.py"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "started_utc": "2026-10-07T12:04:13.349268+00:00",
+      "exit": 0,
+      "stdout": "{\n  \"scope\": \"Whole compiler/src physical production code; source1fd differs from original by utility programme plus prior correctness/other-owner changes, not solely library adapters. No Step6 implementation change. File-change counts do not attribute mixed file duties to integrations.\",\n  \"baseline_git\": \"309644a6881909d8dba32560bc6711f67e00a7ab\",\n  \"source_git\": \"1fd07722090fe70228a6b661e3c6e136275ca84b\",\n  \"method\": \"stdlib difflib.SequenceMatcher autojunk=false on full physical lines; count removed/added lines only if production at respective snapshot; exact cfg(test) item spans masked. Same-text aligned lines changing production/test classification count as addition/removal; moves count as remove/add, not simplification. Comments and blanks retained.\",\n  \"before_production_lines\": 69119,\n  \"after_production_lines\": 69255,\n  \"gross_removed\": 2067,\n  \"gross_added\": 2203,\n  \"net\": 136\n}\n",
+      "stderr": ""
+    }
+  ],
+  "delta_matches_saved_full_receipt": true,
+  "item_catalogue_entries": 2222,
+  "item_catalogue_sha256": "f9e5c5962a99a07dff39f9fe628e8f1301b7134f30f8a1001af23874838748b9",
+  "compiler_source_pin": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "production_code_changes": 0,
+  "limitations": "Lexical count/item matching, not semantic callgraph or complexity/performance/replacement proof"
+}
