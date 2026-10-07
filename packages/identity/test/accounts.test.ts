@@ -261,3 +261,21 @@ test('expired recovery links fail', async () => {
     'validation',
   );
 });
+
+
+test('persisted password byte aliases retain verification without changing issuance', async () => {
+  // Independently frozen synthetic PBKDF2 witness, not a generated test oracle.
+  const password = 'synthetic-contract-password';
+  const salt = 'AAECAwQFBgcICQoLDA0ODw';
+  const saltAlias = 'AAECAwQFBgcICQoLDA0OD_';
+  const key = 'z10WsuKIJTF3LLwnB8LElW5c-astSCajEOQ0vI73OWQ';
+  const keyAlias = 'z10WsuKIJTF3LLwnB8LElW5c-astSCajEOQ0vI73OWT';
+  for (const [storedSalt, storedKey] of [[salt, key], [saltAlias, key], [salt, keyAlias], [saltAlias, keyAlias]]) {
+    const encoded = `pbkdf2-sha256$600000$${storedSalt}$${storedKey}`;
+    assert.equal(await verifyPassword(password, encoded), true);
+    assert.equal(await verifyPassword('wrong-synthetic-password', encoded), false);
+  }
+  for (const [badSalt, badKey] of [[salt + '=', key], [salt, key + '='], ['!' + salt.slice(1), key], [salt, 'a'], [salt.slice(0, -2), key], [salt, key.slice(0, -2)]]) {
+    assert.equal(await verifyPassword(password, `pbkdf2-sha256$600000$${badSalt}$${badKey}`), false);
+  }
+});

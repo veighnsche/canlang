@@ -6,14 +6,9 @@
  * authoritatively on every review/commit (`parseCsvText` in
  * interfaces/src/http/csv.ts) and never trusts this output, so a
  * client/server skew can only cost a round trip, never correctness.
- * Grammar mirror: comma-separated, CRLF/LF newlines, double-quote
- * quoting with `""` escapes (quotes may span lines), lone CR literal,
- * blank lines preserved as single-empty-field records (flagged
- * `malformed` against multi-column headers — this mirrors the server
- * implementation, whose doc comment says "skipped" but whose
- * recordHadChars handling preserves), field-count mismatches flagged
- * `malformed` and preserved. The 1000-row ceiling pins the server
- * `CSV_MAX_ROWS` (DoS hygiene; the 1 MiB body cap bounds bytes).
+ * The UI-owned shared grammar preserves raw cell strings, CRLF/LF
+ * records, lone CR, blank records, and field-count mismatches. It
+ * rejects malformed quoting and unpaired UTF-16 before submission.
  *
  * `csvReviewForm` renders the review-request form: caller-supplied
  * operation list + review path (never invented here), CSV textarea,
@@ -34,10 +29,11 @@ import type {
 import { CSRF_FIELD } from "@canlang/contracts";
 import { escapeAttr, escapeHtml } from "../escape.js";
 import { assertRegionId } from "../htmx.js";
+import { CSV_GRAMMAR_MAX_ROWS, CsvGrammarError, parseCsvGrammar } from "./grammar.js";
 import { message, resolveCaption } from "../messages.js";
 
 /** Row ceiling per review/commit. Pins server CSV_MAX_ROWS (interfaces csv.ts). */
-export const CSV_UI_MAX_ROWS = 1000;
+export const CSV_UI_MAX_ROWS = CSV_GRAMMAR_MAX_ROWS;
 
 /**
  * Session CSRF header spelling. Pins the identity-owned spelling the
@@ -111,7 +107,7 @@ export type CsvClientParse =
 
 /**
  * Parse CSV text for instant intake feedback. Returns row structure;
- * user-content failures (unterminated quote, missing header, row
+ * user-content failures (invalid quoting/UTF-16, missing header, row
  * ceiling) return `{ok:false}` — only a non-string argument (programmer
  * misuse) throws.
  */
@@ -119,80 +115,12 @@ export function parseCsvText(text: string): CsvClientParse {
   if (typeof text !== "string") {
     throw new Error("parseCsvText needs CSV text");
   }
-  const records: string[][] = [];
-  let record: string[] = [];
-  let field = "";
-  let inQuotes = false;
-  let recordHadChars = false;
-  const endField = (): void => {
-    record.push(field);
-    field = "";
-  };
-  const endRecord = (): void => {
-    endField();
-    if (recordHadChars) records.push(record);
-    record = [];
-    recordHadChars = false;
-  };
-  let i = 0;
-  while (i < text.length) {
-    const char = text[i] as string;
-    recordHadChars = true;
-    if (inQuotes) {
-      if (char === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i += 2;
-        } else {
-          inQuotes = false;
-          i += 1;
-        }
-      } else {
-        field += char;
-        i += 1;
-      }
-      continue;
-    }
-    if (char === '"') {
-      inQuotes = true;
-      i += 1;
-    } else if (char === ",") {
-      endField();
-      i += 1;
-    } else if (char === "\n") {
-      endRecord();
-      i += 1;
-    } else if (char === "\r" && text[i + 1] === "\n") {
-      endRecord();
-      i += 2;
-    } else {
-      field += char;
-      i += 1;
-    }
+  try {
+    return { ok: true, ...parseCsvGrammar(text) };
+  } catch (error) {
+    if (!(error instanceof CsvGrammarError)) throw error;
+    return { ok: false, error: { kind: error.kind, message: error.message } };
   }
-  if (inQuotes) {
-    return { ok: false, error: { kind: "parse", message: "Unterminated quoted field in CSV text." } };
-  }
-  endRecord();
-  if (records.length === 0) {
-    return { ok: false, error: { kind: "parse", message: "CSV text has no header row." } };
-  }
-  const header = records[0] as string[];
-  const data = records.slice(1);
-  if (data.length > CSV_UI_MAX_ROWS) {
-    return {
-      ok: false,
-      error: {
-        kind: "limit",
-        message: `CSV text has ${String(data.length)} data rows; the limit is ${String(CSV_UI_MAX_ROWS)}.`,
-      },
-    };
-  }
-  return {
-    ok: true,
-    header,
-    rows: data.map((cells) => ({ cells, malformed: cells.length !== header.length })),
-  };
 }
 
 const REVIEW_HEADING = message("Review CSV intake", { nl: "CSV-intake beoordelen" });
