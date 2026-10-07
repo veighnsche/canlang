@@ -1524,3 +1524,10 @@ Observer/review errors are preserved separately: one audit-only compilation omit
 **Rationale and verification.** These repair existing supported outcomes without a new workspace, snapshot, backend trait or state engine. Native LSP unit checks and35 IDE plus8 actual-process typed-output tests pass. A clean Unicode-comment/CRLF source receives all four declaration/read/set/delete rename edits with exact UTF16 ranges and rechecks clean through a fresh compiler process; shadowing, selectors and unresolved targets have negative controls. Close/reopen, reused versions, unrelated queued URIs, shutdown and absent/false/true edit capability profiles retain explicit tests.
 
 **Limits.** The plain carrier has no document-version field by protocol design. Cross-file support, retained-history resource policy and real GUI application remain separate qualification/ownership gates. The changes are correctness work; their complete production closure grows101 physical lines and makes no aggregate simplification claim.
+
+
+## 2026-10-07 — Executable panic boundary wording (accepted)
+
+**Choice.** Qualify the compiler README and forced-fault observer comment: E7005/exit2 covers unwinding executable panics, while aborts such as stack overflow bypass that handler, and public library callers retain their own boundary.
+
+**Rationale and limits.** Step12 retained actual legal-input stack aborts, so the previous universal internal-fault/no-Rust-trace statement was false. This documentation correction does not repair those aborts or introduce a resource limit, dependency or support policy. The ordinary forced-unwind executable regression remains the owning witness; stage localization and iterative-consumer design are tracked separately.
