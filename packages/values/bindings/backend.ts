@@ -45,7 +45,7 @@ export function tsBackend(): ExactBackend {
   return {
     name: "ts",
     call(op: string, args: unknown[]): unknown {
-      const fn = TS_OPS[op];
+      const fn = Object.hasOwn(TS_OPS, op) ? TS_OPS[op] : undefined;
       if (!fn) {
         throw new ValueError("invalid-construction", `smoke backend has no op: ${op}`);
       }
