@@ -4,7 +4,8 @@
  * `validatePreparedValue` binds a call to a live V02.1 owner plan — issued
  * owner, live plan, caller schema structurally cross-checked against the
  * plan's frozen copies, type-id coverage — then delegates the evaluation to
- * the canonical legacy `validateValue`. Like the MCP precedent, the
+ * the canonical non-dispatching TS core. This explicit preparation gate
+ * is not production owner/request admission. Like the MCP precedent, the
  * prepared layer reorders nothing and re-derives nothing: behavior stays
  * legacy, and the comparator below proves it call by call.
  *
@@ -27,6 +28,7 @@
 import type { CanValue } from "@canlang/contracts/values";
 import type { NormalizedSchema, UpdateContract, ValidationMode } from "../schema.js";
 import { validateValue } from "../schema.js";
+import { validateValueTsCore } from "../internal/schema-core.js";
 import { decodeValue, encodeValue } from "../wire.js";
 import type { NormalizedType } from "../types.js";
 import { printTypeId } from "../types.js";
@@ -451,7 +453,7 @@ export function validatePreparedValue(
   // The overload cast is compile-time only: the runtime mode string reaches
   // legacy verbatim (including caller-misuse modes, which keep the canonical
   // legacy ValueError).
-  return validateValue(schema as NormalizedSchema, typeId, wire, mode as "create");
+  return validateValueTsCore(schema as NormalizedSchema, typeId, wire, mode as "create");
 }
 
 // ---------------------------------------------------------------------------
