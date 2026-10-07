@@ -99,6 +99,12 @@ fn receive<T>(receiver: Receiver<io::Result<T>>, deadline: Instant, label: &str)
 /// reads and writes run concurrently so a blocked pipe cannot evade the
 /// deadline; the guard kills and reaps the child if any step times out.
 fn run(input: Vec<u8>) -> Transcript {
+    run_input(input, false)
+}
+
+/// For framing failures, keep stdin open until the process exits, proving the
+/// server closed the connection itself rather than merely observing EOF.
+fn run_input(input: Vec<u8>, framing_failure: bool) -> Transcript {
     let deadline = Instant::now() + TIMEOUT;
     let mut child = ReapChild(
         Command::new(env!("CARGO_BIN_EXE_can"))
@@ -113,10 +119,18 @@ fn run(input: Vec<u8>) -> Transcript {
     let stdout = capture(child.0.stdout.take().expect("child stdout"));
     let stderr = capture(child.0.stderr.take().expect("child stderr"));
     let (sender, written) = mpsc::channel();
+    let (release, held_open) = mpsc::channel::<()>();
     thread::spawn(move || {
-        let result = stdin.write_all(&input);
-        drop(stdin);
+        let result = input.chunks(3).try_for_each(|chunk| stdin.write_all(chunk));
+        let result = match result {
+            Err(error) if framing_failure && error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
+            result => result,
+        };
         let _ = sender.send(result);
+        if framing_failure {
+            let _ = held_open.recv_timeout(TIMEOUT);
+        }
+        drop(stdin);
     });
     let status = loop {
         if let Some(status) = child.0.try_wait().expect("poll can lsp") {
@@ -125,6 +139,7 @@ fn run(input: Vec<u8>) -> Transcript {
         assert!(Instant::now() < deadline, "can lsp exceeded {TIMEOUT:?}");
         thread::sleep(Duration::from_millis(10));
     };
+    drop(release);
     receive(written, deadline, "stdin writer");
     Transcript {
         status,
@@ -863,4 +878,106 @@ fn primitive_shutdown_and_exit_params_are_envelope_errors() {
     assert_error(&responses[2], -32600, "null");
     assert_error(&responses[3], -32601, "3");
     assert_success(&responses[4]);
+}
+
+#[test]
+fn legal_headers_equal_lengths_and_unicode_keep_the_real_stdio_peer_compatible() {
+    let body = initialize(r#""é😀""#);
+    let mut input = format!(
+        "Content-Type: application/vscode-jsonrpc; charset=utf-8\r\nX-Trace: legal-extension\r\ncontent-length: {}\r\nContent-Length: 00{}\r\n\r\n",
+        body.len(), body.len()
+    ).into_bytes();
+    input.extend(body);
+    input.extend(frame(&call(Some("2"), "shutdown", None)));
+    input.extend(frame(&call(None, "exit", None)));
+    let output = run(input);
+    output.assert_exit(0);
+    let responses = output.responses();
+    assert_eq!(responses.len(), 2);
+    assert_success(&responses[0]);
+    assert_eq!(responses[0].get("id").and_then(Json::as_str), Some("é😀"));
+    assert_success(&responses[1]);
+    assert_number_id(&responses[1], "2");
+}
+
+#[test]
+fn framing_refusal_closes_stdio_before_eof_and_never_dispatches_following_bytes() {
+    let mut overlong = b"Content-Length: 0\r\nX-Extension: ".to_vec();
+    overlong.resize(65_537, b'x');
+    overlong.extend_from_slice(b"\r\n\r\n");
+    let mut many = b"Content-Length: 0\r\n".to_vec();
+    many.extend(b"X: 0\r\n".repeat(11_000));
+    many.extend_from_slice(b"\r\n");
+    for malformed in [
+        b"X-Only: legal-extension\r\n\r\n".to_vec(),
+        b"Content-Length: invalid\r\n\r\n".to_vec(),
+        b"Content-Length: 67108865\r\n\r\n".to_vec(),
+        b"Content-Length: 2\r\nContent-Length: 3\r\n\r\n{}".to_vec(),
+        b"Content-Length: 3\r\nContent-Length: 2\r\n\r\n{}".to_vec(),
+        overlong,
+        many,
+    ] {
+        let mut input = frame(&initialize("1"));
+        input.extend(malformed);
+        // If the old continuation behavior interprets subsequent bytes as
+        // fresh frames, this would falsely complete a clean shutdown.
+        input.extend(frame(&call(Some("2"), "shutdown", None)));
+        input.extend(frame(&call(None, "exit", None)));
+        let output = run_input(input, true);
+        output.assert_exit(1);
+        let responses = output.responses();
+        assert_eq!(
+            responses.len(),
+            1,
+            "framing refusal emitted or dispatched a response"
+        );
+        assert_number_id(&responses[0], "1");
+        assert_success(&responses[0]);
+    }
+}
+
+#[test]
+fn framing_failure_after_shutdown_is_still_a_transport_failure() {
+    let mut input = frame(&initialize("1"));
+    input.extend(frame(&call(Some("2"), "shutdown", None)));
+    input.extend_from_slice(b"Content-Length: invalid\r\n\r\n");
+    input.extend(frame(&call(None, "exit", None)));
+    let output = run_input(input, true);
+    output.assert_exit(1);
+    let responses = output.responses();
+    assert_eq!(responses.len(), 2);
+    assert_number_id(&responses[1], "2");
+    assert_success(&responses[1]);
+}
+
+#[test]
+fn empty_complete_body_is_a_parse_error_then_the_connection_remains_usable() {
+    rejected_then_initialize(Vec::new(), -32700, "null");
+}
+
+#[test]
+fn exact_header_budget_is_accepted_by_the_shipped_process() {
+    let body = initialize("1");
+    let mut input = format!("Content-Length: {}\r\nX-Extension: ", body.len()).into_bytes();
+    input.resize(65_536 - 4, b'x');
+    input.extend_from_slice(b"\r\n\r\n");
+    assert_eq!(input.len(), 65_536);
+    input.extend(body);
+    input.extend(frame(&call(Some("2"), "shutdown", None)));
+    input.extend(frame(&call(None, "exit", None)));
+    let output = run(input);
+    output.assert_exit(0);
+    let responses = output.responses();
+    assert_eq!(responses.len(), 2);
+    assert_success(&responses[0]);
+    assert_success(&responses[1]);
+}
+
+#[test]
+fn framing_failure_before_initialize_is_a_silent_transport_failure() {
+    let mut input = b"Content-Length: invalid\r\n\r\n".to_vec();
+    input.extend(frame(&initialize("1")));
+    let output = run_input(input, true);
+    output.assert_exit(1);
+    assert!(output.stdout.is_empty());
 }
