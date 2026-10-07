@@ -1,0 +1,466 @@
+diff --git a/compiler/src/analysis/resolve.rs b/compiler/src/analysis/resolve.rs
+index a78934e2..a4122202 100644
+--- a/compiler/src/analysis/resolve.rs
++++ b/compiler/src/analysis/resolve.rs
+@@ -3899,7 +3899,7 @@ impl<'a> Resolver<'a> {
+         }
+         for child in kids(node) {
+             if child.kind == SyntaxKind::Examples {
+-                self.resolve_example_headers(text, module, root, child, diags);
++                self.resolve_example_headers(text, module, root, root, child, diags);
+             }
+         }
+     }
+@@ -3999,20 +3999,44 @@ impl<'a> Resolver<'a> {
+             let _ = &mut scope;
+             self.resolve_execution(text, module, scope, node, diags);
+         }
++        let example_root = self.new_scope(Some(root));
++        if let Some(ScopedName::Local(id)) =
++            name.as_deref().and_then(|n| self.lookup_prod(module, n))
++        {
++            self.tables.scopes[example_root.0 as usize].bindings.insert(
++                "result".into(),
++                Binding::Context(ContextVar::Result {
++                    scenario: Some(id),
++                    crud_op: None,
++                }),
++            );
++        }
++        if trusted {
++            self.tables.scopes[example_root.0 as usize]
++                .bindings
++                .insert("event".into(), Binding::Context(ContextVar::Event));
++        }
++        for param in &params {
++            self.tables.scopes[example_root.0 as usize].bindings.insert(
++                self.tables.symbols[param.0 as usize].name.clone(),
++                Binding::Symbol(*param),
++            );
++        }
+         for child in kids(node) {
+             if child.kind == SyntaxKind::Examples {
+-                self.resolve_example_headers(text, module, root, child, diags);
++                self.resolve_example_headers(text, module, example_root, root, child, diags);
+             }
+         }
+     }
+ 
+-    /// Resolve `examples` header bindings (fixture/name resolution only;
+-    /// table cells and sequences are PR5).
++    /// Resolve the lexical expression scopes of examples. E5 retains
++    /// selector/caller vocabulary and operation envelope validation.
+     fn resolve_example_headers(
+         &mut self,
+         text: &'a str,
+         module: ModuleId,
+         root: ScopeId,
++        header_root: ScopeId,
+         node: &SyntaxNode,
+         diags: &mut Vec<Diagnostic>,
+     ) {
+@@ -4021,13 +4045,148 @@ impl<'a> Resolver<'a> {
+         }
+         let test_root = self.test_root(module, root);
+         let scope = self.with_facts(test_root, ActorKind::NonNull, true, false);
++        // Common values resolve in the fixture/production namespace before
++        // action input bindings become available to selectors/observations.
++        let header_test_root = self.test_root(module, header_root);
++        let header_scope = self.with_facts(header_test_root, ActorKind::NonNull, true, false);
+         for child in kids(node) {
+             if child.kind == SyntaxKind::Attribute
+-                && let Some((_, value)) = attribute_parts(child)
++                && let Some((key, value)) = attribute_parts(child)
+             {
+-                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags);
++                self.walk_expr(module, header_scope, value, text, ExprCtx::bare(), diags);
++                if let Some(name) = name_text(key, text)
++                    && name != "seed"
++                    && self
++                        .tables
++                        .resolve_name(scope, name, self.catalog)
++                        .is_none()
++                    && let Some(binding) =
++                        self.tables.node_binding.get(&NodeKey::of(value)).cloned()
++                {
++                    self.tables.scopes[scope.0 as usize]
++                        .bindings
++                        .insert(name.to_string(), binding);
++                }
++            }
++        }
++        // General row/sequence expressions retain their existing runner/E5
++        // unresolved-name ownership. The common walker still publishes every
++        // known lexical binding, query alias and expression scope.
++        let unresolved_before = self.tables.unresolved_names.len();
++        let rows: Vec<_> = kids(node)
++            .into_iter()
++            .filter(|n| n.kind == SyntaxKind::ExampleRow)
++            .collect();
++        for (index, row) in rows.iter().enumerate() {
++            let mut expected = false;
++            for part in kids(row) {
++                if is_punct(part, text, "->") {
++                    expected = true;
++                }
++                // Resolve only input selectors with a known lexical root; E5 owns
++                // selector vocabulary, request envelopes and caller profiles.
++                if index == 0 && !expected && is_expression(part.kind) {
++                    let mut root_node = part;
++                    while root_node.kind == SyntaxKind::Member {
++                        if let Some(base) =
++                            kids(root_node).into_iter().find(|n| is_expression(n.kind))
++                        {
++                            root_node = base;
++                        } else {
++                            break;
++                        }
++                    }
++                    if let Some(word) = kids(root_node).into_iter().find_map(|n| name_text(n, text))
++                        && word != "as"
++                        && word != "request"
++                        && self
++                            .tables
++                            .resolve_name(scope, word, self.catalog)
++                            .is_some()
++                    {
++                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
++                    }
++                }
++                if is_expression(part.kind) && (index != 0 || expected) {
++                    // Caller selectors (roles, predicates and arrays) have their own E5 profile.
++                    let caller_column = index != 0
++                        && !expected
++                        && rows.first().is_some_and(|header| {
++                            let inputs: Vec<_> = kids(header)
++                                .into_iter()
++                                .take_while(|n| !is_punct(n, text, "->"))
++                                .filter(|n| is_expression(n.kind))
++                                .collect();
++                            let cells: Vec<_> = kids(row)
++                                .into_iter()
++                                .take_while(|n| !is_punct(n, text, "->"))
++                                .filter(|n| is_expression(n.kind))
++                                .collect();
++                            cells
++                                .iter()
++                                .position(|n| NodeKey::of(n) == NodeKey::of(part))
++                                .and_then(|i| inputs.get(i))
++                                .is_some_and(|n| {
++                                    text[n.span.start as usize..n.span.end as usize].trim() == "as"
++                                })
++                        });
++                    if !caller_column {
++                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
++                    }
++                }
++            }
++        }
++        if let Some(body) = kids(node)
++            .into_iter()
++            .find(|n| n.kind == SyntaxKind::DoBlock)
++        {
++            let mut active = self.new_scope(Some(scope));
++            for step in kids(body) {
++                match step.kind {
++                    SyntaxKind::Let => self.walk_statement(text, module, active, step, diags),
++                    SyntaxKind::ExampleAssert => {
++                        for part in kids(step) {
++                            if is_expression(part.kind) {
++                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags);
++                            }
++                        }
++                    }
++                    SyntaxKind::ExampleCall => {
++                        let parts = kids(step);
++                        let target = parts.iter().find(|n| is_expression(n.kind)).copied();
++                        if let Some(target) = target {
++                            self.walk_expr(module, active, target, text, ExprCtx::bare(), diags);
++                        }
++                        for part in &parts {
++                            if part.kind == SyntaxKind::Object {
++                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags);
++                            }
++                        }
++                        let next = self.new_scope(Some(active));
++                        if let Some(target) = target {
++                            self.bind_result(module, text, next, target);
++                            if parts.iter().any(|n| n.kind == SyntaxKind::ExpectedError) {
++                                self.tables.scopes[next.0 as usize]
++                                    .bindings
++                                    .insert("result".into(), Binding::Error);
++                            } else if let Some((name, _)) = as_binding(step, text) {
++                                let binding = self.tables.scopes[next.0 as usize]
++                                    .bindings
++                                    .get("result")
++                                    .cloned()
++                                    .unwrap_or(Binding::Error);
++                                self.tables.scopes[next.0 as usize]
++                                    .bindings
++                                    .insert(name, binding);
++                            }
++                        }
++                        active = next;
++                    }
++                    _ => {}
++                }
+             }
+         }
++        self.tables.unresolved_names.truncate(unresolved_before);
+     }
+ 
+     /// Walk leading guards and the `do` body with `scope`.
+diff --git a/compiler/src/analysis/types.rs b/compiler/src/analysis/types.rs
+index dfdca11f..5f2cba73 100644
+--- a/compiler/src/analysis/types.rs
++++ b/compiler/src/analysis/types.rs
+@@ -4228,6 +4228,102 @@ impl<'a> Typer<'a> {
+                 self.expr(&cx, value, expect);
+             }
+         }
++        // Headers retain their type-owned unresolved diagnostics; general
++        // BDD expression values retain the runner's diagnostic profile.
++        let unresolved_before = self.types.unresolved_names.len();
++        let rows: Vec<_> = kids(node)
++            .into_iter()
++            .filter(|n| n.kind == SyntaxKind::ExampleRow)
++            .collect();
++        let mut observation_types = Vec::new();
++        let mut input_types = Vec::new();
++        for (index, row) in rows.iter().enumerate() {
++            let mut expected = false;
++            let mut column = 0;
++            for part in kids(row) {
++                if is_punct(part, text, "->") {
++                    expected = true;
++                    column = 0;
++                }
++                if !is_expression(part.kind) {
++                    continue;
++                }
++                if index == 0 {
++                    if expected {
++                        observation_types.push(self.expr(&cx, part, None));
++                    } else {
++                        input_types.push(self.expr(&cx, part, None));
++                    }
++                } else {
++                    let expectation = if expected {
++                        observation_types.get(column).cloned()
++                    } else {
++                        input_types.get(column).cloned()
++                    };
++                    self.expr(&cx, part, expectation);
++                }
++                column += 1;
++            }
++        }
++        if let Some(body) = kids(node)
++            .into_iter()
++            .find(|n| n.kind == SyntaxKind::DoBlock)
++        {
++            let mut env = NarrowEnv::default();
++            for step in kids(body) {
++                let cx = Ctx {
++                    module,
++                    file,
++                    text,
++                    narrow: &env,
++                    strict: false,
++                    server_default: false,
++                };
++                match step.kind {
++                    SyntaxKind::Let => self.stmt_let(&cx, step),
++                    SyntaxKind::ExampleCall => {
++                        for part in kids(step) {
++                            if part.kind == SyntaxKind::Object {
++                                self.expr(&cx, part, None);
++                            }
++                        }
++                    }
++                    SyntaxKind::ExampleAssert => {
++                        let mut expected = false;
++                        let mut observations: Vec<(&SyntaxNode, ResolvedType)> = Vec::new();
++                        let mut column = 0;
++                        let mut refinements = NarrowEnv::default();
++                        for part in kids(step) {
++                            if is_punct(part, text, "->") {
++                                expected = true;
++                            }
++                            if !is_expression(part.kind) {
++                                continue;
++                            }
++                            if expected {
++                                self.expr(
++                                    &cx,
++                                    part,
++                                    observations.get(column).map(|(_, ty)| ty.clone()),
++                                );
++                                if text[part.span.start as usize..part.span.end as usize].trim()
++                                    == "true"
++                                    && let Some((observed, _)) = observations.get(column)
++                                {
++                                    refinements.extend(self.extract_narrow(&cx, observed, false));
++                                }
++                                column += 1;
++                            } else {
++                                observations.push((part, self.expr(&cx, part, None)));
++                            }
++                        }
++                        env.extend(refinements);
++                    }
++                    _ => {}
++                }
++            }
++        }
++        self.types.unresolved_names.truncate(unresolved_before);
+     }
+ 
+     // --- Phase 2: labels, messages and captions -------------------------
+diff --git a/compiler/tests/codegen.rs b/compiler/tests/codegen.rs
+index 78b50b64..71af8e72 100644
+--- a/compiler/tests/codegen.rs
++++ b/compiler/tests/codegen.rs
+@@ -1178,8 +1178,8 @@ fn golden_expenseflow_structure() {
+         "submit inputs"
+     );
+     assert!(
+-        submit.contains("async(c,s)=>(() => { throw new Error(\"call has no lowering\"); })()"),
+-        "unchecked role observation stays loud:\n{submit}"
++        submit.contains("async(c,s)=>hasRole(c,\"expenses.reviewer\",s.reviewer_one)"),
++        "checked role observation:\n{submit}"
+     );
+     assert!(
+         submit.contains("async(c,s)=>!same(s.reviewer_one,s.reviewer_two)"),
+@@ -1204,12 +1204,12 @@ fn golden_expenseflow_structure() {
+     // caller/inputs/request/error, `let` bindings through `b`, and
+     // assertions with §13 type ids.
+     assert!(
+-        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:(() => { throw new Error(\"call has no lowering\"); })()})}"),
+-        "sequence create keeps unchecked money stub"
++        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:money(25n,\"EUR\")})}"),
++        "sequence create uses checked money call"
+     );
+     assert!(
+-        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>((() => { throw new Error(\"call has no lowering\"); })())}"),
+-        "untyped sequence binding keeps missing-fact stub"
++        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>(await first(await records(c,\"expenses.Expense\",{where:($can$l$303a726f77)=>same($can$l$303a726f77.submitted_by,other)})))}"),
++        "sequence binding consumes checked first/query facts:\n{approve}"
+     );
+     assert!(
+         approve.contains("{operation:\"expenses.submit\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({expense:b.draft_claim})}"),
+@@ -1222,12 +1222,12 @@ fn golden_expenseflow_structure() {
+         "sequence request override with exact error"
+     );
+     assert!(
+-        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"unknown\"]}"),
+-        "untyped sequence assertion keeps unknown metadata"
++        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim?.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"expenses.Expense.status\"]}"),
++        "checked sequence assertion metadata"
+     );
+     assert!(
+-        approve.contains("types:[\"unknown\",\"unknown\"]"),
+-        "untyped sequence tuple metadata stays unknown"
++        approve.contains("types:[\"expenses.Expense.status\",\"user?\"]"),
++        "checked sequence tuple metadata"
+     );
+     assert!(
+         approve.contains("dependencies:[$can$f$72657669657765725f6f6e65,$can$f$72657669657765725f74776f],sequence:["),
+@@ -1277,9 +1277,8 @@ fn golden_expenseflow_structure() {
+     }
+     // Zero E6006 (tables and the approve sequence all bridge), zero
+     // E6007 (the golden catalog verifies every referenced builtin),
+-    // Sixteen E6008 are confined to unchecked BDD calls and the assertion
+-    // types that depend on their untyped lets. This partial artifact makes
+-    // no runtime claim; S9-Q07 must publish those owner facts and types.
++    // BDD calls and dependent assertion types consume owning checked facts.
++    // No lowering gap remains; runtime execution is separately qualified.
+     assert_eq!(
+         diags.iter().filter(|d| d.code == "E6006").count(),
+         0,
+@@ -1296,74 +1295,19 @@ fn golden_expenseflow_structure() {
+     );
+     assert_eq!(
+         diags.iter().filter(|d| d.code == "E6008").count(),
+-        16,
++        0,
+         "unsupported count: {diags:?}"
+     );
+-    let missing: Vec<_> = diags
+-        .iter()
+-        .filter(|d| {
+-            d.message == "cannot lower call: checked selected-call binding is not published"
+-        })
+-        .map(|d| {
+-            assert_eq!(d.code, "E6008");
+-            assert_eq!(d.primary.file, id);
+-            (
+-                d.primary.start,
+-                d.primary.end,
+-                db.get(id).unwrap().text[d.primary.start as usize..d.primary.end as usize]
+-                    .to_string(),
+-            )
+-        })
+-        .collect();
+-    assert_eq!(
+-        missing,
+-        vec![
+-            (2179, 2201, "reviewer(reviewer_one)".into()),
+-            (2202, 2224, "reviewer(reviewer_two)".into()),
+-            (3347, 3369, "reviewer(reviewer_one)".into()),
+-            (3370, 3392, "reviewer(reviewer_two)".into()),
+-            (3762, 3777, "money(25,\"EUR\")".into()),
+-            (
+-                3809,
+-                3864,
+-                "first(Expense as claim where claim.submitted_by==other)".into()
+-            ),
+-            (
+-                4015,
+-                4069,
+-                "first(Expense as claim where claim.id==draft_claim.id)".into()
+-            ),
+-            (
+-                4468,
+-                4522,
+-                "first(Expense as claim where claim.id==draft_claim.id)".into()
+-            ),
+-            (7529, 7544, "money(25,\"EUR\")".into()),
+-            (7563, 7577, "money(0,\"EUR\")".into()),
+-        ]
+-    );
+-    let downstream: Vec<_> = diags
+-        .iter()
+-        .filter(|d| {
+-            d.message == "cannot lower sequence assertion: observation type is not resolvable"
+-        })
+-        .map(|d| {
+-            assert_eq!(d.code, "E6008");
+-            assert_eq!(d.primary.file, id);
+-            (d.primary.start, d.primary.end)
+-        })
+-        .collect();
+-    assert_eq!(
+-        downstream,
+-        vec![
+-            (4104, 4132),
+-            (4218, 4246),
+-            (4556, 4583),
+-            (4584, 4609),
+-            (4715, 4742),
+-            (4743, 4768)
+-        ]
+-    );
++    for test in &artifact.tests {
++        assert!(
++            !test.module.js.contains("throw new Error"),
++            "no hidden BDD placeholder"
++        );
++        assert!(
++            !test.module.js.contains("types:[\"unknown\""),
++            "no unknown observation metadata"
++        );
++    }
+     if let Some(node) = find_node() {
+         for module in &artifact.modules {
+             node_check(&node, &module.js, &module.path);
