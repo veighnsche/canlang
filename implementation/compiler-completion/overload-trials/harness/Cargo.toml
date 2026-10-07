@@ -1,0 +1,6 @@
+[package]
+name="overload-trial-qualification"
+version="0.0.0"
+edition="2024"
+[dependencies]
+canlang-compiler={path="../../../../compiler"}
