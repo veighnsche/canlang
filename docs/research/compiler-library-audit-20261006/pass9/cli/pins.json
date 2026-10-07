@@ -1,0 +1,75 @@
+{
+  "host": "Darwin arm64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+  "inputs": {
+    "compiler/src/cli.rs": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679",
+    "compiler/can-completions.bash": "f3af676df6f89791faf2ed3cb01909c3f1340f86a1065d8801ad27149c78b51e",
+    "compiler/can-completions.zsh": "dc98a83e852c510b93310afb5f66d78080cc53fcc1a18543b90e73603063d6e2",
+    "compiler/can-completions.fish": "9945da1f16f9fdac5c19da03fc9db1eeced5898252114b2250ff39327b515be2",
+    "compiler/tests/exe.rs": "1faeb825625ae9af0c220c72bd9f2860509a97e7c9cec9f5521b33cb33f37087",
+    "docs/install.md": "c3ba7b7d77fcb454ce9530f0bfdf78866fd38b854a5b630e32da8ea3071ea028",
+    "packages/cloudflare/src/cli/platform.ts": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+    "packages/cloudflare/src/preparation/host.ts": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/src/main.rs": "5e8cd0e926e46ea407ced9032706d07a3d608d1a5720f44d3f21eb0ccf688bdd"
+  },
+  "dependencies": [
+    {
+      "name": "anstyle",
+      "version": "1.0.14",
+      "registry_checksum": "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000",
+      "actual_archive_sha256": "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000",
+      "archive_bytes": 17787,
+      "rust_source_bytes": 49091
+    },
+    {
+      "name": "clap",
+      "version": "4.6.7",
+      "registry_checksum": "aa8876b300ab35ba921adea3dfd70157a46249b33f95c9084ae5709785478946",
+      "actual_archive_sha256": "aa8876b300ab35ba921adea3dfd70157a46249b33f95c9084ae5709785478946",
+      "archive_bytes": 65831,
+      "rust_source_bytes": 149753
+    },
+    {
+      "name": "clap_builder",
+      "version": "4.6.7",
+      "registry_checksum": "ec0797fb7aeb1406c84efac526901f7ec3ead2124f946b494e72879d4b54704d",
+      "actual_archive_sha256": "ec0797fb7aeb1406c84efac526901f7ec3ead2124f946b494e72879d4b54704d",
+      "archive_bytes": 171709,
+      "rust_source_bytes": 944351
+    },
+    {
+      "name": "clap_complete",
+      "version": "4.6.7",
+      "registry_checksum": "db8b397918185f0161ff3d6fcaa9e4bfc09b8367caf6e1d4a2848e5477ed027b",
+      "actual_archive_sha256": "db8b397918185f0161ff3d6fcaa9e4bfc09b8367caf6e1d4a2848e5477ed027b",
+      "archive_bytes": 51603,
+      "rust_source_bytes": 170206
+    },
+    {
+      "name": "clap_lex",
+      "version": "1.1.1",
+      "registry_checksum": "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486",
+      "actual_archive_sha256": "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486",
+      "archive_bytes": 13572,
+      "rust_source_bytes": 25436
+    }
+  ],
+  "features": {
+    "clap": [
+      "std",
+      "help",
+      "usage",
+      "error-context",
+      "string"
+    ],
+    "clap_complete": []
+  },
+  "default_features": false,
+  "build_profile": "dev unoptimized + debuginfo, CARGO_INCREMENTAL=0, cargo --offline -j1, shared target /private/tmp/canlang-pass5-profile/current-native-target",
+  "primary_api_refs": [
+    "https://docs.rs/clap/4.6.7/clap/struct.Command.html",
+    "https://docs.rs/clap/4.6.7/clap/struct.Arg.html",
+    "https://docs.rs/clap_complete/4.6.7/clap_complete/aot/fn.generate.html"
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "commands": [
+    {
+      "command": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "nohash_hasher",
+        "--crate-type=rlib",
+        "/private/tmp/canlang-pass9-positions-medium/deps/nohash-hasher-0.2.0/src/lib.rs",
+        "-o",
+        "/private/tmp/canlang-pass9-positions-medium/deps/libnohash_hasher.rlib",
+        "--cfg",
+        "feature=\"std\""
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "command": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "text_size",
+        "--crate-type=rlib",
+        "/private/tmp/canlang-pass9-positions-medium/deps/text-size-1.1.1/src/lib.rs",
+        "-o",
+        "/private/tmp/canlang-pass9-positions-medium/deps/libtext_size.rlib"
+      ],
+      "exit": 0,
+      "stderr": "warning: use of deprecated module `std::u32`: all constants in this module replaced by associated constants on the type\n --> /private/tmp/canlang-pass9-positions-medium/deps/text-size-1.1.1/src/size.rs:8:9\n  |\n8 |         u32,\n  |         ^^^\n  |\n  = note: `#[warn(deprecated)]` on by default\n\nwarning: 1 warning emitted\n\n"
+    },
+    {
+      "command": [
+        "rustc",
+        "--edition=2021",
+        "--crate-name",
+        "line_index",
+        "--crate-type=rlib",
+        "/private/tmp/canlang-pass9-positions-medium/deps/line-index-0.1.2/src/lib.rs",
+        "-o",
+        "/private/tmp/canlang-pass9-positions-medium/deps/libline_index.rlib",
+        "--extern",
+        "nohash_hasher=/private/tmp/canlang-pass9-positions-medium/deps/libnohash_hasher.rlib",
+        "--extern",
+        "text_size=/private/tmp/canlang-pass9-positions-medium/deps/libtext_size.rlib",
+        "-L",
+        "dependency=/private/tmp/canlang-pass9-positions-medium/deps"
+      ],
+      "exit": 0,
+      "stderr": "warning: unnecessary `unsafe` block\n   --> /private/tmp/canlang-pass9-positions-medium/deps/line-index-0.1.2/src/lib.rs:360:23\n    |\n360 |     let nibble_mask = unsafe { vshrn_n_u16(vreinterpretq_u16_u8(v), 4) };\n    |                       ^^^^^^ unnecessary `unsafe` block\n    |\n    = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default\n\nwarning: unnecessary `unsafe` block\n   --> /private/tmp/canlang-pass9-positions-medium/deps/line-index-0.1.2/src/lib.rs:361:5\n    |\n361 |     unsafe { vget_lane_u64(vreinterpret_u64_u8(nibble_mask), 0) }\n    |     ^^^^^^ unnecessary `unsafe` block\n\nwarning: unnecessary `unsafe` block\n   --> /private/tmp/canlang-pass9-positions-medium/deps/line-index-0.1.2/src/lib.rs:379:19\n    |\n379 |     let newline = unsafe { vdupq_n_s8(b'\\n' as i8) };\n    |                   ^^^^^^ unnecessary `unsafe` block\n\nwarning: unnecessary `unsafe` block\n   --> /private/tmp/canlang-pass9-positions-medium/deps/line-index-0.1.2/src/lib.rs:393:30\n    |\n393 |         let multibyte_test = unsafe { vcltzq_s8(chunk) };\n    |                              ^^^^^^ unnecessary `unsafe` block\n\nwarning: unnecessary `unsafe` block\n   --> /private/tmp/canlang-pass9-positions-medium/deps/line-index-0.1.2/src/lib.rs:402:33\n    |\n402 |             let newlines_test = unsafe { vceqq_s8(chunk, newline) };\n    |                                 ^^^^^^ unnecessary `unsafe` block\n\nwarning: 5 warnings emitted\n\n"
+    }
+  ],
+  "seconds": 0.30989533301908523,
+  "rlib_bytes": {
+    "libline_index.rlib": 565824,
+    "libtext_size.rlib": 100480,
+    "libnohash_hasher.rlib": 29136
+  },
+  "profile": "rustc debug default, macOS native; not Cargo/full compiler adoption cost"
+}

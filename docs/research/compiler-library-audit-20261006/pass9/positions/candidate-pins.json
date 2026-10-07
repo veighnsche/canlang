@@ -1,0 +1,22 @@
+{
+  "line-index-0.1.2.crate": {
+    "sha256": "3e27e0ed5a392a7f5ba0b3808a2afccff16c64933312c84b57618b49d1209bd2",
+    "bytes": 7666,
+    "url": "https://static.crates.io/crates/line-index/line-index-0.1.2.crate"
+  },
+  "path-clean-1.0.1.crate": {
+    "sha256": "17359afc20d7ab31fdb42bb844c8b3bb1dabd7dcf7e68428492da7f16966fcef",
+    "bytes": 4514,
+    "url": "https://static.crates.io/crates/path-clean/path-clean-1.0.1.crate"
+  },
+  "text-size-1.1.1.crate": {
+    "sha256": "f18aa187839b2bdb1ad2fa35ead8c4c2976b64e4363c386d45ac0f7ee85c9233",
+    "bytes": 12553,
+    "url": "https://static.crates.io/crates/text-size/text-size-1.1.1.crate"
+  },
+  "nohash-hasher-0.2.0.crate": {
+    "sha256": "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451",
+    "bytes": 8051,
+    "url": "https://static.crates.io/crates/nohash-hasher/nohash-hasher-0.2.0.crate"
+  }
+}

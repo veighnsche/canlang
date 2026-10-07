@@ -1,0 +1,303 @@
+[
+  {
+    "id": "date-00",
+    "kind": "date",
+    "text": "0001-01-01",
+    "expected": true,
+    "expected_ms": null
+  },
+  {
+    "id": "date-01",
+    "kind": "date",
+    "text": "9999-12-31",
+    "expected": true,
+    "expected_ms": null
+  },
+  {
+    "id": "date-02",
+    "kind": "date",
+    "text": "0000-01-01",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "date-03",
+    "kind": "date",
+    "text": "10000-01-01",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "date-04",
+    "kind": "date",
+    "text": "2000-02-29",
+    "expected": true,
+    "expected_ms": null
+  },
+  {
+    "id": "date-05",
+    "kind": "date",
+    "text": "1900-02-29",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "date-06",
+    "kind": "date",
+    "text": "2024-02-29",
+    "expected": true,
+    "expected_ms": null
+  },
+  {
+    "id": "date-07",
+    "kind": "date",
+    "text": "2023-02-29",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "date-08",
+    "kind": "date",
+    "text": "2024-2-29",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "date-09",
+    "kind": "date",
+    "text": "2024-04-31",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "date-10",
+    "kind": "date",
+    "text": "２０２４-02-29",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "date-11",
+    "kind": "date",
+    "text": "2024-02-é",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "date-12",
+    "kind": "date",
+    "text": "2024-02-29\n",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-13",
+    "kind": "datetime",
+    "text": "0001-01-01T00:00:00Z",
+    "expected": true,
+    "expected_ms": -62135596800000
+  },
+  {
+    "id": "datetime-14",
+    "kind": "datetime",
+    "text": "9999-12-31T23:59:59.999Z",
+    "expected": true,
+    "expected_ms": 253402300799999
+  },
+  {
+    "id": "datetime-15",
+    "kind": "datetime",
+    "text": "1970-01-01t00:00:00z",
+    "expected": true,
+    "expected_ms": 0
+  },
+  {
+    "id": "datetime-16",
+    "kind": "datetime",
+    "text": "2000-02-29T00:00:00Z",
+    "expected": true,
+    "expected_ms": 951782400000
+  },
+  {
+    "id": "datetime-17",
+    "kind": "datetime",
+    "text": "1900-02-29T00:00:00Z",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-18",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00+00:00",
+    "expected": true,
+    "expected_ms": 0
+  },
+  {
+    "id": "datetime-19",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00-00:00",
+    "expected": true,
+    "expected_ms": 0
+  },
+  {
+    "id": "datetime-20",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00+23:59",
+    "expected": true,
+    "expected_ms": -86340000
+  },
+  {
+    "id": "datetime-21",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00-23:59",
+    "expected": true,
+    "expected_ms": 86340000
+  },
+  {
+    "id": "datetime-22",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00+24:00",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-23",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00+00:60",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-24",
+    "kind": "datetime",
+    "text": "2016-12-31T23:59:60Z",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-25",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00.0000Z",
+    "expected": true,
+    "expected_ms": 0
+  },
+  {
+    "id": "datetime-26",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00.1230000000000Z",
+    "expected": true,
+    "expected_ms": 123
+  },
+  {
+    "id": "datetime-27",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00.0001Z",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-28",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00.000000000001Z",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-29",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00.Z",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-30",
+    "kind": "datetime",
+    "text": "1970-01-01 00:00:00Z",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-31",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-32",
+    "kind": "datetime",
+    "text": "1970-1-01T00:00:00Z",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-33",
+    "kind": "datetime",
+    "text": "0000-01-01T00:00:00Z",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-34",
+    "kind": "datetime",
+    "text": "0001-01-01T00:00:00+00:01",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-35",
+    "kind": "datetime",
+    "text": "0001-01-01T00:01:00+00:01",
+    "expected": true,
+    "expected_ms": -62135596800000
+  },
+  {
+    "id": "datetime-36",
+    "kind": "datetime",
+    "text": "9999-12-31T23:59:59.999-00:01",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-37",
+    "kind": "datetime",
+    "text": "9999-12-31T23:58:59.999-00:01",
+    "expected": true,
+    "expected_ms": 253402300799999
+  },
+  {
+    "id": "datetime-38",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00+é:00",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-39",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00+00:é",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-40",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:éZ",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-41",
+    "kind": "datetime",
+    "text": "💩970-01-01T00:00:00Z",
+    "expected": false,
+    "expected_ms": null
+  },
+  {
+    "id": "datetime-42",
+    "kind": "datetime",
+    "text": "1970-01-01T00:00:00Z\n",
+    "expected": false,
+    "expected_ms": null
+  }
+]

@@ -1,0 +1,160 @@
+    fn check_fixture_cycles(
+        &mut self,
+        trees: &[(SourceId, SyntaxNode)],
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        let mut edges: HashMap<SymbolId, Vec<SymbolId>> = HashMap::new();
+        for (file, tree) in trees {
+            let text = self.text(*file);
+            for module_node in kids(tree) {
+                if !matches!(module_node.kind, SyntaxKind::App | SyntaxKind::Package) {
+                    continue;
+                }
+                let Some(module) = self.module_of(text, module_node) else {
+                    continue;
+                };
+                for fixture in module_node
+                    .descendants()
+                    .filter(|n| n.kind == SyntaxKind::Fixture && !has_error(n))
+                {
+                    let Some((name, _)) = Self::decl_name(text, fixture, &["export", "fixture"])
+                    else {
+                        continue;
+                    };
+                    let owner = match self.tables.module_scopes[module.0 as usize].test.get(&name) {
+                        Some(ScopedName::Local(id)) => *id,
+                        _ => continue,
+                    };
+                    let mut refs = Vec::new();
+                    for name_ref in fixture
+                        .descendants()
+                        .filter(|n| n.kind == SyntaxKind::NameRef || n.kind == SyntaxKind::Name)
+                    {
+                        if let Some(Binding::Symbol(id)) =
+                            self.tables.node_binding.get(&NodeKey::of(name_ref))
+                            && matches!(
+                                self.tables.symbols[id.0 as usize].kind,
+                                SymbolKind::Fixture { .. }
+                            )
+                            && !refs.contains(id)
+                        {
+                            refs.push(*id);
+                        }
+                    }
+                    edges.insert(owner, refs);
+                }
+            }
+        }
+        self.tables.fixture_edges = edges.clone();
+        let mut reported: HashSet<SymbolId> = HashSet::new();
+        for fixture in edges.keys() {
+            let mut stack = vec![*fixture];
+            let mut seen: HashSet<SymbolId> = HashSet::new();
+            seen.insert(*fixture);
+            while let Some(current) = stack.pop() {
+                if let Some(nexts) = edges.get(&current) {
+                    for next in nexts {
+                        if *next == *fixture && reported.insert(*fixture) {
+                            let name = self.tables.symbols[fixture.0 as usize].name.clone();
+                            diags.push(Diagnostic::error(
+                                "E2017",
+                                format!("fixture reference cycle through '{name}'"),
+                                self.tables.symbols[fixture.0 as usize].span,
+                            ));
+                        } else if seen.insert(*next) {
+                            stack.push(*next);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Derived-value cycles (including self-recursion) are `E2018`.
+    fn check_derive_cycles(
+        &mut self,
+        trees: &[(SourceId, SyntaxNode)],
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        let mut edges: HashMap<SymbolId, Vec<SymbolId>> = HashMap::new();
+        for (file, tree) in trees {
+            let text = self.text(*file);
+            for module_node in kids(tree) {
+                if !matches!(module_node.kind, SyntaxKind::App | SyntaxKind::Package) {
+                    continue;
+                }
+                let Some(module) = self.module_of(text, module_node) else {
+                    continue;
+                };
+                for derive in module_node
+                    .descendants()
+                    .filter(|n| n.kind == SyntaxKind::Derive && !has_error(n))
+                {
+                    let owner = self.derive_owner(module, text, derive);
+                    let Some(owner) = owner else {
+                        continue;
+                    };
+                    let mut refs = Vec::new();
+                    for name_ref in derive
+                        .descendants()
+                        .filter(|n| n.kind == SyntaxKind::NameRef || n.kind == SyntaxKind::Name)
+                    {
+                        if let Some(Binding::Symbol(id)) =
+                            self.tables.node_binding.get(&NodeKey::of(name_ref))
+                            && matches!(
+                                self.tables.symbols[id.0 as usize].kind,
+                                SymbolKind::DeriveFn { .. }
+                            )
+                            && !refs.contains(id)
+                        {
+                            refs.push(*id);
+                        }
+                    }
+                    edges.insert(owner, refs);
+                }
+            }
+        }
+        let mut reported: HashSet<SymbolId> = HashSet::new();
+        for derive in edges.keys() {
+            let mut stack = vec![*derive];
+            let mut seen: HashSet<SymbolId> = HashSet::new();
+            seen.insert(*derive);
+            while let Some(current) = stack.pop() {
+                if let Some(nexts) = edges.get(&current) {
+                    for next in nexts {
+                        if *next == *derive && reported.insert(*derive) {
+                            let name = self.tables.symbols[derive.0 as usize].name.clone();
+                            diags.push(Diagnostic::error(
+                                "E2018",
+                                format!("derived-value cycle through '{name}'"),
+                                self.tables.symbols[derive.0 as usize].span,
+                            ));
+                        } else if seen.insert(*next) {
+                            stack.push(*next);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Owning symbol of one `Derive` node (function, or model for fields).
+    fn derive_owner(&self, module: ModuleId, text: &str, node: &SyntaxNode) -> Option<SymbolId> {
+        let parts = kids(node);
+        let path = parts.iter().find(|n| n.kind == SyntaxKind::Path)?;
+        let segments = path_segments(path, text);
+        let is_function = parts.iter().any(|n| is_punct(n, text, "("));
+        if is_function && segments.len() == 1 {
+            match self.tables.module_scopes[module.0 as usize]
+                .prod
+                .get(segments[0])
+            {
+                Some(ScopedName::Local(id)) => Some(*id),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+}
+

@@ -1,0 +1,186 @@
+    fn resolve_composition(&mut self, diags: &mut Vec<Diagnostic>) {
+        let modules: Vec<Module> = self.tables.modules.clone();
+        for module in &modules {
+            if module.kind != ModuleKind::ComposedApp {
+                continue;
+            }
+            for member in &module.uses {
+                match self.tables.module_by_name.get(member) {
+                    Some(&id) => {
+                        self.tables.modules[module.id.0 as usize]
+                            .uses_resolved
+                            .push(id);
+                    }
+                    None => {
+                        diags.push(Diagnostic::error(
+                            "E2005",
+                            format!("app '{}' selects unknown member '{member}'", module.name),
+                            module.name_span,
+                        ));
+                    }
+                }
+            }
+        }
+        for module in &modules {
+            if module.kind != ModuleKind::ComposedApp {
+                continue;
+            }
+            let mut stack = vec![module.id];
+            let mut visiting: HashSet<ModuleId> = HashSet::new();
+            visiting.insert(module.id);
+            while let Some(current) = stack.pop() {
+                let members = self.tables.modules[current.0 as usize]
+                    .uses_resolved
+                    .clone();
+                for member in members {
+                    if member == module.id {
+                        let name = self.tables.modules[module.id.0 as usize].name.clone();
+                        diags.push(Diagnostic::error(
+                            "E2007",
+                            format!("app composition cycle through '{name}'"),
+                            self.tables.modules[module.id.0 as usize].name_span,
+                        ));
+                    } else if visiting.insert(member)
+                        && self.tables.modules[member.0 as usize].kind == ModuleKind::ComposedApp
+                    {
+                        stack.push(member);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Resolve `in Parent` containment links and reject containment cycles.
+    fn resolve_ownership(&mut self, diags: &mut Vec<Diagnostic>) {
+        let pending = std::mem::take(&mut self.pending_parents);
+        for (model, segments, span) in pending {
+            if segments.len() != 1 {
+                diags.push(Diagnostic::error(
+                    "E2008",
+                    format!(
+                        "containment '{}' must name one model in scope",
+                        segments.join(".")
+                    ),
+                    span,
+                ));
+                continue;
+            }
+            let module = self.tables.symbols[model.0 as usize].module;
+            let parent = match self.lookup_prod(module, &segments[0]) {
+                Some(ScopedName::Local(id))
+                    if matches!(
+                        self.tables.symbols[id.0 as usize].kind,
+                        SymbolKind::Model { .. }
+                    ) =>
+                {
+                    id
+                }
+                Some(ScopedName::Local(_)) => {
+                    diags.push(Diagnostic::error(
+                        "E2008",
+                        format!("containment target '{}' is not a stored model", segments[0]),
+                        span,
+                    ));
+                    continue;
+                }
+                Some(ScopedName::Imported { target, bound }) => {
+                    // T28-A (plain_import_containment): a plain-imported
+                    // stored model contains exactly like a local one;
+                    // bound (from=) parents stay rejected (remote:
+                    // reference field instead).
+                    if bound {
+                        diags.push(Diagnostic::error(
+                            "E2008",
+                            format!(
+                                "containment target '{}' is a bound (from=) import; containment needs a plain-imported or package-local parent",
+                                segments[0]
+                            ),
+                            span,
+                        ));
+                        continue;
+                    }
+                    if !matches!(
+                        self.tables.symbols[target.0 as usize].kind,
+                        SymbolKind::Model { .. }
+                    ) {
+                        diags.push(Diagnostic::error(
+                            "E2008",
+                            format!("containment target '{}' is not a stored model", segments[0]),
+                            span,
+                        ));
+                        continue;
+                    }
+                    target
+                }
+                Some(ScopedName::External { .. }) => {
+                    diags.push(Diagnostic::error(
+                        "E2008",
+                        format!(
+                            "containment target '{}' is external; containment needs a plain-imported or package-local parent",
+                            segments[0]
+                        ),
+                        span,
+                    ));
+                    continue;
+                }
+                None => {
+                    let mut diagnostic = Diagnostic::error(
+                        "E2001",
+                        format!("unresolved name '{}'", segments[0]),
+                        span,
+                    );
+                    if segments[0] == "team" {
+                        diagnostic.message = "omit redundant in team ownership".to_string();
+                    }
+                    diags.push(diagnostic);
+                    continue;
+                }
+            };
+            if parent == model {
+                diags.push(Diagnostic::error(
+                    "E2008",
+                    "a model cannot contain itself".to_string(),
+                    span,
+                ));
+                continue;
+            }
+            if let SymbolKind::Model { owner, .. } = &mut self.tables.symbols[model.0 as usize].kind
+            {
+                *owner = ModelOwner::ChildOf(parent);
+            }
+            self.tables
+                .children_of
+                .entry(parent)
+                .or_default()
+                .push(model);
+        }
+        let models: Vec<SymbolId> = self
+            .tables
+            .symbols
+            .iter()
+            .filter(|s| matches!(s.kind, SymbolKind::Model { .. }))
+            .map(|s| s.id)
+            .collect();
+        for model in models {
+            let mut current = model;
+            let mut seen: HashSet<SymbolId> = HashSet::new();
+            seen.insert(model);
+            while let SymbolKind::Model {
+                owner: ModelOwner::ChildOf(parent),
+                ..
+            } = &self.tables.symbols[current.0 as usize].kind
+            {
+                let parent = *parent;
+                if !seen.insert(parent) {
+                    let name = self.tables.symbols[model.0 as usize].name.clone();
+                    diags.push(Diagnostic::error(
+                        "E2008",
+                        format!("containment cycle through model '{name}'"),
+                        self.tables.symbols[model.0 as usize].span,
+                    ));
+                    break;
+                }
+                current = parent;
+            }
+        }
+    }

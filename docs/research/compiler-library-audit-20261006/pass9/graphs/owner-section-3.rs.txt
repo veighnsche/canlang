@@ -1,0 +1,57 @@
+    fn check_cycles(&mut self) {
+        let mut edges: HashMap<SymbolId, Vec<(SymbolId, Span)>> = HashMap::new();
+        for (caller, callee, span) in &self.call_edges {
+            if !self.is_callable_symbol(*caller) || !self.is_callable_symbol(*callee) {
+                continue;
+            }
+            edges.entry(*caller).or_default().push((*callee, *span));
+        }
+        let mut reported: HashSet<Vec<SymbolId>> = HashSet::new();
+        let callers: Vec<SymbolId> = edges.keys().copied().collect();
+        for caller in callers {
+            // Depth-first search for a path back to `caller`.
+            let mut stack: Vec<(SymbolId, Vec<SymbolId>)> = vec![(caller, vec![caller])];
+            let mut visited: HashSet<SymbolId> = HashSet::new();
+            while let Some((current, path)) = stack.pop() {
+                let Some(nexts) = edges.get(&current) else {
+                    continue;
+                };
+                for (next, span) in nexts {
+                    if *next == caller && (path.len() > 1 || current == caller) {
+                        let mut key = path.clone();
+                        key.sort_by_key(|id| id.0);
+                        if reported.insert(key) {
+                            let mut names: Vec<String> = path
+                                .iter()
+                                .map(|id| self.tables.symbols[id.0 as usize].name.clone())
+                                .collect();
+                            names.push(self.tables.symbols[caller.0 as usize].name.clone());
+                            self.diags.push(Diagnostic::error(
+                                "E3005",
+                                format!("call cycle: {}", names.join(" -> ")),
+                                *span,
+                            ));
+                        }
+                        continue;
+                    }
+                    if visited.contains(next) || path.contains(next) {
+                        continue;
+                    }
+                    visited.insert(*next);
+                    let mut extended = path.clone();
+                    extended.push(*next);
+                    stack.push((*next, extended));
+                }
+            }
+        }
+    }
+
+    /// Whether a symbol participates in call cycles (scenarios and
+    /// derived functions; capability/CRUD operations are leaves).
+    fn is_callable_symbol(&self, id: SymbolId) -> bool {
+        matches!(
+            self.tables.symbols[id.0 as usize].kind,
+            SymbolKind::Scenario { .. } | SymbolKind::DeriveFn { .. }
+        )
+    }
+

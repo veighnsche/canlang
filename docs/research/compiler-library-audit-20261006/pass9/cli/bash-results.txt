@@ -1,0 +1,24 @@
+input: <can> <li>
+reply: <lint>
+input: <can> <lint> <--f>
+reply: <--format>
+reply: <--format=json>
+reply: <--format=text>
+input: <can> <lint> <--fix>
+reply: <>
+input: <can> <check> <--format> <j>
+reply: <json>
+input: <can> <check> <--format=j>
+reply: <--format=json>
+input: <can> <completions> <>
+reply: <bash>
+reply: <zsh>
+reply: <fish>
+input: <can> <help> <li>
+reply: <lint>
+input: <can> <run> <--f>
+reply: <>
+input: <can> <check> <--> <--f>
+reply: <--format>
+reply: <--format=json>
+reply: <--format=text>

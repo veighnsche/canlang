@@ -1,0 +1,6 @@
+    fn record_call_edge(&mut self, span: Span, callee: SymbolId) {
+        if let Some(caller) = self.current_op {
+            self.call_edges.push((caller, callee, span));
+        }
+    }
+

@@ -1,0 +1,14 @@
+    Updating crates.io index
+     Locking 7 packages to highest Rust 1.99.0 compatible versions
+ Downloading crates ...
+  Downloaded fixedbitset v0.5.7
+  Downloaded petgraph v0.8.3
+   Compiling foldhash v0.1.5
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling indexmap v2.14.2
+   Compiling hashbrown v0.15.5
+   Compiling fixedbitset v0.5.7
+   Compiling petgraph v0.8.3
+   Compiling canlang-pass9-graphs v0.0.0 (/private/tmp/canlang-pass9-graphs)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.64s

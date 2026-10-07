@@ -1,0 +1,197 @@
+{
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+  "owner_sections": [
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "start": "pub fn resolve_program(",
+      "end": "/// Emit `E2001`",
+      "start_line": 496,
+      "section_sha256": "c4adcfeae0674ddef71f50c559c3dcf3b6dc2b03d112a89a3351943eac56d6da",
+      "snapshot": "owner-section-0.rs.txt",
+      "full_file_sha256": "c1dc6a79b65a8e9fad2a1c63e5c550315012ca4b4849c39330f9527394810e50"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "start": "    fn resolve_composition(",
+      "end": "\n}\n\nimpl",
+      "start_line": 2126,
+      "section_sha256": "361a1548e812f6cfdfe59896892fa20a56d20cd1d62e09c3ce9ea2e1bf591c5b",
+      "snapshot": "owner-section-1.rs.txt",
+      "full_file_sha256": "c1dc6a79b65a8e9fad2a1c63e5c550315012ca4b4849c39330f9527394810e50"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "start": "    fn check_fixture_cycles(",
+      "end": "/// Operation target classification",
+      "start_line": 5179,
+      "section_sha256": "6bc1da3cfc43a42b8265f7ca8a2dfc5b89d2d8f928cd7cd9be0da02349a2954a",
+      "snapshot": "owner-section-2.rs.txt",
+      "full_file_sha256": "c1dc6a79b65a8e9fad2a1c63e5c550315012ca4b4849c39330f9527394810e50"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "start": "    fn check_cycles(",
+      "end": "    // --- Phase 2: rules",
+      "start_line": 4960,
+      "section_sha256": "c2ec9fe9928748caea6ad099b260d2bf0120bf716508b989fabae0017c6be76f",
+      "snapshot": "owner-section-3.rs.txt",
+      "full_file_sha256": "91c73cd3ee28bfc2e62f84226fd0170291c0b06e56e0fbf6bc5e39a5914b734f"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "start": "    fn record_call_edge(",
+      "end": "    /// `emit",
+      "start_line": 2301,
+      "section_sha256": "b5dc88fb6f351ff18f2b28aabf56e13a5901b004308838e86959811cade7ac4e",
+      "snapshot": "owner-section-4.rs.txt",
+      "full_file_sha256": "91c73cd3ee28bfc2e62f84226fd0170291c0b06e56e0fbf6bc5e39a5914b734f"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "start": "    fn check_every_scopes(",
+      "end": "    //",
+      "start_line": 4052,
+      "section_sha256": "e69fe3fd3eb5c403148dbfa0a2202a2a3992a487ed1ec320151fbee9996b62a1",
+      "snapshot": "owner-section-5.rs.txt",
+      "full_file_sha256": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "start": "    fn scope_is_app(",
+      "end": "// --- Local CST helpers",
+      "start_line": 4106,
+      "section_sha256": "e0b7907ce0eb8b9f875353422035016441d27f587e01a02028223ade7dcf13e1",
+      "snapshot": "owner-section-6.rs.txt"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "start": "    fn check_fixture(",
+      "end": "    /// Check a `message`",
+      "start_line": 435,
+      "section_sha256": "91412ad751941609dcb2aee3f4aaf115584cb4ec31e805feffbd3df4ad8faf96",
+      "snapshot": "owner-section-7.rs.txt"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "start": "    fn field_type_guarded(",
+      "end": "    /// Resolve a `UnionType`",
+      "start_line": 9207,
+      "section_sha256": "786c652162b2444c9c48f1ffaf7f700827b024e359056487f413a766f9c54d0d",
+      "snapshot": "owner-section-8.rs.txt"
+    }
+  ],
+  "compiler_rlib": {
+    "path": "compiler/target/debug/deps/libcanlang_compiler-7ac8439fc564dd9b.rlib",
+    "sha256": "fb2aebaf19f332a62235ce3cb3b48f15466f49fbcd3fa1f3849f1d535d78405f",
+    "qualification": "Existing debug rlib reused; live source graph-section provenance not independently embedded in rlib. Exact executed behavior saved; no full current rebuild claimed."
+  },
+  "candidate_inputs": [
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/petgraph-0.8.3/src/algo/scc/kosaraju_scc.rs",
+      "sha256": "40edd9cf400b162810799347899b6c155d9e4675b75a61c98669e8d0fee3da6f"
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/petgraph-0.8.3/src/visit/traversal.rs",
+      "sha256": "350709275ce81ccdcb6b564c6750adb556b6b79d279615cb61981b97275f088e"
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/petgraph-0.8.3/Cargo.toml",
+      "sha256": "87116e6cade1288df44b843bd31a52725fe8e62e4b6ab7ca06d7be64fcd45c64"
+    },
+    {
+      "path": "/private/tmp/canlang-pass5-profile/current-native-target/debug/deps/libpetgraph-0bf65407ba6e0336.rlib",
+      "sha256": "d691f2a82354ce54b6835ab51b432854bed7e1120fa52c0757a862c7afcc551c"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/ASSESSMENT.md",
+      "sha256": "89cf1d71db5899d97c00f2d78fc70874992f479b5b2af17ef93701ba8f1ec955"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/build-raw.txt",
+      "sha256": "d199bb2f84bdcd58456a9a4a3031ae7e8299b491e0bcfb93fc9557fd7b60d840"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/candidate.Cargo.lock",
+      "sha256": "e7d49c587664b79c75ef18cc85c579d4d60ad82bb9b0c7a46bdb24347167286f"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/candidate.Cargo.toml",
+      "sha256": "3fcef93b663a35435c55327bba2e89668b8a78ed68bf55d674edd997824a4e40"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/compiler-raw.txt",
+      "sha256": "2944a0a6c97432fd18ba573f885319a339666ae35bfd942079bb0f1129bb61a2"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/compiler-repeat-raw.txt",
+      "sha256": "5cd4cb5fefc12b8c3b42aae21ef0b043abd626a6b5d00e6db2f32b64673e81cb"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/compiler_probe.rs",
+      "sha256": "bc46a27d145600ef377521ec9dab32a48e4296aa37157801c48a105149a318df"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/features.txt",
+      "sha256": "996c840508cb1a9e209e7e4c6a1f0e42e99d1d1b6253b95c78d38804e87acb32"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/graph-raw.txt",
+      "sha256": "e3dfc44da359ea7914a60f158cc977dfee6f9a1a2465d0c95b128554d525cabb"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/graph_probe.rs",
+      "sha256": "0a0ff31fe53729f357419c35694d875a7ea53c22fcc2112b7c5a6fe4485b04b8"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/offline-build-raw.txt",
+      "sha256": "99f71393b9903dca098310bb446022a4bdee195ea9996f351a787195555210a6"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/owner-section-0.rs.txt",
+      "sha256": "c4adcfeae0674ddef71f50c559c3dcf3b6dc2b03d112a89a3351943eac56d6da"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/owner-section-1.rs.txt",
+      "sha256": "361a1548e812f6cfdfe59896892fa20a56d20cd1d62e09c3ce9ea2e1bf591c5b"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/owner-section-2.rs.txt",
+      "sha256": "6bc1da3cfc43a42b8265f7ca8a2dfc5b89d2d8f928cd7cd9be0da02349a2954a"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/owner-section-3.rs.txt",
+      "sha256": "c2ec9fe9928748caea6ad099b260d2bf0120bf716508b989fabae0017c6be76f"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/owner-section-4.rs.txt",
+      "sha256": "b5dc88fb6f351ff18f2b28aabf56e13a5901b004308838e86959811cade7ac4e"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/owner-section-5.rs.txt",
+      "sha256": "e69fe3fd3eb5c403148dbfa0a2202a2a3992a487ed1ec320151fbee9996b62a1"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/owner-section-6.rs.txt",
+      "sha256": "e0b7907ce0eb8b9f875353422035016441d27f587e01a02028223ade7dcf13e1"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/owner-section-7.rs.txt",
+      "sha256": "91412ad751941609dcb2aee3f4aaf115584cb4ec31e805feffbd3df4ad8faf96"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/owner-section-8.rs.txt",
+      "sha256": "786c652162b2444c9c48f1ffaf7f700827b024e359056487f413a766f9c54d0d"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/reproduce.sh",
+      "sha256": "8bad15d6d98af0501060a34148ce13ebc32ab620f99fc5d612e8b0830cb74fbe"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass9/graphs/reproduction-raw.txt",
+      "sha256": "69bc980b4aef764b188b848c124a4e984f5707bde440f8c0ba2fe86fd905ddc0"
+    }
+  ]
+}

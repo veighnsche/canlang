@@ -1,0 +1,6 @@
+[package]
+name = "canlang-pass9-graphs"
+version = "0.0.0"
+edition = "2024"
+[dependencies]
+petgraph = {version = "=0.8.3", default-features = false, features = ["std"]}

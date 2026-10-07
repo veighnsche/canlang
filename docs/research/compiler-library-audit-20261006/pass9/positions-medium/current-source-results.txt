@@ -1,0 +1,27 @@
+forward 0: (1, 1) (0, 0) (0, 0)
+forward 1: (1, 7) (0, 3) (0, 6)
+forward 2: (1, 5) (0, 1) (0, 2)
+forward 3: (1, 8) (0, 4) (0, 7)
+forward 4: (1, 3) (0, 2) (0, 2)
+forward 5: (1, 3) (0, 2) (0, 2)
+forward 6: (2, 1) (1, 0) (1, 0)
+forward 7: (1, 3) (0, 2) (0, 2)
+forward 8: (1, 3) (0, 2) (0, 2)
+forward 9: (2, 1) (1, 0) (1, 0)
+reverse 0: Some(2)
+reverse 1: Some(6)
+reverse 2: Some(7)
+reverse 3: Some(2)
+reverse 4: Some(1)
+reverse 5: Some(1)
+reverse 6: Some(2)
+reverse 7: None
+path 0: real.can
+path 1: real.can
+path 2: real.can
+path 3: real.can
+path 4: absent.can
+path 5: external:/private/tmp/canlang-pass9-positions-medium/fs/outside.can
+path 6: external:x
+path 7: external:../x
+path 8: x

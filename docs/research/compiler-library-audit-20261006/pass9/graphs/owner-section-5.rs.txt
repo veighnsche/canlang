@@ -1,0 +1,49 @@
+    fn check_every_scopes(&mut self) {
+        let handlers = std::mem::take(&mut self.every_handlers);
+        for (handler, span) in handlers {
+            let mut models: Vec<SymbolId> = Vec::new();
+            let mut visited: HashSet<SymbolId> = HashSet::new();
+            let mut stack = vec![handler];
+            while let Some(current) = stack.pop() {
+                if !visited.insert(current) {
+                    continue;
+                }
+                if let Some(direct) = self.scenario_models.get(&current) {
+                    for model in direct {
+                        push_unique(&mut models, *model);
+                    }
+                }
+                if let Some(callees) = self.scenario_calls.get(&current).cloned() {
+                    for callee in callees {
+                        match &self.tables.symbols[callee.0 as usize].kind {
+                            SymbolKind::Scenario { .. } => stack.push(callee),
+                            SymbolKind::CrudOp { model, .. } => push_unique(&mut models, *model),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            let mut app: Option<SymbolId> = None;
+            let mut team: Option<SymbolId> = None;
+            for model in &models {
+                if self.scope_is_app(*model) {
+                    app = app.or(Some(*model));
+                } else {
+                    team = team.or(Some(*model));
+                }
+            }
+            if let (Some(app), Some(team)) = (app, team) {
+                let module = self.tables.symbols[handler.0 as usize].module;
+                self.diags.push(Diagnostic::error(
+                    "E4051",
+                    format!(
+                        "recurring handler mixes app-scoped '{}' and team-scoped '{}' data",
+                        self.show(module, app),
+                        self.show(module, team),
+                    ),
+                    span,
+                ));
+            }
+        }
+    }
+

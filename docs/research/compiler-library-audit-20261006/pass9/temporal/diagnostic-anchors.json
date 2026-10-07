@@ -1,0 +1,407 @@
+[
+  {
+    "id": "date-02",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`0000-01-01` is not a valid date: year outside 0001-9999",
+      "primary": {
+        "file": 0,
+        "start": 67,
+        "end": 79
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "date-03",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`10000-01-01` is not a valid date: want YYYY-MM-DD",
+      "primary": {
+        "file": 0,
+        "start": 67,
+        "end": 80
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "date-05",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1900-02-29` is not a valid date: invalid civil date",
+      "primary": {
+        "file": 0,
+        "start": 67,
+        "end": 79
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "date-07",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`2023-02-29` is not a valid date: invalid civil date",
+      "primary": {
+        "file": 0,
+        "start": 67,
+        "end": 79
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "date-08",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`2024-2-29` is not a valid date: want YYYY-MM-DD",
+      "primary": {
+        "file": 0,
+        "start": 67,
+        "end": 78
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "date-09",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`2024-04-31` is not a valid date: invalid civil date",
+      "primary": {
+        "file": 0,
+        "start": 67,
+        "end": 79
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "date-10",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`２０２４-02-29` is not a valid date: want YYYY-MM-DD",
+      "primary": {
+        "file": 0,
+        "start": 67,
+        "end": 87
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "date-11",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`2024-02-é` is not a valid date: want YYYY-MM-DD",
+      "primary": {
+        "file": 0,
+        "start": 67,
+        "end": 79
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "date-12",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`2024-02-29\n` is not a valid date: want YYYY-MM-DD",
+      "primary": {
+        "file": 0,
+        "start": 67,
+        "end": 81
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-17",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1900-02-29T00:00:00Z` is not a valid datetime: invalid calendar date",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 93
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-22",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:00+24:00` is not a valid datetime: invalid zone offset",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 98
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-23",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:00+00:60` is not a valid datetime: invalid zone offset",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 98
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-24",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`2016-12-31T23:59:60Z` is not a valid datetime: invalid time of day",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 93
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-27",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:00.0001Z` is not a valid datetime: nonzero sub-millisecond fraction rejected",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 98
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-28",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:00.000000000001Z` is not a valid datetime: nonzero sub-millisecond fraction rejected",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 106
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-29",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:00.Z` is not a valid datetime: empty fractional seconds",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 94
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-30",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01 00:00:00Z` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 93
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-31",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:00` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 92
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-32",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-1-01T00:00:00Z` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 92
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-33",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`0000-01-01T00:00:00Z` is not a valid datetime: year outside 0001-9999",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 93
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-34",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`0001-01-01T00:00:00+00:01` is not a valid datetime: instant outside the supported range",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 98
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-36",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`9999-12-31T23:59:59.999-00:01` is not a valid datetime: instant outside the supported range",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 102
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-38",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:00+é:00` is not a valid datetime: want a Z or ±HH:MM zone offset",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 98
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-39",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:00+00:é` is not a valid datetime: want a Z or ±HH:MM zone offset",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 98
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-40",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:éZ` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 93
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-41",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`💩970-01-01T00:00:00Z` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 96
+      },
+      "related": [],
+      "tags": []
+    }
+  },
+  {
+    "id": "datetime-42",
+    "diagnostic": {
+      "code": "E3001",
+      "severity": "error",
+      "message": "`1970-01-01T00:00:00Z\n` is not a valid datetime: want a Z or ±HH:MM zone offset",
+      "primary": {
+        "file": 0,
+        "start": 71,
+        "end": 95
+      },
+      "related": [],
+      "tags": []
+    }
+  }
+]

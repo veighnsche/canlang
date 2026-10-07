@@ -1,0 +1,14 @@
+    Updating crates.io index
+error: failed to get `time` as a dependency of package `canlang-pass9-temporal-candidate v0.0.0 (/private/tmp/canlang-pass9-temporal-candidate)`
+
+Caused by:
+  failed to load source for dependency `time`
+
+Caused by:
+  unable to update registry `crates-io`
+
+Caused by:
+  download of config.json failed
+
+Caused by:
+  [6] Couldn't resolve host name (Could not resolve host: index.crates.io)

@@ -1,0 +1,21 @@
+    fn field_type_guarded(
+        &mut self,
+        module: ModuleId,
+        field: SymbolId,
+        path: &SyntaxNode,
+    ) -> ResolvedType {
+        if self.resolving.contains(&field) {
+            let name = record_name(self.tables, module, field);
+            self.diags.push(Diagnostic::error(
+                "E3008",
+                format!("cyclic field-type reuse through '{name}'"),
+                path.span,
+            ));
+            return ResolvedType::Error;
+        }
+        self.resolving.push(field);
+        let ty = self.decl_type(field);
+        self.resolving.pop();
+        ty
+    }
+

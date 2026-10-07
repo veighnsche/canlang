@@ -1,0 +1,866 @@
+{
+  "profile": {
+    "node": "v24.21.0",
+    "resolved": "/Users/vince/Projects/canlang/packages/values/dist/src/index.js",
+    "compiler": "/Users/vince/Projects/canlang//compiler/target/debug/can"
+  },
+  "outcomes": [
+    {
+      "id": "date-00",
+      "kind": "date",
+      "text": "0001-01-01",
+      "expected": true,
+      "expected_ms": null,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 1,
+          "month": 1,
+          "day": 1
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-00.can\",\"sha256\":\"b992947c50a9fd49afcb165661eb18bec7647815831e32b2b41648f9950aa97b\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"0001-01-01\")\nThen\n"
+    },
+    {
+      "id": "date-01",
+      "kind": "date",
+      "text": "9999-12-31",
+      "expected": true,
+      "expected_ms": null,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 9999,
+          "month": 12,
+          "day": 31
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-01.can\",\"sha256\":\"254d086072a1f3fa4f0dae4bf8784a5416396e6918128b73c02aac66aff4e50f\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"9999-12-31\")\nThen\n"
+    },
+    {
+      "id": "date-02",
+      "kind": "date",
+      "text": "0000-01-01",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "out-of-range",
+        "message": "date year outside 0001-9999: 0000-01-01"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-02.can\",\"sha256\":\"abd996bbc47495e79342e837e209397b6b9c9bf24ac4d1a19a5060c0ab8cb152\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`0000-01-01` is not a valid date: year outside 0001-9999\",\"primary\":{\"file\":0,\"start\":67,\"end\":79},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"0000-01-01\")\nThen\n"
+    },
+    {
+      "id": "date-03",
+      "kind": "date",
+      "text": "10000-01-01",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid date text: 10000-01-01"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-03.can\",\"sha256\":\"5d725467a955fae286f19ad858c34beaff3103cb6a1cd8f9efa315026b00daea\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`10000-01-01` is not a valid date: want YYYY-MM-DD\",\"primary\":{\"file\":0,\"start\":67,\"end\":80},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"10000-01-01\")\nThen\n"
+    },
+    {
+      "id": "date-04",
+      "kind": "date",
+      "text": "2000-02-29",
+      "expected": true,
+      "expected_ms": null,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 2000,
+          "month": 2,
+          "day": 29
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-04.can\",\"sha256\":\"2525dce402a311bc009bd833091e7164d9ead23aeca42ec6882e6e85e0333c05\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"2000-02-29\")\nThen\n"
+    },
+    {
+      "id": "date-05",
+      "kind": "date",
+      "text": "1900-02-29",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid civil date: 1900-02-29"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-05.can\",\"sha256\":\"a709b940fc9de1bee406115e4db5893d135e6d35b77b8abbf67016981f3c528f\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1900-02-29` is not a valid date: invalid civil date\",\"primary\":{\"file\":0,\"start\":67,\"end\":79},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"1900-02-29\")\nThen\n"
+    },
+    {
+      "id": "date-06",
+      "kind": "date",
+      "text": "2024-02-29",
+      "expected": true,
+      "expected_ms": null,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 2024,
+          "month": 2,
+          "day": 29
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-06.can\",\"sha256\":\"fd7a276208b0178f5a7a0ee4a020ef14193aaae7442eca9bc822e0f50259af18\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"2024-02-29\")\nThen\n"
+    },
+    {
+      "id": "date-07",
+      "kind": "date",
+      "text": "2023-02-29",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid civil date: 2023-02-29"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-07.can\",\"sha256\":\"777f7995b5740f93ff0f80ed36342de4f9c80ab9cdaff04ddf461842979ea726\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`2023-02-29` is not a valid date: invalid civil date\",\"primary\":{\"file\":0,\"start\":67,\"end\":79},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"2023-02-29\")\nThen\n"
+    },
+    {
+      "id": "date-08",
+      "kind": "date",
+      "text": "2024-2-29",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid date text: 2024-2-29"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-08.can\",\"sha256\":\"a89531eb0ca67bf3186183ff82cad0d2a4d227aaa3eabaf055e552c528a1b9d9\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`2024-2-29` is not a valid date: want YYYY-MM-DD\",\"primary\":{\"file\":0,\"start\":67,\"end\":78},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"2024-2-29\")\nThen\n"
+    },
+    {
+      "id": "date-09",
+      "kind": "date",
+      "text": "2024-04-31",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid civil date: 2024-04-31"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-09.can\",\"sha256\":\"6bf210d8fe132ce04aa883c7c4405fe2a8937b7d3a429d8a5eeb01c133c30627\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`2024-04-31` is not a valid date: invalid civil date\",\"primary\":{\"file\":0,\"start\":67,\"end\":79},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"2024-04-31\")\nThen\n"
+    },
+    {
+      "id": "date-10",
+      "kind": "date",
+      "text": "２０２４-02-29",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid date text: ２０２４-02-29"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-10.can\",\"sha256\":\"06567bc9600152106e78946a5546304da8b1beb6a787d2f6ef00f90475e7034c\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`２０２４-02-29` is not a valid date: want YYYY-MM-DD\",\"primary\":{\"file\":0,\"start\":67,\"end\":87},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"２０２４-02-29\")\nThen\n"
+    },
+    {
+      "id": "date-11",
+      "kind": "date",
+      "text": "2024-02-é",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid date text: 2024-02-é"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-11.can\",\"sha256\":\"99b6b98e9141a7a4150b10c8bec80db33abe2564c5a4e0248b9db93a87b61928\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`2024-02-é` is not a valid date: want YYYY-MM-DD\",\"primary\":{\"file\":0,\"start\":67,\"end\":79},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"2024-02-é\")\nThen\n"
+    },
+    {
+      "id": "date-12",
+      "kind": "date",
+      "text": "2024-02-29\n",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid date text: 2024-02-29\n"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-date-12.can\",\"sha256\":\"49920ea43d5478962f814a7f2cf771deaebcf2984c4187e14efcbf9504c6c9dd\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`2024-02-29\\n` is not a valid date: want YYYY-MM-DD\",\"primary\":{\"file\":0,\"start\":67,\"end\":81},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = date(\"2024-02-29\\n\")\nThen\n"
+    },
+    {
+      "id": "datetime-13",
+      "kind": "datetime",
+      "text": "0001-01-01T00:00:00Z",
+      "expected": true,
+      "expected_ms": -62135596800000,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "-62135596800000"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-13.can\",\"sha256\":\"a05f19b8abbe52aa1006f75c6d95f093be2c0cace19ffeb05e2c2f8afefe8921\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"0001-01-01T00:00:00Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-14",
+      "kind": "datetime",
+      "text": "9999-12-31T23:59:59.999Z",
+      "expected": true,
+      "expected_ms": 253402300799999,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "253402300799999"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-14.can\",\"sha256\":\"c924e04619c177745b512d16a0148750b99b03518d77d5dc4b5d480effbe5a7a\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"9999-12-31T23:59:59.999Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-15",
+      "kind": "datetime",
+      "text": "1970-01-01t00:00:00z",
+      "expected": true,
+      "expected_ms": 0,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "0"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-15.can\",\"sha256\":\"c7a5772222edd812036dec753dcd2ae309004f5f9afb92a2d50071e8e9883452\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01t00:00:00z\")\nThen\n"
+    },
+    {
+      "id": "datetime-16",
+      "kind": "datetime",
+      "text": "2000-02-29T00:00:00Z",
+      "expected": true,
+      "expected_ms": 951782400000,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "951782400000"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-16.can\",\"sha256\":\"1cc3172d8fdb2213f853f210d6f003ec513747c2374fa179e0cacfe33ec4f585\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"2000-02-29T00:00:00Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-17",
+      "kind": "datetime",
+      "text": "1900-02-29T00:00:00Z",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid calendar date: 1900-02-29T00:00:00Z"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-17.can\",\"sha256\":\"bbb022cc88e3c4c9bcb12a491cfaca146f2b4bc2f2b6297a6f962290b96c00b8\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1900-02-29T00:00:00Z` is not a valid datetime: invalid calendar date\",\"primary\":{\"file\":0,\"start\":71,\"end\":93},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1900-02-29T00:00:00Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-18",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00+00:00",
+      "expected": true,
+      "expected_ms": 0,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "0"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-18.can\",\"sha256\":\"decc9a27e0fa9fd0515501728e1d51893e1d89db94153a943a36932bdfed1c8a\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00+00:00\")\nThen\n"
+    },
+    {
+      "id": "datetime-19",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00-00:00",
+      "expected": true,
+      "expected_ms": 0,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "0"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-19.can\",\"sha256\":\"fe100d31b6229bbc2aad09cd6565b70e6c2f13197145c56250fdcd3b18bc43e0\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00-00:00\")\nThen\n"
+    },
+    {
+      "id": "datetime-20",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00+23:59",
+      "expected": true,
+      "expected_ms": -86340000,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "-86340000"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-20.can\",\"sha256\":\"857d8a8ac9bb13b89b843891fa999785a6deef7ed59f036e4bedc084f1b06d2c\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00+23:59\")\nThen\n"
+    },
+    {
+      "id": "datetime-21",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00-23:59",
+      "expected": true,
+      "expected_ms": 86340000,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "86340000"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-21.can\",\"sha256\":\"30331ab8a3ce3745a8c516b4478aff0ea18372ee5b3717a6a3f75201f4e580db\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00-23:59\")\nThen\n"
+    },
+    {
+      "id": "datetime-22",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00+24:00",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid zone offset: 1970-01-01T00:00:00+24:00"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-22.can\",\"sha256\":\"9bf772571910e996e4efc25d64367a9a1aae736b3b1c5ff93828a32f73788161\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:00+24:00` is not a valid datetime: invalid zone offset\",\"primary\":{\"file\":0,\"start\":71,\"end\":98},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00+24:00\")\nThen\n"
+    },
+    {
+      "id": "datetime-23",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00+00:60",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid zone offset: 1970-01-01T00:00:00+00:60"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-23.can\",\"sha256\":\"b466db0ab8f69681c6bad38cf8b116706627380626b42d4b9f95c83531c7d2b3\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:00+00:60` is not a valid datetime: invalid zone offset\",\"primary\":{\"file\":0,\"start\":71,\"end\":98},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00+00:60\")\nThen\n"
+    },
+    {
+      "id": "datetime-24",
+      "kind": "datetime",
+      "text": "2016-12-31T23:59:60Z",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid time of day: 2016-12-31T23:59:60Z"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-24.can\",\"sha256\":\"29d15f1e4ac39ec936b1216a262b57c10a8a7679d77907ec4bb6518f1358cb4e\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`2016-12-31T23:59:60Z` is not a valid datetime: invalid time of day\",\"primary\":{\"file\":0,\"start\":71,\"end\":93},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"2016-12-31T23:59:60Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-25",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00.0000Z",
+      "expected": true,
+      "expected_ms": 0,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "0"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-25.can\",\"sha256\":\"80895f4a8ca52532331390e78fbae734a08047bbc07f7422a5b7699cd9871a55\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00.0000Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-26",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00.1230000000000Z",
+      "expected": true,
+      "expected_ms": 123,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "123"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-26.can\",\"sha256\":\"8bf38ee9f92b53a4a2e61ff1ce262d0c39ab123b20d0d5e77e7a20820957211c\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00.1230000000000Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-27",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00.0001Z",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "nonzero sub-millisecond fraction rejected: 1970-01-01T00:00:00.0001Z"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-27.can\",\"sha256\":\"862729fb26bf4a3af85a2de55930af4a7a5c3c29979a99c5d1b2b9c3a63f6316\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:00.0001Z` is not a valid datetime: nonzero sub-millisecond fraction rejected\",\"primary\":{\"file\":0,\"start\":71,\"end\":98},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00.0001Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-28",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00.000000000001Z",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "nonzero sub-millisecond fraction rejected: 1970-01-01T00:00:00.000000000001Z"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-28.can\",\"sha256\":\"e304d059c0c7ff4df737a6d562441aeeecfbbe8a5c8fae8e10e727361e00b01f\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:00.000000000001Z` is not a valid datetime: nonzero sub-millisecond fraction rejected\",\"primary\":{\"file\":0,\"start\":71,\"end\":106},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00.000000000001Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-29",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00.Z",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid datetime text: 1970-01-01T00:00:00.Z"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-29.can\",\"sha256\":\"17d53c44863775f95e69e1c15ff1fb4060226473bbf11b77cff3f4b4ea2920bb\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:00.Z` is not a valid datetime: empty fractional seconds\",\"primary\":{\"file\":0,\"start\":71,\"end\":94},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00.Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-30",
+      "kind": "datetime",
+      "text": "1970-01-01 00:00:00Z",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid datetime text: 1970-01-01 00:00:00Z"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-30.can\",\"sha256\":\"e03a73c26a74cfbf1f5df4890d830f5e7664be96809fcd6dedc76a369dbf99bf\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01 00:00:00Z` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)\",\"primary\":{\"file\":0,\"start\":71,\"end\":93},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01 00:00:00Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-31",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid datetime text: 1970-01-01T00:00:00"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-31.can\",\"sha256\":\"43238061ddd54c4030a3a9387f744db8eda559d0772d2f7698b46c67ecf487c6\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:00` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)\",\"primary\":{\"file\":0,\"start\":71,\"end\":92},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00\")\nThen\n"
+    },
+    {
+      "id": "datetime-32",
+      "kind": "datetime",
+      "text": "1970-1-01T00:00:00Z",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid datetime text: 1970-1-01T00:00:00Z"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-32.can\",\"sha256\":\"f7fd0e21235145d8a97fd7701c122886db4aa373e19962f53cd1cada8ec5ebde\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-1-01T00:00:00Z` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)\",\"primary\":{\"file\":0,\"start\":71,\"end\":92},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-1-01T00:00:00Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-33",
+      "kind": "datetime",
+      "text": "0000-01-01T00:00:00Z",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "out-of-range",
+        "message": "datetime year outside 0001-9999: 0000-01-01T00:00:00Z"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-33.can\",\"sha256\":\"e310f88affce4f25d92e7ce427123f7317d7e4d71a6a7186cbbcb093f77a5293\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`0000-01-01T00:00:00Z` is not a valid datetime: year outside 0001-9999\",\"primary\":{\"file\":0,\"start\":71,\"end\":93},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"0000-01-01T00:00:00Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-34",
+      "kind": "datetime",
+      "text": "0001-01-01T00:00:00+00:01",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "out-of-range",
+        "message": "datetime outside the supported 0001-9999 range"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-34.can\",\"sha256\":\"5292073947e0bdc5e65aac972fd2e7b8f0b4b93082a2b3d8cfe30cd6e623c937\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`0001-01-01T00:00:00+00:01` is not a valid datetime: instant outside the supported range\",\"primary\":{\"file\":0,\"start\":71,\"end\":98},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"0001-01-01T00:00:00+00:01\")\nThen\n"
+    },
+    {
+      "id": "datetime-35",
+      "kind": "datetime",
+      "text": "0001-01-01T00:01:00+00:01",
+      "expected": true,
+      "expected_ms": -62135596800000,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "-62135596800000"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-35.can\",\"sha256\":\"7cff7e9f4d2de647b6a07b204b87aef52dd68ec33e4eb2e557f973c6c0d257eb\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"0001-01-01T00:01:00+00:01\")\nThen\n"
+    },
+    {
+      "id": "datetime-36",
+      "kind": "datetime",
+      "text": "9999-12-31T23:59:59.999-00:01",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "out-of-range",
+        "message": "datetime outside the supported 0001-9999 range"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-36.can\",\"sha256\":\"2a2284ece15dffc626f538dabd1f5faca80a2699257ca0bfab42bd8c332a6c3c\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`9999-12-31T23:59:59.999-00:01` is not a valid datetime: instant outside the supported range\",\"primary\":{\"file\":0,\"start\":71,\"end\":102},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"9999-12-31T23:59:59.999-00:01\")\nThen\n"
+    },
+    {
+      "id": "datetime-37",
+      "kind": "datetime",
+      "text": "9999-12-31T23:58:59.999-00:01",
+      "expected": true,
+      "expected_ms": 253402300799999,
+      "runtime": {
+        "ok": true,
+        "value": {
+          "kind": "datetime",
+          "ms": "253402300799999"
+        }
+      },
+      "compiler": {
+        "exit": 0,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-37.can\",\"sha256\":\"1bba0bed5a1dc1f8fece58211f3ef6c84c1dc004d1761196de5ef06b0ab84c9b\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"9999-12-31T23:58:59.999-00:01\")\nThen\n"
+    },
+    {
+      "id": "datetime-38",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00+é:00",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid datetime text: 1970-01-01T00:00:00+é:00"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-38.can\",\"sha256\":\"f07338477287386e61b3c82c764457e3472cd4c9d721047166673dfe6f45ecf2\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:00+é:00` is not a valid datetime: want a Z or ±HH:MM zone offset\",\"primary\":{\"file\":0,\"start\":71,\"end\":98},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00+é:00\")\nThen\n"
+    },
+    {
+      "id": "datetime-39",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00+00:é",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid datetime text: 1970-01-01T00:00:00+00:é"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-39.can\",\"sha256\":\"4b322ac3221cef9ef9a574b6de05e3cddc9973f90a52e034e0567ca98df3ba7c\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:00+00:é` is not a valid datetime: want a Z or ±HH:MM zone offset\",\"primary\":{\"file\":0,\"start\":71,\"end\":98},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00+00:é\")\nThen\n"
+    },
+    {
+      "id": "datetime-40",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:éZ",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid datetime text: 1970-01-01T00:00:éZ"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-40.can\",\"sha256\":\"b876e9b28dd1a8c57a834f443ef999fc51de7a099f6bb132473d495bafd41772\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:éZ` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)\",\"primary\":{\"file\":0,\"start\":71,\"end\":93},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:éZ\")\nThen\n"
+    },
+    {
+      "id": "datetime-41",
+      "kind": "datetime",
+      "text": "💩970-01-01T00:00:00Z",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid datetime text: 💩970-01-01T00:00:00Z"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-41.can\",\"sha256\":\"279b7708a046ca87299827f3a8167fa679a26cee0965f77d8ebf73bdf8e54727\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`💩970-01-01T00:00:00Z` is not a valid datetime: want an RFC 3339 instant (YYYY-MM-DDTHH:MM:SSZ)\",\"primary\":{\"file\":0,\"start\":71,\"end\":96},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"💩970-01-01T00:00:00Z\")\nThen\n"
+    },
+    {
+      "id": "datetime-42",
+      "kind": "datetime",
+      "text": "1970-01-01T00:00:00Z\n",
+      "expected": false,
+      "expected_ms": null,
+      "runtime": {
+        "ok": false,
+        "code": "invalid-construction",
+        "message": "invalid datetime text: 1970-01-01T00:00:00Z\n"
+      },
+      "compiler": {
+        "exit": 10,
+        "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/private/tmp/canlang-pass9-temporal-datetime-42.can\",\"sha256\":\"21669066f571db4c988fcaf1a32f398de9f7fded9f8286eac8aa8b11d11b0a58\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E3001\",\"severity\":\"error\",\"message\":\"`1970-01-01T00:00:00Z\\n` is not a valid datetime: want a Z or ±HH:MM zone offset\",\"primary\":{\"file\":0,\"start\":71,\"end\":95},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+        "stderr": "",
+        "signal": null
+      },
+      "source": "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let value = datetime(\"1970-01-01T00:00:00Z\\n\")\nThen\n"
+    }
+  ]
+}

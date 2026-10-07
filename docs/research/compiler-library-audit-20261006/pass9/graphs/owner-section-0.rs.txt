@@ -1,0 +1,15 @@
+pub fn resolve_program(
+    db: &SourceDb,
+    trees: &[(SourceId, SyntaxNode)],
+    catalog: Option<&Catalog>,
+    diags: &mut Vec<Diagnostic>,
+) -> ResolveTables {
+    let mut resolver = Resolver::new(db, catalog);
+    resolver.index_modules(trees, diags);
+    resolver.index_declarations(trees, diags);
+    resolver.resolve_imports(diags);
+    resolver.resolve_ownership(diags);
+    resolver.resolve_declarations(trees, diags);
+    resolver.finish(trees, diags)
+}
+

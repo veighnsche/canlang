@@ -1,0 +1,48 @@
+   Compiling canlang-pass9-graphs v0.0.0 (/private/tmp/canlang-pass9-graphs)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.54s
+FIXED acyclic cyclic=[false, false, false] reaching=[false, false, false] calls=[]
+FIXED upstream cyclic=[false, true, true] reaching=[true, true, true] calls=[Witness { path: [1, 2, 1], edge: (2, 1, 0) }]
+FIXED independent cyclic=[true, true, true, false] reaching=[true, true, true, false] calls=[Witness { path: [0, 0], edge: (0, 0, 0) }, Witness { path: [1, 2, 1], edge: (2, 1, 0) }]
+FIXED duplicate cyclic=[true, true] reaching=[true, true] calls=[Witness { path: [0, 1, 0], edge: (1, 0, 0) }]
+FIXED overlap cyclic=[true, true, true] reaching=[true, true, true] calls=[Witness { path: [0, 2, 0], edge: (2, 0, 0) }, Witness { path: [0, 1, 0], edge: (1, 0, 0) }]
+FIXED diamond cyclic=[true, true, true, true] reaching=[true, true, true, true] calls=[Witness { path: [0, 2, 3, 0], edge: (3, 0, 0) }, Witness { path: [1, 3, 0, 1], edge: (0, 1, 0) }]
+EXHAUSTIVE 512 graphs x 2 root orders: exact witness/closing-edge/order parity
+BENCH chain_acyclic vertices=1000 edges=999 membership_direct_ns=13766584 scc_build_membership_reverse_ns=69459 call_direct_ns=110909917 call_scc_gate_ns=65000 cyclic=0 call_diags=0 reach_direct=Some((12761000, 0))
+BENCH sparse_acyclic vertices=1000 edges=1992 membership_direct_ns=18352958 scc_build_membership_reverse_ns=67208 call_direct_ns=78036709 call_scc_gate_ns=66958 cyclic=0 call_diags=0 reach_direct=None
+BENCH independent_cycles vertices=1000 edges=1000 membership_direct_ns=58667 scc_build_membership_reverse_ns=56584 call_direct_ns=228209 call_scc_gate_ns=286166 cyclic=1000 call_diags=500 reach_direct=Some((49375, 1000))
+BENCH highfanout vertices=1000 edges=999 membership_direct_ns=72000 scc_build_membership_reverse_ns=66375 call_direct_ns=107917 call_scc_gate_ns=65459 cyclic=0 call_diags=0 reach_direct=None
+BENCH upstream_chain_cycle vertices=1000 edges=1000 membership_direct_ns=13386084 scc_build_membership_reverse_ns=69542 call_direct_ns=108577334 call_scc_gate_ns=68292 cyclic=2 call_diags=1 reach_direct=Some((12809417, 1000))
+CASE composition_upstream
+RAW E2007 19..20 app composition cycle through 'A'
+RAW E2007 34..35 app composition cycle through 'B'
+PUBLIC E2007 19..20 app composition cycle through 'A'
+PUBLIC E2007 34..35 app composition cycle through 'B'
+CASE composition_duplicate
+RAW E2007 4..5 app composition cycle through 'A'
+RAW E2007 4..5 app composition cycle through 'A'
+RAW E2007 21..22 app composition cycle through 'B'
+RAW E2007 21..22 app composition cycle through 'B'
+PUBLIC E2007 4..5 app composition cycle through 'A'
+PUBLIC E2007 21..22 app composition cycle through 'B'
+CASE ownership_upstream
+RAW E2008 13..14 containment cycle through model 'U'
+RAW E2008 29..30 containment cycle through model 'A'
+RAW E2008 45..46 containment cycle through model 'B'
+PUBLIC E2008 13..14 containment cycle through model 'U'
+PUBLIC E2008 29..30 containment cycle through model 'A'
+PUBLIC E2008 45..46 containment cycle through model 'B'
+CASE fixture_upstream
+RAW E2017 73..74 fixture reference cycle through 'a'
+RAW E2017 92..93 fixture reference cycle through 'b'
+PUBLIC E2017 73..74 fixture reference cycle through 'a'
+PUBLIC E2017 92..93 fixture reference cycle through 'b'
+CASE derive_upstream
+RAW E2018 42..44 derived-value cycle through 'a'
+RAW E2018 65..67 derived-value cycle through 'b'
+PUBLIC E2018 42..44 derived-value cycle through 'a'
+PUBLIC E2018 65..67 derived-value cycle through 'b'
+CASE calls_upstream
+PUBLIC E3005 141..142 call cycle: a -> b -> a
+CASE calls_overlap
+PUBLIC E3005 68..69 call cycle: c -> a -> c
+PUBLIC E3005 111..112 call cycle: a -> b -> a
