@@ -1,0 +1,119 @@
+{
+  "ref": "851352d5225f0d707246eba7da81482087566994",
+  "selected_manifest": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json",
+  "selected_source_rows": 37,
+  "selected_source_mismatches": [],
+  "raw_records": [
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/fresh-cloudflare-emit.log",
+      "exists": true,
+      "matches": true,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/installed-build.log",
+      "exists": true,
+      "matches": true,
+      "sha256": "2d9cf53ea54d80568cb6841d4fc05b6d1ea5d0df63aa3c327c45b02f63452e12",
+      "bytes": 1153
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/installed-build-corrected.log",
+      "exists": true,
+      "matches": true,
+      "sha256": "d5566c95d0dcf12433f61baca328d1804686e19187e9722f39bb51f2473315a9",
+      "bytes": 136
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/installed-build-final.log",
+      "exists": true,
+      "matches": true,
+      "sha256": "42e220f603acb4561b63cc1216e3af63e6b5614a26c5b58375435683498bdfbe",
+      "bytes": 136
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/installed-policy-final.log",
+      "exists": true,
+      "matches": true,
+      "sha256": "40ce9708f5d7b7ed9d110c37520375ddfe241f977a981c01e8bec9388191904b",
+      "bytes": 66
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/joined-diagnostics-maps-on-final.log",
+      "exists": true,
+      "matches": true,
+      "sha256": "ad097a385c72150bd9b3a6a673898ac8b07cae652728f144ae930ae8434fd641",
+      "bytes": 1232
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/joined-diagnostics-maps-off-final.log",
+      "exists": true,
+      "matches": true,
+      "sha256": "c9908a2079969c4c9824de253f566188d25acc4403ceaf9e7cddc5aee46122f5",
+      "bytes": 996
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/fixture-repair.json",
+      "exists": true,
+      "matches": true,
+      "sha256": "0cdd558ac44dea91ad0de45486f839b51f443e41e7989b504aae2b5921dd9b18",
+      "bytes": 1127
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/staged-byte-delta.diff",
+      "exists": true,
+      "matches": true,
+      "sha256": "ce093da1179bde116bb05b46a6de3f4572953fa38c0d54fab48f76ede153bfc9",
+      "bytes": 1225
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/result-maps-on.json",
+      "exists": true,
+      "matches": true,
+      "sha256": "472620db9e473caf92a71dfde336390fd11a2d7a520913fab4acfbf5a7ed5af6",
+      "bytes": 1322
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/result-maps-off.json",
+      "exists": true,
+      "matches": true,
+      "sha256": "79cbf1ab9a4aec2975a11419c9c88e3b520fd44df6448f198342a0fe7c9aa651",
+      "bytes": 1171
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/workerd-result.json",
+      "exists": true,
+      "matches": true,
+      "sha256": "43a25f338f7462fde793b455767f31c3b5c9362d718cb8aa6ff973705f4fb77c",
+      "bytes": 137
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/build.mjs",
+      "exists": true,
+      "matches": true,
+      "sha256": "4bb794117ce4b20e04b71b3964fe58bc4d1a29756dcc9e68fbdc2c0c8217bd37",
+      "bytes": 1213
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/policy-check.mjs",
+      "exists": true,
+      "matches": true,
+      "sha256": "6c783ca5a9494c1422f14138aefcbfb12c66420c7ff10ef154cd1e7818cfbe5b",
+      "bytes": 1719
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/diagnostic-probe.mjs",
+      "exists": true,
+      "matches": true,
+      "sha256": "f9033d0c1f2bc0b97d5fa286bd227bd2b0dbf855523f733fc8cec0fcdc7fd371",
+      "bytes": 6263
+    }
+  ],
+  "fresh_execution": false,
+  "limits": "Prior selected Node/workerd/installed diagnostic qualification only. Source/hash continuity does not enlarge its consumer profile or prove all current package adoption.",
+  "cloudflare_bridge": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json",
+  "cloudflare_bridge_source_rows": 55,
+  "cloudflare_bridge_mismatches": [],
+  "retained_raw_scope": "Existing checked-in repo_copy raw logs, not removed private deployment fixture roots."
+}
