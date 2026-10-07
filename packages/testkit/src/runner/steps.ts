@@ -6,8 +6,10 @@
  * The L1 BDD emission pre-lowers every expression to a JS closure, so the
  * runner evaluates rather than interprets: table `inputs`/`values` /
  * `expected` / `observations` take `(callerBindings, scopeValues)`, and
- * sequence steps additionally take the let-binding map `(c, s, b)`.
- * Fixture names inside closures resolve to the module's own recipe consts;
+ * sequence steps additionally take the let-binding scope `(c, s, b)`.
+ * Fixture and binding scopes expose authored properties while retaining
+ * Map methods when an authored key does not shadow them. Recipe dependencies
+ * resolve to the module's own recipe consts;
  * `self`/`other` resolve to the factory bindings; `as`-cells lower to
  * caller strings (codegen pins `values:async(c,s)=>(["members",...])`).
  *
@@ -257,31 +259,32 @@ export async function runSequenceSteps(
   ctx: SequenceContext,
 ): Promise<CallOutcome> {
   const bound = new Map<string, unknown>();
+  const bindingsArg = scopeFacade(bound);
   // Genuine closures read fixtures as scope properties (`s.task`); the
   // facade keeps the provisioned Map readable both ways.
   const scopeArg = scopeFacade(ctx.provisioned);
   for (const [stepIndex, step] of steps.entries()) {
     const what = `example at index ${ctx.exampleIndex} step ${stepIndex}`;
     if (step.kind === "binding") {
-      bound.set(step.name, await callClosure(step.value, `${what} let ${step.name}`, [ctx.callerBindings, scopeArg, bound]));
+      bound.set(step.name, await callClosure(step.value, `${what} let ${step.name}`, [ctx.callerBindings, scopeArg, bindingsArg]));
       continue;
     }
     if (step.kind === "assertion") {
       const observed = await callClosure(step.observations, `${what} observations`, [
         ctx.callerBindings,
         scopeArg,
-        bound,
+        bindingsArg,
       ]);
       const expected = await callClosure(step.expected, `${what} expected`, [
         ctx.callerBindings,
         scopeArg,
-        bound,
+        bindingsArg,
       ]);
       judgeAssertion(observed, expected, ctx.exampleIndex, stepIndex);
       continue;
     }
-    const by = await callClosure(step.by, `${what} by`, [ctx.callerBindings, scopeArg, bound]);
-    const inputs = await callClosure(step.inputs, `${what} inputs`, [ctx.callerBindings, scopeArg, bound]);
+    const by = await callClosure(step.by, `${what} by`, [ctx.callerBindings, scopeArg, bindingsArg]);
+    const inputs = await callClosure(step.inputs, `${what} inputs`, [ctx.callerBindings, scopeArg, bindingsArg]);
     const outcome = await ctx.invoke({ operation: step.operation, inputs, by, scope: ctx.scope });
     if (!outcome.ok && "unsupported" in outcome) {
       return outcome;
