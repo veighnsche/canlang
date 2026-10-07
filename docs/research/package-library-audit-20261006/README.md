@@ -26,6 +26,11 @@ source witnesses and compatibility controls, with concrete producer/consumer
 disagreements, privacy projections and an original-ID fix queue. It separates
 required-outcome gaps from unjoined/native/held domains and keeps implementation
 deferred; no new runtime or deployment acceptance is implied.
+The [control/lifecycle audit](control-lifecycle/README.md) records 93 resource
+families with owner, restart/cleanup rules, 119 invariants and 140 source-derived
+scenario groups. It separates real transaction/cancellation controls from
+conditional crash, fanout, credential, browser and held-native ownership gaps;
+implementation remains deferred and no runtime acceptance is added.
 The branch audit covers 480 groups across the selected 27 integration seams, with exact
 conditional change gates and independent source challenges. These later pinned records
 supersede historical unwired/source/qualification premises below where explicitly reconciled;
