@@ -20,9 +20,11 @@ use crate::analysis::catalog::{CATALOG_ENV_VAR, Catalog, CatalogRequest, load_ca
 use crate::diagnostic::{Diagnostic, Severity};
 use crate::ide::{fixes, queries, tokens};
 use crate::lint::{DeprecatedSet, LintConfig, RuleSet, collect_fixes, lint_program};
+use crate::lsp::output;
 use crate::lsp::transport as t;
 use crate::lsp::transport::Json;
 use crate::source::{LineIndex, SourceDb, SourceId, Span};
+use lsp_types as lsp;
 use std::collections::{HashMap, VecDeque};
 
 /// 0-based LSP position (UTF-16 code units).
@@ -49,7 +51,7 @@ pub struct CompletionItem {
     /// Label shown in the completion list.
     pub label: String,
     /// Optional LSP `CompletionItemKind` name, e.g. `Field`. Serialized
-    /// as the spec's integer enum (`completion_kind_number`); unknown
+    /// as the spec's integer enum (`completion_kind`); unknown
     /// names are omitted from the wire (the member is optional).
     pub kind: Option<String>,
 }
@@ -58,33 +60,33 @@ pub struct CompletionItem {
 /// `Text`=1 through `TypeParameter`=25). Unknown names map to `None`
 /// and are omitted from the response, keeping the serializer path
 /// protocol-valid once a real backend returns items.
-fn completion_kind_number(name: &str) -> Option<u32> {
+fn completion_kind(name: &str) -> Option<lsp::CompletionItemKind> {
     Some(match name {
-        "Text" => 1,
-        "Method" => 2,
-        "Function" => 3,
-        "Constructor" => 4,
-        "Field" => 5,
-        "Variable" => 6,
-        "Class" => 7,
-        "Interface" => 8,
-        "Module" => 9,
-        "Property" => 10,
-        "Unit" => 11,
-        "Value" => 12,
-        "Enum" => 13,
-        "Keyword" => 14,
-        "Snippet" => 15,
-        "Color" => 16,
-        "File" => 17,
-        "Reference" => 18,
-        "Folder" => 19,
-        "EnumMember" => 20,
-        "Constant" => 21,
-        "Struct" => 22,
-        "Event" => 23,
-        "Operator" => 24,
-        "TypeParameter" => 25,
+        "Text" => lsp::CompletionItemKind::TEXT,
+        "Method" => lsp::CompletionItemKind::METHOD,
+        "Function" => lsp::CompletionItemKind::FUNCTION,
+        "Constructor" => lsp::CompletionItemKind::CONSTRUCTOR,
+        "Field" => lsp::CompletionItemKind::FIELD,
+        "Variable" => lsp::CompletionItemKind::VARIABLE,
+        "Class" => lsp::CompletionItemKind::CLASS,
+        "Interface" => lsp::CompletionItemKind::INTERFACE,
+        "Module" => lsp::CompletionItemKind::MODULE,
+        "Property" => lsp::CompletionItemKind::PROPERTY,
+        "Unit" => lsp::CompletionItemKind::UNIT,
+        "Value" => lsp::CompletionItemKind::VALUE,
+        "Enum" => lsp::CompletionItemKind::ENUM,
+        "Keyword" => lsp::CompletionItemKind::KEYWORD,
+        "Snippet" => lsp::CompletionItemKind::SNIPPET,
+        "Color" => lsp::CompletionItemKind::COLOR,
+        "File" => lsp::CompletionItemKind::FILE,
+        "Reference" => lsp::CompletionItemKind::REFERENCE,
+        "Folder" => lsp::CompletionItemKind::FOLDER,
+        "EnumMember" => lsp::CompletionItemKind::ENUM_MEMBER,
+        "Constant" => lsp::CompletionItemKind::CONSTANT,
+        "Struct" => lsp::CompletionItemKind::STRUCT,
+        "Event" => lsp::CompletionItemKind::EVENT,
+        "Operator" => lsp::CompletionItemKind::OPERATOR,
+        "TypeParameter" => lsp::CompletionItemKind::TYPE_PARAMETER,
         _ => return None,
     })
 }
@@ -623,7 +625,7 @@ impl<A: LanguageAnalysis> Server<A> {
                         )];
                     }
                     self.lifecycle = Lifecycle::Ready;
-                    vec![t::response_ok(id, capabilities())]
+                    vec![output::response(id, capabilities())]
                 }
                 _ => vec![t::response_err(
                     Some(id),
@@ -661,46 +663,41 @@ impl<A: LanguageAnalysis> Server<A> {
                 t::response_ok(id, Json::Null)
             }
             "textDocument/hover" => self.with_pos(params, id, |server, doc_id, pos| {
-                let markdown = server.analysis.hover(&server.db, doc_id, pos);
-                match markdown {
-                    Some(text) => Json::Obj(vec![(
-                        "contents".to_string(),
-                        Json::Obj(vec![
-                            ("kind".to_string(), Json::Str("markdown".to_string())),
-                            ("value".to_string(), Json::Str(text)),
-                        ]),
-                    )]),
-                    None => Json::Null,
-                }
+                server
+                    .analysis
+                    .hover(&server.db, doc_id, pos)
+                    .map(|text| lsp::Hover {
+                        contents: lsp::HoverContents::Markup(lsp::MarkupContent {
+                            kind: lsp::MarkupKind::Markdown,
+                            value: text,
+                        }),
+                        range: None,
+                    })
             }),
             "textDocument/completion" => self.with_pos(params, id, |server, doc_id, pos| {
-                let items: Vec<Json> = server
+                server
                     .analysis
                     .completions(&server.db, doc_id, pos)
                     .into_iter()
-                    .map(|item| {
-                        let mut members = vec![("label".to_string(), Json::Str(item.label))];
-                        if let Some(number) = item.kind.as_deref().and_then(completion_kind_number)
-                        {
-                            members.push(("kind".to_string(), Json::Num(number.to_string())));
-                        }
-                        Json::Obj(members)
+                    .map(|item| lsp::CompletionItem {
+                        kind: item.kind.as_deref().and_then(completion_kind),
+                        label: item.label,
+                        ..Default::default()
                     })
-                    .collect();
-                Json::Arr(items)
+                    .collect::<Vec<_>>()
             }),
             "textDocument/definition" => {
                 let target = parse_pos_request(params)
                     .and_then(|(uri, pos)| self.doc_id(&uri).map(|doc| (uri, doc, pos)));
                 match target {
                     Some((uri, doc_id, pos)) => {
-                        let locations: Vec<Json> = self
+                        let locations: Vec<_> = self
                             .analysis
                             .definition(&self.db, doc_id, &uri, pos)
                             .into_iter()
-                            .map(location_json)
+                            .map(output::location)
                             .collect();
-                        t::response_ok(id, Json::Arr(locations))
+                        output::response(id, locations)
                     }
                     None => t::response_err(
                         Some(id),
@@ -714,13 +711,13 @@ impl<A: LanguageAnalysis> Server<A> {
                     .and_then(|(uri, pos)| self.doc_id(&uri).map(|doc| (uri, doc, pos)));
                 match target {
                     Some((uri, doc_id, pos)) => {
-                        let locations: Vec<Json> = self
+                        let locations: Vec<_> = self
                             .analysis
                             .references(&self.db, doc_id, &uri, pos)
                             .into_iter()
-                            .map(location_json)
+                            .map(output::location)
                             .collect();
-                        t::response_ok(id, Json::Arr(locations))
+                        output::response(id, locations)
                     }
                     None => t::response_err(
                         Some(id),
@@ -730,59 +727,27 @@ impl<A: LanguageAnalysis> Server<A> {
                 }
             }
             "textDocument/rename" => {
-                let rename = parse_pos_request(params).and_then(|(_, pos)| {
-                    params
-                        .get("newName")
-                        .and_then(Json::as_str)
-                        .map(|name| (pos, name.to_string()))
+                let target = parse_pos_request(params).and_then(|(uri, pos)| {
+                    let doc = self.docs.get(&uri)?;
+                    let name = params.get("newName")?.as_str()?;
+                    Some((uri, doc.id, doc.version, pos, name))
                 });
-                match rename.and_then(|(pos, name)| {
-                    doc_of(params).and_then(|uri| self.doc_id(&uri).map(|doc| (doc, pos, name)))
-                }) {
-                    Some((doc_id, pos, name)) => {
-                        let edits: Vec<Json> = self
-                            .analysis
-                            .rename(&self.db, doc_id, pos, &name)
-                            .into_iter()
-                            .map(|edit| {
-                                Json::Obj(vec![
-                                    ("range".to_string(), range_json(edit.range)),
-                                    ("newText".to_string(), Json::Str(edit.new_text)),
-                                ])
-                            })
-                            .collect();
-                        // LSP WorkspaceEdit with documentChanges for the one file.
-                        t::response_ok(
-                            id,
-                            Json::Obj(vec![(
-                                "documentChanges".to_string(),
-                                Json::Arr(vec![Json::Obj(vec![
-                                    (
-                                        "textDocument".to_string(),
-                                        Json::Obj(vec![(
-                                            "uri".to_string(),
-                                            Json::Str(doc_of(params).unwrap_or_default()),
-                                        )]),
-                                    ),
-                                    ("edits".to_string(), Json::Arr(edits)),
-                                ])]),
-                            )]),
-                        )
+                match target {
+                    Some((uri, doc_id, version, pos, name)) => {
+                        let edits = self.analysis.rename(&self.db, doc_id, pos, name);
+                        output::response(id, output::rename(uri, version, edits))
                     }
                     None => t::response_ok(id, Json::Null),
                 }
             }
             "textDocument/semanticTokens/full" => {
                 match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
-                    Some(doc_id) => {
-                        let data: Vec<Json> = self
-                            .analysis
-                            .semantic_tokens(&self.db, doc_id)
-                            .into_iter()
-                            .map(|n| Json::Num(n.to_string()))
-                            .collect();
-                        t::response_ok(id, Json::Obj(vec![("data".to_string(), Json::Arr(data))]))
-                    }
+                    Some(doc_id) => output::response(
+                        id,
+                        output::SemanticTokens {
+                            data: self.analysis.semantic_tokens(&self.db, doc_id),
+                        },
+                    ),
                     None => {
                         t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
                     }
@@ -795,13 +760,17 @@ impl<A: LanguageAnalysis> Server<A> {
                     Some((uri, doc_id, range))
                 }) {
                     Some((uri, doc_id, range)) => {
-                        let actions: Vec<Json> = self
+                        let actions: Vec<_> = self
                             .analysis
                             .code_actions(&self.db, doc_id, &uri, range)
                             .into_iter()
-                            .map(code_action_json)
+                            .map(|action| {
+                                output::action(action, |uri| {
+                                    self.docs.get(uri).map(|doc| doc.version)
+                                })
+                            })
                             .collect();
-                        t::response_ok(id, Json::Arr(actions))
+                        output::response(id, actions)
                     }
                     None => t::response_err(
                         Some(id),
@@ -821,14 +790,14 @@ impl<A: LanguageAnalysis> Server<A> {
 
     /// Run a position-request callback, answering `null`/`[]`-style empty
     /// results via the callback when the document is unknown.
-    fn with_pos(
+    fn with_pos<T: serde::Serialize>(
         &mut self,
         params: &Json,
         id: &Json,
-        produce: impl FnOnce(&Self, SourceId, TextPos) -> Json,
+        produce: impl FnOnce(&Self, SourceId, TextPos) -> T,
     ) -> String {
         match parse_pos_request(params).and_then(|(uri, pos)| self.doc_id(&uri).map(|d| (d, pos))) {
-            Some((doc_id, pos)) => t::response_ok(id, produce(self, doc_id, pos)),
+            Some((doc_id, pos)) => output::response(id, produce(self, doc_id, pos)),
             None => t::response_err(
                 Some(id),
                 t::error_code::INVALID_PARAMS,
@@ -960,186 +929,69 @@ impl<A: LanguageAnalysis> Server<A> {
     }
 }
 
-fn capabilities() -> Json {
-    // The semantic-tokens legend is the single source of truth in
-    // `ide::tokens`; every other provider below is backed by a passing
-    // capability test in `tests/ide.rs`.
+fn capabilities() -> lsp::InitializeResult {
+    // The semantic-tokens owner supplies the ordered shared legend.
     let (token_types, token_modifiers) = tokens::legend();
-    let token_types: Vec<Json> = token_types.into_iter().map(Json::Str).collect();
-    let token_modifiers: Vec<Json> = token_modifiers.into_iter().map(Json::Str).collect();
-    Json::Obj(vec![
-        (
-            "capabilities".to_string(),
-            Json::Obj(vec![
-                (
-                    "positionEncoding".to_string(),
-                    Json::Str("utf-16".to_string()),
+    lsp::InitializeResult {
+        capabilities: lsp::ServerCapabilities {
+            position_encoding: Some(lsp::PositionEncodingKind::UTF16),
+            text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
+                lsp::TextDocumentSyncKind::FULL,
+            )),
+            hover_provider: Some(lsp::HoverProviderCapability::Simple(true)),
+            completion_provider: Some(lsp::CompletionOptions::default()),
+            definition_provider: Some(lsp::OneOf::Left(true)),
+            references_provider: Some(lsp::OneOf::Left(true)),
+            rename_provider: Some(lsp::OneOf::Left(true)),
+            semantic_tokens_provider: Some(
+                lsp::SemanticTokensServerCapabilities::SemanticTokensOptions(
+                    lsp::SemanticTokensOptions {
+                        legend: lsp::SemanticTokensLegend {
+                            token_types: token_types
+                                .into_iter()
+                                .map(lsp::SemanticTokenType::from)
+                                .collect(),
+                            token_modifiers: token_modifiers
+                                .into_iter()
+                                .map(lsp::SemanticTokenModifier::from)
+                                .collect(),
+                        },
+                        full: Some(lsp::SemanticTokensFullOptions::Bool(true)),
+                        ..Default::default()
+                    },
                 ),
-                ("textDocumentSync".to_string(), Json::Num("1".to_string())),
-                ("hoverProvider".to_string(), Json::Bool(true)),
-                ("completionProvider".to_string(), Json::Obj(vec![])),
-                ("definitionProvider".to_string(), Json::Bool(true)),
-                ("referencesProvider".to_string(), Json::Bool(true)),
-                ("renameProvider".to_string(), Json::Bool(true)),
-                (
-                    "semanticTokensProvider".to_string(),
-                    Json::Obj(vec![
-                        (
-                            "legend".to_string(),
-                            Json::Obj(vec![
-                                ("tokenTypes".to_string(), Json::Arr(token_types)),
-                                ("tokenModifiers".to_string(), Json::Arr(token_modifiers)),
-                            ]),
-                        ),
-                        ("full".to_string(), Json::Bool(true)),
-                    ]),
-                ),
-                ("codeActionProvider".to_string(), Json::Bool(true)),
-            ]),
-        ),
-        (
-            "serverInfo".to_string(),
-            Json::Obj(vec![
-                ("name".to_string(), Json::Str("can".to_string())),
-                (
-                    "version".to_string(),
-                    Json::Str(env!("CARGO_PKG_VERSION").to_string()),
-                ),
-            ]),
-        ),
-    ])
+            ),
+            code_action_provider: Some(lsp::CodeActionProviderCapability::Simple(true)),
+            ..Default::default()
+        },
+        server_info: Some(lsp::ServerInfo {
+            name: "can".to_string(),
+            version: Some(env!("CARGO_PKG_VERSION").to_string()),
+        }),
+    }
 }
 
 fn publish_diagnostics(uri: &str, version: i32, text: &str, diagnostics: &[Diagnostic]) -> String {
     let index = LineIndex::new(text);
-    let items: Vec<Json> = diagnostics
+    let diagnostics = diagnostics
         .iter()
-        .map(|d| {
-            let (start_line, start_char) = index.to_lsp(text, d.primary.start, true);
-            let (end_line, end_char) = index.to_lsp(text, d.primary.end, true);
-            Json::Obj(vec![
-                (
-                    "range".to_string(),
-                    Json::Obj(vec![
-                        (
-                            "start".to_string(),
-                            Json::Obj(vec![
-                                ("line".to_string(), Json::Num(start_line.to_string())),
-                                ("character".to_string(), Json::Num(start_char.to_string())),
-                            ]),
-                        ),
-                        (
-                            "end".to_string(),
-                            Json::Obj(vec![
-                                ("line".to_string(), Json::Num(end_line.to_string())),
-                                ("character".to_string(), Json::Num(end_char.to_string())),
-                            ]),
-                        ),
-                    ]),
-                ),
-                (
-                    "severity".to_string(),
-                    Json::Num(severity_number(d.severity).to_string()),
-                ),
-                ("code".to_string(), Json::Str(d.code.to_string())),
-                ("source".to_string(), Json::Str("can".to_string())),
-                ("message".to_string(), Json::Str(d.message.clone())),
-            ])
+        .map(|diagnostic| lsp::Diagnostic {
+            range: output::range(span_to_range(&index, text, diagnostic.primary)),
+            severity: Some(match diagnostic.severity {
+                Severity::Error => lsp::DiagnosticSeverity::ERROR,
+                Severity::Warning => lsp::DiagnosticSeverity::WARNING,
+                Severity::Info => lsp::DiagnosticSeverity::INFORMATION,
+            }),
+            code: Some(lsp::NumberOrString::String(diagnostic.code.to_string())),
+            source: Some("can".to_string()),
+            message: diagnostic.message.clone(),
+            ..Default::default()
         })
         .collect();
-    t::notification(
+    output::notification(
         "textDocument/publishDiagnostics",
-        Json::Obj(vec![
-            ("uri".to_string(), Json::Str(uri.to_string())),
-            ("version".to_string(), Json::Num(version.to_string())),
-            ("diagnostics".to_string(), Json::Arr(items)),
-        ]),
+        output::diagnostics(uri, version, diagnostics),
     )
-}
-
-fn severity_number(severity: Severity) -> u32 {
-    match severity {
-        Severity::Error => 1,
-        Severity::Warning => 2,
-        Severity::Info => 3,
-    }
-}
-
-fn range_json(range: LspRange) -> Json {
-    Json::Obj(vec![
-        (
-            "start".to_string(),
-            Json::Obj(vec![
-                ("line".to_string(), Json::Num(range.start.line.to_string())),
-                (
-                    "character".to_string(),
-                    Json::Num(range.start.character.to_string()),
-                ),
-            ]),
-        ),
-        (
-            "end".to_string(),
-            Json::Obj(vec![
-                ("line".to_string(), Json::Num(range.end.line.to_string())),
-                (
-                    "character".to_string(),
-                    Json::Num(range.end.character.to_string()),
-                ),
-            ]),
-        ),
-    ])
-}
-
-fn location_json(location: DocLocation) -> Json {
-    Json::Obj(vec![
-        ("uri".to_string(), Json::Str(location.uri)),
-        ("range".to_string(), range_json(location.range)),
-    ])
-}
-
-/// Serialize one code action, with a `documentChanges` edit when the
-/// action carries edits.
-fn code_action_json(action: CodeAction) -> Json {
-    let mut members = vec![
-        ("title".to_string(), Json::Str(action.title)),
-        ("kind".to_string(), Json::Str(action.kind)),
-    ];
-    if !action.edits.is_empty() {
-        // Edits group by URI so one action can touch several files.
-        let mut by_uri: Vec<(String, Vec<&FileEdit>)> = Vec::new();
-        for edit in &action.edits {
-            match by_uri.iter_mut().find(|(uri, _)| *uri == edit.uri) {
-                Some((_, edits)) => edits.push(edit),
-                None => by_uri.push((edit.uri.clone(), vec![edit])),
-            }
-        }
-        let changes: Vec<Json> = by_uri
-            .into_iter()
-            .map(|(uri, edits)| {
-                let file_edits: Vec<Json> = edits
-                    .into_iter()
-                    .map(|edit| {
-                        Json::Obj(vec![
-                            ("range".to_string(), range_json(edit.range)),
-                            ("newText".to_string(), Json::Str(edit.new_text.clone())),
-                        ])
-                    })
-                    .collect();
-                Json::Obj(vec![
-                    (
-                        "textDocument".to_string(),
-                        Json::Obj(vec![("uri".to_string(), Json::Str(uri))]),
-                    ),
-                    ("edits".to_string(), Json::Arr(file_edits)),
-                ])
-            })
-            .collect();
-        members.push((
-            "edit".to_string(),
-            Json::Obj(vec![("documentChanges".to_string(), Json::Arr(changes))]),
-        ));
-    }
-    Json::Obj(members)
 }
 
 fn known_request(method: &str) -> bool {
@@ -1283,35 +1135,11 @@ fn parse_pos_request(params: &Json) -> Option<(String, TextPos)> {
 
 /// Map a document URI to a [`SourceDb`] display path.
 ///
-/// `file://` URIs lose their scheme and get minimal `%XX` decoding; any
-/// other URI is used verbatim.
+/// Explicit `file://` forms use native conversion when it yields an exact,
+/// usable UTF-8 path. Other forms and unsupported authorities stay verbatim.
+/// Document routing and outgoing URI identities never use this display path.
 pub fn uri_to_path(uri: &str) -> String {
-    let path = uri.strip_prefix("file://").unwrap_or(uri);
-    let bytes = path.as_bytes();
-    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%'
-            && let (Some(a), Some(b)) = (bytes.get(i + 1), bytes.get(i + 2))
-            && let (Some(h), Some(l)) = (hex_val(*a), hex_val(*b))
-        {
-            out.push(h * 16 + l);
-            i += 3;
-            continue;
-        }
-        out.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
-
-fn hex_val(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte - b'0'),
-        b'a'..=b'f' => Some(byte - b'a' + 10),
-        b'A'..=b'F' => Some(byte - b'A' + 10),
-        _ => None,
-    }
+    super::uri::display_path(uri)
 }
 
 /// Serve LSP over stdio with the production analysis backend.
@@ -1547,13 +1375,17 @@ mod tests {
             ("TypeParameter", 25),
         ];
         for (name, number) in expected {
-            assert_eq!(completion_kind_number(name), Some(number), "{name}");
+            assert_eq!(
+                crate::json::to_compact_string(&completion_kind(name)).unwrap(),
+                number.to_string(),
+                "{name}"
+            );
         }
         // Unknown and wrong-case names are omitted from the wire, never
         // emitted as strings.
-        assert_eq!(completion_kind_number("Bogus"), None);
-        assert_eq!(completion_kind_number("field"), None);
-        assert_eq!(completion_kind_number(""), None);
+        assert_eq!(completion_kind("Bogus"), None);
+        assert_eq!(completion_kind("field"), None);
+        assert_eq!(completion_kind(""), None);
     }
 
     /// Backend returning completion items so the serializer path (integer
