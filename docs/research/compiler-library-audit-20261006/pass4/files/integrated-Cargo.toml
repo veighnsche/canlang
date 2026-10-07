@@ -1,0 +1,29 @@
+[package]
+name = "canlang-compiler"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.99"
+publish = false
+
+[lib]
+name = "canlang_compiler"
+path = "src/lib.rs"
+
+[[bin]]
+name = "can"
+path = "src/main.rs"
+
+[dependencies]
+# Ordinary HTTP(S) value admission; keep authored values after parsing.
+url = { version = "=2.5.8", default-features = false, features = ["std"] }
+
+tempfile = { version = "=3.27.0", default-features = false, features = ["getrandom"] }
+
+# B5/J1 release profile: small stripped single-binary CLI. `panic` stays
+# `unwind` (the default): `main` catches panics into E7005/exit 2.
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1

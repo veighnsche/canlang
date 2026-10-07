@@ -1,0 +1,16 @@
+{
+  "reviewer": "protocol_cli_audit",
+  "model": "inherited; override not available",
+  "scope": [
+    "compiler/src/cli.rs requested-entry replacement helper, expected-byte checks and repeated-operand guard",
+    "compiler/tests/file_ownership.rs real CLI regressions",
+    "unit tests for same-content inode substitution and symlink target permission changes"
+  ],
+  "result": "no blocking correctness issue under selected policy",
+  "execution": "read-only review; no builds or tests run",
+  "limits": [
+    "metadata observations start at replacement-helper entry, after initial fmt read / docs render",
+    "final check is not atomic with rename",
+    "Unix tests apply only to recorded hosts; no Windows qualification"
+  ]
+}

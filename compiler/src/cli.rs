@@ -951,7 +951,7 @@ fn run_docs_with_platform(
         Err(result) => return result,
     };
     if let Some(path) = &out {
-        if let Err(err) = write_file_atomic(Path::new(path), &markdown) {
+        if let Err(err) = write_file_atomic(Path::new(path), &markdown, None) {
             return DispatchResult::tool_error("E7007", format!("cannot write '{path}': {err}"));
         }
         return DispatchResult::ok_stdout(String::new());
@@ -1324,8 +1324,16 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
         match &input.dest {
             None => stdout.push_str(output),
             Some(path) => {
+                // Repeated operands or an earlier rewritten target can
+                // already have this output. Keep equal bytes a no-op;
+                // otherwise the original input remains the stale check.
                 if *output != input.text
-                    && let Err(err) = write_file_atomic(path, output)
+                    && std::fs::read(path).is_ok_and(|current| current == output.as_bytes())
+                {
+                    continue;
+                }
+                if *output != input.text
+                    && let Err(err) = write_file_atomic(path, output, Some(&input.text))
                 {
                     return DispatchResult::tool_error(
                         "E7007",
@@ -1338,32 +1346,281 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
     DispatchResult::ok_stdout(stdout)
 }
 
-/// Write `bytes` to `path` atomically: a same-directory temp file holds
-/// the new bytes until `rename` swaps them in, so a crash or full disk
-/// leaves the old file (or nothing new) rather than a torn write.
-fn write_file_atomic(path: &Path, bytes: &str) -> std::io::Result<()> {
-    use std::sync::atomic::{AtomicU32, Ordering};
-    static TMP_SEQ: AtomicU32 = AtomicU32::new(0);
-    let file_name = path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "fmt".to_string());
-    let seq = TMP_SEQ.fetch_add(1, Ordering::SeqCst);
-    let tmp_name = format!(".{file_name}.tmp-{}-{seq}", std::process::id());
-    let tmp = path
+/// Replace the requested directory entry with complete staged bytes.
+/// Existing regular-file permissions (including a symlink target's mode)
+/// are restored on the open staging handle. Symlinks/hardlinks retain the
+/// existing entry-replacement policy; their other names are not rewritten.
+/// Missing outputs use ordinary creation permissions filtered by umask.
+/// Detected concurrent changes fail, but the final check is not a CAS.
+/// Parent directories must be trusted; no owner/ACL or durability promise.
+fn write_file_atomic(path: &Path, bytes: &str, expected: Option<&str>) -> std::io::Result<()> {
+    use std::io::Write;
+    replace_file_with(path, expected, |file| file.write_all(bytes.as_bytes()))
+}
+
+// One owned staging path, shared by both callers and controlled IO-failure
+// tests. The callback writes through the open handle, never a temp pathname.
+fn replace_file_with(
+    path: &Path,
+    expected: Option<&str>,
+    write: impl FnOnce(&mut std::fs::File) -> std::io::Result<()>,
+) -> std::io::Result<()> {
+    let before = replacement_destination(path)?;
+    check_replacement_input(path, expected)?;
+    let parent = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
-        .map(|parent| parent.join(&tmp_name))
-        .unwrap_or_else(|| PathBuf::from(&tmp_name));
-    if let Err(err) = std::fs::write(&tmp, bytes) {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(err);
+        .unwrap_or_else(|| Path::new("."));
+    let mut builder = tempfile::Builder::new();
+    builder.prefix(".can-");
+    #[cfg(unix)]
+    if before.regular.is_none() {
+        use std::os::unix::fs::PermissionsExt;
+        builder.permissions(std::fs::Permissions::from_mode(0o666));
     }
-    if let Err(err) = std::fs::rename(&tmp, path) {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(err);
+    let mut staged = builder.tempfile_in(parent)?;
+    write(staged.as_file_mut())?;
+    if let Some(original) = &before.regular {
+        // Apply after writing: creation umask and writes must not narrow
+        // the captured mode or clear its special bits before replacement.
+        staged.as_file().set_permissions(original.permissions())?;
+    }
+    let after = replacement_destination(path)?;
+    if !same_replacement_metadata(before.entry.as_ref(), after.entry.as_ref())
+        || !same_replacement_metadata(before.regular.as_ref(), after.regular.as_ref())
+    {
+        return Err(std::io::Error::other(
+            "destination changed during replacement",
+        ));
+    }
+    check_replacement_input(path, expected)?;
+    if before.entry.is_some() {
+        staged.persist(path).map_err(|failure| failure.error)?;
+    } else {
+        staged
+            .persist_noclobber(path)
+            .map_err(|failure| failure.error)?;
     }
     Ok(())
+}
+
+struct ReplacementDestination {
+    entry: Option<std::fs::Metadata>,
+    regular: Option<std::fs::Metadata>,
+}
+
+fn replacement_destination(path: &Path) -> std::io::Result<ReplacementDestination> {
+    let entry = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => Some(metadata),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(error),
+    };
+    let regular = match &entry {
+        Some(metadata) if metadata.is_file() => Some(metadata.clone()),
+        Some(metadata) if metadata.is_symlink() => match std::fs::metadata(path) {
+            Ok(target) if target.is_file() => Some(target),
+            Ok(_) => None,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(error),
+        },
+        _ => None,
+    };
+    Ok(ReplacementDestination { entry, regular })
+}
+
+fn same_replacement_metadata(
+    before: Option<&std::fs::Metadata>,
+    after: Option<&std::fs::Metadata>,
+) -> bool {
+    let (Some(before), Some(after)) = (before, after) else {
+        return before.is_none() && after.is_none();
+    };
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if before.dev() != after.dev()
+            || before.ino() != after.ino()
+            || before.mode() != after.mode()
+        {
+            return false;
+        }
+    }
+    before.file_type() == after.file_type()
+        && before.len() == after.len()
+        && before.permissions().readonly() == after.permissions().readonly()
+        && before.modified().ok() == after.modified().ok()
+}
+
+fn check_replacement_input(path: &Path, expected: Option<&str>) -> std::io::Result<()> {
+    if let Some(expected) = expected
+        && std::fs::read(path)? != expected.as_bytes()
+    {
+        return Err(std::io::Error::other("source changed since formatting"));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod replacement_tests {
+    use super::*;
+    use std::io::Write;
+
+    fn entries(parent: &Path) -> Vec<PathBuf> {
+        let mut paths: Vec<_> = std::fs::read_dir(parent)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    #[test]
+    fn partial_staging_write_failure_keeps_destination_and_cleans_up() {
+        let parent = tempfile::tempdir().unwrap();
+        let path = parent.path().join("source.can");
+        std::fs::write(&path, "original").unwrap();
+        let before = entries(parent.path());
+        let error = replace_file_with(&path, Some("original"), |file| {
+            file.write_all(b"partial new data")?;
+            Err(std::io::Error::new(
+                std::io::ErrorKind::WriteZero,
+                "injected IO failure",
+            ))
+        })
+        .unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::WriteZero);
+        assert_eq!(std::fs::read(&path).unwrap(), b"original");
+        assert_eq!(entries(parent.path()), before);
+    }
+
+    #[test]
+    fn persist_failure_keeps_directory_and_cleans_up() {
+        let parent = tempfile::tempdir().unwrap();
+        let path = parent.path().join("destination");
+        std::fs::create_dir(&path).unwrap();
+        let before = entries(parent.path());
+        assert!(write_file_atomic(&path, "new data", None).is_err());
+        assert!(path.is_dir());
+        assert_eq!(entries(parent.path()), before);
+    }
+
+    #[test]
+    fn concurrent_creation_is_not_overwritten_and_staging_is_removed() {
+        let parent = tempfile::tempdir().unwrap();
+        let path = parent.path().join("reference.md");
+        assert!(
+            replace_file_with(&path, None, |file| {
+                file.write_all(b"new reference")?;
+                std::fs::write(&path, "concurrent writer")
+            })
+            .is_err()
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), b"concurrent writer");
+        assert_eq!(entries(parent.path()), vec![path]);
+    }
+
+    #[test]
+    fn concurrent_content_change_is_not_overwritten() {
+        let parent = tempfile::tempdir().unwrap();
+        let path = parent.path().join("source.can");
+        std::fs::write(&path, "original").unwrap();
+        assert!(
+            replace_file_with(&path, Some("original"), |file| {
+                file.write_all(b"formatted")?;
+                std::fs::write(&path, "concurrent edit")
+            })
+            .is_err()
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), b"concurrent edit");
+        assert_eq!(entries(parent.path()), vec![path]);
+    }
+
+    #[test]
+    fn stale_format_input_is_rejected_before_staging() {
+        let parent = tempfile::tempdir().unwrap();
+        let path = parent.path().join("source.can");
+        std::fs::write(&path, "edited").unwrap();
+        let before = entries(parent.path());
+        assert!(write_file_atomic(&path, "formatted", Some("old snapshot")).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"edited");
+        assert_eq!(entries(parent.path()), before);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn concurrent_permission_change_is_not_reverted() {
+        use std::os::unix::fs::PermissionsExt;
+        let parent = tempfile::tempdir().unwrap();
+        let path = parent.path().join("source.can");
+        std::fs::write(&path, "original").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o640)).unwrap();
+        assert!(
+            replace_file_with(&path, Some("original"), |file| {
+                file.write_all(b"formatted")?;
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+            })
+            .is_err()
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), b"original");
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o7777,
+            0o600
+        );
+        assert_eq!(entries(parent.path()), vec![path]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn replacement_inode_is_detected_with_equal_bytes_mode_and_mtime() {
+        use std::os::unix::fs::MetadataExt;
+        let parent = tempfile::tempdir().unwrap();
+        let path = parent.path().join("source.can");
+        let replacement = parent.path().join("concurrent");
+        std::fs::write(&path, "original").unwrap();
+        let original = std::fs::metadata(&path).unwrap();
+        assert!(
+            replace_file_with(&path, None, |file| {
+                file.write_all(b"formatted")?;
+                std::fs::write(&replacement, "original")?;
+                std::fs::set_permissions(&replacement, original.permissions())?;
+                std::fs::File::open(&replacement)?
+                    .set_times(std::fs::FileTimes::new().set_modified(original.modified()?))?;
+                std::fs::rename(&replacement, &path)
+            })
+            .is_err()
+        );
+        let after = std::fs::metadata(&path).unwrap();
+        assert_ne!(after.ino(), original.ino());
+        assert_eq!(after.modified().unwrap(), original.modified().unwrap());
+        assert_eq!(std::fs::read(&path).unwrap(), b"original");
+        assert_eq!(entries(parent.path()), vec![path]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_target_permission_change_is_not_reverted() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+        let parent = tempfile::tempdir().unwrap();
+        let target = parent.path().join("target");
+        let path = parent.path().join("link");
+        std::fs::write(&target, "original").unwrap();
+        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o640)).unwrap();
+        symlink("target", &path).unwrap();
+        assert!(
+            replace_file_with(&path, None, |file| {
+                file.write_all(b"formatted")?;
+                std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o600))
+            })
+            .is_err()
+        );
+        assert!(std::fs::symlink_metadata(&path).unwrap().is_symlink());
+        assert_eq!(std::fs::read(&target).unwrap(), b"original");
+        assert_eq!(
+            std::fs::metadata(&target).unwrap().permissions().mode() & 0o7777,
+            0o600
+        );
+        assert_eq!(entries(parent.path()).len(), 2);
+    }
 }
 
 /// `can lint`: full analysis, then the lint driver over the checked

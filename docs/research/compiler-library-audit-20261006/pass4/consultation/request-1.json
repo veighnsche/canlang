@@ -1,0 +1,74 @@
+{
+  "state": {
+    "task": "Can compiler C04F only: urgent0600 source-mode repair and destination-local owned tempfiles for fmt and docs. Hash packet independent. Preserve actual workflows, simplicity and stable error boundaries; choose consequential link/destination policies before implementation. No filesystem transaction framework.",
+    "verified_source": "compiler/src/cli.rs run_docs954/write965, docs_out_refusal965, run_fmt1223/write1328, write_file_atomic1344. Two callers only. Current helper creates predictable name .filename.tmp-PID-seq using fs::write, then same-directory fs::rename; read follows symlinks, final rename replaces only path entry. Existing0600 source becomes0644 under umask0022. No fsync.",
+    "existing_contract": "fmt reads and formats every input before writes, skips equal bytes including link no-op, writes operands in order; error can leave earlier operands updated. read failures E7002, write failures E7007, parse failures exit10 and leave all inputs untouched. docs refuses .can or literal/canonical input outputs before rendering, then writes complete UTF8 Markdown; write errors E7007. No original mode/ownership/ACL/durability promise for new docs output yet.",
+    "candidate_verified": "tempfile3.27.0 published cached source: Builder.tempfile_in creates owned exclusive files beside destination. Default Unix mode0600. Builder.permissions applies umask at creation, so preserve existing permissions on open file handle after all writes; never reopen temp pathname for data. persist replaces existing target atomically; neither file nor directory sync is performed. persist_noclobber refuses existing name, but operation can leave additional temp hardlink on older filesystem fallback; drop cleanup is best effort and abrupt termination may leak temporary name.",
+    "sources": [
+      "https://docs.rs/tempfile/3.27.0/tempfile/struct.NamedTempFile.html",
+      "https://docs.rs/tempfile/3.27.0/tempfile/struct.Builder.html"
+    ],
+    "hosts": "Required macOSaarch64 and Linuxx86_64, Rust1.99. Linux run locally under emulation, networkdisabled, pinnedpublicRustimage. No newWindows claim. Target parent directory considered trusted; parent-directory symlinks may resolve normally. No adversarial parent-swap, openat capability framework, exact ownership/ACL/xattr preservation or crash-durability claim.",
+    "observations": "Hardlink replacement currently detaches only requested entry; peers retain old bytes. Final symlink replacement currently destroys the link entry while leaving target bytes unchanged. No-op remains no-write. Existing readonly file can be replaced if directory permits; copying readonly permissions need not prevent pathname replacement. Missing docs output currently gets ordinary0666 &!umask from fs::write.",
+    "policy_scope": "Compare alternatives fairly against same outcomes. A portable metadata/content recheck can catch observable changes but is not a compare-and-swap; final check-to-rename race remains. Preserve exact source permission bits if selected, and no all-operands transaction. Advice is not acceptance evidence."
+  },
+  "questions": {
+    "symlinks": {
+      "type": "choice",
+      "instructions": "Choose the bounded policy that best respects the verified caller contracts, urgent mode repair, intended user workflows and simplicity. Assess all alternatives against those same outcomes; advice does not establish implementation acceptance. The narrow boundary is: symlinks.",
+      "criteria": {
+        "entry_replacement": "Preserve current changed-write directory-entry replacement, taking permissions from readable target; destroys symlink but leaves target unchanged. No-op untouched. Same behavior as old helper but surprising link ownership.",
+        "follow_target": "Resolve final symlink and update target in its directory while keeping link. Fits common linked-source workflows but adds target-selection and path-race semantics.",
+        "refuse_changed": "Refuse changed-write final symlink with E7007, including docs; preserve link/target and allow existing fmt no-op. Changes acceptance but avoids implicit retarget/destruction.",
+        "unresolved": "Defer full cutover for this boundary; allow narrower regular-file mode repair."
+      }
+    },
+    "hardlinks": {
+      "type": "choice",
+      "instructions": "Choose the bounded policy that best respects the verified caller contracts, urgent mode repair, intended user workflows and simplicity. Assess all alternatives against those same outcomes; advice does not establish implementation acceptance. The narrow boundary is: hardlinks.",
+      "criteria": {
+        "entry_replacement": "Keep atomic replacement of requested entry; peers retain old inode/bytes. Copy existing permissions, disclose new inode/metadata limitations.",
+        "refuse_changed": "Reject changed writes to multiply linked files. Preserves sharing but removes existing formatter workflow.",
+        "shared_inplace": "Rewrite shared inode so all hardlinks observe change; sacrifices per-file atomic old/new replacement and expands failure behavior.",
+        "unresolved": "Defer hardlink choice."
+      }
+    },
+    "new_outputs": {
+      "type": "choice",
+      "instructions": "Choose the bounded policy that best respects the verified caller contracts, urgent mode repair, intended user workflows and simplicity. Assess all alternatives against those same outcomes; advice does not establish implementation acceptance. The narrow boundary is: new_outputs.",
+      "criteria": {
+        "umask_creation": "Missing docs outputs use requested0666 filtered by caller umask, matching existing ordinary file creation. Existing targets preserve exact capturedPermissions.",
+        "private_creation": "Missing docs outputs use0600 default owned tempfile permissions. More private but changes output sharing/default creation behavior. Existing targets preserve capturedPermissions.",
+        "unresolved": "Defer new-output mode choice."
+      }
+    },
+    "races": {
+      "type": "choice",
+      "instructions": "Choose the bounded policy that best respects the verified caller contracts, urgent mode repair, intended user workflows and simplicity. Assess all alternatives against those same outcomes; advice does not establish implementation acceptance. The narrow boundary is: races.",
+      "criteria": {
+        "overwrite": "Preserve current existing/missing final overwrite semantics; explicitly assume trusted stable destination, no new recheck. Simple but may overwrite a concurrent edit or unexpectedly created path.",
+        "detect_observable": "Recheck existing entry identity/mode/length/mtime before persist, check fmt original bytes before staging and immediately before persist; refuse detected changes. For missingdocs use noclobber. Disclose residual check-to-rename race; no lock/CAS claim. Bounded extra code/tests.",
+        "strong_operations": "Introduce platform-specific directory handles/locking/strong conditional replacement now. Greater control but larger cross-host scope and dependencies beyond ownership repair.",
+        "unresolved": "Defer race policy."
+      }
+    },
+    "readonly": {
+      "type": "choice",
+      "instructions": "Choose the bounded policy that best respects the verified caller contracts, urgent mode repair, intended user workflows and simplicity. Assess all alternatives against those same outcomes; advice does not establish implementation acceptance. The narrow boundary is: readonly.",
+      "criteria": {
+        "entry_permission": "Retain current directory-entry permission model: changed readonly files may be replaced when OS parent directory permits. Preserve final readonly mode. No claim that chmod readonly disallows rename.",
+        "reject_readonly": "Reject changed readonly targets explicitly before staging, even when parentpermits. More intuitive to some users but stdPermissions.readonly is coarse and changes acceptance.",
+        "unresolved": "Defer readonly treatment."
+      }
+    },
+    "existing_permissions": {
+      "type": "choice",
+      "instructions": "Choose the bounded policy that best respects the verified caller contracts, urgent mode repair, intended user workflows and simplicity. Assess all alternatives against those same outcomes; advice does not establish implementation acceptance. The narrow boundary is: existing_permissions.",
+      "criteria": {
+        "exact_permissions": "After writing stage, restore captured stdfsPermissions on open handle, including Unix permission/special bits; recheck target metadata before replacement. Meets general mode-preservation contract but is not ACL/owner restoration.",
+        "ordinary_bits": "Preserve only ordinary0777 access bits, deliberately strip special bits. Smaller privilege scope but changes full mode and requires documented exception.",
+        "unresolved": "Defer special-mode treatment while applying0600 regular-file fix."
+      }
+    }
+  }
+}

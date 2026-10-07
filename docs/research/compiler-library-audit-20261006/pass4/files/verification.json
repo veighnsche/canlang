@@ -1,0 +1,31 @@
+{
+  "independent-process-tests.log": {
+    "passed": 9,
+    "failed": 0,
+    "sha256": "0dd07d969fe26ca6ccbdae6fd8d3dd2dd25966d29bfd6d56f58540c51b717c6b"
+  },
+  "independent-cli-tests.log": {
+    "passed": 24,
+    "failed": 0,
+    "sha256": "6408eaf96e253ba7ab1bb4d58773270c8cdf09b418ee07c99b9ef40e72de3574"
+  },
+  "linux/failure-tests.log": {
+    "passed": 8,
+    "failed": 0,
+    "sha256": "6e8eb0545e99f27028c6d6ceae83c5e149a833f6edc1843bf50e582f03845c98"
+  },
+  "linux/process-tests.log": {
+    "passed": 9,
+    "failed": 0,
+    "sha256": "dccedb8867ca908297cfc5bcbac65ffc35573bdacbdc8cc8b296a9c18738bd5b"
+  },
+  "host": {
+    "uname": "Darwin arm64",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)"
+  },
+  "packet": "C04F",
+  "baseline_compiler_ref": "0104b04",
+  "file_only_source_manifest": "linux-source-manifest.json",
+  "status": "accepted bounded recorded-host profile"
+}
