@@ -1,6 +1,6 @@
 {
   "scope": "Independent targeted cross-review by Sol medium of source/control flow and selected source/test/raw receipts. Reviewers did not author the families they challenged. No claim of exhaustive semantics or fresh execution by reviewer. Root integrates corrections and executes bounded receipts.",
-  "status": "draft trace accepted after recorded corrections; final artifact consistency review pending",
+  "status": "accepted bounded workflow/source/control-flow and evidence-integration scope; full semantic/API/product audit remains open",
   "correction_application": [
     "CHECK catalog discovery/readiness/complete=false clarified",
     "Pilot observation fallback/liveRecords scope explicit",
@@ -380,5 +380,408 @@
       }
     }
   ],
-  "final_delta_review": null
+  "final_delta_review": {
+    "reviewer": "Sol 6.1 medium",
+    "receipt": {
+      "verdict": "accept bounded Step3 workflow/evidence integration with minor metadata cleanup before final completion",
+      "scope": "Independent challenge of root integration/evidence delta. Reviewer authored original CHECK packet, so this is not a fresh independent all-source audit of that family. No tests/builds/runtime/network/repository edits in this review.",
+      "compiler": {
+        "baseline": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+        "review_head": "5ab25d1d3c1b53347326775995b55112d5b85918",
+        "diff_from_baseline": "",
+        "source_qualification": "compiler remains identical; observed documentation/executable heads differ intentionally from compiler source baseline"
+      },
+      "integration": {
+        "workflows": 18,
+        "ids": [
+          "CHECK",
+          "COMPILE",
+          "GENERATED_BDD",
+          "PUBLIC_LIBRARY_BOUNDARIES",
+          "FORMAT",
+          "LINT_FIX",
+          "LINT_FIX_IDE_JOIN",
+          "DOCS_REFERENCE",
+          "POLICY",
+          "EXPLAIN",
+          "EDITOR_LSP",
+          "FORWARD_RUN",
+          "FORWARD_TEST",
+          "FORWARD_BUILD",
+          "FORWARD_DEPLOY",
+          "FORWARD_ACTIVATE",
+          "CLI_SURFACES",
+          "PUBLIC_SHARED_BOUNDARIES"
+        ],
+        "known_cli_commands": {
+          "compile": "COMPILE",
+          "check": "CHECK",
+          "lint": "LINT_FIX",
+          "fmt": "FORMAT",
+          "explain": "EXPLAIN",
+          "lsp": "EDITOR_LSP",
+          "policy": "POLICY",
+          "docs": "DOCS_REFERENCE",
+          "run": "FORWARD_RUN",
+          "test": "FORWARD_TEST",
+          "build": "FORWARD_BUILD",
+          "deploy": "FORWARD_DEPLOY",
+          "activate": "FORWARD_ACTIVATE",
+          "completions": "CLI_SURFACES",
+          "help": "CLI_SURFACES"
+        },
+        "library_families": "PUBLIC_LIBRARY_BOUNDARIES + PUBLIC_SHARED_BOUNDARIES link all lib.rs public module families to owning routes and retained Step2 API index; no every-API semantic totality claim",
+        "source_anchor_count": 322,
+        "source_anchor_bounds_errors": [],
+        "workflow_source_pins": 85,
+        "workflow_pin_errors": [],
+        "cross_review_receipts": [
+          [
+            "reports-transforms",
+            "accept-with-small-clarifications"
+          ],
+          [
+            "check-compile-bdd-editor",
+            "Accept bounded source-consumer trace after corrections below; no semantic or executed-test certification. Both packets reach actual consumers and distinguish artifact, assembly, invocation, generic BDD and pilot execution endpoints."
+          ],
+          [
+            "forwarding-common",
+            "Accept five forwarding and common/public source-consumer routes after bounded corrections. Source paths establish behavior; fresh receipt only qualifies named actual built-dist calls, not rebuild equivalence or remote application."
+          ]
+        ],
+        "corrections_integration": "Verified catalog unreadable/first-readable malformed behavior, completeness flags, pilot fixture/live fallback, editor compiled mock/version loss, platform internal1/deploy activation-labelled2, build counts vs arrays/deploy partial writes, docs output line140/direct Node replacement UTF8/mixed stdin failure all present in ledger/navigation."
+      },
+      "bounded_evidence": {
+        "replay_harnesses": 15,
+        "replay_passes": 209,
+        "body_skips": [
+          "SKIP mode 4750: this host did not retain the requested fixture bits"
+        ],
+        "replay_exit": 0,
+        "startup_checks": 11,
+        "startup_scope": "current extension TS compiled by declared startup recipe; mocked VS Code and child processes, not actual editor/GUI",
+        "capability_checks": 39,
+        "capability_scope": "actual compiler process ASCII fixture; separate raw compiler Unicode/CRLF tests; no GUI/stale edit acceptance",
+        "startup_pass_lines": 11,
+        "capability_pass_lines": 39,
+        "actual_owner_artifact_docs_policy": "replay.stderr records actual Cloudflare parseArtifactText/loadArtifactFile consumer and PASS typed policy/public Markdown; no optional-body skip in these consumers; decimal literal E6008 separately noted",
+        "initial_prod_probes": "activate-inactive/deploy-refusal both exit2 invalid-activation-bundle missing prod sidecar; neither qualifies intended gate; retained honestly",
+        "corrected_local_activate": {
+          "exit": 0,
+          "stdout": {
+            "ok": true,
+            "command": "activate",
+            "active": false,
+            "reasons": [
+              {
+                "code": "activation-incomplete",
+                "detail": "outstanding-work inventory gate unchecked (missing inventory, gates (@canlang/state + @canlang/work producer join))"
+              }
+            ]
+          },
+          "sha256": "acc1f75c14334a4502f2903a47093dee56a113b21cbb40a0c2426291d382aad9"
+        },
+        "corrected_local_deploy": {
+          "exit": 2,
+          "stdout": {
+            "ok": false,
+            "command": "deploy",
+            "code": "confirm-required",
+            "detail": "refusing to deploy without --yes: pass --preview to review, --yes to confirm (nothing was written)"
+          },
+          "sha256": "ed282dcafc64ae0fb47e52dae296e51dffd755dd08ffed0089211a56f2e1840a"
+        },
+        "corrected_pre_post_equal": true,
+        "before_after_pin_count": 2784,
+        "before_after_equal": true,
+        "current_rehash_errors": [],
+        "before_map_sha256": "fc19073613ac46c83c77cd219a14d28b82a959ca8aeb154402957c4d72946d87",
+        "after_map_sha256": "fc19073613ac46c83c77cd219a14d28b82a959ca8aeb154402957c4d72946d87",
+        "raw_streams_rehashed": 40,
+        "raw_stream_hash_errors": []
+      },
+      "concrete_corrections": [
+        {
+          "record": "DOCS_REFERENCE explicit_dependent_untraced_gaps",
+          "issue": "Still says source/dist/runtime resolution not freshly exercised, although attached Step3 replay actually enters production platform/interfaces renderer. Original source-authored annotation policy preserves origin but current gaps should be scoped precisely.",
+          "replacement": "Actual workspace runtime resolution and renderer exercised by attached bounded replay; full source/dist rebuild equivalence, installed-package and other-host resolution remain unqualified."
+        },
+        {
+          "record": "workflow-review.json status/final_delta_review and coverage workflow_scope/review + per-workflow review_status",
+          "issue": "Pending statuses remain intentionally pending final challenge. Append this review and mark final consistency complete only after its corrections are integrated; retain earlier review scope limitations."
+        },
+        {
+          "record": "workflow_scope.receipts",
+          "issue": "Final scope receipt list omits corrected-probes.json although forwarded rows and navigation correctly link it.",
+          "replacement": "Include workflow-evidence/corrected-probes.json in top-level workflow_scope receipt navigation."
+        }
+      ],
+      "limitations": [
+        "Original app remains exit10/unqualified; historical emitted forbidden handler is not product success.",
+        "Generated BDD current bytes and source paths are not full emitted suite runtime acceptance; platform test executes0 remains exposed.",
+        "GUI/full extension edit/version enforcement, installed release/other hosts/remote apply/T37/FP-QUALIFY remain open.",
+        "Same-byte source/dist pins do not establish package rebuild equivalence; hand-authored platform fixture not compiler-produced application.",
+        "Source/anchor/inventory linkage not exhaustive semantic branch/API precondition/per-field correctness audit.",
+        "This review reads and rehashes saved execution evidence; it does not rerun tests."
+      ],
+      "reviewed_packet_hashes": {
+        "docs/research/compiler-library-audit-20261006/responsibility-map/workflows.md": "11263e8059f7a416da749b9c74810dbe9eb00a7153a3c967fec470a0e8a24296",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl": "1358692005952514a5bcad6d39d65327a4542bd85a0b901db814d9fa87a93b83",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/workflow-validation.json": "181ff3aea1f274389b9755d9ee4d3cd53d0a8794e3fa4986b18e9f57133cd21e",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/workflow-review.json": "b32ab22563d442d2ed962fca830596bf383604b631e606c9a4242bfb30e72660",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/replay.json": "d4c1a8c99ca753f10379949c6c0a9abee197c9c751338b6c579226c9a39bfc26",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/additional-replay.json": "40613a4343aa3ce9693a1a18e4f55650aed7bd4bde07805725d13f92363f7b76",
+        "docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/corrected-probes.json": "e45c6ff246b80b2760d592f850ada2f6f4a479d4be67b9bb2533cd31535ac997"
+      },
+      "raw_stream_hashes": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/replay.stdout",
+          "sha256": "146c98eee2cafbc5cb1de5b6887865bb86c1cfa32fb183119654922362acfda9",
+          "bytes": 16553,
+          "matches_receipt": true
+        },
+        {
+          "path": "docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/replay.stderr",
+          "sha256": "ad170383edefc6b474cd97830e93ad84b30f8c1235d67fc0400f1deebb5cae96",
+          "bytes": 2680,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/editor-startup.stdout",
+          "sha256": "1e7d6a431d911e0f9fcc9d702466aa9b07860b2bf830cd32bac32598b3c5589b",
+          "bytes": 541,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/editor-startup.stderr",
+          "sha256": "9c1c3646d022eb18c1e64435f5f4e325ce0b958f50419520b56739965463d96e",
+          "bytes": 200,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/editor-capabilities.stdout",
+          "sha256": "051cc0b7864eab60ca39b79e28d34c0112df037f79039acf2bae784abfd6c9df",
+          "bytes": 1219,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/editor-capabilities.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-invalid.stdout",
+          "sha256": "22df9ccd53805c5bde78753de3968deb5a3f56dc7edc8a5b783b93764208ff68",
+          "bytes": 222,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-invalid.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-test-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-test-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-test-invalid.stdout",
+          "sha256": "fd6ea0f788420d357317a44b09d7ae07e50971a6a6d640d592aee2c7c17eaa86",
+          "bytes": 219,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-test-invalid.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-invalid.stdout",
+          "sha256": "447f94ae9b1f7bfc9c98f9260a827b003e11d430929316c32754fbfb2c068537",
+          "bytes": 187,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-invalid.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-invalid.stdout",
+          "sha256": "477d717e6cb9d7255f4d26651ed29d586b44051a47635952fe5f08652c4dd944",
+          "bytes": 187,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-invalid.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-help.stdout",
+          "sha256": "139c59289ba1ca78781fc80f834a237f9e347d36347511202790e6ee268a991f",
+          "bytes": 190,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-help.stderr",
+          "sha256": "66390a6a464245959743a8a4a3cbb973596ca098c83c72707a1ed9fa8c73208f",
+          "bytes": 170,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-invalid.stdout",
+          "sha256": "d659d78937f183315418d79092c55ae7d4856aa9a8dde84db0cd8e1ecfb87945",
+          "bytes": 85,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-invalid.stderr",
+          "sha256": "e8706d0d00271560ae4108b2e7fa3a0238c13e377781548c5a3836b2d6023bf9",
+          "bytes": 128,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-staged.stdout",
+          "sha256": "1a18dc9d8f85ed73bfb295bb44d57a9c987833caecf70c192a25d9ef05622df8",
+          "bytes": 136,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-run-staged.stderr",
+          "sha256": "a2a062904247ae52c5892f944f2ffa9d397c36afafb52cdbaad200afc30935ea",
+          "bytes": 42,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-receipt.stdout",
+          "sha256": "7535f67cf19c346be8f75f696442b2ff620c68596cf3ac13ea5a9cc65a7e6037",
+          "bytes": 86,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-build-receipt.stderr",
+          "sha256": "cd4fdf456cd3855ced007e1f5cc232dac50c27be9021be72f34ee1cc78b14151",
+          "bytes": 55,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-inactive.stdout",
+          "sha256": "3c9fecb8844f774a5012ac3183a390704457dad8552321636c742aafe545e1ff",
+          "bytes": 324,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-inactive.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-refusal.stdout",
+          "sha256": "3c9fecb8844f774a5012ac3183a390704457dad8552321636c742aafe545e1ff",
+          "bytes": 324,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-refusal.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-missing-artifact.stdout",
+          "sha256": "b9c989f7fe423ba145072b6974aca2439bbe6235b6608657070bacdd6e158659",
+          "bytes": 187,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-missing-artifact.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-local.stdout",
+          "sha256": "acc1f75c14334a4502f2903a47093dee56a113b21cbb40a0c2426291d382aad9",
+          "bytes": 220,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-activate-local.stderr",
+          "sha256": "508b9ccbc13df4dc2342896f88b527631b8330e06591e84b8c3c618062513982",
+          "bytes": 34,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-local-refusal.stdout",
+          "sha256": "ed282dcafc64ae0fb47e52dae296e51dffd755dd08ffed0089211a56f2e1840a",
+          "bytes": 168,
+          "matches_receipt": true
+        },
+        {
+          "path": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/workflow-evidence/forward-deploy-local-refusal.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0,
+          "matches_receipt": true
+        }
+      ]
+    }
+  },
+  "final_corrections_applied": [
+    "DOCS current built renderer execution separated from remaining rebuild/installed/other-host parity gaps",
+    "all per-workflow/top-scope pending statuses replaced by bounded acceptance",
+    "corrected-probes receipt added to top-scope navigation",
+    "Root corrected docs/policy/explain CLI dispatch pointers to exact match arms328/327/313; stage behavior unchanged."
+  ],
+  "final_ledger_sha256": "845a685dd9869569220646ac7ae1e42c0dce2d2a1fb010aea15714667fd7044e"
 }

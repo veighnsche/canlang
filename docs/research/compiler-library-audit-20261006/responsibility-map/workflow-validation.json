@@ -1,7 +1,7 @@
 {
   "scope": "Mechanical current inventory/workflow/source/evidence linkage. Independent source review and process receipts separate; not semantic completeness.",
   "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
-  "observed_head": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+  "observed_head": "5ab25d1d3c1b53347326775995b55112d5b85918",
   "compiler_diff_from_source_baseline": "",
   "paths": 107,
   "unique_paths": 107,
@@ -35,7 +35,7 @@
     "execution receipts retain host, body-skip, source/dist, synthetic/mocked and installed-product limits",
     "Step2 independent inventory receipt kept separately; this validates current extended ledger"
   ],
-  "ledger_sha256": "85c0c45c7b8a6b7cec24c93353a73516a4d9219659af3f2b0f7ccbaa0df449f5",
+  "ledger_sha256": "845a685dd9869569220646ac7ae1e42c0dce2d2a1fb010aea15714667fd7044e",
   "workflows": 18,
   "workflow_ids": [
     "CHECK",
