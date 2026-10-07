@@ -42,6 +42,7 @@ import {
   COLLECTION_MAX_LIMIT,
   PAGE_MAX_RECORDS,
 } from '@canlang/contracts';
+import { parseObjectBody } from '../internal/input-admission.js';
 import type {
   BusinessError,
   ClosedInputs,
@@ -64,11 +65,9 @@ import {
   jsonErrorResponse,
   resolveRequestIdentity,
 } from './context.js';
-import { parseJsonBody } from './limits.js';
 import { OPERATION_NAME_PATTERN } from './operations.js';
 
 const EXPORTS_PATH = '/api/exports';
-const JSON_CONTENT_TYPE = 'application/json';
 const LIST_SUFFIX = '.list';
 
 /** Download-descriptor lifetime: 15 minutes, never open-ended. */
@@ -281,17 +280,6 @@ function requestPath(url: string): string {
   }
 }
 
-async function parseObjectBody(request: Request): Promise<Record<string, unknown>> {
-  const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
-  if (mediaType !== JSON_CONTENT_TYPE) {
-    throw new IdentityError('validation', 'Unsupported content type.');
-  }
-  const body = await parseJsonBody(request);
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-    throw new IdentityError('validation', 'Invalid request body.');
-  }
-  return body as Record<string, unknown>;
-}
 
 function parseColumns(value: unknown): { columns: string[] | null; error: BusinessError | null } {
   if (value === undefined) return { columns: null, error: null };
