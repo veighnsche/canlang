@@ -94,6 +94,7 @@
  * - All outputs (values and wire) are frozen.
  */
 
+import { pushViolation } from "./violations.js";
 import type {
   ActionRef,
   CanValue,
@@ -102,7 +103,6 @@ import type {
   RecordRef,
   UnionValue,
   Violation,
-  ViolationCode,
   WireValue,
 } from "@canlang/contracts/values";
 import { decimalToString, isDecimal, parseDecimal } from "../decimal.js";
@@ -156,23 +156,6 @@ interface DecodeContext {
   readonly violations: Violation[];
 }
 
-function pushViolation(
-  ctx: DecodeContext,
-  path: Path,
-  code: ViolationCode,
-  message: string,
-  expected?: string,
-  actual?: string,
-): void {
-  const frozenPath = Object.freeze([...path]);
-  if (expected === undefined) {
-    ctx.violations.push({ path: frozenPath, code, message });
-  } else if (actual === undefined) {
-    ctx.violations.push({ path: frozenPath, code, message, expected });
-  } else {
-    ctx.violations.push({ path: frozenPath, code, message, expected, actual });
-  }
-}
 
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}...` : text;

@@ -167,18 +167,21 @@
   "next_active_packets": [
     {
       "id": "DEL-A01-binding",
-      "state": "exact ACK; private binding leaf implementation active",
-      "agent": "/root/impl_form_own_keys"
+      "state": "candidate released; independent review active",
+      "agent": "/root/impl_form_own_keys",
+      "reviewer": "/root/review_ui_appearance"
     },
     {
-      "id": "TECH-V02-violations",
-      "state": "candidate released; independent review active",
-      "agent": "/root/review_ui_appearance"
+      "id": "DEL-A01-admission",
+      "state": "exact ACK; duplicate leaf implementation active",
+      "agent": "/root/impl_form_own_keys",
+      "reviewer": null
     },
     {
       "id": "VERIFY-TV01",
-      "state": "source-current runner and fixture adjudication active",
-      "agent": "/root/review_test_discovery"
+      "state": "independent discovery diagnosis released; Identity/Work exact manifest/resource repairs active; Values provenance separate",
+      "agent": "/root/review_test_discovery",
+      "reviewer": null
     }
   ],
   "packet_state": {
@@ -614,23 +617,28 @@
     },
     "VERIFY-TV01": {
       "planning_status": "ready",
-      "state": "source-current runner and fixture adjudication active",
+      "state": "independent discovery diagnosis released; Identity/Work exact manifest/resource repairs active; Values provenance separate",
       "files": [
         "packages/identity/package.json",
         "packages/values/package.json",
         "packages/work-kernel/package.json"
       ],
-      "agent": "/root/review_test_discovery"
+      "agent": "/root/review_test_discovery",
+      "model": "gpt-6.1-sol",
+      "effort": "medium"
     },
     "TECH-V02-violations": {
       "planning_status": "ready",
-      "state": "candidate released; independent review active",
+      "state": "accepted private-leaf reduction; committing",
       "files": [
         "packages/values/src/internal/schema-core.ts",
         "packages/values/src/internal/wire-core.ts",
         "packages/values/src/internal/violations.ts"
       ],
-      "agent": "/root/review_ui_appearance"
+      "agent": "/root/review_ui_appearance",
+      "review": "violations-independent-review.json",
+      "readable_reduction": 16,
+      "full_closure_reduction": 12
     },
     "TECH-V02-gregorian": {
       "planning_status": "ready",
@@ -703,7 +711,7 @@
     },
     "DEL-A01-error": {
       "planning_status": "ready",
-      "state": "accepted private-leaf reduction; committing",
+      "state": "accepted private-leaf reduction; committed",
       "files": [
         "packages/ui/src/browser/export.ts",
         "packages/ui/src/csv/parse.ts",
@@ -713,11 +721,12 @@
       "review": "business-errors-independent-review-final.json",
       "reviewer": "/root/review_ui_appearance",
       "readable_reduction": 22,
-      "full_closure_reduction": 12
+      "full_closure_reduction": 12,
+      "commit": "bc3249c"
     },
     "DEL-A01-binding": {
       "planning_status": "ready",
-      "state": "exact ACK; private binding leaf implementation active",
+      "state": "candidate released; independent review active",
       "files": [
         "packages/interfaces/src/envelope/prepared.ts",
         "packages/interfaces/src/mcp/prepared.ts"
@@ -725,17 +734,23 @@
       "agent": "/root/impl_form_own_keys",
       "model": "gpt-6.1-sol",
       "effort": "low",
-      "reason": "Frozen duplicate private mechanics with construction/error controls; independent Sol medium review planned"
+      "reason": "Frozen duplicate private mechanics with construction/error controls; independent Sol medium review planned",
+      "reviewer": "/root/review_ui_appearance"
     },
     "DEL-A01-admission": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "exact ACK; duplicate leaf implementation active",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/http/export.ts",
         "packages/interfaces/src/mcp/server.ts",
         "packages/interfaces/src/uploads/routes.ts"
-      ]
+      ],
+      "agent": "/root/impl_form_own_keys",
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "base": "bc3249c",
+      "reason": "Frozen private object-body/Bearer mechanics only; policies stay local"
     },
     "DEL-A01-canonical": {
       "planning_status": "ready",
@@ -764,5 +779,5 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:07:09.117917+00:00"
+  "updated_utc": "2026-10-07T19:09:34.418428+00:00"
 }

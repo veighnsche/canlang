@@ -1,0 +1,176 @@
+{
+  "packet": "TECH-V02-violations",
+  "base": "a9edf8741c96e64f87d5617139175775db4d3b58",
+  "status": "pass",
+  "files": [
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "baselineSha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+      "currentSha256": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+      "publicDeclarationSha256": "74593832d9bbb4487457ebfcb34853815dcfca3ec4058534bc663085b9d5cbea",
+      "privateEmittedSha256": "cdafec221c06f8862d35dd90b940a01945792c35dedf75034c2886121873634e",
+      "exactHelperBody": true,
+      "otherSourceByteUnchanged": true,
+      "ownerDeclarationsByteIdentical": true,
+      "baselineAndCurrentPrivateOutputsSourceCurrent": true
+    },
+    {
+      "path": "packages/values/src/internal/wire-core.ts",
+      "baselineSha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+      "currentSha256": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+      "publicDeclarationSha256": "fe925d63322d45293f6b445f6361ca0983788fc206c5dffad760f1adcc1f2ddb",
+      "privateEmittedSha256": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+      "exactHelperBody": true,
+      "otherSourceByteUnchanged": true,
+      "ownerDeclarationsByteIdentical": true,
+      "baselineAndCurrentPrivateOutputsSourceCurrent": true
+    }
+  ],
+  "helper": {
+    "path": "packages/values/src/internal/violations.ts",
+    "sha256": "a314a8545c1aebdadf8a512121d75e29cd4fdef71af3674e56e1aa289eb25ef2",
+    "declarationSha256": "359235bab4fedc8aebd2f2ee2c1b4649ff4660b06f272e36e8392b0a3655d7c2",
+    "privateEmittedSha256": "a45ff7e9ebb69334d08c5660975f63754e16df5affe52568551f8c3f23dc905e"
+  },
+  "counts": {
+    "measure": "Nonblank noncomment TS source lines, parsed syntax comment ranges; helper/imports and maintained declaration files included; tests/maps excluded",
+    "productionBefore": 3204,
+    "productionAfter": 3188,
+    "declarationsBefore": 82,
+    "declarationsAfter": 86,
+    "totalBefore": 3286,
+    "totalAfter": 3274
+  },
+  "receiverControls": [
+    {
+      "scenario": "none",
+      "trace": [
+        "ctx-get",
+        "push-get",
+        "push-call"
+      ],
+      "captured": [
+        {
+          "path": [
+            "a",
+            1
+          ],
+          "code": "type",
+          "message": "message"
+        }
+      ]
+    },
+    {
+      "scenario": "expected",
+      "trace": [
+        "ctx-get",
+        "push-get",
+        "push-call"
+      ],
+      "captured": [
+        {
+          "path": [
+            "a",
+            1
+          ],
+          "code": "type",
+          "message": "message",
+          "expected": "expected"
+        }
+      ]
+    },
+    {
+      "scenario": "both",
+      "trace": [
+        "ctx-get",
+        "push-get",
+        "push-call"
+      ],
+      "captured": [
+        {
+          "path": [
+            "a",
+            1
+          ],
+          "code": "type",
+          "message": "message",
+          "expected": "expected",
+          "actual": "actual"
+        }
+      ]
+    },
+    {
+      "scenario": "actual-only",
+      "trace": [
+        "ctx-get",
+        "push-get",
+        "push-call"
+      ],
+      "captured": [
+        {
+          "path": [
+            "a",
+            1
+          ],
+          "code": "type",
+          "message": "message"
+        }
+      ]
+    },
+    {
+      "scenario": "ctx-getter-throw",
+      "trace": [
+        "ctx-get"
+      ],
+      "errorSameSentinel": true
+    },
+    {
+      "scenario": "push-getter-throw",
+      "trace": [
+        "ctx-get",
+        "push-get"
+      ],
+      "errorSameSentinel": true
+    },
+    {
+      "scenario": "push-method-throw",
+      "trace": [
+        "ctx-get",
+        "push-get",
+        "push-call"
+      ],
+      "errorSameSentinel": true
+    },
+    {
+      "scenario": "path-iterator-throw",
+      "trace": [
+        "path-iterate"
+      ],
+      "errorSameSentinel": true
+    }
+  ],
+  "publicCallerControls": {
+    "cases": 7,
+    "baselineCurrentExact": true,
+    "multipleOrderedViolations": true,
+    "output": "/private/tmp/canlang-repair-go-20261007/violations-independent-public-controls.json"
+  },
+  "tests": {
+    "passed": 254,
+    "failed": 0,
+    "log": "/private/tmp/canlang-repair-go-20261007/violations-independent-test.log"
+  },
+  "defects": [],
+  "limits": [
+    "Only shared private violation push leaf",
+    "Original collector/domain types and all traversal remain owner-local and byte-unchanged except helper/import removal",
+    "Receiver binding, copied frozen paths, optional member omission/order and exact thrown identities preserved",
+    "Public schema/wire caller values and ordered failures match source-current baseline",
+    "No broader backend/foreign compiler acceptance"
+  ],
+  "root_followup": {
+    "change": "Remove one redundant terminal blank line found by git diff --check; all nontrailing bytes identical, syntax/declarations/readable count unchanged",
+    "reviewed_sha256": "087a62903932fbe20c8f9813d2db276dc77eb6b5568571e712c13896ee485ea5",
+    "committed_sha256": "a314a8545c1aebdadf8a512121d75e29cd4fdef71af3674e56e1aa289eb25ef2"
+  }
+}

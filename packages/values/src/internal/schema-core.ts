@@ -86,13 +86,13 @@
  *   defaults are shared frozen references.
  */
 
+import { pushViolation } from "./violations.js";
 import type {
   CanValue,
   ContractValue,
   FieldDefaultOrigin,
   MoneyValue,
   Violation,
-  ViolationCode,
 } from "@canlang/contracts/values";
 import { emptyArray } from "../array.js";
 import { compareDecimal, isDecimal } from "../decimal.js";
@@ -263,23 +263,6 @@ interface Collector {
   readonly violations: Violation[];
 }
 
-function pushViolation(
-  ctx: Collector,
-  path: Path,
-  code: ViolationCode,
-  message: string,
-  expected?: string,
-  actual?: string,
-): void {
-  const frozenPath = Object.freeze([...path]);
-  if (expected === undefined) {
-    ctx.violations.push({ path: frozenPath, code, message });
-  } else if (actual === undefined) {
-    ctx.violations.push({ path: frozenPath, code, message, expected });
-  } else {
-    ctx.violations.push({ path: frozenPath, code, message, expected, actual });
-  }
-}
 
 function actualWire(wire: unknown): string {
   if (wire === null) {
