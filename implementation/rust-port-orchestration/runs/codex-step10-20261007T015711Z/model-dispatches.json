@@ -1,0 +1,50 @@
+{
+  "official_sources": [
+    "https://developers.openai.com/api/docs/models/gpt-6-astra",
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+    "https://developers.openai.com/api/docs/models/gpt-6-luna"
+  ],
+  "checked_at_utc": "2026-10-07T01:57:11.667804+00:00",
+  "API_standard_short_context_per_million": {
+    "gpt-6-astra": [
+      10,
+      1,
+      50
+    ],
+    "gpt-6.1-sol": [
+      2,
+      0.1,
+      10
+    ],
+    "gpt-6-luna": [
+      0.1,
+      0.01,
+      0.5
+    ]
+  },
+  "pricing_limit": "Comparison aid, not subscription usage; reliability/retries/review count in choice",
+  "dispatches": [
+    {
+      "agent": "/root/step10_identity_contract",
+      "packet": "library-sequence:I01",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "reason": "Persisted security compatibility and actual host-comparison policy; human explicitly chose Astra high. ACK exact lease received."
+    }
+  ],
+  "dispatcher_limits": [
+    {
+      "attempt": "step10_csv_contract gpt-6.1-sol high",
+      "result": "agent thread limit reached; no dispatch"
+    },
+    {
+      "attempt": "reuse completed step8_maps Sol high",
+      "result": "agent thread limit reached; no dispatch"
+    },
+    {
+      "attempt": "step10_services Sol high",
+      "result": "agent thread limit reached; no dispatch"
+    }
+  ],
+  "root_fallback": "Root performs C/H ready work directly while actual Astra contract proceeds. No external CLI-model export or pretend economical subagent receipt."
+}
