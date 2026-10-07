@@ -1,0 +1,37 @@
+{
+  "schema": "canlang.repair-queue-independent-review-finalization/v1",
+  "source_freeze": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
+  "reviewed_draft_queue_sha256": "d17ccc95f93b2601258f390ff94327c0e1a779fc27af863fc1e9cff042968079",
+  "final_publication_queue_sha256": "2b673985707fc076febc14f6f832ed918f6cb0828141e2bdd39061f4f0a7ccd3",
+  "final_metadata_hashes": {
+    "queue.json": "2b673985707fc076febc14f6f832ed918f6cb0828141e2bdd39061f4f0a7ccd3",
+    "coverage.json": "58ec98a2ed8f6244263e5853b2624a505a3764d994d6a9f8facf7e25222d5dfe",
+    "owner-conflicts.json": "3678cf2d8e0d527e0f8ad9b3f9a3732e5bff3e814bcf9b06779995f3015b7bdf",
+    "source-hashes.json": "09451d3e230e9affa53ad3dd7e98f4e657f677287f46bb73e488a246c97e0762"
+  },
+  "post_review_changes": {
+    "top_level": [
+      "stage",
+      "packets",
+      "review"
+    ],
+    "packet_fields": [
+      {
+        "id": "TECH-V01-values",
+        "fields": [
+          "decisive_actual_caller_recipe"
+        ]
+      },
+      {
+        "id": "TECH-V01-work",
+        "fields": [
+          "decisive_actual_caller_recipe"
+        ]
+      }
+    ],
+    "unchanged_other_metadata": true
+  },
+  "verdict": "Final numeric caller narrowing matches the already split Values and Work owners, preserves their independent releases and introduces no new technical contradiction. Files, dependencies, remedies, statuses and other coverage/conflict/source-hash metadata are unchanged. Reviewed planning stage and pointer accurately retain prior reviewed-draft provenance.",
+  "limits": "Metadata and exact textual recipe reread only; no product checks, runtime/security acceptance, implementation authority, source/Git operations or new semantic audit.",
+  "original_review_retained": "/private/tmp/canlang-repair-coverage-review.json"
+}

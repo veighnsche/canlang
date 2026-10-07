@@ -1,0 +1,26 @@
+{
+  "schema": "canlang.package-repair-planning-refresh/v1",
+  "source_checkpoint": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
+  "complete_reconciled_checkpoint_unchanged": "8249342707d3280e88e39e8c911b7e457828f31f",
+  "scope": "Package audit findings and finite repair queue only; not a complete all-delta source review.",
+  "queue": "docs/research/package-library-audit-20261006/repair-queue/queue.json",
+  "coverage": "docs/research/package-library-audit-20261006/repair-queue/coverage.json",
+  "exact_writer_conflicts": "docs/research/package-library-audit-20261006/repair-queue/owner-conflicts.json",
+  "decision_record": "docs/research/package-library-audit-20261006/repair-queue/decision-record.md",
+  "owners": {
+    "root": "Owns planning records/reconciliation and local scoped commits; no product writer grant.",
+    "package_defining_owners": "Existing thirteen owners retain semantics/entry chains/public contracts. Future finite exact-file release required; no ACK invented.",
+    "compiler_agent": "Preserve its source, docs, tests, branches/index/commits; producer inputs require actual release.",
+    "delivery_integrator": "Single short manifest/bundle/root/asset/lock join writer; no global worker lock."
+  },
+  "target_allocations": "Existing .can/Rust/TS owner boundaries retained. Private helper names are proposals only; real library consumer/caller/negative and reduction gates precede deleting copied mechanics.",
+  "original_scope_preserved": "333 existing identities, 114 duties and narrow current credits retained; no unrelated product backlog completion.",
+  "holds": [
+    "Human-held native preparation and release",
+    "Prior critical Astra review approval pending",
+    "Original T08/T26/durable/app/installed/backend retirement gates"
+  ],
+  "execution_authorized": false,
+  "checkpoint_advanced": false,
+  "review": "Independent raw-requirements/proposal coverage challenge; metadata only."
+}

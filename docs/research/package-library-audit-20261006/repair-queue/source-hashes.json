@@ -1,0 +1,931 @@
+{
+  "base": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
+  "mode": "read-only source/planning pins; no product execution",
+  "files": [
+    {
+      "path": "bun.lock",
+      "sha256": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/ownership.md",
+      "sha256": "bef83be77d9bfe8cd3b13ca01bedf44dfb113186bba2a294e9e14ec10be73e5a",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/requirements.json",
+      "sha256": "d8fffff5a993def7fb1df7ac862a32b9c474edb6d099d99a205d173914a3b8ea",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/tasks.json",
+      "sha256": "78f157a8de2d5c7cbcc58338f38b90255621eb7b43287c4919ab80d50f651f0a",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/adoption-sequence.json",
+      "sha256": "799a3617b0d497ecaced883dcf76427508e8de22d7ec07c266c97b4aa32c9b22",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/control-lifecycle/fix-queue.json",
+      "sha256": "46f022f0d6f8dea34210b2823945482b8ba4d45b1969274c7fcd1885cc011a06",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/control-lifecycle/resources.jsonl",
+      "sha256": "26ddda73d6a114d690510078d66c266d36161d2ffd26f3a3326a03adc0faa617",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/data-protocol/fix-queue.json",
+      "sha256": "1310d67fef1a7e7d7a9512438b3bf3dfa5e6944a828bf2a1f0641b4e2935f301",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/data-protocol/witnesses.jsonl",
+      "sha256": "15507df94063afa5dfae1dac1ab8ac5e9784e0766c353fb86f9efbe21007e92c",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/dependency-runtime/execution-matrix.jsonl",
+      "sha256": "dd4727b1ee50efadb45c42ebfb6e5ab774a52fba3c427c843a766bd42f6fe9e3",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/dependency-runtime/upgrade-risks.jsonl",
+      "sha256": "c3468c80242bbbdc11c2635b9bd8939b5da28bcc525b5749f5caa395e20a8259",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/integration-dispositions/dispositions.jsonl",
+      "sha256": "f75dcdeae31891580012a9a4a5a6764d48261048a71fb9cba5de285b9798f876",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/responsibility-callers/responsibilities.jsonl",
+      "sha256": "3c53a04dad77773000a65b5ebe928f4932889622551698ed685bae90567253ba",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/security-limits/enforcement.jsonl",
+      "sha256": "95cf40aa83e08243fcb82b4c677377b9f9334d5b3f790d9363e2c55e43ac57dd",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/security-limits/findings.jsonl",
+      "sha256": "003ec7597794be9845a180db8f59b784c8aded4f969622fbfdd6da30cc571bf4",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/security-limits/fix-queue.json",
+      "sha256": "8de2504627229f1ac8eba447586b547c209abf85bc6bb00ef6c7c42b47a4d87f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/tests-evidence/claims.jsonl",
+      "sha256": "8cd6d0ad931ead0b2e16f498e79994892a83f3aa69d24780e8686d753be2af59",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/tests-evidence/cleanup.json",
+      "sha256": "9d11841e5365f9162c005efa0f3238aa48f549dddaa0781a1de269d541739bcc",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/tests-evidence/focused-verification.json",
+      "sha256": "6a8ae589f7699127ea20a59d8fd6d6ee4b762fc006ab550d9b18127bf180b6fb",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "implementation/remaining-work/tasks.json",
+      "sha256": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "package.json",
+      "sha256": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/package.json",
+      "sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "sha256": "c0475ca0c94514e47011e594122ddadf3980232bfbce1e29557077c6f37b8002",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/job.rs",
+      "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/main.rs",
+      "sha256": "3bdb8d22d7f1d383597836ce02074c5eac7b9a31cb3788121d3dad634ebf59d0",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/protocol.rs",
+      "sha256": "7c532c8afb1865ce53a4679b75698ff138b46cd5261111bb7fb6cd4f67db182f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/package-assets.ts",
+      "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/producer-files.ts",
+      "sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/dev/row-scope.ts",
+      "sha256": "e291abb4f1b5d171f9f1949b1e8f30c4590377128c6d069ba56c8db235208183",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable.ts",
+      "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/release/manifest.ts",
+      "sha256": "0f1253522b0ee681173f788700835facdeb3bd2028daf2a461b75f1dc4c8a48d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/release/stamp.ts",
+      "sha256": "d731f609c69be92b2fce043e8670b08a40da5c4f23dd72f0647e33d628be6863",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/env-assembly.ts",
+      "sha256": "d39b218d24926884b627a30dadb5a1bf46db87cfbc1e6834b6f01ee136b95c25",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/grant-route.ts",
+      "sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/upgrade/apply.ts",
+      "sha256": "167c77f7be30b29a3cbc37125d112208472ccf504a7f70e70e45e9d3aff73cca",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/contracts/src/identity.ts",
+      "sha256": "19816727c6b820ffb5328eeab2e3211390cf91482a592923b2ac87cc4a72c440",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/contracts/src/wire.ts",
+      "sha256": "bd85ca914bbc8d31fb372dbffa6c0d7176397bf11fa7d02e5b02b6c89fa01ba1",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/files/src/bridge.ts",
+      "sha256": "01c317ba97b23ffb768cdf174f9f8fb1e6589c7695e33c9116233665770cdf3d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/files/src/finalize/index.ts",
+      "sha256": "eba40a06b0bd79ebac016e4f845ed6a9b2301b5de193766ca6ed7a0e4419d74a",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/files/src/ports.ts",
+      "sha256": "2a7cd17c0e3775e3909468eec53aa046a404dcf3d87721c083fb5158a55d7c6b",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/files/src/provenance/index.ts",
+      "sha256": "7441aab94f941b10823134e33b6c11ab48874c20a20bcab9d9c540c3ab164733",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/files/src/retention/index.ts",
+      "sha256": "3d953bc857123338cb0b6a999c10e296445c0700f6b4183410e48d7e8a0231bd",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "sha256": "0c112376b97e30a41ed6db8956b5e003ccc9e16ff4c0386353e04561a504108e",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "sha256": "46f566043db6f6292d6a95ae125e0e51c19058cc455f9a68bd4ff56343479ca7",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/package.json",
+      "sha256": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/accounts/recovery.ts",
+      "sha256": "78c8589260eaea5536b2f90374d004d7664184b664b85135c7a0924da2f5e367",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/accounts/registration.ts",
+      "sha256": "72de65f3832a562cd8564a11063a1c14ef01e5184e8ac91c6bf22f967e7c898f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/authentication/oauth.ts",
+      "sha256": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/authentication/revocation.ts",
+      "sha256": "3b18c1865f4f78cfda004b5d2bbb2959910c307c8a6a21c0c5928b15a2e5eb56",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/ports.ts",
+      "sha256": "6145aef4de7dc0fabeed0a285a3dd8191c8c6f6c37d6554ca0659173a210a1bd",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/sessions/presession.ts",
+      "sha256": "f2c4cc913ea8fc3a70c7688991dd4a0a68cb05682efa433705d1654b3dda213d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/storage/d1.ts",
+      "sha256": "7d25f77228fdd17c2fe49684c8cbefd1f3c50acf621533dc349dedaa66a3f18f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/teams/invitations.ts",
+      "sha256": "88eefc9e11d639d1bc701dc72b743aa6db5987ac85abcb189dc872a2d7550c1d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/teams/membership.ts",
+      "sha256": "8297f93d24b3062dd25bdc225fb71b8973c2c2551ba307b80becfe97161b334d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/identity/src/teams/roles.ts",
+      "sha256": "3c7c75a62b8de6e5a61f79c38b1b0a4ee337e15d26fc3e1193d4b93d0b111d0f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/package.json",
+      "sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/envelope/prepared.ts",
+      "sha256": "b10355f3bf2f3490ba2b62380e8e8e73606e46b934170ece8cb55371ed429f97",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/envelope/validate.ts",
+      "sha256": "115b21e75eb724664a2a87eea0434ab792114702e72e97cf8af9e8200d32d1ec",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/http/assets.ts",
+      "sha256": "9d42a8d50079e812714c21198d9b73b50d0bbbbfe5d8e8058e1816551ee9c862",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/http/auth.ts",
+      "sha256": "5e373e1a88fe8ee36a27d851154e2228491fba588aed207f219ffcf73c380706",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/http/limits.ts",
+      "sha256": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/http/operations.ts",
+      "sha256": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/http/pages.ts",
+      "sha256": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/http/print.ts",
+      "sha256": "27445bc9a9b849feffd07b16390c87df265132b1798fe904c05929ad065c298b",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/ingress/mapping.ts",
+      "sha256": "21a293aaafdeac21b1994293f9b77f2daaa31d0cb7a57eed880ab220a84ac738",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/ingress/routes.ts",
+      "sha256": "29a6b69cecf111282b96eedf2feb41baf6073dbb3aabb98d3cd19d17cb4c61bc",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/prepared.ts",
+      "sha256": "229cbc7cfd1f2e136f5014d31041dbca6b3593a64a266f42275d08409ba3c760",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/oauth/routes.ts",
+      "sha256": "19e9318f1dc1d3d30bd3a22f87fdf0499e4237497fd870135ae8314ba58e08ef",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/uploads/kernel.ts",
+      "sha256": "b89cfaed78a3e62281a86323b04d2f344f319d60022a4f884b034c9419eec205",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/interfaces/src/uploads/routes.ts",
+      "sha256": "fff8e55fe8aed9cea083b5b3dcd9f8d1ff9cb1072539a2c429176d65132a0e59",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/judgments/harness.ts",
+      "sha256": "3ffbed629601d02f6f39519ed75b2da07c76de8b8ec661b82faac68ebf6088e4",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/judgments/systemone.ts",
+      "sha256": "5946aa0c1f863e8a347fdb29de54c0c086db0a4e9fb6a277de93943e21c92ecd",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/mail/adapter.ts",
+      "sha256": "065462278dfb0fe69fd3e15a18f5b370eb0abaf59766ef44eb1c615ba557f5d0",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/mail/redact.ts",
+      "sha256": "2da0f060f790820db04b783dfc9828dc73c0c7e6db32ed67d9aba5cca01c61c8",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/media/comfyui.ts",
+      "sha256": "694eb7caa69ee4d22af05cdf441fcb68638e33b1a3387191ddfb5e9a93a93f7b",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/media/harness.ts",
+      "sha256": "51bd4abae84239b00d9492f24416521d9a4d567a192eaba070a56daa698aa233",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "sha256": "507306b2f97b72ebe5aa4dce54fe0af2164bfd1dcf6604efea6d1b7ccd151da1",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/models/harness.ts",
+      "sha256": "bf0163984ddd83578f223d58b19f1838938910a0be926d2644df5c7870e287bf",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "sha256": "96c39834af0d132c64d164b0a8d4712fa75c203fb4fa8c4463e0ad8b5907df96",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/ports.ts",
+      "sha256": "51d4defdf88217c59674eed1b6a4c6c490237387484eb3d961a91f7bdaa4d410",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/services/src/scenarios.ts",
+      "sha256": "0cca83df6c4dbd91a345c744e00eb005e9b17a4620770df572f0e14b4ee35aec",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/fanout/lifecycle.ts",
+      "sha256": "451e1c290611b80f28692cf4873d03897881b7f3e14c399d8a8b140c1a4f0f78",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/fanout/membership.ts",
+      "sha256": "2b92b84a6e9bb37b27df64278b6c62985145d3589b9af150852cb2ab2a8e50f8",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/fanout/outcome.ts",
+      "sha256": "cc319f783b6621ccfe2079eb41ec94b436e1e64c9330afd36b7f0df1f7b457af",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/fanout/progress.ts",
+      "sha256": "a63bd42cd0d882b864b79124fb16aeca895cde234d6faff579ddb0aa92cd51a6",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/fanout/tables.ts",
+      "sha256": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/invocation/invoke.ts",
+      "sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/invocation/replay.ts",
+      "sha256": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/migration/validate.ts",
+      "sha256": "65b91401233df5f87035dfa41253f28915c826062c66abd45a750438fbe5066d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/mutation/crud.ts",
+      "sha256": "194bdcb9341aadd9bd21af141efc635853f05773c1c742b1a1f64fdbde202952",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/mutation/models.ts",
+      "sha256": "32c6be1480bc4141375a8f134afee865650a2f0b722829664e326b6985996151",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "sha256": "1160f08db792ebe64c1c48829e6e3be8df436c3019fb47e87746c9e5ac3c39b9",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/policy/grants.ts",
+      "sha256": "a52233ca9198d1d7364f528d783456d1877d48db0f1feb43b8bfb561e5614cd9",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/ports/transact.ts",
+      "sha256": "20ebcc4792bc145d60d16210d19dfec45bb6a1d0961b86973d3bea6b6a01a902",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/query/engine.ts",
+      "sha256": "9d8b5f499dd04f72a71511af3761c53051f2df5476174e40627eb91ada337a83",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/storage/d1.ts",
+      "sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/state/src/storage/durable-object.ts",
+      "sha256": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/testkit/src/assertions/equal.ts",
+      "sha256": "d12014e23815bf21c0df9f6323e3c217d26ac5b0a9b5cacad04411cb78db7496",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/testkit/src/fixtures/playback.ts",
+      "sha256": "2f0805a6c150aafb900c4d296e5cee5b3c97996c338a4339a70e83235166617d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/testkit/src/fixtures/recipes.ts",
+      "sha256": "3744f19bb8b0667e2228e19ed2e6e88ab65f2f7fa4bf095484a3a0be5c4c0cb5",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/testkit/src/runner/loader.ts",
+      "sha256": "571912f1495932351ac116f4a40c42617076d9b16f15b29d4c9d26d7afd6efb0",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/testkit/src/runner/table.ts",
+      "sha256": "b714b1150c8b0b9b32e641e4fb3bd2056b5d0c065948533827f001e4670f67dd",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/package.json",
+      "sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/scripts/build-browser.mjs",
+      "sha256": "c0cb5e7e1ae2dfae3285813546ca613e3b84f7335fe0b453b25bb0cb3536ee0f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/browser/bootstrap.ts",
+      "sha256": "fd2653db365a154785a2d8e8677b3213e41aff2d493d3d6346c7e103cf5f4fda",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/browser/export.ts",
+      "sha256": "9c85f8b85632ef10383eaffba1b0aea12c48302effc0a5d609c22a0c85070e63",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/browser/instrumentation.ts",
+      "sha256": "17c3f2325b9933220beedb44f7921ba765b67628693340f17473cb6d543e8b50",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/browser/polling.ts",
+      "sha256": "ad1128ee754ce52073bc539dcc508016751f6851dffcf1f2d78b50d6d17da88c",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/browser/print.ts",
+      "sha256": "5568e1f1e1daf62bcf50de5332e6bc935171b51a8f5f21deffcf1192919f51e2",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/client.ts",
+      "sha256": "11a100466b0cb9d591d7ae8bfc0611ead3bb9396b20a75582406d992902ac6db",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/collections.ts",
+      "sha256": "c9568ffd924ba2ba842c776adb1cf75cbb5df7af73702d12fe3718d572bde3ab",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/controls.ts",
+      "sha256": "ddf2dc4c1a098bcbf2f2beb92e2df551ffc09843b84bafd7ffdc4d9bbd56ccd8",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/csv/confirm.ts",
+      "sha256": "58b9c1bcb9ad935b57c50a038bed8d6c7448f1bc740798630fa6827696864d1e",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/csv/preview.ts",
+      "sha256": "87c9f661f0b0df1830892981b103b2e43098053a89b41afe97eadd07434719e7",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/forms.ts",
+      "sha256": "8c4e1890c0d7a52bf6e91be83b26f2d40f675bed8bfab222797f19eaf4b67f71",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/groups.ts",
+      "sha256": "a9c4b976518a73c5905480ab86352b02f794db161335c0129f47dde1b3ea5e0f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/htmx.ts",
+      "sha256": "7b5378a412be129b256b234dca1bd87b086f73397dd2e80c5229d05223c4419f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/leaves.ts",
+      "sha256": "7b6adec794d80689be67a03993632d8ef9fa107b266ae613c3f8bc58d5051e4e",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/media.ts",
+      "sha256": "22de7f0408016471ec6d84ca62498a59c2ee7e6732a5ff866321008fa1f43a52",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/navigation.ts",
+      "sha256": "b361c673d0cef45297673394e08679f8f55d5458bbff2a0847f5f40ed244e869",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/overlays.ts",
+      "sha256": "125ddc7c0d491a9056b55db5e4fd8d14dbd69e156b995f5fb3d3d9769ade4b4c",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/panels.ts",
+      "sha256": "3d8bd4461930b48e326ec2f733f7d95acb5e01b52dc3a4fe8097e51fbdd7838e",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/review.ts",
+      "sha256": "b01e6fa2923dae76cbd4e743b9618d891cfd07dc79060e77bec2c04d381bcfea",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/ui/src/settings.ts",
+      "sha256": "f82458311f13871649ff392368efb17fc85c17250eede1153450b5f509b8136f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "sha256": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/bindings/carriers.ts",
+      "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/bindings/owned-input.ts",
+      "sha256": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/bindings/plans.ts",
+      "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/package.json",
+      "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/scripts/stage-semantics.mjs",
+      "sha256": "7103d8d25dd579eef418420a427d1acb8ab444aceeaf24cc4f0a1d3f41c486a8",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/semantics/src/input.rs",
+      "sha256": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/semantics/src/profiles.rs",
+      "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/currency-data.ts",
+      "sha256": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/internal/wire-core.ts",
+      "sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/kinds.ts",
+      "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/locale.ts",
+      "sha256": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "sha256": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/prepared/plan.ts",
+      "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/prepared/validation.ts",
+      "sha256": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/temporal.ts",
+      "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "sha256": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/Cargo.lock",
+      "sha256": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/Cargo.toml",
+      "sha256": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/bindings/host-values.ts",
+      "sha256": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/decisions/lib.rs",
+      "sha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "sha256": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "sha256": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/decisions/recovery.rs",
+      "sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "sha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/package.json",
+      "sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/src/facts.ts",
+      "sha256": "d10518896028ef5243d066fab4938fcb3657b0b85a90feea680a9dfdaeb6c61a",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work-kernel/src/index.ts",
+      "sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work/src/kernel/commands.ts",
+      "sha256": "3638d31b51317dd3b3fdd2a2935e21044c82ef1a9b63afd6dbfdebe65b3b3c7c",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "packages/work/src/receipt/index.ts",
+      "sha256": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816",
+      "status": "existing-frozen"
+    },
+    {
+      "path": "scripts/build-package.mjs",
+      "sha256": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+      "status": "existing-frozen"
+    }
+  ]
+}
