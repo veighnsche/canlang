@@ -186,3 +186,5 @@ The [checkpoint registry](ideal-filetree-plan/state-machines-20261007.json) reco
 Values string-contract tests resolve the owning conformance path in source and emitted layouts; donor-only provenance now matches actual integrated source without weakening observation/assertion or frozen oracle bytes. Narrow discovery acceptance completes its TV01 slice; original backend/installed and complete checkpoint review remain open.
 
 State validated declaration attachments retain typed secrecy; canonical host owns exact source-grant transcription under the finite TECH-S02 release. Shared canonical/values shapes and internal raw results retain their owners. Result-provenance/public-replay and later metadata formalization remain open; no complete checkpoint advance.
+
+Cloudflare preparation uses the defining deploy build/catalog functions via compatibility aliases, with short host delegation. Narrow full-closure reduction is independently accepted; function identity/name differences, old dependency-profile controls, entry-write lifecycle residual and receipt/installed/native gates remain explicit. No complete checkpoint advance.

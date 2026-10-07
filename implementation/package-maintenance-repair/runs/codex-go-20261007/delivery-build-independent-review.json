@@ -1,0 +1,871 @@
+{
+  "packet": "DEL-D01",
+  "baseline": "530a0b7e73b98d7287f3d4394417295470385fc5",
+  "disposition": "accepted at the exact shared exported build/catalog implementation + direct TS host delegation scope; no introduced caller-behavior defect found",
+  "ACK": "Exact five-file read lease, no source/Git/shared-output/native mutation; only private controls and this approved receipt.",
+  "sourceProof": {
+    "pins": {
+      "packages/cloudflare/src/preparation/build-adapter.ts": {
+        "baseline": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383",
+        "current": "4b9427f6368fdb33bf4ebeb1701829bd902f819f478220e3273f5f52797c0377"
+      },
+      "packages/cloudflare/src/preparation/host.ts": {
+        "baseline": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+        "current": "9cee47bd72fadbc28426c955f627bf3b01798552e84d3faf861e1fb66822b21a"
+      },
+      "packages/cloudflare/src/deploy/bundle.ts": {
+        "baseline": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+        "current": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741"
+      },
+      "scripts/build-package.mjs": {
+        "baseline": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+        "current": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330"
+      },
+      "packages/cloudflare/test/preparation-shared-phases.test.ts": {
+        "current": "26919e33f67b84ae80318c5eba405502bf56803811945300bb5558878d6c39f8"
+      }
+    },
+    "endPins": {
+      "packages/cloudflare/src/preparation/build-adapter.ts": "4b9427f6368fdb33bf4ebeb1701829bd902f819f478220e3273f5f52797c0377",
+      "packages/cloudflare/src/preparation/host.ts": "9cee47bd72fadbc28426c955f627bf3b01798552e84d3faf861e1fb66822b21a",
+      "packages/cloudflare/src/deploy/bundle.ts": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "scripts/build-package.mjs": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+      "packages/cloudflare/test/preparation-shared-phases.test.ts": "26919e33f67b84ae80318c5eba405502bf56803811945300bb5558878d6c39f8"
+    },
+    "bodyProof": {
+      "buildMcpBundle": {
+        "definingExport": "buildMcpBundle",
+        "allParsedTokensIncludingOperatorsPunctuationEqual": true,
+        "stringAndUntaggedNoSubstitutionTemplateCookedSpellingsOnlyNormalized": true
+      },
+      "buildHttpOperationsBundle": {
+        "definingExport": "buildHttpOperationsBundle",
+        "allParsedTokensIncludingOperatorsPunctuationEqual": true,
+        "stringAndUntaggedNoSubstitutionTemplateCookedSpellingsOnlyNormalized": true
+      },
+      "runCatalogPhase": {
+        "definingExport": "buildDerivedInputsModule",
+        "allParsedTokensIncludingOperatorsPunctuationEqual": true,
+        "stringAndUntaggedNoSubstitutionTemplateCookedSpellingsOnlyNormalized": true
+      }
+    },
+    "unchangedBundleAndProducerBuildScript": true,
+    "remainingHostExecutableTokensEqualAfterImportCallRename": true,
+    "phaseObjectFunctionBodyExactlyUnchanged": true,
+    "currentAndBaselinePrivateEmissionMatchesPinnedSources": {
+      "preparation/build-adapter.ts": "both baseline/current emitted caller AST tokens equal transpilation of exact pinned owner sources",
+      "preparation/host.ts": "both baseline/current emitted caller AST tokens equal transpilation of exact pinned owner sources",
+      "deploy/bundle.ts": "both baseline/current emitted caller AST tokens equal transpilation of exact pinned owner sources"
+    },
+    "testSourceMatchesReleasedAndExecutedCopy": true
+  },
+  "compatibility": {
+    "publicCallTypes": {
+      "privateNoEmitProgram": true,
+      "diagnosticCount": 0,
+      "sourceSha256": "83ad08316354bab55663c68f75b1ad5787a102c323b711cbf09435091b8bc2ec"
+    },
+    "fullDeclarations": {
+      "preparation/build-adapter.ts": {
+        "identical": false,
+        "beforeSha256": "25672cb1ed831e806d66d9dd441a91363ce6911ab6a592373086a18549b9543c",
+        "afterSha256": "f90cef3f096a85884bab50d99c9358796c83e8e49f89d765890542dc440a6af5"
+      },
+      "preparation/host.ts": {
+        "identical": true,
+        "beforeSha256": "c5d0e5f3266bd045608cbe713cf668df96c58dbb30e14846df2e2d9b01c61f90",
+        "afterSha256": "c5d0e5f3266bd045608cbe713cf668df96c58dbb30e14846df2e2d9b01c61f90"
+      },
+      "deploy/bundle.ts": {
+        "identical": true,
+        "beforeSha256": "5ac350ef5223925a2f2bfa7a69f4fafbc7f2914c56e828b50f725a5fdc63b576",
+        "afterSha256": "5ac350ef5223925a2f2bfa7a69f4fafbc7f2914c56e828b50f725a5fdc63b576"
+      }
+    },
+    "publicDeclarationPins": {
+      "baseline": {
+        "adapterDeclaration": "25672cb1ed831e806d66d9dd441a91363ce6911ab6a592373086a18549b9543c",
+        "hostDeclaration": "c5d0e5f3266bd045608cbe713cf668df96c58dbb30e14846df2e2d9b01c61f90",
+        "bundleDeclaration": "5ac350ef5223925a2f2bfa7a69f4fafbc7f2914c56e828b50f725a5fdc63b576"
+      },
+      "current": {
+        "adapterDeclaration": "f90cef3f096a85884bab50d99c9358796c83e8e49f89d765890542dc440a6af5",
+        "hostDeclaration": "c5d0e5f3266bd045608cbe713cf668df96c58dbb30e14846df2e2d9b01c61f90",
+        "bundleDeclaration": "5ac350ef5223925a2f2bfa7a69f4fafbc7f2914c56e828b50f725a5fdc63b576"
+      }
+    },
+    "reflection": {
+      "baseline": {
+        "build": {
+          "name": "buildBundleWithHostPhases",
+          "length": 2,
+          "sameDefiningFunction": false
+        },
+        "catalog": {
+          "name": "runCatalogPhase",
+          "length": 1,
+          "sameDefiningFunction": false
+        }
+      },
+      "current": {
+        "build": {
+          "name": "buildDeployBundle",
+          "length": 2,
+          "sameDefiningFunction": true
+        },
+        "catalog": {
+          "name": "buildDerivedInputsModule",
+          "length": 1,
+          "sameDefiningFunction": true
+        }
+      }
+    },
+    "qualification": "Adapter declaration changes to re-export aliases; it is NOT byte-identical. Actual function identities/names intentionally change from wrappers to existing defining exports. Function arities remain2 for bundle and1 for catalog. Wrapping/debug stack frame/source origin changes accordingly. Selected queue explicitly allows aliases; nine baseline behavioral controls pass while alias-identity-only requirement fails baseline. This is callable compatibility, not a universal source-reflection API identity claim."
+  },
+  "reduction": {
+    "method": "Complete four authored production files plus all three full maintained declarations, including import/re-export aliases and unchanged defining helper/module overhead. Parsed AST token-bearing nonblank lines exclude comments/JSDoc and common script shebang; physical source/declaration lines and exact UTF8 bytes also recorded. Tests/generated JS/maps not reduction credit.",
+    "counts": {
+      "before": {
+        "production": {
+          "readable": 1785,
+          "physical": 2341,
+          "bytes": 98016
+        },
+        "declarations": {
+          "readable": 139,
+          "physical": 410,
+          "bytes": 22097
+        },
+        "complete": {
+          "readable": 1924,
+          "physical": 2751,
+          "bytes": 120113
+        }
+      },
+      "after": {
+        "production": {
+          "readable": 1649,
+          "physical": 2153,
+          "bytes": 90333
+        },
+        "declarations": {
+          "readable": 136,
+          "physical": 385,
+          "bytes": 20933
+        },
+        "complete": {
+          "readable": 1785,
+          "physical": 2538,
+          "bytes": 111266
+        }
+      },
+      "delta": {
+        "production": {
+          "readable": -136,
+          "physical": -188,
+          "bytes": -7683
+        },
+        "declarations": {
+          "readable": -3,
+          "physical": -25,
+          "bytes": -1164
+        },
+        "complete": {
+          "readable": -139,
+          "physical": -213,
+          "bytes": -8847
+        }
+      }
+    },
+    "commonDirectiveAlternative": {
+      "shebangIncludedCompleteBefore": 1925,
+      "shebangIncludedCompleteAfter": 1786,
+      "delta": -139,
+      "qualification": "Writer counts the common executable shebang as one line; both conventions have identical delta, no scanner defect here."
+    }
+  },
+  "independentChecks": {
+    "actualRawCallerCasesPerVariant": 7,
+    "actualCallerRecords": {
+      "baseline": [
+        {
+          "kind": "operations_getter",
+          "trace": [
+            "operations"
+          ],
+          "sameMarker": true
+        },
+        {
+          "kind": "options_getter",
+          "trace": [
+            "workerDistDir"
+          ],
+          "sameMarker": true
+        },
+        {
+          "kind": "actual_catalog",
+          "input": {
+            "artifact_version": 0,
+            "operations": []
+          },
+          "error": {
+            "name": "IncompatibleDescriptorError",
+            "message": "Incompatible descriptor slice: artifact_version 0 does not match the required artifact contract 1.",
+            "reason": "version_mismatch"
+          }
+        },
+        {
+          "kind": "actual_catalog",
+          "input": {
+            "artifact_version": 1,
+            "operations": [
+              {}
+            ]
+          },
+          "error": {
+            "name": "IncompatibleDescriptorError",
+            "message": "Invalid operation descriptor: operations need non-empty names.",
+            "reason": "malformed_descriptor"
+          }
+        },
+        {
+          "kind": "actual_catalog",
+          "input": {
+            "artifact_version": 1,
+            "operations": [
+              {
+                "name": "x",
+                "kind": "invented",
+                "inputs": {
+                  "fields": []
+                }
+              }
+            ]
+          },
+          "error": {
+            "name": "IncompatibleDescriptorError",
+            "message": "Unknown operation kind \"invented\" on \"x\"; supported: read, create, update, delete, scenario.",
+            "reason": "unknown_operation_kind"
+          }
+        },
+        {
+          "kind": "actual_catalog",
+          "input": {
+            "artifact_version": 1,
+            "operations": []
+          },
+          "text": "export const derivedInputs = {};\n"
+        },
+        {
+          "kind": "actual_empty_worker_first",
+          "error": {
+            "name": "Error",
+            "message": "deploy bundle: worker entry not built at <private-empty>/main.js (want @canlang/cloudflare/worker/main); run `bun run --filter @canlang/cloudflare build` first",
+            "code": "worker-main-missing"
+          }
+        }
+      ],
+      "current": [
+        {
+          "kind": "operations_getter",
+          "trace": [
+            "operations"
+          ],
+          "sameMarker": true
+        },
+        {
+          "kind": "options_getter",
+          "trace": [
+            "workerDistDir"
+          ],
+          "sameMarker": true
+        },
+        {
+          "kind": "actual_catalog",
+          "input": {
+            "artifact_version": 0,
+            "operations": []
+          },
+          "error": {
+            "name": "IncompatibleDescriptorError",
+            "message": "Incompatible descriptor slice: artifact_version 0 does not match the required artifact contract 1.",
+            "reason": "version_mismatch"
+          }
+        },
+        {
+          "kind": "actual_catalog",
+          "input": {
+            "artifact_version": 1,
+            "operations": [
+              {}
+            ]
+          },
+          "error": {
+            "name": "IncompatibleDescriptorError",
+            "message": "Invalid operation descriptor: operations need non-empty names.",
+            "reason": "malformed_descriptor"
+          }
+        },
+        {
+          "kind": "actual_catalog",
+          "input": {
+            "artifact_version": 1,
+            "operations": [
+              {
+                "name": "x",
+                "kind": "invented",
+                "inputs": {
+                  "fields": []
+                }
+              }
+            ]
+          },
+          "error": {
+            "name": "IncompatibleDescriptorError",
+            "message": "Unknown operation kind \"invented\" on \"x\"; supported: read, create, update, delete, scenario.",
+            "reason": "unknown_operation_kind"
+          }
+        },
+        {
+          "kind": "actual_catalog",
+          "input": {
+            "artifact_version": 1,
+            "operations": []
+          },
+          "text": "export const derivedInputs = {};\n"
+        },
+        {
+          "kind": "actual_empty_worker_first",
+          "error": {
+            "name": "Error",
+            "message": "deploy bundle: worker entry not built at <private-empty>/main.js (want @canlang/cloudflare/worker/main); run `bun run --filter @canlang/cloudflare build` first",
+            "code": "worker-main-missing"
+          }
+        }
+      ]
+    },
+    "isolatedExactSourcePhaseCasesPerVariant": 10,
+    "controls": [
+      "MCP then HTTP key/evaluation order",
+      "registry/HTTP producer refusal before that phase temp/build",
+      "MCP ENOENT stops HTTP, exact translated diagnostics",
+      "HTTP execution failure translation",
+      "read exception original object identity and finally cleanup",
+      "MCP/HTTP marker refusal and cleanup",
+      "catalog/getter/delegate original marker identity",
+      "valid version and malformed catalog name/kind errors",
+      "valid artifact with absent worker stops before phases"
+    ],
+    "decisiveNegatives": {
+      "httpBeforeMcp": true,
+      "producerFailureBeforeTemp": true,
+      "mcpFailureStopsHttp": true,
+      "catalogThrownMarkerNotWrapped": true,
+      "cleanupOnBuildReadMarkerFailure": true
+    },
+    "rawObservations": "/private/tmp/canlang-repair-go-20261007/delivery-independent/facts.json",
+    "qualification": "Isolated source phase cases inject producer and subprocess ports and use actual private filesystem cleanup. Actual direct callers use verified baseline/current emitted source with existing dependencies. Real Bun byte parity and CLI fixture controls below are frozen evidence, not these injected controls."
+  },
+  "sourceMaps": {
+    "currentChecks": {
+      "preparation/build-adapter": {
+        "sha256": "62bf26fbcf44115e1e044e97039a0fc2000b56ff601107eac847ea0f2c2dd2b8",
+        "sources": [
+          "../../src/preparation/build-adapter.ts"
+        ],
+        "firstFunctionMapping": {
+          "source": "../../src/preparation/build-adapter.ts",
+          "line": 27,
+          "column": 16
+        }
+      },
+      "preparation/host": {
+        "sha256": "7114672c1f4cec62f567350ee4af1176722f164ded25f8788e8c852520e375bb",
+        "sources": [
+          "../../src/preparation/host.ts"
+        ],
+        "firstFunctionMapping": {
+          "source": "../../src/preparation/host.ts",
+          "line": 64,
+          "column": 16
+        }
+      },
+      "deploy/bundle": {
+        "sha256": "d15625b961ed46731e95dc3e2f8df8e8927e8fd470f4624b026dcbedc02b55ac",
+        "sources": [
+          "../../src/deploy/bundle.ts"
+        ],
+        "firstFunctionMapping": {
+          "source": "../../src/deploy/bundle.ts",
+          "line": 208,
+          "column": 9
+        }
+      }
+    },
+    "definingBundleMapBytesIdentical": true,
+    "qualification": "Adapter/host maps change with removed source/wrapper lines and still map to their correct owning source. The unchanged bundle owns phase implementations and deployment artifact-map handling; no all-host stack/source-reflection byte identity is claimed."
+  },
+  "frozenEvidence": {
+    "executions": [
+      {
+        "record": "current-phases-run.json",
+        "scope": "current",
+        "group": "phases",
+        "pid": 44068,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+          "run",
+          "--config",
+          "vitest.config.mjs",
+          "test/preparation-protocol.test.ts",
+          "test/preparation-shared-phases.test.ts",
+          "-t",
+          "preparation build adapter|preparation shared defining phases"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/delivery-build/runtime-current/packages/cloudflare",
+        "start": "2026-10-07T19:57:32.105Z",
+        "deadline": "2026-10-07T20:00:02.105Z",
+        "exitCode": 0,
+        "signal": null,
+        "end": "2026-10-07T19:57:33.545Z"
+      },
+      {
+        "record": "current-host-run.json",
+        "scope": "current",
+        "group": "host",
+        "pid": 43161,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+          "run",
+          "--config",
+          "vitest.config.mjs",
+          "test/deploy-cli.test.ts",
+          "-t",
+          "deploy --preview|bare deploy|deploy --yes|deploy refuses|build validates"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/delivery-build/runtime-current/packages/cloudflare",
+        "start": "2026-10-07T19:56:01.802Z",
+        "deadline": "2026-10-07T19:58:31.802Z",
+        "exitCode": 0,
+        "signal": null,
+        "end": "2026-10-07T19:56:05.045Z"
+      },
+      {
+        "record": "baseline-phases-run.json",
+        "scope": "baseline",
+        "group": "phases",
+        "pid": 44401,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+          "run",
+          "--config",
+          "vitest.config.mjs",
+          "test/preparation-protocol.test.ts",
+          "test/preparation-shared-phases.test.ts",
+          "-t",
+          "preparation build adapter|preparation shared defining phases"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/delivery-build/runtime-baseline/packages/cloudflare",
+        "start": "2026-10-07T19:58:05.109Z",
+        "deadline": "2026-10-07T20:00:35.109Z",
+        "exitCode": 1,
+        "signal": null,
+        "end": "2026-10-07T19:58:06.369Z"
+      },
+      {
+        "record": "current-phases-fixture-failure-run.json",
+        "scope": "current",
+        "group": "phases",
+        "pid": 41942,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+          "run",
+          "--config",
+          "vitest.config.mjs",
+          "test/preparation-protocol.test.ts",
+          "test/preparation-shared-phases.test.ts",
+          "-t",
+          "preparation build adapter|preparation shared defining phases"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/delivery-build/current",
+        "start": "2026-10-07T19:54:21.287Z",
+        "deadline": "2026-10-07T19:56:51.287Z",
+        "exitCode": 1,
+        "signal": null,
+        "end": "2026-10-07T19:54:22.688Z"
+      },
+      {
+        "record": "current-host-layout-failure-run.json",
+        "scope": "current",
+        "group": "host",
+        "pid": 42027,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+          "run",
+          "--config",
+          "vitest.config.mjs",
+          "test/deploy-cli.test.ts",
+          "-t",
+          "deploy --preview|bare deploy|deploy --yes|deploy refuses|build validates"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/delivery-build/current",
+        "start": "2026-10-07T19:54:31.477Z",
+        "deadline": "2026-10-07T19:57:01.477Z",
+        "exitCode": 1,
+        "signal": null,
+        "end": "2026-10-07T19:54:34.775Z"
+      }
+    ],
+    "logs": {
+      "currentPhases": {
+        "file": "/private/tmp/canlang-repair-go-20261007/delivery-build/current-phases.log",
+        "pass": 10,
+        "skipped": 11
+      },
+      "currentCliHost": {
+        "file": "/private/tmp/canlang-repair-go-20261007/delivery-build/current-host.log",
+        "pass": 5,
+        "skipped": 1
+      },
+      "baselinePhases": {
+        "file": "/private/tmp/canlang-repair-go-20261007/delivery-build/baseline-phases.log",
+        "pass": 9,
+        "fail": 1,
+        "skipped": 11,
+        "onlyFailure": "deliberate alias identity requirement, not an original behavioral failure"
+      }
+    },
+    "failedHarnessEvidence": "Initial getter fixture omitted artifact_version; initial copied host layout omitted required checkout-style release-stamp manifests. Their explicit exit1 logs are retained, excluded from passing qualification.",
+    "observedEntryPins": [
+      {
+        "specifier": "@canlang/interfaces/mcp/server",
+        "file": "/Users/vince/Projects/canlang/packages/interfaces/dist/src/mcp/server.js",
+        "recorded": "5b39909215514c5788355d045d525cc088dc88d8230adc409c37e6fd24573f41",
+        "current": "2cf3fa3b850408dd2aa23f4009568e8eaad9b6c3849f1d4b6a9c80532fe96405",
+        "equal": false
+      },
+      {
+        "specifier": "@canlang/interfaces/http/operations",
+        "file": "/Users/vince/Projects/canlang/packages/interfaces/dist/src/http/operations.js",
+        "recorded": "eff44e7a41b7b41da5c3fd0af229e9ec2ab2cac68edc97d0831cf9b0df89defb",
+        "current": "ef6610a9b563eb5e3fce2b8e02457fc0ee7eb0329976951e02c627daf0c194dd",
+        "equal": false
+      },
+      {
+        "specifier": "@canlang/cloudflare/runtime/mcp-registry",
+        "file": "/Users/vince/Projects/canlang/packages/cloudflare/dist/runtime/mcp-registry.js",
+        "recorded": "74a15f5374d140ecbb5302222a63bea95d0ef06d7296ad48163e96dba58bfbdc",
+        "current": "74a15f5374d140ecbb5302222a63bea95d0ef06d7296ad48163e96dba58bfbdc",
+        "equal": true
+      },
+      {
+        "specifier": "@canlang/interfaces",
+        "file": "/Users/vince/Projects/canlang/packages/interfaces/dist/src/index.js",
+        "recorded": "5719fb1eebb73724a81e2347dcc03b4e7c28d2f0277b0ef1cb58edc038d74fe8",
+        "current": "5719fb1eebb73724a81e2347dcc03b4e7c28d2f0277b0ef1cb58edc038d74fe8",
+        "equal": true
+      }
+    ],
+    "observedVendorGroups": {
+      "contracts": {
+        "observedFileCount": 16,
+        "drift": []
+      },
+      "ui": {
+        "observedFileCount": 31,
+        "drift": [
+          {
+            "file": "browser/bootstrap.js",
+            "recorded": "e26a1833631bd3b94ca2d690c74fe654c9a1a071b188d402f3b0d8c96ae59cd0",
+            "current": "dc162ce1aa3f1848434bf3ed1ff20843f1c00d70903d1bf184162fd1d39e5b8e"
+          },
+          {
+            "file": "browser/export.js",
+            "recorded": "869aff845e71162885a8128e7e2778d3fa550fc405f534bf93bb102c93c5953a",
+            "current": "2c4ef41389e2e1fc18051ca95d8514282778bf566d62f743d234edb83e77cf5d"
+          },
+          {
+            "file": "browser/polling.js",
+            "recorded": "f47f6a1087745b50d20bf723fee0a23599a6fbe2f13a52d7557ee7d24ef066d7",
+            "current": "a6c91317777fca10e9b73d22980f36d5a15346a525a873ba1066214faa4f3449"
+          },
+          {
+            "file": "collections.js",
+            "recorded": "dbf89fd70e80a8e524ee73565c6d34db5018a1ac145229e9ae93785dc7393d41",
+            "current": "a74a254474d8822d9694d2c71c7bc8ba379a12360a4bbaf8d887a5d3e3ff4d7b"
+          },
+          {
+            "file": "controls.js",
+            "recorded": "db7f1001cfa56d0e4ed0bc03229ec9a53538e6ccb3f68209a082f88f2d702501",
+            "current": "783cb5004db2d8b882db8a6f192a943ad3a59ae941e2f13027ea29bcb09d8040"
+          },
+          {
+            "file": "csv/parse.js",
+            "recorded": "3ccd21d53fca4c1e8a606a7cfbc02246cf02c7c58693984fad0a47de633a04d2",
+            "current": "c5325974ef0ff1904baeae479a8fcfab76b5216b490788c6cc4100837a37de81"
+          },
+          {
+            "file": "forms.js",
+            "recorded": "365bb3b4fa51ee806658d5fa62b1508d049ce51aa0f6e0cd76a7c5e40306392b",
+            "current": "1c0753716b3ef72266c699d8319cdf93b46f5a18b9aa30a9dda744d6ce421daa"
+          },
+          {
+            "file": "groups.js",
+            "recorded": "1a2cacfb726cf1754a8531c0b295828a3dee8064e798fdb19eda0a9a667708e5",
+            "current": "ad620f38e8d4c0ba07ca876c6d756ba9f45d5018a1950347561856f1afc98dbc"
+          },
+          {
+            "file": "leaves.js",
+            "recorded": "1a9db07cc72661f1f198b8b05a265b6b99270cf06a8303302349b6cd13ff6dbc",
+            "current": "fe1dec7c7d24abcc9e3bfba94d53fee51f9d0306628236a50ad598d5220622ce"
+          },
+          {
+            "file": "media.js",
+            "recorded": "0f28c8c8e9cb323d41720ed4ff485dde6ffc7731be5d703da44827edb09b9ff2",
+            "current": "d9a74009a2e1e9aff7c4a26b95d4c6726873568f226a75c4f4cf2bde7000692b"
+          },
+          {
+            "file": "navigation.js",
+            "recorded": "359f61bfb030454aa6772559327ae5917f6e43a7300eefb9f6c25c176d6459ae",
+            "current": "0c1bf0dc43fce26a64e1bca9006e96f6b95300ac1b50860619529b948009a7e8"
+          },
+          {
+            "file": "overlays.js",
+            "recorded": "f44b2ccc70cc657b26c85cc0e71b5574f8053c7f94710e0198bb95e80cbf5b20",
+            "current": "ab300ace48157062fea396fdb4b7485d41e32468c0574b98f829f19e8e63bcdc"
+          },
+          {
+            "file": "panels.js",
+            "recorded": "8ff0e3d1d388372b14273ff2ced90602a73e7d36cafb1b1afe55fa35165bf3d5",
+            "current": "5500079ed6221c2f31e58381bbf732d27f25485cc11783afafb28f07f833e387"
+          },
+          {
+            "file": "review.js",
+            "recorded": "090f1bd575be8fdc086094fe4068de96029cc146df1077ac0af700d34a345723",
+            "current": "5b4d31ff9281b6411298c5d389b57f4f23b91e411bc4dd18e5a110d6dd716eaf"
+          },
+          {
+            "file": "settings.js",
+            "recorded": "3688718714dfc2bfaf63416d5f82981741f6044e3758bb7bcfd50d9e9a10b1ff",
+            "current": "16f63ff549bcd588a80cc1222c6c770377174f467f844960d2e4bd19d4ee9bf1"
+          },
+          {
+            "file": "shell.js",
+            "recorded": "3c6785fc31b1f403949a76645a617f3fc229478ff05402d2d5445b3675845ab1",
+            "current": "12e0840d4f941cf6c5b1e69d036857682b914c32a429a33369d5c591f3258459"
+          }
+        ]
+      },
+      "identity": {
+        "observedFileCount": 26,
+        "drift": []
+      },
+      "stdlib": {
+        "observedFileCount": 2,
+        "drift": [
+          {
+            "file": "index.js",
+            "recorded": "7b3c6ca1193bd3a12a72dcd5a25e1baeafae28d5ca7013d8716e2a6b975c577c",
+            "current": "df85f85e74a8b315cd667d34be2d05d6a0cd2c035d1a640585754e4240cac311"
+          }
+        ]
+      },
+      "state": {
+        "observedFileCount": 75,
+        "drift": [
+          {
+            "file": "catalog.js",
+            "recorded": "484fef7276168c37ee65c0bb0ad3403061edb6f48a39486bcfc4f1a3cdc93af0",
+            "current": "8c76c229448589d34353c9d5d7de99e5faefe6ac41b5f4dd3aeaf2f5d04fe45e"
+          },
+          {
+            "file": "index.js",
+            "recorded": "bbaeab00a4b39eecb1022f82800d1ca4ed09a9b5f1ae405df5acaa0044a9a939",
+            "current": "ee3b80800bb78edcb884f5dd9738aad9ed8d1897919fd6800355d40a1368383d"
+          },
+          {
+            "file": "invocation/registry.js",
+            "recorded": "07534ff7cf60ed7cf27dad2604b113e30590cfd16897e0e4ebff4ee80a2adc01",
+            "current": "8ca5c7e1b845cb81d12f79354aba03216c29b23f87918380c74244206df9adb0"
+          },
+          {
+            "file": "migration/mapper.js",
+            "recorded": "05190ec6356b5e1fd84f638883292bf812dcea1208cab2df4bf29607d1b0978d",
+            "current": "98e9cea6116e220cf416779fca587bbae9f4b09161b5a01aceaa900e805f3569"
+          },
+          {
+            "file": "migration/validate.js",
+            "recorded": "c6f7e50cf85312b26645acd03cd0c81fa45dcccfde013bad542e24eaf4e8c601",
+            "current": "bea9d293b14fe608f2b5d63151b88bd3f834d9540225e554c5c1f7f57c3e58e2"
+          },
+          {
+            "file": "mutation/crud.js",
+            "recorded": "781f5166b797574bd1fa3c7b50a15f335d30d25add4b0dd43802d064eb156b77",
+            "current": "65db5ae4c725918f12c3555893e47494b46efdf12ff4db2c3e37d8bdb89c2a09"
+          },
+          {
+            "file": "mutation/models.js",
+            "recorded": "15acd36ba838cecaf470a4229c0c8ae1fa83630e846c2cb64bfbe4e02fb22f34",
+            "current": "66b0c55602ca32a6090cee4874f5cc6e5f8fd8be32580e80d8dc2a93d23bb9cf"
+          },
+          {
+            "file": "mutation/pipeline.js",
+            "recorded": "0581c668d9f974e81df9200b25634fb113403c7aee224983b038bcd27182419c",
+            "current": "2e421ce0f8f2c3acd33b6133a3bbcb2a3e9e325df682e2cb79b03b04c1f99acb"
+          },
+          {
+            "file": "policy/grants.js",
+            "recorded": "ae5073fed217795cefaa7f82026ec0c4b46d099dbe10f2ce6ae57d472293a92d",
+            "current": "0c61bdb5bc37b9c766b8b366d6d8da0c4b5749c29f8f965911feef3007f2b057"
+          },
+          {
+            "file": "ports/transact.js",
+            "recorded": "6a64b6f7f3372de828c1a2efca9783405bcf0d80efb676afe6687e60b03efadb",
+            "current": "f3e780f95f18b5849ae83cdfba29c18876d882732608c42eb8fd13f8af47e636"
+          },
+          {
+            "file": "storage/d1.js",
+            "recorded": "e09ed6a2cd28862858e6fcc74d67cd6c68c0ff0ee8c65f371ce96374b304a143",
+            "current": "42015579d8df5d4e9e139b0e86c62c317d16449cbba709fd22e1c72fce037b72"
+          },
+          {
+            "file": "storage/durable-object.js",
+            "recorded": "6c804488fda2512cc8aeccd1d5c31fe1fc0b50c6f260abcd4d9dc38d5ed5731a",
+            "current": "0b814fe027fff2a13fd34ebe868a301d3445020779dd17211bce4e799a1eec5a"
+          }
+        ]
+      },
+      "values": {
+        "observedFileCount": 25,
+        "drift": [
+          {
+            "file": "internal/schema-core.js",
+            "recorded": "7af5776206a9b5a13efbaed7dcf178ac4bc4aa17747129ac79156a13846c267d",
+            "current": "cdafec221c06f8862d35dd90b940a01945792c35dedf75034c2886121873634e"
+          },
+          {
+            "file": "internal/wire-core.js",
+            "recorded": "bb3db640e7efa8fd3edd9f053b4b43da8a7f109c0c472b3a5be3772809f321fe",
+            "current": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f"
+          },
+          {
+            "file": "kinds.js",
+            "recorded": "f6069ed65ef37d9012d422ed8c6adf48f88fce241d88aa047734af26d22778a4",
+            "current": "45c3c4990042482221f22168a66dd34e044946c2b9f0d9104eb1246f487bd9ac"
+          },
+          {
+            "file": "temporal.js",
+            "recorded": "5674cb40272776edcdab2314bf2bfa75647632a2e8028089bdc67b7cd78e9849",
+            "current": "92a8b3d1fc67604e43f4547efa59a811590ca0d79b041e54088bfee824acb4f7"
+          }
+        ]
+      }
+    },
+    "qualification": "Recorded phase tests exercise real Bun bundles against fixture worker/runtime layout plus mocked sequence/cleanup controls; recorded CLI controls run real Node CLI under recreated private checkout-style layout. No full supported-host product equivalence claim.",
+    "dependencyDriftQualification": {
+      "producerEntriesChanged": 2,
+      "vendorFilesChanged": 33,
+      "scope": "Recorded 10 phase and 5 CLI controls prove only the recorded private distribution configuration. They cannot certify the latest producer/vendor distribution mix. Independent exact-source controls and source/declaration extraction proof retain their stated bounded scope. Latest full phase/Bun/CLI assembly qualification remains unproved; no shared rebuild was requested or performed."
+    }
+  },
+  "residuals": [
+    {
+      "existingMapping": "DEL-D01 cleanup behavior",
+      "introduced": false,
+      "source": "original adapter and defining bundle write temporary entry outside the try/finally cleanup span",
+      "witness": {
+        "mode": "entry_write_failure",
+        "trace": [
+          "@canlang/interfaces/mcp/server",
+          "@canlang/cloudflare/runtime/mcp-registry",
+          "create-mcp",
+          "entry-mcp"
+        ],
+        "error": {
+          "name": "Error",
+          "message": "controlled sentinel",
+          "sameMarker": true
+        },
+        "temporaryDirectoriesRemaining": 1
+      },
+      "baselineEqual": true,
+      "disposition": "A failed entry-file write leaves one temporary directory; independent probe removed its own private residue after observing it. Preserve this limit; extraction acceptance does not certify exhaustive cleanup and no product repair performed."
+    }
+  ],
+  "openGates": {
+    "nativePreparation": "HUMAN HOLD retained; no native launch, activation, producer ownership, policy or topology change",
+    "bridgeScope": {
+      "exclusionSourceUnchanged": true,
+      "exactVendorKeys": [
+        "vendor/state/fanout/work-loader.js",
+        "vendor/state/receipt/work-loader.js"
+      ],
+      "observerLoader": {
+        "file": "packages/state/src/receipt/observer-loader.ts",
+        "sha256": "add53ef3e6b23068e20a8b51d39c8150a1d0cd78d782cbcd3b2d2816159e1523",
+        "recordedHashMatches": true
+      },
+      "actualProductionObserverSource": "absent per supplied owner report and source file inventory; source observer-loader exists, no receipt observer source found",
+      "DD009": "OPEN: no fresh+stale direct emit/packed archive qualification; do not remove exclusions"
+    },
+    "dependencyQualification": "Observed producer distributions used by private TS fixtures; current observed entry/vendor drift separately listed. No claim that all vendor output matches current source, fresh install/pack, incoming State-machine feature, actual Bun/Node-worker host, durable/backend or Worker boot is qualified.",
+    "callerScope": "Recorded phase tests exercise real Bun bundles against fixture worker/runtime layout plus mocked sequence/cleanup controls; recorded CLI controls run real Node CLI under recreated private checkout-style layout. No full supported-host product equivalence claim."
+  },
+  "execution": {
+    "command": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/private/tmp/canlang-repair-go-20261007/delivery-independent/check.mjs"
+    ],
+    "pid": 59340,
+    "start": "2026-10-07T20:18:55.168Z",
+    "deadline": "2026-10-07T20:19:25.168Z",
+    "end": "2026-10-07T20:18:55.910Z",
+    "exitCode": 0,
+    "unifiedExecHandle": 99566,
+    "terminalResult": {
+      "exitCode": 0,
+      "chunk": "93e11a"
+    },
+    "otherIndependentAttemptHandles": [
+      38903,
+      45414,
+      15243
+    ],
+    "otherAttempts": "All ended explicit exit1 due private probe normalization/fixture/optional decoder setup; no live handles. Final corrected controls passed within recorded deadline. No running subprocesses or unbounded wait."
+  },
+  "evidence": {
+    "facts": {
+      "path": "/private/tmp/canlang-repair-go-20261007/delivery-independent/facts.json",
+      "sha256": "cae73bcf875a9d39ee4bb74feade573499536ac2656566972e6ffee5814d6ccf"
+    },
+    "script": {
+      "path": "/private/tmp/canlang-repair-go-20261007/delivery-independent/check.mjs",
+      "sha256": "76ea9ae1756be9549d08ac81807cb81839d72560ba730d67aa3c26c1050ed831"
+    },
+    "rawResultHash": "0b570ca0523efc7bcaafc21bcf7c4c1aa8df65852cde409d0ba57914e417152b"
+  },
+  "readLease": {
+    "files": [
+      "packages/cloudflare/src/preparation/build-adapter.ts",
+      "packages/cloudflare/src/preparation/host.ts",
+      "packages/cloudflare/src/deploy/bundle.ts",
+      "scripts/build-package.mjs",
+      "packages/cloudflare/test/preparation-shared-phases.test.ts"
+    ],
+    "released": true,
+    "sourceWrites": false,
+    "sharedBuilds": false,
+    "noActiveCommandHandles": true
+  },
+  "boundaries": [
+    "No complete DEL-D01 bridge exclusion/DD009 closure",
+    "No held native preparation launch",
+    "No security, optional State-machine metadata, installed/durable or all-host requalification",
+    "No product/Git/shared dist/fullbuild/install/docs/checkpoint mutation"
+  ]
+}

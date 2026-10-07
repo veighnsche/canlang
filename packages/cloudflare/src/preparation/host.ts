@@ -3,9 +3,7 @@
  * current build/deploy helpers. Behavior-preserving move out of
  * `cli/platform.ts`: same helpers, same order, same envelopes/bytes.
  * Build/deploy stage order is frozen in `stage-contract.json`; the
- * bundle build itself routes through `./build-adapter.js`, which
- * delegates to the existing public `buildDeployBundle` boundary until
- * P05.2 splits the real MCP/catalog host phases.
+ * bundle build uses the existing public `buildDeployBundle` boundary.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -29,11 +27,11 @@ import { diffPlans, formatPreview, loadPreviousPlan, requireYes } from "../deplo
 import {
   DEPLOY_DIR_SUFFIX,
   WORKER_MAIN_MISSING,
+  buildDeployBundle,
   deployBundleMain,
   writeDeployBundle,
   type DeployBundle,
 } from "../deploy/bundle.js";
-import { buildBundleWithHostPhases } from "./build-adapter.js";
 import {
   launchPreparation,
   NativeLaunchError,
@@ -359,7 +357,7 @@ export async function runPreparedDeploy(
   let bundleRef: DeployBundleRef | null = null;
   let deployBundle: DeployBundle | null = null;
   try {
-    const bundle = buildBundleWithHostPhases(loaded.artifact, { verdict });
+    const bundle = buildDeployBundle(loaded.artifact, { verdict });
     bundleRef = {
       main: deployBundleMain(stem),
       moduleCount: bundle.moduleCount,
