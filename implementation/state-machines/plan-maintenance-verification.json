@@ -1,0 +1,26 @@
+{
+  "source_pin": "65f43dc8bd36450184ee215660464706adeaab42",
+  "scope": "State-machine plan maintenance consistency only; legacy full-source verifier/pins untouched",
+  "passed": [
+    "new input catalog exactly matches allocations",
+    "every allocated target present and one owner per leaf",
+    "case/file-directory/Rust-root collision checks",
+    "target Markdown matches canonical JSON leaves",
+    "all existing and new task dependencies remain ordered",
+    "all task targets allocated",
+    "checkpoint net and historical path sets match exact Git union",
+    "4150 pending inherited allocations explicitly selected",
+    "historical complete checkpoint unchanged"
+  ],
+  "counts": {
+    "allocations": 2987,
+    "target_leaves": 3304,
+    "feature_paths": 78,
+    "net_deltas": 5656,
+    "historical_paths": 5695
+  },
+  "limitations": [
+    "FP.SOURCE-CLOSURE and inherited unmapped owner/target review remain open.",
+    "Historical checker evaluates older semantic source pins; this scoped consistency check does not refresh or accept those pins."
+  ]
+}
