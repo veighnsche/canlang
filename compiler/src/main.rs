@@ -3,14 +3,13 @@
 //! All dispatch, output formatting and exit codes live in the library so
 //! integration tests exercise the same code as the shipped binary.
 
-use std::{env, process::ExitCode};
+use std::{env, io::Write, process::ExitCode};
 
 fn main() -> ExitCode {
-    // Installed FIRST, before any other work: a panic anywhere below
-    // (unreachable invariant, failed output write, backend bug) prints one
-    // `error[E7005]` line on stderr and exits 2 — never a Rust trace and
-    // never exit 101 on user input. `catch_unwind` below converts the
-    // unwind into the exit code; this hook replaces the default trace.
+    // Installed FIRST: a caught unwind below (failed output write, backend
+    // bug) exits 2. The hook attempts one E7005 line without a Rust trace;
+    // a failed stderr write must not panic again and abort the process.
+    // Aborts remain outside catch_unwind's boundary.
     std::panic::set_hook(Box::new(|info| {
         let payload = info
             .payload()
@@ -24,7 +23,10 @@ fn main() -> ExitCode {
             .location()
             .map(|at| format!(" at {}:{}", at.file(), at.line()))
             .unwrap_or_default();
-        eprintln!("error[E7005]: internal error{at}: {first_line} (see `can explain E7005`)");
+        let _ = writeln!(
+            std::io::stderr().lock(),
+            "error[E7005]: internal error{at}: {first_line} (see `can explain E7005`)"
+        );
     }));
     let code = match std::panic::catch_unwind(run) {
         Ok(code) => code,
