@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "step": 12,
+  "scope": "Mechanical source/receipt/case/ledger/link validation; no behavior rerun or semantic certification",
+  "compiler_last_source_change": "4ecd991a80ca025b6d5899ffdcea96075c60c25e",
+  "compiler_tree": "db66f796be4a6e1b7c9c51ab21ef78f7d7e87810",
+  "counts": {
+    "input_pins": 114,
+    "commands": 87,
+    "raw_streams": 174,
+    "flat_sources": 6,
+    "catalog_mutations": 9,
+    "local_links": 58
+  },
+  "historical_pins_with_live_drift": [
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "audit_sha256": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa",
+      "current_sha256": "dcee4df7029048bd800ca8119634c20668e624a88e0d0b50954931ece3e69190",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/src/codegen/bdd.rs",
+      "audit_sha256": "35f1f801d858e822e60c37351264c7b4a9d0155253b5d0140a00ec8f9e26d3db",
+      "current_sha256": "651a54f2ca60cf729e2fe0a14a423692e0b2f4994cb854f8131f7bcdd8ac0397",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "audit_sha256": "1f1ef2bec0a008566ed800d746fc65feb90b9cc4683e9803940f83dac4b1eab8",
+      "current_sha256": "442942db03746b6b09fe93dbc1eeb68ea07c1e132f6eadb7632f70f245d50547",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/src/codegen/mod.rs",
+      "audit_sha256": "b8c4a5a8faa39500193afedb7053d49ad023dc74dca0c7a4e7969bf61fa658e3",
+      "current_sha256": "abf74f2bd5a0bf2dd9cd0602ed142232f6d5f3bfd84bdd6983d9c2231129bc7b",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/src/diagnostic.rs",
+      "audit_sha256": "9fd7f517cb57423c45eb11f8cae995746181d678966b6d9d379334a93d4c99de",
+      "current_sha256": "2a27b52767a5f99af4b69853c5f924be5edd32b2b082abad68a65f1e6b37bc2d",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/src/lsp/output.rs",
+      "audit_sha256": "8b9a350c847dcc326007ca08108fc8a986cb5f0089b2438a22a8b04f33ee0a0b",
+      "current_sha256": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "audit_sha256": "79c53edb9ba35b411e48d7d0064776dfbb4b8b622f748dbb13d3958cb9f78743",
+      "current_sha256": "74dce1e5fd588099749693e1ca8c62d053c9a67432cb9486b0d9f241bee9d176",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/tests/b4_check.rs",
+      "audit_sha256": "0d4122ca2f1222f5891289b6b516cf8357c44bdca731a19b5cdca5d38d70403e",
+      "current_sha256": "ca50a18147ef4d621ac07ce18120db4b337889b6de19c9a782904c60f4d9b4bf",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/tests/foundation.rs",
+      "audit_sha256": "d31ad27e58051bc1836f1a75d6f190048101069e019abd9b79a53e5fd0940ac8",
+      "current_sha256": "d12f31f212730662279a4fe57a3ae07c2c2abaad1e546faacb13072a59044d78",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/tests/ide.rs",
+      "audit_sha256": "b1279200fae3b6fa750561b4dcc9eb391b0010c3fc5b89555d92d319f2a9b932",
+      "current_sha256": "a99985fd69b852f7e126d76cbefe6cb616725cf4aaf4bce8609f023747997afb",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/tests/lsp_typed_output.rs",
+      "audit_sha256": "90e1f426e136fac00e8acda84be017a94e9541f6caed8eabbb83e484da7b2116",
+      "current_sha256": "c63b83e4e21d3a26d5de91973b1bced654283587765ca5ed3cdfaea7b6e6fb98",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
+      "audit_sha256": "57bde089b75c1d1640e04856867d2fe3564f500cdcc6c8d7ad15c12b6436a11f",
+      "current_sha256": "17979e58b31907ee45bb8f02688fb05c2a774646a28f326717171c28ebcb7d8f",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    }
+  ],
+  "ledger_records": 591,
+  "duties": 44,
+  "packets": 7,
+  "observed_stack_aborts": 5,
+  "file_harness_passes": 17,
+  "reported_ownership_body_skips": 1,
+  "ledger_sha256": "17979e58b31907ee45bb8f02688fb05c2a774646a28f326717171c28ebcb7d8f",
+  "errors": [],
+  "limits": [
+    "native debug retained receipts only",
+    "missing observer executable SHA remains",
+    "wall/core controls are not memory sandbox",
+    "no exact failing stage/release/otherhost/GUI/full application acceptance"
+  ]
+}

@@ -1,0 +1,730 @@
+[
+  {
+    "id": "framing",
+    "kind": "public BufRead count/read-buffer observer",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.25842,
+    "stdout_json": {
+      "body_cap": 67108864,
+      "cases": [
+        {
+          "body_len": null,
+          "case": "empty",
+          "consumed": 0,
+          "error": null,
+          "input_bytes": 0,
+          "largest_read_buffer": 0,
+          "read_calls": 0
+        },
+        {
+          "body_len": 0,
+          "case": "long-header",
+          "consumed": 2097184,
+          "error": null,
+          "input_bytes": 2097184,
+          "largest_read_buffer": 0,
+          "read_calls": 0
+        },
+        {
+          "body_len": null,
+          "case": "unterminated-header",
+          "consumed": 2097161,
+          "error": "UnexpectedEof: EOF inside LSP headers",
+          "input_bytes": 2097161,
+          "largest_read_buffer": 0,
+          "read_calls": 0
+        },
+        {
+          "body_len": 0,
+          "case": "many-headers",
+          "consumed": 49173,
+          "error": null,
+          "input_bytes": 49173,
+          "largest_read_buffer": 0,
+          "read_calls": 0
+        },
+        {
+          "body_len": null,
+          "case": "body-over-cap",
+          "consumed": 26,
+          "error": "InvalidData: message exceeds size cap",
+          "input_bytes": 28,
+          "largest_read_buffer": 0,
+          "read_calls": 0
+        },
+        {
+          "body_len": null,
+          "case": "body-at-cap-no-payload",
+          "consumed": 28,
+          "error": "UnexpectedEof: failed to fill whole buffer",
+          "input_bytes": 28,
+          "largest_read_buffer": 67108864,
+          "read_calls": 1
+        },
+        {
+          "body_len": 2,
+          "case": "duplicate-length-last-wins",
+          "consumed": 42,
+          "error": null,
+          "input_bytes": 42,
+          "largest_read_buffer": 2,
+          "read_calls": 1
+        }
+      ]
+    }
+  },
+  {
+    "id": "json-depth-63",
+    "kind": "bounded parser admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00421,
+    "stdout_json": {
+      "accepted": true,
+      "bytes": 127,
+      "depth": 63,
+      "error": null
+    }
+  },
+  {
+    "id": "json-depth-64",
+    "kind": "bounded parser admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.0036,
+    "stdout_json": {
+      "accepted": true,
+      "bytes": 129,
+      "depth": 64,
+      "error": null
+    }
+  },
+  {
+    "id": "json-depth-65",
+    "kind": "bounded parser admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00338,
+    "stdout_json": {
+      "accepted": false,
+      "bytes": 131,
+      "depth": 65,
+      "error": "invalid JSON at byte 65: nesting too deep"
+    }
+  },
+  {
+    "id": "json-depth-66",
+    "kind": "bounded parser admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00325,
+    "stdout_json": {
+      "accepted": false,
+      "bytes": 133,
+      "depth": 66,
+      "error": "invalid JSON at byte 65: nesting too deep"
+    }
+  },
+  {
+    "id": "json-width-1000",
+    "kind": "finite wide shallow JSON",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00321,
+    "stdout_json": {
+      "bytes": 2001,
+      "values": 1000
+    }
+  },
+  {
+    "id": "json-width-100000",
+    "kind": "finite wide shallow JSON",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.03203,
+    "stdout_json": {
+      "bytes": 200001,
+      "values": 100000
+    }
+  },
+  {
+    "id": "json-forged-num",
+    "kind": "deliberately forged public carrier; not source grammar",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00288,
+    "stdout_json": {
+      "panic_caught": false,
+      "public_forged_carrier": true
+    }
+  },
+  {
+    "id": "json-constructed-64",
+    "kind": "valid public constructed carrier beyond parser admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00272,
+    "stdout_json": {
+      "constructed_depth": 64,
+      "rendered_bytes": 132,
+      "scope": "outside parser depth admission; public carrier serialization/drop"
+    }
+  },
+  {
+    "id": "json-constructed-256",
+    "kind": "valid public constructed carrier beyond parser admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00267,
+    "stdout_json": {
+      "constructed_depth": 256,
+      "rendered_bytes": 516,
+      "scope": "outside parser depth admission; public carrier serialization/drop"
+    }
+  },
+  {
+    "id": "json-constructed-1024",
+    "kind": "valid public constructed carrier beyond parser admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00274,
+    "stdout_json": {
+      "constructed_depth": 1024,
+      "rendered_bytes": 2052,
+      "scope": "outside parser depth admission; public carrier serialization/drop"
+    }
+  },
+  {
+    "id": "source-control-check",
+    "kind": "clean source baseline",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.02222,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "source-control-compile",
+    "kind": "clean actual compiler output",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.009,
+    "stdout_json": null
+  },
+  {
+    "id": "source-flat-64-parse",
+    "kind": "public parse including normal tree drop",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00588,
+    "stdout_json": {
+      "bytes": 204,
+      "codes": [],
+      "coverage": true,
+      "height": 70,
+      "nodes": 301
+    }
+  },
+  {
+    "id": "source-flat-64-check",
+    "kind": "actual compiler check",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00884,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "e8af709524eb520cd6d861646c3aaf97248e5b7a9807f04ba0c9d240f4d974a0"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "source-flat-64-compile",
+    "kind": "actual compiler compile",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00691,
+    "stdout_json": null
+  },
+  {
+    "id": "source-flat-256-parse",
+    "kind": "public parse including normal tree drop",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00582,
+    "stdout_json": {
+      "bytes": 588,
+      "codes": [],
+      "coverage": true,
+      "height": 262,
+      "nodes": 1069
+    }
+  },
+  {
+    "id": "source-flat-256-check",
+    "kind": "actual compiler check",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.01796,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "26707fd987a3cd5d9b3313c7ea72fbbb7a572a82fcceab7b004389d4319fd6a1"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "source-flat-256-compile",
+    "kind": "actual compiler compile",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.02095,
+    "stdout_json": null
+  },
+  {
+    "id": "source-flat-512-parse",
+    "kind": "public parse including normal tree drop",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.01199,
+    "stdout_json": {
+      "bytes": 1100,
+      "codes": [],
+      "coverage": true,
+      "height": 518,
+      "nodes": 2093
+    }
+  },
+  {
+    "id": "source-flat-512-check",
+    "kind": "actual compiler check",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.05701,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "80683ea2ea25ad66cfc7ad3a33e33aae2ddd23d9731954e6a71b55db93b28827"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "source-flat-512-compile",
+    "kind": "actual compiler compile",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.06926,
+    "stdout_json": null
+  },
+  {
+    "id": "source-flat-1024-parse",
+    "kind": "public parse including normal tree drop",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.04,
+    "stdout_json": {
+      "bytes": 2124,
+      "codes": [],
+      "coverage": true,
+      "height": 1030,
+      "nodes": 4141
+    }
+  },
+  {
+    "id": "source-flat-1024-check",
+    "kind": "actual compiler check",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.20371,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "21a3fc16d97f2865aa9d1501fa8ecae6859003e932a61b6119b1eb2fb6a0ca8c"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "source-flat-1024-compile",
+    "kind": "actual compiler compile",
+    "exit": -6,
+    "signal": 6,
+    "timed_out": false,
+    "seconds": 0.26094,
+    "stdout_json": null
+  },
+  {
+    "id": "source-flat-2048-parse",
+    "kind": "public parse including normal tree drop",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.13772,
+    "stdout_json": {
+      "bytes": 4172,
+      "codes": [],
+      "coverage": true,
+      "height": 2054,
+      "nodes": 8237
+    }
+  },
+  {
+    "id": "source-flat-2048-check",
+    "kind": "actual compiler check",
+    "exit": -6,
+    "signal": 6,
+    "timed_out": false,
+    "seconds": 0.55322,
+    "stdout_json": null
+  },
+  {
+    "id": "source-flat-2048-compile",
+    "kind": "actual compiler compile",
+    "exit": -6,
+    "signal": 6,
+    "timed_out": false,
+    "seconds": 0.54855,
+    "stdout_json": null
+  },
+  {
+    "id": "source-flat-3000-parse",
+    "kind": "public parse including normal tree drop",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.29878,
+    "stdout_json": {
+      "bytes": 6076,
+      "codes": [],
+      "coverage": true,
+      "height": 3006,
+      "nodes": 12045
+    }
+  },
+  {
+    "id": "source-flat-3000-check",
+    "kind": "actual compiler check",
+    "exit": -6,
+    "signal": 6,
+    "timed_out": false,
+    "seconds": 0.73331,
+    "stdout_json": null
+  },
+  {
+    "id": "source-flat-3000-compile",
+    "kind": "actual compiler compile",
+    "exit": -6,
+    "signal": 6,
+    "timed_out": false,
+    "seconds": 0.72926,
+    "stdout_json": null
+  },
+  {
+    "id": "catalog-nested-32",
+    "kind": "actual eager builtin catalog admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00497,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "catalog-nested-64",
+    "kind": "actual eager builtin catalog admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00467,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "catalog-nested-128",
+    "kind": "actual eager builtin catalog admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00432,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "catalog-nested-256",
+    "kind": "actual eager builtin catalog admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00464,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "catalog-nested-512",
+    "kind": "actual eager builtin catalog admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00466,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "catalog-nested-1024",
+    "kind": "actual eager builtin catalog admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00505,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "catalog-postfix-64",
+    "kind": "actual eager builtin catalog admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00449,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "catalog-postfix-256",
+    "kind": "actual eager builtin catalog admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00408,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "catalog-postfix-1024",
+    "kind": "actual eager builtin catalog admission",
+    "exit": 0,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00487,
+    "stdout_json": {
+      "tool": "can",
+      "tool_version": "0.1.0",
+      "language_version": "1.0",
+      "schema_version": 1,
+      "sources": [
+        {
+          "id": 0,
+          "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can",
+          "sha256": "b91a6b1abfa1e8f54a79b1f9fb334dfd9bf74a23f70da9859113a9646313407e"
+        }
+      ],
+      "complete": true,
+      "diagnostics": [],
+      "omitted": 0
+    }
+  },
+  {
+    "id": "binary-forced-unwind",
+    "exit": 2,
+    "expected": "2/E7005 deliberate test hook; not naturally source-triggered panic"
+  },
+  {
+    "id": "invalid-source-utf8",
+    "kind": "source IO UTF8 rejection",
+    "exit": 2,
+    "signal": null,
+    "timed_out": false,
+    "seconds": 0.00293,
+    "stdout_json": null
+  }
+]

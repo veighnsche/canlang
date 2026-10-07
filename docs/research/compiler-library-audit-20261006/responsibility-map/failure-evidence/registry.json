@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "step": 12,
+  "scope": "44 finite admission/algorithm/filesystem duties, bounded executed witnesses and seven proposed repair/qualification packets; planning only",
+  "input_head": "d412296472ddbeb9c22cdbcaaaaed761ad212375",
+  "integration_head": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
+  "compiler_last_source_change": "4ecd991a80ca025b6d5899ffdcea96075c60c25e",
+  "compiler_tree": "db66f796be4a6e1b7c9c51ab21ef78f7d7e87810",
+  "duties": [
+    "AR-01",
+    "AR-02",
+    "AR-03",
+    "AR-04",
+    "AR-05",
+    "AR-06",
+    "AR-07",
+    "AR-08",
+    "AR-09",
+    "AR-10",
+    "AR-11",
+    "AR-12",
+    "AR-13",
+    "AR-14",
+    "AR-15",
+    "AR-16",
+    "AR-17",
+    "AR-18",
+    "ALG-offset-u32",
+    "ALG-semantic-ids-u32",
+    "ALG-parser-nesting",
+    "ALG-public-cst-carriers",
+    "ALG-ir-preconditions",
+    "ALG-cycle-width",
+    "ALG-every-scope-width",
+    "ALG-icu-wide",
+    "ALG-numeric-temporal",
+    "ALG-diagnostic-joining",
+    "ALG-source-map-growth",
+    "ALG-artifact-serialization",
+    "FF01",
+    "FF02",
+    "FF03",
+    "FF04",
+    "FF05",
+    "FF06",
+    "FF07",
+    "FF08",
+    "FF09",
+    "FF10",
+    "FF11",
+    "FF12",
+    "FF13",
+    "FF14"
+  ],
+  "packets": [
+    {
+      "id": "FAIL-R01",
+      "title": "Localize and repair accepted flat-expression stack abort",
+      "classification": "demonstrated valid-source native-debug defect; repair mechanism pending localization",
+      "defining_writers": [
+        "compiler/src/analysis/mod.rs",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/analysis/examples.rs",
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "compiler/src/syntax/cst.rs"
+      ],
+      "writer_release": "Localization first; release only the demonstrated responsible traversal/clone/drop owner and its directly affected callers, not all listed files or a structural redesign. Parser writer only if separately selected admission policy is necessary.",
+      "test_writers": [
+        "compiler/tests/analysis.rs",
+        "compiler/tests/codegen.rs",
+        "compiler/tests/exe.rs",
+        "compiler/tests/syntax.rs"
+      ],
+      "duty_refs": [
+        "AR-01",
+        "AR-14",
+        "AR-15",
+        "AR-16",
+        "ALG-ir-preconditions"
+      ],
+      "witnesses": [
+        "source-flat-1024-compile",
+        "source-flat-2048-check",
+        "source-flat-2048-compile",
+        "source-flat-3000-check",
+        "source-flat-3000-compile"
+      ],
+      "acceptance": "Retain 64/256/512 positive controls and all six exact flat sources; isolate failing analysis/emission/ownership stage in supervised subprocesses. Accepted valid sources check/compile/drop normally; independently execute emitted legal sums (64 through3000) and preserve left associativity, precedence and effect/evaluation order. If an explicit refusal policy is selected, assert its exact diagnostic before unsafe downstream work, without silently converting currently supported forms to unsupported. Qualify malformed/recovery and member/postfix siblings separately. No release/host threshold inferred from debug neighbors.",
+      "policy": "No chosen structural-depth budget or parser/arena redesign. Compare iterative owner traversal, ownership cleanup and explicit admission fairly after localization; consequential limits/support changes require verified-context JEV and recorded decision."
+    },
+    {
+      "id": "FAIL-R02",
+      "title": "Qualify executable internal-fault wording",
+      "classification": "documented guarantee exceeds actual unwind boundary",
+      "defining_writers": [
+        "compiler/README.md",
+        "compiler/src/main.rs"
+      ],
+      "test_writers": [
+        "compiler/tests/exe.rs"
+      ],
+      "duty_refs": [
+        "AR-01",
+        "FF11"
+      ],
+      "witnesses": [
+        "binary-forced-unwind",
+        "source-flat-1024-compile"
+      ],
+      "acceptance": "Describe caught unwinding panic E7005/exit2 precisely; state abort/stack-overflow and default allocation-error limits, and that public APIs inherit no executable boundary. Existing forced-unwind control remains2/E7005; no new exhaustion test. Comment/document repair must not claim stack-defect remediation.",
+      "policy": "No change to panic strategy, abort containment or library API support."
+    },
+    {
+      "id": "FAIL-R03",
+      "title": "Qualify bounded LSP header/body admission",
+      "classification": "demonstrated allocation timing and absent header budget; resource policy gap, no exhaustion witness",
+      "defining_writers": [
+        "compiler/src/lsp/transport.rs",
+        "compiler/src/lsp/server.rs"
+      ],
+      "test_writers": [
+        "compiler/tests/lsp_admission.rs",
+        "compiler/tests/common/lsp_driver.rs"
+      ],
+      "duty_refs": [
+        "AR-02",
+        "AR-03",
+        "AR-04"
+      ],
+      "witnesses": [
+        "framing"
+      ],
+      "acceptance": "Before selecting a header cap/error recovery, define supported line/aggregate/count budgets and malformed-frame lifecycle. Verify below/at/above selected budgets with short supervised inputs and body read observer; preserved valid extensions, legal Content-Length and actual initialized framed sessions succeed. If body allocation becomes incremental, prove allocation follows actual arrival while retaining the existing64MiB maximum and exact accepted bytes. Keep duplicate-last-wins and current server continuation policy unless explicitly revised.",
+      "policy": "Cap values and resynchronization/reset/close choices are proposals; consequential refusal/lifecycle changes need verified-context JEV. No memory/RSS/slow-client or portable exhaustion guarantee."
+    },
+    {
+      "id": "FAIL-R04",
+      "title": "Remove build metadata missing-path rebuilds",
+      "classification": "observed unnecessary repeated rebuild; stale-hash hypothesis falsified in tested profile",
+      "defining_writers": [
+        "compiler/build.rs"
+      ],
+      "test_writers": [
+        "compiler/tests/exe.rs"
+      ],
+      "duty_refs": [
+        "FF13"
+      ],
+      "witnesses": [
+        "build-ordinary",
+        "build-packed",
+        "build-gitfile"
+      ],
+      "acceptance": "Resolve actual Git metadata paths for ordinary, detached, packed-ref and linked-worktree layouts; independent consumer commit remains current after commits/ref changes. Repeated unchanged supported layouts do not rebuild due solely to nonexistent watched paths. Preserve tarball/noGit/failingGit unknown fallback; use disposable repository fixtures. Count complete watcher/helper closure before claiming simplification.",
+      "policy": "No dependency selected; no stale-version bug claim or broad performance/other-Cargo guarantee."
+    },
+    {
+      "id": "FAIL-R05",
+      "title": "Qualify renderer and output failure lifecycle",
+      "classification": "source-only process/reaping and resource leads; no new witnessed defect",
+      "defining_writers": [
+        "compiler/src/cli.rs",
+        "compiler/src/main.rs"
+      ],
+      "test_writers": [
+        "compiler/tests/exe.rs",
+        "compiler/tests/docs.rs"
+      ],
+      "duty_refs": [
+        "FF11",
+        "FF12"
+      ],
+      "witnesses": [],
+      "acceptance": "Use disposable fixed-argv renderer children to qualify early stdin closure, child exit/signal, pending wait/reap, finite output and explicit timeout/error controls; retain real stdout BrokenPipe result semantics. Establish supported timeout/capture expectations before repair. Preserve filesystem C04F behavior and distinguish renderer stub/interface from installed rendering.",
+      "policy": "No arbitrary subprocess timeout/output cap or all-sink resilience selected; qualify before releasing production writer."
+    },
+    {
+      "id": "FAIL-R06",
+      "title": "Define source/carrier representability and width qualification",
+      "classification": "source/invariant policy gaps; not reproduced valid-input crash",
+      "defining_writers": [
+        "compiler/src/source.rs",
+        "compiler/src/syntax/lexer.rs",
+        "compiler/src/analysis/catalog.rs",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/sourcemap.rs",
+        "compiler/src/codegen/artifact.rs"
+      ],
+      "writer_release": "Split by owning boundary after a supported obligation is selected; no common blanket budget or giant input experiment.",
+      "test_writers": [
+        "compiler/tests/catalog_input_contract.rs",
+        "compiler/tests/analysis.rs",
+        "compiler/tests/sourcemap_contract.rs"
+      ],
+      "duty_refs": [
+        "AR-06",
+        "AR-07",
+        "AR-08",
+        "AR-09",
+        "AR-10",
+        "AR-11",
+        "AR-17",
+        "ALG-offset-u32",
+        "ALG-cycle-width",
+        "ALG-every-scope-width",
+        "ALG-icu-wide",
+        "ALG-diagnostic-joining",
+        "ALG-source-map-growth",
+        "ALG-artifact-serialization"
+      ],
+      "witnesses": [
+        "catalog-nested-1024",
+        "catalog-postfix-1024",
+        "json-width-100000",
+        "json-constructed-1024"
+      ],
+      "acceptance": "Select and test centralized representability obligations with small boundary helpers; qualify actual used catalog signature matching, field reuse and representative finite graph/ICU/output widths before claims. Distinguish accepted parsed wire/source from forged public carriers and measured workload from source complexity. Preserve exact values, diagnostics/multiplicity, mappings and complete consumers.",
+      "policy": "No >4GiB/OOM/flood execution, source/global/graph/output limit, public invariant guarantee or dependency selected."
+    },
+    {
+      "id": "FAIL-R07",
+      "title": "Reuse session-history ownership and preserve host/file qualification gates",
+      "classification": "existing observed retention plus host coverage gate; no new filesystem blocker",
+      "defining_writers": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/source.rs",
+        "compiler/src/lint/driver.rs"
+      ],
+      "test_writers": [
+        "compiler/tests/lsp_admission.rs",
+        "compiler/tests/file_ownership.rs"
+      ],
+      "duty_refs": [
+        "AR-18",
+        "FF04",
+        "FF14"
+      ],
+      "witnesses": [
+        "public-retention",
+        "fmt-4750-changed",
+        "fmt-4750-equal"
+      ],
+      "acceptance": "Reuse ED-R06 rather than create a competing history API: preserve immutable live/checked SourceIds while qualifying bounded session ownership and historical lint work with representative edits. Keep native4750 fixture-unqualified state explicit and prior Linux execution separately pinned; qualify another supported host only when needed.",
+      "policy": "No reclamation/cache/history or host policy selected. C04F requested-entry replacement, noop, modes, partial progress and trusted-parent limits remain accepted."
+    }
+  ],
+  "execution": {
+    "resource_commands": 43,
+    "resource_observations": 42,
+    "filesystem_commands": 41,
+    "filesystem_observations": 21,
+    "replacement_harness_passes": 8,
+    "ownership_harness_passes": 9,
+    "ownership_body_skips": 1,
+    "valid_source_stack_aborts": 5
+  },
+  "reviews": [
+    "review-admission.json",
+    "review-resources.json",
+    "review-files.json"
+  ],
+  "unresolved": [
+    "exact failing traversal/clone/drop stage",
+    "new depth/header/global resource policies",
+    "release/otherhost stack profile",
+    "special-bit native4750 fixture",
+    "public constructed-carrier preconditions",
+    "used catalog matching and broader workload qualification",
+    "renderer timeout/reap/output and signal/write guarantees",
+    "installed/original application, GUI and whole semantic/oracle closure"
+  ],
+  "limits": "Wall/core controls are not heap/output sandbox or benchmark. Lexical1792 hazard candidates across42files are not reachability or defect proof; parser-frame budget does not bound structural tree height."
+}

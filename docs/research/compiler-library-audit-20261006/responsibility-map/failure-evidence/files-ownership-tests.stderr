@@ -1,0 +1,4 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.99s
+     Running tests/file_ownership.rs (compiler/target/debug/deps/file_ownership-cf0d212bd995ec29)
+SKIP mode 4750: this host did not retain the requested fixture bits

@@ -1,0 +1,90 @@
+{
+  "input": "app F   \nGiven\nWhen\nThen",
+  "formatted": "app F\nGiven\nWhen\nThen\n",
+  "cases": [
+    {
+      "id": "replacement-tests",
+      "expected": "existing native tests pass with exact body-skip classification"
+    },
+    {
+      "id": "ownership-tests",
+      "expected": "existing native tests pass with exact body-skip classification"
+    },
+    {
+      "id": "source-control",
+      "expected": "clean valid source before writer claims"
+    },
+    {
+      "id": "fmt-600-changed",
+      "expected": "capture established mode and equal-output inode preservation"
+    },
+    {
+      "id": "fmt-600-equal",
+      "expected": "capture established mode and equal-output inode preservation"
+    },
+    {
+      "id": "fmt-640-changed",
+      "expected": "capture established mode and equal-output inode preservation"
+    },
+    {
+      "id": "fmt-640-equal",
+      "expected": "capture established mode and equal-output inode preservation"
+    },
+    {
+      "id": "fmt-4750-changed",
+      "expected": "fixture mode must be established before acceptance"
+    },
+    {
+      "id": "fmt-4750-equal",
+      "expected": "fixture mode must be established before acceptance"
+    },
+    {
+      "id": "fmt-symlink",
+      "expected": "replace requested entry only; other name unchanged"
+    },
+    {
+      "id": "fmt-hardlink",
+      "expected": "replace requested entry only; other name unchanged"
+    },
+    {
+      "id": "fmt-parse-before-write",
+      "expected": "any parse failure leaves all inputs unchanged"
+    },
+    {
+      "id": "fmt-partial-progress",
+      "expected": "later parent-write failure retains earlier completed operand"
+    },
+    {
+      "id": "docs-missing",
+      "expected": "successful replace or controlled E7007/no staging leak"
+    },
+    {
+      "id": "docs-existing",
+      "expected": "successful replace or controlled E7007/no staging leak"
+    },
+    {
+      "id": "docs-equal",
+      "expected": "successful replace or controlled E7007/no staging leak"
+    },
+    {
+      "id": "docs-directory",
+      "expected": "successful replace or controlled E7007/no staging leak"
+    },
+    {
+      "id": "docs-missing-parent",
+      "expected": "successful replace or controlled E7007/no staging leak"
+    },
+    {
+      "id": "build-ordinary",
+      "expected": "new loose ref commit refreshes actual env consumer"
+    },
+    {
+      "id": "build-packed",
+      "expected": "do not assume stale; missing watched loose file can force rebuild"
+    },
+    {
+      "id": "build-gitfile",
+      "expected": "actual copied build script in gitfile layout refreshes or reveals bounded failure"
+    }
+  ]
+}

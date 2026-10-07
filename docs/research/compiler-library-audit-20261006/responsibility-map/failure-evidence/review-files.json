@@ -1,0 +1,544 @@
+{
+  "schema_version": 1,
+  "step": 12,
+  "reviewer": "independent admission worker; read-only source and receipt review, no execution",
+  "primary": "files.json/files.md,14duties",
+  "adopted_authority": "DECISIONS.md:1102\u20131110 accepted C04F",
+  "pins": [
+    {
+      "path": "files.json",
+      "sha256": "0dd7622ce1c13c0539c9258a832e17c90e8e4562562c858fab77e7be8c1c1a72"
+    },
+    {
+      "path": "files.md",
+      "sha256": "1cfb5e81b7c7d8b13bd2e6910e549ccc82268011b014f81ff9144742c2f30f69"
+    },
+    {
+      "path": "files-probe.py",
+      "sha256": "025a42dfd8f91675ecf7ba7a22bb2c22b7bbed3cd287a91ec622ee17908065b9"
+    },
+    {
+      "path": "files-cases.json",
+      "sha256": "5741ce2ab8f0fcbc11f98ec84a8c3c5dc32736b8d023d98d83280d4732474d7b"
+    },
+    {
+      "path": "files-observations.json",
+      "sha256": "85fda474a50e50fafd3240f5dbb49080a2e9d635662474cde433ea630420d6dd"
+    },
+    {
+      "path": "files-execution.json",
+      "sha256": "b8bb0b308dc0318d17ad8b9b09b9292a5c118f4a4c312c985d03bfd99ef74ba2"
+    }
+  ],
+  "receipt_summary": {
+    "commands": 41,
+    "cases": 21,
+    "raw_stream_hashes": 82,
+    "hash_mismatches": 0,
+    "harness_passes": 17,
+    "replacement_tests": 8,
+    "ownership_tests": 9,
+    "ignored_by_harness": 0,
+    "ownership_mode_4750_body_skipped": true,
+    "fresh_mode_4750_fixtures_unqualified": 2
+  },
+  "independent_checks": {
+    "fmt-600-changed-mode": true,
+    "fmt-600-changed-content": true,
+    "fmt-600-equal-mode": true,
+    "fmt-600-equal-content": true,
+    "fmt-600-equal-inode": true,
+    "fmt-640-changed-mode": true,
+    "fmt-640-changed-content": true,
+    "fmt-640-equal-mode": true,
+    "fmt-640-equal-content": true,
+    "fmt-640-equal-inode": true,
+    "fmt-symlink-other-name": true,
+    "fmt-symlink-detach": true,
+    "fmt-hardlink-other-name": true,
+    "fmt-hardlink-detach": true,
+    "parse-before-write": true,
+    "partial-progress": true,
+    "docs-equal-replace": true,
+    "docs-existing-mode": true,
+    "docs-error-cleanup": true,
+    "build-unmodified": true,
+    "build-ordinary-fresh": true,
+    "build-packed-fresh": true,
+    "build-gitfile-fresh": true,
+    "build-packed-repeat-dirty": true,
+    "build-gitfile-repeat-dirty": true
+  },
+  "raw_hash_checks": [
+    {
+      "command": "files-replacement-tests",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-replacement-tests",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-ownership-tests",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-ownership-tests",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-source-control",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-source-control",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-600-changed",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-600-changed",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-600-equal",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-600-equal",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-640-changed",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-640-changed",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-640-equal",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-640-equal",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-symlink",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-symlink",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-hardlink",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-hardlink",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-parse-before-write",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-parse-before-write",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-partial-progress",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-fmt-partial-progress",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-docs-missing",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-docs-missing",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-docs-existing",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-docs-existing",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-docs-equal",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-docs-equal",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-docs-directory",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-docs-directory",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-docs-missing-parent",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-docs-missing-parent",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-init",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-init",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-add",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-add",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-commit1",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-commit1",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-ordinary-first-head",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-ordinary-first-head",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-build-ordinary-first",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-build-ordinary-first",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-commit2",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-commit2",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-ordinary-second-head",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-ordinary-second-head",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-build-ordinary-second",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-build-ordinary-second",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-pack1",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-pack1",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-packed-first-head",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-packed-first-head",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-build-packed-first",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-build-packed-first",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-packed-repeat-head",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-packed-repeat-head",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-build-packed-repeat",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-build-packed-repeat",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-commit3",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-commit3",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-pack2",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-pack2",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-packed-third-head",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-packed-third-head",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-build-packed-third",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-build-packed-third",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-worktree",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-worktree",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-gitfile-first-head",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-gitfile-first-head",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-build-gitfile-first",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-build-gitfile-first",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-worktree-commit",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-worktree-commit",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-gitfile-second-head",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-gitfile-second-head",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-build-gitfile-second",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-build-gitfile-second",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-git-gitfile-repeat-head",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-git-gitfile-repeat-head",
+      "stream": "stderr",
+      "matches": true
+    },
+    {
+      "command": "files-build-gitfile-repeat",
+      "stream": "stdout",
+      "matches": true
+    },
+    {
+      "command": "files-build-gitfile-repeat",
+      "stream": "stderr",
+      "matches": true
+    }
+  ],
+  "verdicts": [
+    {
+      "id": "RFF01",
+      "duties": [
+        "FF01",
+        "FF02",
+        "FF03",
+        "FF04",
+        "FF05"
+      ],
+      "verdict": "agree under C04F",
+      "evidence": "Established0600/0640 changed files preserve modes; equal files preserve inode and bytes. Symlink/hardlink changed input detaches requested entry only and preserves other name complete recorded state. Harness covers readonly,umask,repeated/alias noops.",
+      "limit": "Native4750 fixture missing prevents special-bit acceptance here; existing Linux receipt is prior separate evidence, not fresh Step12. No ACL/owner/xattr/timestamp/inode preservation for changed output."
+    },
+    {
+      "id": "RFF02",
+      "duties": [
+        "FF01",
+        "FF03",
+        "FF06",
+        "FF07"
+      ],
+      "verdict": "agree finite failure guarantees",
+      "evidence": "Parse-before-write preserves first file and exits10; controlled second-parent failure exits2/E7007 with first formatted and second unchanged. Eight private tests cover deterministic partial write/persist/concurrent content/creation/mode/inode/target-mode checks and ordinary cleanup.",
+      "limit": "No all-file transaction,CAS,hostile-parent,abnormal termination,durable-sync or unconditional no-staging-leak guarantee."
+    },
+    {
+      "id": "RFF03",
+      "duties": [
+        "FF03",
+        "FF08",
+        "FF09"
+      ],
+      "verdict": "agree writer/interface boundary",
+      "evidence": "Docs existing mode retained; missing output current ordinary mode observed; equal docs bytes still replace inode; directory/missing-parent failE7007 and controlled staging scan empty.",
+      "limit": "Explicit disposable renderer stub qualifies interface/writer, not installed rendering or universal umask policy from a single observed0644. Missing-parent not created. Canonical identity is not lock authority."
+    },
+    {
+      "id": "RFF04",
+      "duties": [
+        "FF13"
+      ],
+      "verdict": "stale lead falsified; repeated rebuild observed",
+      "evidence": "Copied build.rs hash equals current source. Actual env consumer matches gitHEAD in ordinary,packed,gitfile first/change/repeat cases. Packed repeat Cargo Dirty says missing loose ref; gitfile repeat says missing .git/HEAD.",
+      "limit": "This actual unmodified build consumer avoids guessed rerun behavior. It establishes repeated rebuild in named fixtures, not stalehash or universal repository-layout refresh/determinism/performance benchmark."
+    },
+    {
+      "id": "RFF05",
+      "duties": [
+        "FF10",
+        "FF11",
+        "FF12",
+        "FF14"
+      ],
+      "verdict": "retain primary declared bounds",
+      "evidence": "Pure lint hash fences,thin producer/output error handling,metadata trust and host branches have source/earlier recipes. Fresh resource/output/process receipts reviewed separately.",
+      "limit": "Do not infer filesystem apply from purefix helper,all-sink outage safety,reaping/timeout guarantees,Windows/networkfs execution or new resource sandbox."
+    }
+  ],
+  "status": "complete bounded filesystem review; no new blocker within adopted C04F;4750qualification gap remains"
+}

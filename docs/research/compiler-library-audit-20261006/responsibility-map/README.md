@@ -1,4 +1,4 @@
-# Compiler responsibility coverage — audit Steps 2–8 and 10–11
+# Compiler responsibility coverage — audit Steps 2–8 and 10–12
 
 The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. Structural inventory maps duties and review scope; it does not qualify semantic correctness or test adequacy. [Step 3 workflow tracing](workflows.md) extends this same ledger with actual consumers and bounded executed witnesses. [Step 4 compatibility challenge](compatibility.md) distinguishes owning outcomes, current public byte promises, migration guards and incidental mechanisms. [Step 5 representations](representations.md) traces stage authorities, conversions, reconstructed facts and source/catalog coherence. [Step 6 integrations](integrations.md) records complete scoped library caller/adapter closures and conditional retirement results. [Step 7 syntax/recovery](syntax.md) maps finite admitted forms through stage owners and records independently corroborated recovery/meaning-loss findings.
 
@@ -157,5 +157,12 @@ retained history, public batched epochs and startup races have separate gates.
 [verification](editor-evidence/outcome-verification.json) preserve controls and
 failed observer attempts. Selective host stand-ins qualify module behavior,
 not GUI/application; no RSS/benchmark/other-host/full-release conclusion follows.
-Step 9 and Steps 12 onward remain proposed. Production and package implementation,
+Step 9 and Steps 13 onward remain proposed. Production and package implementation,
 merge and the living-plan checkpoint are unchanged.
+
+
+## Failure, resources and host boundaries — Step 12
+
+[Failure findings](failure.md) join 44 finite duties, seven proposed repair/qualification packets and retained native debug receipts to the same ledger (537→591 rows). Five actual check/compile stack aborts follow clean parsing of small legal flat arithmetic; exact downstream stage remains unlocalized. Parser-frame depth bounds do not bound structural tree height. JSON/catalog ladders survive at tested limits; header/body allocation and global width/representability policies remain gates.
+
+Resource43 commands/42 observations and filesystem41 commands/21 observations retain all raw hashes. File17 harness passes include one4750 body skip; direct4750 fixtures also remain unqualified. C04F guarantees are supported at the declared profile. Actual Git/Cargo consumers falsify the predicted stale commit while demonstrating missing-path repeated rebuilds. [Independent reviews](failure-evidence/review-resources.md), [packet registry](failure-evidence/registry.json) and [mechanical validation](failure-evidence/validation.json) distinguish defects, survivals, hypotheses and policy. No production change, new limit/redesign, workload/RSS/release/otherhost/GUI claim, merge or living checkpoint advance occurs. Step9 and Steps13 onward remain proposed.

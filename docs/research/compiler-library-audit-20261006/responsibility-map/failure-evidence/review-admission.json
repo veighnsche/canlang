@@ -1,0 +1,210 @@
+{
+  "schema": 1,
+  "step": 12,
+  "scope": "Independent admission primary and finalized root resource receipt review; no rerun/source/shared edits",
+  "pins": [
+    {
+      "path": "compiler/src/main.rs",
+      "sha256": "5e8cd0e926e46ea407ced9032706d07a3d608d1a5720f44d3f21eb0ccf688bdd"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "sha256": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679"
+    },
+    {
+      "path": "compiler/src/json.rs",
+      "sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244"
+    },
+    {
+      "path": "compiler/src/lsp/transport.rs",
+      "sha256": "27b0a48d691a9e7f497023d0bf6541226c666aefb045d64ed7d15a42fdc42862"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "sha256": "79c53edb9ba35b411e48d7d0064776dfbb4b8b622f748dbb13d3958cb9f78743"
+    },
+    {
+      "path": "compiler/src/analysis/catalog.rs",
+      "sha256": "af4aa22270db711cd251c3e0df433004b33f1b4f7f6367775ffa0668c488306c"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "sha256": "1b70f50c11b20fa23ab7f938d872f02b373b89129c2af3235b47ba0c5f0febf1"
+    },
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "sha256": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "sha256": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a"
+    },
+    {
+      "path": "compiler/Cargo.toml",
+      "sha256": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/admission.json",
+      "sha256": "164f6c265578f84cb8b16b7b6dbdc32d827ec64ca89d75e12ad84da4ac63e8f1"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/admission.md",
+      "sha256": "1cb34fc3e859ac3e4b0efdc1b6446b8646aeefab45bfe0a28e741e55016c594c"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/probe.rs",
+      "sha256": "f0db4a6820cd4361ec2f8e61940d6de82e3caed57692954bed0c43801297ec64"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/resource-probe.py",
+      "sha256": "651787ff551e9e26ceb292f356e1baa78390a1e3c4bc331f6b6ef103fc9a22ac"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/resource-execution.json",
+      "sha256": "30b1cae8bd40f1c2d868b9ded240900456c080c5ff5438a12d4757361fa23694"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/resource-observations.json",
+      "sha256": "4eeb8296e666ba687ad1d64c61b64bfdc9526ac5c1050d091300f1871d8a53c3"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/resource-cases.json",
+      "sha256": "940a3055e9a124849033be16dfeb997458fd453f5cb8268d641e3d6b14fa3e40"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/build.json",
+      "sha256": "a1f5f0bfb831a390ab5a582e22b639e90d34ddea500414066d59d5ad2847fc38"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/framing.stdout",
+      "sha256": "09e8522263bbd92720f9afb4e56c872e735a094316f47b6b42b478ecd54c9c38"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-1024-compile.stderr",
+      "sha256": "a241973528f2ad2b643b8695b020feffbbad07301ff591fdbf743a03a7f37d66"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-2048-check.stderr",
+      "sha256": "9b94d3388c498f11f96b878ee28f15bb6fa60c631828ff4187eb1d45c2316db9"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/source-flat-3000-check.stderr",
+      "sha256": "1a5b80ab892ddd00da3a623f85fbc44d54c83091e75709357b6df7aad2a3cb26"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/binary-forced-unwind.stderr",
+      "sha256": "6e242ffd06c1aaacbaa69b4719e85a9245c8d1779490c4f20c1399d2e3ec5020"
+    }
+  ],
+  "checks_performed": [
+    "43 command stdout/stderr hashes and current binary agree",
+    "6 retained source fixtures hashes agree",
+    "9 baseline+mutation catalogs independently reconstructed to exact hashes/lengths",
+    "Final resource-execution43/resource-observations42 read before receipt joins",
+    "Official Rust1.99 unwind/allocation docs independently retrieved"
+  ],
+  "normative_urls": {
+    "catch_unwind": "https://doc.rust-lang.org/std/panic/fn.catch_unwind.html",
+    "allocation_error": "https://doc.rust-lang.org/std/alloc/fn.handle_alloc_error.html"
+  },
+  "conclusions": [
+    {
+      "id": "ERA01",
+      "primary_ids": [
+        "AR-01"
+      ],
+      "verdict": "Accept unwind/abort separation",
+      "source": "main.rs:8-45; cli.rs:215-263; binary-forced-unwind.stderr",
+      "evidence": "Forced binary test hook returns2/E7005. Actual stack-overflow source cases terminateSIGABRT6 with fatal stderr despite executable catch_unwind. Official Rust1.99 distinguishes unwind from abort; default std allocation handler may abort.",
+      "bound": "Do not label allocation exhaustion executed. No public dispatch forced-panic comparison in this root probe; generic library unwind boundary remains caller owned. Release/other-host abort threshold unqualified."
+    },
+    {
+      "id": "ERA02",
+      "primary_ids": [
+        "AR-02",
+        "AR-03"
+      ],
+      "verdict": "Accept bounded framing timing, narrow observer",
+      "source": "transport.rs:19-63; probe.rs framing/ObservedReader; framing.stdout",
+      "evidence": "2MiB header and8192 headers accepted; unterminated header consumed thenUnexpectedEof. >64MiB body rejected after Content-Length line with no bodyRead; at64MiB absent payload passes67108864-byte read slice thenUnexpectedEof. Duplicate lengths last wins.",
+      "bound": "Observer supplies already-buffered Vec via fill_buf, no stream-chunk timing/slowloris/peak-memory proof. Large read slice plus source proves declared allocation timing, not RSS. Header acceptance is current-policy scope, not arbitrary budget requirement. No body-cap-before-header bound claim."
+    },
+    {
+      "id": "ERA03",
+      "primary_ids": [
+        "AR-04"
+      ],
+      "verdict": "Accept source recovery boundary, no runtime promotion",
+      "source": "server.rs:1155-1208; transport parse_call",
+      "evidence": "Same Server preserved on framing errors; structured UTF8/JSON parse errors distinct; EOF exits. Resource probe framing uses read_message directly, not stdio recovery.",
+      "bound": "No new malformed-frame resynchronization or state-reset receipt in resource batch. Prior Step11 EOF controls reused; root IO lane may add real process controls."
+    },
+    {
+      "id": "ERA04",
+      "primary_ids": [
+        "AR-05",
+        "AR-06",
+        "AR-07"
+      ],
+      "verdict": "Accept JSON admission versus constructed carriers",
+      "source": "json.rs:64-87,154-192,276-373; json-depth/width/constructed raw",
+      "evidence": "Parsed scalar-tail arrays63/64 accepted,65/66 reject byte65. Shallow1000/100000 values accepted. Public constructed depths64/256/1024 render/drop successfully beyond parser admission; forged Num catches no panic.",
+      "bound": "Forged-num observer discards rendered payload; permissive raw output follows inspected render_into source, not recorded emitted malformed JSON. Parsed wire never creates invalid Num/deep constructed tree. No newer serializer/library default proven to solve Can admission."
+    },
+    {
+      "id": "ERA05",
+      "primary_ids": [
+        "AR-10",
+        "AR-11"
+      ],
+      "verdict": "Accept type-string counter separation, no catalog crash",
+      "source": "catalog.rs:532-543,715-833,919-1067; resource catalog mutations",
+      "evidence": "Pinned base lower builtin signature reconstructed exactly with nested C up to1024/postfix[]1024. Clean source/check outputs have no diagnostics. JSON outer depth unchanged; source SigParser recursion lacks own budget.",
+      "bound": "Only eager builtin loading/drop plus check exercised; source never calls mutated lower, so deeper matching/coercion not qualified. Helpers spine-only are not substitutes. No catalog stack-overflow threshold/defect execution here."
+    },
+    {
+      "id": "ERA06",
+      "primary_ids": [
+        "AR-12",
+        "AR-13",
+        "AR-14",
+        "AR-15",
+        "AR-16"
+      ],
+      "verdict": "Accept reachable legal pipeline abort, stage bounded",
+      "source": "parser.rs:1486-1582; resource source-flat fixtures; parse/check/compile streams",
+      "evidence": "Legal int+ left chains have fullcoverage/codes[] parse+normaldrop at64..3000; height countterms+6. Check/compile64/256/512 clean.1024 parse/check clean,compileSIGABRT6;2048/3000 parse clean,check andcompileSIGABRT6. Five actual aborts, no timeout.",
+      "bound": "Stderr says stack overflow. Cannot localize exact failing resolver/type/IR/JS/clone/drop function from this witness; successful separate check does not prove compile reached codegen. Native debug profile observed cliffs not universal limits. Parse3000 unit success alone never implied pipeline safety."
+    },
+    {
+      "id": "ERA07",
+      "primary_ids": [
+        "AR-08",
+        "AR-09",
+        "AR-17",
+        "AR-18"
+      ],
+      "verdict": "Accept unexecuted policy/invariant scopes",
+      "source": "source.rs integer casts; cli full reads; graph walker guards; reused Step11",
+      "evidence": "InvalidUTF8 source E7002/2 separate from public lexer byte error. Whole input reads precede schema/admission. usize/u32 representability and graph/field depth lack bounds in inspected closure; iterative visited graph walkers are not blanket exponential recursion. Step11 history facts reused.",
+      "bound": "No >4GiB, huge filecount, field-reuse cliff, RSS/OOM or repeated history benchmark performed; forged public spans/carriers remain caller misuse. Static bounds do not select new budgets."
+    },
+    {
+      "id": "ERA08",
+      "primary_ids": [],
+      "verdict": "Accept input/receipt integrity with capture limits",
+      "source": "resource-probe.py;resource-cases/observations/execution;build.json",
+      "evidence": "43 commands/42 observations; independently verified every saved command stdout/stderr SHA256/current binary. All retained source pins and9 catalog baseline+mutation reconstructions reproduce exact input bytes/hash. Clean baseline check/compile controls precede stage comparisons.",
+      "bound": "Capture timeout12s/core disabled, not heap/RSS/output sandbox. subprocess.run captures all output; probe.rs source and compiler macros are unmodified public consumers, not real installed release. No rerun by reviewer."
+    },
+    {
+      "id": "ERA09",
+      "primary_ids": [],
+      "verdict": "Accept finite planning without policy adoption",
+      "source": "admission.json/md18 duties; filesystem separate evidence",
+      "evidence": "Source limits distinguish enforced64MiB/JSONdepth64/parserrecursion/layout/suite guards from uncovered width/chain/workspace/lifetime/resource profiles. Independent public-library misuse separated from legal source admission.",
+      "bound": "Admission primary still marks source leads awaiting root; executed joins belong root/shared registry, not wholesale conformance. No new OS budget/parser architecture/client framework selected; candidate libraries need complete consuming contract comparison."
+    }
+  ],
+  "acceptance": "9 bounded conclusions; legal source actual debug pipeline abort established, exact failing function/release/other-host cliff unresolved; catalog/header/library claims qualified."
+}

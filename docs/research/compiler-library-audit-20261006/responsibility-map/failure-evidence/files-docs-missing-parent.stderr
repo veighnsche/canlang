@@ -1,0 +1,1 @@
+error[E7007]: cannot write '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/absent/reference.md': No such file or directory (os error 2) at path "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/absent/.can-Eig5Bo"

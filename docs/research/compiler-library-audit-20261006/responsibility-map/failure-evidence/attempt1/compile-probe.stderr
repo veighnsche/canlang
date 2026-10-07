@@ -1,0 +1,29 @@
+error[E0308]: mismatched types
+  --> /Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/probe.rs:12:151
+   |
+12 | ...llect::<Vec<_>>().join(","));let v=json::parse(text.as_bytes()).unwrap();println!("{}",json!({"bytes":text.len(),"values":match v...
+   |                                       ----------- ^^^^^^^^^^^^^^^ expected `&str`, found `&[u8]`
+   |                                       |
+   |                                       arguments to this function are incorrect
+   |
+   = note: expected reference `&str`
+              found reference `&[u8]`
+note: function defined here
+  --> src/json.rs:150:7
+
+error[E0308]: mismatched types
+  --> /Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/probe.rs:13:123
+   |
+13 | ..."[".repeat(n),"]".repeat(n));let r=json::parse(text.as_bytes());println!("{}",json!({"depth":n,"bytes":text.len(),"accepted":r.is...
+   |                                       ----------- ^^^^^^^^^^^^^^^ expected `&str`, found `&[u8]`
+   |                                       |
+   |                                       arguments to this function are incorrect
+   |
+   = note: expected reference `&str`
+              found reference `&[u8]`
+note: function defined here
+  --> src/json.rs:150:7
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0308`.

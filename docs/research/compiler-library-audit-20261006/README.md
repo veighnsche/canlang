@@ -32,6 +32,8 @@ The proposed [compiler correctness, ownership and simplicity audit](compiler-cor
 
 [Audit Step 11 is executed](responsibility-map/editor.md): 31 finite server/client duties and nine proposed packets join the same 537-row ledger. Actual compiled client/providers and real-server sessions expose old/closed diagnostics, lost edit versions, wrong completion kinds and ignored options. Seventeen processes, two CLI controls, long-session observations and independent reviews retain selective-host/GUI/resource limits. Static catalog and single-document editor scope remain explicit; no compiler/editor/package implementation, framework selection, merge or checkpoint change.
 
+[Audit Step 12 is executed](responsibility-map/failure.md): 44 finite failure/resource/host duties, 84 retained commands and independent receipt reviews establish five native-debug valid-source stack aborts, retain C04F file guarantees with the4750 host gate, and falsify stale build metadata while observing unnecessary rebuilds. Seven bounded repair/qualification packets remain proposed; structural redesign and resource limits are unselected. No new production/dependency/policy implementation or full release/host/application acceptance occurs.
+
 | Pass | Declared outcome / reference |
 | --- | --- |
 |0 |[Released contracts and witnesses](pass0/README.md) |
