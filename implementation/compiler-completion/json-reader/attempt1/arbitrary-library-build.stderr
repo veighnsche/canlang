@@ -1,0 +1,45 @@
+error[E0425]: cannot find type `Chunk` in this scope
+   --> /Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/read.rs:460:44
+    |
+460 |         const STEP: usize = mem::size_of::<Chunk>();
+    |                                            ^^^^^ not found in this scope
+    |
+help: you might be missing a type parameter
+    |
+460 |         const STEP<Chunk>: usize = mem::size_of::<Chunk>();
+    |                   +++++++
+
+error[E0425]: cannot find type `Chunk` in this scope
+   --> /Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/read.rs:461:26
+    |
+461 |         const ONE_BYTES: Chunk = Chunk::MAX / 255; // 0x0101...01
+    |                          ^^^^^ not found in this scope
+
+error[E0433]: cannot find type `Chunk` in this scope
+   --> /Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/read.rs:464:25
+    |
+464 |             let chars = Chunk::from_le_bytes(chunk.try_into().unwrap());
+    |                         ^^^^^ use of undeclared type `Chunk`
+
+error[E0433]: cannot find type `Chunk` in this scope
+   --> /Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/read.rs:466:52
+    |
+466 |             let chars_quote = chars ^ (ONE_BYTES * Chunk::from(b'"'));
+    |                                                    ^^^^^ use of undeclared type `Chunk`
+
+error[E0433]: cannot find type `Chunk` in this scope
+   --> /Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/read.rs:468:56
+    |
+468 |             let chars_backslash = chars ^ (ONE_BYTES * Chunk::from(b'\\'));
+    |                                                        ^^^^^ use of undeclared type `Chunk`
+
+error[E0433]: cannot find type `Chunk` in this scope
+   --> /Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/read.rs:461:34
+    |
+461 |         const ONE_BYTES: Chunk = Chunk::MAX / 255; // 0x0101...01
+    |                                  ^^^^^ use of undeclared type `Chunk`
+
+error: aborting due to 6 previous errors
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.

@@ -1,0 +1,234 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 19.70s
+     Running unittests src/lib.rs (compiler/target/debug/deps/canlang_compiler-8bc9585627feb9a7)
+
+running 129 tests
+test analysis::catalog::t13a_tests::version_stamps_match_frozen_producers ... ok
+test analysis::catalog::t13a_tests::nominal_types_are_the_accepted_t13a_set ... ok
+test analysis::catalog::t13a_tests::email_v1_is_send_only_with_required_attachments ... ok
+test analysis::catalog::t13a_tests::errors_v1_report_shape_is_exact ... ok
+test analysis::catalog::t13a_tests::handbook_interface_has_no_schemas_e3019_preserved ... ok
+test analysis::catalog::t13a_tests::capability_set_is_exactly_the_three_frozen_contracts ... ok
+test analysis::catalog::t13a_tests::payments_v1_ops_and_changed_event_are_exact ... ok
+test analysis::catalog::t13b_tests::capability_set_is_exactly_the_three_frozen_t13b_contracts ... ok
+test analysis::catalog::t13b_tests::mailbox_ops_and_received_event_are_exact ... ok
+test analysis::catalog::t13b_tests::images_ops_are_exact ... ok
+test analysis::catalog::t13a_tests::delivery_observables_cover_exactly_the_six_send_targets ... ok
+test analysis::catalog::t13b_tests::delivery_observables_cover_exactly_the_ten_send_targets ... ok
+test analysis::catalog::t13b_tests::nominal_types_are_the_accepted_t13b_set ... ok
+test analysis::catalog::t13b_tests::text_generation_ops_are_exact ... ok
+test analysis::catalog::t13b_tests::version_stamps_match_frozen_producers ... ok
+test analysis::catalog::t13c_tests::handbook_ts_only_and_unknown_names_have_no_leaf_schemas ... ok
+test analysis::catalog::t13c_tests::t13a_acceptance_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13a_common_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::leaf_key_sets_equal_accepted_nominal_sets ... ok
+test analysis::catalog::t13c_tests::t13a_payment_state_matches_producer_and_changed ... ok
+test analysis::catalog::t13c_tests::t13b_mailbox_judgment_knowledge_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13b_text_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13b_workflow_and_image_leaves_are_exact ... ok
+test analysis::migrate_check::tests::unknown_owner_stands_down_existence_but_keeps_exactly_once ... ok
+test analysis::migrate_check::tests::missing_from_is_e6010 ... ok
+test analysis::migrate_check::tests::targetless_rename_is_e6009 ... ok
+test analysis::migrate_check::tests::non_before_source_is_e6009 ... ok
+test analysis::migrate_check::tests::empty_invalidate_is_e6009 ... ok
+test cli::tests::docs_help_names_modes_and_refusal ... ok
+test cli::replacement_tests::concurrent_content_change_is_not_overwritten ... ok
+test cli::tests::docs_requires_operands ... ok
+test cli::replacement_tests::concurrent_creation_is_not_overwritten_and_staging_is_removed ... ok
+test cli::replacement_tests::partial_staging_write_failure_keeps_destination_and_cleans_up ... ok
+test cli::replacement_tests::persist_failure_keeps_directory_and_cleans_up ... ok
+test cli::tests::diagnostics_fail_with_no_spawn_and_no_file_write ... ok
+test cli::tests::locale_and_out_are_docs_only ... ok
+test cli::replacement_tests::concurrent_permission_change_is_not_reverted ... ok
+test cli::replacement_tests::symlink_target_permission_change_is_not_reverted ... ok
+test cli::tests::out_refuses_can_sources_before_any_input_read ... ok
+test cli::replacement_tests::stale_format_input_is_rejected_before_staging ... ok
+test cli::replacement_tests::replacement_inode_is_detected_with_equal_bytes_mode_and_mtime ... ok
+test cli::tests::format_json_shapes_diagnostics_not_markdown ... ok
+test cli::tests::stderr_tail_caps_and_names_absence ... ok
+test cli::tests::out_refuses_to_overwrite_input_files ... ok
+test cli::tests::stub_backend_reports_needs_pipeline_before_spawn ... ok
+test codegen::bdd::string_tests::fixed_string_bytes_cover_every_control_and_unicode ... ok
+test codegen::ir::string_payload_tests::c01_literal_string_distinguishes_empty_null_and_missing_payload ... ok
+test cli::tests::missing_platform_binary_is_e7004 ... ok
+test codegen::js::string_tests::fixed_string_bytes_cover_every_control_unicode_and_quotes ... ok
+test codegen::sourcemap::tests::compatibility_rows_and_unsorted_segments_remain_in_authored_order ... ok
+test codegen::sourcemap::tests::duplicate_paths_keep_snapshot_ids_and_byte_columns ... ok
+test codegen::sourcemap::tests::malformed_numeric_and_delta_overflow_return_errors ... ok
+test codegen::sourcemap::tests::empty_and_missing_sources_keep_names_and_generated_rows ... ok
+test codegen::sourcemap::tests::ordered_serializer_uses_shared_escaping_and_null_contents ... ok
+test diagnostic::tests::json_escapes_control_chars ... ok
+test diagnostic::tests::finish_sorts_by_file_start_code ... ok
+test diagnostic::tests::text_rendering_points_at_source ... ok
+test diagnostic::tests::json_is_deterministic ... ok
+test docs::lexical_path_tests::lexical_normalize_preserves_leading_parents ... ok
+test docs::lexical_path_tests::lexical_normalize_preserves_literal_parents_above_absolute_root ... ok
+test explain::tests::catalog_is_sorted_unique_and_covers_policy_ranges ... ok
+test explain::tests::json_shape_has_all_fields ... ok
+test explain::tests::lookup_normalizes_case_and_whitespace ... ok
+test json::input_tests::ignoring_numbers_never_ignores_marker_objects_or_unicode ... ok
+test json::input_tests::nested_error_anchors_survive_container_cleanup_and_eof ... ok
+test json::input_tests::native_error_anchors_count_utf8_bytes_newlines_and_eof ... ok
+test json::input_tests::reader_limits_bulk_requests_and_depth_stops_before_the_tail ... ok
+test lsp::output::tests::action_groups_keep_versions_order_and_optional_edits ... ok
+test lsp::output::tests::plain_edit_keeps_authored_uri_and_group_order ... ok
+test json::input_tests::numeric_source_spans_cover_all_seed_origins_and_eof ... ok
+test lsp::output::tests::typed_envelope_keeps_id_and_all_control_escapes ... ok
+test lsp::server::tests::completion_kind_names_map_to_lsp_integers ... ok
+test lsp::output::tests::uri_outputs_keep_original_spelling_on_both_paths ... ok
+test lsp::server::tests::exit_without_shutdown_is_an_error ... ok
+test lsp::server::tests::completion_response_carries_integer_kinds ... ok
+test lsp::server::tests::identical_content_change_keeps_version_semantics ... ok
+test lsp::server::tests::lifecycle_gates_requests_and_exit_codes ... ok
+test lsp::server::tests::invalid_notifications_and_initialize_leave_state_unchanged ... ok
+test lsp::server::tests::requests_after_shutdown_are_invalid ... ok
+test lsp::server::tests::out_of_range_positions_are_invalid_params ... ok
+test lsp::server::tests::uri_to_path_decodes_file_uris ... ok
+test lsp::server::tests::stub_requests_answer_empty ... ok
+test lsp::transport::tests::envelopes_reject_reserved_duplicates_and_preserve_safe_correlation ... ok
+test lsp::transport::tests::exact_lsp_integers_accept_decimal_equivalents_without_rounding ... ok
+test lsp::transport::tests::framing_counts_multibyte_unicode_as_bytes ... ok
+test lsp::transport::tests::framing_errors_are_invalid_data ... ok
+test lsp::transport::tests::framing_preserves_the_bare_lf_compatibility_extension ... ok
+test lsp::transport::tests::framing_round_trip_with_split_reads ... ok
+test lsp::transport::tests::framing_preserves_malformed_utf8_and_the_next_frame ... ok
+test lsp::transport::tests::incomplete_utf8_sequence_stops_at_the_body_boundary ... ok
+test lsp::transport::tests::json_round_trip_with_escapes_and_unicode ... ok
+test lsp::transport::tests::malformed_content_length_values_rejected ... ok
+test lsp::transport::tests::malformed_json_rejected ... ok
+test lsp::transport::tests::rpc_builders_shape ... ok
+test lsp::transport::tests::surrogate_pairs_decode_and_lone_surrogates_fail ... ok
+test lsp::uri::tests::nonfile_and_unsupported_forms_keep_authored_identity ... ok
+test lsp::uri::tests::unix_file_authority_and_exact_unicode_projection ... ok
+test lsp::transport::tests::large_multibyte_string_parses_in_linear_time ... ok
+test policy::tests::minimal_source_dump_reports_every_surface ... ok
+test source::tests::line_index_lf_crlf ... ok
+test source::tests::line_index_lsp_utf16 ... ok
+test policy::tests::golden_expenseflow_policy_dump ... ok
+test source::tests::sha256_preserves_exact_bytes_and_hex_contract ... ok
+test source::tests::sha256_vectors ... ok
+test source::tests::source_db_ids_stable ... ok
+test syntax::cst::tests::coverage_detects_gaps_and_overlaps ... ok
+test syntax::cst::tests::traversal_visits_preorder ... ok
+test syntax::layout::tests::blank_and_comment_lines_emit_nothing ... ok
+test syntax::layout::tests::brackets_join_without_blocks ... ok
+test syntax::layout::tests::ineligible_heads_rejected ... ok
+test syntax::layout::tests::mismatched_and_unclosed_delimiters ... ok
+test syntax::layout::tests::one_space_indent_and_dedent ... ok
+test syntax::layout::tests::prose_attaches_at_same_column ... ok
+test syntax::layout::tests::ref_rules_and_suffix_rules ... ok
+test syntax::lexer::tests::crlf_ok_bare_cr_rejected ... ok
+test syntax::lexer::tests::inline_hash_and_backslash_continuation_rejected ... ok
+test syntax::lexer::tests::longest_match_punctuation ... ok
+test syntax::lexer::tests::numeric_units_and_adjacency ... ok
+test syntax::lexer::tests::strings_decode_json_escapes ... ok
+test syntax::lexer::tests::tabs_prose_ok_code_rejected ... ok
+test source::tests::sha256_padding_and_large_input ... ok
+test cli::tests::renderer_failure_reports_producer_detail_as_e7004 ... ok
+test cli::tests::failed_renderer_input_terminates_and_reaps_the_child ... ok
+test cli::tests::unwritable_out_is_e7007 ... ok
+test cli::tests::renders_to_stdout_with_fixed_argv_and_stdin_payload ... ok
+test cli::tests::out_writes_the_file_and_stays_silent ... ok
+test cli::tests::renders_without_locale_omits_the_flag ... ok
+test cli::tests::renderer_output_is_drained_while_its_input_is_written ... ok
+test cli::tests::empty_and_non_utf8_output_are_e7004 ... ok
+
+test result: ok. 129 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running unittests src/main.rs (compiler/target/debug/deps/can-7fdba0986254811e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/analysis.rs (compiler/target/debug/deps/analysis-33fe4504353b37c5)
+
+running 37 tests
+test cli_catalog_flag_rejections ... ok
+test cli_real_pipeline_exit_codes_and_discipline ... ok
+test duplicates ... ok
+test cli_catalog_flag_forms ... ok
+test c01_invalid_delivery_status_keeps_payload_diagnostics ... ok
+test call_on_action_reports_missing ... ok
+test e3009_entry_names_ctor_code ... ok
+test c01_invalid_strings_do_not_fabricate_values_or_hide_siblings ... ok
+test catalog_missing_unavailable_and_helper_misuse ... ok
+test c01_decoded_strings_reach_analysis_callers ... ok
+test invalid_app_header_suite_does_not_reserve_module_identity ... ok
+test fixture_mime_and_quoted_locale_keys ... ok
+test imports_and_visibility ... ok
+test invocation_constructor_complete_inputs ... ok
+test explain_round_trip_loader_codes ... ok
+test invocation_type_position ... ok
+test lane05_component_shape ... ok
+test expense_flow_checks_clean_with_implemented_sum ... ok
+test malformed_owner_headers_still_suppress_body_cascades ... ok
+test invocation_result_type_and_call ... ok
+test c03_url_owner_admission_and_source_anchors ... ok
+test malformed_declaration_preserves_independent_sibling_diagnostics ... ok
+test misplaced_body_line_preserves_independent_sibling_diagnostics ... ok
+test real_catalog_end_to_end ... ok
+test message_calls_against_real_catalog ... ok
+test read_scenarios_rejected_as_action_targets ... ok
+test suffix_bang_and_default_order ... ok
+test operator_matrix ... ok
+test ui_row_enum_cases_claim ... ok
+test team_tasks_checks_clean ... ok
+test lane05_component_shape_gaps ... ok
+test unknown_names_and_cascade_suppression ... ok
+test ui_transparent_groups_resolve ... ok
+test signature_shape_gaps ... ok
+test valid_corpus_checks_clean ... ok
+test explain_round_trip_source_codes ... ok
+test draft_outcome_table ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.43s
+
+     Running tests/authoring.rs (compiler/target/debug/deps/authoring-d007f01d6ce3750e)
+
+running 30 tests
+test cli_fmt_missing_file_is_tool_failure ... ok
+test cli_check_rejects_missing_operand_and_unreadable_file ... ok
+test cli_every_subcommand_answers_help ... ok
+test cli_compile_with_stub_reports_e7001 ... ok
+test cli_format_flag_rejected_where_it_does_nothing ... ok
+test cli_help_and_version ... ok
+test cli_check_like_commands_exit_10_on_errors ... ok
+test cli_explain_json_shape_and_unknown_code ... ok
+test cli_check_like_commands_emit_envelope_json ... ok
+test cli_lsp_returns_stdio_flag ... ok
+test cli_thin_entries_report_missing_producer ... ok
+test cli_lint_operand_errors_are_tool_failures ... ok
+test cli_unknown_command_and_flags_are_tool_failures ... ok
+test cli_unknown_command_with_help_is_still_a_tool_failure ... ok
+test cli_fmt_parse_failure_reports_envelope_and_writes_nothing ... ok
+test cli_fmt_check_clean_and_drift ... ok
+test cli_fmt_rewrites_files_in_place ... ok
+test server_publishes_nothing_after_close ... ok
+test server_ignores_incremental_only_changes ... ok
+
+thread 'server_publishes_only_current_versions' (1780743) panicked at tests/authoring.rs:705:5:
+assertion `left == right` failed
+  left: 1
+ right: 3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test explain_e1xxx_valid_examples_parse_clean ... ok
+test server_reports_method_not_found ... ok
+test transport_json_values_round_trip ... ok
+test transport_framing_round_trip_with_split_reads ... ok
+test server_publishes_only_current_versions ... FAILED
+test cli_lint_analysis_errors_exit_10_without_findings ... ok
+test cli_lint_clean_file_reports_empty_envelope ... ok
+test cli_lint_reports_findings_and_exits_zero ... ok
+test cli_compile_teamtasks_reports_emission_diagnostics ... ok
+test cli_thin_entries_passthrough_args_and_exit_codes ... ok
+test explain_round_trips_every_emitted_code ... ok
+
+failures:
+
+failures:
+    server_publishes_only_current_versions
+
+test result: FAILED. 29 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+error: test failed, to rerun pass `--test authoring`

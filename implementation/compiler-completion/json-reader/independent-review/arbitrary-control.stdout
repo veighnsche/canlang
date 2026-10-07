@@ -1,0 +1,11 @@
+ordered duplicates=Object([("a", Unsigned(2)), ("a", Unsigned(3))]); blanket Value={"a":3}
+-0: Ok(Signed(0))
+2.500: Ok(Object([("$serde_json::private::Number", String("2.500"))]))
+2E03: Ok(Object([("$serde_json::private::Number", String("2e+03"))]))
+2e+03: Ok(Object([("$serde_json::private::Number", String("2e+03"))]))
+2e99999999999999999999: Ok(Object([("$serde_json::private::Number", String("2e+99999999999999999999"))]))
+arbitrary precision preserves scale but collides numeric/authored map=Object([("$serde_json::private::Number", String("2e+03"))])
+collision is decoded generic Event only; lower-level string callbacks differ: numeric=Owned, authored=Borrowed
+Unicode first-error current=invalid JSON at byte 7: lone leading surrogate in hex escape; raw=expected value at line 1 column 11
+depth first-error current=invalid JSON at byte 65: nesting too deep; raw=expected value at line 1 column 74; root/child raw whole-subtree capture confirmed
+public owned SliceRead/borrowed StrRead usable; stream offset 3 after complete [1]

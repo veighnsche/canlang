@@ -702,10 +702,10 @@ fn server_publishes_only_current_versions() {
         .unwrap();
         server.handle_json(&change);
     }
-    assert_eq!(server.pending_count(), 3);
+    // Source-owner replacement prunes stale jobs before numeric IDs remap.
+    assert_eq!(server.pending_count(), 1);
     let notes = server.pump();
-    // Three versions enqueued, but only the current one is published:
-    // stale diagnostics are cancelled, never emitted.
+    // Three versions received; only the current one remains queued/published.
     assert_eq!(notes.len(), 1, "expected one publish: {notes:?}");
     assert!(notes[0].contains("textDocument/publishDiagnostics"));
     assert!(notes[0].contains("\"version\":3"));

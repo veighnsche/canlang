@@ -1,0 +1,11 @@
+{
+  "original_full_suite_exit": 101,
+  "failure": "authoring::server_publishes_only_current_versions",
+  "original_expectation": "pending_count()==3 for three distinct versions before pump",
+  "actual": 1,
+  "accepted_contract": "Prune stale queued jobs before replacing private source owner and remapping current IDs; current version remains queued. Equal-text duplicate queue behavior stays unchanged.",
+  "correction": "Pin pending_count()==1 and preserve all exact current-version publication assertions.",
+  "source_behavior_change": false,
+  "test_sha256": "ce01a4427c8b5f6bad20bff85b809f13e9106cca9f6797f9ca5c164fc21ccf61",
+  "original_raw_log": "full-suite.log"
+}

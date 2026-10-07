@@ -1,0 +1,6 @@
+ordered duplicates=Object([("a", Unsigned(2)), ("a", Unsigned(3))]); blanket Value={"a":3}
+-0: Ok(Float(-0.0))
+2.500: Ok(Float(2.5))
+2E03: Ok(Float(2000.0))
+2e+03: Ok(Float(2000.0))
+2e99999999999999999999: Err(Error("number out of range", line: 1, column: 12))

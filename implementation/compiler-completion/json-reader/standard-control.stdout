@@ -1,0 +1,10 @@
+public StrRead/SliceRead StreamDeserializer complete-value offsets=4
+-0 => Ok(Float(-0.0))
+1.000 => Ok(Float(1.0))
+1E-000 => Ok(Float(1.0))
+1E9 => Ok(Float(1000000000.0))
+1e9 => Ok(Float(1000000000.0))
+1e999999999999999999999 => Err(Error("number out of range", line: 1, column: 12))
+9223372036854775808 => Ok(UInt(9223372036854775808))
+generic ordered visitor preserves decoded duplicate members: Map([("x", UInt(1)), ("x", UInt(2))])
+blanket Value decoded duplicate => {"x":2}

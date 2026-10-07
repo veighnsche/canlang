@@ -1,0 +1,4 @@
+
+thread 'main' (1764322) panicked at /Users/vince/Projects/canlang/implementation/compiler-completion/json-reader/independent-review/control.rs:76:5:
+assertion failed: deferred.to_string().contains("trailing comma")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

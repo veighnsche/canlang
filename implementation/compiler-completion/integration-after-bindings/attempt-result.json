@@ -1,0 +1,19 @@
+{
+  "status": "failed_pending_owner_fix",
+  "initial_exit": 101,
+  "initial_failure": "authoring pending_count oracle",
+  "corrected_authoring_passed": 30,
+  "queue_oracle_independent_review": "queue-oracle-independent-review/assessment.md",
+  "corrected_full_exit": 101,
+  "corrected_failures": [
+    "b1_teamtasks_artifact: one unchecked BDD call in addition to two pinned UI positions",
+    "b2_expenseflow_artifact:16 unchecked BDD call/type gaps"
+  ],
+  "preserved_production_gates": true,
+  "input_count": 110,
+  "changes_observed_after_attempt": {
+    "compiler/src/analysis/resolve.rs": "ab637e6a124ede6e26dbf63a5fdbe41c8c6ae77eef4ec5afadf29c6d170d1418"
+  },
+  "full_suite_acceptance": false,
+  "follow_up": "Real BDD resolver/type publication; keep b1_join gates intact."
+}

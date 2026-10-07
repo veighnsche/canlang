@@ -1,0 +1,11 @@
+public StrRead/SliceRead StreamDeserializer complete-value offsets=4
+-0 => Ok(Int(0))
+1.000 => Ok(Map([("$serde_json::private::Number", Text("1.000"))]))
+1E-000 => Ok(Map([("$serde_json::private::Number", Text("1e-000"))]))
+1E9 => Ok(Map([("$serde_json::private::Number", Text("1e+9"))]))
+1e9 => Ok(Map([("$serde_json::private::Number", Text("1e+9"))]))
+1e999999999999999999999 => Ok(Map([("$serde_json::private::Number", Text("1e+999999999999999999999"))]))
+9223372036854775808 => Ok(UInt(9223372036854775808))
+number/map callback collision: Map([("$serde_json::private::Number", Text("1e+9"))])
+generic ordered visitor preserves decoded duplicate members: Map([("x", UInt(1)), ("x", UInt(2))])
+blanket Value decoded duplicate => {"x":2}
