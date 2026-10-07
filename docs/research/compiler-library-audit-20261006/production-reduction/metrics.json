@@ -1,24 +1,24 @@
 {
   "baseline_git": "309644a6881909d8dba32560bc6711f67e00a7ab",
   "qualified_git": "f889e44f91daf12c27e5760f487ca1ca6c394e57",
-  "method": "Physical line counts, including comments and blank lines; compiler/src/*.rs split before first top-level #[cfg(test)] test module. No claim of AST complexity from LOC alone. Only compiler tree; concurrent package/editor/analysis work excluded from frozen comparison.",
+  "method": "Gross physical lines including comments and blanks; subtract only reviewed complete top-level exact cfg(test) item spans. Preserve production after test modules. Frozen compiler tree only; no AST complexity claim. See line-count-receipt.json for pinned spans and replay.",
   "baseline": {
-    "implementation": 68637,
-    "inline_tests": 2836,
+    "implementation": 69119,
+    "inline_tests": 2354,
     "integration_tests_and_fixtures": 27471,
     "cargo_metadata": 30,
     "docs_scripts_other": 1054
   },
   "qualified": {
-    "implementation": 68659,
-    "inline_tests": 4170,
+    "implementation": 69300,
+    "inline_tests": 3529,
     "integration_tests_and_fixtures": 32894,
     "cargo_metadata": 895,
     "docs_scripts_other": 1123
   },
   "delta": {
-    "implementation": 22,
-    "inline_tests": 1334,
+    "implementation": 181,
+    "inline_tests": 1175,
     "integration_tests_and_fixtures": 5423,
     "cargo_metadata": 865,
     "docs_scripts_other": 69
@@ -33,7 +33,24 @@
     "inline_tests_unchanged": true,
     "source_sha256_after": "8b9a350c847dcc326007ca08108fc8a986cb5f0089b2438a22a8b04f33ee0a0b",
     "control_flow_reduction": "Three URI parse sites, four Standard/Compatible enums, duplicate workspace projection and action branch removed; no minification or relocation.",
-    "hypothetical_frozen_programme_delta_with_this_packet_only": -29,
-    "aggregate_limit": "The resulting -29 frozen-baseline implementation lines is not claimed as material programme simplification or as the whole live worktree size; concurrent owner changes are separate."
+    "hypothetical_frozen_programme_delta_with_this_packet_only": 130,
+    "aggregate_limit": "The resulting +130 frozen-baseline implementation lines do not meet aggregate production-reduction acceptance and do not measure the whole live worktree; concurrent owner changes are separate."
+  },
+  "correction": {
+    "invalid_previous_method": "Everything after the first top-level test module was classified as tests. It excluded live production after test modules.",
+    "affected_boundaries": [
+      "compiler/src/analysis/migrate_check.rs: production after tests at original/qualified/R01 refs",
+      "compiler/src/cli.rs: 159 production lines between qualified/R01 test modules",
+      "compiler/src/analysis/catalog.rs: blank separators between test modules"
+    ],
+    "invalid_previous_production_deltas": {
+      "qualified": 22,
+      "with_r01": -29
+    },
+    "corrected_production_deltas": {
+      "qualified": 181,
+      "with_r01": 130
+    },
+    "receipt": "line-count-receipt.json"
   }
 }

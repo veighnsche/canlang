@@ -14,7 +14,22 @@ The user's clarified requirement is accepted: adopting libraries should reduce t
 
 ## Measured baseline
 
-[Metrics and method](metrics.json) compare original `309644a` to qualified `f889e44f`. Physical lines include comments/blanks; source is split before its first top-level inline test module. The tracked compiler tree grows 7,713 lines, of which 6,757 are tests/fixtures, 865 Cargo metadata and 69 documentation/scripts/other. Implementation grows 22 lines: 68,637→68,659. That confirms the programme did not deliver substantial aggregate source reduction. The count is confined to the frozen compiler refs and excludes the other agents' package/editor work.
+[Corrected metrics](metrics.json) compare original `309644a` to qualified `f889e44f`. Gross physical lines include comments/blanks; only complete top-level `#[cfg(test)]` item spans are excluded. The tracked compiler tree grows 7,713 lines, of which 6,598 are tests/fixtures, 865 Cargo metadata and 69 documentation/scripts/other. Implementation grows **181 lines: 69,119→69,300**. The count is confined to the frozen compiler refs and excludes the other agents' subsequent package/editor/analysis work.
+
+**Correction:** the earlier prefix method incorrectly classified production after an inline test module as tests, especially `migrate_check.rs` and the 159 production lines between `cli.rs` test modules. Its +22 and −29 aggregate claims are invalid. The [reviewed span inventory](line-count-receipt.json) retains exact commits, excluded intervals and totals. A temporary lexical boundary scan supplied this inventory; independent review checked sums and the mixed-module exceptions. This measurement is not executable LOC, branch complexity or proof of simpler ownership. The R01 file-local reduction below remains correct.
+
+Replay the frozen counts from the repository root without maintaining another Rust parser:
+
+```python
+import json, subprocess
+receipt = json.load(open("docs/research/compiler-library-audit-20261006/production-reduction/line-count-receipt.json"))
+for name, entry in receipt["revisions"].items():
+    paths = subprocess.check_output(["git", "ls-tree", "-r", "--name-only", entry["commit"], "compiler/src"], text=True).splitlines()
+    total = sum(len(subprocess.check_output(["git", "show", entry["commit"] + ":" + path], text=True).splitlines()) for path in paths if path.endswith(".rs"))
+    tests = sum(end - start + 1 for spans in entry["reviewed_test_spans"].values() for start, end in spans)
+    assert (total, total - tests, tests) == (entry["total_lines"], entry["production_lines"], entry["inline_test_lines"])
+    print(name, total - tests, tests)
+```
 
 ## R01 — Consolidate LSP URI-bearing projections
 
@@ -32,7 +47,7 @@ Preserved outcomes: all authored URI strings, location/range order, current and 
 
 Concurrent owner changes in `analysis/resolve.rs`, `tests/analysis.rs` and `tests/lsp_typed_output.rs` were present during verification, pinned and preserved. All 98 source/build/Cargo/completion/editor inputs stay identical during the independent process run. These results qualify that exact current worktree; the new sibling-diagnostic witness is not authored or claimed by this refactor. Only output.rs and this compiler reduction receipt/criterion plus the isolated decision section are staged by root.
 
-Applying only this packet to the frozen programme would change its aggregate implementation delta from +22 to −29 lines. That is an initial concrete reduction, **not sufficient evidence that the overall simplification objective is complete**. No new release-size, Linux/Windows, product-parent or clean-build claim is made.
+Applying only this packet to the frozen programme changes its aggregate implementation delta from **+181 to +130 lines**. It is a checked local reduction, while the aggregate production-reduction objective remains unmet. No new release-size, Linux/Windows, product-parent or clean-build claim is made.
 
 ## Remaining bounded assessments
 
