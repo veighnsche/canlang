@@ -64,7 +64,8 @@ export interface MutationRef {
   readonly version: DecimalString;
 }
 
-/** Closed typed JSON object: unknown members fail validation. */
+/** Closed typed JSON object: declared own keys (including `__proto__`) are
+ * data members; unknown members fail validation. */
 export type ClosedInputs = Record<string, unknown>;
 
 /**

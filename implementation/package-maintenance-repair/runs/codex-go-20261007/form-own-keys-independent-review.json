@@ -1,0 +1,125 @@
+{
+  "packet": "PARSER-DP01",
+  "base": "a7faf70513bcf2a3bc12dafe0ca3ebe8ad20e6de",
+  "status": "pass",
+  "files": [
+    {
+      "path": "packages/interfaces/src/http/limits.ts",
+      "baselineSha256": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc",
+      "currentSha256": "1b9718453c391292418fb60dfbf683bc649fef25b96b6a917821c1a60101d51c",
+      "publicDeclarationUnchanged": true,
+      "privateEmittedSha256": "af1809d93099847744605a95b63dfafb03a4b788369cff88eedcfa35ee375327"
+    },
+    {
+      "path": "packages/interfaces/src/http/operations.ts",
+      "baselineSha256": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a",
+      "currentSha256": "1c575196b21444f7cc2680667752a39c6403c0a1b06a10c07676cd0ecc7de36a",
+      "publicDeclarationUnchanged": true,
+      "privateEmittedSha256": "ef6610a9b563eb5e3fce2b8e02457fc0ee7eb0329976951e02c627daf0c194dd"
+    },
+    {
+      "path": "packages/contracts/src/wire.ts",
+      "baselineSha256": "bd85ca914bbc8d31fb372dbffa6c0d7176397bf11fa7d02e5b02b6c89fa01ba1",
+      "currentSha256": "b47aa5d783a48b1327437e1fb1627e1d7b5644df254657f2096739aedbe98974",
+      "publicDeclarationUnchanged": true
+    },
+    {
+      "path": "packages/interfaces/test/own-form-keys.test.ts",
+      "currentSha256": "5f2bd5eec3282d8cfb1e3fa884845a1238a86c62a155104548662d1ca765f0b4",
+      "privateEmittedSha256": "21d343d4cb58f90986d52a1e97d50df2796a0004e5cfd670fa35c46b4406b334",
+      "sourceCurrent": true
+    }
+  ],
+  "tests": {
+    "passed": 42,
+    "failed": 0,
+    "log": "/private/tmp/canlang-repair-go-20261007/form-own-keys-independent-test.log"
+  },
+  "controls": {
+    "parserDescriptorAndDuplicateKeys": true,
+    "baselineDropsProtoKey": true,
+    "coercionSeparatelyPreservesOwnData": true,
+    "baselineCoercionMutatesOnlyLocalOutputPrototype": true,
+    "mountedVariantStatuses": {
+      "baseline": {
+        "status": 200,
+        "calls": 1
+      },
+      "parserOnly": {
+        "status": 400,
+        "calls": 0
+      },
+      "coercionOnly": {
+        "status": 200,
+        "calls": 1
+      },
+      "current": {
+        "status": 200,
+        "calls": 1
+      }
+    },
+    "currentNegativeStatuses": {
+      "unknown": {
+        "status": 400,
+        "calls": 0
+      },
+      "explicit-handle": {
+        "status": 400,
+        "calls": 0
+      },
+      "unauth": {
+        "status": 403,
+        "calls": 0
+      }
+    },
+    "globalPrototypeUnchanged": true,
+    "undeclaredPrototypeNameInputs": [
+      {
+        "key": "__proto__",
+        "transport": "json",
+        "status": 400,
+        "calls": 0
+      },
+      {
+        "key": "__proto__",
+        "transport": "form",
+        "status": 400,
+        "calls": 0
+      },
+      {
+        "key": "constructor",
+        "transport": "json",
+        "status": 400,
+        "calls": 0
+      },
+      {
+        "key": "constructor",
+        "transport": "form",
+        "status": 400,
+        "calls": 0
+      },
+      {
+        "key": "toString",
+        "transport": "json",
+        "status": 400,
+        "calls": 0
+      },
+      {
+        "key": "toString",
+        "transport": "form",
+        "status": 400,
+        "calls": 0
+      }
+    ]
+  },
+  "defects": [],
+  "limits": [
+    "Only own form/query data key preservation and form coercion correction",
+    "Baseline mounted form happened to accept payload after dropping top-level __proto__; parser-only correction reveals inherited route-name denial through old coercion",
+    "Coercion-only mutation prevents local prototype changes but cannot recover parser-dropped key; full correction needs both stages",
+    "Mounted createHttpHandler to operation tests cover declared nested keys, unknown input rejection, explicit action_handle rejection and auth-first denial",
+    "Collection-query parser has no production caller; only helper behavior is substantiated",
+    "No unknown-key/prototype admission policy expansion; checked input/auth/order source is unchanged",
+    "No broader transport/backend/release acceptance"
+  ]
+}

@@ -166,18 +166,19 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "TECH-W01-quote",
-      "agent": "/root/impl_work_numeric",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "state": "ACK received; exact Work decision files editing; original public/installed gates separate"
+      "id": "DEL-A01-binding",
+      "state": "exact ACK; private binding leaf implementation active",
+      "agent": "/root/impl_form_own_keys"
     },
     {
-      "id": "TECH-V02-gregorian",
-      "agent": "/root/impl_values_gregorian",
-      "model": "gpt-6-luna",
-      "effort": "medium",
-      "state": "dispatched exact kinds/temporal private calendar slice"
+      "id": "TECH-V02-violations",
+      "state": "candidate released; independent review active",
+      "agent": "/root/review_ui_appearance"
+    },
+    {
+      "id": "VERIFY-TV01",
+      "state": "source-current runner and fixture adjudication active",
+      "agent": "/root/review_test_discovery"
     }
   ],
   "packet_state": {
@@ -207,7 +208,7 @@
     },
     "TECH-W01-quote": {
       "planning_status": "ready",
-      "state": "independently accepted UTF16 private-owner reduction; committing",
+      "state": "accepted narrow reduction; committed",
       "files": [
         "packages/work-kernel/decisions/rows.rs",
         "packages/work-kernel/decisions/receipt.rs",
@@ -217,7 +218,8 @@
         "packages/work-kernel/decisions/utf16_json.rs"
       ],
       "agent": "/root/review_ui_appearance",
-      "review": "work-quote-independent-review.json"
+      "review": "work-quote-independent-review.json",
+      "commit": "da31c16"
     },
     "TECH-W01-uri": {
       "planning_status": "blocked",
@@ -599,33 +601,35 @@
     },
     "PARSER-DP01": {
       "planning_status": "ready",
-      "state": "mounted form own-key correctness candidate released; independent review pending",
+      "state": "independently accepted mounted own-key correctness; committing",
       "files": [
         "packages/interfaces/src/http/limits.ts",
         "packages/interfaces/src/http/operations.ts",
         "packages/contracts/src/wire.ts"
       ],
-      "agent": "/root/impl_form_own_keys"
+      "agent": "/root/impl_form_own_keys",
+      "review": "form-own-keys-independent-review.json",
+      "acceptance": "42 source-current tests; baseline/parser-only/coercion-only/current mounted witnesses; helper-only collection query; correctness separate budget"
     },
     "VERIFY-TV01": {
       "planning_status": "ready",
-      "state": "static discovery snapshot released; actual runner/fixture gaps require Sol medium adjudication; no runtime completion claimed",
+      "state": "source-current runner and fixture adjudication active",
       "files": [
         "packages/identity/package.json",
         "packages/values/package.json",
         "packages/work-kernel/package.json"
       ],
-      "agent": "/root/impl_values_gregorian"
+      "agent": "/root/review_test_discovery"
     },
     "TECH-V02-violations": {
       "planning_status": "ready",
-      "state": "exact ACK received; private duplicate violation leaf implementation active",
+      "state": "candidate released; independent review active",
       "files": [
         "packages/values/src/internal/schema-core.ts",
         "packages/values/src/internal/wire-core.ts",
         "packages/values/src/internal/violations.ts"
       ],
-      "agent": "/root/impl_form_own_keys"
+      "agent": "/root/review_ui_appearance"
     },
     "TECH-V02-gregorian": {
       "planning_status": "ready",
@@ -698,21 +702,26 @@
     },
     "DEL-A01-error": {
       "planning_status": "ready",
-      "state": "public-interface defect repaired; renewed independent review active",
+      "state": "final inferred private helper independently accepted; committing",
       "files": [
         "packages/ui/src/browser/export.ts",
         "packages/ui/src/csv/parse.ts",
         "packages/ui/src/internal/business-errors.ts"
       ],
-      "agent": "/root/review_ui_appearance"
+      "agent": "/root/review_ui_appearance",
+      "review": "business-errors-independent-review-final.json"
     },
     "DEL-A01-binding": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "exact ACK; private binding leaf implementation active",
       "files": [
         "packages/interfaces/src/envelope/prepared.ts",
         "packages/interfaces/src/mcp/prepared.ts"
-      ]
+      ],
+      "agent": "/root/impl_form_own_keys",
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "reason": "Frozen duplicate private mechanics with construction/error controls; independent Sol medium review planned"
     },
     "DEL-A01-admission": {
       "planning_status": "ready",
@@ -750,5 +759,6 @@
   "native_goal": {
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
-  }
+  },
+  "updated_utc": "2026-10-07T19:06:12.229118+00:00"
 }
