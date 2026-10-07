@@ -158,3 +158,5 @@ Interfaces retains ordinary form/filter/coercion objects with explicit own data 
 UI internal/business-errors.ts shares exact private digest mechanics for export and CSV. Original public interfaces retain declaration merging and wrappers retain their return contracts; no third private shape declaration is maintained. Narrow source-current closure reduction is accepted, with broader CSV/browser and complete checkpoint review still open.
 
 Values internal/violations.ts owns only the exact schema/wire append leaf. Collector types, path aliases and traversal remain local; source/declaration reduction and actual public-caller controls are accepted without broad validation/backend qualification or complete checkpoint advance.
+
+Interfaces internal/prepared-binding.ts owns shared private entry/deferral mechanics, with public prepared types still at HTTP owner and construction/framing local to HTTP/MCP. Narrow reduction is accepted without SDK/handle or parent qualification; complete checkpoint unchanged.

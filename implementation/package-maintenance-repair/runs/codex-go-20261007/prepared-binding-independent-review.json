@@ -1,0 +1,413 @@
+{
+  "packet": "DEL-A01-binding",
+  "base": "a9edf8741c96e64f87d5617139175775db4d3b58",
+  "status": "pass",
+  "files": [
+    {
+      "path": "packages/interfaces/src/envelope/prepared.ts",
+      "baselineSha256": "b10355f3bf2f3490ba2b62380e8e8e73606e46b934170ece8cb55371ed429f97",
+      "currentSha256": "c511fdf952d7944c2d3147b817553fd1e2761a1ec4db837b64c4c128b22e39e0",
+      "declarationSha256": "a59d90527919abca155f7ef3c3172baf9fc01978e03c693d09aa9f4079335eb9",
+      "privateEmittedSha256": "cf0aaedbb24b92651846ac73dc818b5e347d90966184c05425c2789c62b6c779",
+      "exactHelpers": true,
+      "otherSourceByteUnchanged": true,
+      "publicDeclarationsByteIdentical": true,
+      "baselineCurrentPrivateOutputSourceCurrent": true
+    },
+    {
+      "path": "packages/interfaces/src/mcp/prepared.ts",
+      "baselineSha256": "229cbc7cfd1f2e136f5014d31041dbca6b3593a64a266f42275d08409ba3c760",
+      "currentSha256": "8ed5ada0bc6f152035005c419484703a2cea10715045122cd39a43670baef6b5",
+      "declarationSha256": "9a70e355e8868ed078933bf5a4e5d4634beb038914b8c300500b022af5fd3b3b",
+      "privateEmittedSha256": "7943c7beef5923a950ef44ceee6e301e3cf329224a2cd410e689d496b5157014",
+      "exactHelpers": true,
+      "otherSourceByteUnchanged": true,
+      "publicDeclarationsByteIdentical": true,
+      "baselineCurrentPrivateOutputSourceCurrent": true
+    },
+    {
+      "path": "packages/interfaces/test/prepared-binding-leaf.test.ts",
+      "sha256": "2b5397ad73353617e4bf5475df2fd8d53c4bdf3112f72fa481c6fb6587c536ca",
+      "privateEmittedSha256": "fcded072b1eab54f4e2485cdd7e7d6aa5d98a69cab5ea1f20b90c8556f868873",
+      "sourceCurrent": true
+    }
+  ],
+  "helper": {
+    "path": "packages/interfaces/src/internal/prepared-binding.ts",
+    "sha256": "fc413d661366f2f52a190ac62add023a652a645330c41fba453c3dcf4dbb56a1",
+    "declarationSha256": "0a0bfa095b024ecb5117930073a88f69c0ec5fbfec55ec0aa465fa48eec034b5",
+    "privateEmittedSha256": "aceebca83a98b04480ac77b506a7c962a8477beb31a28fb10d088d818f3247aa",
+    "runtimeImports": 0,
+    "typeOwnerRemainsHttp": true
+  },
+  "counts": {
+    "measure": "Nonblank noncomment parsed TS source; complete owner/helper declarations and import overhead included; tests/maps excluded",
+    "productionBefore": 210,
+    "productionAfter": 195,
+    "declarationsBefore": 63,
+    "declarationsAfter": 66,
+    "totalBefore": 273,
+    "totalAfter": 261
+  },
+  "helperControls": [
+    {
+      "scenario": "enum",
+      "trace": [
+        "name",
+        "kind",
+        "required",
+        "nullable",
+        "array",
+        "versioned",
+        "enumValues",
+        "enumValues",
+        "freeze-enum",
+        "kind",
+        "kind",
+        "kind",
+        "freeze-entry"
+      ],
+      "entry": {
+        "name": "choice",
+        "kind": "enum",
+        "required": false,
+        "nullable": true,
+        "array": true,
+        "versioned": false,
+        "enumValues": [
+          "a",
+          "b"
+        ],
+        "deferral": "bound"
+      }
+    },
+    {
+      "scenario": "no-enum",
+      "trace": [
+        "name",
+        "kind",
+        "required",
+        "nullable",
+        "array",
+        "versioned",
+        "enumValues",
+        "kind",
+        "kind",
+        "kind",
+        "freeze-entry"
+      ],
+      "entry": {
+        "name": "choice",
+        "kind": "enum",
+        "required": false,
+        "nullable": true,
+        "array": true,
+        "versioned": false,
+        "enumValues": null,
+        "deferral": "bound"
+      }
+    },
+    {
+      "scenario": "string",
+      "trace": [
+        "name",
+        "kind",
+        "required",
+        "nullable",
+        "array",
+        "versioned",
+        "enumValues",
+        "enumValues",
+        "freeze-enum",
+        "kind",
+        "freeze-entry"
+      ],
+      "entry": {
+        "name": "choice",
+        "kind": "string",
+        "required": false,
+        "nullable": true,
+        "array": true,
+        "versioned": false,
+        "enumValues": [
+          "a",
+          "b"
+        ],
+        "deferral": "string-values"
+      }
+    },
+    {
+      "scenario": "boolean",
+      "trace": [
+        "name",
+        "kind",
+        "required",
+        "nullable",
+        "array",
+        "versioned",
+        "enumValues",
+        "enumValues",
+        "freeze-enum",
+        "kind",
+        "kind",
+        "freeze-entry"
+      ],
+      "entry": {
+        "name": "choice",
+        "kind": "boolean",
+        "required": false,
+        "nullable": true,
+        "array": true,
+        "versioned": false,
+        "enumValues": [
+          "a",
+          "b"
+        ],
+        "deferral": "boolean-values"
+      }
+    },
+    {
+      "scenario": "money",
+      "trace": [
+        "name",
+        "kind",
+        "required",
+        "nullable",
+        "array",
+        "versioned",
+        "enumValues",
+        "enumValues",
+        "freeze-enum",
+        "kind",
+        "kind",
+        "kind",
+        "freeze-entry"
+      ],
+      "entry": {
+        "name": "choice",
+        "kind": "money",
+        "required": false,
+        "nullable": true,
+        "array": true,
+        "versioned": false,
+        "enumValues": [
+          "a",
+          "b"
+        ],
+        "deferral": "currency-code"
+      }
+    },
+    {
+      "scenario": "integer",
+      "trace": [
+        "name",
+        "kind",
+        "required",
+        "nullable",
+        "array",
+        "versioned",
+        "enumValues",
+        "enumValues",
+        "freeze-enum",
+        "kind",
+        "kind",
+        "kind",
+        "freeze-entry"
+      ],
+      "entry": {
+        "name": "choice",
+        "kind": "integer",
+        "required": false,
+        "nullable": true,
+        "array": true,
+        "versioned": false,
+        "enumValues": [
+          "a",
+          "b"
+        ],
+        "deferral": "bound"
+      }
+    },
+    {
+      "scenario": "throw-enum-second",
+      "trace": [
+        "name",
+        "kind",
+        "required",
+        "nullable",
+        "array",
+        "versioned",
+        "enumValues",
+        "enumValues"
+      ],
+      "errorSameSentinel": true
+    },
+    {
+      "scenario": "throw-kind-deferral",
+      "trace": [
+        "name",
+        "kind",
+        "required",
+        "nullable",
+        "array",
+        "versioned",
+        "enumValues",
+        "enumValues",
+        "freeze-enum",
+        "kind"
+      ],
+      "errorSameSentinel": true
+    },
+    {
+      "scenario": "enum-iterator-throw",
+      "trace": [
+        "name",
+        "kind",
+        "required",
+        "nullable",
+        "array",
+        "versioned",
+        "enumValues",
+        "enumValues",
+        "enum-iterate"
+      ],
+      "errorSameSentinel": true
+    }
+  ],
+  "construction": [
+    {
+      "owner": "envelope",
+      "scenario": "mismatch",
+      "trace": [],
+      "error": "prepareHttpPlan: derived inputs name \"wrong\", not \"acme.keys\".",
+      "sameSentinel": false
+    },
+    {
+      "owner": "envelope",
+      "scenario": "shape-throw",
+      "trace": [
+        "shape:allowed"
+      ],
+      "error": "shape sentinel",
+      "sameSentinel": true
+    },
+    {
+      "owner": "envelope",
+      "scenario": "valid",
+      "trace": [
+        "shape:allowed",
+        "shape:required",
+        "derived:inputs",
+        "input:name",
+        "input:kind",
+        "input:required",
+        "input:nullable",
+        "input:array",
+        "input:versioned",
+        "input:enumValues",
+        "input:enumValues",
+        "input:kind",
+        "input:kind",
+        "input:kind"
+      ],
+      "binding": [
+        {
+          "name": "choice",
+          "kind": "enum",
+          "required": false,
+          "nullable": false,
+          "array": false,
+          "versioned": false,
+          "enumValues": [
+            "a",
+            "b"
+          ],
+          "deferral": "bound"
+        }
+      ],
+      "defaults": "never-applied"
+    },
+    {
+      "owner": "mcp",
+      "scenario": "mismatch",
+      "trace": [],
+      "error": "prepareMcpPlan: derived inputs name \"wrong\", not \"acme.keys\".",
+      "sameSentinel": false
+    },
+    {
+      "owner": "mcp",
+      "scenario": "shape-throw",
+      "trace": [
+        "shape:allowed"
+      ],
+      "error": "shape sentinel",
+      "sameSentinel": true
+    },
+    {
+      "owner": "mcp",
+      "scenario": "valid",
+      "trace": [
+        "shape:allowed",
+        "shape:required",
+        "derived:inputs",
+        "input:name",
+        "input:kind",
+        "input:required",
+        "input:nullable",
+        "input:array",
+        "input:versioned",
+        "input:enumValues",
+        "input:enumValues",
+        "input:kind",
+        "input:kind",
+        "input:kind"
+      ],
+      "binding": [
+        {
+          "name": "choice",
+          "kind": "enum",
+          "required": false,
+          "nullable": false,
+          "array": false,
+          "versioned": false,
+          "enumValues": [
+            "a",
+            "b"
+          ],
+          "deferral": "bound"
+        }
+      ],
+      "defaults": "never-applied",
+      "sdkProvenance": "deferred"
+    }
+  ],
+  "publicTypeAugmentation": {
+    "passed": true,
+    "owner": "HTTP",
+    "diagnostics": 0
+  },
+  "compiler": {
+    "scope": "interfaces package noEmit only",
+    "passed": true,
+    "log": "/private/tmp/canlang-repair-go-20261007/prepared-binding-independent-typecheck.log"
+  },
+  "tests": {
+    "passed": 16,
+    "failed": 0,
+    "log": "/private/tmp/canlang-repair-go-20261007/prepared-binding-independent-tests.log"
+  },
+  "defects": [],
+  "limits": [
+    "Only shared private prepared binding entry/deferral mechanics",
+    "Public HTTP type owner and module augmentation preserved; MCP framing/ref/binding and provenance source unchanged",
+    "Owner-local mismatch throws precede shape and binding getters",
+    "Enum copying/freezing and getter/deferral/error order source-current and baseline-equivalent",
+    "Actual owned HTTP/MCP caller tests substantiate dispatch/parity within existing fixture scope",
+    "No broader backend/compiler/SDK provenance acceptance"
+  ],
+  "root_followup": {
+    "change": "Remove redundant terminal blank line found by git diff --check; all nontrailing bytes identical; syntax/declarations/readable count unchanged",
+    "reviewed_sha256": "686c86f626e61eedf365ca1de0171513eeb1c483736d29b7ca0a190b9eb8771e",
+    "committed_sha256": "fc413d661366f2f52a190ac62add023a652a645330c41fba453c3dcf4dbb56a1"
+  }
+}
