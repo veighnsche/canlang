@@ -221,3 +221,5 @@ Files retains upload/finalization owners. The existing immutable-size agreement 
 Values owned-input remains the parser/derivative owner. Narrow content isolation is independently accepted with explicit copying/traversal and behavioral cost; genuine factory/default/consumer/installed claims stay open. No new package/layer, merge or complete checkpoint advance.
 
 Files retains upload/finalization ownership; independently accepted completion byte-size enforcement now joins the existing finalizer guard at actual FS/persisted-copy fixture scope. No new protocol/layer, retry or durable/provider/lifetime claim, merge or complete checkpoint advance.
+
+Services retains HTTP streaming cancellation ownership. Independently accepted existing-signal cleanup wait removes the caller-visible hang without a new framework or physical-cleanup/security/installed claim. Whole services/effect and complete checkpoint review remain open; no merge.

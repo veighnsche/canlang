@@ -166,19 +166,19 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "TECH-V03 genuine owner/default contract",
-      "agent": "/root/prepared_owner_contract",
-      "state": "finite read-only cross-file contract evidence; no product or network writes"
+      "id": "DEL-B01 synchronous cleanup review",
+      "agent": "/root/browser_lifecycle_review",
+      "state": "frozen three-file source review active"
     },
     {
-      "id": "DEL-B01 synchronous owned cleanup",
-      "agent": "/root/review_fanout_freshness",
-      "state": "exact three-file source repair active"
+      "id": "TECH-V04 transport hygiene review",
+      "agent": "/root/review_ui_appearance",
+      "state": "two-file native conformance correction, isolated independent targets"
     },
     {
-      "id": "TECH-V04 selected actual native/Wasm carrier",
-      "agent": "/root/row_scope_cleanup",
-      "state": "private source-only prerequisite; active Wasm handle retained"
+      "id": "TECH-SV02 stream cleanup review",
+      "agent": "/root/service_stream_review",
+      "state": "two-file existing signal-bound review active"
     }
   ],
   "packet_state": {
@@ -302,19 +302,21 @@
       "review_read_released": true,
       "parent_limit": "No observed production caller/prepared plan/default success/security/installed qualification; factory provenance source tracing active",
       "factory_prerequisite": {
-        "state": "Factual source-only factory trace complete; genuine trusted owner/default contract prerequisites under finite review",
+        "state": "31 frozen source reads released; actual owning consumer/source-revision input requested, no authority hook chosen",
         "agent": "/root/prepared_owner_contract",
         "model": "gpt-6.1-sol",
         "effort": "high",
         "outputs": "/private/tmp/canlang-repair-go-20261007/prepared-owner-contract",
         "factual_result": "/private/tmp/canlang-repair-go-20261007/prepared-factory-current/result.json",
-        "factual_result_sha256": "3b5583e8b2ab23eb844f9189febd900bf600f42e7314dc080c8944ed8d60c8d0"
+        "factual_result_sha256": "3b5583e8b2ab23eb844f9189febd900bf600f42e7314dc080c8944ed8d60c8d0",
+        "review": "prepared-owner-prerequisite.json",
+        "unsent_consultations": true
       },
       "commit": "d4b041fb"
     },
     "TECH-V04": {
       "planning_status": "blocked",
-      "state": "ACKed private current-source tuple/error/carrier prerequisite; actual private native build complete and Wasm build active",
+      "state": "Actual current native/Wasm prerequisite complete; conformance duplicate-key hygiene finite correction under independent review; production tuple/error/profile/retirement joins open",
       "files": [
         "packages/values/semantics/src/transport/exact.rs",
         "packages/values/semantics/src/codecs/numeric.rs",
@@ -341,7 +343,20 @@
         "packages/values/bindings/plans.ts",
         "packages/values/bindings/bootstrap.ts"
       ],
-      "limits": "No canned glue, forged provenance, new tuple/resource policy, installed/default adoption or source changes"
+      "limits": "No canned glue, forged provenance, new tuple/resource policy, installed/default adoption or source changes",
+      "review": "values-carrier-prerequisite.json",
+      "read_released": true,
+      "hygiene_correction": {
+        "state": "Root two-file writer released; actual isolated native tests6/6 vs1/6 baseline, independent review active",
+        "files": [
+          "packages/values/semantics/src/transport/exact.rs",
+          "packages/values/semantics/tests/transport_record_hygiene.rs"
+        ],
+        "model": "root author; Sol medium independent reviewer",
+        "agent": "/root/review_ui_appearance",
+        "outputs": "/private/tmp/canlang-repair-go-20261007/record-hygiene-independent",
+        "limit": "Already documented conformance tuple hygiene only; no selected production codec/schema-error/profile/ABI/backend claim"
+      }
     },
     "TECH-V05": {
       "planning_status": "blocked",
@@ -622,7 +637,7 @@
     },
     "TECH-F01": {
       "planning_status": "blocked",
-      "state": "Independently accepted finite joined completion/finalization size correction; completion commit prepared; broader lifecycle open",
+      "state": "Independently accepted joined completion/finalization size correction at98c1e811/d450130f; broader lifecycle open",
       "files": [
         "packages/files/src/ports.ts",
         "packages/files/src/upload/index.ts",
@@ -670,8 +685,9 @@
         },
         "reviewer": "/root/review_ui_appearance",
         "review": "completion-size-independent-review.json",
-        "commit_pending": true,
-        "review_read_released": true
+        "commit_pending": false,
+        "review_read_released": true,
+        "commit": "98c1e811"
       },
       "commit": "d450130f"
     },
@@ -719,7 +735,7 @@
     },
     "TECH-SV02": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Independently accepted finite existing signal-bound stream cleanup; scoped commit prepared; broader services gate open",
       "files": [
         "packages/services/src/mail/redact.ts",
         "packages/services/src/mail/adapter.ts",
@@ -728,7 +744,27 @@
         "packages/services/src/http/client.ts",
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/work/src/receipt/index.ts"
-      ]
+      ],
+      "agent": "/root/row_scope_cleanup",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "active_files": [
+        "packages/services/src/http/client.ts",
+        "packages/services/test/stream-cleanup-deadline.test.ts"
+      ],
+      "writer_released": true,
+      "reviewer": "/root/service_stream_review",
+      "review_outputs": "/private/tmp/canlang-repair-go-20261007/service-stream-independent",
+      "outputs": "/private/tmp/canlang-repair-go-20261007/service-stream-production",
+      "contract": "Normally await best-effort stream cancellation; existing combined deadline/caller abort bounds cleanup wait, exact first result/error retained; no new timer/policy or physical-cleanup claim",
+      "review": "service-stream-independent-review.json",
+      "source_pins": {
+        "packages/services/src/http/client.ts": "9aaa2585f176b87d69bdb85e6bc49d781f25d92a829eb88a36cef80d56e2844a",
+        "packages/services/test/stream-cleanup-deadline.test.ts": "3a436c8d4d7171f0d71042a217df726563b11167ab8f9036d7c16337e24f3350"
+      },
+      "commit_pending": true,
+      "review_read_released": true,
+      "parent_limit": "No physical cancellation settlement, live provider/mounted/security/safe projection or late-outcome/idempotency/media correlation acceptance"
     },
     "TECH-SV03": {
       "planning_status": "blocked",
@@ -876,7 +912,7 @@
     },
     "DEL-B01": {
       "planning_status": "blocked",
-      "state": "ACKed finite synchronous owned browser-resource cleanup source repair active; visibility/producers remain separate prerequisites",
+      "state": "Finite three-file cleanup writer released; independent actual DOM/error/stop/restart review active",
       "files": [
         "packages/ui/src/browser/polling.ts",
         "packages/ui/src/browser/bootstrap.ts",
@@ -893,7 +929,10 @@
         "packages/ui/src/browser/polling.ts",
         "packages/ui/test/browser-lifecycle-cleanup.test.ts"
       ],
-      "contract": "Synchronous acquisition failure and explicit stop exhaust supported owned cleanup; preserve exact original/first throw and LIVE ownership; no async/API/visibility/markup change"
+      "contract": "Synchronous acquisition failure and explicit stop exhaust supported owned cleanup; preserve exact original/first throw and LIVE ownership; no async/API/visibility/markup change",
+      "writer_released": true,
+      "reviewer": "/root/browser_lifecycle_review",
+      "review_outputs": "/private/tmp/canlang-repair-go-20261007/browser-lifecycle-independent"
     },
     "DEL-B02": {
       "planning_status": "blocked",
@@ -1300,7 +1339,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T22:13:57.959649+00:00",
+  "updated_utc": "2026-10-07T22:29:16.055503+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
