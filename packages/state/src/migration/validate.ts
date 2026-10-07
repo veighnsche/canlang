@@ -42,6 +42,7 @@
  *   mutation timestamps are pathological and stay approximate.
  */
 
+import { getDataPath } from '../internal/own-data.js';
 import type {
   MigrationProgress,
   ModelName,
@@ -145,26 +146,6 @@ export function canonicalUniqueValue(value: unknown, key: string, model: string)
     `Unique field ${JSON.stringify(key)} on model ${JSON.stringify(model)} ` +
       `must be a scalar value.`,
   );
-}
-
-/**
- * Data-only dot-path read (arrays are opaque leaves), mirroring the
- * pipeline's `getDataPath`. Missing or untraversable paths yield
- * `undefined`; explicit `null` leaves return `null`.
- */
-function getDataPath(data: Readonly<Record<string, unknown>>, path: string): unknown {
-  let current: unknown = data;
-  for (const segment of path.split('.')) {
-    if (typeof current !== 'object' || current === null || Array.isArray(current)) {
-      return undefined;
-    }
-    const obj = current as Readonly<Record<string, unknown>>;
-    if (!Object.hasOwn(obj, segment)) {
-      return undefined;
-    }
-    current = obj[segment];
-  }
-  return current;
 }
 
 /** Row-metadata head segments, which lock mapping leaves untouched. */
