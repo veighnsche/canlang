@@ -7,8 +7,10 @@ The user has authorized finishing the remaining compiler tasks. Use the [recorde
 | FAIL-R04 | Accepted native build metadata correction; [independent review](build-metadata/independent-review.json). |
 | FAIL-R01 | Accepted bounded native-debug and actual emitted arithmetic closure through 3000 terms; [independent review](flat-stack/review.md). |
 | ED-R09 | Accepted bounded startup/shutdown and failed-write ownership; [independent review](editor-lifecycle/independent-review-corrected.json). |
+| FAIL-R03 | Accepted finite header/body admission and malformed-stream closure; [independent review](frame-admission/independent-review/report.md). |
+| DEP-03 | Accepted corrected finite [release inventory](release-inventory/independent-review/corrected-report.md); final-source target/notices qualification remains open. |
 | FAIL-R05 | Accepted handoff cleanup and finite duplex I/O; [independent review](renderer-lifecycle/independent-review.json). Broader lifecycle qualification remains open. |
 
-OUT-R04 [comment preservation](comment-preservation/independent-review.md), FAIL-R05 [fallible panic reporting](process-boundaries/independent-review/review.md), and the concrete SEM-R08/S9-Q02 [enum/member and membership-order corrections](enum-membership/review.md) are accepted at their recorded scopes. Broader joins and profiles stay open. FAIL-R03 frame admission is in progress.
+OUT-R04 [comment preservation](comment-preservation/independent-review.md), FAIL-R05 [fallible panic reporting](process-boundaries/independent-review/review.md), and the concrete SEM-R08/S9-Q02 [enum/member and membership-order corrections](enum-membership/review.md) are accepted at their recorded scopes. Broader joins and profiles stay open. S9-Q06/ARCH-01 checked-input ownership, SYN-R06 delimiter recovery and SEM-R07 deterministic call-cycle witnesses are in progress in separate owning files.
 
-This run has performed no merge or living-plan checkpoint advance.
+This compiler completion run has performed no merge or living-plan checkpoint advance. The separately authorized state-machine chat integrated its feature and recorded scoped coverage at 7f92c05f; its full-source review checkpoint remains unchanged. Active compiler packet receipts retain their own source pins.
