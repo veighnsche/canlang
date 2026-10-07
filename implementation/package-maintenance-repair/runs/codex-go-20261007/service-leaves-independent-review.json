@@ -1,0 +1,261 @@
+{
+  "packet": "TECH-SV04",
+  "base": "17dd3bb",
+  "recommendation": "accept pinned byte-identical controlled HTTP leaf extraction; use corrected AST-based absolute readable counts",
+  "reviewedAt": "2026-10-07T19:54:52.277Z",
+  "scopeCorrection": "Fourth mail HTTP owner is packages/services/src/ports.ts. packages/services/src/mail/harness.ts does not exist. Root explicitly confirmed ports.ts owner inclusion. Only scenarios.ts and testkit playback.ts are unchanged counterevidence.",
+  "sourcePins": [
+    {
+      "path": "packages/services/src/judgments/harness.ts",
+      "currentSha256": "b9985247212aaa3db41df1a40aa4f34d4cca4e1e3e5ecbcee906ec93110a4f9e",
+      "baselineSha256": "3ffbed629601d02f6f39519ed75b2da07c76de8b8ec661b82faac68ebf6088e4",
+      "snapshotMatchesBaseline": true,
+      "emittedPath": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/src/judgments/harness.js",
+      "emittedSha256": "ed6377ee76dea1e5905a26789e3d8fb4676fa2bea258ed71ee7f0f54ad357251",
+      "emittedRuntimeTokensMatchCurrentSource": true,
+      "declarationSha256": "34687de87cdabc48ddbb393bcc618dfdf901755c69012f895e7dc25e50020f90"
+    },
+    {
+      "path": "packages/services/src/models/harness.ts",
+      "currentSha256": "01f5d7161c652fe1e49181a4cdca458fea4a1001b85c0a227c3b64386a2fdbd0",
+      "baselineSha256": "bf0163984ddd83578f223d58b19f1838938910a0be926d2644df5c7870e287bf",
+      "snapshotMatchesBaseline": true,
+      "emittedPath": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/src/models/harness.js",
+      "emittedSha256": "83885c0b3fdee20bdcefb5f8e6b1e0822f0938a7eedc6b4350158be297db3a8a",
+      "emittedRuntimeTokensMatchCurrentSource": true,
+      "declarationSha256": "fb090e5bb212dfe89b542fc60028e65202337963e80e02ab7489a22c3507ead6"
+    },
+    {
+      "path": "packages/services/src/media/harness.ts",
+      "currentSha256": "4ef24508c8a0b01ca9b3fc8f0b9967ce73b18b0dddc8a3a2a68ceec3dc3ca210",
+      "baselineSha256": "51bd4abae84239b00d9492f24416521d9a4d567a192eaba070a56daa698aa233",
+      "snapshotMatchesBaseline": true,
+      "emittedPath": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/src/media/harness.js",
+      "emittedSha256": "727579cd5db047d2c92616f06c0253fedf70207957f724e7fa895d60ba5db0c4",
+      "emittedRuntimeTokensMatchCurrentSource": true,
+      "declarationSha256": "4ba3ba9dc334d7b869dd45ecbb30f386e1cb98301327664c823aaf3f5b8db0d1"
+    },
+    {
+      "path": "packages/services/src/ports.ts",
+      "currentSha256": "ba792709a85d30bb7c494cd4ca5c2f07057e8eb20a84ba095c2f3684b8b50c28",
+      "baselineSha256": "51d4defdf88217c59674eed1b6a4c6c490237387484eb3d961a91f7bdaa4d410",
+      "snapshotMatchesBaseline": true,
+      "emittedPath": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/src/ports.js",
+      "emittedSha256": "6d7445e3e0da07e268741b884d1ffaf17665879da65d371d3fe23feeea73cffd",
+      "emittedRuntimeTokensMatchCurrentSource": true,
+      "declarationSha256": "924ea138aa31e608a13f6515858a7c6fd18eb69e5407a49b46322c8d45ad6f5d"
+    },
+    {
+      "path": "packages/services/src/internal/controlled-http.ts",
+      "currentSha256": "4e8fe5df449139f9308b505d9c04d8eb3a4166319def3107499e8c5000667be0",
+      "emittedPath": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/src/internal/controlled-http.js",
+      "emittedSha256": "c28c130b0694c5e0c31c50b3bd2fc2ba22e23634412c5405e7fb3e2fbffdc8e1",
+      "emittedRuntimeTokensMatchCurrentSource": true,
+      "declarationSha256": "d9d5aaf68250b8375f2ad6da45023237a1afc57155aac5305f9b96a94ac7c55c"
+    },
+    {
+      "path": "packages/services/src/scenarios.ts",
+      "currentSha256": "0cca83df6c4dbd91a345c744e00eb005e9b17a4620770df572f0e14b4ee35aec",
+      "baselineSha256": "0cca83df6c4dbd91a345c744e00eb005e9b17a4620770df572f0e14b4ee35aec",
+      "snapshotMatchesBaseline": true,
+      "unchangedSinceBaseline": true,
+      "emittedPath": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/src/scenarios.js",
+      "emittedSha256": "8d6f42c92ac690185dee69fd37cbd24cd64e3dc17482d7d414223438a77f0bb1",
+      "emittedRuntimeTokensMatchCurrentSource": true,
+      "declarationSha256": "a4ab94466c0f5c8bebb7c13140b626345c7c24eace3d34f9c50ad3594f28d296"
+    },
+    {
+      "path": "packages/testkit/src/fixtures/playback.ts",
+      "currentSha256": "2f0805a6c150aafb900c4d296e5cee5b3c97996c338a4339a70e83235166617d",
+      "baselineSha256": "2f0805a6c150aafb900c4d296e5cee5b3c97996c338a4339a70e83235166617d",
+      "snapshotMatchesBaseline": true,
+      "unchangedSinceBaseline": true,
+      "emittedPath": "/private/tmp/canlang-repair-go-20261007/service-leaves/playback/playback.js",
+      "emittedSha256": "a19d1814edae18ebc08872990e733df8f6bcaa158a5b4a600d116f354a9fd548",
+      "emittedRuntimeTokensMatchCurrentSource": true
+    }
+  ],
+  "sourceProof": {
+    "allBeforeSnapshotsByteMatchGitBase": true,
+    "fourBodyReaderDeclarationsByteIdentical": true,
+    "threeRawStringJsonWriterDeclarationsByteIdentical": true,
+    "sharedMaxBodyConstantByteIdentical": true,
+    "allOwnerRemainingRuntimeTokensIdentical": true,
+    "allOriginalRuntimeImportsRetained": true,
+    "allOwnerPublicDeclarationBytesIdentical": true,
+    "mediaJsonOnlyWriterRetainedLocalUnchanged": true,
+    "allCurrentRuntimeOutputsAstMatchIndependentSourceTranspile": true,
+    "allBaselineRuntimeOutputsAstMatchIndependentOriginalTranspile": true,
+    "allFiveExistingSuiteOutputsByteIdenticalBetweenBaselineAndCurrent": true,
+    "newPrivateTestPin": {
+      "sourceSha256": "38301b11659074a795297c8c30cbfaa19a66d0d6083e97042892630d80d3db5d",
+      "emittedSha256": "db395b1a9ae6b88884e8902f5d5e4b5e2bec3d77c8fd6179db79583d80aac63f",
+      "runtimeTokensMatch": true
+    }
+  },
+  "measurement": {
+    "method": "Unique physical lines occupied by parsed TypeScript AST token leaves, excluding JSDoc/trivia. Four complete owners plus helper/types/imports and maintained owner/helper .d.ts closure charged; no tests or generated JS credited.",
+    "sizes": {
+      "sourceBefore": {
+        "readableLines": 914,
+        "tokens": 5421,
+        "bytes": 35730,
+        "physicalLines": 1124
+      },
+      "sourceAfter": {
+        "readableLines": 827,
+        "tokens": 4878,
+        "bytes": 33523,
+        "physicalLines": 1029
+      },
+      "declarationsBefore": {
+        "readableLines": 187,
+        "tokens": 1134,
+        "bytes": 12009,
+        "physicalLines": 299
+      },
+      "declarationsAfter": {
+        "readableLines": 190,
+        "tokens": 1179,
+        "bytes": 12269,
+        "physicalLines": 303
+      },
+      "fullBefore": {
+        "readableLines": 1101,
+        "tokens": 6555,
+        "bytes": 47739,
+        "physicalLines": 1423
+      },
+      "fullAfter": {
+        "readableLines": 1017,
+        "tokens": 6057,
+        "bytes": 45792,
+        "physicalLines": 1332
+      }
+    },
+    "sourceStrictlyShrinks": true,
+    "declarationChargedStrictlyShrinks": true,
+    "sourceDelta": -87,
+    "fullDelta": -84,
+    "rawWriterAbsoluteCountCorrection": "Writer raw scanner counts 38 unmodified blank/comment lines as tokens around template interpolation. Independent AST source914\u2192827, full1101\u21921017; writer scanner952\u2192865 and full1139\u21921055 have the same87/84 savings. Byte/physical totals agree. Exact extra38 lines recorded separately."
+  },
+  "tests": {
+    "providerScenarioSuite": {
+      "passed": 121,
+      "failed": 0,
+      "cancelled": 0,
+      "exitCode": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/service-independent-provider-controls.log",
+      "sha256": "d6e7ae876e8f049581cba68dc771a007066a63ed7fcfbdfc111709e014a86e1e",
+      "command": "node --test --test-timeout=60000 PRIVATE/current/test/{mail-adapter,models-ollama,judgments-systemone,media-comfyui,scenarios,private-harness-leaves}.test.js",
+      "sandbox": "supported exact require_escalated localhost command approved"
+    },
+    "differentialConsumer": {
+      "exitCode": 0,
+      "fullParity": true,
+      "leafCallbackResponseModesPerVariant": 12,
+      "nativeLocalhostProviderCasesPerVariant": 12,
+      "scenarioPlaybackAdmissionCasesPerVariant": 11,
+      "authoredScenariosAdmitted": 41,
+      "command": "node /private/tmp/canlang-repair-go-20261007/service-independent-controls.mjs",
+      "scriptSha256": "b3a8ba62e22d6902b7abaa700e37e4cf68a1c48492f0a07b7f36973e61caede8",
+      "log": "/private/tmp/canlang-repair-go-20261007/service-independent-consumer-controls.log",
+      "logSha256": "4ae15477e694558cf12e6ecd44fb5795043b69d92f322c51f783c2c7fe78018e",
+      "sandbox": "supported exact require_escalated localhost command approved"
+    },
+    "suitePins": [
+      {
+        "path": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/test/mail-adapter.test.js",
+        "sha256": "e9650f45f97cae16d4c4dbe9409d76c3bfab8f0cc4c50ba9d3c6c67cf8e31594",
+        "baselineAndCurrentAssertionsByteIdentical": true
+      },
+      {
+        "path": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/test/models-ollama.test.js",
+        "sha256": "da3d85356cd021dcfaba654aa71f8ee0d67b0f8fb0d27069df87a7421353ee06",
+        "baselineAndCurrentAssertionsByteIdentical": true
+      },
+      {
+        "path": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/test/judgments-systemone.test.js",
+        "sha256": "2c7553c7b4b38212c63f9b1e7bde4e9e85b0c857b39d16abb3251db6a473a198",
+        "baselineAndCurrentAssertionsByteIdentical": true
+      },
+      {
+        "path": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/test/media-comfyui.test.js",
+        "sha256": "d0da33e7fdfd788a85ba3e51f412bcfd1f62b83e20afca8bf897618645b7c994",
+        "baselineAndCurrentAssertionsByteIdentical": true
+      },
+      {
+        "path": "/private/tmp/canlang-repair-go-20261007/service-leaves/current/test/scenarios.test.js",
+        "sha256": "26c582ddc073309418d5a0a77a2fc104357b8b512c13a4f35c896d282a7dd599",
+        "baselineAndCurrentAssertionsByteIdentical": true
+      }
+    ]
+  },
+  "verifiedBehaviors": [
+    "4,000,000 byte ceiling allows exact limit;4,000,002 UTF-8 bytes rejected by each real HTTP owner before request logging; no response provider getters touched on refusal",
+    "data/end/error registration order and retained listener counts; oversize rejection precedes destroy-emitted error; original transport error wins if first; destroy thrown identity propagates synchronously while cap rejection remains",
+    "end resolution wins later error; aborted-only event remains pending with no dedicated aborted listener; these original leaf lifecycle behaviors are preserved",
+    "raw strings and JSON UTF-8 bytes/content-type/content-length/header order, toJSON getter/call order, writeHead/end accessor and thrown identity",
+    "JSON.stringify returning undefined reads response.writeHead accessor before byteLength argument failure; no writeHead call/end access. This exact original evaluation order is preserved",
+    "real HTTP logging precedes response body/toJSON getters and serialization faults; all provider serving wrappers still emit500 harness failure; media promptBody getter still read twice before JSON serialization",
+    "existing real consumer controls retain stream partials/truncation/cap errors, connection release, concurrent-run cancellation isolation, cancellation races/timeouts and media cancel/reconcile behavior",
+    "ScenarioTableError and PlaybackScriptError retain distinct owning classes; unknown-key/nonfinite/shared-object admissions and getter trace/throw identity remain unchanged; all41 actual authored tables are admitted into playback"
+  ],
+  "counterevidence": {
+    "scenariosUnchangedSinceBaseline": true,
+    "playbackUnchangedSinceBaseline": true,
+    "workerdSafePlaybackRuntimeImports": [
+      "./seeds.js"
+    ],
+    "noNodeOrServicesPlaybackImports": true,
+    "distinctErrorOwners": true,
+    "retainedBodyLimitDifference": {
+      "nativeByteCeiling": 4000000,
+      "playbackCharacterCeiling": 4000000,
+      "probeBytes": 4000002,
+      "probeChars": 2000001,
+      "playbackStatus": 200,
+      "nativeOversizeNoRequestLog": true,
+      "unchanged": true
+    },
+    "scope": "No scenario admission or service/testkit lifecycle standardization, no cross-package runtime helper import."
+  },
+  "reviewerFailures": [
+    {
+      "exitCode": 1,
+      "log": "/private/tmp/canlang-repair-go-20261007/service-independent-consumer-first-failure.log",
+      "sha256": "cdb47c35f918ffa507b02a05b67cb8e641a312130cdd4907c5ea33a1aa52bbc2",
+      "reason": "Reviewer assertion assumed toJSON\u2192undefined would throw before reading response.writeHead. Original and current both correctly read the callee accessor before byteLength argument evaluation. Assertion corrected only; log retained; successful rerun recorded."
+    }
+  ],
+  "productionDefectsFound": [],
+  "limits": [
+    "Finite mechanical packet; original parent lifecycle/security/installed service release gates remain open.",
+    "No external provider or deployed/installed package tests; endpoints were controlled localhost and Node-hosted playback. Playback workerd-safe source boundary checked, no new workerd deployment proof claimed.",
+    "No independent full strict TypeScript rebuild; exact original source/type/public declaration and private runtime provenance verified.",
+    "Original listener retention and aborted-only pending behavior remain unchanged; no new leaf abort handling or quota policy introduced.",
+    "Original Node byte ceiling versus playback full-read UTF-16 character ceiling remains unchanged; no normalization or equivalence for oversized multibyte inputs claimed.",
+    "No services or testkit production source/Git/docs writes, shared dist, full Turbo or installation. Foreign compiler/testkit runner/assertion paths untouched."
+  ],
+  "rawEvidence": [
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/service-independent-source-proof.json",
+      "sha256": "223010f59dd56d662495363d956fd0ed36bc9a3fab26073495ddeac6223322b0"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/service-independent-extra-proof.json",
+      "sha256": "a145ce081448f9fd9947571aa0861ca44dbf46ac1bc3b544257a0ad80a394eab"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/service-independent-consumer-observations.json",
+      "sha256": "fcb29d91faf376c7d42b1b1bb4c480ce584d04ea545152202903fd5b9dedd356"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/service-independent-measurement-discrepancy.json",
+      "sha256": "a75c67a8caf8cbd95e911cf9310008a134b13536bdc0e2c4a5747ca74727adb9"
+    }
+  ],
+  "sourceRecheckAt": "2026-10-07T19:54:52.278Z",
+  "allSourcePinsUnchangedAtFinish": true,
+  "leasesReleased": true
+}

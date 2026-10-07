@@ -171,9 +171,9 @@
       "state": "independent high review"
     },
     {
-      "id": "TECH-SV04",
+      "id": "TECH-W02 GAP-L04",
       "agent": "/root/review_state_private",
-      "state": "independent high review"
+      "state": "finite high implementation dispatched ACK pending"
     },
     {
       "id": "DEL-D01",
@@ -295,7 +295,7 @@
     },
     "TECH-S01-own-key": {
       "planning_status": "blocked",
-      "state": "independently accepted adapter correctness; committing",
+      "state": "accepted adapter correctness; committed e8c64bc",
       "files": [
         "packages/state/src/storage/sqlite-codecs.ts",
         "packages/state/test/storage/metadata-keys.test.ts"
@@ -306,7 +306,8 @@
       "review": "state-own-key-independent-review.json",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "acceptance": "Own metadata lookup and legitimate inherited-name JSON fields; actual D1/DO controls, no broader query owner/security gate"
+      "acceptance": "Own metadata lookup and legitimate inherited-name JSON fields; actual D1/DO controls, no broader query owner/security gate",
+      "commit": "e8c64bc"
     },
     "TECH-S02": {
       "planning_status": "blocked",
@@ -336,7 +337,7 @@
     },
     "TECH-W02": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "finite GAP-L04 converse correction dispatched; exact ACK pending",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/state/src/fanout/lifecycle.ts",
@@ -344,6 +345,19 @@
         "packages/state/src/fanout/tables.ts",
         "packages/state/src/ports/transact.ts",
         "packages/state/src/invocation/invoke.ts"
+      ],
+      "agent": "/root/review_state_private",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "active_files": [
+        "packages/state/src/ports/transact.ts",
+        "packages/state/test/fanout/checkpoint-converse.test.ts"
+      ],
+      "reason": "Atomic same-fanout outcome/checkpoint current contract, independent of incoming state-machine runtime ownership",
+      "open_subscopes": [
+        "GAP-L01 scheduler coverage",
+        "GAP-L03 fresh admitted facts",
+        "original compiled/durable joins"
       ]
     },
     "TECH-W03": {
@@ -452,23 +466,25 @@
     },
     "TECH-SV04": {
       "planning_status": "ready",
-      "state": "independent high review active",
+      "state": "independently accepted private reduction; committing",
       "files": [
-        "packages/services/src/scenarios.ts",
-        "packages/testkit/src/fixtures/playback.ts",
+        "packages/services/src/ports.ts",
         "packages/services/src/judgments/harness.ts",
         "packages/services/src/media/harness.ts",
         "packages/services/src/models/harness.ts",
-        "packages/services/src/ports.ts",
-        "packages/services/src/internal/scenario-admission.ts",
-        "packages/services/src/internal/controlled-http.ts"
+        "packages/services/src/internal/controlled-http.ts",
+        "packages/services/test/private-harness-leaves.test.ts"
       ],
       "agent": "/root/impl_work_numeric",
       "model": "gpt-6.1-sol",
       "effort": "medium",
       "base": "e284d1426d15dcac840bca537b928034f825242a",
       "reason": "Known private profile comparisons; lifecycle/security decisions stay separate",
-      "reviewer": "/root/review_state_private"
+      "reviewer": "/root/review_state_private",
+      "review": "service-leaves-independent-review.json",
+      "readable_reduction": 87,
+      "full_closure_reduction": 84,
+      "measurement": "AST token leaves exclude trivia; previous raw scanner absolute counts corrected, saving delta unchanged"
     },
     "DEL-D01": {
       "planning_status": "ready",
@@ -840,7 +856,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:52:39.463839+00:00",
+  "updated_utc": "2026-10-07T19:57:02.915274+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
