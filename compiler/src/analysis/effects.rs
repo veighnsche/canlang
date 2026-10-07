@@ -980,11 +980,10 @@ struct Cx<'a> {
     queues: HashMap<ModuleId, Vec<String>>,
     /// Context-declared analytics sink names per module.
     analytics: HashMap<ModuleId, Vec<String>>,
-    /// Direct data models per scenario (create/set/delete targets plus
-    /// query domains).
-    scenario_models: HashMap<SymbolId, Vec<SymbolId>>,
-    /// Direct `call` targets per scenario (scenarios and CRUD ops).
-    scenario_calls: HashMap<SymbolId, Vec<SymbolId>>,
+    /// Direct data models per scenario/derive (write targets and query domains).
+    callable_models: HashMap<SymbolId, Vec<SymbolId>>,
+    /// Bound local calls per scenario/derive (scenarios, derives and CRUD ops).
+    callable_calls: HashMap<SymbolId, Vec<SymbolId>>,
     /// `on=every` handlers: (scenario, `on=` value span).
     every_handlers: Vec<(SymbolId, Span)>,
     /// Builtin ids referenced from checked call positions.
@@ -1023,8 +1022,8 @@ impl<'a> Cx<'a> {
             recorded: HashSet::new(),
             queues: HashMap::new(),
             analytics: HashMap::new(),
-            scenario_models: HashMap::new(),
-            scenario_calls: HashMap::new(),
+            callable_models: HashMap::new(),
+            callable_calls: HashMap::new(),
             every_handlers: Vec::new(),
             builtins: HashSet::new(),
             descriptions: Vec::new(),
@@ -1080,8 +1079,7 @@ impl<'a> Cx<'a> {
         for (file, tree) in trees {
             let text = self.text(*file).to_string();
             for child in significant_children(tree) {
-                if !matches!(child.kind, SyntaxKind::App | SyntaxKind::Package) || has_error(child)
-                {
+                if !matches!(child.kind, SyntaxKind::App | SyntaxKind::Package) {
                     continue;
                 }
                 let Some(module) = self.ensure_module(&text, child) else {
@@ -1134,9 +1132,6 @@ impl<'a> Cx<'a> {
     }
 
     fn walk_module(&mut self, file: SourceId, text: &str, node: &SyntaxNode) {
-        if has_error(node) {
-            return;
-        }
         let Some(module) = self.ensure_module(text, node) else {
             return;
         };
@@ -1712,6 +1707,9 @@ impl<'a> Cx<'a> {
         let expr = parts.iter().find(|n| is_expression(n.kind)).copied();
         let result = parts.iter().find(|n| is_type_node(n.kind)).copied();
         let signature = self.signature_params(text, id, &params, node);
+        if let Some(expr) = expr {
+            self.record_data_dependencies(id, text, expr);
+        }
         self.out.derives.insert(
             id,
             DeriveData {
@@ -2384,10 +2382,7 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
-        // Direct data models for handler-scope inference (E4051).
-        let mut models = Vec::new();
-        collect_subtree_models(self.tables, self.types, text, node, &mut models);
-        self.scenario_models.insert(id, models);
+        self.record_data_dependencies(id, text, node);
         let (expose_words, _) = selector_words(text, node, "expose");
         let signature = self.signature_params(text, id, &params, node);
         self.out.scenarios.insert(
@@ -3055,7 +3050,7 @@ impl<'a> Cx<'a> {
                 }
                 if let (Some(target), Some(caller)) = (target, self.current_scenario) {
                     for callee in callee_ids(self.types, target) {
-                        push_unique(self.scenario_calls.entry(caller).or_default(), callee);
+                        push_unique(self.callable_calls.entry(caller).or_default(), callee);
                     }
                 }
                 if self.checks_on
@@ -3866,7 +3861,18 @@ impl<'a> Cx<'a> {
     }
 
     fn walk_tree_calls(&mut self, text: &str, node: &SyntaxNode, ctx: &DescCtx) {
-        if node.kind == SyntaxKind::Examples || has_error(node) {
+        if matches!(
+            node.kind,
+            SyntaxKind::Examples | SyntaxKind::Error | SyntaxKind::BadToken
+        ) || (!matches!(
+            node.kind,
+            SyntaxKind::File
+                | SyntaxKind::App
+                | SyntaxKind::Package
+                | SyntaxKind::Section
+                | SyntaxKind::Context
+        ) && has_error(node))
+        {
             return;
         }
         // Descriptions attach to the following significant sibling.
@@ -4047,6 +4053,18 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// Owner-bound reads/writes and derived calls share the same scope closure.
+    fn record_data_dependencies(&mut self, id: SymbolId, text: &str, node: &SyntaxNode) {
+        collect_subtree_models(
+            self.tables,
+            self.types,
+            text,
+            node,
+            self.callable_models.entry(id).or_default(),
+            self.callable_calls.entry(id).or_default(),
+        );
+    }
+
     /// E4051: an `on=every` handler must not mix app-scoped and team-scoped
     /// data across its owner-bound queries, writes and local calls.
     fn check_every_scopes(&mut self) {
@@ -4059,15 +4077,17 @@ impl<'a> Cx<'a> {
                 if !visited.insert(current) {
                     continue;
                 }
-                if let Some(direct) = self.scenario_models.get(&current) {
+                if let Some(direct) = self.callable_models.get(&current) {
                     for model in direct {
                         push_unique(&mut models, *model);
                     }
                 }
-                if let Some(callees) = self.scenario_calls.get(&current).cloned() {
+                if let Some(callees) = self.callable_calls.get(&current).cloned() {
                     for callee in callees {
                         match &self.tables.symbols[callee.0 as usize].kind {
-                            SymbolKind::Scenario { .. } => stack.push(callee),
+                            SymbolKind::Scenario { .. } | SymbolKind::DeriveFn { .. } => {
+                                stack.push(callee)
+                            }
                             SymbolKind::CrudOp { model, .. } => push_unique(&mut models, *model),
                             _ => {}
                         }
@@ -5054,19 +5074,42 @@ fn effect_returns(effect: &Effect) -> bool {
     }
 }
 
-/// Direct data models of one scenario subtree: `create`/`set`/`delete`
-/// targets plus query domains (`Examples` excluded).
+/// Direct owner-bound model dependencies and bound derived-function calls.
+/// Examples and malformed local statements/expressions are excluded.
 fn collect_subtree_models(
     tables: &ResolveTables,
     types: &TypeTable,
     text: &str,
     node: &SyntaxNode,
     out: &mut Vec<SymbolId>,
+    calls: &mut Vec<SymbolId>,
 ) {
-    if node.kind == SyntaxKind::Examples {
+    if matches!(
+        node.kind,
+        SyntaxKind::Examples | SyntaxKind::Error | SyntaxKind::BadToken
+    ) {
         return;
     }
     match node.kind {
+        SyntaxKind::Call if !is_statement_call(node) && !has_error(node) => {
+            let mut callee = significant_children(node)
+                .into_iter()
+                .find(|n| is_expression(n.kind));
+            while let Some(group) = callee.filter(|n| n.kind == SyntaxKind::Group) {
+                callee = significant_children(group)
+                    .into_iter()
+                    .find(|n| is_expression(n.kind));
+            }
+            if let Some(Binding::Symbol(id)) =
+                callee.and_then(|n| tables.node_binding.get(&NodeKey::of(n)))
+                && matches!(
+                    tables.symbols[id.0 as usize].kind,
+                    SymbolKind::DeriveFn { .. }
+                )
+            {
+                push_unique(calls, *id);
+            }
+        }
         SyntaxKind::Create => {
             let path = significant_children(node)
                 .iter()
@@ -5136,7 +5179,7 @@ fn collect_subtree_models(
         _ => {}
     }
     for child in &node.children {
-        collect_subtree_models(tables, types, text, child, out);
+        collect_subtree_models(tables, types, text, child, out, calls);
     }
 }
 
