@@ -1,0 +1,198 @@
+{
+  "native_baseline": {
+    "command": [
+      "cargo",
+      "build",
+      "--release",
+      "--manifest-path",
+      "/private/tmp/canlang-pass10-profile/sources/baseline/compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/canlang-pass5-profile/current-native-target",
+      "--offline",
+      "--locked"
+    ],
+    "env": {
+      "CARGO_HOME": "/private/tmp/canlang-pass5-profile/cargo-home",
+      "CARGO_BUILD_JOBS": 1,
+      "CARGO_INCREMENTAL": 0
+    },
+    "cargo_exit": 0,
+    "elapsed_seconds": 22.4351118329796,
+    "artifact": "/private/tmp/canlang-pass10-profile/artifacts/native/baseline-can",
+    "bytes": 1918224,
+    "sha256": "c887eb9b69f19ada40ce71b9c427cf9e4046a8a777badf471c98974b812a9cbe",
+    "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+    "version_exit": 0,
+    "help_exit": 0
+  },
+  "native_final": {
+    "command": [
+      "cargo",
+      "build",
+      "--release",
+      "--manifest-path",
+      "/private/tmp/canlang-pass10-profile/sources/final/compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/canlang-pass5-profile/current-native-target",
+      "--offline",
+      "--locked"
+    ],
+    "env": {
+      "CARGO_HOME": "/private/tmp/canlang-pass5-profile/cargo-home",
+      "CARGO_BUILD_JOBS": 1,
+      "CARGO_INCREMENTAL": 0
+    },
+    "cargo_exit": 0,
+    "elapsed_seconds": 26.44903920800425,
+    "artifact": "/private/tmp/canlang-pass10-profile/artifacts/native/final-can",
+    "bytes": 2250544,
+    "sha256": "f650268539b8ef10781ca31af9d60fd7d93c778cade238fa9e88e1d3f3480ffe",
+    "version": "can 0.1.0 (commit unknown; language 1.0; schema 1)",
+    "version_exit": 0,
+    "help_exit": 0
+  },
+  "production_checkout": {
+    "command": [
+      "cargo",
+      "build",
+      "--release",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/canlang-pass5-profile/current-native-target",
+      "--offline",
+      "--locked"
+    ],
+    "environment": {
+      "CARGO_HOME": "/private/tmp/canlang-pass5-profile/cargo-home",
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_INCREMENTAL": "0"
+    },
+    "cargo_exit": 0,
+    "cargo_finished_seconds": 27.4,
+    "git_commit_at_build": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+    "artifact": "/private/tmp/canlang-pass10-profile/release/can"
+  },
+  "linux": {
+    "image": "rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+    "platform": "linux/amd64",
+    "network": "none",
+    "pull": "never",
+    "cargo_environment": {
+      "CARGO_HOME": "/cargo-home",
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_INCREMENTAL": "0"
+    },
+    "target_dir": "/private/tmp/canlang-pass5-profile/current-linux-target",
+    "cargo_home": "/private/tmp/canlang-pass5-profile/cargo-home",
+    "tools_output": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1\ncargo 1.99.0 (5f94df478 2026-08-27)\nLinux 63e25ed351a2 7.0.14-linuxkit #1 SMP PREEMPT Sun Sep 20 16:14:09 UTC 2026 x86_64 GNU/Linux",
+    "builds": {
+      "baseline": {
+        "command": [
+          "cargo",
+          "build",
+          "--release",
+          "--manifest-path",
+          "/src/baseline/compiler/Cargo.toml",
+          "--target-dir",
+          "/linux-target",
+          "--offline",
+          "--locked"
+        ],
+        "docker_command": [
+          "docker",
+          "run",
+          "--pull=never",
+          "--platform",
+          "linux/amd64",
+          "--network",
+          "none",
+          "--rm",
+          "-v",
+          "/private/tmp/canlang-pass10-profile/sources/baseline:/src/baseline:ro",
+          "-v",
+          "/private/tmp/canlang-pass10-profile/sources/final:/src/final:ro",
+          "-v",
+          "/private/tmp/canlang-pass10-profile/artifacts/linux:/artifacts",
+          "-v",
+          "/private/tmp/canlang-pass5-profile/current-linux-target:/linux-target",
+          "-v",
+          "/private/tmp/canlang-pass5-profile/cargo-home:/cargo-home",
+          "rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+          "sh",
+          "-c",
+          "export CARGO_HOME=/cargo-home CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0; exec cargo build --release --manifest-path /src/baseline/compiler/Cargo.toml --target-dir /linux-target --offline --locked"
+        ],
+        "cargo_exit": 0,
+        "docker_wall_seconds": 31.404638792038895,
+        "cargo_finished_seconds": null,
+        "artifact": "/private/tmp/canlang-pass10-profile/artifacts/linux/baseline-can",
+        "bytes": 2685944,
+        "sha256": "d0f3c8809342fb12474cf6729badb7e21c3d5d35c46a2491e52c7d9f20d9d7cb",
+        "cli": {
+          "version": {
+            "exit": 0,
+            "output": "can 0.1.0 (commit unknown; language 1.0; schema 1)"
+          },
+          "help": {
+            "exit": 0,
+            "output": "captured in logs"
+          }
+        }
+      },
+      "final": {
+        "command": [
+          "cargo",
+          "build",
+          "--release",
+          "--manifest-path",
+          "/src/final/compiler/Cargo.toml",
+          "--target-dir",
+          "/linux-target",
+          "--offline",
+          "--locked"
+        ],
+        "docker_command": [
+          "docker",
+          "run",
+          "--pull=never",
+          "--platform",
+          "linux/amd64",
+          "--network",
+          "none",
+          "--rm",
+          "-v",
+          "/private/tmp/canlang-pass10-profile/sources/baseline:/src/baseline:ro",
+          "-v",
+          "/private/tmp/canlang-pass10-profile/sources/final:/src/final:ro",
+          "-v",
+          "/private/tmp/canlang-pass10-profile/artifacts/linux:/artifacts",
+          "-v",
+          "/private/tmp/canlang-pass5-profile/current-linux-target:/linux-target",
+          "-v",
+          "/private/tmp/canlang-pass5-profile/cargo-home:/cargo-home",
+          "rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+          "sh",
+          "-c",
+          "export CARGO_HOME=/cargo-home CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0; exec cargo build --release --manifest-path /src/final/compiler/Cargo.toml --target-dir /linux-target --offline --locked"
+        ],
+        "cargo_exit": 0,
+        "docker_wall_seconds": 36.43654024996795,
+        "cargo_finished_seconds": null,
+        "artifact": "/private/tmp/canlang-pass10-profile/artifacts/linux/final-can",
+        "bytes": 3079312,
+        "sha256": "11593b11553fc090c4bbcdc37882df644d21a517b7c80f262b71ebd74b470472",
+        "cli": {
+          "version": {
+            "exit": 0,
+            "output": "can 0.1.0 (commit unknown; language 1.0; schema 1)"
+          },
+          "help": {
+            "exit": 0,
+            "output": "captured in logs"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "scope": "Read-only final documentation and frozen-input consistency check",
+  "checked_documents": [
+    "docs/research/compiler-library-audit-20261006/pass10/README.md",
+    "docs/research/compiler-library-audit-20261006/pass10/profile/README.md",
+    "docs/research/compiler-library-audit-20261006/pass10/checks/README.md",
+    "docs/research/compiler-library-audit-20261006/pass10/consumers/README.md",
+    "docs/research/compiler-library-audit-20261006/pass10/review/final-review.md",
+    "compiler/README.md",
+    "docs/research/compiler-library-audit-20261006/README.md",
+    "docs/research/compiler-library-audit-20261006/implementation-passes.md"
+  ],
+  "markdown_links": {
+    "checked": 134,
+    "missing_paths": [],
+    "missing_heading_anchors": []
+  },
+  "final_input_pins": {
+    "manifest": "docs/research/compiler-library-audit-20261006/pass10/final-inputs.json",
+    "input_count": 114,
+    "live_hash_mismatches": [],
+    "missing_inputs": [],
+    "recorded_post_freeze_change": [
+      "compiler/README.md"
+    ],
+    "classification": "Documentation-only compiler README change; source, tests, Cargo files, tool/profile, and catalog pins remain unchanged."
+  },
+  "compiler_source_drift": {
+    "baseline_commit": "db495c649880f0eae72f6a42ef60fcc9e904796f",
+    "git_diff_paths_under_compiler_src_tests_and_cargo": [],
+    "live_worktree_compiler_paths": [
+      "compiler/README.md"
+    ]
+  },
+  "cross_document_receipts": {
+    "economic_dispatch_reminder": "Present centrally in implementation-passes.md; Pass 1 through Pass 10 retain their packet-specific model allocation and escalation reminder/reference. The Pass 10 receipt links delegation.md.",
+    "pass_scope": "Pass 10 records compiler qualification and explicitly leaves T37, FP.QUALIFY, and FP.INSTALLED-RELEASE open; no product semantic approval is claimed.",
+    "root_readme_capture": "Checked state before any optional root README final-storage/commit-detail append."
+  },
+  "limitations": [
+    "Markdown validation covers local links and heading anchors in the listed documents; URLs and code spans are excluded.",
+    "Raw logs, probes, and evidence files were treated as evidence and were not reformatted or modified."
+  ]
+}

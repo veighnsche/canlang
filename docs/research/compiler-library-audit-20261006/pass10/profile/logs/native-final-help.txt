@@ -1,0 +1,37 @@
+can 0.1.0 — CanLang compiler and authoring tools
+
+Usage: can <COMMAND> [OPTIONS] [ARGS...]
+       can --help
+       can --version
+
+Commands:
+  compile   Analyze sources and emit the compile artifact
+  check     Analyze sources and report diagnostics
+  lint      Run lint rules over sources (warnings only, never blocks)
+  fmt       Format sources in place (or check with --check)
+  explain   Print a diagnostic catalog entry: can explain E1001
+  lsp       Run the language server over stdio (Content-Length JSON-RPC)
+  policy    Dump the declared policy surface (roles, policies, operation gates)
+  docs      Generate the localized internal declaration reference (Markdown)
+  run       Thin lane-7 entry: exec can-platform run (passthrough)
+  test      Thin lane-7 entry: exec can-platform test (passthrough)
+  build     Thin lane-7 entry: exec can-platform build (passthrough)
+  deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)
+  activate  Thin lane-7 entry: exec can-platform activate (passthrough)
+  completions  Print a shell completion script: can completions bash|zsh|fish
+  help      Show help (global or `can help <COMMAND>`)
+
+Options:
+  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)
+  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,
+                       ./can-catalog.json, ./packages/values/dist/catalog.json)
+  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)
+  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)
+  -h, --help           Show help (global or `can <COMMAND> --help`)
+  -V, --version        Show version
+
+Environment:
+  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)
+  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)
+
+Exit codes: 0 clean, 10 errors reported, 2 tool failure.

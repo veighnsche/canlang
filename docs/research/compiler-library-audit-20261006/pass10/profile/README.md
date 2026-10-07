@@ -1,0 +1,22 @@
+# Pass10 matched release qualification
+
+This packet compares the exact audit baseline commit `309644a6881909d8dba32560bc6711f67e00a7ab` with the final compiler snapshot at `db495c649880f0eae72f6a42ef60fcc9e904796f`. Both are extracted without `.git`, so the binaries report `commit unknown`. A separate release from the production checkout was built after the repository metadata invalidation and reports the actual commit `aca27c2d`.
+
+The two snapshots use the same release profile: `opt-level = "z"`, stripping enabled, LTO enabled, one codegen unit, and default unwind panics. `source-manifest.json` records all files under each compiler tree; `source-parity.json` records the exact Cargo/build/source/completion inputs for the release binary and confirms the final snapshot matches the production compiler inputs. The production checkout had a documentation-only `compiler/README.md` worktree edit, outside the release input set. `catalog.json` is not an input to release compilation; the current generated catalog SHA is recorded in `results.json` and its byte-identical Pass8 copy is retained here. The baseline archive does not contain the ignored generated catalog.
+
+| Host/profile | Baseline | Final | Change |
+| --- | ---: | ---: | ---: |
+| Native arm64 macOS | 1,918,224 bytes | 2,250,544 bytes | +332,320 bytes (+17.32%) |
+| Pinned Linux x86_64 | 2,685,944 bytes | 3,079,312 bytes | +393,368 bytes (+14.65%) |
+
+Each baseline and final binary passed `--version` and `--help` with exit 0. Both snapshot pairs report `commit unknown`. The native baseline/final builds have explicit Python subprocess exit receipts in `native-*-retry-results.json`; Linux builds use the saved `run-linux-release.py`, direct `docker run` subprocesses and `exec cargo`, check the returned container/Cargo status before copying, and run CLI checks only after that status is zero. Exact argv and outcomes are in `commands.json` and `linux-release-retry-results.json`.
+
+The production checkout consumer binary is preserved separately at `/private/tmp/canlang-pass10-profile/release/can` (2,250,544 bytes, SHA `6405484cb6156faf26f3efc3a32e57cb193b662581c61995842d78f41baa3c4f`). It reports `can 0.1.0 (commit aca27c2d; language 1.0; schema 1)` and passed `--help`. The earlier build-script-cache observation and metadata invalidation are documented in the pass10 root evidence; no build script source change was made.
+
+All release commands used the existing Pass5 native/Linux targets and Cargo home, `--offline --locked`, `CARGO_BUILD_JOBS=1`, `CARGO_INCREMENTAL=0`; Linux additionally used the already-local image `rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273`, `--pull=never`, `--platform linux/amd64`, and `--network none`. Timings are cache-warm shared-target measurements, not clean-build speed. Linux compile times come from Cargo's `Finished` lines; saved Python runner wall times include Docker startup.
+
+Cargo manifest and lock are byte-identical to Pass8. The active dependency features, registry checksums, archive receipts, and license-file hashes are carried forward from Pass8's reviewed closure; native/Linux `cargo tree -e features` and Linux-filtered Cargo metadata were also captured here. Full native `cargo metadata` could not run offline because the existing Cargo cache lacks `futures-task 0.3.34`; this command made no network request. That missing package is not an active dependency in the compiled Linux closure. No lower MSRV, full Linux runtime, Node/package consumer, clean-build performance, or native Linux hardware claim is made.
+
+The two earliest Linux wrapper attempts are preserved under `logs/` and marked invalid. Attempt 1 used absent `/usr/bin/time`; attempt 2 incorrectly assumed `/bin/sh` supplied a `time` builtin. Those wrappers copied the stale target binary before the build result was checked; those observations are excluded. The later saved Python runner verifies successful container/Cargo exits before copying its binaries and then checks all four CLI probes. The first native final build log also has an empty wrapper exit field and is historical, unqualified evidence; the explicit-success native retry is authoritative.
+
+The extracted temporary source trees occupied about 146 MiB for baseline and 167 MiB for final under `/private/tmp/canlang-pass10-profile/sources`; these full archives were task-temp only. The committed source receipts pin compiler files only. No target directories or `node_modules` were copied into the source snapshots.

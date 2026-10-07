@@ -1,0 +1,142 @@
+{
+  "review_method": "Raw-source/contracts/logs read before implementer conclusions or previous verdicts; read-only independent computations, no Cargo reruns",
+  "source_frozen_ref": "db495c64",
+  "current_source_diff_bytes": 0,
+  "starting_pin_drift": [
+    "compiler/README.md"
+  ],
+  "turbo_only_four_appended_envs": true,
+  "appended_envs": [
+    "CARGO_BUILD_JOBS",
+    "CARGO_INCREMENTAL",
+    "CARGO_NET_OFFLINE",
+    "CAN_COMPLETION_REQUIRE_ENGINES"
+  ],
+  "dry_run_tasks": [
+    {
+      "id": "//#native:compiler:build",
+      "command": "cargo build --locked --manifest-path compiler/Cargo.toml",
+      "dependencies": []
+    },
+    {
+      "id": "//#native:compiler:test",
+      "command": "cargo test --locked --manifest-path compiler/Cargo.toml",
+      "dependencies": [
+        "//#native:compiler:build"
+      ]
+    }
+  ],
+  "raw_test_counts": {
+    "binaries": 50,
+    "passed": 1048,
+    "failed": 0,
+    "ignored": 0
+  },
+  "checked_log_hash_mismatches": [],
+  "release_artifacts_verified": {
+    "native_baseline": {
+      "sha256": "c887eb9b69f19ada40ce71b9c427cf9e4046a8a777badf471c98974b812a9cbe",
+      "bytes": 1918224,
+      "matches_actual_file": true
+    },
+    "native_final": {
+      "sha256": "f650268539b8ef10781ca31af9d60fd7d93c778cade238fa9e88e1d3f3480ffe",
+      "bytes": 2250544,
+      "matches_actual_file": true
+    },
+    "linux_baseline": {
+      "sha256": "d0f3c8809342fb12474cf6729badb7e21c3d5d35c46a2491e52c7d9f20d9d7cb",
+      "bytes": 2685944,
+      "matches_actual_file": true
+    },
+    "linux_final": {
+      "sha256": "11593b11553fc090c4bbcdc37882df644d21a517b7c80f262b71ebd74b470472",
+      "bytes": 3079312,
+      "matches_actual_file": true
+    },
+    "production_checkout": {
+      "sha256": "6405484cb6156faf26f3efc3a32e57cb193b662581c61995842d78f41baa3c4f",
+      "bytes": 2250544,
+      "matches_actual_file": true
+    }
+  },
+  "release_input_parity": {
+    "count": 47,
+    "actual_hash_mismatches": []
+  },
+  "matched_final_native_retry": {
+    "cargo_exit": 0,
+    "elapsed_seconds": 26.44903920800425,
+    "same_artifact_sha": true
+  },
+  "matched_linux_retry": {
+    "baseline": {
+      "cargo_exit": 0,
+      "docker_wall_seconds": 31.404638792038895,
+      "sha256": "d0f3c8809342fb12474cf6729badb7e21c3d5d35c46a2491e52c7d9f20d9d7cb",
+      "version_exit": 0,
+      "help_exit": 0
+    },
+    "final": {
+      "cargo_exit": 0,
+      "docker_wall_seconds": 36.43654024996795,
+      "sha256": "11593b11553fc090c4bbcdc37882df644d21a517b7c80f262b71ebd74b470472",
+      "version_exit": 0,
+      "help_exit": 0
+    }
+  },
+  "installed_independent_hashes": {
+    "count": 2268,
+    "actual_mismatches": []
+  },
+  "fixed_workload": {
+    "actual_pin_mismatches": [],
+    "recomputed_medians_ms": {
+      "baseline": 7.9527705,
+      "current": 7.930875
+    }
+  },
+  "focused_runtime_replay": {
+    "log_hash_matches": true,
+    "skip_markers": 0,
+    "raw_summaries": [
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        1,
+        0
+      ]
+    ],
+    "test_source_hash_mismatches": []
+  },
+  "matched_baseline_native_retry": {
+    "cargo_exit": 0,
+    "elapsed_seconds": 22.4351118329796,
+    "sha256": "c887eb9b69f19ada40ce71b9c427cf9e4046a8a777badf471c98974b812a9cbe",
+    "version_exit": 0,
+    "help_exit": 0
+  },
+  "final_inputs": {
+    "count": 114,
+    "missing_files": [],
+    "actual_hash_mismatches": [],
+    "changed_from_starting": [
+      "compiler/README.md"
+    ]
+  },
+  "verdict": "accepted at selected-core declared compiler scope; original/installed product and locale/Pass9 queues remain open"
+}
