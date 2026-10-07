@@ -779,7 +779,13 @@ impl<'a> Parser<'a> {
                 )
                 .diag(),
             );
-            self.error_for_children(&mut all, &line.children);
+            // The header's layout is invalid even if its tokens parsed.
+            // Wrap the entire header attempt so its identity cannot be
+            // mistaken for a valid owner by later analysis passes.
+            let mut invalid_header = std::mem::take(&mut all);
+            self.error_for_children(&mut invalid_header, &line.children);
+            let node = SyntaxNode::enclosing(SyntaxKind::Error, invalid_header);
+            self.builder.push_inner(&mut all, node);
         }
         let mut next = index + 1;
         // Optional context immediately follows its app.

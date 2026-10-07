@@ -151,6 +151,87 @@ fn assert_clean(src: &str, catalog: Option<&Catalog>) {
 }
 
 #[test]
+fn malformed_declaration_preserves_independent_sibling_diagnostics() {
+    for src in [
+        "app T\nGiven\n policy\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+        "package T\n Given\n  policy\n  derive a(): int = 1 + true\n  derive b(): int = nope\n When\n Then\n",
+        "app T\nuse\nGiven\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+        "package T\n use\n Given\n  derive a(): int = 1 + true\n  derive b(): int = nope\n When\n Then\n",
+    ] {
+        let diags = check(src, None);
+        assert_eq!(
+            diags.iter().map(|d| d.code).collect::<Vec<_>>(),
+            ["E1200", "E3002", "E2001"],
+            "source:\n{src}\ndiagnostics: {diags:?}"
+        );
+        assert_findings(
+            src,
+            &diags
+                .into_iter()
+                .filter(|d| d.code != "E1200")
+                .collect::<Vec<_>>(),
+            &[("E3002", "1 + true", 1), ("E2001", "nope", 1)],
+        );
+    }
+}
+
+#[test]
+fn misplaced_body_line_preserves_independent_sibling_diagnostics() {
+    for src in [
+        "app T\nunexpected\nGiven\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+        "package T\n unexpected\n Given\n  derive a(): int = 1 + true\n  derive b(): int = nope\n When\n Then\n",
+    ] {
+        let diags = check(src, None);
+        assert_eq!(
+            diags.iter().map(|d| d.code).collect::<Vec<_>>(),
+            ["E1211", "E3002", "E2001"],
+            "source:\n{src}\ndiagnostics: {diags:?}"
+        );
+    }
+}
+
+#[test]
+fn invalid_app_header_suite_does_not_reserve_module_identity() {
+    let src = "app T\n unexpected\nGiven\n derive b(): int = unknown\nWhen\nThen\napp T\nGiven\n derive b(): int = nope\nWhen\nThen\n";
+    let mut db = SourceDb::new();
+    let id = db.add("test.can".to_string(), src.to_string());
+    let (program, diags) = check_program(&db, &[id], None);
+    assert_eq!(
+        diags.iter().map(|d| d.code).collect::<Vec<_>>(),
+        ["E1200", "E2001"],
+        "{diags:?}"
+    );
+    assert_eq!(program.modules.len(), 1);
+    assert_eq!(program.modules[0].name, "T");
+    let (start, end) = span_of(src, "app T", 2);
+    assert_eq!(program.modules[0].name_span.start, start + 4);
+    assert_eq!(program.modules[0].name_span.end, end);
+    assert_findings(
+        src,
+        &diags
+            .into_iter()
+            .filter(|d| d.code == "E2001")
+            .collect::<Vec<_>>(),
+        &[("E2001", "nope", 1)],
+    );
+}
+
+#[test]
+fn malformed_owner_headers_still_suppress_body_cascades() {
+    for src in [
+        "app T bad=\nGiven\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+        "package T bad=\n Given\n  derive a(): int = 1 + true\n  derive b(): int = nope\n When\n Then\n",
+    ] {
+        let diags = check(src, None);
+        assert_eq!(
+            diags.iter().map(|d| d.code).collect::<Vec<_>>(),
+            ["E1203"],
+            "source:\n{src}\ndiagnostics: {diags:?}"
+        );
+    }
+}
+
+#[test]
 fn unknown_names_and_cascade_suppression() {
     let catalog = fixture();
     // One E2001 per use site; the poisoned expression emits nothing

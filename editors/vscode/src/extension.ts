@@ -354,11 +354,22 @@ function codeActionProvider(): vscode.CodeActionProvider {
 export function activate(context: vscode.ExtensionContext): void {
   const channel = vscodeApi.window.createOutputChannel('Can');
 
-  const startClient = (): void => {
+  const startClient = (
+    document: vscode.TextDocument | undefined = vscodeApi.window.activeTextEditor?.document,
+  ): void => {
     const config = vscodeApi.workspace.getConfiguration('can');
     const serverPath = config.get<string>('serverPath', 'can');
     const trace = config.get<boolean>('traceServer', false);
-    const canClient = new CanLanguageClient(serverPath, channel, trace);
+    // Catalog discovery is relative to the server's cwd. Prefer the
+    // current Can document's owning folder in a multi-folder workspace.
+    const owningFolder = document?.languageId === 'can'
+      ? vscodeApi.workspace.getWorkspaceFolder(document.uri)
+      : undefined;
+    const folder = owningFolder?.uri.scheme === 'file'
+      ? owningFolder
+      : vscodeApi.workspace.workspaceFolders?.find((item: vscode.WorkspaceFolder) =>
+        item.uri.scheme === 'file');
+    const canClient = new CanLanguageClient(serverPath, channel, trace, folder?.uri.fsPath);
     client = canClient;
 
     canClient.onExit = (code: number | null) => {
@@ -424,7 +435,7 @@ export function activate(context: vscode.ExtensionContext): void {
       semanticTokensProvider(),
       legend,
     ),
-    vscodeApi.languages.registerCodeActionProvider(selector, codeActionProvider(), {
+    vscodeApi.languages.registerCodeActionsProvider(selector, codeActionProvider(), {
       providedCodeActionKinds: [vscodeApi.CodeActionKind.QuickFix],
     }),
     vscodeApi.commands.registerCommand('can.restartServer', () => {
@@ -440,7 +451,7 @@ export function activate(context: vscode.ExtensionContext): void {
         // Restart-on-reopen: the previous server died (or never started).
         // Starting now re-announces every open document once the handshake
         // completes, so no explicit didOpen is needed here.
-        startClient();
+        startClient(doc);
       }
     }),
     vscodeApi.workspace.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
