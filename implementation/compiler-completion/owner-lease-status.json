@@ -1,0 +1,34 @@
+{
+  "updated": "2026-10-08",
+  "owner": "compiler completion root",
+  "current_source_leases": {
+    "analysis/types.rs,analysis/resolve.rs,tests/bdd_checked_facts.rs,one tests/codegen.rs function": "BDD fact publication is source-frozen; future checked lexical/context consumer expansion remains held pending specific consultation approval.",
+    "codegen/ir.rs,codegen/js.rs,tests/ui_adapter.rs": "UI leaf released at c718517a; shared IR/JS next BDD closure not yet released.",
+    "packages/state effects/guards + state export; cloudflare runtime/stdlib + stdlib root/assembly test": "Accepted scoped root commit b7e18b9b; released leaf paths, broader package invocation owner remains foreign",
+    "syntax/lexer.rs,syntax/mod.rs,explain.rs,tests/syntax.rs": "Finite public fragment end-offset admission leaf in progress; no broader source/count limit selected.",
+    "tests/flat_expression_runtime.rs": "Exclusive temporary-directory helper implemented, all six runtime tests pass; independent helper review pending."
+  },
+  "integrated_releases": {
+    "selected_call_bindings": "3403dc71; actual overload/named/default/alias/plain2arg format independently accepted bounded",
+    "checked_owners": "4e89b117; exact source/catalog cohort beforelower",
+    "email_floor": "4a3f0b14; scalar string public values parity",
+    "live_session_sources": "f7566ce3; current-only private editor DB; queue oracle correction218aa471",
+    "synchronous_guard_exports": "b7e18b9b; independently accepted bounded acyclic state/stdlib/platform samebindings",
+    "UI_static": "c718517a; independent actualliteralCard/transientunboundTabs staticfactory acceptance; bound/order/query gaps remain",
+    "Markdown": "db57c379; exactparserqualifiedpublicrendererpreservation"
+  },
+  "pending_releases": {
+    "UI_static": "Releasedc718517a; furtherlegalcaption/genericprofiles needexactownerqualification",
+    "BDD": "Knownfactsourcefrozenuncommitted; independentexecutiongaps, materialtransport/helper policyawaits3specificJEVpayloadapproval"
+  },
+  "remaining_app_prerequisites": [
+    "Localizedformat checkedselectedappmetadata/context/descriptor/provenance boundary designselected, implementationpending",
+    "Canonicalreadscenarios refuse outside <Model>.read core",
+    "BoundenumTabs exhaustiveness/casetype facts and canonicalversioned immediate preference HTTP save owner unresolved",
+    "Structuredpreference order requires whole list/query producer forwarding",
+    "Subject-scoped synchronousguard remains unsupported exactoriginalbehavior",
+    "GenericUI profile admission/capability/image app actualconsumerworkflow notcovered by staticleaf"
+  ],
+  "next_enum_dependent_input_source_slot": "After current BDD fact acceptance and the pending consumer policy choice; no analysis/type/IR/JS writer handoff released yet.",
+  "coordination": "Package/Git coordinator foreign ownership preserved. Root makes only scoped reviewed compiler packet commits; no merge/checkpoint advance. New enum comparisons/prototypes may proceed disjointly; current source leases remain held."
+}
