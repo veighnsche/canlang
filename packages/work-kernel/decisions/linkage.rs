@@ -11,8 +11,7 @@
 //! prefix); W04.4 assembly consolidates them. Row-identity reads preserve
 //! the donor's ReceiptTableError-to-StateError wrap.
 
-#[path = "numeric_text.rs"]
-mod numeric_text;
+use super::numeric_text;
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -2672,6 +2671,3 @@ mod vectors_linkage {
 }
 
 // N03 immutable witnesses: private Cargo route, not standalone rustc.
-#[cfg(test)]
-#[path = "../conformance/native-numeric-text.rs"]
-mod n03_numeric_tests;

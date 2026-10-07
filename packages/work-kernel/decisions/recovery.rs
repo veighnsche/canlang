@@ -11,8 +11,7 @@
 //! assembly consolidates it. Suppliers, resolvers and evidence lookups
 //! arrive injected; scans decide purely from them and write nothing.
 
-#[path = "numeric_text.rs"]
-mod numeric_text;
+use super::numeric_text;
 
 use std::collections::HashMap;
 
@@ -3699,6 +3698,3 @@ mod vectors_recovery {
 }
 
 // N03 immutable witnesses: private Cargo route, not standalone rustc.
-#[cfg(test)]
-#[path = "../conformance/native-numeric-text.rs"]
-mod n03_numeric_tests;
