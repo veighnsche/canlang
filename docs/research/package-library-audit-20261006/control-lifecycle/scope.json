@@ -1,0 +1,47 @@
+{
+  "pin": "fecf84196e38679646d221ee18aa4383ed0d0e83",
+  "mode": "planning-audit",
+  "execution_authorized": false,
+  "product_changes": false,
+  "package_runtime_execution": false,
+  "scope": "Control flow, lifecycle, concurrency and resource owner invariants across packages; compiler unchanged",
+  "user_requested_model": "Sol high",
+  "delegation": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "reason": "Exact human selection; cross-file lifecycle/authority/host uncertainty. No price/benchmark claim."
+  },
+  "canonical_task_status_changes": false,
+  "accepted_policy_changes": false,
+  "resource_family_count": 93,
+  "invariant_count": 119,
+  "scenario_count": 140,
+  "file_crosswalk_count": 395,
+  "duty_crosswalk_count": 316,
+  "owners": [
+    "cloudflare",
+    "contracts",
+    "files",
+    "identity",
+    "interfaces",
+    "services",
+    "state",
+    "stdlib",
+    "testkit",
+    "ui",
+    "values",
+    "work",
+    "work-kernel"
+  ],
+  "lexical_screen_file_count": 142,
+  "limits": [
+    "No package tests/builds/runtime/instantiation/install/network/CI/Muse/schedules/push/deployment",
+    "All failure scenarios source-derived and unexecuted; counts are not production defect counts",
+    "Inherited 395-file/316-duty coverage refreshed to current pin; not exhaustive runtime or every file body proof",
+    "13 package owners covered by resource families; absent/port-only providers distinguished from actual owners",
+    "Exact local installed SDK source checked separately, not frozen Git or universal upstream claim",
+    "Independent source challenges expose prior conclusions; not cleanroom",
+    "No consequential mechanism/domain decision selected, no JEV repeat needed; implementation and hard decisions stay proposed",
+    "Compiler/shared DECISIONS and task acceptance/filetree checkpoints preserved"
+  ]
+}

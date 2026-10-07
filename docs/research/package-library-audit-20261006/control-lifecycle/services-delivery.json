@@ -1,0 +1,1352 @@
+{
+  "schema": "canlang-lifecycle-resources-source-review-v1",
+  "freeze": "fecf84196e38679646d221ee18aa4383ed0d0e83",
+  "scope": "services plus Cloudflare host preparation/deploy/release/localdev ownership; root owns runtime invoke/cache/host assembly",
+  "evidence": "Source-derived unexecuted. No tests/builds/package code/native compile/install/network/Git/repo writes. Existing tests/corpora not replayed as fresh proof. Conclusions not cleanroom.",
+  "authority_notes": {
+    "accepted_controls": "H01/H02 accepted first-reason AbortSignal.any and boundedredirectdrain retaincredit; not relabeled defects.",
+    "native_stage": "Current CLI calls runPreparedBuild/runPreparedDeploy TS; private native scaffold/real-core semantic branches do not establish selected release consumer. ComfyUINativeAdapter means provider-native HTTP API, not Rust.",
+    "selected_future": "CF-C20 and artifact preparation plan:97 require reviewed bytes, containment, temporary cleanup, separately documented partial publication. Protocol plan:80 requires bounded stderr, token once and abort cleanup. No new retry, timeout threshold, cancellation or rollback policy selected."
+  },
+  "resources": [
+    {
+      "id": "SV01",
+      "owner": "services HTTP request",
+      "files": [
+        "S38",
+        "S39"
+      ],
+      "anchors": [
+        [
+          "S38",
+          267
+        ],
+        [
+          "S38",
+          286
+        ],
+        [
+          "S38",
+          347
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Per request: private timer/controller, borrowed caller signal, manual fetch responses.",
+      "lifecycle": "Validate before timer/fetch. Private controller plus borrowed caller signal via AbortSignal.any preserves first reason. One timer covers headers, hops and bodies; buffered/binary finally clears it. Wrapper owns body consumption; native fetch owns connection pooling. Abort stops local transport, not proof remote effect absent.",
+      "invariants": [
+        "First abort reason retained; timer cleared; cancellation is local, remote effects uncertain."
+      ],
+      "failure_scenarios": [
+        "Caller abort then delayed fetch rejection after timer: caller error preserved."
+      ],
+      "gaps": [],
+      "original_ids": [
+        "AD-services-http",
+        "AD-service-cancel",
+        "H01"
+      ]
+    },
+    {
+      "id": "SV02",
+      "owner": "services bounded body reader",
+      "files": [
+        "S38"
+      ],
+      "anchors": [
+        [
+          "S38",
+          96
+        ],
+        [
+          "S38",
+          422
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Per response: locked reader/chunks/count; stream decoder and iterator.",
+      "lifecycle": "Buffered EOF/read-error finally releases lock; overcap awaits best-effort cancel then throws quota. Streaming incomplete exit cancels/releases; EOF releases without cancel; outer finally clears timer. Generator first next creates resources. Suspended yield cannot independently run finally. Arbitrary custom-stream cancellation is outside native-fetch proof.",
+      "invariants": [
+        "Quota never truncated; early return cancels/releases; abandoned suspended iterator separately owned."
+      ],
+      "failure_scenarios": [
+        "status/body overcap: no truncation/salvage; reader cancellation then quota."
+      ],
+      "gaps": [
+        "LS01"
+      ],
+      "original_ids": [
+        "AD-service-quota",
+        "H02",
+        "AD-service-cancel"
+      ]
+    },
+    {
+      "id": "SV03",
+      "owner": "services redirect chain",
+      "files": [
+        "S38"
+      ],
+      "anchors": [
+        [
+          "S38",
+          178
+        ],
+        [
+          "S38",
+          226
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Fixed origin; mutable hop URL/method/body, count, auth/idempotency headers.",
+      "lifecycle": "Manual redirect, omit credentials, fixed origin. Location bodies drain bounded before origin/count check; quota/timeout/caller abort stop chain, other drain errors best effort. POST301/302 and303 become GET;307/308 preserve body. Missing Location uses status reader. Same-origin path changes permitted; auth/idempotency headers remain.",
+      "invariants": [
+        "Fixed origin, max5 hops, method policy, no retry; endpoint paths may change."
+      ],
+      "failure_scenarios": [
+        "POST /send accepts remotely then302 /send-final GET stalls: unknown transport completion; first-hop effect cannot be undone."
+      ],
+      "gaps": [],
+      "original_ids": [
+        "AD-service-origin-policy",
+        "AD-services-http",
+        "H02"
+      ]
+    },
+    {
+      "id": "SV04",
+      "owner": "mail delivery / finalized attachment metadata",
+      "files": [
+        "S44",
+        "S45",
+        "S51"
+      ],
+      "anchors": [
+        [
+          "S44",
+          146
+        ],
+        [
+          "S44",
+          401
+        ],
+        [
+          "S44",
+          444
+        ],
+        [
+          "S44",
+          603
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Runtime delivery ID; frozen request/finalized refs and resolved aggregate size.",
+      "lifecycle": "Preflight all attachment refs/sizes/quota before POST /send; copied frozen request, wire/header same delivery ID. Typed errors/completions mapped then validated; unexpected errors rethrow after HTTP cleanup. One reconcile GET same encoded ID: accepted/reference, rejected/404 failed, pending unknown. No attachment descriptors, retry loop or durable journal owned.",
+      "invariants": [
+        "Attachment preflight before send; original delivery ID for uncertainty/reconcile."
+      ],
+      "failure_scenarios": [
+        "Provider records ID d then connection/deadline fails: unknown(d); reconcile d accepted -> succeeded(d)."
+      ],
+      "gaps": [],
+      "original_ids": [
+        "AD-services-mail",
+        "AD-mail-classification",
+        "AD-mail-attachment-quota"
+      ]
+    },
+    {
+      "id": "SV05",
+      "owner": "SystemOne batch delivery",
+      "files": [
+        "S43",
+        "S51"
+      ],
+      "anchors": [
+        [
+          "S43",
+          161
+        ],
+        [
+          "S43",
+          297
+        ],
+        [
+          "S43",
+          641
+        ],
+        [
+          "S43",
+          749
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Local delivery ID; copied state/questions and allowlisted model.",
+      "lifecycle": "Freeze bounded batch, POST once; validate all answer associations before facts. Typed transport uncertainty mapped, unexpected exceptions propagate after HTTP cleanup. Reconcile validates ID then returns no_run_resume unknown without network. Local completion ID is not provider deduplication.",
+      "invariants": [
+        "No partial answer fact, retry or invented durable lookup."
+      ],
+      "failure_scenarios": [
+        "Remote computes but body/deadline lost: unknown same local ID; reconcile no_run_resume."
+      ],
+      "gaps": [],
+      "original_ids": [
+        "AD-services-judgments",
+        "AD-services-port-contract"
+      ]
+    },
+    {
+      "id": "SV06",
+      "owner": "Ollama final-only generation",
+      "files": [
+        "S50",
+        "S51"
+      ],
+      "anchors": [
+        [
+          "S50",
+          136
+        ],
+        [
+          "S50",
+          316
+        ],
+        [
+          "S50",
+          677
+        ],
+        [
+          "S50",
+          731
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Local delivery ID; frozen authorized history/model/maxTokens.",
+      "lifecycle": "Freeze authorized history/model; POST stream:false once. Validated final completion only; typed errors mapped and unexpected errors propagate. Reconcile returns no_run_resume unknown without network. Local ID neither provider lookup nor remote deduplication.",
+      "invariants": [
+        "Validated final only; local ID not remote deduplication."
+      ],
+      "failure_scenarios": [
+        "Provider completes generation then response lost: unknown; reconcile cannot prove remote state."
+      ],
+      "gaps": [],
+      "original_ids": [
+        "AD-services-model",
+        "AD-model-final-and-cancel"
+      ]
+    },
+    {
+      "id": "SV07",
+      "owner": "Ollama run handle / NDJSON / snapshot tail",
+      "files": [
+        "S50",
+        "S51"
+      ],
+      "anchors": [
+        [
+          "S50",
+          103
+        ],
+        [
+          "S50",
+          405
+        ],
+        [
+          "S50",
+          445
+        ],
+        [
+          "S50",
+          455
+        ],
+        [
+          "S50",
+          489
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Per-run controller/settled promise; terminal, content/NDJSON buffer, snapshot tail<=256.",
+      "lifecycle": "Constructor emits running and immediately drives HTTP NDJSON. First terminal retained; terminal return closes iterator. EOF without final fails; malformed/provider errors preserve partial snapshots; transport uncertainty unknown. Per-run cancel aborts then awaits settled; already terminal wins. Observer throws swallowed; unexpected errors can reject done without terminal snapshot. Request/content/tail remain until caller drops handle.",
+      "invariants": [
+        "First terminal stands; partial text is evidence; each run independently cancelled."
+      ],
+      "failure_scenarios": [
+        "Valid final processed then cancel: first succeeded completion remains."
+      ],
+      "gaps": [
+        "LS02"
+      ],
+      "original_ids": [
+        "AD-services-model",
+        "AD-model-final-and-cancel",
+        "AD-services-port-contract"
+      ]
+    },
+    {
+      "id": "SV08",
+      "owner": "ComfyUI submit/job identity",
+      "files": [
+        "S46",
+        "S48",
+        "S51"
+      ],
+      "anchors": [
+        [
+          "S46",
+          134
+        ],
+        [
+          "S46",
+          401
+        ],
+        [
+          "S46",
+          450
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Local delivery ID; supplied/minted remote prompt ID; reviewed graph/mapping/client ID.",
+      "lifecycle": "Validate mapping/input and ID, then POST /prompt with supplied/minted prompt_id; no retry. Unknown envelope has null result, losing default-minted ID to caller. Supplied persisted ID permits recovery. Accepted response prompt_id returned without comparison to submitted ID; legitimate provider rewrite policy unresolved. No automatic polling.",
+      "invariants": [
+        "Caller-restorable prompt ID required for uncertain submit recovery."
+      ],
+      "failure_scenarios": [
+        "POST prompt_id j accepted, connection lost: unknown(d), caller with persisted j can poll history j."
+      ],
+      "gaps": [
+        "LS03"
+      ],
+      "original_ids": [
+        "AD-services-media",
+        "AD-media-graph-digest",
+        "AD-services-port-contract"
+      ]
+    },
+    {
+      "id": "SV09",
+      "owner": "ComfyUI poll/download/cancel",
+      "files": [
+        "S46",
+        "S48",
+        "S51"
+      ],
+      "anchors": [
+        [
+          "S46",
+          496
+        ],
+        [
+          "S46",
+          564
+        ],
+        [
+          "S46",
+          597
+        ],
+        [
+          "S46",
+          638
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Encoded job path; history, bounded descriptors, sequential bytes/position map.",
+      "lifecycle": "One history request: absent unknown, executing running, overcount failed without downloads. Sequential binary requests stop first failure/empty bytes, preserve earlier bytes with incomplete marker. Each request has deadline; whole observation no timer. Failed run is succeeded observation/result.state failed. Cancel POST captures requested/404unsupported/uncertain then reconciles; never fabricates cancelled. Returned bytes caller-owned.",
+      "invariants": [
+        "Cancel is request then observation; partial outputs explicit, count/file caps retained."
+      ],
+      "failure_scenarios": [
+        "Cancel200 then history completed: completed still wins; response alone not proof stopped."
+      ],
+      "gaps": [
+        "LS04"
+      ],
+      "original_ids": [
+        "AD-services-media",
+        "AD-media-graph-authority"
+      ]
+    },
+    {
+      "id": "SV10",
+      "owner": "pagination borrowed provider call",
+      "files": [
+        "S40"
+      ],
+      "anchors": [
+        [
+          "S40",
+          31
+        ],
+        [
+          "S40",
+          95
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Validated cursor/limit; borrowed loader result.",
+      "lifecycle": "Validate before one borrowed loader; validate page afterward; propagate failures, no truncation/retry/iteration/cursor cache. Callback owns its clients/streams; helper provides no arbitrary callback cleanup.",
+      "invariants": [
+        "Reject invalid request before loader; callback owns its resources."
+      ],
+      "failure_scenarios": [
+        "Loader acquires resources then rejects: helper propagates; no source promise it joins arbitrary callback cleanup."
+      ],
+      "gaps": [],
+      "original_ids": [
+        "AD-services-pagination"
+      ]
+    },
+    {
+      "id": "SV11",
+      "owner": "controlled local HTTP harnesses",
+      "files": [
+        "S51",
+        "S49",
+        "S47",
+        "S42",
+        "S52"
+      ],
+      "anchors": [
+        [
+          "S51",
+          286
+        ],
+        [
+          "S51",
+          374
+        ],
+        [
+          "S51",
+          426
+        ],
+        [
+          "S49",
+          95
+        ],
+        [
+          "S49",
+          203
+        ],
+        [
+          "S47",
+          233
+        ],
+        [
+          "S42",
+          149
+        ]
+      ],
+      "stage": "fixture",
+      "identity": "Loopback server, sockets/logs/state; model timer Set, mail untracked timer.",
+      "lifecycle": "Loopback server owns sockets and request logs; capped request read destroys oversize. close destroys sockets then awaits server.close; model also clears tracked timers. Mail drip timer untracked: survives close until expiry but checks destroyed response. Media/judgment no timed progression. Fixtures are not live-provider disposal proof.",
+      "invariants": [
+        "Caller closes fixture; no credit as live provider disposal."
+      ],
+      "failure_scenarios": [
+        "Start mail drip delay60000 then close immediately: sockets close, but referenced timer can survive to expiry; no live provider-path claim."
+      ],
+      "gaps": [
+        "LS05"
+      ],
+      "original_ids": [
+        "AD-services-scenarios",
+        "AD-services-port-contract"
+      ]
+    },
+    {
+      "id": "SV12",
+      "owner": "contract-only / absent provider families",
+      "files": [
+        "S37",
+        "S41",
+        "S51",
+        "S36",
+        "S34"
+      ],
+      "anchors": [
+        [
+          "S37",
+          22
+        ],
+        [
+          "S41",
+          1
+        ],
+        [
+          "S36",
+          559
+        ],
+        [
+          "S34",
+          219
+        ]
+      ],
+      "stage": "absent",
+      "identity": "No implemented owned provider worker in absent/contract-only families.",
+      "lifecycle": "Catalog implements Email/Chat/SystemOne/Images only; Payments/Errors contract-only. No document/source/report/tracker provider worker here. CF contextual effect stubs throw unsupported. Missing worker creates no disposal success to credit; authorized durable joins remain product duties owned by root/work audit.",
+      "invariants": [
+        "Declarations/stubs do not establish delivery/cancel/retry worker adoption."
+      ],
+      "failure_scenarios": [
+        "Authored payment/refund/cancel/reconcile or document/source/report/tracker workflow requires mounted provider+durable ownership; absent adapter is a join gap, not simulated success."
+      ],
+      "gaps": [],
+      "original_ids": [
+        "AD-services-catalog",
+        "AD-services-port-contract",
+        "cv.services-capabilities"
+      ]
+    },
+    {
+      "id": "CF01",
+      "owner": "TS portable bundle / Bun scratch builds",
+      "files": [
+        "S12",
+        "S25",
+        "S19",
+        "S17",
+        "S15",
+        "S16"
+      ],
+      "anchors": [
+        [
+          "S12",
+          600
+        ],
+        [
+          "S12",
+          609
+        ],
+        [
+          "S12",
+          616
+        ],
+        [
+          "S12",
+          623
+        ],
+        [
+          "S12",
+          669
+        ],
+        [
+          "S12",
+          936
+        ],
+        [
+          "S25",
+          69
+        ],
+        [
+          "S25",
+          216
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Per-call module/asset/map inventory; two unique scratch roots, sync Bun children.",
+      "lifecycle": "Resolve dists before scratch. mkdtemp then entry write before cleanup try. Sync argv Bun has no explicit timeout. Bun error removes root; outfile read finally removes root before marker/link checks. Cleanup failure may mask original. Module/asset/map buffers per call; no scope-owned cross-call cache. TS build adapter delegates public bundle; held native phases duplicate two helpers.",
+      "invariants": [
+        "Sync API retained; temporary scratch allowed in preview but cleaned on every branch."
+      ],
+      "failure_scenarios": [
+        "mkdtemp succeeds then writeFileSync entry fails: root remains; no catch/finally owns it yet."
+      ],
+      "gaps": [
+        "LS06"
+      ],
+      "original_ids": [
+        "CF-C35",
+        "CF-C20",
+        "P05.2"
+      ]
+    },
+    {
+      "id": "CF02",
+      "owner": "confirmed deploy writer and Wrangler child",
+      "files": [
+        "S28",
+        "S12",
+        "S21",
+        "S20",
+        "S18",
+        "S35"
+      ],
+      "anchors": [
+        [
+          "S28",
+          292
+        ],
+        [
+          "S28",
+          400
+        ],
+        [
+          "S28",
+          429
+        ],
+        [
+          "S12",
+          990
+        ],
+        [
+          "S12",
+          1199
+        ],
+        [
+          "S12",
+          1397
+        ],
+        [
+          "S35",
+          149
+        ]
+      ],
+      "stage": "TS",
+      "identity": "Artifact-stem destination; modules/manifests/plan/TOML, sync Wrangler child/result.",
+      "lifecycle": "Compat/confirmation/activation/build/review precede writes; preview returns, compiler mismatch refuses. Confirmed writes bundle then plan/TOML sequentially, no rollback/lock; midwrite throws before Wrangler, prior files persist. yes-gated sync Wrangler timeout180000 returns numeric nonzero as applied:false; spawn errors caught by host. Prepared envelope remains ok:true with applied/status detail. No remote reconciliation.",
+      "invariants": [
+        "yes required, preview wins; publication sequential, remote effect uncertainty retained."
+      ],
+      "failure_scenarios": [
+        "Write moduleA then moduleB diskerror: A persists, manifest/plan possibly old; no Wrangler invocation."
+      ],
+      "gaps": [
+        "LS07",
+        "LS08"
+      ],
+      "original_ids": [
+        "CF-C03",
+        "CF-C05",
+        "CF-C20"
+      ]
+    },
+    {
+      "id": "CF03",
+      "owner": "upgrade rehearsal / borrowed activation gates",
+      "files": [
+        "S35",
+        "S11",
+        "S13",
+        "S14"
+      ],
+      "anchors": [
+        [
+          "S35",
+          62
+        ],
+        [
+          "S11",
+          209
+        ],
+        [
+          "S11",
+          242
+        ],
+        [
+          "S11",
+          276
+        ]
+      ],
+      "stage": "rehearsal",
+      "identity": "Rehearsal stage array; borrowed snapshot/store/work inventory; no owned lock.",
+      "lifecycle": "Default upgrade rehearses six states, no side effects; live ask refuses before store/spawn. Activation reads borrowed snapshot then inventory gate, catches known failures into inactive reasons; missing joins fail closed. No owned checkpoint/lease/admission lock/child/tempfile. Store/producer owns atomicity and lifecycle; gate sequence itself not atomic.",
+      "invariants": [
+        "Rehearsal active is not live checkpoint; borrowed producer owns fencing."
+      ],
+      "failure_scenarios": [
+        "Borrowed store read never settles: activate waits indefinitely; no local deadline/cancel contract."
+      ],
+      "gaps": [],
+      "original_ids": [
+        "CF-C06",
+        "CF-C21",
+        "CF-C25"
+      ]
+    },
+    {
+      "id": "CF04",
+      "owner": "native preparation process / grace timer",
+      "files": [
+        "S27",
+        "S28"
+      ],
+      "anchors": [
+        [
+          "S27",
+          121
+        ],
+        [
+          "S27",
+          137
+        ],
+        [
+          "S27",
+          157
+        ],
+        [
+          "S28",
+          548
+        ],
+        [
+          "S28",
+          597
+        ],
+        [
+          "S28",
+          607
+        ]
+      ],
+      "stage": "held",
+      "identity": "Resolved executable, child/group/piped stdio, kill/grace timer, stderr/close promise.",
+      "lifecycle": "Spawn empty argv/pipedstdio/detachedPOSIX. Idempotent kill groupTERM/direct fallback then unref KILL2s, never cleared on close. Native job installs close observer early, captures stderr unbounded, awaits close without deadline/exit-status gate. Error kill then fatal process.exit can bypass grace. Probe10s bounds frames only; post-success close wait unbounded; probe does not drain stderr.",
+      "invariants": [
+        "Before adoption bounded joined child/group/stdio/diagnostics cleanup; no started-job TS retry."
+      ],
+      "failure_scenarios": [
+        "Prepared then child keeps stdio open: host waits close indefinitely."
+      ],
+      "gaps": [
+        "LS09"
+      ],
+      "original_ids": [
+        "CF-C29",
+        "CF-C30",
+        "CF-C32"
+      ]
+    },
+    {
+      "id": "CF05",
+      "owner": "native framed retained session",
+      "files": [
+        "S30",
+        "S06",
+        "S04",
+        "S05",
+        "S29"
+      ],
+      "anchors": [
+        [
+          "S30",
+          19
+        ],
+        [
+          "S30",
+          63
+        ],
+        [
+          "S30",
+          127
+        ],
+        [
+          "S30",
+          252
+        ],
+        [
+          "S30",
+          239
+        ],
+        [
+          "S30",
+          258
+        ],
+        [
+          "S06",
+          113
+        ],
+        [
+          "S04",
+          33
+        ]
+      ],
+      "stage": "held",
+      "identity": "Decoder/pending frames/token/waiter/timer; core stdin/stdout and retained node buffers.",
+      "lifecycle": "Host caps individual frame64MiB, checks handshake/token; per-frame timeout resets and excludes onNeed. stdin writes ignore backpressure; pending queue unbounded. Prepared checks partial tail only, endsstdin/returns; complete pending/later frames unchecked. Finally removes all data/end listeners. Standalone parse/handler/timeout errors detach but do not always kill; wrapper owns cleanup. Core blocking frame I/O caps allocation, token-once/Abort/EOF invalidates job; no native host filesystem resources.",
+      "invariants": [
+        "One job/token once/closed terminal; individual cap not aggregate pending bound."
+      ],
+      "failure_scenarios": [
+        "Host sees Need1; onNeed neverresolves; peer emits many <=cap frames: pendingqueue can grow without framewaittimer."
+      ],
+      "gaps": [
+        "LS10"
+      ],
+      "original_ids": [
+        "CF-C30",
+        "CF-C31",
+        "CF-C32"
+      ]
+    },
+    {
+      "id": "CF06",
+      "owner": "private PublicationSession staging",
+      "files": [
+        "S31"
+      ],
+      "anchors": [
+        [
+          "S31",
+          207
+        ],
+        [
+          "S31",
+          231
+        ],
+        [
+          "S31",
+          255
+        ],
+        [
+          "S31",
+          281
+        ],
+        [
+          "S31",
+          300
+        ],
+        [
+          "S31",
+          315
+        ],
+        [
+          "S31",
+          334
+        ]
+      ],
+      "stage": "held",
+      "identity": "Owned or borrowed staging root; records path/length/hash; destination owned by writer.",
+      "lifecycle": "Owned mkdtemp or borrowed root. Stage writes validated contained paths/records. Verify compares reviewed buffers with recorded hashes, not current disk or complete key set. Confirmed publish re-reads without hashing and writes sequentially; catches written/pending but current failing file may have partial effects. Dispose marks disposed before rm. Generic sync wrapper finally does not await Promise callbacks.",
+      "invariants": [
+        "Reviewed exact bytes/keyset must publish; preview cannot publish; partial not atomic."
+      ],
+      "failure_scenarios": [
+        "Stage x=a, verify x=a, diskreplace x=b, publish: re-read shipsb without rehash."
+      ],
+      "gaps": [
+        "LS11"
+      ],
+      "original_ids": [
+        "CF-C20",
+        "CF-C13",
+        "P07.1"
+      ]
+    },
+    {
+      "id": "CF07",
+      "owner": "CLI assembly scratch / local workerd scope",
+      "files": [
+        "S10",
+        "S22",
+        "S23",
+        "S24"
+      ],
+      "anchors": [
+        [
+          "S10",
+          209
+        ],
+        [
+          "S10",
+          336
+        ],
+        [
+          "S22",
+          65
+        ],
+        [
+          "S22",
+          97
+        ],
+        [
+          "S23",
+          75
+        ]
+      ],
+      "stage": "TS",
+      "identity": "CLI scratch, escaped entry URL, Miniflare per row/D1 ID, forwarded disposal.",
+      "lifecycle": "run allocates/assembles scratch and returns entry URL, no removal. test allocates/assembles/boots scope; snapshot try-finally awaits Miniflare dispose, no scratch removal on any branch. LocalDev validates/copies before constructor and forwards dispose; constructor failure internal cleanup unproven. Fresh D1 namespace per row; other bindings not snapshotted. No disposal timeout/once-guard here.",
+      "invariants": [
+        "Fresh row scope awaited disposal; scratch ownership separate from instance."
+      ],
+      "failure_scenarios": [
+        "Snapshotthrows: finally awaitdispose; scratchrootstillleft."
+      ],
+      "gaps": [
+        "LS12"
+      ],
+      "original_ids": [
+        "CF-C27",
+        "CF-C28"
+      ]
+    },
+    {
+      "id": "CF08",
+      "owner": "release build/package/integrity artifacts",
+      "files": [
+        "S33",
+        "S32",
+        "S26",
+        "S27",
+        "S08",
+        "S09",
+        "S07"
+      ],
+      "anchors": [
+        [
+          "S08",
+          53
+        ],
+        [
+          "S08",
+          68
+        ],
+        [
+          "S09",
+          65
+        ],
+        [
+          "S09",
+          94
+        ],
+        [
+          "S26",
+          113
+        ],
+        [
+          "S27",
+          86
+        ],
+        [
+          "S32",
+          69
+        ]
+      ],
+      "stage": "release",
+      "identity": "Persistent staged binary/sidecar/licenses/release and dist manifests; tool cache/lockfile.",
+      "lifecycle": "Sync toolVersion/Cargo commands have no explicit timeout; pinned Rust/current host and cargo --locked. Persistent stage copy/chmod/hash/sidecar, licenses then releaseJSON are sequential, no transaction/rollback/publication lock. Distmanifest reads/hashes files, direct write. Native verify reads binary hash/bytes/toolchain; resolver only file/X_OK, no verify call. Cargo cache tool-owned; Rust release leaf borrows facts, no host I/O.",
+      "invariants": [
+        "Dependency lockfile not publication mutex; persistent release files not temporary trash."
+      ],
+      "failure_scenarios": [
+        "Copynewbinary succeeds then manifestswritefails: old/missing sidecar with newbinary; separateverifydetects hash mismatch when called."
+      ],
+      "gaps": [],
+      "original_ids": [
+        "CF-C08",
+        "CF-C10",
+        "CF-C33"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "LS01",
+      "kind": "ownership_limit",
+      "resources": [
+        "SV02"
+      ],
+      "decision": "No new garbage-collection, dispose API or arbitrary host guarantee selected.",
+      "original_ids": [
+        "AD-service-cancel",
+        "H01",
+        "H02"
+      ],
+      "fix_or_gate": "Retain consumer return ownership. No claim deadline independently closes suspended generator or arbitrary cancel promise. Early return cancels/releases/clears timer; abandonment is separately qualified."
+    },
+    {
+      "id": "LS02",
+      "kind": "valid_remote_failure_edge",
+      "resources": [
+        "SV03",
+        "SV07"
+      ],
+      "decision": "Terminal snapshot versus rejected promise for unexpected errors remains an API decision; HTTP finally already cleans.",
+      "original_ids": [
+        "AD-services-model",
+        "AD-service-safe-errors"
+      ],
+      "fix_or_gate": "Preserve cleanup and effect uncertainty on unexpected provider errors; define run-handle rejection/terminal contract before broadening mapping. Malformed Location after POST: no automatic retry/no-effect claim; partial NDJSON never success."
+    },
+    {
+      "id": "LS03",
+      "kind": "explicit_recovery_limit",
+      "resources": [
+        "SV08"
+      ],
+      "decision": "No envelope field, mint journal or provider ID equality policy selected.",
+      "original_ids": [
+        "AD-services-media",
+        "AD-services-port-contract"
+      ],
+      "fix_or_gate": "Recovery callers persist supplied jobId association. Default mint without exposed unknown carrier is not durable recovery. Lost acceptance retains supplied ID; no silent remint/retry."
+    },
+    {
+      "id": "LS04",
+      "kind": "preflight_negative_case",
+      "resources": [
+        "SV09"
+      ],
+      "decision": "Invalid-input edge only; valid best-effort cancel/observation controls retained.",
+      "original_ids": [
+        "AD-services-media",
+        "AD-services-port-contract"
+      ],
+      "fix_or_gate": "Validate all cancellation inputs before provider effect. cancel(valid job,{deliveryId:\"\"}) rejects before POST; current path POST then throws. Invalid-input edge only."
+    },
+    {
+      "id": "LS05",
+      "kind": "fixture_cleanup_gap",
+      "resources": [
+        "SV11"
+      ],
+      "original_ids": [
+        "AD-services-scenarios"
+      ],
+      "fix_or_gate": "Track/dispose mail fixture drip timers on close or explicitly own bounded fixture lifetime. close leaves no referenced fixture timer; model cleanup remains control."
+    },
+    {
+      "id": "LS06",
+      "kind": "selected_cleanup_and_bound_gap",
+      "resources": [
+        "CF01"
+      ],
+      "original_ids": [
+        "CF-C35",
+        "CF-C20",
+        "P05.2",
+        "P05.3"
+      ],
+      "fix_or_gate": "Own cleanup from first successful mkdtemp through entry write/spawn/read/validation; preserve original errors. Bound child execution while retaining synchronous API. Entry/spawn/read/marker throws leave no owned temp; child hang ends truthful/bounded before publication."
+    },
+    {
+      "id": "LS07",
+      "kind": "selected_partial_effect_reporting_gap",
+      "resources": [
+        "CF02"
+      ],
+      "original_ids": [
+        "CF-C03",
+        "CF-C20"
+      ],
+      "fix_or_gate": "Report observed Wrangler status plus remote uncertainty. Nonzero/timeout after start does not prove no deploy. Child effect then exit1/timeout: no false no-effect or retry; prelaunch refusal distinct."
+    },
+    {
+      "id": "LS08",
+      "kind": "selected_writer_nonatomic_limit",
+      "resources": [
+        "CF02"
+      ],
+      "original_ids": [
+        "CF-C20",
+        "CF-C13"
+      ],
+      "fix_or_gate": "Report partial writes and exact reviewed content; concurrency/recovery needs explicit ownership. Second-file failure cannot claim rollback; same-destination overlap cannot claim atomic isolation."
+    },
+    {
+      "id": "LS09",
+      "kind": "held_child_session_cleanup_gap",
+      "resources": [
+        "CF04"
+      ],
+      "decision": "Caps/deadlines/kill mechanism owner choice; late close registration risk not independently proved. Native CLI remains held.",
+      "original_ids": [
+        "CF-C29",
+        "CF-C30",
+        "CF-C32",
+        "P03.4",
+        "P09.1"
+      ],
+      "fix_or_gate": "Before adoption bound whole session/handler/exit; bound diagnostics; join child/group/stdio cleanup before fatal exit; own grace timer. Prepared/abortack+hang, callback stall, stderr flood, TERM ignored: bounded terminal with no owned survivors/no TS retry."
+    },
+    {
+      "id": "LS10",
+      "kind": "held_protocol_terminal_and_queue_gap",
+      "resources": [
+        "CF05"
+      ],
+      "original_ids": [
+        "CF-C30",
+        "CF-C32",
+        "P03.3"
+      ],
+      "fix_or_gate": "Validate closed terminal and pending bounds; detach owned listeners only; coordinate stdin/waiter errors with process owner. Prepared+extra complete frame refuses; handler stall queue bounded; foreign observer retained; EOF/replay never resumed."
+    },
+    {
+      "id": "LS11",
+      "kind": "held_reviewed_content_and_cleanup_gap",
+      "resources": [
+        "CF06"
+      ],
+      "decision": "Held helper, not selected CLI; no new atomic transaction selected.",
+      "original_ids": [
+        "CF-C20",
+        "CF-C13",
+        "P07.1"
+      ],
+      "fix_or_gate": "Recheck disk bytes/hash/length and exact key set before publication; refuse/await async lifetime; truthfully handle disposal failure. Stagea/reviewa/diskb refuses; missing reviewed file refuses; async callback retains root; failed rm not fake-clean."
+    },
+    {
+      "id": "LS12",
+      "kind": "selected_scratch_owner_gap",
+      "resources": [
+        "CF07"
+      ],
+      "decision": "run URL retention/release unresolved; root owns assembly/cache internals.",
+      "original_ids": [
+        "CF-C27",
+        "CF-C28"
+      ],
+      "fix_or_gate": "test disposes scratch across assembly/read/boot/snapshot/scope-dispose branches. run returned URL needs retention/release policy. test normal/throw cleanup plus awaited instance disposal; run promised URL remains usable."
+    }
+  ],
+  "coverage": {
+    "families": [
+      "abort fan-in",
+      "deadline timers",
+      "buffered/status/redirect/stream body caps and reader lock/cancel",
+      "fixed-origin redirect method/identity",
+      "mail send+reconcile",
+      "judgment batch/noresume",
+      "model final+stream+cancel+bounded snapshots",
+      "media submit+jobidentity+singlepoll+sequentialbinarydownloads+best-effortcancel",
+      "pagination borrowedloader",
+      "fixture servers/sockets/driptimers",
+      "contract-only service families",
+      "Bun process/tempfile staging",
+      "confirmed writers+Wrangler partialeffects",
+      "upgrade rehearsal+borrowed activation gates",
+      "native binary/child/processgroup/grace timer",
+      "framed session/backpressure/queues/listener lifetime",
+      "private publication root+reviewed content+asyncdisposal",
+      "local Miniflare scope+D1 snapshots+CLI scratch",
+      "release artifacts/manifest/persistenttoolcaches/lockstep"
+    ],
+    "scoped_omissions": [
+      "Root owns runtime invocation/cache/assembly internals and durable work/provider joins. Pure utility helpers have no independent owned I/O worker. Native semantic allocation budgets not independently audited.",
+      "No installed provider, native runtime, live Wrangler, concurrency or process-group behavior executed. Payment/Errors contract-only; document/source/report/tracker adapters absent here."
+    ],
+    "negative_findings": [
+      "H01/H02 controls retained: first abort reason, bounded redirect drain, detected quota precedence. No manual caller-abort listener or owned connection pool.",
+      "No adapter automatic retry/background polling; Ollama consumes/closes its iterator, ComfyUI observes once per reconcile. Local IDs alone are not remote durable identity.",
+      "No scope-owned publication lock/upgrade checkpoint backend; Cargo --locked and release lockstep are integrity concepts. No source claim native CLI or Worker-vendored subprocess adopted."
+    ]
+  },
+  "sources": {
+    "S01": {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89"
+    },
+    "S02": {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "sha256": "68dcaf6d9720685bb77e166add8a4018e576e67058f72d4ea7869d3a8a144793"
+    },
+    "S03": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+      "sha256": "2d7e72aa84ac62e2ec1448fbbb869539dee977dfe9662005e52f31794bafb9cb"
+    },
+    "S04": {
+      "path": "packages/cloudflare/preparation/src/job.rs",
+      "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61"
+    },
+    "S05": {
+      "path": "packages/cloudflare/preparation/src/main.rs",
+      "sha256": "3bdb8d22d7f1d383597836ce02074c5eac7b9a31cb3788121d3dad634ebf59d0"
+    },
+    "S06": {
+      "path": "packages/cloudflare/preparation/src/protocol.rs",
+      "sha256": "7c532c8afb1865ce53a4679b75698ff138b46cd5261111bb7fb6cd4f67db182f"
+    },
+    "S07": {
+      "path": "packages/cloudflare/preparation/src/release.rs",
+      "sha256": "3bae8768bdd18c9a5edcc856008faa35170690ec46969b7d2ea7884a12bfa289"
+    },
+    "S08": {
+      "path": "packages/cloudflare/scripts/build-preparation.mjs",
+      "sha256": "04e95cbea4ea0be19a3f6da6aefc2744df2a535650b32e8f44a48e7c923c1981"
+    },
+    "S09": {
+      "path": "packages/cloudflare/scripts/package-preparation.mjs",
+      "sha256": "7126578ef2cbefbd42d9862485faeca5440cd4718b464eccd21b31803e2e73fb"
+    },
+    "S10": {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a"
+    },
+    "S11": {
+      "path": "packages/cloudflare/src/deploy/activate.ts",
+      "sha256": "1f39bfea83761034d1f93665c4f2fc80f444d0706148670637f8b1f7eae8db2c"
+    },
+    "S12": {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741"
+    },
+    "S13": {
+      "path": "packages/cloudflare/src/deploy/compat.ts",
+      "sha256": "f78595dfc66957678a187e78b6fd3bd2ab20ec560c850637d7cb7425bbca2138"
+    },
+    "S14": {
+      "path": "packages/cloudflare/src/deploy/installed.ts",
+      "sha256": "512b47b2785c452ff500e9331783833ed4064bd26c9ffe1dc37f0c34d3ce34b1"
+    },
+    "S15": {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362"
+    },
+    "S16": {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98"
+    },
+    "S17": {
+      "path": "packages/cloudflare/src/deploy/package-assets.ts",
+      "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f"
+    },
+    "S18": {
+      "path": "packages/cloudflare/src/deploy/plan.ts",
+      "sha256": "b3e90850bc619c6f1e8df843f393f639fef7c8dc0e59e3bdeae50eb2ed9ab335"
+    },
+    "S19": {
+      "path": "packages/cloudflare/src/deploy/producer-files.ts",
+      "sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba"
+    },
+    "S20": {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "sha256": "75bb7fb5eeb0cebafdf5c31079c12c63075b00d5708edaedf5a7f9c89b5bc980"
+    },
+    "S21": {
+      "path": "packages/cloudflare/src/deploy/review.ts",
+      "sha256": "7483e3867b3eaf0f7087d5846196512e96707acd6093667227cf78f94c1cbf5a"
+    },
+    "S22": {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a"
+    },
+    "S23": {
+      "path": "packages/cloudflare/src/dev/row-scope.ts",
+      "sha256": "e291abb4f1b5d171f9f1949b1e8f30c4590377128c6d069ba56c8db235208183"
+    },
+    "S24": {
+      "path": "packages/cloudflare/src/dev/zero-config.ts",
+      "sha256": "66cf73a6e9ae19695d652afa9ffee80647cda04a6d3e90ad47a88d67499635fe"
+    },
+    "S25": {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383"
+    },
+    "S26": {
+      "path": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "sha256": "d479c648351dc2b13116d4f96bb83817f80fefbd472a95f24d77bf17048a442e"
+    },
+    "S27": {
+      "path": "packages/cloudflare/src/preparation/executable.ts",
+      "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3"
+    },
+    "S28": {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1"
+    },
+    "S29": {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac"
+    },
+    "S30": {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8"
+    },
+    "S31": {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8"
+    },
+    "S32": {
+      "path": "packages/cloudflare/src/release/manifest.ts",
+      "sha256": "0f1253522b0ee681173f788700835facdeb3bd2028daf2a461b75f1dc4c8a48d"
+    },
+    "S33": {
+      "path": "packages/cloudflare/src/release/stamp.ts",
+      "sha256": "d731f609c69be92b2fce043e8670b08a40da5c4f23dd72f0647e33d628be6863"
+    },
+    "S34": {
+      "path": "packages/cloudflare/src/runtime/stdlib.ts",
+      "sha256": "ced1c72a0244f7691471dd2aae3a88a3ae6198f67837af4008549df8bbc1662e"
+    },
+    "S35": {
+      "path": "packages/cloudflare/src/upgrade/apply.ts",
+      "sha256": "167c77f7be30b29a3cbc37125d112208472ccf504a7f70e70e45e9d3aff73cca"
+    },
+    "S36": {
+      "path": "packages/contracts/src/services.ts",
+      "sha256": "91b1580b0b1c884af6ef0c2f162aad0f75cd76d41a369a087ec5310367ee4ebf"
+    },
+    "S37": {
+      "path": "packages/services/src/catalog.ts",
+      "sha256": "40b36de7ad8c84f1105e2bb274bdfad6ccebaf455c98a8ef7e542813e6a1af30"
+    },
+    "S38": {
+      "path": "packages/services/src/http/client.ts",
+      "sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034"
+    },
+    "S39": {
+      "path": "packages/services/src/http/errors.ts",
+      "sha256": "8b97f7d6fe8fdcc0acca684865b1b1591035bd9eb82da1e920f7cf4645890c9b"
+    },
+    "S40": {
+      "path": "packages/services/src/http/pagination.ts",
+      "sha256": "c00bb4a1d5b5ac859bf589f67ba33445e5642ce1fcb0b8a9304dd7e774633af5"
+    },
+    "S41": {
+      "path": "packages/services/src/index.ts",
+      "sha256": "40caee729c74d1c744d39f8247885332fbe1cc37ecec9916b9b0db1e96f78135"
+    },
+    "S42": {
+      "path": "packages/services/src/judgments/harness.ts",
+      "sha256": "3ffbed629601d02f6f39519ed75b2da07c76de8b8ec661b82faac68ebf6088e4"
+    },
+    "S43": {
+      "path": "packages/services/src/judgments/systemone.ts",
+      "sha256": "5946aa0c1f863e8a347fdb29de54c0c086db0a4e9fb6a277de93943e21c92ecd"
+    },
+    "S44": {
+      "path": "packages/services/src/mail/adapter.ts",
+      "sha256": "065462278dfb0fe69fd3e15a18f5b370eb0abaf59766ef44eb1c615ba557f5d0"
+    },
+    "S45": {
+      "path": "packages/services/src/mail/redact.ts",
+      "sha256": "2da0f060f790820db04b783dfc9828dc73c0c7e6db32ed67d9aba5cca01c61c8"
+    },
+    "S46": {
+      "path": "packages/services/src/media/comfyui.ts",
+      "sha256": "694eb7caa69ee4d22af05cdf441fcb68638e33b1a3387191ddfb5e9a93a93f7b"
+    },
+    "S47": {
+      "path": "packages/services/src/media/harness.ts",
+      "sha256": "51bd4abae84239b00d9492f24416521d9a4d567a192eaba070a56daa698aa233"
+    },
+    "S48": {
+      "path": "packages/services/src/media/mapping.ts",
+      "sha256": "507306b2f97b72ebe5aa4dce54fe0af2164bfd1dcf6604efea6d1b7ccd151da1"
+    },
+    "S49": {
+      "path": "packages/services/src/models/harness.ts",
+      "sha256": "bf0163984ddd83578f223d58b19f1838938910a0be926d2644df5c7870e287bf"
+    },
+    "S50": {
+      "path": "packages/services/src/models/ollama.ts",
+      "sha256": "96c39834af0d132c64d164b0a8d4712fa75c203fb4fa8c4463e0ad8b5907df96"
+    },
+    "S51": {
+      "path": "packages/services/src/ports.ts",
+      "sha256": "51d4defdf88217c59674eed1b6a4c6c490237387484eb3d961a91f7bdaa4d410"
+    },
+    "S52": {
+      "path": "packages/services/src/scenarios.ts",
+      "sha256": "0cca83df6c4dbd91a345c744e00eb005e9b17a4620770df572f0e14b4ee35aec"
+    }
+  },
+  "legend": {
+    "anchors": "[sourceID, verified one-based line]; source table supplies path and whole-file SHA256",
+    "stages": {
+      "TS": "Supported selected TS APIs; actual installed provider/mounted profile separate",
+      "held": "Native/helper scaffold, not selected CLI",
+      "release": "Release tooling/helper, not native CLI adoption",
+      "fixture": "Controlled fixture only",
+      "absent": "Contract-only/absent implementation",
+      "rehearsal": "Dry-run upgrade + borrowed gates"
+    }
+  }
+}

@@ -1,0 +1,1377 @@
+{
+  "schema": "canlang.lifecycle.root.v1",
+  "pin": "fecf84196e38679646d221ee18aa4383ed0d0e83",
+  "scope": "root-owned UI/Interfaces/Values/runtime cache/testkit/contracts source challenge",
+  "resources": [
+    {
+      "id": "LR01",
+      "owner": "UI poll region timer/controller/body",
+      "files": [
+        "packages/ui/src/browser/polling.ts",
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/src/client.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/ui/src/browser/polling.ts",
+          "line": 99,
+          "match": "private inflight"
+        },
+        {
+          "path": "packages/ui/src/browser/polling.ts",
+          "line": 224,
+          "match": "body = await response.text()"
+        },
+        {
+          "path": "packages/ui/src/browser/polling.ts",
+          "line": 239,
+          "match": "this.options.onResponse"
+        },
+        {
+          "path": "packages/ui/src/browser/polling.ts",
+          "line": 258,
+          "match": "export function submitFetchPollFetch"
+        }
+      ],
+      "lifecycle": "Arm one strict-cadence timer; tick aborts logical predecessor and increments sequence; fetch then consume body; stop clears timer/controller and is terminal. Restart requires fresh region/context. Underlying SubmitFetch request/body ownership is external.",
+      "invariants": [
+        "No superseded or stopped result paints (sequence/stopped guard exists). Current context/logout/alive must remain admitted through body completion. Logical cancellation must not be described as physical one-inflight without supported transport cancellation."
+      ],
+      "failure_scenarios": [
+        "Headers pass context A; body suspends; context changes to B without tick/stop; body settles: only stopped/sequence checked, old body reaches delivery callback (actual DOM rendering requires caller hook).",
+        "Repeated ticks reject adapter promise but injected fetch receives no signal; never-settling physical requests can coexist. Abort listener is once and removed on settlement; no listener leak inferred."
+      ],
+      "gaps": [
+        "LC01: post-body context/logout/alive/visibility admission gap.",
+        "LC02: AbortSignal adapter suppresses result but does not stop SubmitFetch transport; controller cleared before body consumption."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR02",
+      "owner": "UI document registry, binders and listener leases",
+      "files": [
+        "packages/ui/src/browser/bootstrap.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/ui/src/browser/bootstrap.ts",
+          "line": 287,
+          "match": "const LIVE_CLIENTS"
+        },
+        {
+          "path": "packages/ui/src/browser/bootstrap.ts",
+          "line": 358,
+          "match": "releaseSwapHook?.()"
+        },
+        {
+          "path": "packages/ui/src/browser/bootstrap.ts",
+          "line": 380,
+          "match": "LIVE_CLIENTS.set"
+        },
+        {
+          "path": "packages/ui/src/browser/bootstrap.ts",
+          "line": 375,
+          "match": "client.rescan();"
+        }
+      ],
+      "lifecycle": "One client per document WeakMap; global listeners + known-selector binders; rescan releases disconnected elements; stop should release swap hook, global/element listeners and registry. No persisted restart state.",
+      "invariants": [
+        "Start/rescan/stop must not strand successfully acquired leases on callback failure; disposal remains total/idempotent and preserves first failure.",
+        "Current fixed binder selectors restrict registration; source uses three known cores, not arbitrary selector discovery."
+      ],
+      "failure_scenarios": [
+        "Replace a known core binder with throwing binder: initial rescan throws after registry/global registration; next start returns partial client (manual stop still possible).",
+        "Swap release throws after stopped=true: remaining listeners/binders/registry not cleared and second stop no-ops."
+      ],
+      "gaps": [
+        "LC03: acquisition rollback/total teardown absent for structural callback failure; ordinary DOM callbacks not claimed failing."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR03",
+      "owner": "UI once-action settle listener",
+      "files": [
+        "packages/ui/src/browser/bootstrap.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/ui/src/browser/bootstrap.ts",
+          "line": 242,
+          "match": "can:settled"
+        }
+      ],
+      "lifecycle": "Attach click guard + can:settled listener; set inflight/disabled; settled event clears; binder release removes listeners.",
+      "invariants": [
+        "One completion event must be produced for each accepted action, including failure/cancel; guard owns control lifecycle, not durable replay."
+      ],
+      "failure_scenarios": [
+        "No can:settled producer found in package source: supported consumer may leave control inflight after failed/completed action. Disabled button prevents ordinary repeat; anchors/custom controls require own semantics."
+      ],
+      "gaps": [
+        "LC04: completion producer/markup join unresolved; no mounted double-submit incident asserted."
+      ],
+      "stage": "browser helper; actual completion join unproved",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR04",
+      "owner": "UI form operation and upload progress",
+      "files": [
+        "packages/ui/src/client.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/ui/src/client.ts",
+          "line": 541,
+          "match": "export async function submitGeneratedForm"
+        },
+        {
+          "path": "packages/ui/src/client.ts",
+          "line": 639,
+          "match": "const uploadId = mint()"
+        },
+        {
+          "path": "packages/ui/src/client.ts",
+          "line": 717,
+          "match": "const body = await response.text()"
+        }
+      ],
+      "lifecycle": "Validate operation/CSRF/schema; in file order create intent, read bytes, PUT, finalize; only then project inputs and invoke mutation. Local finalized IDs/progress lost on rejection/return. Server owns uploaded artifact cleanup.",
+      "invariants": [
+        "First validation failure precedes corresponding effect; partial uploaded files are separate effects.",
+        "Retry same operation must reuse frozen completed upload identities or reconcile receipt; transport failure does not prove mutation absent.",
+        "Header/body errors should follow declared error mapping; byte/time/cancel ownership needs real host policy."
+      ],
+      "failure_scenarios": [
+        "File FA finalizes then later upload fails: retry mints FB and FA has no client cleanup/progress recovery.",
+        "Mutation commits FA but reply lost; retry same operation with freshly uploaded FB has changed inputs and can conflict instead of recovering original receipt.",
+        "response.text rejects outside fetch catch in postJson/mutation path: declared transport mapping bypassed."
+      ],
+      "gaps": [
+        "LC05: retry/progress ownership missing at helper seam.",
+        "LC06: body-read failure mapping and cancellation/deadline ownership incomplete."
+      ],
+      "stage": "generated client helper; full installed caller qualification remains separate",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR05",
+      "owner": "UI private CSV preview and per-row replay selections",
+      "files": [
+        "packages/ui/src/csv/confirm.ts",
+        "packages/interfaces/src/http/csv.ts",
+        "packages/ui/src/csv/preview.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/ui/src/csv/confirm.ts",
+          "line": 206,
+          "match": "export function collectCommitSelections"
+        },
+        {
+          "path": "packages/ui/src/csv/confirm.ts",
+          "line": 247,
+          "match": ".sort(([a], [b])"
+        },
+        {
+          "path": "packages/ui/src/csv/confirm.ts",
+          "line": 423,
+          "match": "await input.fetchImpl"
+        }
+      ],
+      "lifecycle": "Preview supplies immutable per-row operation IDs; selection uses validated unique safe indexes and source order; commit sends chosen IDs/inputs. Host owns private preview lifetime and retry context.",
+      "invariants": [
+        "Keep same row identity, selected inputs, consent and principal/team across replay; first-row failure may leave prior rows committed (not whole-file transaction).",
+        "Logout/revocation/expiry invalidates private preview access; do not mint new IDs on transient retry."
+      ],
+      "failure_scenarios": [
+        "Changed preview row list/index or context before retry redirects selection (prior IP04/IP06 witnesses remain open).",
+        "Lost response after rows 1..k commit: preserved same per-row IDs permit replay; changed values require conflict, not duplicate effects."
+      ],
+      "gaps": [
+        "Existing data/protocol findings reused; no new duplicate obligation.",
+        "No durable preview disposal/cancel/row progress owner demonstrated by this helper."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR06",
+      "owner": "UI export request/result/download leases",
+      "files": [
+        "packages/ui/src/browser/export.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/ui/src/browser/export.ts",
+          "line": 235,
+          "match": "readonly cancelled"
+        },
+        {
+          "path": "packages/ui/src/browser/export.ts",
+          "line": 324,
+          "match": "JSON.parse(await response.text())"
+        }
+      ],
+      "lifecycle": "Per-call logical controller checks before request and after headers/body; parses complete or pending descriptor; download sink owns object URLs/anchors. No background result polling owner here.",
+      "invariants": [
+        "Cancel prevents accepted late result, not remote effects or actual fetch cancellation.",
+        "Pending/expired descriptors require bounded owner-driven status/lifetime and safe download cleanup; absence of sink implementation is not proof of leak."
+      ],
+      "failure_scenarios": [
+        "Logical cancel while underlying fetch never settles: helper cannot dispose physical request.",
+        "Pending descriptor returned without status consumer: export completion/download ownership remains external."
+      ],
+      "gaps": [
+        "Lifecycle/host qualification gates, not new universal retry/cancel framework."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR07",
+      "owner": "UI print and instrumentation submission",
+      "files": [
+        "packages/ui/src/browser/print.ts",
+        "packages/ui/src/browser/instrumentation.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/ui/src/browser/print.ts",
+          "line": 74,
+          "match": "const body = await response.text()"
+        },
+        {
+          "path": "packages/ui/src/browser/instrumentation.ts",
+          "line": 157,
+          "match": "export async function"
+        }
+      ],
+      "lifecycle": "Print fetches admitted view then host renders/new-tab affordance; instrumentation serializes closed report and posts. Host owns navigation/capture listeners, request/body lifetime and private rendered view.",
+      "invariants": [
+        "Body failure/context/logout must not silently retain privileged stale view; failure mapping preserves meaningful transport boundary.",
+        "Instrumentation helper does not own capture/global listeners nor health/maintenance authority."
+      ],
+      "failure_scenarios": [
+        "Print body-read rejection lies outside fetch catch; can escape structured business result.",
+        "Principal/context changes during admitted body await: no automatic current-browser revalidation shown; actual server auth and caller cleanup still required."
+      ],
+      "gaps": [
+        "LC06 reused for body/cancel seam; actual installed print/export lifecycle gates remain open."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR08",
+      "owner": "Interfaces incoming body reader and capped buffer",
+      "files": [
+        "packages/interfaces/src/http/limits.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/interfaces/src/http/limits.ts",
+          "line": 41,
+          "match": "const reader = body.getReader()"
+        },
+        {
+          "path": "packages/interfaces/src/http/limits.ts",
+          "line": 50,
+          "match": "await reader.cancel()"
+        },
+        {
+          "path": "packages/interfaces/src/http/limits.ts",
+          "line": 56,
+          "match": "reader.releaseLock()"
+        }
+      ],
+      "lifecycle": "Acquire reader; check cumulative cap before retaining next chunk; overflow cancel then throw limit; finally release lock; null body empty. Buffer lifetime ends with request processing.",
+      "invariants": [
+        "Cap retained bytes and release lock on done/read failure/overflow.",
+        "Byte cap is not a deadline; arbitrary reader cancellation/read promises require host liveness policy."
+      ],
+      "failure_scenarios": [
+        "Custom stream cancel never settles: overflow awaits cancellation before finally, lock/error completion remain pending.",
+        "Read rejection runs finally release; normal oversize cancellation rejection is swallowed then limit error retained (positive controls)."
+      ],
+      "gaps": [
+        "LC07: bounded reader/cancel deadline is a host qualification decision, not evidence standard Request cancellation hangs."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR09",
+      "owner": "Interfaces finite public asset table",
+      "files": [
+        "packages/interfaces/src/http/assets.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/interfaces/src/http/assets.ts",
+          "line": 85,
+          "match": "bytes: row.bytes.slice()"
+        },
+        {
+          "path": "packages/interfaces/src/http/assets.ts",
+          "line": 92,
+          "match": "get(key: string): AssetRow | null {"
+        }
+      ],
+      "lifecycle": "Validate complete table before returning; own copies of bytes and frozen cache metadata; Map lives with serving table; GET returns copy, HEAD body absent. No session/network/filesystem resources.",
+      "invariants": [
+        "Finite immutable serving content is independent of sessions; original input byte mutation is isolated.",
+        "Public get must preserve owned byte identity/immutability policy or explicitly transfer mutation authority."
+      ],
+      "failure_scenarios": [
+        "Caller mutates table.get(key).bytes: frozen object does not freeze Uint8Array; later GET copies changed owned bytes. Original input mutation alone is safe."
+      ],
+      "gaps": [
+        "LC08: exported getter exposes owned mutable byte view; scope/caller lease needs explicit decision, not measured deployed drift."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR10",
+      "owner": "Interfaces per-request export/print/page projection",
+      "files": [
+        "packages/interfaces/src/http/export.ts",
+        "packages/interfaces/src/http/print.ts",
+        "packages/interfaces/src/http/pages.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/interfaces/src/http/export.ts",
+          "line": 328,
+          "match": "export async function handleExportRequest"
+        },
+        {
+          "path": "packages/interfaces/src/http/print.ts",
+          "line": 118,
+          "match": "export async function handlePrintRequest"
+        },
+        {
+          "path": "packages/interfaces/src/http/pages.ts",
+          "line": 191,
+          "match": "const outcomes = new Map"
+        }
+      ],
+      "lifecycle": "Resolve current identity/authority then canonical read and field/row caps; per-request projection/cache only. Pending export descriptor expiry is 15 minutes, actual durable job/status/artifact disposal belongs to backend. Page admission captured for request navigation.",
+      "invariants": [
+        "Authority, cap and projection are checked before serving; one page/truncated notice is not full export/print completion.",
+        "No cross-request cached permissions; durable job acceptance/expiry/cleanup require actual backend producer-consumer evidence."
+      ],
+      "failure_scenarios": [
+        "Canonical read awaits while credential revoked: wrapper revalidation alone does not demonstrate atomic commit authority.",
+        "Pending descriptor without real status/artifact owner or one bounded print page cannot close required whole-workflow duty."
+      ],
+      "gaps": [
+        "Retain existing explicit truncation/safe projections; finished-product durable/status/lifetime joins remain unaccepted."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR11",
+      "owner": "Interfaces verified ingress and durable intake handoff",
+      "files": [
+        "packages/interfaces/src/ingress/routes.ts",
+        "packages/interfaces/src/instrumentation/intake.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/interfaces/src/ingress/routes.ts",
+          "line": 177,
+          "match": "deps.verifier.verify"
+        },
+        {
+          "path": "packages/interfaces/src/ingress/routes.ts",
+          "line": 199,
+          "match": "deps.sink.accept"
+        },
+        {
+          "path": "packages/interfaces/src/instrumentation/intake.ts",
+          "line": 262,
+          "match": "const binding = bindings.resolveKey"
+        },
+        {
+          "path": "packages/interfaces/src/instrumentation/intake.ts",
+          "line": 276,
+          "match": "await sink.store"
+        }
+      ],
+      "lifecycle": "Ingress bounds/parses, verifies exact bytes before namespace mapping and sink. Intake resolves write-only key before limiter/body validation, then awaits sink before 202. Sink owns durable dedupe, processing and retention; no handler background worker.",
+      "invariants": [
+        "Fail before expensive/effectful next phase where possible; acknowledge only accepted sink outcome.",
+        "Producer identity, revocation/rotation boundary and retry after uncertain sink reply must be owned by actual sink; limited write key confers no read/health power."
+      ],
+      "failure_scenarios": [
+        "Sink commits then throws/network reply lost: 500/transport failure does not mean no durable effect.",
+        "Key revoked during limiter/body/store awaits: single captured binding does not prove atomic revocation semantics; current owner contract needed."
+      ],
+      "gaps": [
+        "External durable/replay/revocation owner qualification; no invented native worker/provider."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR12",
+      "owner": "Interfaces per-request MCP SDK transport/controller lease",
+      "files": [
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/interfaces/package.json"
+      ],
+      "anchors": [
+        {
+          "path": "packages/interfaces/src/mcp/server.ts",
+          "line": 455,
+          "match": "const server = new Server"
+        },
+        {
+          "path": "packages/interfaces/src/mcp/server.ts",
+          "line": 476,
+          "match": "server.setRequestHandler(CallToolRequestSchema"
+        },
+        {
+          "path": "packages/interfaces/src/mcp/server.ts",
+          "line": 489,
+          "match": "return transport.handleRequest(request)"
+        }
+      ],
+      "lifecycle": "Authenticate grant, allocate fresh stateless Server/JSON transport, register handlers then connect/handle. SDK owns request maps/controllers and response correlation cleanup; Can handler ignores SDK second-argument signal and has no explicit close/deadline handoff.",
+      "invariants": [
+        "Completed JSON response correlations are cleaned by inspected local pinned SDK; per-request cycles can be GCd, no ordinary long-lived leak inferred.",
+        "Never-settling invoker/disconnect needs explicit owner cancellation/settlement/close budget; actual grant assertion is separate from commit fence."
+      ],
+      "failure_scenarios": [
+        "Handler never settles: JSON response promise/controller remains until result or owner close; wrapper exposes no bound.",
+        "SDK cancellation notification aborts handler signal but registered Can callback does not consume it. No claim every HTTP abort invokes SDK cancellation."
+      ],
+      "gaps": [
+        "LC09: lifecycle/cancellation owner qualification; installed local SDK evidence not universal upstream assertion."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR13",
+      "owner": "Cloudflare canonical descriptor cache and producer registry",
+      "files": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/artifact.ts",
+        "packages/cloudflare/src/runtime/modules.ts",
+        "packages/cloudflare/src/runtime/mcp-registry.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 1701,
+          "match": "const canonicalCache"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 2086,
+          "match": "const cached = canonicalCache.get"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "line": 2172,
+          "match": "canonicalCache.set"
+        }
+      ],
+      "lifecycle": "WeakMap keyed only by artifact object; async load producers, cache success, not failure. Serving assumes immutable digest-pinned artifact+assembly. Descriptor registry is not cached user authorization; actual discover checks re-run.",
+      "invariants": [
+        "Artifact and assembly identity must be immutable for cache lifetime; source/profile assumptions need enforcement or caller gates.",
+        "Concurrent cache miss can load twice because no pending promise; this is not by itself an effect/authorization defect."
+      ],
+      "failure_scenarios": [
+        "Standalone caller mutates same artifact or supplies different assembly with same artifact key after load: stale descriptors under violated immutable profile.",
+        "Two concurrent first loads may produce distinct registries; upstream serial preload is counterevidence to deployed duplicate initialization."
+      ],
+      "gaps": [
+        "LC10: enforce/qualify cache profile rather than add speculative universal invalidation."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR14",
+      "owner": "Cloudflare schema/bootstrap/host store bindings",
+      "files": [
+        "packages/cloudflare/src/runtime/env-assembly.ts",
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/src/runtime/stdlib.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/cloudflare/src/runtime/env-assembly.ts",
+          "line": 333,
+          "match": "await state.ensureSchema(db)"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/env-assembly.ts",
+          "line": 334,
+          "match": "await identity.ensureIdentitySchema(db)"
+        }
+      ],
+      "lifecycle": "Verify D1 shape; load modules; ensure State then Identity schema; return both stores only after both complete. Module imports process lifetime; host owns DB connection; no local close.",
+      "invariants": [
+        "Failed second ensure publishes no half-ready deps object; restart retries idempotent DDL.",
+        "Separate schemas/IdentityStore and StoragePort do not form one shared revocation/transaction fence."
+      ],
+      "failure_scenarios": [
+        "Crash after State ensure before Identity ensure leaves partial idempotent setup, retried on startup.",
+        "Unsupported/missing binding or module fails closed; source setup is not installed deployment acceptance."
+      ],
+      "gaps": [
+        "Existing authority/receipt/durable assembly join gates preserved."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR15",
+      "owner": "Values owned input issuance and request conversion arena",
+      "files": [
+        "packages/values/bindings/owned-input.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/src/exact.rs"
+      ],
+      "anchors": [
+        {
+          "path": "packages/values/bindings/owned-input.ts",
+          "line": 5,
+          "match": "WeakMap"
+        }
+      ],
+      "lifecycle": "Issuer WeakMap tracks opaque owned inputs; object token GC ends local lifetime; cap/read owner supplied by caller; carrier conversion and Wasm arena per call, no background handle. Token freeze does not recursively make contents immutable.",
+      "invariants": [
+        "One admitted owned snapshot must remain exact until call, including first failure/byte/order identity.",
+        "Conversion cap must precede unbounded materialization where claimed; request-local allocations freed by scope/RAII, not durable authority."
+      ],
+      "failure_scenarios": [
+        "Caller mutates reachable owned token content before backend call (prior PV01).",
+        "Reader succeeds but later conversion allocation fails: no business side effect assumed; unsupported full validation/native profiles remain gates."
+      ],
+      "gaps": [
+        "Retain earlier data/boundary findings; no new backend adoption or token-authority interpretation."
+      ],
+      "stage": "bindings + finite exact Wasm surface; arbitrary owner validation remains unjoined",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR16",
+      "owner": "Values host plan/default/provenance registries",
+      "files": [
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/src/prepared/validation.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/values/src/prepared/plan.ts",
+          "line": 430,
+          "match": "const sequence = state.nextSequence++"
+        },
+        {
+          "path": "packages/values/src/prepared/plan.ts",
+          "line": 442,
+          "match": "state.defaults.set"
+        },
+        {
+          "path": "packages/values/src/prepared/plan.ts",
+          "line": 556,
+          "match": "export function releaseValidationPlan"
+        }
+      ],
+      "lifecycle": "Owner WeakMap/provenance scope; validate then allocate sequence; record defaults during construction; install frozen plan last. Release removes plan; defaults survive while owner lives. Successful default reference survival is deliberate content identity.",
+      "invariants": [
+        "Failed registration should not retain inaccessible partial defaults as successful plans; first failure remains exact.",
+        "Do not delete successful content refs merely because plan/generation retires; bound/retention policy must preserve N3."
+      ],
+      "failure_scenarios": [
+        "Provenance-bearing schema first valid default then later rejected Decimal/reserved field: first default and sequence retained though no plan returned.",
+        "Repeated release/retire cannot be assumed to reclaim content-addressed defaults or native owner handles."
+      ],
+      "gaps": [
+        "LC11: failed-construction atomicity + separate bounded owner/content retention qualification; private prerequisite, not normal public normalizeSchema path."
+      ],
+      "stage": "prepared private hook; full native producer-consumer unjoined",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR17",
+      "owner": "Values native handles/generations/owner capabilities",
+      "files": [
+        "packages/values/bindings/plans.ts",
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/validation.rs"
+      ],
+      "anchors": [
+        {
+          "path": "packages/values/bindings/plans.ts",
+          "line": 61,
+          "match": "private readonly live"
+        },
+        {
+          "path": "packages/values/bindings/plans.ts",
+          "line": 160,
+          "match": "retireGeneration()"
+        },
+        {
+          "path": "packages/values/semantics/src/plans.rs",
+          "line": 725,
+          "match": "pub fn retire_generation"
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 504,
+          "match": "fn op_owner_create"
+        }
+      ],
+      "lifecycle": "TS strong live entries are bounded; weak maps identify owner/plan, release idempotent; retire marks handles stale then clears live. Rust retains retired plans in capacity until explicit release; server profiles retain created owners, no owner-release operation; lifetime ends with host/Wasm instance.",
+      "invariants": [
+        "Foreign/released/stale handles remain distinct; generation retirement is not content destruction.",
+        "TS/Rust ownership and capacity semantics require one admitted joint protocol before business use; no silent eviction."
+      ],
+      "failure_scenarios": [
+        "Retire frees TS live bound but Rust retired-unreleased entries still consume it (recorded N2).",
+        "Repeated profile owner.create retains host owner map until instance dies; absent owner disposal/cap must be qualified before consumer adoption.",
+        "Host plan released while separate native handle retained: no demonstrated coordinated release bridge."
+      ],
+      "gaps": [
+        "LC12: joint release/owner lifetime/bounds unfinished; scaffold limits are not current adopted authorization defects."
+      ],
+      "stage": "private TS registry + Rust/profile scaffold",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR18",
+      "owner": "Values generated Wasm singleton/memory/asset pin",
+      "files": [
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/generated/values_semantics.js",
+        "packages/values/bindings/generated/BUILD.json"
+      ],
+      "anchors": [
+        {
+          "path": "packages/values/bindings/bootstrap.ts",
+          "line": 34,
+          "match": "let initializedAsset"
+        },
+        {
+          "path": "packages/values/bindings/bootstrap.ts",
+          "line": 79,
+          "match": "const exports = initSync"
+        },
+        {
+          "path": "packages/values/bindings/bootstrap.ts",
+          "line": 99,
+          "match": "initializedAsset = asset"
+        }
+      ],
+      "lifecycle": "Copy bytes/pin asset identity; generated synchronous singleton initialize then verify ABI/exports; successful later same-asset reuses. Module/isolate owns Wasm memory/externrefs until destruction; exact call owns per-call vectors.",
+      "invariants": [
+        "Changed/corrupt asset cannot masquerade as accepted same pin after successful bootstrap (existing guards).",
+        "Failed startup after generated init must not return accepted backend or silently reuse incompatible singleton; recover with supported instance lifecycle."
+      ],
+      "failure_scenarios": [
+        "Generated glue instance initializes then ABI/exports fail before initializedAsset set: later attempt can see consumed=false and fail, requiring fresh module/isolate.",
+        "Fresh asset receipts support finite exact functions only; no arbitrary validation/prepared ownership/default adoption."
+      ],
+      "gaps": [
+        "Startup-failure recovery qualification, not replay of already accepted finite asset tests."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR19",
+      "owner": "Values host ICU formatter caches",
+      "files": [
+        "packages/values/src/timezone.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/values/src/timezone.ts",
+          "line": 42,
+          "match": "const dateFormatters"
+        },
+        {
+          "path": "packages/values/src/timezone.ts",
+          "line": 43,
+          "match": "const instantFormatters"
+        },
+        {
+          "path": "packages/values/src/timezone.ts",
+          "line": 81,
+          "match": "dateFormatters.set"
+        }
+      ],
+      "lifecycle": "Two process/module lifetime Maps keyed by admitted raw zone string; validate ICU before insert; no cap/eviction; immutable ICU assumption. Pure result operations borrow cached formatters.",
+      "invariants": [
+        "Repeated same key reuses formatter; invalid zones do not get cached.",
+        "Raw alias/case domain, not just canonical ICU zone count, determines memory bound; preserve raw timezone value semantics if canonicalizing cache key."
+      ],
+      "failure_scenarios": [
+        "Admitted case aliases create distinct raw-key entries; bounded canonical zones does not prove bounded raw keys. No measured OOM or new timezone policy selected."
+      ],
+      "gaps": [
+        "LC13: cache-key/cap ownership qualification; smallest cache-only repair proposed, no semantic string rewrite."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR20",
+      "owner": "Values/stdlib local traversal, validation and evaluation order",
+      "files": [
+        "packages/values/src/internal/schema-core.ts",
+        "packages/values/src/internal/wire-core.ts",
+        "packages/values/src/equality.ts",
+        "packages/values/src/prepared/validation.ts",
+        "packages/stdlib/src/index.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/values/src/internal/schema-core.ts",
+          "line": 1,
+          "match": null
+        }
+      ],
+      "lifecycle": "Per-call field/union/default/seen maps and traversal stack; no persistent IO owner. Pure metadata/conversion errors and first error/order are semantic, not retryable providers. Stdlib forwards owning Values operations.",
+      "invariants": [
+        "Preserve declaration/evaluation order, first failure and default/reference identity; do not retry observable getters/effects casually.",
+        "Cycles/host objects/infinite getters and admitted input domains need bounded caller/schema contract; no persistent disposal for local maps."
+      ],
+      "failure_scenarios": [
+        "Invalid later field must not erase earlier required first failure or manufacture a provider retry.",
+        "Malformed/cyclic external object is outside many exact backend profiles; refer to data/protocol admitted-domain witnesses instead of pretending RAII bounds recursion."
+      ],
+      "gaps": [
+        "Prior required-behavior/data/native gates retained."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR21",
+      "owner": "Testkit row scope/database/Miniflare disposal",
+      "files": [
+        "packages/testkit/src/runner/table.ts",
+        "packages/testkit/src/assertions/equal.ts",
+        "packages/cloudflare/src/dev/row-scope.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/testkit/src/runner/table.ts",
+          "line": 223,
+          "match": "const result = await executeRow"
+        },
+        {
+          "path": "packages/testkit/src/runner/table.ts",
+          "line": 225,
+          "match": "await scope.dispose()"
+        },
+        {
+          "path": "packages/testkit/src/assertions/equal.ts",
+          "line": 13,
+          "match": "export function diffReportValues"
+        }
+      ],
+      "lifecycle": "Validate duplicate row indexes before scopes; sequential rows create isolated host; execute catches expected setup/invoke/snapshot failures; afterward dispose and report failure if disposal fails. Host scope owns Miniflare and snapshot/database leases.",
+      "invariants": [
+        "Every successfully created scope needs disposal even unexpected comparison/host failure; disposal failure must not hide original failure.",
+        "No overlap between row scopes; scope factory owns partial acquisition before returning; caller owns hung operation policy."
+      ],
+      "failure_scenarios": [
+        "Unexpected comparator input with throwing getter (outside intended JSON-safe plain reports), or malformed cyclic input makes diffReportValues throw outside catches; executeRow rejects and runOneRow skips disposal.",
+        "setup/invoke/snapshot never settles: no local deadline; ordinary rejected setup does proceed to disposal (control)."
+      ],
+      "gaps": [
+        "LC14: total row-scope finally missing for unexpected comparison failure; no executed test or arbitrary factory cleanup claim."
+      ],
+      "stage": "test tooling, not production mutation owner",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR22",
+      "owner": "Testkit fixture graph and stashed observation values",
+      "files": [
+        "packages/testkit/src/runner/loader.ts",
+        "packages/testkit/src/fixtures/recipes.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/testkit/src/runner/loader.ts",
+          "line": 1,
+          "match": null
+        }
+      ],
+      "lifecycle": "Resolve fixture dependencies in owner scope/topological order; local stashed values/fixture WeakMaps scoped to row; caller dropping scope enables GC. No separate persistent database transaction from fixture map.",
+      "invariants": [
+        "Dependency cycles/failure do not authorize repeating already committed fixture effects; author order and identity preserved.",
+        "Scope.dispose and actual store cleanup must cover external fixture effects; weak bookkeeping alone is not rollback."
+      ],
+      "failure_scenarios": [
+        "Fixture create succeeds then later setup fails: row host disposal must remove real effects; private WeakMap collection alone insufficient.",
+        "Caller retains disposed scope object: reachable fixture metadata need not be GCd; not by itself unclosed external connection."
+      ],
+      "gaps": [
+        "Isolation rests on actual RowScope implementation, not metadata WeakMap."
+      ],
+      "stage": "test tooling",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR23",
+      "owner": "Contracts and facade-declared external resources",
+      "files": [
+        "packages/contracts/src/state.ts",
+        "packages/contracts/src/identity.ts",
+        "packages/contracts/src/services.ts",
+        "packages/contracts/src/examples.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/contracts/src/state.ts",
+          "line": 1,
+          "match": null
+        }
+      ],
+      "lifecycle": "Port/type declarations specify owner interactions; create/use/expiry/revoke/transaction/disposal implemented by actual owners, not these modules. Optional provider and observer APIs can remain absent.",
+      "invariants": [
+        "One explicit producer/consumer owner for each resource; type exists does not prove durable retry/cancel/disposal.",
+        "Missing quota/subscription/provider implementation stays explicit capability gate; do not invent resources or close workflows."
+      ],
+      "failure_scenarios": [
+        "Consumer relies on contract-only notification/quota/Payment/document/report/tracker lifecycle without installed owner: required join remains open."
+      ],
+      "gaps": [
+        "Declared boundaries, no independent resource manager needed."
+      ],
+      "stage": "contract-only",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR24",
+      "owner": "UI request-local markup/options and Interfaces ordered mutation projection",
+      "files": [
+        "packages/ui/src/shell.ts",
+        "packages/ui/src/forms.ts",
+        "packages/interfaces/src/http/operations.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/ui/src/shell.ts",
+          "line": 1,
+          "match": null
+        }
+      ],
+      "lifecycle": "Render/form projection local collections; mutation checks transport identity/CSRF/admission then canonical invoker owns operation receipt/fence. No wrapper-managed retries or cached authority.",
+      "invariants": [
+        "Preserve authored evaluation and first failure before effects; credential assertion separated from store commit does not prove revocation atomicity.",
+        "Finite rendered bytes/options/field projection and per-request lifetime; no extra long-lived abstraction for pure helpers."
+      ],
+      "failure_scenarios": [
+        "Credential live check passes then revoked before canonical commit: only real joint fence/owner policy can decide already-admitted outcome.",
+        "Client retry with same operation+inputs uses owner replay; wrapper reissuing new IDs duplicates intent."
+      ],
+      "gaps": [
+        "Existing T08/T26/authority/consumer gates retained; no universal cancellation or generic retry layer."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR25",
+      "owner": "State loaded immutable descriptor/prepared-input registry",
+      "files": [
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "packages/cloudflare/src/runtime/mcp-permissions.ts",
+        "packages/interfaces/src/mcp/discovery.ts",
+        "packages/interfaces/src/mcp/prepared.ts",
+        "packages/interfaces/src/mcp/schemas.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/state/src/invocation/registry.ts",
+          "line": 285,
+          "match": "function deepFreezeLoaded"
+        },
+        {
+          "path": "packages/state/src/invocation/registry.ts",
+          "line": 607,
+          "match": "const registry = new Map"
+        }
+      ],
+      "lifecycle": "Validate complete descriptor set, copy/deep-freeze descriptor inputs and build local registry; failed load returns no registry; serving owner retains loaded registry until artifact teardown. Per-call discovery/permissions/expected-input maps are local, not cross-caller credential cache.",
+      "invariants": [
+        "Malformed/dangling descriptor rejects whole load; no half-registered global state or permissive fallback.",
+        "Prepared plan built fresh per definition per load; caller authorization rechecked, metadata registry cannot confer live authority."
+      ],
+      "failure_scenarios": [
+        "Late bad descriptor aborts local assembly before publish; caller must not publish partial returned state (none returned).",
+        "Prepared metadata consumer assumes bridge validation/ABI merely because registry includes plan: unfinished producer/consumer gate stays open."
+      ],
+      "gaps": [
+        "Positive whole-load/local-map controls; underlying artifact immutable/lifetime assumption LR13 still needs its own gate."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR26",
+      "owner": "Test doubles/playback mutable stores and fixture observation maps",
+      "files": [
+        "packages/identity/src/testing.ts",
+        "packages/interfaces/src/testing.ts",
+        "packages/testkit/src/fixtures/playback.ts",
+        "packages/testkit/src/fixtures/seeds.ts",
+        "packages/testkit/src/runner/dispatch.ts",
+        "packages/testkit/src/runner/steps.ts",
+        "packages/state/test/invocation/fixtures.ts",
+        "packages/state/test/mutation/fixtures.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/identity/src/testing.ts",
+          "line": 1,
+          "match": null
+        }
+      ],
+      "lifecycle": "Per-created harness Maps own simulated users/tokens/sessions/state/provider scripts; row/fixture scope owns teardown/drop; observation maps built sequentially from live read with explicit static fallback. No persistent restart/durable claim from memory fakes.",
+      "invariants": [
+        "Read fixture doubles as scenarios, not evidence durable crash/revocation/transaction semantics match real owner.",
+        "Live-read throws retain fixture identity; static fallback applies only unknown/undefined live read, not silent error recovery."
+      ],
+      "failure_scenarios": [
+        "Memory alias hides independently persisted metadata crash (LF02); do not use it to credit durable pair.",
+        "Harness scope retained across rows or no disposal after error makes test isolation unproved, even though private Maps eventually GC when dropped."
+      ],
+      "gaps": [
+        "Test tooling only; actual durable/provider/row-disposal gates retained."
+      ],
+      "stage": "test doubles and playback",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    },
+    {
+      "id": "LR27",
+      "owner": "Values bounded arithmetic memo and local ICU/type collections",
+      "files": [
+        "packages/values/src/decimal.ts",
+        "packages/values/src/icu.ts",
+        "packages/values/src/types.ts"
+      ],
+      "anchors": [
+        {
+          "path": "packages/values/src/decimal.ts",
+          "line": 44,
+          "match": "const POW10_CACHE"
+        },
+        {
+          "path": "packages/values/src/decimal.ts",
+          "line": 40,
+          "match": "export const DECIMAL_MAX_SCALE"
+        }
+      ],
+      "lifecycle": "Module lifetime powers-of-ten cache grows lazily from validated bounded scales; ICU descriptors/type walkers own request-local maps/sets or finite constant token sets. No child process/IO lease.",
+      "invariants": [
+        "Decimal scale guard 0..18 bounds supported power indices; immutable cached bigint value needs no disposal.",
+        "Raw input coefficient size and host-object getters still depend on admitted caller budget; do not equate a bounded memo with bounded arbitrary input."
+      ],
+      "failure_scenarios": [
+        "Out-of-range scale rejected before arithmetic pow10 use (control).",
+        "Huge arbitrary bigint promotion or malformed external object can exceed caller allocation/CPU assumptions; prior input-domain/budget gates remain separate."
+      ],
+      "gaps": [
+        "Retain small bounded arithmetic cache; no generic cache manager/library warranted."
+      ],
+      "stage": "current TS",
+      "disposition": "Retain existing policy; narrow repair/qualification proposed, implementation deferred."
+    }
+  ],
+  "sources": {
+    "packages/ui/src/browser/polling.ts": {
+      "path": "packages/ui/src/browser/polling.ts",
+      "sha256": "ad1128ee754ce52073bc539dcc508016751f6851dffcf1f2d78b50d6d17da88c",
+      "lines": 280
+    },
+    "packages/ui/src/browser/bootstrap.ts": {
+      "path": "packages/ui/src/browser/bootstrap.ts",
+      "sha256": "fd2653db365a154785a2d8e8677b3213e41aff2d493d3d6346c7e103cf5f4fda",
+      "lines": 383
+    },
+    "packages/ui/src/client.ts": {
+      "path": "packages/ui/src/client.ts",
+      "sha256": "11a100466b0cb9d591d7ae8bfc0611ead3bb9396b20a75582406d992902ac6db",
+      "lines": 770
+    },
+    "packages/ui/src/csv/confirm.ts": {
+      "path": "packages/ui/src/csv/confirm.ts",
+      "sha256": "58b9c1bcb9ad935b57c50a038bed8d6c7448f1bc740798630fa6827696864d1e",
+      "lines": 447
+    },
+    "packages/interfaces/src/http/csv.ts": {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "lines": 567
+    },
+    "packages/ui/src/csv/preview.ts": {
+      "path": "packages/ui/src/csv/preview.ts",
+      "sha256": "87c9f661f0b0df1830892981b103b2e43098053a89b41afe97eadd07434719e7",
+      "lines": 403
+    },
+    "packages/ui/src/browser/export.ts": {
+      "path": "packages/ui/src/browser/export.ts",
+      "sha256": "9c85f8b85632ef10383eaffba1b0aea12c48302effc0a5d609c22a0c85070e63",
+      "lines": 449
+    },
+    "packages/ui/src/browser/print.ts": {
+      "path": "packages/ui/src/browser/print.ts",
+      "sha256": "5568e1f1e1daf62bcf50de5332e6bc935171b51a8f5f21deffcf1192919f51e2",
+      "lines": 137
+    },
+    "packages/ui/src/browser/instrumentation.ts": {
+      "path": "packages/ui/src/browser/instrumentation.ts",
+      "sha256": "17c3f2325b9933220beedb44f7921ba765b67628693340f17473cb6d543e8b50",
+      "lines": 202
+    },
+    "packages/interfaces/src/http/limits.ts": {
+      "path": "packages/interfaces/src/http/limits.ts",
+      "sha256": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc",
+      "lines": 220
+    },
+    "packages/interfaces/src/http/assets.ts": {
+      "path": "packages/interfaces/src/http/assets.ts",
+      "sha256": "9d42a8d50079e812714c21198d9b73b50d0bbbbfe5d8e8058e1816551ee9c862",
+      "lines": 148
+    },
+    "packages/interfaces/src/http/export.ts": {
+      "path": "packages/interfaces/src/http/export.ts",
+      "sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "lines": 469
+    },
+    "packages/interfaces/src/http/print.ts": {
+      "path": "packages/interfaces/src/http/print.ts",
+      "sha256": "27445bc9a9b849feffd07b16390c87df265132b1798fe904c05929ad065c298b",
+      "lines": 230
+    },
+    "packages/interfaces/src/http/pages.ts": {
+      "path": "packages/interfaces/src/http/pages.ts",
+      "sha256": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+      "lines": 373
+    },
+    "packages/interfaces/src/ingress/routes.ts": {
+      "path": "packages/interfaces/src/ingress/routes.ts",
+      "sha256": "29a6b69cecf111282b96eedf2feb41baf6073dbb3aabb98d3cd19d17cb4c61bc",
+      "lines": 213
+    },
+    "packages/interfaces/src/instrumentation/intake.ts": {
+      "path": "packages/interfaces/src/instrumentation/intake.ts",
+      "sha256": "7e300b3969269bac6ea8baa5aaeae9224622ecdeb8ce346dcd839d83763c52bb",
+      "lines": 289
+    },
+    "packages/interfaces/src/mcp/server.ts": {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6",
+      "lines": 491
+    },
+    "packages/interfaces/package.json": {
+      "path": "packages/interfaces/package.json",
+      "sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+      "lines": 67
+    },
+    "packages/cloudflare/src/runtime/invoke.ts": {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "lines": 7605
+    },
+    "packages/cloudflare/src/runtime/artifact.ts": {
+      "path": "packages/cloudflare/src/runtime/artifact.ts",
+      "sha256": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d",
+      "lines": 396
+    },
+    "packages/cloudflare/src/runtime/modules.ts": {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "lines": 144
+    },
+    "packages/cloudflare/src/runtime/mcp-registry.ts": {
+      "path": "packages/cloudflare/src/runtime/mcp-registry.ts",
+      "sha256": "cf8cf482728036635a1d964ab8fc94ff365eb900e3efb0a99d9f9daa69f34c14",
+      "lines": 486
+    },
+    "packages/cloudflare/src/runtime/env-assembly.ts": {
+      "path": "packages/cloudflare/src/runtime/env-assembly.ts",
+      "sha256": "d39b218d24926884b627a30dadb5a1bf46db87cfbc1e6834b6f01ee136b95c25",
+      "lines": 339
+    },
+    "packages/cloudflare/src/worker/assembly.ts": {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "lines": 1710
+    },
+    "packages/cloudflare/src/runtime/stdlib.ts": {
+      "path": "packages/cloudflare/src/runtime/stdlib.ts",
+      "sha256": "ced1c72a0244f7691471dd2aae3a88a3ae6198f67837af4008549df8bbc1662e",
+      "lines": 299
+    },
+    "packages/values/bindings/owned-input.ts": {
+      "path": "packages/values/bindings/owned-input.ts",
+      "sha256": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+      "lines": 109
+    },
+    "packages/values/bindings/carriers.ts": {
+      "path": "packages/values/bindings/carriers.ts",
+      "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "lines": 136
+    },
+    "packages/values/bindings/backend.ts": {
+      "path": "packages/values/bindings/backend.ts",
+      "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "lines": 113
+    },
+    "packages/values/bindings/src/exact.rs": {
+      "path": "packages/values/bindings/src/exact.rs",
+      "sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+      "lines": 24
+    },
+    "packages/values/src/prepared/plan.ts": {
+      "path": "packages/values/src/prepared/plan.ts",
+      "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+      "lines": 565
+    },
+    "packages/values/src/prepared/validation.ts": {
+      "path": "packages/values/src/prepared/validation.ts",
+      "sha256": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+      "lines": 607
+    },
+    "packages/values/bindings/plans.ts": {
+      "path": "packages/values/bindings/plans.ts",
+      "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+      "lines": 169
+    },
+    "packages/values/semantics/src/plans.rs": {
+      "path": "packages/values/semantics/src/plans.rs",
+      "sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+      "lines": 1153
+    },
+    "packages/values/semantics/src/profiles.rs": {
+      "path": "packages/values/semantics/src/profiles.rs",
+      "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+      "lines": 655
+    },
+    "packages/values/bindings/src/validation.rs": {
+      "path": "packages/values/bindings/src/validation.rs",
+      "sha256": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+      "lines": 30
+    },
+    "packages/values/bindings/bootstrap.ts": {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "sha256": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "lines": 108
+    },
+    "packages/values/bindings/generated/values_semantics.js": {
+      "path": "packages/values/bindings/generated/values_semantics.js",
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "lines": 253
+    },
+    "packages/values/bindings/generated/BUILD.json": {
+      "path": "packages/values/bindings/generated/BUILD.json",
+      "sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+      "lines": 33
+    },
+    "packages/values/src/timezone.ts": {
+      "path": "packages/values/src/timezone.ts",
+      "sha256": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+      "lines": 241
+    },
+    "packages/values/src/internal/schema-core.ts": {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+      "lines": 1978
+    },
+    "packages/values/src/internal/wire-core.ts": {
+      "path": "packages/values/src/internal/wire-core.ts",
+      "sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+      "lines": 1766
+    },
+    "packages/values/src/equality.ts": {
+      "path": "packages/values/src/equality.ts",
+      "sha256": "3903807b4dc38bc5777e7a2758bc351041820d20bd500bb0100dfe411943fafb",
+      "lines": 371
+    },
+    "packages/stdlib/src/index.ts": {
+      "path": "packages/stdlib/src/index.ts",
+      "sha256": "6cdeadfd7ee2ffed08b80196a3bfe5e98236b02af95f8fa2028c1214cb210cee",
+      "lines": 251
+    },
+    "packages/testkit/src/runner/table.ts": {
+      "path": "packages/testkit/src/runner/table.ts",
+      "sha256": "b714b1150c8b0b9b32e641e4fb3bd2056b5d0c065948533827f001e4670f67dd",
+      "lines": 259
+    },
+    "packages/testkit/src/assertions/equal.ts": {
+      "path": "packages/testkit/src/assertions/equal.ts",
+      "sha256": "d12014e23815bf21c0df9f6323e3c217d26ac5b0a9b5cacad04411cb78db7496",
+      "lines": 64
+    },
+    "packages/cloudflare/src/dev/row-scope.ts": {
+      "path": "packages/cloudflare/src/dev/row-scope.ts",
+      "sha256": "e291abb4f1b5d171f9f1949b1e8f30c4590377128c6d069ba56c8db235208183",
+      "lines": 89
+    },
+    "packages/cloudflare/src/dev/local-run.ts": {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+      "lines": 110
+    },
+    "packages/testkit/src/scopes/local.ts": {
+      "path": "packages/testkit/src/scopes/local.ts",
+      "sha256": "3980344ee616cf90b8c2ebb387208946cfcd015a9e167e453f376b143d9ded40",
+      "lines": 1
+    },
+    "packages/testkit/src/runner/loader.ts": {
+      "path": "packages/testkit/src/runner/loader.ts",
+      "sha256": "571912f1495932351ac116f4a40c42617076d9b16f15b29d4c9d26d7afd6efb0",
+      "lines": 551
+    },
+    "packages/testkit/src/fixtures/recipes.ts": {
+      "path": "packages/testkit/src/fixtures/recipes.ts",
+      "sha256": "3744f19bb8b0667e2228e19ed2e6e88ab65f2f7fa4bf095484a3a0be5c4c0cb5",
+      "lines": 359
+    },
+    "packages/contracts/src/state.ts": {
+      "path": "packages/contracts/src/state.ts",
+      "sha256": "dd9263d8cae2eda4d046678c3d564217c54e0ae77d9b8d2e9b40c213ed588236",
+      "lines": 920
+    },
+    "packages/contracts/src/identity.ts": {
+      "path": "packages/contracts/src/identity.ts",
+      "sha256": "19816727c6b820ffb5328eeab2e3211390cf91482a592923b2ac87cc4a72c440",
+      "lines": 311
+    },
+    "packages/contracts/src/services.ts": {
+      "path": "packages/contracts/src/services.ts",
+      "sha256": "91b1580b0b1c884af6ef0c2f162aad0f75cd76d41a369a087ec5310367ee4ebf",
+      "lines": 1190
+    },
+    "packages/contracts/src/examples.ts": {
+      "path": "packages/contracts/src/examples.ts",
+      "sha256": "6201cbb10430f8023382888bd3fa0023199eede59db90a49d7d8b6f43eea10e9",
+      "lines": 122
+    },
+    "packages/ui/src/shell.ts": {
+      "path": "packages/ui/src/shell.ts",
+      "sha256": "9a123b4ca0affe2503045fd8d6e16f415c5c7beaa0588b334276dc8a751f8f30",
+      "lines": 359
+    },
+    "packages/ui/src/forms.ts": {
+      "path": "packages/ui/src/forms.ts",
+      "sha256": "8c4e1890c0d7a52bf6e91be83b26f2d40f675bed8bfab222797f19eaf4b67f71",
+      "lines": 2051
+    },
+    "packages/interfaces/src/http/operations.ts": {
+      "path": "packages/interfaces/src/http/operations.ts",
+      "sha256": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a",
+      "lines": 460
+    },
+    "packages/state/src/invocation/registry.ts": {
+      "path": "packages/state/src/invocation/registry.ts",
+      "sha256": "38f59e468f47bf4e065ce23865ba57c72cdf4d9bce145cbd11a3eac084ca79c0",
+      "lines": 1180
+    },
+    "packages/state/src/invocation/prepared-inputs.ts": {
+      "path": "packages/state/src/invocation/prepared-inputs.ts",
+      "sha256": "3dad1154a046905899d87197fbe8f0ea77a397552348fc80d105fb81a769f6b6",
+      "lines": 236
+    },
+    "packages/cloudflare/src/runtime/mcp-permissions.ts": {
+      "path": "packages/cloudflare/src/runtime/mcp-permissions.ts",
+      "sha256": "59f0d5aa713c3c114d1426a5e2354aa7f5672fd138276e30242061de13f8f61e",
+      "lines": 128
+    },
+    "packages/interfaces/src/mcp/discovery.ts": {
+      "path": "packages/interfaces/src/mcp/discovery.ts",
+      "sha256": "22e31235937008a445fa5cf227a4041d5761462942e0205833206be3987a2e14",
+      "lines": 29
+    },
+    "packages/interfaces/src/mcp/prepared.ts": {
+      "path": "packages/interfaces/src/mcp/prepared.ts",
+      "sha256": "229cbc7cfd1f2e136f5014d31041dbca6b3593a64a266f42275d08409ba3c760",
+      "lines": 202
+    },
+    "packages/interfaces/src/mcp/schemas.ts": {
+      "path": "packages/interfaces/src/mcp/schemas.ts",
+      "sha256": "44e1e8f6df2cddfc3c0a7b0b3f080d74dfe96c53f0d7d0d9420b3a27786f22fb",
+      "lines": 1140
+    },
+    "packages/identity/src/testing.ts": {
+      "path": "packages/identity/src/testing.ts",
+      "sha256": "7419c5ca51bd0bc315a75e12b6d9ac06792f3180ae6d8de81dfe84db8db6660b",
+      "lines": 449
+    },
+    "packages/interfaces/src/testing.ts": {
+      "path": "packages/interfaces/src/testing.ts",
+      "sha256": "97f1d95bc1d69101d48250622e785aaf7b771f8738953299c5920b2ce7b90d88",
+      "lines": 543
+    },
+    "packages/testkit/src/fixtures/playback.ts": {
+      "path": "packages/testkit/src/fixtures/playback.ts",
+      "sha256": "2f0805a6c150aafb900c4d296e5cee5b3c97996c338a4339a70e83235166617d",
+      "lines": 1228
+    },
+    "packages/testkit/src/fixtures/seeds.ts": {
+      "path": "packages/testkit/src/fixtures/seeds.ts",
+      "sha256": "fddf70cd6f6c1a1a509b6bb5e6532d3e6323314bc826cccadcbca9c31ba49555",
+      "lines": 61
+    },
+    "packages/testkit/src/runner/dispatch.ts": {
+      "path": "packages/testkit/src/runner/dispatch.ts",
+      "sha256": "0582467fbaaf52bc8b5b6aedfdf35d609091ed50785ff05c5ce3340516d1e13f",
+      "lines": 93
+    },
+    "packages/testkit/src/runner/steps.ts": {
+      "path": "packages/testkit/src/runner/steps.ts",
+      "sha256": "10a8355fc800383051f4ec80841681e0622c669a96f30050c2340fad92b45ec8",
+      "lines": 306
+    },
+    "packages/state/test/invocation/fixtures.ts": {
+      "path": "packages/state/test/invocation/fixtures.ts",
+      "sha256": "ed2af768151ca32d5c358863de39357c8ec3e9381c47361ee94f8237330ad417",
+      "lines": 478
+    },
+    "packages/state/test/mutation/fixtures.ts": {
+      "path": "packages/state/test/mutation/fixtures.ts",
+      "sha256": "652c02d93e15106df62ce2e9a0c8934f6a5585b7cebb01103bec876a53f9aac1",
+      "lines": 453
+    },
+    "packages/values/src/decimal.ts": {
+      "path": "packages/values/src/decimal.ts",
+      "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "lines": 416
+    },
+    "packages/values/src/icu.ts": {
+      "path": "packages/values/src/icu.ts",
+      "sha256": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+      "lines": 1133
+    },
+    "packages/values/src/types.ts": {
+      "path": "packages/values/src/types.ts",
+      "sha256": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+      "lines": 499
+    }
+  },
+  "status": "planning/source-only; no package execution"
+}

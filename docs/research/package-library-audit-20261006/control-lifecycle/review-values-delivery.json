@@ -1,0 +1,397 @@
+{
+  "schema": "canlang.lifecycle.independent-review.v1",
+  "freeze": "fecf84196e38679646d221ee18aa4383ed0d0e83",
+  "prior_conclusions_visible": true,
+  "evidence": "Finite source-only independent challenge; all scenarios unexecuted. No product/package/runtime/test/build/network/Git/repo writes. Source hashes and anchor boundaries verified as metadata.",
+  "reviewed_packets": [
+    "root proposed Values findings (packet not yet available)",
+    "/private/tmp/canlang-lifecycle-services-delivery.json"
+  ],
+  "sources": {
+    "X01": {
+      "path": "packages/values/src/prepared/plan.ts",
+      "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+      "lines": 565
+    },
+    "X02": {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+      "lines": 1978
+    },
+    "X03": {
+      "path": "packages/values/src/internal/wire-core.ts",
+      "sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+      "lines": 1766
+    },
+    "X04": {
+      "path": "packages/values/test/prepared-validation.test.ts",
+      "sha256": "66042a3bf631a1160959bf1f58c5078c8db35843aafd2f29e666a9dca3879458",
+      "lines": 512
+    },
+    "X05": {
+      "path": "packages/values/bindings/plans.ts",
+      "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+      "lines": 169
+    },
+    "X06": {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "sha256": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "lines": 108
+    },
+    "X07": {
+      "path": "packages/values/semantics/src/plans.rs",
+      "sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+      "lines": 1153
+    },
+    "X08": {
+      "path": "packages/values/semantics/src/profiles.rs",
+      "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+      "lines": 655
+    },
+    "X09": {
+      "path": "packages/values/bindings/src/validation.rs",
+      "sha256": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+      "lines": 30
+    },
+    "X10": {
+      "path": "packages/values/bindings/validation.ts",
+      "sha256": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+      "lines": 68
+    },
+    "X11": {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "lines": 451
+    },
+    "X12": {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+      "lines": 110
+    },
+    "X13": {
+      "path": "packages/cloudflare/src/dev/row-scope.ts",
+      "sha256": "e291abb4f1b5d171f9f1949b1e8f30c4590377128c6d069ba56c8db235208183",
+      "lines": 89
+    },
+    "X14": {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "lines": 1424
+    },
+    "X15": {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+      "lines": 650
+    },
+    "X16": {
+      "path": "packages/cloudflare/src/preparation/executable.ts",
+      "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3",
+      "lines": 163
+    },
+    "X17": {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8",
+      "lines": 261
+    },
+    "X18": {
+      "path": "packages/services/src/http/client.ts",
+      "sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "lines": 524
+    },
+    "X19": {
+      "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md",
+      "sha256": "0aae241624cfd1baf886f3e6ae6cc492b2341d43a5271997c895b6a93c58fb65",
+      "lines": 126
+    },
+    "X20": {
+      "path": "packages/values/src/decimal.ts",
+      "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "lines": 416
+    }
+  },
+  "findings": [
+    {
+      "id": "LR01",
+      "challenged_claim": "Root: TS preparation failure can retain earlier default before plan installation",
+      "disposition": "CONFIRMED_CONDITIONAL",
+      "anchors": [
+        [
+          "X01",
+          182,
+          214
+        ],
+        [
+          "X01",
+          411,
+          430
+        ],
+        [
+          "X01",
+          441,
+          461
+        ],
+        [
+          "X01",
+          523,
+          524
+        ],
+        [
+          "X01",
+          543,
+          565
+        ],
+        [
+          "X02",
+          1731,
+          1761
+        ],
+        [
+          "X02",
+          1803,
+          1812
+        ],
+        [
+          "X03",
+          347,
+          352
+        ],
+        [
+          "X04",
+          76,
+          82
+        ],
+        [
+          "X20",
+          71,
+          86
+        ],
+        [
+          "X20",
+          356,
+          374
+        ]
+      ],
+      "source_derived_unexecuted_witness": {
+        "input": "Fresh owner seq0; normalizeSchema({contracts:{C:{fields:{a:{type:\"text\",default:\"kept\"},b:{type:\"decimal\",default:\"1\"}}}}}); explicitly recordFactoryProvenance(schema,owner.scope.ownerRevision), then registerValidationPlan.",
+        "trace": "430 reserves sequence0; field a registers default at 0:contracts.C.fields.a. Field b canonical default is Decimal; copyFrozenValue rejects class prototype at199-200 before plan install523. Registration throws uncopyable-value; no PlanId returned.",
+        "retained": "owner state contains earlier \"kept\" default. resolvePlanDefault(owner,{kind:\"default-ref\",key:\"0:contracts.C.fields.a\"}) can resolve it because resolution uses key shape/map, not returned-ref issuance. release guessed seq0 PlanId finds no plan and leaves default. Repetition while same owner live adds one unreachable published-plan default per failure."
+      },
+      "qualification_or_correction": "Without explicit integrator-private hook the actual first failure is missing-provenance411-416, before sequence/default mutation. normalizeSchema only records its own factorySchemas weakset; it does not call prepared hook. This is a conditional prepared primitive/test-stand-in failure, not current public validateValue or production registration leak. Sequence advancement alone is not a correctness defect; unpublished default retention is the material effect. WeakMap state is reclaimed when owner becomes unreachable.",
+      "required_outcome_or_proposed_gate": "Stage draft copies/defaults locally and publish after complete successful copy, or roll back only keys created by failed attempt. Preserve previously published default identity; no new security policy. Existing Decimal acceptance mismatch remains separate compatibility/adoption issue."
+    },
+    {
+      "id": "LR02",
+      "challenged_claim": "Root: plan release/retirement must not blindly delete default content",
+      "disposition": "CONFIRMED_CONTROL_AND_INTENTIONAL_RETENTION",
+      "anchors": [
+        [
+          "X01",
+          555,
+          565
+        ],
+        [
+          "X05",
+          140,
+          168
+        ],
+        [
+          "X07",
+          683,
+          728
+        ],
+        [
+          "X07",
+          973,
+          981
+        ],
+        [
+          "X19",
+          65,
+          72
+        ],
+        [
+          "X19",
+          109,
+          116
+        ]
+      ],
+      "source_derived_unexecuted_witness": {
+        "input": "Successfully register plan/default, retain its DefaultRef; retire generation; resolve held default.",
+        "trace": "Rust N3 explicitly generation-blind default content identity; plan handle stale, held default same value/pointer. TS NativePlanRegistry retirement clears handle live set and marks stale, does not touch TS plan/default data. releaseValidationPlan deletes plan only; Rust release sets plan slot None only.",
+        "distinction": "Successful held-ref content is not LR01 failed-registration orphan. Native retirement still occupies plan bound until explicit release (N2), TS handle generation retirement frees its live bound; recorded divergence."
+      },
+      "qualification_or_correction": "N3 and tests directly establish retirement retention, not automatic deletion after successful retirement. Release default-lifetime policy is not conclusively ratified by a deletion requirement here; current code retains content. Registry numeric budgets/release policy are explicitly future V07.5 in handoff. Do not label all retained default data a leak or infer successful retirement releases content.",
+      "required_outcome_or_proposed_gate": "Keep stable published content refs required by N3. Failed-draft cleanup can be narrow. Any later owner/content disposal or aggregate bound must be separately declared without breaking held-reference compatibility."
+    },
+    {
+      "id": "LR03",
+      "challenged_claim": "Root: native owner.create handles retained with no owner-release",
+      "disposition": "CONFIRMED_SCAFFOLD_LIFETIME_GAP",
+      "anchors": [
+        [
+          "X07",
+          271,
+          280
+        ],
+        [
+          "X07",
+          301,
+          332
+        ],
+        [
+          "X08",
+          37,
+          41
+        ],
+        [
+          "X08",
+          504,
+          528
+        ],
+        [
+          "X08",
+          601,
+          652
+        ],
+        [
+          "X09",
+          1,
+          29
+        ],
+        [
+          "X10",
+          38,
+          65
+        ]
+      ],
+      "source_derived_unexecuted_witness": {
+        "input": "Repeated validation_call({v:1,op:\"owner.create\",args:{abi:\"v1\",profile:\"p\",backend:\"b\",owner_rev:\"r\",bound:0}}); optional owner.retire calls.",
+        "trace": "Each creates Owners HashMap row+handle HashMap entry. bound0 caps plan registration within owner, not owner count. owner.retire increments generation; plan.release removes plan only. Dispatcher has no owner.release. TLS HOST keeps maps across calls; storage ends when containing ProfileHost/Wasm/thread lifetime ends, not when caller drops returned numeric ID."
+      },
+      "qualification_or_correction": "This is structural scaffold binding V03.5/ValidationBackend, distinct from public TS schema validation and selected exact six-op ABI. No production remote entry or native adoption shown; do not report deployed untrusted memory exhaustion. TS owner WeakMap permits GC, native numeric ID does not. Bootstrap asset pin/glue lifetime is module-held; dropping a returned backend is not proven instance teardown.",
+      "required_outcome_or_proposed_gate": "Before adopting reusable structural owner creation, define owner/whole-backend lifetime and bounds/disposal/revocation. No global owner-release mechanism selected by this review."
+    },
+    {
+      "id": "LR04",
+      "challenged_claim": "Services packet CF01/LS06 Bun scratch lifecycle entry-write gap",
+      "disposition": "CONFIRMED_SELECTED_TS_BRANCH",
+      "anchors": [
+        [
+          "X14",
+          600,
+          647
+        ],
+        [
+          "X14",
+          669,
+          708
+        ]
+      ],
+      "source_derived_unexecuted_witness": {
+        "input": "Successful producer-dist resolution and mkdtempSync; entry writeFileSync throws (disk/permission fault).",
+        "trace": "Root allocated609; entry write616 before cleanup try622. Throw escapes without rm. Same pattern674/678/683 HTTP bundle. No child starts. Bun spawn failure catch removes root; outfile read finally removes root; marker failure occurs after cleanup.",
+        "bound": "execFileSync Bun options stdio:pipe, no explicit timeout. Runtime deadline absence is source fact; no child was run/hang measured."
+      },
+      "qualification_or_correction": "Real supported bundle API reached by selected TS preparation, unlike held native helpers. Only successful allocation then entry-write failure leaks root. Failed mkdtemp creates no owned root. Root cleanup failure may mask original; don\u2019t claim successful cleanup on rm throw.",
+      "required_outcome_or_proposed_gate": "Own scratch from first successful allocation through entry write/spawn/read; preserve original fault. Child duration bound remains proposed control preserving synchronous API; no API redesign inferred."
+    },
+    {
+      "id": "LR05",
+      "challenged_claim": "Services packet CF07/LS12 CLI run/test scratch and Miniflare ownership",
+      "disposition": "CONFIRMED_WITH_RUN_RETENTION_QUALIFICATION",
+      "anchors": [
+        [
+          "X11",
+          209,
+          237
+        ],
+        [
+          "X11",
+          336,
+          387
+        ],
+        [
+          "X12",
+          65,
+          109
+        ],
+        [
+          "X13",
+          72,
+          87
+        ]
+      ],
+      "source_derived_unexecuted_witness": {
+        "input": "run allocates workDir and emits asm.entryUrl; test allocates workDir then assembly/module reads/create scope/snapshot/dispose.",
+        "trace": "Neither run nor test has rm(workDir). Test try/finally starts only after scope creation and awaits scope.dispose after snapshot failure; scratch remains on success and earlier assembly/read/boot failures. startLocalDev forwards Miniflare.dispose; source does not establish constructor-failure internal disposal. test currently emits executed:0, not actual authored row execution."
+      },
+      "qualification_or_correction": "Deleting run scratch immediately would invalidate promised entry URL; retained directory on successful run is a lifetime decision, not unconditional delete-on-return defect. Test scratch has no returned URL and can be disposed after owned scope. Awaited Miniflare call proves delegation/ordering, not third-party physical teardown. No CLI executed or process leak observed.",
+      "required_outcome_or_proposed_gate": "Test owns scratch across all branches and after awaited instance disposal. Define run URL retention/release separately so promised file remains usable. Preserve distinction between helper disposal and whole harness proof."
+    },
+    {
+      "id": "LR06",
+      "challenged_claim": "Services packet CF04/LS09 native child close/kill and CF05 handler bound",
+      "disposition": "CONFIRMED_HELD_ONLY",
+      "anchors": [
+        [
+          "X15",
+          73,
+          80
+        ],
+        [
+          "X15",
+          492,
+          495
+        ],
+        [
+          "X15",
+          548,
+          598
+        ],
+        [
+          "X16",
+          121,
+          162
+        ],
+        [
+          "X17",
+          239,
+          260
+        ]
+      ],
+      "source_derived_unexecuted_witness": {
+        "input": "Explicit runNativeJob scaffold child sends valid Prepared then keeps stdout/process open; or onNeed promise never resolves; or ProtocolError with child ignoring TERM.",
+        "trace": "driveSession Prepared ends stdin/returns; runNativeJob finally awaits exitCode without deadline. onNeed await252 outside per-frame withTimeout. kill sends TERM and schedules unref KILL2s; timer not cancelled on child close. Error path calls failNative/process.exit2 before finally can join child/grace; ignored TERM can outlive exiting parent."
+      },
+      "qualification_or_correction": "host.ts494 explicitly keeps selected CLI TS until P07; source callers of runNativeJob are protocol tests/scaffold. These are adoption gaps, not selected CLI failure incidents. Early child-close observer569 avoids proving a late-listener race. Local TERM is request only; do not assert every child survives, just given ignored-TERM prerequisite. No implicit runtime promise from graceful helper name.",
+      "required_outcome_or_proposed_gate": "Before native adoption bound whole job/callback/close wait, own and clear/join grace timer/group/stdios, avoid fatal exit before cleanup. Mechanism/caps unresolved; no started native job fallback or deployment authorization implied."
+    },
+    {
+      "id": "LR07",
+      "challenged_claim": "Services packet SV02/LS01 streaming iterator abandonment",
+      "disposition": "CONFIRMED_OWNERSHIP_LIMIT_NOT_AUTONOMOUS_DISPOSAL_BUG",
+      "anchors": [
+        [
+          "X18",
+          421,
+          435
+        ],
+        [
+          "X18",
+          462,
+          524
+        ]
+      ],
+      "source_derived_unexecuted_witness": {
+        "input": "httpStreamText generator never advanced; or caller gets first nonempty yielded segment then abandons suspended iterator without return/throw.",
+        "trace": "Never advanced generator has not executed timer/fetch acquisition. On active yield498 it is suspended; finally cannot run until resumed/closed. Explicit consumer return enters reader.cancel/release and outer timer cleanup; arbitrary cancel promise may not settle. Deadline abort native fetch is distinct from generator stack finally."
+      },
+      "qualification_or_correction": "Do not upgrade native fetch abort to proof arbitrary custom-stream cancellation, reader lock release or suspended-generator cleanup. No blanket new dispose API required by source; consumer return ownership is explicit and packet already qualifies it. Pool/socket lifetime belongs native fetch host.",
+      "required_outcome_or_proposed_gate": "Retain cancellation/first-reason controls and consumer-return obligation. Any stronger automatic lifetime guarantee would require separately scoped API/host contract, not inferred defect."
+    }
+  ],
+  "coverage_limits": [
+    "Focused on default registration vs successful content retirement, owner registry lifecycle, selected TS temp/CLI branches, held native child/session and service iterator ownership. Not exhaustive corpus re-review.",
+    "No new budget/erasure/security policy chosen. Exact source prerequisites and stage gates override blanket deployment or cleanup claims."
+  ]
+}

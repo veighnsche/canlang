@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "pin": "fecf84196e38679646d221ee18aa4383ed0d0e83",
+  "observed_head": "bbd7e89d3f1f1c5720765acb8df72eb02bce33a3",
+  "frozen_and_current_equal_repository_sources": 409,
+  "separately_verified_local_sdk_sources": 3,
+  "validated_anchor_occurrences": 938,
+  "resource_families": 93,
+  "invariant_statements": 119,
+  "unexecuted_scenario_groups": 140,
+  "file_crosswalk": 395,
+  "duty_crosswalk": 316,
+  "package_owners": 13,
+  "lexical_signal_files_reconciled": 142,
+  "independent_challenge_cases": 15,
+  "final_consistency_documents": 4,
+  "proposed_queue_groups": 12,
+  "local_links": 130,
+  "package_execution": false,
+  "new_runtime_acceptance": false,
+  "product_or_canonical_status_changes": false,
+  "limits": [
+    "No package tests/builds/runtime/instantiation/install/network/CI/Muse/schedules/push/deployment",
+    "All failure scenarios source-derived and unexecuted; counts are not production defect counts",
+    "Inherited 395-file/316-duty coverage refreshed to current pin; not exhaustive runtime or every file body proof",
+    "13 package owners covered by resource families; absent/port-only providers distinguished from actual owners",
+    "Exact local installed SDK source checked separately, not frozen Git or universal upstream claim",
+    "Independent source challenges expose prior conclusions; not cleanroom",
+    "No consequential mechanism/domain decision selected, no JEV repeat needed; implementation and hard decisions stay proposed",
+    "Compiler/shared DECISIONS and task acceptance/filetree checkpoints preserved"
+  ]
+}

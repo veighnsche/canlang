@@ -1,0 +1,142 @@
+{
+  "schema": "canlang-lifecycle-review-ui-testkit/v1",
+  "pin_context": "fecf84196e38679646d221ee18aa4383ed0d0e83; parent owns pin correspondence",
+  "independence": "Independent source challenge of visible root conclusions; not cleanroom. All scenarios source-derived/unexecuted.",
+  "sources": {
+    "poll": {
+      "path": "packages/ui/src/browser/polling.ts",
+      "sha256": "ad1128ee754ce52073bc539dcc508016751f6851dffcf1f2d78b50d6d17da88c"
+    },
+    "boot": {
+      "path": "packages/ui/src/browser/bootstrap.ts",
+      "sha256": "fd2653db365a154785a2d8e8677b3213e41aff2d493d3d6346c7e103cf5f4fda"
+    },
+    "fetch": {
+      "path": "packages/ui/src/client.ts",
+      "sha256": "11a100466b0cb9d591d7ae8bfc0611ead3bb9396b20a75582406d992902ac6db"
+    },
+    "table": {
+      "path": "packages/testkit/src/runner/table.ts",
+      "sha256": "b714b1150c8b0b9b32e641e4fb3bd2056b5d0c065948533827f001e4670f67dd"
+    },
+    "equal": {
+      "path": "packages/testkit/src/assertions/equal.ts",
+      "sha256": "d12014e23815bf21c0df9f6323e3c217d26ac5b0a9b5cacad04411cb78db7496"
+    },
+    "contract": {
+      "path": "packages/contracts/src/examples.ts",
+      "sha256": "6201cbb10430f8023382888bd3fa0023199eede59db90a49d7d8b6f43eea10e9"
+    },
+    "tabletest": {
+      "path": "packages/testkit/test/table.test.ts",
+      "sha256": "10dd565cff48dad5ca6bb6527e279b2c8d29b345aeb29335cf5715b707bb23dc"
+    }
+  },
+  "anchors": "source-key:one-based-line; exact file and hash in sources",
+  "findings": [
+    {
+      "id": "UIR-01",
+      "claim": "poll can paint after context/logout/alive changes during response.text await",
+      "verdict": "supported with timing prerequisite",
+      "anchors": [
+        "poll:204",
+        "poll:210",
+        "poll:224",
+        "poll:235",
+        "poll:239",
+        "boot:177",
+        "boot:182",
+        "boot:183"
+      ],
+      "witness": "Fetch resolves in old admitted context; text() stays pending; body context key changes, region disconnects, or logout attribute becomes true; text resolves before next timer tick and without owner.stop(). stopped=false and sequence unchanged, so onResponse is called with stale body.",
+      "prerequisites": "The context change occurs AFTER post-fetch revalidation and BEFORE body promise resolves. No tick/explicit stop/rescan cleanup may stop controller or supersede sequence first. Actual delivery requires a deliverPollResponse hook; default bootstrap onResponse only optional-calls internals.deliver.",
+      "counterevidence": "poll:157-175 validates all conditions each tick;204/235 stopped/sequence drops obsolete responses;210-220 checks logout/alive/context after fetch. Explicit stop sets stopped and aborts; next tick invalidation prevents this witness. Therefore do not claim arbitrary context changes always paint.",
+      "correction": "Core and bootstrap wiring have a body-await admission window. Visibility is checked at tick only, not after fetch or body; a hidden transition without a tick likewise remains possible, but root requested context/logout/alive.",
+      "required_control": "Re-prove current authorization/context/alive/visibility immediately after body await and before onResponse, preserving stopped/sequence checks and stop reasons; no new polling policy selected."
+    },
+    {
+      "id": "UIR-02",
+      "claim": "SubmitFetch adapter abort does not physically abort request",
+      "verdict": "supported; logical supersession and physical one-inflight differ",
+      "anchors": [
+        "fetch:115",
+        "poll:258",
+        "poll:261",
+        "poll:265",
+        "poll:269",
+        "poll:271",
+        "poll:177",
+        "poll:182",
+        "poll:207"
+      ],
+      "witness": "First SubmitFetch promise remains pending through cadence tick. Adapter abort rejects wrapper only; next tick invokes a second SubmitFetch with method GET, headers{}, no signal. Both underlying requests can remain active even while first logical result is suppressed.",
+      "prerequisites": "Injected fetch cannot independently abort from another owner signal. To demonstrate physical overlap it must remain active past cadence. No transport probes performed.",
+      "counterevidence": "Abort-before-entry prevents invoking fetch. Promise first settlement rejects on abort, and later physical resolution cannot re-resolve wrapper. Sequence/stopped guards suppress late logical results. Custom PollFetch can accept signal; claim must be scoped to submitFetchPollFetch/boot adapter.",
+      "correction": "One logically admitted current response is enforced; physical one-inflight is not established by adapter. Aborted never-settling underlying promise retains its resolution closures; listener removal occurs on physical settlement271/275 (once abort listener has fired it is removed by once semantics). Core sets inflight=null207 before text, so controller ownership also ends before body reading; no assertion that stop cancels body after headers.",
+      "required_control": "Either carry an actual signal into transport contract or explicitly qualify logical cancellation and physical concurrency/resource budget. This packet chooses no interface policy."
+    },
+    {
+      "id": "UIR-03",
+      "claim": "initial binder throw strands global/element leases",
+      "verdict": "supported partial initialization; categorical unrecoverability unsupported",
+      "anchors": [
+        "boot:108",
+        "boot:279",
+        "boot:340",
+        "boot:370",
+        "boot:374",
+        "boot:380",
+        "boot:381",
+        "boot:299"
+      ],
+      "witness": "Replace a known scanned binder via registerBinder; initial rescan binds an earlier poll region then later known binder throws. Global listeners/hook are already acquired, live map already set, and collected earlier stop handles are not unwound; startBrowserClient throws before returning handle.",
+      "prerequisites": "Only poll-region/guarded-form/once-action selectors are scanned. A new arbitrary registered id is not sufficient. Throwing custom binder/DOM adapter/hook is permitted by structural API but ordinary core happy path does not throw here. Failed binder-owned partial acquisitions cannot be cleaned by host if no stop handle was returned.",
+      "counterevidence": "LIVE_CLIENTS WeakMap returns the partially initialized client on next start299, so caller can retrieve and invoke stop if its disposers work. WeakMap is weak, not by itself a permanent memory leak. Initial entry failure is therefore recoverable in some paths; known nonthrowing DOM/core setup succeeds.",
+      "correction": "Say acquired leases lack automatic failure unwind, not permanently unreachable. Hook registration can also throw before live map set (374), leaving global listeners without map retrieval; scope each failure position separately.",
+      "required_control": "Initialization unwind must dispose already-acquired handles/remove listeners/map registration, preserving primary failure. Each binder owns cleanup before a failed return."
+    },
+    {
+      "id": "UIR-04",
+      "claim": "throwing stop hook strands later cleanup and prevents retry",
+      "verdict": "supported, stronger total-cleanup counterexample",
+      "anchors": [
+        "boot:353",
+        "boot:357",
+        "boot:358",
+        "boot:360",
+        "boot:363",
+        "boot:366",
+        "boot:348",
+        "poll:118",
+        "poll:125"
+      ],
+      "witness": "onHtmxSwap returns a release function that throws. stop sets stopped=true then calls it358; hash/key listeners, bound stop handles and map deletion366 are skipped. Second stop returns at354; start again returns same stopped client299. Alternatively one entry.stop throws363 and later entries/map deletion remain.",
+      "prerequisites": "A user-supplied release/registered known binder disposer or structural remove listener throws. No throw is required from ordinary native DOM listener removal.",
+      "counterevidence": "PollRegion.stop itself marks stopped, clears timer, aborts inflight BEFORE optional onStop125-128; onStop throwing alone does not leave that poller's timer active. Bootstrap may still fail to clean other regions. Normal nonthrowing cleanup is terminal and complete.",
+      "correction": "Separate PollRegion resource cleanup from BrowserClient multi-lease cleanup. rescan348 can also throw before bound.splice349 and leave later stale handles. Do not claim every stop throws or all leases survive a failing entry.",
+      "required_control": "Attempt every independent cleanup and delete/clear owner registration in total finally paths; preserve/report original cleanup failure without making second stop silently certify release."
+    },
+    {
+      "id": "UIR-05",
+      "claim": "diffReportValues throw skips table row scope.dispose",
+      "verdict": "supported exceptional-cleanup hole; ordinary comparison/domain qualification matters",
+      "anchors": [
+        "table:147",
+        "table:193",
+        "table:223",
+        "table:225",
+        "table:246",
+        "equal:39",
+        "equal:44",
+        "equal:57",
+        "contract:18"
+      ],
+      "witness": "Scope acquired; setup/invoke/observe resolve. observe returns an object whose enumerable x getter throws when compared against {x:1}; comparator exception at equal57 escapes both executeRow catches and await223, so dispose225 is never called and sequential runTable rejects before later rows. Rejection before/after snapshot comparison147 has the same hole.",
+      "prerequisites": "Getter/proxy witness is outside the advertised JSON-safe plain report-value intent; it proves robustness to unexpected harness errors, not a valid authored report mismatch. A sufficiently deep finite recursive report tree can instead exhaust recursive comparison stack; no supported depth/threshold was measured, so do not assert an exact minimal depth or executed stack failure. Actual physical leak requires scope owns disposable resources.",
+      "counterevidence": "Setup, snapshots, invocation and observe errors are caught and returned, then normal runOneRow disposes. Ordinary plain finite shallow values return mismatch arrays rather than throwing. Disposal failures are already reported as isolation-unproven226. tabletest170 tests normal per-row disposal, not this uncovered exceptional comparator path.",
+      "correction": "Failure is cleanup skipped on uncaught execution error, not every mismatch leaking scope. Unexpected comparator/harness errors need no new language admission decision to require acquired-scope finally cleanup.",
+      "required_control": "Wrap acquired-scope lifetime around all executeRow paths with finally disposal; preserve primary unexpected failure and disposal diagnostics. Comparator domain/depth policy remains separately qualified."
+    }
+  ],
+  "limits": "No tests/builds/runtime/network/Git/repo edits/new JEV/policy/acceptance. Source tests only identify scenario coverage, not fresh execution. No claim about broader browser owner adapters or testkit scope substrates beyond inspected callable APIs."
+}

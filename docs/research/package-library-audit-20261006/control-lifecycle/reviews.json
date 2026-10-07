@@ -1,0 +1,11 @@
+{
+  "independence": "Independent source challenges with conclusions visible, not cleanroom",
+  "packets": [
+    "review-ui-testkit.json",
+    "review-state-files.json",
+    "review-values-delivery.json"
+  ],
+  "case_count": 15,
+  "identifier_scope": "Resource IDs are unique in resources.jsonl; raw review case IDs are local to their packet file, not resource IDs. LCQ IDs are proposed grouping references.",
+  "final_consistency_review": "final-review.json"
+}
