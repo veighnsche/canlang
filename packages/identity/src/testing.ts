@@ -411,13 +411,12 @@ export function createMemoryIdentityStore(opts?: {
       return authCodes.get(code_sha256) ?? null;
     },
     async consumeAuthCode(code_sha256) {
-      // Mirrors consumeEmailToken: missing rows are a no-op, and an already
-      // consumed row keeps its first consumed_at.
-      step();
       const row = authCodes.get(code_sha256);
-      if (row && row.consumed_at === null) {
-        authCodes.set(code_sha256, { ...row, consumed_at: now() });
-      }
+      if (row === undefined || row.consumed_at !== null) return 'unavailable';
+      // No await between the condition and replacement: exactly one caller wins.
+      step();
+      authCodes.set(code_sha256, { ...row, consumed_at: now() });
+      return 'consumed';
     },
   };
 }

@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { IdentityError } from '../src/ports.js';
+import type { IdentityStore } from '../src/ports.js';
 import {
   createFrozenClock,
   createMemoryIdentityStore,
@@ -270,4 +271,107 @@ test('exchange collapses expired/unknown/wrong-client/wrong-redirect/wrong-verif
     () => exchangeCode(store, { code: d.code, client_id: client.client_id, redirect_uri: REDIRECT, code_verifier: VERIFIER }, { clock }),
     collapsed,
   );
+});
+
+async function readyExchange() {
+  const { clock, store, user, team } = await setup();
+  const client = await registerClient(store, { redirect_uris: [REDIRECT] }, { clock });
+  const { code } = await issueAuthCode(store, {
+    user_id: user.user_id, team_id: team.team_id, client_id: client.client_id,
+    redirect_uri: REDIRECT, code_challenge: CHALLENGE,
+  }, { clock });
+  return { clock, store, input: { code, client_id: client.client_id, redirect_uri: REDIRECT, code_verifier: VERIFIER } };
+}
+
+function codeFailure(error: unknown): boolean {
+  assert.ok(error instanceof IdentityError && error.code === 'validation');
+  assert.equal(error.message, 'Invalid or expired code.');
+  return true;
+}
+
+test('two validated memory pre-reads yield exactly one grant and one generic loser', async () => {
+  const { clock, store, input } = await readyExchange();
+  let preReads = 0;
+  let minted = 0;
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => { release = resolve; });
+  const outcomes: string[] = [];
+  const racing: IdentityStore = {
+    ...store,
+    async findAuthCodeByHash(hash) {
+      const row = await store.findAuthCodeByHash(hash);
+      assert.equal(row?.consumed_at, null);
+      if (++preReads === 2) release();
+      await barrier;
+      return row;
+    },
+    async consumeAuthCode(hash) {
+      const outcome = await store.consumeAuthCode(hash);
+      outcomes.push(outcome);
+      return outcome;
+    },
+    async createMcpGrant(row) { minted++; return store.createMcpGrant(row); },
+  };
+  const results = await Promise.allSettled([exchangeCode(racing, input, { clock }), exchangeCode(racing, input, { clock })]);
+  assert.equal(preReads, 2);
+  assert.equal(minted, 1);
+  assert.deepEqual(outcomes.sort(), ['consumed', 'unavailable']);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  const loser = results.find((result) => result.status === 'rejected');
+  assert.ok(loser?.status === 'rejected');
+  codeFailure(loser.reason);
+  assert.equal(await store.consumeAuthCode('missing'), 'unavailable');
+  assert.equal(await store.consumeAuthCode(await sha256HexText(input.code)), 'unavailable');
+});
+
+test('legacy void and malformed consumption acknowledgments never mint', async () => {
+  for (const result of [undefined, null, false, true, 0, 1, {}, ['consumed'], 'unknown', 'unavailable']) {
+    const { clock, store, input } = await readyExchange();
+    let minted = 0;
+    const invalid = {
+      ...store,
+      async consumeAuthCode() { return result; },
+      async createMcpGrant(row: Parameters<IdentityStore['createMcpGrant']>[0]) { minted++; return store.createMcpGrant(row); },
+    } as unknown as IdentityStore;
+    await assert.rejects(() => exchangeCode(invalid, input, { clock }), codeFailure);
+    assert.equal(minted, 0);
+  }
+});
+
+test('a stale memory pre-read cannot mint after another consumer spent the code', async () => {
+  const { clock, store, input } = await readyExchange();
+  let minted = 0;
+  const stale: IdentityStore = {
+    ...store,
+    async findAuthCodeByHash(hash) {
+      const row = await store.findAuthCodeByHash(hash);
+      assert.equal(await store.consumeAuthCode(hash), 'consumed');
+      return row;
+    },
+    async createMcpGrant(row) { minted++; return store.createMcpGrant(row); },
+  };
+  await assert.rejects(() => exchangeCode(stale, input, { clock }), codeFailure);
+  assert.equal(minted, 0);
+});
+
+test('ambiguous or thrown consume and failed winner mint preserve spent code and original errors', async () => {
+  for (const stage of ['ambiguous', 'consume-throw', 'mint-throw'] as const) {
+    const { clock, store, input } = await readyExchange();
+    const original = new Error(stage);
+    let minted = 0;
+    const failing = {
+      ...store,
+      async consumeAuthCode(hash: string) {
+        assert.equal(await store.consumeAuthCode(hash), 'consumed');
+        if (stage === 'consume-throw') throw original;
+        return stage === 'ambiguous' ? undefined : 'consumed';
+      },
+      async createMcpGrant() { minted++; throw original; },
+    } as unknown as IdentityStore;
+    await assert.rejects(() => exchangeCode(failing, input, { clock }),
+      stage === 'ambiguous' ? codeFailure : (error: unknown) => error === original);
+    assert.equal(minted, stage === 'mint-throw' ? 1 : 0);
+    assert.notEqual((await store.findAuthCodeByHash(await sha256HexText(input.code)))?.consumed_at, null);
+    await assert.rejects(() => exchangeCode(store, input, { clock }), codeFailure);
+  }
 });
