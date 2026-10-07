@@ -167,6 +167,10 @@ export interface PresentationContext {
   readonly theme: ThemeTokens;
   /** Current normalized path, for navigation highlight. */
   readonly path: string;
+  /** Dispatcher-owned page/principal/team comparison token; grants are never encoded. */
+  readonly pollContext?: string;
+  /** Current same-app pathname plus query, preserving team selection and filters. */
+  readonly pollUrl?: string;
   /** True for HTMX partial requests; false for full page GET. */
   readonly isPartial: boolean;
   /** Lane 6 issued CSRF token covering canonical POSTs from this page. */
@@ -200,6 +204,8 @@ export interface PresentationContext {
  * stays in package metadata, never copied per page.
  */
 export interface PageDescriptor {
+  /** Optional authorized page reread cadence in integer milliseconds (1s–1h). */
+  readonly poll?: bigint;
   /** Canonical declaring package. */
   readonly owner: string;
   /** Normalized route pattern, e.g. "/expenses/review" or "/invoices/{Invoice.id}". */
