@@ -438,8 +438,9 @@ export function registerValidationPlan(owner: unknown, profileVersion: unknown, 
     }
   };
 
+  const stagedDefaults = new Map<string, CanValue>();
   const registerDefault = (key: string, value: CanValue): void => {
-    state.defaults.set(key, copyFrozenValue(value));
+    stagedDefaults.set(key, copyFrozenValue(value));
   };
 
   const contracts: Record<string, PreparedContractPlan> = {};
@@ -520,6 +521,8 @@ export function registerValidationPlan(owner: unknown, profileVersion: unknown, 
     operations: Object.freeze(operations),
     operationOrder: Object.freeze(operationOrder),
   });
+  // Publish defaults only after the entire immutable plan has been built.
+  for (const [key, value] of stagedDefaults) state.defaults.set(key, value);
   state.plans.set(sequence, plan);
   return id;
 }
