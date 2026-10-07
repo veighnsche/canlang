@@ -1227,6 +1227,8 @@ export function writeDeployBundleMixed(bundle: MixedDeployBundle, outDir: string
       "deploy bundle: mixed digest mismatch — the bundle changed after attach; refusing to write",
     );
   }
+  // Inspect complete mixed output before the text half publishes anything.
+  assertPackageOutputFiles(outDir, [...Object.keys(modules).sort(), ...Object.keys(binaries).sort(), ...RESERVED_MIXED_OUTPUTS]);
   const written = writeDeployBundle({ ...bundle, modules }, outDir);
   const dir = written.dir;
   const binaryEntries: Array<{ key: string; kind: "binary"; bytes: number; sha256: string }> = [];
