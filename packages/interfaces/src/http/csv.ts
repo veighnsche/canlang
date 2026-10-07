@@ -493,8 +493,10 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
       admitted_at: identity.admitted_at,
     };
     const rows: CsvCommitRow[] = [];
-    for (const selection of selections) {
-      const verdict = review.rows[selection.index]!;
+    const selectionsByIndex = new Map(selections.map((selection) => [selection.index, selection]));
+    for (const verdict of review.rows) {
+      const selection = selectionsByIndex.get(verdict.index);
+      if (selection === undefined) continue;
       if (verdict.status === 'invalid') {
         rows.push({
           index: selection.index,

@@ -529,7 +529,7 @@
     },
     "DEL-D01": {
       "planning_status": "ready",
-      "state": "independently accepted exact shared TS phase extraction; committing narrow slice",
+      "state": "accepted exact shared TS phase extraction; committed dda0ef6",
       "files": [
         "packages/cloudflare/src/preparation/build-adapter.ts",
         "packages/cloudflare/src/preparation/host.ts",
@@ -568,7 +568,8 @@
         "Pre-existing entry-file write failure before try leaves temporary directory in old/new owners; DEL-D03 lifecycle gate remains",
         "Current dependency entries/vendor distributions differ from frozen phase/CLI profile; no source-current full assembly acceptance",
         "Function aliases now share defining function identity/name, explicitly compatible type/call contract only"
-      ]
+      ],
+      "commit": "dda0ef6"
     },
     "DEL-D02": {
       "planning_status": "ready",
@@ -601,7 +602,7 @@
     },
     "DEL-C02-order": {
       "planning_status": "ready",
-      "state": "released finite candidate; root independent review active",
+      "state": "independently accepted finite source-row ordering; committing scoped fix",
       "files": [
         "packages/interfaces/src/http/csv.ts"
       ],
@@ -611,7 +612,10 @@
       "base": "65f43dc8",
       "source_sha256": "a7aa6ee00728dde7a06f4589f3316a8aef81d75d7a73d2555110eb750925add1",
       "test_file": "packages/interfaces/test/csv-selected-order.test.ts",
-      "reviewer": "root"
+      "reviewer": "root",
+      "review": "csv-order-independent-review.json",
+      "root_read_released": true,
+      "parent_limit": "CSV grammar own-key/consent integrity/replay authority remain open"
     },
     "DEL-B01": {
       "planning_status": "blocked",
@@ -967,7 +971,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T20:27:50.642301+00:00",
+  "updated_utc": "2026-10-07T20:30:10.402124+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
