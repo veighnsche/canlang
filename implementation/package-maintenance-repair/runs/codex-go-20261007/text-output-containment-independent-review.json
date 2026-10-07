@@ -1,0 +1,121 @@
+{
+  "verdict": "accept for selected text-writer existing-state containment contract",
+  "defects": [],
+  "exactSourcePins": {
+    "before/src/deploy/bundle.ts": "4a02f6dc8696576690e1f380fee168034d30b409d4fcd7e059d3c14784d7a7df",
+    "before/src/deploy/package-assets.ts": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+    "before/src/deploy/producer-files.ts": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+    "before/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+    "before/src/deploy/module-maps.ts": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+    "before/src/runtime/modules.ts": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+    "before/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "before/test/text-output-containment.test.ts": "d8cbb4f119b80b2cb684b61bd7e42057a5dd916dc3a6a2908d32f8a13baa3e14",
+    "before/test/mixed-output-rejection.test.ts": "1bdd47e3c582d62e0364d269f42544d3ef43b61eb4da4f945f3e49fe2c8de42a",
+    "before/test/mixed-output-controls.test.ts": "056a5dd4c1fec0a67fe78ed8ba51b1935a33e4c493c46df2c71a180c1347aa07",
+    "before/test/deploy-package-assets.test.ts": "41b9ea6dc9ce4598b76be010f5cfb3a5d4a9e59022e5c60c08609de9768a0110",
+    "current/src/deploy/bundle.ts": "613905f8035259e8e99e6ed97f7b125c917eba16fd845d1f68d6f5a176114b4b",
+    "current/src/deploy/package-assets.ts": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+    "current/src/deploy/producer-files.ts": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+    "current/src/deploy/module-imports.ts": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+    "current/src/deploy/module-maps.ts": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+    "current/src/runtime/modules.ts": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+    "current/src/runtime/sourcemap.ts": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+    "current/test/text-output-containment.test.ts": "d8cbb4f119b80b2cb684b61bd7e42057a5dd916dc3a6a2908d32f8a13baa3e14",
+    "current/test/mixed-output-rejection.test.ts": "1bdd47e3c582d62e0364d269f42544d3ef43b61eb4da4f945f3e49fe2c8de42a",
+    "current/test/mixed-output-controls.test.ts": "056a5dd4c1fec0a67fe78ed8ba51b1935a33e4c493c46df2c71a180c1347aa07",
+    "current/test/deploy-package-assets.test.ts": "41b9ea6dc9ce4598b76be010f5cfb3a5d4a9e59022e5c60c08609de9768a0110"
+  },
+  "configPins": {
+    "packages/cloudflare/package.json": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+    "packages/cloudflare/tsconfig.json": "8288e51cec217797ce3fcb51b33f70f55c705b4eefbc4d530fa28c4706ed781b",
+    "tsconfig.base.json": "56d05912029f16842996d66df2e6fc4279950a243874a794d9ff2e13e220ded8"
+  },
+  "freshRows": 44,
+  "maintainedRuntimeTests": {
+    "currentPass": 30,
+    "currentFail": 0,
+    "baselinePass": 17,
+    "baselineFail": 13,
+    "new": 15,
+    "existingMixed": 15,
+    "packageBeforeAllExcluded": true
+  },
+  "strict": {
+    "before": {
+      "diagnostics": [],
+      "emitSkipped": false,
+      "importedSupportFiles": 845
+    },
+    "current": {
+      "diagnostics": [],
+      "emitSkipped": false,
+      "importedSupportFiles": 845
+    }
+  },
+  "ownedDeclarationsCompared": 7,
+  "ownedDeclarationsByteIdentical": true,
+  "runtimeLoadedSupportFiles": 316,
+  "growth": {
+    "before": {
+      "ownerRuntime": {
+        "files": 1,
+        "bytes": 63244,
+        "physicalLines": 1442
+      },
+      "completeOwnedRuntimeClosure": {
+        "files": 7,
+        "bytes": 101916,
+        "physicalLines": 2278
+      },
+      "maintainedProof": {
+        "files": 3,
+        "bytes": 22829,
+        "physicalLines": 474
+      },
+      "emittedOwnerBytes": 60464
+    },
+    "current": {
+      "ownerRuntime": {
+        "files": 1,
+        "bytes": 63428,
+        "physicalLines": 1445
+      },
+      "completeOwnedRuntimeClosure": {
+        "files": 7,
+        "bytes": 102100,
+        "physicalLines": 2281
+      },
+      "maintainedProof": {
+        "files": 4,
+        "bytes": 29984,
+        "physicalLines": 617
+      },
+      "emittedOwnerBytes": 60660
+    }
+  },
+  "otherSourceSectionsByteIdentical": true,
+  "freshWitnessScope": [
+    "Real node:fs only, all fixtures private canonical-rooted; present/absent/relative output bytes, Unicode code-unit manifest sizes and deterministic public paths unchanged.",
+    "Final/intermediate/dangling/root/ancestor/manifest symlink refusals happen without mkdir, prior file mutation, or outside sentinel mutation.",
+    "Sorted lexical keys fail before physical root errors; native ENOTDIR lstat code/syscall/path remain intact. Separate exact-object seam rethrows a genuine native lstat Error and confirms identity propagation.",
+    "Actual mixed ordinary output and binary-only symlink residual remain unchanged; actual package wrapper normal resource/binary bytes and complete selected-resource symlink refusal remain unchanged. No native producer/build/deploy child was executed."
+  ],
+  "limits": [
+    "Canonical parent policy intentionally refuses symlinked path aliases such as macOS /var; normal tests use canonically owned TMPDIR. Canonical names, not alias acceptance, are verified.",
+    "Existing-state preflight only: no concurrent replacement race, atomic publication/transaction, or general filesystem security guarantee.",
+    "Direct mixed binary-only selected targets and bundle.mixed.json plus direct host plan/toml sidecars remain separate open.",
+    "Native/HOLD activation, CLI/deployment/installed package and network qualification excluded.",
+    "Full imported declaration/source support pins retained in strict.json and runtime module pins retained separately; no full-workspace fresh build claim."
+  ],
+  "fixturesReleased": true,
+  "allReadsReleased": true,
+  "allHandlesReleased": true,
+  "repositoryWrites": false,
+  "networkRequests": 0,
+  "commonImportedSupportPinsEqual": 834,
+  "runtimePinConflicts": 0,
+  "packet": "DEL-D03 finite existing-state text-output containment",
+  "rootDisposition": "Accept only defining text writer preflight; direct mixed-only binary/manifest, host sidecars, races, installed and original parent acceptance remain open",
+  "fullPrivateEvidence": "/private/tmp/canlang-repair-go-20261007/contained-writer-independent/review.json",
+  "fullPrivateEvidenceSHA256": "6139a23c2b14e7f80dbd754c3e75d110b7581157503acb0354acae7077964d9c"
+}
