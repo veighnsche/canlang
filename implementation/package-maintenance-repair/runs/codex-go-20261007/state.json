@@ -351,7 +351,7 @@
     },
     "TECH-S02": {
       "planning_status": "blocked",
-      "state": "Worker tool security check stopped after partial R3 source/test work; acceptance blocked pending source/evidence reconciliation",
+      "state": "independently accepted finite metadata/selector correction; scoped commit prepared",
       "files": [
         "packages/state/src/mutation/crud.ts",
         "packages/state/src/mutation/pipeline.ts",
@@ -385,10 +385,12 @@
         "Fresh compiler/installed/native/durable/HTTP/MCP qualification"
       ],
       "reviewer": "root after release",
-      "writer_released": "failed turn ended; source/command cessation under root reconciliation",
+      "writer_released": true,
       "source_pins": {
-        "registry": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
-        "runtime": "ed742b60ed07adfade93870e451a4e5d585651b2145a748da2ab1800159e68c4"
+        "packages/state/src/invocation/registry.ts": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
+        "packages/state/test/invocation/secret-metadata.test.ts": "a57a54749632e30c021cd7898606953f12a1e6109db80778ea48e422f84f600f",
+        "packages/cloudflare/src/runtime/invoke.ts": "07b8445de0ebec9dae5d9f46eb9e8a110550a60582131bf5cccc8459e53fa047",
+        "packages/cloudflare/test/canonical-read-selectors.test.ts": "4ad4852063e2c6fa2bb1a0b4cce2c4760df163a97708fda1a3447aab39a8cbf3"
       },
       "producer_receipt": "/private/tmp/canlang-repair-go-20261007/secret-metadata/producer-receipt.json",
       "review_defects": [
@@ -399,7 +401,9 @@
       "fix_forward": "/private/tmp/canlang-repair-go-20261007/secret-metadata/fix-forward.json",
       "review": "secret-metadata-independent-review.json",
       "review_read_released": true,
-      "tool_blocker": "Agent response flagged for possible cybersecurity risk; no retry/rephrasing of denied task. Partial owned bytes preserved; unrelated work continues."
+      "tool_blocker": "Failed worker interruption retained; source/command cessation and independent local review establish this candidate only; no restart/retry claimed.",
+      "root_read_released": true,
+      "commit_pending": true
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -467,7 +471,7 @@
     },
     "TECH-I01": {
       "planning_status": "blocked",
-      "state": "independently accepted finite OAuth one-use correction; scoped commit prepared",
+      "state": "independently accepted finite OAuth one-use correction; committed33f12d62",
       "files": [
         "packages/identity/src/ports.ts",
         "packages/identity/src/storage/d1.ts",
@@ -512,12 +516,13 @@
       },
       "writer_released": true,
       "root_read_released": true,
-      "commit_pending": true,
-      "parent_limit": "Whole J2 shared-fence, recovery, membership, revocation/current-auth and installed gates remain open"
+      "commit_pending": false,
+      "parent_limit": "Whole J2 shared-fence, recovery, membership, revocation/current-auth and installed gates remain open",
+      "commit": "33f12d62"
     },
     "TECH-I02": {
       "planning_status": "blocked",
-      "state": "Private S256 profile prerequisite corpus released; live owner awaits OAuth transfer",
+      "state": "S256 issuance length correction released; different-author review pending",
       "files": [
         "packages/identity/src/authentication/oauth.ts",
         "packages/identity/src/sessions/presession.ts",
@@ -531,7 +536,17 @@
       "outputs": "/private/tmp/canlang-repair-go-20261007/pkce-profile",
       "recipe_sha256": "d705457063ad8cf72ce9619319719e1699bd1946e3904eea126e002f26a486c2",
       "result_sha256": "cfe7f51057cc7200b3cd817b084ba28f23f5a86718baca4cbfce70b8b2df5ceb",
-      "limit": "Frozen pre-consume source only. Fixed43 is S25632-byte inference, not generic RFC challenge ABNF; verifier/origin/revocation remains unchanged."
+      "limit": "Frozen pre-consume source only. Fixed43 is S25632-byte inference, not generic RFC challenge ABNF; verifier/origin/revocation remains unchanged.",
+      "active_files": [
+        "packages/identity/src/authentication/oauth.ts",
+        "packages/identity/test/pkce-s256-profile.test.ts",
+        "packages/interfaces/test/oauth.test.ts"
+      ],
+      "writer_released": true,
+      "agent": "/root/row_scope_cleanup",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "receipt": "/private/tmp/canlang-repair-go-20261007/pkce-production/repair-receipt.md"
     },
     "TECH-F01": {
       "planning_status": "blocked",
@@ -1140,7 +1155,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T21:28:35.798097+00:00",
+  "updated_utc": "2026-10-07T21:34:48.081487+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
