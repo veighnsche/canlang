@@ -1,0 +1,15 @@
+   Compiling canlang-compiler v0.1.0 (/private/tmp/canlang-pass6-profile/baseline/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.64s
+     Running tests/catalog_input_contract.rs (/private/tmp/canlang-pass6-profile/baseline-native-target/debug/deps/catalog_input_contract-fc3e3554280ef78f)
+
+running 6 tests
+SKIP available_producer_catalog_loads_without_rebuilding_packages: missing profile input packages/values/src/catalog.ts
+test available_producer_catalog_loads_without_rebuilding_packages ... ok
+test loader_and_cli_retain_first_decoded_member_and_ignore_unknown_extras ... ok
+test catalog_invalid_utf8_bytes_keep_catalog_code_and_source_primary ... ok
+test syntax_envelope_entry_and_signature_failures_keep_codes_and_source_anchor ... ok
+test catalog_unknown_value_depth_counts_from_envelope_root ... ok
+test ignored_catalog_extras_still_require_strict_complete_json ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.08s
+

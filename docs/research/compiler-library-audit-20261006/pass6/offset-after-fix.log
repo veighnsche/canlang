@@ -1,0 +1,13 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.93s
+     Running unittests src/lib.rs (compiler/target/debug/deps/canlang_compiler-6b1fd30d695e38e5)
+
+running 5 tests
+test json::input_tests::reader_limits_bulk_requests_and_depth_stops_before_the_tail ... ok
+test json::input_tests::nested_error_anchors_survive_container_cleanup_and_eof ... ok
+test json::input_tests::ignoring_numbers_never_ignores_marker_objects_or_unicode ... ok
+test json::input_tests::native_error_anchors_count_utf8_bytes_newlines_and_eof ... ok
+test json::input_tests::numeric_source_spans_cover_all_seed_origins_and_eof ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 109 filtered out; finished in 0.00s
+

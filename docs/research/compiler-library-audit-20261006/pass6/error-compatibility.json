@@ -1,0 +1,802 @@
+[
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 0: unexpected end",
+      "offset": 0,
+      "reason": "unexpected end"
+    },
+    "bytes": 0,
+    "candidate": {
+      "display": "invalid JSON at byte 0: EOF while parsing a value",
+      "offset": 0,
+      "reason": "EOF while parsing a value"
+    },
+    "input": "",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 1: expected string key",
+      "offset": 1,
+      "reason": "expected string key"
+    },
+    "bytes": 1,
+    "candidate": {
+      "display": "invalid JSON at byte 1: EOF while parsing an object",
+      "offset": 1,
+      "reason": "EOF while parsing an object"
+    },
+    "input": "{",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 2: expected ',' or ']'",
+      "offset": 2,
+      "reason": "expected ',' or ']'"
+    },
+    "bytes": 2,
+    "candidate": {
+      "display": "invalid JSON at byte 2: EOF while parsing a list",
+      "offset": 2,
+      "reason": "EOF while parsing a list"
+    },
+    "input": "[1",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 0: invalid literal",
+      "offset": 0,
+      "reason": "invalid literal"
+    },
+    "bytes": 3,
+    "candidate": {
+      "display": "invalid JSON at byte 3: EOF while parsing a value",
+      "offset": 3,
+      "reason": "EOF while parsing a value"
+    },
+    "input": "nul",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 1: unterminated string",
+      "offset": 1,
+      "reason": "unterminated string"
+    },
+    "bytes": 1,
+    "candidate": {
+      "display": "invalid JSON at byte 1: EOF while parsing a string",
+      "offset": 1,
+      "reason": "EOF while parsing a string"
+    },
+    "input": "\"",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 3: unterminated string",
+      "offset": 3,
+      "reason": "unterminated string"
+    },
+    "bytes": 3,
+    "candidate": {
+      "display": "invalid JSON at byte 3: EOF while parsing a string",
+      "offset": 3,
+      "reason": "EOF while parsing a string"
+    },
+    "input": "\"é",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 5: invalid escape",
+      "offset": 5,
+      "reason": "invalid escape"
+    },
+    "bytes": 6,
+    "candidate": {
+      "display": "invalid JSON at byte 4: invalid escape",
+      "offset": 4,
+      "reason": "invalid escape"
+    },
+    "input": "\"é\\q\"",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 3: unescaped control character",
+      "offset": 3,
+      "reason": "unescaped control character"
+    },
+    "bytes": 5,
+    "candidate": {
+      "display": "invalid JSON at byte 3: control character (\\u0000-\\u001F) found while parsing a string",
+      "offset": 3,
+      "reason": "control character (\\u0000-\\u001F) found while parsing a string"
+    },
+    "input": "\"é\n\"",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 6: trailing bytes",
+      "offset": 6,
+      "reason": "trailing bytes"
+    },
+    "bytes": 7,
+    "candidate": {
+      "display": "invalid JSON at byte 6: trailing characters",
+      "offset": 6,
+      "reason": "trailing characters"
+    },
+    "input": "\"é\"\n x",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 10: expected string key",
+      "offset": 10,
+      "reason": "expected string key"
+    },
+    "bytes": 14,
+    "candidate": {
+      "display": "invalid JSON at byte 10: key must be a string",
+      "offset": 10,
+      "reason": "key must be a string"
+    },
+    "input": "{\"é\":0,\n bad}",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 1: trailing bytes",
+      "offset": 1,
+      "reason": "trailing bytes"
+    },
+    "bytes": 2,
+    "candidate": {
+      "display": "invalid JSON at byte 1: invalid number",
+      "offset": 1,
+      "reason": "invalid number"
+    },
+    "input": "01",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 2: trailing bytes",
+      "offset": 2,
+      "reason": "trailing bytes"
+    },
+    "bytes": 3,
+    "candidate": {
+      "display": "invalid JSON at byte 2: invalid number",
+      "offset": 2,
+      "reason": "invalid number"
+    },
+    "input": "-01",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 0: unexpected character",
+      "offset": 0,
+      "reason": "unexpected character"
+    },
+    "bytes": 2,
+    "candidate": {
+      "display": "invalid JSON at byte 0: expected value",
+      "offset": 0,
+      "reason": "expected value"
+    },
+    "input": "+1",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 2: invalid number",
+      "offset": 2,
+      "reason": "invalid number"
+    },
+    "bytes": 2,
+    "candidate": {
+      "display": "invalid JSON at byte 2: invalid number",
+      "offset": 2,
+      "reason": "invalid number"
+    },
+    "input": "1.",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 2: invalid number",
+      "offset": 2,
+      "reason": "invalid number"
+    },
+    "bytes": 2,
+    "candidate": {
+      "display": "invalid JSON at byte 2: invalid number",
+      "offset": 2,
+      "reason": "invalid number"
+    },
+    "input": "1e",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 3: invalid number",
+      "offset": 3,
+      "reason": "invalid number"
+    },
+    "bytes": 3,
+    "candidate": {
+      "display": "invalid JSON at byte 3: invalid number",
+      "offset": 3,
+      "reason": "invalid number"
+    },
+    "input": "1e+",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 5: trailing bytes",
+      "offset": 5,
+      "reason": "trailing bytes"
+    },
+    "bytes": 10,
+    "candidate": {
+      "display": "invalid JSON at byte 5: trailing characters",
+      "offset": 5,
+      "reason": "trailing characters"
+    },
+    "input": "true false",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 3: unexpected character",
+      "offset": 3,
+      "reason": "unexpected character"
+    },
+    "bytes": 4,
+    "candidate": {
+      "display": "invalid JSON at byte 3: trailing comma",
+      "offset": 3,
+      "reason": "trailing comma"
+    },
+    "input": "[1,]",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 7: expected string key",
+      "offset": 7,
+      "reason": "expected string key"
+    },
+    "bytes": 8,
+    "candidate": {
+      "display": "invalid JSON at byte 7: trailing comma",
+      "offset": 7,
+      "reason": "trailing comma"
+    },
+    "input": "{\"x\":1,}",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 0: unexpected character",
+      "offset": 0,
+      "reason": "unexpected character"
+    },
+    "bytes": 6,
+    "candidate": {
+      "display": "invalid JSON at byte 0: expected value",
+      "offset": 0,
+      "reason": "expected value"
+    },
+    "input": " null",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 7: missing low surrogate",
+      "offset": 7,
+      "reason": "missing low surrogate"
+    },
+    "bytes": 8,
+    "candidate": {
+      "display": "invalid JSON at byte 7: unexpected end of hex escape",
+      "offset": 7,
+      "reason": "unexpected end of hex escape"
+    },
+    "input": "\"\\uD800\"",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 7: lone low surrogate",
+      "offset": 7,
+      "reason": "lone low surrogate"
+    },
+    "bytes": 8,
+    "candidate": {
+      "display": "invalid JSON at byte 6: lone leading surrogate in hex escape",
+      "offset": 6,
+      "reason": "lone leading surrogate in hex escape"
+    },
+    "input": "\"\\uDC00\"",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 13: invalid low surrogate",
+      "offset": 13,
+      "reason": "invalid low surrogate"
+    },
+    "bytes": 14,
+    "candidate": {
+      "display": "invalid JSON at byte 12: lone leading surrogate in hex escape",
+      "offset": 12,
+      "reason": "lone leading surrogate in hex escape"
+    },
+    "input": "\"\\uD800\\u0041\"",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 8: missing low surrogate",
+      "offset": 8,
+      "reason": "missing low surrogate"
+    },
+    "bytes": 12,
+    "candidate": {
+      "display": "invalid JSON at byte 8: unexpected end of hex escape",
+      "offset": 8,
+      "reason": "unexpected end of hex escape"
+    },
+    "input": "{\"\\uD800\":0}",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 4: unescaped control character",
+      "offset": 4,
+      "reason": "unescaped control character"
+    },
+    "bytes": 14,
+    "candidate": {
+      "display": "invalid JSON at byte 4: control character (\\u0000-\\u001F) found while parsing a string",
+      "offset": 4,
+      "reason": "control character (\\u0000-\\u001F) found while parsing a string"
+    },
+    "input": "[\"é\n       \"]",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 8: unescaped control character",
+      "offset": 8,
+      "reason": "unescaped control character"
+    },
+    "bytes": 18,
+    "candidate": {
+      "display": "invalid JSON at byte 8: control character (\\u0000-\\u001F) found while parsing a string",
+      "offset": 8,
+      "reason": "control character (\\u0000-\\u001F) found while parsing a string"
+    },
+    "input": "{\"x\":\"é\n       \"}",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 4: unescaped control character",
+      "offset": 4,
+      "reason": "unescaped control character"
+    },
+    "bytes": 16,
+    "candidate": {
+      "display": "invalid JSON at byte 4: control character (\\u0000-\\u001F) found while parsing a string",
+      "offset": 4,
+      "reason": "control character (\\u0000-\\u001F) found while parsing a string"
+    },
+    "input": "{\"é\n       \":0}",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 4: invalid escape",
+      "offset": 4,
+      "reason": "invalid escape"
+    },
+    "bytes": 13,
+    "candidate": {
+      "display": "invalid JSON at byte 3: invalid escape",
+      "offset": 3,
+      "reason": "invalid escape"
+    },
+    "input": "[\"\\q       \"]",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 11: invalid escape",
+      "offset": 11,
+      "reason": "invalid escape"
+    },
+    "bytes": 21,
+    "candidate": {
+      "display": "invalid JSON at byte 10: invalid escape",
+      "offset": 10,
+      "reason": "invalid escape"
+    },
+    "input": "[{\"x\":\"é\\q       \"}]",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 6: invalid escape",
+      "offset": 6,
+      "reason": "invalid escape"
+    },
+    "bytes": 17,
+    "candidate": {
+      "display": "invalid JSON at byte 5: invalid escape",
+      "offset": 5,
+      "reason": "invalid escape"
+    },
+    "input": "{\"é\\q       \":0}",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 4: invalid escape",
+      "offset": 4,
+      "reason": "invalid escape"
+    },
+    "bytes": 4,
+    "candidate": {
+      "display": "invalid JSON at byte 3: invalid escape",
+      "offset": 3,
+      "reason": "invalid escape"
+    },
+    "input": "[\"\\q",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 10: invalid escape",
+      "offset": 10,
+      "reason": "invalid escape"
+    },
+    "bytes": 10,
+    "candidate": {
+      "display": "invalid JSON at byte 9: invalid escape",
+      "offset": 9,
+      "reason": "invalid escape"
+    },
+    "input": "{\"x\":\"é\\q",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 6: invalid escape",
+      "offset": 6,
+      "reason": "invalid escape"
+    },
+    "bytes": 6,
+    "candidate": {
+      "display": "invalid JSON at byte 5: invalid escape",
+      "offset": 5,
+      "reason": "invalid escape"
+    },
+    "input": "{\"é\\q",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "intentional original-failure byte point/EOF anchoring; legacy snapshot is not sole oracle",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 4: unescaped control character",
+      "offset": 4,
+      "reason": "unescaped control character"
+    },
+    "bytes": 12,
+    "candidate": {
+      "display": "invalid JSON at byte 4: control character (\\u0000-\\u001F) found while parsing a string",
+      "offset": 4,
+      "reason": "control character (\\u0000-\\u001F) found while parsing a string"
+    },
+    "input": "[\"é\n       ",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 8: unescaped control character",
+      "offset": 8,
+      "reason": "unescaped control character"
+    },
+    "bytes": 16,
+    "candidate": {
+      "display": "invalid JSON at byte 8: control character (\\u0000-\\u001F) found while parsing a string",
+      "offset": 8,
+      "reason": "control character (\\u0000-\\u001F) found while parsing a string"
+    },
+    "input": "{\"x\":\"é\n       ",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 4: unescaped control character",
+      "offset": 4,
+      "reason": "unescaped control character"
+    },
+    "bytes": 12,
+    "candidate": {
+      "display": "invalid JSON at byte 4: control character (\\u0000-\\u001F) found while parsing a string",
+      "offset": 4,
+      "reason": "control character (\\u0000-\\u001F) found while parsing a string"
+    },
+    "input": "{\"é\n       ",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 3: invalid number",
+      "offset": 3,
+      "reason": "invalid number"
+    },
+    "bytes": 3,
+    "candidate": {
+      "display": "invalid JSON at byte 3: invalid number",
+      "offset": 3,
+      "reason": "invalid number"
+    },
+    "input": "[1.",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 8: invalid number",
+      "offset": 8,
+      "reason": "invalid number"
+    },
+    "bytes": 8,
+    "candidate": {
+      "display": "invalid JSON at byte 8: invalid number",
+      "offset": 8,
+      "reason": "invalid number"
+    },
+    "input": "{\"x\":1e+",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "same native detail",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 4: unterminated string",
+      "offset": 4,
+      "reason": "unterminated string"
+    },
+    "bytes": 4,
+    "candidate": {
+      "display": "invalid JSON at byte 4: EOF while parsing a string",
+      "offset": 4,
+      "reason": "EOF while parsing a string"
+    },
+    "input": "[\"é",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  },
+  {
+    "baseline": {
+      "display": "invalid JSON at byte 4: unterminated string",
+      "offset": 4,
+      "reason": "unterminated string"
+    },
+    "bytes": 4,
+    "candidate": {
+      "display": "invalid JSON at byte 4: EOF while parsing a string",
+      "offset": 4,
+      "reason": "EOF while parsing a string"
+    },
+    "input": "{\"é",
+    "compatibility_classification": {
+      "admission": "required rejection retained; independently specified JSON grammar/Unicode failure",
+      "reason": "intentional native grammar wording change",
+      "offset": "unchanged byte point",
+      "caller": "catalog E6003/origin/primary and LSP fixed -32700/null invalid JSON unchanged"
+    }
+  }
+]

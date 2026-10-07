@@ -1,0 +1,24 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.70s
+     Running unittests src/lib.rs (compiler/target/debug/deps/canlang_compiler-6b1fd30d695e38e5)
+
+running 1 test
+test json::input_tests::nested_error_anchors_survive_container_cleanup_and_eof ... FAILED
+
+failures:
+
+---- json::input_tests::nested_error_anchors_survive_container_cleanup_and_eof stdout ----
+
+thread 'json::input_tests::nested_error_anchors_survive_container_cleanup_and_eof' (19176286) panicked at src/json.rs:493:13:
+assertion `left == right` failed: "[\"é\n       \"]": ParseError { offset: 12, message: "control character (\\u0000-\\u001F) found while parsing a string" }
+  left: 12
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    json::input_tests::nested_error_anchors_survive_container_cleanup_and_eof
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 113 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

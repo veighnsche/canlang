@@ -1,0 +1,93 @@
+    Blocking waiting for file lock on build directory
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.79s
+     Running tests/catalog_input_contract.rs (compiler/target/debug/deps/catalog_input_contract-fc3e3554280ef78f)
+
+running 6 tests
+PROFILE packages/values/src/catalog.ts: bytes=18748 sha256=443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb
+PROFILE packages/values/scripts/emit-catalog.mjs: bytes=2518 sha256=45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d
+PROFILE packages/values/dist/src/catalog.js: bytes=18732 sha256=1b5a52a148437ee7301cff8a68efa439448b7304b4ff85f6189ecaf75ad8925f
+PROFILE packages/values/dist/src/index.js: bytes=630 sha256=51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c
+PROFILE packages/values/dist/catalog.json: bytes=22290 sha256=cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62
+test loader_and_cli_retain_first_decoded_member_and_ignore_unknown_extras ... ok
+test available_producer_catalog_loads_without_rebuilding_packages ... ok
+test catalog_invalid_utf8_bytes_keep_catalog_code_and_source_primary ... ok
+test syntax_envelope_entry_and_signature_failures_keep_codes_and_source_anchor ... ok
+test catalog_unknown_value_depth_counts_from_envelope_root ... ok
+test ignored_catalog_extras_still_require_strict_complete_json ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+
+     Running tests/catalog_producer_runtime.rs (compiler/target/debug/deps/catalog_producer_runtime-35d0d5a67a5cf2bb)
+
+running 1 test
+PROFILE packages/values/src/catalog.ts: bytes=18748 sha256=443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb
+PROFILE packages/values/scripts/emit-catalog.mjs: bytes=2518 sha256=45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d
+PROFILE packages/values/dist/src/catalog.js: bytes=18732 sha256=1b5a52a148437ee7301cff8a68efa439448b7304b4ff85f6189ecaf75ad8925f
+PROFILE packages/values/dist/src/index.js: bytes=630 sha256=51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c
+PROFILE packages/values/dist/catalog.json: bytes=22290 sha256=cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62
+PROFILE Node v24.21.0
+EXECUTED source-built equality; actual runtime trim; entries=59
+EXECUTED catalog 0.1.0-lane02-draft: 59 entries, 15 features -> dist/catalog.json
+PROFILE fresh isolated dist/catalog.json: bytes=22290 sha256=cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62
+EXECUTED actual catalog loader and fresh CLI check: complete=true diagnostics=[]
+test unchanged_catalog_producer_matches_authored_source_and_feeds_real_consumers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+
+     Running tests/json_input_contract.rs (compiler/target/debug/deps/json_input_contract-4b50ef73a0c8c0df)
+
+running 6 tests
+test framing_body_limit_remains_independent_of_json_depth ... ok
+test heterogeneous_whitespace_unicode_and_number_looking_strings ... ok
+test number_lexemes_and_lexical_integer_accessor_stay_distinct ... ok
+test ordered_decoded_duplicates_and_marker_objects_are_ordinary_values ... ok
+test malformed_grammar_and_strings_reject_with_byte_anchors ... ok
+test depth_is_value_entry_depth_including_empty_deepest_containers ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lsp_admission.rs (compiler/target/debug/deps/lsp_admission-51179e8946fd12b4)
+
+running 26 tests
+test eof_keeps_the_existing_clean_disconnect_exit ... ok
+test initialize_admits_unknown_capabilities_and_extensions ... ok
+test exit_before_shutdown_has_exit_code_one ... ok
+test lifecycle_precedence_is_envelope_then_lifecycle_then_method_then_params ... ok
+test invalid_shutdown_and_exit_params_do_not_change_lifecycle ... ok
+test known_method_field_errors_reply_to_requests_and_leave_notifications_silent ... ok
+test malformed_did_open_is_silent_and_does_not_create_a_document ... ok
+test notifications_outside_ready_cannot_open_documents_or_publish ... ok
+test malformed_json_is_a_null_parse_error_and_consumes_the_frame ... ok
+test malformed_did_change_does_not_mutate_or_publish_a_new_version ... ok
+test primitive_shutdown_and_exit_params_are_envelope_errors ... ok
+test ignored_capabilities_keep_the_value_entry_depth_budget ... ok
+strict JSON process case: leading zero
+test shutdown_then_exit_is_clean ... ok
+strict JSON process case: missing integer
+test ordinary_private_marker_keys_remain_objects_in_initialize_params ... ok
+test decoded_reserved_duplicate_keys_are_rejected_before_dispatch ... ok
+test invalid_initialize_fields_do_not_initialize ... ok
+test torn_headers_and_body_keep_the_existing_clean_disconnect_exit ... ok
+strict JSON process case: missing fraction
+test valid_notification_envelopes_are_silent_without_initializing ... ok
+test shutdown_and_exit_accept_absent_null_and_empty_object_params ... ok
+test malformed_utf8_is_one_parse_error_and_does_not_initialize ... ok
+test valid_unicode_string_id_keeps_its_semantic_value ... ok
+test valid_required_contexts_and_maximum_position_are_admitted ... ok
+strict JSON process case: missing exponent
+strict JSON process case: leading plus
+test illegal_ids_are_null_correlated_and_never_initialize ... ok
+strict JSON process case: lone high surrogate value
+strict JSON process case: lone low surrogate value
+test accepted_integral_ids_preserve_the_original_number_lexeme ... ok
+strict JSON process case: lone high surrogate key
+strict JSON process case: lone low surrogate key
+test malformed_envelopes_correlate_only_a_unique_legal_id ... ok
+strict JSON process case: invalid Unicode escape
+strict JSON process case: unescaped control value
+strict JSON process case: unescaped control key
+test strict_json_grammar_and_unknown_unicode_recover_through_shutdown_exit ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+
