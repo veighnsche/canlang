@@ -1,0 +1,16 @@
+{
+  "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+  "packages/stdlib/package.json": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+  "packages/values/src/schema.ts": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+  "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+  "packages/values/src/internal/schema-core.ts": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+  "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+  "packages/values/dist/src/schema.js": "69041498ef94ca3a003e1e76615e793406321652d875aceb09b0c33580ff5ca1",
+  "packages/values/dist/src/wire.js": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+  "packages/values/dist/src/internal/schema-core.js": "cdafec221c06f8862d35dd90b940a01945792c35dedf75034c2886121873634e",
+  "packages/values/dist/src/internal/wire-core.js": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+  "packages/values/bindings/carriers.ts": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+  "packages/values/bindings/backend.ts": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+  "packages/values/dist/bindings/carriers.js": "40bd9222d062bfe95891a82bf46c0f71104d9c861f2d59eaceb246fd8b9b4ece",
+  "packages/values/dist/bindings/backend.js": "9a8cc17f264e6d40c84cdfc63f5fb888bd6b193f7f8665c5e810082fb7d9b280"
+}

@@ -1,0 +1,187 @@
+{
+  "format_correction": {
+    "scope": "Exact rustfmt-only multiline correction of the newly changed Decimal diagnostics assertion; all executable tokens identical. Prior117pass/focused10pass receipts preserved.",
+    "before_sha256": "a0717776903d4dfaca52876d91b66be506116b588a3dbcd424a97582681cda9a",
+    "after_sha256": "294731cd3d4bf43ddea8bff2c89a7a4be4c048e12c0686108546d30808a3c680"
+  },
+  "reversing_only_assertion_whitespace_restores_reviewed_hash": true,
+  "final_pin_checks": [
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "expected": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+      "actual": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+      "match": true
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "expected": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "actual": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "match": true
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "expected": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+      "actual": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+      "match": true
+    },
+    {
+      "path": "packages/values/src/decimal.ts",
+      "expected": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "actual": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "match": true
+    },
+    {
+      "path": "packages/values/dist/src/decimal.js",
+      "expected": "76ab588810caa54fa6edbcc5647d2e090f0d01aa11de4d84fb293d27e7fcddb9",
+      "actual": "76ab588810caa54fa6edbcc5647d2e090f0d01aa11de4d84fb293d27e7fcddb9",
+      "match": true
+    },
+    {
+      "path": "packages/values/src/index.ts",
+      "expected": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "actual": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "match": true
+    },
+    {
+      "path": "packages/stdlib/src/index.ts",
+      "expected": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09",
+      "actual": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09",
+      "match": true
+    },
+    {
+      "path": "packages/stdlib/dist/src/index.js",
+      "expected": "0aff4dc3cbd6da5dd9896e547ccee05d8e13b54e2d76956e0d2e175568e21293",
+      "actual": "0aff4dc3cbd6da5dd9896e547ccee05d8e13b54e2d76956e0d2e175568e21293",
+      "match": true
+    },
+    {
+      "path": "packages/values/dist/catalog.json",
+      "expected": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "actual": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "match": true
+    },
+    {
+      "path": "compiler/tests/codegen.rs",
+      "expected": "294731cd3d4bf43ddea8bff2c89a7a4be4c048e12c0686108546d30808a3c680",
+      "actual": "294731cd3d4bf43ddea8bff2c89a7a4be4c048e12c0686108546d30808a3c680",
+      "match": true
+    },
+    {
+      "path": "compiler/tests/decimal_runtime.rs",
+      "expected": "f84ca05db37c182d5a964d4432cd3a6ded5ddcc67ead5ad4d39814cb6289b6b5",
+      "actual": "f84ca05db37c182d5a964d4432cd3a6ded5ddcc67ead5ad4d39814cb6289b6b5",
+      "match": true
+    },
+    {
+      "path": "selected.can",
+      "expected": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "actual": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "match": true
+    },
+    {
+      "path": "execute.mjs",
+      "expected": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+      "actual": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+      "match": true
+    },
+    {
+      "path": "compiler/tests/fixtures/decimal-runtime/source.can",
+      "expected": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "actual": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "match": true
+    },
+    {
+      "path": "compiler/tests/fixtures/decimal-runtime/execute.mjs",
+      "expected": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+      "actual": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+      "match": true
+    }
+  ],
+  "all_match": true,
+  "historical_evidence_preserved": "Earlier 44 checks and focused10/worker117 results remain recorded at their original source hashes; no rerun or recredit by reviewer.",
+  "root_final_checks": {
+    "checks": [
+      {
+        "name": "format-check-final",
+        "command": [
+          "rustfmt",
+          "--check",
+          "--edition",
+          "2024",
+          "compiler/src/codegen/js.rs",
+          "compiler/tests/codegen.rs",
+          "compiler/tests/decimal_runtime.rs"
+        ],
+        "exit_code": 0,
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "golden-check-final",
+        "command": [
+          "cargo",
+          "test",
+          "--manifest-path",
+          "compiler/Cargo.toml",
+          "--locked",
+          "--offline",
+          "--test",
+          "codegen",
+          "construct_scalars_per_op",
+          "--",
+          "--exact"
+        ],
+        "exit_code": 0,
+        "log_sha256": "4619e735d292a1be112c90fb7934668a4d4d4fb15d004845151f8af7a7d7d875"
+      },
+      {
+        "name": "strict-clippy",
+        "command": [
+          "cargo",
+          "clippy",
+          "--manifest-path",
+          "compiler/Cargo.toml",
+          "--locked",
+          "--offline",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0,
+        "log_sha256": "518d5fe74679d9efcf335d7fac32ca33ae068213da6ea85ed0121a1b49866317"
+      }
+    ],
+    "selected_sources_unchanged": true,
+    "final_source_pins": {
+      "compiler/src/codegen/js.rs": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+      "compiler/tests/codegen.rs": "294731cd3d4bf43ddea8bff2c89a7a4be4c048e12c0686108546d30808a3c680",
+      "compiler/tests/decimal_runtime.rs": "f84ca05db37c182d5a964d4432cd3a6ded5ddcc67ead5ad4d39814cb6289b6b5"
+    }
+  },
+  "root_check_log_verification": [
+    {
+      "name": "format-check-final",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matching_log_paths": [
+        "implementation/compiler-completion/temporal-values/decimal-materialization/format-check-final.log"
+      ]
+    },
+    {
+      "name": "golden-check-final",
+      "exit_code": 0,
+      "log_sha256": "4619e735d292a1be112c90fb7934668a4d4d4fb15d004845151f8af7a7d7d875",
+      "matching_log_paths": [
+        "implementation/compiler-completion/temporal-values/decimal-materialization/golden-check-final.log"
+      ]
+    },
+    {
+      "name": "strict-clippy",
+      "exit_code": 0,
+      "log_sha256": "518d5fe74679d9efcf335d7fac32ca33ae068213da6ea85ed0121a1b49866317",
+      "matching_log_paths": [
+        "implementation/compiler-completion/temporal-values/decimal-materialization/strict-clippy.log"
+      ]
+    }
+  ]
+}

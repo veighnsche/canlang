@@ -1670,15 +1670,14 @@ impl<'a> Emitter<'a> {
     pub fn lower_expr(&mut self, expr: &TypedExpr) -> String {
         let span = expr.span;
         match &expr.expr {
-            IrExpr::Int(value) if scalar_family(&expr.ty) == Some(ScalarFamily::Decimal) => {
-                self.stdlib.insert("parseDecimal".to_string());
-                format!("parseDecimal({})", js_string(&value.to_string()))
-            }
             IrExpr::Int(value) => format!("{value}n"),
-            IrExpr::Decimal(spelling) => {
-                // Construct directly from source spelling: wire encoding normalizes scale.
-                self.stdlib.insert("parseDecimal".to_string());
-                format!("parseDecimal({})", js_string(spelling))
+            IrExpr::Decimal(_) => {
+                self.unsupported(
+                    "decimal literal",
+                    "no §13 lowering and no catalog constructor exist",
+                    span,
+                );
+                self.throw_expr("decimal literal has no lowering")
             }
             IrExpr::Text(value) => js_string(value),
             IrExpr::Bool(value) => value.to_string(),

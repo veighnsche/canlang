@@ -1,0 +1,373 @@
+{
+  "pin_checks": [
+    {
+      "pinset": "pins.final.json",
+      "path": "compiler/src/codegen/js.rs",
+      "expected": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+      "actual": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "compiler/src/codegen/ir.rs",
+      "expected": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "actual": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "compiler/src/analysis/types.rs",
+      "expected": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+      "actual": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "packages/values/src/decimal.ts",
+      "expected": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "actual": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "packages/values/dist/src/decimal.js",
+      "expected": "76ab588810caa54fa6edbcc5647d2e090f0d01aa11de4d84fb293d27e7fcddb9",
+      "actual": "76ab588810caa54fa6edbcc5647d2e090f0d01aa11de4d84fb293d27e7fcddb9",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "packages/values/src/index.ts",
+      "expected": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "actual": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "packages/stdlib/src/index.ts",
+      "expected": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09",
+      "actual": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "packages/stdlib/dist/src/index.js",
+      "expected": "0aff4dc3cbd6da5dd9896e547ccee05d8e13b54e2d76956e0d2e175568e21293",
+      "actual": "0aff4dc3cbd6da5dd9896e547ccee05d8e13b54e2d76956e0d2e175568e21293",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "packages/values/dist/catalog.json",
+      "expected": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "actual": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "compiler/tests/codegen.rs",
+      "expected": "a0717776903d4dfaca52876d91b66be506116b588a3dbcd424a97582681cda9a",
+      "actual": "a0717776903d4dfaca52876d91b66be506116b588a3dbcd424a97582681cda9a",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "compiler/tests/decimal_runtime.rs",
+      "expected": "f84ca05db37c182d5a964d4432cd3a6ded5ddcc67ead5ad4d39814cb6289b6b5",
+      "actual": "f84ca05db37c182d5a964d4432cd3a6ded5ddcc67ead5ad4d39814cb6289b6b5",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "implementation/compiler-completion/temporal-values/decimal-materialization/selected.can",
+      "expected": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "actual": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "implementation/compiler-completion/temporal-values/decimal-materialization/execute.mjs",
+      "expected": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+      "actual": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "compiler/tests/fixtures/decimal-runtime/source.can",
+      "expected": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "actual": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "match": true
+    },
+    {
+      "pinset": "pins.final.json",
+      "path": "compiler/tests/fixtures/decimal-runtime/execute.mjs",
+      "expected": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+      "actual": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/package.json",
+      "expected": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "actual": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/stdlib/package.json",
+      "expected": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+      "actual": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/src/schema.ts",
+      "expected": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+      "actual": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/src/wire.ts",
+      "expected": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+      "actual": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/src/internal/schema-core.ts",
+      "expected": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+      "actual": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/src/internal/wire-core.ts",
+      "expected": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+      "actual": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/dist/src/schema.js",
+      "expected": "69041498ef94ca3a003e1e76615e793406321652d875aceb09b0c33580ff5ca1",
+      "actual": "69041498ef94ca3a003e1e76615e793406321652d875aceb09b0c33580ff5ca1",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/dist/src/wire.js",
+      "expected": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+      "actual": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/dist/src/internal/schema-core.js",
+      "expected": "cdafec221c06f8862d35dd90b940a01945792c35dedf75034c2886121873634e",
+      "actual": "cdafec221c06f8862d35dd90b940a01945792c35dedf75034c2886121873634e",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/dist/src/internal/wire-core.js",
+      "expected": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+      "actual": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/bindings/carriers.ts",
+      "expected": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "actual": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/bindings/backend.ts",
+      "expected": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "actual": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/dist/bindings/carriers.js",
+      "expected": "40bd9222d062bfe95891a82bf46c0f71104d9c861f2d59eaceb246fd8b9b4ece",
+      "actual": "40bd9222d062bfe95891a82bf46c0f71104d9c861f2d59eaceb246fd8b9b4ece",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.before.json",
+      "path": "packages/values/dist/bindings/backend.js",
+      "expected": "9a8cc17f264e6d40c84cdfc63f5fb888bd6b193f7f8665c5e810082fb7d9b280",
+      "actual": "9a8cc17f264e6d40c84cdfc63f5fb888bd6b193f7f8665c5e810082fb7d9b280",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/package.json",
+      "expected": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "actual": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/stdlib/package.json",
+      "expected": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+      "actual": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/src/schema.ts",
+      "expected": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+      "actual": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/src/wire.ts",
+      "expected": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+      "actual": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/src/internal/schema-core.ts",
+      "expected": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+      "actual": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/src/internal/wire-core.ts",
+      "expected": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+      "actual": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/dist/src/schema.js",
+      "expected": "69041498ef94ca3a003e1e76615e793406321652d875aceb09b0c33580ff5ca1",
+      "actual": "69041498ef94ca3a003e1e76615e793406321652d875aceb09b0c33580ff5ca1",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/dist/src/wire.js",
+      "expected": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+      "actual": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/dist/src/internal/schema-core.js",
+      "expected": "cdafec221c06f8862d35dd90b940a01945792c35dedf75034c2886121873634e",
+      "actual": "cdafec221c06f8862d35dd90b940a01945792c35dedf75034c2886121873634e",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/dist/src/internal/wire-core.js",
+      "expected": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+      "actual": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/bindings/carriers.ts",
+      "expected": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "actual": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/bindings/backend.ts",
+      "expected": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "actual": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/dist/bindings/carriers.js",
+      "expected": "40bd9222d062bfe95891a82bf46c0f71104d9c861f2d59eaceb246fd8b9b4ece",
+      "actual": "40bd9222d062bfe95891a82bf46c0f71104d9c861f2d59eaceb246fd8b9b4ece",
+      "match": true
+    },
+    {
+      "pinset": "consumer.pins.after.json",
+      "path": "packages/values/dist/bindings/backend.js",
+      "expected": "9a8cc17f264e6d40c84cdfc63f5fb888bd6b193f7f8665c5e810082fb7d9b280",
+      "actual": "9a8cc17f264e6d40c84cdfc63f5fb888bd6b193f7f8665c5e810082fb7d9b280",
+      "match": true
+    },
+    {
+      "path": "implementation/compiler-completion/default-representation/focused-current.log",
+      "expected": "5cc2766ae9a938ade7739fb83e8b0c4eed91834394d6c4f2e82956bae9cf6880",
+      "actual": "5cc2766ae9a938ade7739fb83e8b0c4eed91834394d6c4f2e82956bae9cf6880",
+      "match": true
+    }
+  ],
+  "all_match": true,
+  "consumer_before_after_equal": true,
+  "focused_receipt": {
+    "command": [
+      "cargo",
+      "test",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--locked",
+      "--offline",
+      "--test",
+      "decimal_runtime",
+      "--test",
+      "typed_descriptors",
+      "--test",
+      "typed_artifact",
+      "--",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "log_sha256": "5cc2766ae9a938ade7739fb83e8b0c4eed91834394d6c4f2e82956bae9cf6880",
+    "selected_final_pins": {
+      "compiler/src/codegen/js.rs": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+      "compiler/src/codegen/ir.rs": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "compiler/src/analysis/types.rs": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+      "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "packages/values/dist/src/decimal.js": "76ab588810caa54fa6edbcc5647d2e090f0d01aa11de4d84fb293d27e7fcddb9",
+      "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "packages/stdlib/src/index.ts": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09",
+      "packages/stdlib/dist/src/index.js": "0aff4dc3cbd6da5dd9896e547ccee05d8e13b54e2d76956e0d2e175568e21293",
+      "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "compiler/tests/codegen.rs": "a0717776903d4dfaca52876d91b66be506116b588a3dbcd424a97582681cda9a",
+      "compiler/tests/decimal_runtime.rs": "f84ca05db37c182d5a964d4432cd3a6ded5ddcc67ead5ad4d39814cb6289b6b5",
+      "selected.can": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "execute.mjs": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250",
+      "compiler/tests/fixtures/decimal-runtime/source.can": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+      "compiler/tests/fixtures/decimal-runtime/execute.mjs": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250"
+    },
+    "source_inputs_unchanged": true,
+    "scope": "Fresh relocated permanent Decimal fixture2checks plus existing6typeddescriptor+2typedartifact checks; real Node/public package body availability and explicit default metadata limits remain.",
+    "body_accounting": {
+      "decimal_runtime": 2,
+      "typed_artifact": 2,
+      "typed_descriptors": 6,
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "optional_body_skips": 0
+    }
+  },
+  "evidence_hashes": {
+    "ASSESSMENT.md": "155287d97fdc37efbc8c48732dd514123ae91f095af391afb8b60757b201c444",
+    "codegen.stdout": "9ca6f39c59fe621281c24fa36756728dc178af94a9b90668094a8ab2dce7ba4a",
+    "codegen.stderr": "3e8fa02a039fb0d96eb3aa255150dbfcecd86d251412ffa33c001897291d3179",
+    "codegen-stale.stdout": "5e4338e498a65e8392a682b8629aec7d865ca26e2d35038abfbb5ffeb08b5a37",
+    "codegen-stale.stderr": "e7564cddb6a9f320bf585a09f7009634620139f0988b87ba2756987ab95cc9e3",
+    "runtime.stdout": "fd9f3bbbcbaef8fb74dfe48fd8dcae7fe2f3cbac8f10b7881a0509b3a2d4bca3",
+    "runtime.stderr": "43b0478386233a9bc9f5c087ab571332ea1ceed4683e1acdcf18f5702b5da7ee",
+    "node.stdout": "052e0a555d77d920d2f048b68e98a31a6e4b6ab1764ab95822a50ed3d1ad47c7",
+    "selected.artifact.json": "d1ecca78c3b86390f75b09a17ec52c274b920033264add9417c6d6a1f94e9d79",
+    "generated/$can$m$4578616374.mjs": "7e0bebbb9dbe69e8c3abf9a49b72fa9fd4c8e1ed4833d945cb03eb8282caa281"
+  }
+}

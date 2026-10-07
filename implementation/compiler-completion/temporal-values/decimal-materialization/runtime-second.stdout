@@ -1,0 +1,12 @@
+
+running 2 tests
+test decimal_range_and_adjacent_gaps_keep_diagnostics ... ok
+test checked_decimal_materialization_and_default_consumers ... FAILED
+
+failures:
+
+failures:
+    checked_decimal_materialization_and_default_consumers
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+

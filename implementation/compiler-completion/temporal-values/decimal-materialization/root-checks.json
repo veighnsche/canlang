@@ -1,0 +1,19 @@
+{
+  "checks": [
+    {
+      "name": "format-check",
+      "command": [
+        "rustfmt",
+        "--check",
+        "--edition",
+        "2024",
+        "compiler/src/codegen/js.rs",
+        "compiler/tests/codegen.rs",
+        "compiler/tests/decimal_runtime.rs"
+      ],
+      "exit_code": 1,
+      "log_sha256": "eb1862dbea500e49b14c247670441323f91ed3bacb10dda0fd10a38ee8082a7f"
+    }
+  ],
+  "selected_sources_unchanged": true
+}

@@ -1,0 +1,12 @@
+Diff in /Users/vince/Projects/canlang/compiler/tests/codegen.rs:1691:
+     );
+     assert!(imports.iter().any(|i| i.contains("divideDecimal")));
+     assert!(imports.iter().any(|i| i.contains("parseDecimal")));
+-    assert!(diags.is_empty(), "decimal construction diagnostics: {diags:?}");
++    assert!(
++        diags.is_empty(),
++        "decimal construction diagnostics: {diags:?}"
++    );
+     let (text, _, _) = lower(
+         &ir,
+         &binary(IrBinOp::Eq, dec("1.5"), dec("1.5"), bool_ty.clone()),

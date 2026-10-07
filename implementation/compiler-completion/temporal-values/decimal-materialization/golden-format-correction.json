@@ -1,0 +1,5 @@
+{
+  "scope": "Exact rustfmt-only multiline correction of the newly changed Decimal diagnostics assertion; all executable tokens identical. Prior117pass/focused10pass receipts preserved.",
+  "before_sha256": "a0717776903d4dfaca52876d91b66be506116b588a3dbcd424a97582681cda9a",
+  "after_sha256": "294731cd3d4bf43ddea8bff2c89a7a4be4c048e12c0686108546d30808a3c680"
+}

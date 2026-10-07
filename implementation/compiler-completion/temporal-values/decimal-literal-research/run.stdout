@@ -1,0 +1,292 @@
+{
+  "publicExports": {
+    "parseDecimalType": "function",
+    "stdlibParseDecimalType": "function",
+    "sameFunction": true,
+    "valuesDecimalFromInteger": "function",
+    "stdlibDecimalFromInteger": "undefined"
+  },
+  "controls": [
+    [
+      "1.50",
+      {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "150n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "1.5",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "15n",
+            "scale": 1
+          }
+        }
+      }
+    ],
+    [
+      "0.00",
+      {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "0n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "0",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "0n",
+            "scale": 0
+          }
+        }
+      }
+    ],
+    [
+      "-0.00",
+      {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "0n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "0",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "0n",
+            "scale": 0
+          }
+        }
+      }
+    ],
+    [
+      "-1.50",
+      {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "-150n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "-1.5",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "-15n",
+            "scale": 1
+          }
+        }
+      }
+    ],
+    [
+      "99999999999999999999999999999999999999",
+      {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "99999999999999999999999999999999999999n",
+            "scale": 0
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "99999999999999999999999999999999999999",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "99999999999999999999999999999999999999n",
+            "scale": 0
+          }
+        }
+      }
+    ],
+    [
+      "99999999999999999999.123456789012345678",
+      {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "99999999999999999999123456789012345678n",
+            "scale": 18
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "99999999999999999999.123456789012345678",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "99999999999999999999123456789012345678n",
+            "scale": 18
+          }
+        }
+      }
+    ],
+    [
+      "0.000000000000000001",
+      {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "1n",
+            "scale": 18
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "0.000000000000000001",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "1n",
+            "scale": 18
+          }
+        }
+      }
+    ],
+    [
+      "0001.50",
+      {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "150n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "1.5",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "15n",
+            "scale": 1
+          }
+        }
+      }
+    ],
+    [
+      "1.0000000000000000000",
+      {
+        "ok": false,
+        "name": "ValueError",
+        "code": "out-of-range",
+        "message": "decimal text exceeds 18 fractional digits"
+      }
+    ],
+    [
+      "999999999999999999999999999999999999999",
+      {
+        "ok": false,
+        "name": "ValueError",
+        "code": "out-of-range",
+        "message": "decimal text exceeds 38 significant digits"
+      }
+    ],
+    [
+      "1e2",
+      {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid decimal text: 1e2"
+      }
+    ],
+    [
+      "+1.5",
+      {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid decimal text: +1.5"
+      }
+    ]
+  ],
+  "schemaControls": [
+    {
+      "id": "create-omission",
+      "result": {
+        "ok": true,
+        "value": {
+          "amount": {
+            "kind": "decimal",
+            "coef": "150n",
+            "scale": 2
+          },
+          "optional": null,
+          "nullableDefault": {
+            "kind": "decimal",
+            "coef": "200n",
+            "scale": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "create-explicit-null",
+      "result": {
+        "ok": true,
+        "value": {
+          "amount": {
+            "kind": "decimal",
+            "coef": "150n",
+            "scale": 2
+          },
+          "optional": null,
+          "nullableDefault": null
+        }
+      }
+    },
+    {
+      "id": "create-provided",
+      "result": {
+        "ok": true,
+        "value": {
+          "amount": {
+            "kind": "decimal",
+            "coef": "900n",
+            "scale": 2
+          },
+          "optional": null,
+          "nullableDefault": {
+            "kind": "decimal",
+            "coef": "200n",
+            "scale": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "update-omission",
+      "result": {
+        "ok": true,
+        "value": {
+          "result": {},
+          "amountOmitted": true,
+          "optionalOmitted": true,
+          "defaultOmitted": true
+        }
+      }
+    },
+    {
+      "id": "nonnullable-null",
+      "result": {
+        "ok": false,
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)"
+      }
+    }
+  ],
+  "changedPins": []
+}
+

@@ -1,0 +1,4 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.13s
+     Running tests/decimal_runtime.rs (compiler/target/debug/deps/decimal_runtime-6d3d9ce6d1217f47)
+Decimal: source derives/scenario, nested/contextual integers, native metadata and executable defaults, artifact-wire create/null/update, scale normalization and carrier controls passed; native metadata schema input gap: {"name":"SchemaError","violations":[{"path":["contracts","Native","fields","amount","default"],"code":"type","message":"decimal has the wrong wire type","expected":"canonical decimal string","actual":"object with keys [kind, coef, scale]"}]}

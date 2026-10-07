@@ -1687,13 +1687,12 @@ fn construct_scalars_per_op() {
     );
     assert_eq!(
         text,
-        "divideDecimal(parseDecimal(\"1.5\"),parseDecimal(\"0.5\"))"
+        "divideDecimal((() => { throw new Error(\"decimal literal has no lowering\"); })(),(() => { throw new Error(\"decimal literal has no lowering\"); })())"
     );
     assert!(imports.iter().any(|i| i.contains("divideDecimal")));
-    assert!(imports.iter().any(|i| i.contains("parseDecimal")));
     assert!(
-        diags.is_empty(),
-        "decimal construction diagnostics: {diags:?}"
+        diags.iter().any(|d| d.code == "E6008"),
+        "decimal literal is E6008"
     );
     let (text, _, _) = lower(
         &ir,

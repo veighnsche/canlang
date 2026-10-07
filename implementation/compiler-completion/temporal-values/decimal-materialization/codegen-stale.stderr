@@ -1,0 +1,10 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.16s
+     Running tests/codegen.rs (compiler/target/debug/deps/codegen-05d37f97ce2b7725)
+
+thread 'construct_scalars_per_op' (2173777) panicked at tests/codegen.rs:1688:5:
+assertion `left == right` failed
+  left: "divideDecimal(parseDecimal(\"1.5\"),parseDecimal(\"0.5\"))"
+ right: "divideDecimal((() => { throw new Error(\"decimal literal has no lowering\"); })(),(() => { throw new Error(\"decimal literal has no lowering\"); })())"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test codegen`

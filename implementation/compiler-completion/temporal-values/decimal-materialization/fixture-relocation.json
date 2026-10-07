@@ -1,0 +1,9 @@
+{
+  "purpose": "Permanent runtime checks depend on owning compiler fixtures; evidence copies remain immutable. Source and runner bytes copied exactly; only Rust include paths changed.",
+  "before_test_sha256": "a4e7527dccd172032172e9e9f9a2ece0065b668c9dcfe1a0a8eec6d8f3e74d72",
+  "after_test_sha256": "9d1222a64d5936b573797dc6ab72ca02c32335cc4e867e9c29387fa42c918e87",
+  "fixtures": {
+    "compiler/tests/fixtures/decimal-runtime/source.can": "db1affd5a4ce279ae845215300e960447abfed5ab574ae6a9995de2ac951ca96",
+    "compiler/tests/fixtures/decimal-runtime/execute.mjs": "aefa8749a47b652fc1897fc0af13f2646488719ef38e08bb968c1a380bf00250"
+  }
+}

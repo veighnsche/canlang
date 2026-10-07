@@ -1,0 +1,327 @@
+{
+  "bindingCarrier": {
+    "t": "decimal",
+    "coef": "150",
+    "scale": 2
+  },
+  "bindingRoundtrip": {
+    "kind": "decimal",
+    "coef": "150n",
+    "scale": 2
+  },
+  "resolved": {
+    "values": "/Users/vince/Projects/canlang/packages/values/dist/src/index.js",
+    "stdlib": "/Users/vince/Projects/canlang/packages/stdlib/dist/src/index.js"
+  },
+  "profile": {
+    "node": "v24.21.0"
+  },
+  "publicExports": {
+    "parseDecimalType": "function",
+    "stdlibParseDecimalType": "function",
+    "sameFunction": true,
+    "valuesDecimalFromInteger": "function",
+    "stdlibDecimalFromInteger": "undefined"
+  },
+  "catalogKeys": [
+    "catalog_version",
+    "language_version",
+    "entries",
+    "features"
+  ],
+  "constructorCatalogMentions": false,
+  "controls": [
+    {
+      "text": "1.50",
+      "publicModule": {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "150n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "1.5",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "15n",
+            "scale": 1
+          }
+        }
+      }
+    },
+    {
+      "text": "0.00",
+      "publicModule": {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "0n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "0",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "0n",
+            "scale": 0
+          }
+        }
+      }
+    },
+    {
+      "text": "-0.00",
+      "publicModule": {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "0n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "0",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "0n",
+            "scale": 0
+          }
+        }
+      }
+    },
+    {
+      "text": "-1.50",
+      "publicModule": {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "-150n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "-1.5",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "-15n",
+            "scale": 1
+          }
+        }
+      }
+    },
+    {
+      "text": "99999999999999999999999999999999999999",
+      "publicModule": {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "99999999999999999999999999999999999999n",
+            "scale": 0
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "99999999999999999999999999999999999999",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "99999999999999999999999999999999999999n",
+            "scale": 0
+          }
+        }
+      }
+    },
+    {
+      "text": "99999999999999999999.123456789012345678",
+      "publicModule": {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "99999999999999999999123456789012345678n",
+            "scale": 18
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "99999999999999999999.123456789012345678",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "99999999999999999999123456789012345678n",
+            "scale": 18
+          }
+        }
+      }
+    },
+    {
+      "text": "0.000000000000000001",
+      "publicModule": {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "1n",
+            "scale": 18
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "0.000000000000000001",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "1n",
+            "scale": 18
+          }
+        }
+      }
+    },
+    {
+      "text": "0001.50",
+      "publicModule": {
+        "ok": true,
+        "value": {
+          "value": {
+            "kind": "decimal",
+            "coef": "150n",
+            "scale": 2
+          },
+          "frozen": true,
+          "sameOwnerIdentity": true,
+          "wire": "1.5",
+          "decoded": {
+            "kind": "decimal",
+            "coef": "15n",
+            "scale": 1
+          }
+        }
+      }
+    },
+    {
+      "text": "1.0000000000000000000",
+      "publicModule": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "out-of-range",
+        "message": "decimal text exceeds 18 fractional digits"
+      }
+    },
+    {
+      "text": "999999999999999999999999999999999999999",
+      "publicModule": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "out-of-range",
+        "message": "decimal text exceeds 38 significant digits"
+      }
+    },
+    {
+      "text": "1e2",
+      "publicModule": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid decimal text: 1e2"
+      }
+    },
+    {
+      "text": "+1.5",
+      "publicModule": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid decimal text: +1.5"
+      }
+    }
+  ],
+  "unaryNegative": {
+    "kind": "decimal",
+    "coef": "-150n",
+    "scale": 2
+  },
+  "schemaControls": [
+    {
+      "id": "create-omission",
+      "result": {
+        "ok": true,
+        "value": {
+          "amount": {
+            "kind": "decimal",
+            "coef": "150n",
+            "scale": 2
+          },
+          "optional": null,
+          "nullableDefault": {
+            "kind": "decimal",
+            "coef": "200n",
+            "scale": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "create-explicit-null",
+      "result": {
+        "ok": true,
+        "value": {
+          "amount": {
+            "kind": "decimal",
+            "coef": "150n",
+            "scale": 2
+          },
+          "optional": null,
+          "nullableDefault": null
+        }
+      }
+    },
+    {
+      "id": "create-provided",
+      "result": {
+        "ok": true,
+        "value": {
+          "amount": {
+            "kind": "decimal",
+            "coef": "900n",
+            "scale": 2
+          },
+          "optional": null,
+          "nullableDefault": {
+            "kind": "decimal",
+            "coef": "200n",
+            "scale": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "update-omission",
+      "result": {
+        "ok": true,
+        "value": {
+          "result": {},
+          "amountOmitted": true,
+          "optionalOmitted": true,
+          "defaultOmitted": true
+        }
+      }
+    },
+    {
+      "id": "nonnullable-null",
+      "result": {
+        "ok": false,
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)"
+      }
+    }
+  ],
+  "nullableWire": {
+    "ok": true,
+    "value": null
+  },
+  "bindingExports": [
+    "reconstruct",
+    "tag"
+  ]
+}
