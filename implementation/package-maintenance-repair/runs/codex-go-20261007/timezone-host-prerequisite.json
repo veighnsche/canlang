@@ -1,0 +1,858 @@
+{
+  "packet": "TECH-V05 current local host/data/cache prerequisite",
+  "rootDisposition": "Observed profile/cache witnesses accepted as facts; cache policy and supported release host/data/installed qualification remain open",
+  "privateEvidence": "/private/tmp/canlang-repair-go-20261007/intl-profile-current",
+  "resultSHA256": "f0984c74f4c74d0c42ea2d7160923189987b7ab6c2daa80bac7a9d6a1282585e",
+  "strict": {
+    "diagnostics": [],
+    "emitSkipped": false,
+    "typescript": "5.9.3"
+  },
+  "tests": {
+    "Node": {
+      "pass": 237,
+      "fail": 0
+    },
+    "Bun": {
+      "pass": 237,
+      "fail": 0
+    },
+    "freshPublicAndCacheControls": "passed both; raw profiles retain exact witnesses",
+    "fixtureCorrections": "Money uses typed placeholder {n}, not unsupported {n,number}; params bind in descriptor, not options. Direct Bun node:test import requires Bun test runner; rerun using bun test passed."
+  },
+  "hosts": {
+    "Node": {
+      "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "executableSHA256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b",
+      "version": "v24.21.0",
+      "bun": null,
+      "platform": "darwin",
+      "arch": "arm64",
+      "versions": {
+        "node": "24.21.0",
+        "acorn": "8.18.0",
+        "ada": "4.0.0",
+        "amaro": "1.1.11",
+        "ares": "1.34.8",
+        "brotli": "1.2.0",
+        "cldr": "48.0",
+        "icu": "78.3",
+        "llhttp": "9.4.3",
+        "merve": "1.2.2",
+        "modules": "137",
+        "napi": "10",
+        "nbytes": "0.1.4",
+        "ncrypto": "0.0.1",
+        "nghttp2": "1.70.0",
+        "nghttp3": "",
+        "ngtcp2": "",
+        "openssl": "3.5.8",
+        "simdjson": "4.6.7",
+        "simdutf": "6.4.0",
+        "sqlite": "3.53.4",
+        "tz": "2026c",
+        "undici": "7.29.1",
+        "unicode": "17.0",
+        "uv": "1.52.1",
+        "uvwasi": "0.0.23",
+        "v8": "13.6.233.17-node.53",
+        "zlib": "1.3.2.1-motley-8002e91",
+        "zstd": "1.5.7"
+      },
+      "TZ": null,
+      "defaults": {
+        "locale": "en-US",
+        "calendar": "gregory",
+        "numberingSystem": "latn",
+        "timeZone": "Europe/Brussels",
+        "year": "numeric",
+        "month": "numeric",
+        "day": "numeric"
+      }
+    },
+    "Bun": {
+      "execPath": "/Users/vince/.bun/bin/bun",
+      "executableSHA256": "35d20dd0263e5c950194434b925454fdfa9ba6e4467da960410fa05b08a7a5b5",
+      "version": "v26.3.0",
+      "bun": "1.4.2",
+      "platform": "darwin",
+      "arch": "arm64",
+      "versions": {
+        "node": "26.3.0",
+        "bun": "1.4.2",
+        "boringssl": "41bf9b59c2ebf277a7aa427e1ecad5cc80dd4d4f",
+        "openssl": "1.1.0",
+        "llhttp": "9.3.0",
+        "libarchive": "ded82291ab41d5e355831b96b0e1ff49e24d8939",
+        "mimalloc": "6a64e1ba7f5b2130d4efccb67ec87fd0003f0f6a",
+        "picohttpparser": "066d2b1e9ab820703db0837a7255d92d30f0c9f5",
+        "uwebsockets": "744846f844374847c902b5e7fd59b4342a51ef99",
+        "webkit": "2e2aa2290fac856d6f451ceacb58f7f5b44dd057",
+        "zig": "04e7f6ac1e009525bc00934f20199c68f04e0a24",
+        "zlib": "12731092979c6d07f42da27da673a9f6c7b13586",
+        "tinycc": "05f0fafaa3be31e31d7b4b5c17dc60f62c991171",
+        "lolhtml": "725ce499aa9b71e38b7a2d0a9fbb6d7294a4079e",
+        "ares": "c7a3138dcfe3bb0eaaf10c0c24c36dc66dc790ab",
+        "libdeflate": "c8c56a20f8f621e6a966b716b31f1dedab6a41e3",
+        "usockets": "744846f844374847c902b5e7fd59b4342a51ef99",
+        "lshpack": "8905c024b6d052f083a3d11d0a169b3c2735c8a1",
+        "zstd": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "v8": "14.6.202.34-node.20",
+        "uv": "1.48.0",
+        "napi": "10",
+        "icu": "78.1",
+        "unicode": "17.0",
+        "sqlite": "3.54.0",
+        "modules": "147"
+      },
+      "TZ": null,
+      "defaults": {
+        "locale": "en-US",
+        "calendar": "gregory",
+        "numberingSystem": "latn",
+        "timeZone": "Europe/Brussels",
+        "year": "numeric",
+        "month": "numeric",
+        "day": "numeric"
+      }
+    },
+    "BunUnavailable": [
+      "tz",
+      "cldr"
+    ],
+    "releaseHostVerified": false
+  },
+  "currency": {
+    "sourceSHA256": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
+    "catalogSHA256": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+    "actualTable": {
+      "frozen": true,
+      "count": 165,
+      "counts": {
+        "0": 17,
+        "2": 139,
+        "3": 7,
+        "4": 2
+      },
+      "canonicalSortedTableSHA256": "3fe0176ed34cebbe4a50621c65eb1315fdaeecb26bb94e43bd0a1b010937eceb",
+      "catalogVersion": "0.1.0-lane02-draft",
+      "catalog": {
+        "catalog_version": "0.1.0-lane02-draft",
+        "language_version": "1.0",
+        "entries": [
+          {
+            "id": "count",
+            "js": "count",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "count(domain:C<T>)->int",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Supplied-array evaluation here; record-query evaluation by lane-03."
+          },
+          {
+            "id": "flatten",
+            "js": "flatten",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "flatten(domain:C<C<T>>)->T[]",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "sum",
+            "js": "sum",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "sum(domain:C<int>)->int; sum(domain:C<decimal>)->decimal; sum(domain:C<duration>)->duration; sum(domain:C<money>,currency:currency)->money; sum(domain:nonempty C<money>)->money",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Supplied-array evaluation here; record-query evaluation by lane-03. Empty int/decimal/duration sums yield typed zero. Dispatcher sum(domain, element, currency?) routes by static element tag."
+          },
+          {
+            "id": "min",
+            "js": "min",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "min(domain:C<O>)->O?; min(domain:nonempty C<O>)->O",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Supplied-array evaluation here; record-query evaluation by lane-03. Money min rejects inconsistent currencies."
+          },
+          {
+            "id": "max",
+            "js": "max",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "max(domain:C<O>)->O?; max(domain:nonempty C<O>)->O",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Supplied-array evaluation here; record-query evaluation by lane-03. Money max rejects inconsistent currencies."
+          },
+          {
+            "id": "any",
+            "js": "any",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "any(domain:C<T> as x,predicate:bool in x scope)->bool",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Alias-scoped predicate expression, not a callback. Empty domain is false. Pure core takes a plain predicate; generated code supplies the scope expression."
+          },
+          {
+            "id": "all",
+            "js": "all",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "all(domain:C<T> as x,predicate:bool in x scope)->bool",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Alias-scoped predicate expression, not a callback. Empty domain is true. Pure core takes a plain predicate; generated code supplies the scope expression."
+          },
+          {
+            "id": "first",
+            "js": "first",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "first(domain:ordered C<T>)->T?",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Requires stable ordering. Supplied-array evaluation here; record-query evaluation by lane-03."
+          },
+          {
+            "id": "group",
+            "js": "group",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "group(domain:C<T> as x,key:K in x scope)->C<{key:K,items:T[]}>",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Typed equality incl. one null group; encounter order; only {key,items}. Pure core takes a plain key function; generated code supplies the scope expression."
+          },
+          {
+            "id": "at",
+            "js": "at",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "at(array:T[],index:int)->T?",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Null for negative or out-of-range indices."
+          },
+          {
+            "id": "choose",
+            "js": "choose",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "choose(condition:bool,yes:T,no:T)->T",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Strict pure selection; the condition must be a boolean and the winning input returns as-is. Any laziness is codegen's."
+          },
+          {
+            "id": "abs",
+            "js": "abs",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "abs(value:int)->int; abs(value:decimal)->decimal; abs(value:duration)->duration; abs(value:money)->money",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Same overflow boundaries as negation. Dispatcher abs(value) routes by runtime kind (bigint covers int/duration; absDuration is behaviorally identical to absInt)."
+          },
+          {
+            "id": "round",
+            "js": "round",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "round(value:int,scale:int)->decimal; round(value:decimal,scale:int)->decimal",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Scale 0-18, half-even; other scales fail."
+          },
+          {
+            "id": "lower",
+            "js": "lower",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "lower(value:S)->text",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Full default Unicode case conversion. Result is text."
+          },
+          {
+            "id": "upper",
+            "js": "upper",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "upper(value:S)->text",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Full default Unicode case conversion. Result is text."
+          },
+          {
+            "id": "trim",
+            "js": "trim",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "trim(value:S)->text",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Removes pinned Unicode White_Space at both ends. Result is text."
+          },
+          {
+            "id": "contains",
+            "js": "contains",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "contains(value:S,needle:text)->bool",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Exact case-sensitive scalar matching."
+          },
+          {
+            "id": "starts_with",
+            "js": "starts_with",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "starts_with(value:S,prefix:text)->bool",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Exact case-sensitive scalar matching. Two camelCase draft hits are drift."
+          },
+          {
+            "id": "join",
+            "js": "join",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "join(values:C<S>,separator:text)->text",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Domain order; empty domain yields empty text."
+          },
+          {
+            "id": "format",
+            "js": "format",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "format(template:text,values:closed object of Display)->text; format(descriptor:message,locale:locale?)->text",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Display excludes decimal/money/datetime. Message overload requires explicit locale= (null selects app default). Plain overload is formatPlain; message overload is formatMessage."
+          },
+          {
+            "id": "app_url",
+            "js": "app_url",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "app_url(path:text)->url",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Pure link construction against injected trusted origin; grants nothing. Pure core app_url(path, origin): generated code supplies the deployment origin; the Can surface takes path only."
+          },
+          {
+            "id": "active_member",
+            "js": "active_member",
+            "owner": "lane-03",
+            "kind": "builtin",
+            "signature": "active_member(person:user,team:Team)->bool",
+            "effects": "state-read",
+            "availability": "external",
+            "notes": "Needs membership state; signature authored here, implementation by lane-03."
+          },
+          {
+            "id": "overlaps",
+            "js": "overlaps",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "overlaps(aStart:date,aEnd:date,bStart:date,bEnd:date)->bool; overlaps(aStart:datetime,aEnd:datetime,bStart:datetime,bEnd:datetime)->bool",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Nonempty half-open test; empty/reversed ranges return false."
+          },
+          {
+            "id": "local_date",
+            "js": "local_date",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "local_date(value:datetime,zone:timezone)->date",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Civil date in pinned IANA zone; changes nothing."
+          },
+          {
+            "id": "local_instant",
+            "js": "local_instant",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "local_instant(date:date,time:text,zone:timezone,fold:enum(earlier,later))->datetime",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Fold required when ambiguous; nonexistent local times fail. Time is HH:MM[:SS]."
+          },
+          {
+            "id": "add_days",
+            "js": "add_days",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "add_days(value:date,days:int)->date",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Calendar days."
+          },
+          {
+            "id": "add_months",
+            "js": "add_months",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "add_months(value:date,months:int)->date",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Original-anchor month-end clamping; overflow fails."
+          },
+          {
+            "id": "date_year",
+            "js": "date_year",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "date_year(value:date)->int",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Gregorian year."
+          },
+          {
+            "id": "weekday",
+            "js": "weekday",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "weekday(value:date)->int",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "ISO Monday=1 through Sunday=7."
+          },
+          {
+            "id": "dates",
+            "js": "dates",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "dates(from:date,until:date,limit:int)->date[]",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Ascending half-open [from,until). Limit is a work bound; excess fails."
+          },
+          {
+            "id": "money",
+            "js": "money",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "money(value:int,currency:currency)->money; money(value:decimal,currency:currency)->money",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Checked constructor; rounds once to currency minor-unit scale, half-even."
+          },
+          {
+            "id": "date",
+            "js": "date",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "date(value:text)->date",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Checked text constructor, YYYY-MM-DD."
+          },
+          {
+            "id": "datetime",
+            "js": "datetime",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "datetime(value:text)->datetime",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Checked text constructor, RFC 3339 instant; nonzero sub-ms fractions rejected."
+          },
+          {
+            "id": "action",
+            "js": "action",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "action(target:canonical user mutation,bindings:closed object of every record parameter)->singleton action(target)",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Packaging action(target, bindings) here (every binding carries its expected version); static target/canonicity validation by lane 1."
+          },
+          {
+            "id": "invocation",
+            "js": "invocation",
+            "owner": "lane-02",
+            "kind": "builtin",
+            "signature": "invocation(target:canonical local user mutation,arguments:complete owning input object)->singleton invocation(target)",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Packaging invocation(target, args) of decoded values here (nested versions preserved, never required); construction checking by L1, admission by L3."
+          },
+          {
+            "id": "random_secret",
+            "js": "random_secret",
+            "owner": "lane-03",
+            "kind": "builtin",
+            "signature": "random_secret()->secret",
+            "effects": "server-default-only",
+            "availability": "external",
+            "notes": "Server-defaults-only, stable per committed operation identity; not pure or client-callable."
+          },
+          {
+            "id": "addMoney",
+            "js": "addMoney",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "addMoney(a:money,b:money)->money; same currency",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "subtractMoney",
+            "js": "subtractMoney",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "subtractMoney(a:money,b:money)->money; same currency",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "multiplyMoney",
+            "js": "multiplyMoney",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "multiplyMoney(m:money,f:int|decimal)->money",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "compareMoney",
+            "js": "compareMoney",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "compareMoney(a:money,b:money)->-1|0|1; same currency",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "equalMoney",
+            "js": "equalMoney",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "equalMoney(a:money,b:money)->bool; decidable across currencies (unequal)",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "negateMoney",
+            "js": "negateMoney",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "negateMoney(m:money)->money",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "divideDecimal",
+            "js": "divideDecimal",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "divideDecimal(a:int|decimal|money,b:int|decimal|money)->decimal; decimal rounding",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "durationBetween",
+            "js": "durationBetween",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "durationBetween(a:datetime,b:datetime)->duration",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "compareInstant",
+            "js": "compareInstant",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "compareInstant(a:datetime,b:datetime)->-1|0|1",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "compareDate",
+            "js": "compareDate",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "compareDate(a:date,b:date)->-1|0|1",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "compareDecimal",
+            "js": "compareDecimal",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "compareDecimal(a:decimal,b:decimal)->-1|0|1",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "addDuration",
+            "js": "addDuration",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "addDuration(d:duration,x:duration|datetime)->duration|datetime",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "subtractDuration",
+            "js": "subtractDuration",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "subtractDuration(d:duration|datetime,x:duration)->duration|datetime",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "same",
+            "js": "same",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "same(a:ref,b:ref)->bool; reference identity",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "equalValue",
+            "js": "equalValue",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "equalValue(c:context,canonicalTypeId:string,a:CanValue,b:CanValue)->bool; typed structural equality",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Leading c is the generated-code call form (DESIGN L992); shims drop it \u2014 the pure core is equalValue(typeId,a,b)."
+          },
+          {
+            "id": "int64",
+            "js": "int64",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "int64(v:bigint)->bigint; checked int64",
+            "effects": "pure",
+            "availability": "implemented"
+          },
+          {
+            "id": "addDecimal",
+            "js": "addDecimal",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "addDecimal(a:int|decimal,b:int|decimal)->decimal; exact, then 38-digit check",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Required by the decimal + matrix row; absent from the L992 draft list \u2014 L1 join to confirm."
+          },
+          {
+            "id": "subtractDecimal",
+            "js": "subtractDecimal",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "subtractDecimal(a:int|decimal,b:int|decimal)->decimal; exact, then 38-digit check",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Required by the decimal - matrix row; absent from the L992 draft list \u2014 L1 join to confirm."
+          },
+          {
+            "id": "multiplyDecimal",
+            "js": "multiplyDecimal",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "multiplyDecimal(a:int|decimal,b:int|decimal)->decimal; decimal rounding",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Required by the decimal * matrix row; absent from the L992 draft list \u2014 L1 join to confirm."
+          },
+          {
+            "id": "negateDecimal",
+            "js": "negateDecimal",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "negateDecimal(v:decimal)->decimal; exact, scale preserved",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Required by decimal unary minus; absent from the L992 draft list \u2014 L1 join to confirm."
+          },
+          {
+            "id": "divideMoney",
+            "js": "divideMoney",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "divideMoney(m:money,d:int|decimal)->money; round once half-even",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Required by the money/int|decimal / matrix row; absent from the L992 draft list \u2014 L1 join to confirm."
+          },
+          {
+            "id": "divideDurationByInt",
+            "js": "divideDurationByInt",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "divideDurationByInt(d:duration,n:int)->duration; exact ms or fail",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Required by the duration/int exact-division rule; absent from the L992 draft list \u2014 L1 join to confirm."
+          },
+          {
+            "id": "divideDurationMs",
+            "js": "divideDurationMs",
+            "owner": "lane-02",
+            "kind": "helper",
+            "signature": "divideDurationMs(a:duration,b:duration)->decimal; exact decimal division",
+            "effects": "pure",
+            "availability": "implemented",
+            "notes": "Required by the duration/duration / matrix row (no other lowering path expresses it); absent from the L992 draft list \u2014 L1 join to confirm."
+          }
+        ],
+        "features": [
+          {
+            "name": "exact-int64",
+            "status": "implemented",
+            "description": "Checked signed 64-bit integer arithmetic and comparisons."
+          },
+          {
+            "name": "decimal-38-18-half-even",
+            "status": "implemented",
+            "description": "Exact decimal, <=38 significant digits, <=18 fractional, half-even boundaries."
+          },
+          {
+            "name": "money-pinned-scales",
+            "status": "implemented",
+            "description": "Money as minor units plus currency with pinned per-currency scales."
+          },
+          {
+            "name": "currency-iso-table",
+            "status": "implemented",
+            "description": "Pinned ISO 4217 admission table for currency values."
+          },
+          {
+            "name": "temporal-pure-helpers",
+            "status": "implemented",
+            "description": "Pure date/datetime/duration helpers with gap/fold/month-end rules."
+          },
+          {
+            "name": "timezone-pinned-intl",
+            "status": "implemented",
+            "description": "IANA zone resolution over pinned zone data via Intl."
+          },
+          {
+            "name": "unicode-scalar-text",
+            "status": "implemented",
+            "description": "Scalar-counted text ops with full default case conversion, no implicit normalization."
+          },
+          {
+            "name": "bounded-icu-profile",
+            "status": "implemented",
+            "description": "Bounded ICU MessageFormat validation and rendering."
+          },
+          {
+            "name": "locale-fallback-rfc4647",
+            "status": "implemented",
+            "description": "Whole-message RFC 4647 fallback with selected-locale plural rules."
+          },
+          {
+            "name": "pure-arrays",
+            "status": "implemented",
+            "description": "Pure array helpers over supplied values; record queries stay lane 3."
+          },
+          {
+            "name": "structural-equality",
+            "status": "implemented",
+            "description": "Typed structural equality plus reference identity."
+          },
+          {
+            "name": "schema-validation",
+            "status": "implemented",
+            "description": "Schema normalization and validation yielding structured violations."
+          },
+          {
+            "name": "wire-canonical-json",
+            "status": "implemented",
+            "description": "Exact canonical JSON/wire codecs per type id."
+          },
+          {
+            "name": "typed-errors",
+            "status": "implemented",
+            "description": "SchemaError/ValueError shapes distinct from business errors (DeliveryError owned by lane-04 services.ts)."
+          },
+          {
+            "name": "builtin-catalog",
+            "status": "draft",
+            "description": "This versioned single-authored signature catalog consumed by Rust and callers."
+          }
+        ]
+      }
+    },
+    "provenance": "Authored source header records SIX list-one.xml Pblshd2026-09-17/fetched2026-10-04. Remote publication not fetched or independently verified; exact local source/table hashes are proven. Source admits165 numeric codes, excludes13 N.A. codes; separate from runtime Intl currency metadata."
+  },
+  "cacheOwners": {
+    "timezone": "Two private raw-zone Maps in timezone.ts module lifetime; no explicit cap/eviction/release. Full admitted raw-string cardinality unproven. Cache hit still validates through a fresh constructor.",
+    "localeICU": "Canonical locale values; ICU numberSymbols/PluralRules/date-time constructors per render/call; resolved params Map per render, no persistent locale formatter Map.",
+    "decimal": "Private POW10_CACHE initial1n. Existing checked caller exponents0..18 imply at most19 entries; multiply drop <=18 from input scales<=18; no policy changed.",
+    "money": "Fixed powers10 for declared source currency scales max4, frozen165-code currency table."
+  },
+  "cacheWitness": {
+    "Node": {
+      "instrumentation": "Process-local native Intl.DateTimeFormat subclass records actual constructor allocations; private Maps not exposed or modified.",
+      "rawLiteral": "US/Eastern",
+      "caseVariants": 512,
+      "first": {
+        "date": 512,
+        "instant": 512,
+        "validation": 1536
+      },
+      "second": {
+        "date": 512,
+        "instant": 512,
+        "validation": 2560
+      },
+      "dateObjects": 512,
+      "instantObjects": 512,
+      "resolvedZones": [
+        "America/New_York"
+      ],
+      "scope": "512 admitted raw spellings of one alias; no complete admitted-domain cardinality or host memory bound established."
+    },
+    "Bun": {
+      "instrumentation": "Process-local native Intl.DateTimeFormat subclass records actual constructor allocations; private Maps not exposed or modified.",
+      "rawLiteral": "US/Eastern",
+      "caseVariants": 512,
+      "first": {
+        "date": 512,
+        "instant": 512,
+        "validation": 1536
+      },
+      "second": {
+        "date": 512,
+        "instant": 512,
+        "validation": 2560
+      },
+      "dateObjects": 512,
+      "instantObjects": 512,
+      "resolvedZones": [
+        "US/Eastern"
+      ],
+      "scope": "512 admitted raw spellings of one alias; no complete admitted-domain cardinality or host memory bound established."
+    }
+  },
+  "remainingDecision": "Owning release host/data profile, admitted raw timezone domain (including offsets), and private key-equivalence/retention budget contract remain unselected. Native resolved identity is host-dependent; alias result controls do not establish cross-date or full-supported-host formatter equivalence. Three balanced equivalent JEV requests saved UNSENT for root high/consultation gate. No numeric quota invented.",
+  "limits": [
+    "No complete admitted-domain cardinality or host memory bound.",
+    "Native constructors are observed via process-local subclass only for cache allocations; uninstrumented maintained tests separately pass.",
+    "No worker/browser/installed/workerd release guarantee.",
+    "No replacement library, semantic timezone normalization, cache policy or production reduction selected.",
+    "A05/A06 exact-value port scope remains unchanged; host timezone/locale remains TypeScript/Intl owned."
+  ],
+  "release": "All bounded command PIDs exited; all leased source/test/config/support reads released."
+}

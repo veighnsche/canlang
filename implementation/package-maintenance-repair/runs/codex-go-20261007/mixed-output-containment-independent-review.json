@@ -1,0 +1,168 @@
+{
+  "verdict": "PASS within selected existing-guard synchronous filesystem scope; preexisting planned-prefix collision residual explicit",
+  "candidate": {
+    "bundleSHA256": "1f28c42614a303ac89460539ac94fd768c792cc268bf060a6fdbf5fd8d500121",
+    "newTestSHA256": "552dd8bd357776456744b447849885249c9241c690c5c752b0b960aaca858f3c"
+  },
+  "baseline": {
+    "git": "41a7b05b",
+    "bundleSHA256": "613905f8035259e8e99e6ed97f7b125c917eba16fd845d1f68d6f5a176114b4b"
+  },
+  "strict": {
+    "before": {
+      "diagnostics": [],
+      "emitSkipped": false
+    },
+    "current": {
+      "diagnostics": [],
+      "emitSkipped": false
+    }
+  },
+  "declarations": [
+    {
+      "file": "deploy/package-assets.d.ts",
+      "equal": true,
+      "sha256": "e9066f16c6880248f17ad69faaa1bafd5639a1ed3e90213425c0e01921641130"
+    },
+    {
+      "file": "deploy/bundle.d.ts",
+      "equal": true,
+      "sha256": "993da6ebed68002859e84e18b8b414f0ccac588a7c3884e36ba54859ddc6234b"
+    },
+    {
+      "file": "deploy/module-maps.d.ts",
+      "equal": true,
+      "sha256": "aaca88142054cd193527cf93f9161d99bd2b6557538ebb06f82e971bb4bd9271"
+    },
+    {
+      "file": "deploy/module-imports.d.ts",
+      "equal": true,
+      "sha256": "de0344e37e0925a6b11c87423ab1f4dee5b22f2a3928d4732be0025ce48567d5"
+    },
+    {
+      "file": "deploy/producer-files.d.ts",
+      "equal": true,
+      "sha256": "2ff359cebe73d56e9babac61e2719865d09f4e33f92206f77e0af9c497fae0d6"
+    },
+    {
+      "file": "runtime/sourcemap.d.ts",
+      "equal": true,
+      "sha256": "18e400f9c782528dbecb4945c4aadf3ac9ce80d436872110708a161e2078fd84"
+    },
+    {
+      "file": "runtime/modules.d.ts",
+      "equal": true,
+      "sha256": "b67e38bf5542db428f692222be673c017c6ee4a32310e2a077e0af0f86cb489b"
+    }
+  ],
+  "maintained": {
+    "current": {
+      "pass": 47,
+      "fail": 0,
+      "files": 4
+    },
+    "before": {
+      "pass": 39,
+      "fail": 8,
+      "files": 4
+    },
+    "newContainmentTest": {
+      "current": 17,
+      "before": 9,
+      "total": 17
+    },
+    "existingTextMixedControls": {
+      "current": 30,
+      "before": 30
+    }
+  },
+  "residual": [
+    {
+      "name": "unchanged-planned-prefix-collision-absent",
+      "pass": true,
+      "residual": true,
+      "error": "Error: EEXIST: file already exists, mkdir '/private/tmp/canlang-repair-go-20261007/mixed-writer-independent/owned-tmp/independent-mixed-smXMl2/out/parent'",
+      "after": {
+        "bundle.json": {
+          "hex": "7b0a2020226d61696e4d6f64756c65223a2022776f726b65722f6d61696e2e6a73222c0a202022736861323536223a202276312d707265736572766564222c0a2020226d6f64756c65436f756e74223a20312c0a2020226d637042756e646c654279746573223a20372c0a202022687474704f7065726174696f6e734279746573223a20392c0a2020226d6f64756c6573223a205b0a202020207b0a202020202020226b6579223a2022706172656e74222c0a202020202020226279746573223a20340a202020207d0a20205d0a7d0a"
+        },
+        "parent": {
+          "hex": "54455854"
+        }
+      },
+      "scope": "Existing layout/helper does not forecast two missing selected files with a parent/child conflict; both versions write text+v1 manifest then fail. Existing on-disk collisions are independently covered."
+    },
+    {
+      "name": "unchanged-planned-prefix-collision-present",
+      "pass": true,
+      "residual": true,
+      "error": "Error: EEXIST: file already exists, mkdir '/private/tmp/canlang-repair-go-20261007/mixed-writer-independent/owned-tmp/independent-mixed-VgEicM/out/parent'",
+      "after": {
+        "bundle.json": {
+          "hex": "7b0a2020226d61696e4d6f64756c65223a2022776f726b65722f6d61696e2e6a73222c0a202022736861323536223a202276312d707265736572766564222c0a2020226d6f64756c65436f756e74223a20312c0a2020226d637042756e646c654279746573223a20372c0a202022687474704f7065726174696f6e734279746573223a20392c0a2020226d6f64756c6573223a205b0a202020207b0a202020202020226b6579223a2022706172656e74222c0a202020202020226279746573223a20340a202020207d0a20205d0a7d0a"
+        },
+        "parent": {
+          "hex": "54455854"
+        }
+      },
+      "scope": "Existing layout/helper does not forecast two missing selected files with a parent/child conflict; both versions write text+v1 manifest then fail. Existing on-disk collisions are independently covered."
+    }
+  ],
+  "sourceOrder": "Candidate changes exactly2lines: comment + existing assertPackageOutputFiles call after aggregate digest verification, before writeDeployBundle; keys sorted text first, then sorted binary, then bundle.json/bundle.mixed.json. Existing writeDeployBundle repeats text guard. No new framework or public policy.",
+  "accounting": {
+    "readableProductionDeltaBytes": 206,
+    "readableProductionDeltaLines": 2,
+    "newMaintainedProofBytes": 8459,
+    "newMaintainedProofLines": 138,
+    "fullPackageProduction": {
+      "beforeFiles": 55,
+      "beforeBytes": 1320057,
+      "currentFiles": 55,
+      "currentBytes": 1320263
+    },
+    "fullPackageMaintained": {
+      "beforeFiles": 61,
+      "beforeBytes": 1017730,
+      "currentFiles": 62,
+      "currentBytes": 1026189
+    },
+    "benefit": "Small correctness growth, no source/library reduction claimed"
+  },
+  "supports": {
+    "pinnedExtensionFiles": 1136,
+    "freshNativeRuntimeLoadedFiles": 316,
+    "externalLoadedSubsetFiles": 301,
+    "outsideExactRuntimeSupportLease": [],
+    "sourceStable": true,
+    "sourceChanges": [],
+    "supportStable": true,
+    "supportChanges": [],
+    "actualOwnerClosure": "Seven full current/baseline TypeScript owning sources emitted fresh independently; no stale owner bundle output or AST projection. Existing declared dependency dist runtime/types used only as rehashed pinned support, not delivered-runtime acceptance."
+  },
+  "fixtureCorrection": "Initial independent raw-key check assumed manifest modules strings; actual established schema is objects {key,bytes}. Corrected to inspect entry.key on both versions, retained initial failed evidence. No source correction.",
+  "limits": [
+    "No symlink race or transactional filesystem protection; guard observes current synchronous paths only.",
+    "Planned parent/child selected-key collisions with missing targets remain a preexisting gap and can partially write; no blanket collision or atomic guarantee.",
+    "No actual CLI/deployment/native asset producer, browser/worker/installed package execution, host plan/toml writer or HOLD activation.",
+    "Complete package wrapper uses full emitted real module and native FS with independent valid resource snapshot. deploy-package-assets beforeAll/native build and WASM child not executed.",
+    "Exact native error object proof uses process-local fs substitution only to replay an actual captured native ENOTDIR; independent native path control unmodified."
+  ],
+  "release": "All finite command PIDs exited; exact source/test/config/compiler/runtime-support reads released; product/Git/docs/state/shared outputs unchanged.",
+  "independent": {
+    "observationsPerVersion": 38,
+    "allExpectedProfilesMatched": true,
+    "baselineInterpretation": "Fresh baseline pass means observed expected unsafe behavior, not containment acceptance. Eight physical binary/mixed-manifest witnesses change output before or without refusal.",
+    "successByteAndPathComparisons": 8,
+    "errorIdentityControls": [
+      "undefined module getter",
+      "Symbol binary getter",
+      "Error binary constructor iterator",
+      "native captured ENOTDIR replay through process-local fs.lstatSync seam"
+    ],
+    "errorOrder": "Snapshot/layout then aggregate digest before physical guard; sorted text-target first refusal unchanged. Constructor/getter exact original errors unchanged. Original native ENOTDIR code/path separately observed without fs substitution."
+  },
+  "packet": "DEL-D03 finite mixed existing-state physical preflight",
+  "privateEvidence": "/private/tmp/canlang-repair-go-20261007/mixed-writer-independent",
+  "privateResultSHA256": "02712351d2463d8772b83b7a33521dc553647718212c88a8c304175a70d2fab5",
+  "rootDisposition": "Accept physical guard leaf; separately repair preexisting planned file/directory prefix conflicts before parent closure"
+}

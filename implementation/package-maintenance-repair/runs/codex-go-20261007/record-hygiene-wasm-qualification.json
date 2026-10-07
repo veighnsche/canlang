@@ -1,0 +1,114 @@
+{
+  "packet": "TECH-V04 current changed-source raw Wasm qualification",
+  "rootDisposition": "Accept selected raw registered native/Wasm conformance and actual bootstrap integrity controls only",
+  "sourceCurrentRegisteredAndHostFiles": 58,
+  "currentRegisteredSourceMatches": true,
+  "versions": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "wasmBindgen": "wasm-bindgen 0.2.129",
+    "node": "v24.21.0"
+  },
+  "profile": "dev unoptimized debuginfo; wasm32-unknown-unknown; wasm-bindgen target web",
+  "registeredWorkspace": "packages/values/Cargo.toml semantics+bindings; copied byte identical",
+  "assets": {
+    "values_semantics_bg.wasm.d.ts": {
+      "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "bytes": 643
+    },
+    "values_semantics_bg.wasm": {
+      "sha256": "b36821285055f02f82009d35ccf263ca55d0c6f7652b63261d45edee4b0d85a5",
+      "bytes": 1721646
+    },
+    "values_semantics.js": {
+      "sha256": "9fc999525ec8c8449d6a43e0ae4cca2348f1999cb75cee4feb364f524f5c4fff",
+      "bytes": 8013
+    },
+    "values_semantics.d.ts": {
+      "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "bytes": 2184
+    }
+  },
+  "nativeRegression": "6/6",
+  "rawFrames": 25,
+  "rawResultStringsByteEqual": true,
+  "rawCaseNames": [
+    "unique-money",
+    "duplicate-minor-1",
+    "duplicate-minor-bad",
+    "duplicate-unknown",
+    "nested-before-scalar",
+    "first-value-fault",
+    "second-duplicate-before-value",
+    "nonstring-key-before-value",
+    "pair-arity-before-duplicate",
+    "ordered-money-errors",
+    "unique-special-unicode",
+    "duplicate-key-__proto__",
+    "duplicate-key-constructor",
+    "duplicate-key-",
+    "duplicate-key-\u00e9",
+    "duplicate-key-\ud83d\ude00",
+    "int--9223372036854775808",
+    "int-9223372036854775807",
+    "int-01",
+    "int--0",
+    "int-overflow",
+    "int-plus",
+    "args-before-dispatch",
+    "args-before-arity",
+    "version-before-record"
+  ],
+  "hostControls": [
+    {
+      "name": "empty",
+      "error": {
+        "name": "BootstrapError",
+        "code": "missing-bytes",
+        "message": "wasm bootstrap needs non-empty module bytes or a compiled module"
+      }
+    },
+    {
+      "name": "corrupt-first",
+      "error": {
+        "name": "BootstrapError",
+        "code": "init-failed",
+        "message": "wasm instantiation failed: WebAssembly.Module(): expected magic word 00 61 73 6d, found 00 01 02 03 @+0"
+      }
+    },
+    {
+      "name": "real-host-add-int",
+      "value": "3"
+    },
+    {
+      "name": "real-host-add-decimal",
+      "coef": "325",
+      "scale": 2
+    },
+    {
+      "name": "real-host-date",
+      "value": "0"
+    },
+    {
+      "name": "same-asset-rebootstrap",
+      "value": "5"
+    },
+    {
+      "name": "changed-asset-refusal",
+      "error": {
+        "name": "BootstrapError",
+        "code": "init-failed",
+        "message": "wasm bootstrap asset differs from the initialized asset"
+      }
+    }
+  ],
+  "privateEvidence": "/private/tmp/canlang-repair-go-20261007/record-hygiene-wasm-current",
+  "resultSHA256": "69a5610f5b43fc9d978ab3ce168869c71133aab00275087f51ecd3e5c2568c49",
+  "reproduction": "reproduce.sh, recipe.json and exact private dependency/toolchain/source/artifact pins",
+  "limits": [
+    "Duplicate record checks exercise raw exact_call export; public Object.entries facade cannot express duplicate entries",
+    "No whole69, owning SchemaError, selected production profile, UTF16 losslessness, public decode routing, installed consumer or default adoption claim",
+    "Fresh dev wasm32 build and generated glue; no native Cloudflare preparation/HOLD activation or shared asset write"
+  ],
+  "readAndCommandsReleased": true
+}

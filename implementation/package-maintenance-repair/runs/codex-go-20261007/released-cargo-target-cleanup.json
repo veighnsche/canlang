@@ -1,0 +1,29 @@
+{
+  "checked_at": "2026-10-07T23:04:38.514555+00:00",
+  "exact_target": "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/target",
+  "no_symlink_alias": true,
+  "lsof_exit": 1,
+  "open_target_pids": [],
+  "matching_cargo_processes": [],
+  "deleted": true,
+  "retention": "Only invalid old target may be removed; all sibling logs/recipes/isolated proofs/currentWasm outputs stay.",
+  "deleted_at": "2026-10-07T23:04:54.515399+00:00",
+  "files_removed": 665,
+  "bytes_removed": 102029729,
+  "retained_sibling_file_pins": {
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/current-handle.json": "275bc2c5fd5c2c06e1fe3cc9b555c8d6bd227b3933f36c145fe2008599f9b226",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/before-handle.json": "5afda6b43d46160e39777faa6009dfff7d5430031bbd101a422a179a4b3227bd",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/current-corrected-handle.json": "31c75d0848e3bc4b12e5c9489d29e92702c4aa9382cc21fe71a90ea27f28efba",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/current.log": "9412ece9f04d23fb216f1fdff26450835785ada22c7b07603c5c4cb4fa166bc6",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/before-isolated.log": "a18b1bd353c31597845bbba1438d8b9d22d626842e8656fa627ef7fc9f031f9d",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/recipe.json": "de404ec59f62ba161c267da3a4dff27c31af05099cea30a40779feda4123919f",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/current-isolated.log": "ae906bddb676e8268c189150ee5504419ab37b2035e2d9ebd494cf5f8a333138",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/before-corrected-handle.json": "cb837d1a078c30cb9f25806f7aff5bb2e0b3fed02fe7f75a31f480c81a6c66fe",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/current-isolated-handle.json": "25887ea32107a417052b664bab37a5a18b21a1c495a4d380487c4a29b886acc4",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/before-isolated-handle.json": "12011ed83da1e7587624b839691459c09ea5f5123412966113c96c6e4438732a",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/before-corrected.log": "aa00baead9901a9c9b489759ee11601bcb6581ea4863fd48d249689740458683",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/before.log": "b922269179b800f6a52ffbfbc33242577dcb3fd1dd9ce669e592a5910fa0f793",
+    "/private/tmp/canlang-repair-go-20261007/record-hygiene-production/current-corrected.log": "77542b91e5f1bed0f9610cb71281cb320a67c75f3e36002bafae2981651ac0e2"
+  },
+  "current_wasm_evidence_preserved": true
+}
