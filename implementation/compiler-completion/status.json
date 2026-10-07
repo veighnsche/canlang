@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-07T22:56:46.337577+00:00",
+  "updated_utc": "2026-10-07T23:15:46.823882+00:00",
   "total": 67,
   "finished_at_recorded_scope": 34,
   "remaining_including_partial": 33,
@@ -89,12 +89,12 @@
   ],
   "counting_policy": "Count canonical reference once. Reuse17previously accepted bounded references; add only full recorded finding/retention outcomes. Partial joins/components do not close their broader reference. Wider host/application and future-source requirements remain separately explicit. These references overlap and are not67independent implementations.",
   "suite": {
-    "passed": 1146,
+    "passed": 1152,
     "failed": 0,
     "ignored": 0,
     "strict_clippy_exit": 0,
     "optional_body_skips": 1,
-    "receipt": "integration-after-bindings/after-bdd-ui/profile-accounting/admission-temporal.json"
+    "receipt": "integration-after-bindings/after-message-coverage/profile-accounting/final-run.json"
   },
   "goal_status": "active"
 }

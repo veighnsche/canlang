@@ -18,5 +18,6 @@
   "2026-10-08 — Public code fragments refuse unrepresentable endpoints (accepted bounded)",
   "2026-10-08 — Date and datetime have distinct ICU requirements (accepted bounded)",
   "2026-10-08 — Retain public descriptor and fix fragments (accepted retention)",
-  "2026-10-08 — Qualify the integrated native compiler after bounded repairs (accepted profile)"
+  "2026-10-08 — Qualify the integrated native compiler after bounded repairs (accepted profile)",
+  "2026-10-08 — Empty named message signatures still cover placeholders (accepted bounded)"
 ]

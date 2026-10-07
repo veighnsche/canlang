@@ -1,0 +1,55 @@
+{
+  "status": "completed_run_accounting",
+  "commands": {
+    "suite": "cargo test --manifest-path compiler/Cargo.toml --locked --offline -- --nocapture",
+    "suite_exit_code": 0,
+    "suite_log": "full-suite.log",
+    "suite_log_sha256": "d46afc90aa819acad189b102475f2385981632aab25d362354ecfff0c25d574a",
+    "strict_clippy": "cargo clippy --manifest-path compiler/Cargo.toml --locked --offline --all-targets -- -D warnings",
+    "strict_clippy_exit_code": 0,
+    "strict_clippy_log": "clippy.log",
+    "strict_clippy_log_sha256": "312e866f30ccf9edbe1260b835f1c382f21fe663ec3a8b4f248e06c95968960f"
+  },
+  "suite_accounting": {
+    "test_binary_runs": 65,
+    "result_summaries_including_doc_tests": 66,
+    "result_summaries_with_tests": 64,
+    "passed": 1152,
+    "failed": 0,
+    "ignored": 0,
+    "optional_body_skips": [
+      "SKIP mode 4750: this host did not retain the requested fixture bits"
+    ]
+  },
+  "compiler_inputs": {
+    "manifest": "before-compiler-inputs.json",
+    "count": 118,
+    "manifest_sha256": "5aa13d1e8ae8134079cb87b795da7506c6345fdf8e25531b401d5631c2858b1c",
+    "current_discovered_count": 118,
+    "added_files": [],
+    "removed_files": [],
+    "changed_files": []
+  },
+  "package_inputs": {
+    "manifest": "before-package-producers.json",
+    "count": 1770,
+    "manifest_sha256": "68f4fa73e9dfecc21620a79cb56f6c93552a5b2bba8b5b7f41649a44cdf2059a",
+    "scope": "dist files and package.json files for cloudflare, contracts, interfaces, state, stdlib, testkit, ui, and values",
+    "current_discovered_count": 1770,
+    "added_files": [],
+    "removed_files": [],
+    "changed_files": []
+  },
+  "body_evidence": {
+    "prerequisites_exercised": "Node v24.21.0; source-built catalog equality, fresh catalog producer output, actual catalog loader and CLI check; typed policy and Markdown renderer consumers passed.",
+    "optional_skip_interpretation": "The native mode-4750 fixture body did not execute on this host. Its enclosing harness test passed; this is not a Rust ignored test.",
+    "scope_limit": "These run results do not establish broader semantic or project-goal completion. Test-specific invocation-port and canonical-memory limits remain applicable."
+  },
+  "provenance": {
+    "source_commit": "bc2b7d05",
+    "suite_start_head": "bc2b7d053cc729734c6a3d86ae330240e6851ba3",
+    "current_head_at_accounting": "bc2b7d053cc729734c6a3d86ae330240e6851ba3",
+    "note": "Compiler input hashes and package dist/manifest inventory matched their frozen manifests at accounting time; no package drift was found."
+  },
+  "scope": "Final accounting for this after-message-coverage attempt only. Prior failed attempts and the 1146-pass receipt remain unchanged."
+}
