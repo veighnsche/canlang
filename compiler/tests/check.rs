@@ -701,6 +701,60 @@ fn icu_profile_violations() {
 }
 
 #[test]
+fn icu_numeric_type_matrix() {
+    // Fixed expectations from the accepted profile, independent of the parser.
+    let cases = [
+        ("{n,number}", "int", true),
+        ("{n,number}", "decimal", true),
+        ("{n,number,integer}", "int", true),
+        ("{n,number,integer}", "decimal", false),
+        ("{n,plural,one {one} other {#}}", "int", true),
+        ("{n,plural,one {one} other {#}}", "decimal", true),
+        ("{n,selectordinal,one {#st} other {#th}}", "int", true),
+        ("{n,selectordinal,one {#st} other {#th}}", "decimal", false),
+    ];
+    for (pattern, ty, accepted) in cases {
+        let literal = format!("\"{pattern}\"");
+        // Exercise both the source literal and a live translated variant.
+        for translated in [false, true] {
+            let value = if translated {
+                format!("\"Count\"@{{nl={literal}}}")
+            } else {
+                format!("{literal}@{{}}")
+            };
+            let src = message_source(&format!("(n:{ty}) = {value}"));
+            if accepted {
+                assert_e5_clean(&src);
+            } else {
+                assert_e5(&src, &[("E5007", &literal, 1)]);
+                assert!(e5(&src)[0].message.contains("incompatible type"));
+            }
+        }
+    }
+}
+
+#[test]
+fn icu_number_style_and_source_anchor() {
+    // Style validation precedes numeric admissibility, even for decimal.
+    for ty in ["int", "decimal"] {
+        let src = message_source(&format!(
+            "(n:{ty}) = \"Count\"@{{nl=\"{{n,number,short}}\"}}"
+        ));
+        assert_e5(&src, &[("E5007", "\"{n,number,short}\"", 1)]);
+        assert!(
+            e5(&src)[0]
+                .message
+                .contains("unsupported number style 'short'")
+        );
+    }
+    // Decoding an escaped name must retain the original literal's byte span.
+    let literal = r#""{\u006e,number,integer}""#;
+    let src = message_source(&format!("(n:decimal) = {literal}@{{}}"));
+    assert_e5(&src, &[("E5007", literal, 1)]);
+    assert!(e5(&src)[0].message.contains("number argument 'n'"));
+}
+
+#[test]
 fn icu_selector_types() {
     // Plural over text, select over int.
     let src = message_source("(n:text) = \"{n, plural, other {#}}\"@{}");

@@ -3134,7 +3134,7 @@ impl<'t> IcuParser<'t> {
         self.skip_ws();
         match format.as_str() {
             "number" => {
-                self.check_arg(&name, &[IcuType::Int], "number")?;
+                let mut integer_style = false;
                 if self.chars.get(self.pos) == Some(&',') {
                     self.pos += 1;
                     self.skip_ws();
@@ -3142,8 +3142,15 @@ impl<'t> IcuParser<'t> {
                     if style != "integer" {
                         return Err(format!("unsupported number style '{style}'"));
                     }
+                    integer_style = true;
                     self.skip_ws();
                 }
+                let allowed: &[IcuType] = if integer_style {
+                    &[IcuType::Int]
+                } else {
+                    &[IcuType::Int, IcuType::Decimal]
+                };
+                self.check_arg(&name, allowed, "number")?;
                 self.expect_close(&name)?;
             }
             "date" | "time" => {
@@ -3160,7 +3167,12 @@ impl<'t> IcuParser<'t> {
                 self.expect_close(&name)?;
             }
             "plural" | "selectordinal" => {
-                self.check_arg(&name, &[IcuType::Int, IcuType::Decimal], format.as_str())?;
+                let allowed: &[IcuType] = if format == "selectordinal" {
+                    &[IcuType::Int]
+                } else {
+                    &[IcuType::Int, IcuType::Decimal]
+                };
+                self.check_arg(&name, allowed, format.as_str())?;
                 self.expect_comma(&name, format.as_str())?;
                 self.plural_depth += 1;
                 let result = self.parse_options(&name, true, depth);

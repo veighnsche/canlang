@@ -1,0 +1,5 @@
+app T
+Given
+ message probe(n:int) = "{n,plural,one {one} other {#}}"@{}
+When
+Then
