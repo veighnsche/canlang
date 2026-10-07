@@ -188,3 +188,5 @@ Values string-contract tests resolve the owning conformance path in source and e
 State validated declaration attachments retain typed secrecy; canonical host owns exact source-grant transcription under the finite TECH-S02 release. Shared canonical/values shapes and internal raw results retain their owners. Result-provenance/public-replay and later metadata formalization remain open; no complete checkpoint advance.
 
 Cloudflare preparation uses the defining deploy build/catalog functions via compatibility aliases, with short host delegation. Narrow full-closure reduction is independently accepted; function identity/name differences, old dependency-profile controls, entry-write lifecycle residual and receipt/installed/native gates remain explicit. No complete checkpoint advance.
+
+Interfaces CSV commit preserves source-row effect/result order after admission, resolving selected operation IDs without reordering the caller batch. Narrow mounted correction is independently accepted; consent, own-key/grammar and replay-security remain separate owners/gates. No complete checkpoint advance.
