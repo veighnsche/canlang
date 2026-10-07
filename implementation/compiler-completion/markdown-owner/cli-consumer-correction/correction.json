@@ -1,0 +1,11 @@
+{
+  "old_raw_Rust_markdown_backslashes": 2,
+  "corrected_raw_Rust_markdown_backslashes": 1,
+  "reason": "Markdown code spans preserve one literal backslash. Existing embedded JS extracted-default assertion uses two source escape characters to denote that same single runtime backslash; it remains unchanged.",
+  "input_source_unchanged": true,
+  "extractor_checks_unchanged": true,
+  "locale_empty_null_and_policy_checks_unchanged": true,
+  "test_sha256": "80b119ab5a93d3a11b1dda8034b927caf093c623e10a52419a9dfa1c0ff0d7a5",
+  "failure_log": "implementation/compiler-completion/integration-after-bindings/after-bdd-ui/full-suite-ide-corrected.log",
+  "full_suite_exit": 101
+}
