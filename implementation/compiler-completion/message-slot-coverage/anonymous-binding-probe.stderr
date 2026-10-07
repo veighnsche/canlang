@@ -1,0 +1,3 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/message_slot_coverage.rs (compiler/target/debug/deps/message_slot_coverage-c4e41017975c3310)
+error: test failed, to rerun pass `--test message_slot_coverage`

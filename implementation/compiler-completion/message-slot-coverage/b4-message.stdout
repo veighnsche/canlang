@@ -1,0 +1,10 @@
+
+running 5 tests
+test d02b_parameterized_message_rejected ... ok
+test d02b_member_past_message_rejected ... ok
+test d02b_message_reference_resolves_wording ... ok
+test d02b_message_reference_cross_module_lang ... ok
+test d02b_non_message_reference_rejected ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 276 filtered out; finished in 0.00s
+

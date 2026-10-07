@@ -1,0 +1,14 @@
+
+running 9 tests
+test t35r25_select_literal_bodies_clean ... ok
+test t35r25_unknown_nested_in_branch_still_rejected ... ok
+test t35r25_unknown_selector_arg_still_rejected ... ok
+test t35r25_plural_literal_bodies_clean ... ok
+test t35r25_unknown_top_level_still_rejected ... ok
+test t35r25_nested_select_plural_clean ... ok
+test t35r25_unknown_in_variant_still_rejected ... ok
+test t35r25_typed_simple_forms_clean ... ok
+test t35r25_malformed_head_fallback_still_rejected ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 272 filtered out; finished in 0.00s
+

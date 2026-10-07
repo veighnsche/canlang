@@ -1,0 +1,28 @@
+
+running 1 test
+test message_calls_against_real_catalog ... FAILED
+
+failures:
+
+---- message_calls_against_real_catalog stdout ----
+
+thread 'message_calls_against_real_catalog' (2130451) panicked at tests/analysis.rs:1095:5:
+expected clean, got [Diagnostic { code: "E3016", severity: Error, message: "message placeholder '{name}' names no message parameter", primary: Span { file: SourceId(0), start: 25, end: 36 }, related: [], tags: [] }]
+source:
+app T
+Given
+ message m = "Hi {name}"@{}
+When
+ scenario s() by=members
+  do
+   let x = format(m, locale=null)
+Then
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    message_calls_against_real_catalog
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.01s
+

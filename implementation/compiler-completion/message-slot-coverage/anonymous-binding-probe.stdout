@@ -1,0 +1,26 @@
+
+running 1 test
+test static_named_and_raw_bound_descriptors_accept_null_locale ... FAILED
+
+failures:
+
+---- static_named_and_raw_bound_descriptors_accept_null_locale stdout ----
+
+thread 'static_named_and_raw_bound_descriptors_accept_null_locale' (2129033) panicked at tests/message_slot_coverage.rs:104:9:
+app MessageCoverage
+Given
+ message notice = "Hi"@{nl=null}
+When
+ scenario greet() by=members
+  do
+   let greeting = format("Hi {name}"@{nl="Hoi {name}"}(name="Bo"),locale=null)
+Then
+: [Diagnostic { code: "E3005", severity: Error, message: "this value is not callable", primary: Span { file: SourceId(0), start: 123, end: 152 }, related: [], tags: [] }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    static_named_and_raw_bound_descriptors_accept_null_locale
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.02s
+

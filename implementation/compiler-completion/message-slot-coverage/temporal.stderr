@@ -1,0 +1,3 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+     Running tests/temporal_message_types.rs (compiler/target/debug/deps/temporal_message_types-f10b261a47762231)

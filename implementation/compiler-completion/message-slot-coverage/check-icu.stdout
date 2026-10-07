@@ -1,0 +1,9 @@
+
+running 4 tests
+test icu_number_style_and_source_anchor ... ok
+test icu_profile_violations ... ok
+test icu_selector_types ... ok
+test icu_numeric_type_matrix ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.01s
+

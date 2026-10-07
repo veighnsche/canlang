@@ -1,0 +1,11 @@
+
+running 6 tests
+test parameterized_messages_keep_coverage_and_translation_subsets ... ok
+test raw_inline_slots_remain_structurally_valid ... ok
+test zero_parameter_source_slots_are_rejected_at_the_literal ... ok
+test zero_parameter_translation_slots_are_rejected_at_the_literal ... ok
+test static_quoted_and_null_translations_need_no_parameters ... ok
+test static_named_and_inline_descriptors_accept_null_locale ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

@@ -1,0 +1,10 @@
+{
+  "source": "anonymous-binding-probe.can",
+  "status": "pre-existing unsupported behavior; probe failed, not a clean control",
+  "diagnostic": {
+    "code": "E3005",
+    "message": "this value is not callable",
+    "start": 123,
+    "end": 152
+  }
+}
