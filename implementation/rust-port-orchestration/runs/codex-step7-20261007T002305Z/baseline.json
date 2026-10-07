@@ -1,0 +1,24 @@
+{
+  "run_id": "codex-step7-20261007T002305Z",
+  "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z",
+  "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z",
+  "base": "70fe33e2655afa0a4b91fb17853a84d7727edebe",
+  "source_pins": {
+    "packages/cloudflare/package.json": "5a24f4fcd94013cedf1acedab37dd1a4f57cf47c1b4a15e0fcac70e719a4b07c",
+    "bun.lock": "28eeb481d3b6ce420b1ccc6573581572b47da25a0b8eb5ff833d1143e5cc4c19",
+    "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+    "packages/cloudflare/src/deploy/bundle.ts": "c655fed4ef03d35d39fc52811abc4d41516d2bf8e52fcf4a499d17e8f9057ed1",
+    "packages/cloudflare/src/runtime/modules.ts": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230",
+    "packages/cloudflare/src/runtime/sourcemap.ts": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+    "packages/cloudflare/src/runtime/invoke.ts": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+    "packages/cloudflare/test/modules.test.ts": "2c9f319c5ffec8d490bd199d372724dd240886dffc95358328c30fe942c47ba3",
+    "packages/cloudflare/test/deploy-bundle.test.ts": "2febb90a3639d63cc3bfc96d0d89f2df78035cdda389669367db373040fa5752",
+    "packages/cloudflare/test/deploy-package-assets.test.ts": "41b9ea6dc9ce4598b76be010f5cfb3a5d4a9e59022e5c60c08609de9768a0110",
+    "packages/cloudflare/test/sourcemap.test.ts": "8dea333cf3bbf89c89186f69a47ba5810dfd5730da85a9d6e031b694c9c2011b",
+    "implementation/remaining-work/tasks.json": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e"
+  },
+  "execution_authorized": true,
+  "human_release": "Human step7 finite import/map packets in this chat",
+  "preparation_hold": true,
+  "future_dispatch_authorized": false
+}
