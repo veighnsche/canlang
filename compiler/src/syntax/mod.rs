@@ -19,7 +19,8 @@
 //! Lexer: `E1001` bare carriage return, `E1002` invalid UTF-8 (bytes entry
 //! only), `E1003` tab in indentation/code, `E1004` backslash continuation,
 //! `E1005` invalid numeric literal or unit, `E1006` invalid string,
-//! `E1007` unexpected character.
+//! `E1007` unexpected character, `E1008` code fragment exceeds the `u32`
+//! source-offset range (public `lex_fragment` API admission).
 //!
 //! Layout: `E1101` mismatched closing delimiter, `E1102` unclosed
 //! delimiter, `E1103` bad indentation or excessive nesting, `E1120` description column

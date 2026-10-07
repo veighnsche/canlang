@@ -11,7 +11,7 @@
 //! CST builder. `##` comment lines and `#` description lines are single
 //! tokens spanning marker to end of line; layout decides their role.
 //!
-//! Diagnostics use codes E1001–E1007 (see `syntax::mod` catalog).
+//! Diagnostics use codes E1001–E1008 (see `syntax::mod` catalog).
 
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceId, Span};
@@ -433,12 +433,30 @@ fn lex_code_tokens(
 /// Lex a code fragment with absolute offsets, for description `#=`/`@{...}`
 /// validation. The fragment is tokenized as code on one line: `#` inside
 /// is an error, tabs are errors, and diagnostics carry absolute spans.
+///
+/// Before tokenization, the fragment's UTF-8 byte length must fit in `u32`
+/// and `base + length` must not exceed `u32::MAX`. An empty fragment at
+/// `u32::MAX` and a fragment ending exactly there are admitted. Otherwise
+/// this returns no tokens and appends one `E1008` error at the zero-width
+/// span `(file, base, base)`, preserving any earlier caller diagnostics.
 pub fn lex_fragment(
     file: SourceId,
     fragment: &str,
     base: u32,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Vec<Token> {
+    if u32::try_from(fragment.len())
+        .ok()
+        .and_then(|length| base.checked_add(length))
+        .is_none()
+    {
+        diagnostics.push(Diagnostic::error(
+            "E1008",
+            "code fragment extends beyond the u32 source-offset range".to_string(),
+            Span::new(file, base, base),
+        ));
+        return Vec::new();
+    }
     lex_code_tokens(file, fragment, 0, base, diagnostics)
 }
 
