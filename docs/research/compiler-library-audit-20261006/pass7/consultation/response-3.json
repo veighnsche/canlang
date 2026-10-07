@@ -1,0 +1,55 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "We are implementing the compiler's Pass7 DTO/URI packet, not a new transport or admission rewrite. Supported outgoing families number8; there is no live symbol endpoint to convert. The source index remains the sole UTF16 position owner, snapshots/stale handling persist, and legal numeric IDs retain authored reply lexemes. User explicitly requires edit versions: current open-buffer i32 values and null only for unopened targets. Object ordering is semantic except exact raw-ID framing, fixed protocol errors and existing coordinate/location order tests; array order and field omission remain required. A small serialized Vec<u32> adapter can preserve arbitrary analysis token data rather than silently losing a partial tuple.\nQualified candidate lsp-types=0.97.0, defaults disabled, uses fluent Uri. Probe confirms lossless text for admitted custom/untitled/FILE/remote and encoded-byte URI examples; however its syntax check rejects raw Unicode and bad percent escapes while admitting empty or relative URI references. Present server validation admits any String and the public backend may emit any String; malformed-percent file display is already tested. Real VSCode sends Uri.toString() and receives with Uri.parse. Standard diagnostics/location/document-edit DTOs require the Uri type. Adapter policy must avoid silent output loss/panics or normalization of document identity and must not covertly couple output conversion to narrower input acceptance.\nOnly didOpen/didChange call the legacy URI decoder, storing its String as SourceDb display/path index; routing and emitted URIs use original strings and all IDE operations analyze memory by SourceId. No actual document filesystem loading occurs. The decoder nevertheless corrupts metadata: it percent-decodes nonfile names contrary to its promise, replaces invalid UTF8, turns hosts into relative path pieces and includes URI query/fragment. Existing url2.5.8/std is qualified for separate native path derivation on shipped Unix profiles: local/localhost conversion succeeds, remote fails, nonUTF8 and NUL are not rejected internally. Exact UTF8 extraction and raw fallback avoid loss; NUL needs a declared filesystem containment policy. WHATWG parsing additionally resolves dots and accepts file:/ or file:relative.can with changed-looking paths. Windows behavior is inspected, not tested/shipped. Decide the file-form scope explicitly while preserving every authored wire identity.",
+    "questions": {
+      "output_uri": {
+        "type": "choice",
+        "instructions": "Select an explicit output URI strategy that meets the required contracts without silently changing routing or results.",
+        "criteria": {
+          "compatibility_views": "Standard DTO output for parsed URI plus a contained typed fallback for unrepresentable authored strings. Retain every result and input behavior while accepting a small exceptional representation seam.",
+          "strict_admission": "Explicitly narrow allowed document/backend URI strings to the library syntax, classify failures and use standard output everywhere; broader admission migration buys fewer adapters.",
+          "string_views": "Use a single String-URI typed output view for every URI-bearing family with library-owned other fields; avoid a split and preserve behavior, but full outer DTO adoption is reduced."
+        }
+      },
+      "file_display": {
+        "type": "choice",
+        "instructions": "Choose how broadly native file-path normalization should affect display metadata, keeping protocol keys unchanged.",
+        "criteria": {
+          "narrow_native": "Apply native conversion only to original explicit file:// forms (scheme case allowed), guard exact UTF8 and NUL, preserve raw on failure. Exclude query/fragment and accept library dot semantics only within that scope.",
+          "broad_native": "Extend display conversion to every Url file spelling, including relative-looking forms, with exact-string/usable-path guards and fallback. Greater coverage carries larger canonicalization drift.",
+          "portable_display": "Represent file display through portable parsed URI components preserving hosts, not platform path conversion; extra glue buys host-independent metadata."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "output_uri": {
+        "type": "choice",
+        "choice": "compatibility_views",
+        "confidence": 0.82,
+        "probabilities": {
+          "string_views": 0.12,
+          "compatibility_views": 0.87,
+          "strict_admission": 0.01
+        }
+      },
+      "file_display": {
+        "type": "choice",
+        "choice": "narrow_native",
+        "confidence": 0.99,
+        "probabilities": {
+          "broad_native": 0.0,
+          "narrow_native": 1.0,
+          "portable_display": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1084,
+      "output_tokens": 95
+    }
+  }
+}

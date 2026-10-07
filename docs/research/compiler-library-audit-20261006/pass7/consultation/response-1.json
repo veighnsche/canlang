@@ -1,0 +1,55 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "Pass7 migrates existing compiler LSP outputs to lsp-types without replacing input/transport. Existing8families are capabilities, hover, completion, locations, rename, semantic tokens, code actions, diagnostics; no symbols method exists. Raw admitted JSON-RPC ID spelling/envelope remains; UTF16 comes from Source.LineIndex. Current document snapshots/current versions are known; edits must now include current i32 version, or null for unopened files. Output arrays/omissions/meaning stay; field ordering has no obligation except raw-ID prefix/fixed errors and editor Position/Range/Location tests whose order matches library. Existing semantic-token callback returns Vec<u32>; a typed narrow wrapper can preserve the complete vector without dropping remainder.\nScratch lsp-types0.97.0(defaults off) qualifies exact Uri text for untitled:1, custom:///A%2Fb/%C3%A9, FILE:///a%20b, remoteauthority, encodedinvalidUTF8; its fluent URI parser also accepts relative references/empty strings but rejects unescaped Unicode file:///é😀.can and malformed percent file:///100%.can. Existing input only checks URI string type and helper test promises the latter malformed percent display. Public analysis callbacks also return arbitrary String URIs. Incoming VSCode actually sends document.uri.toString(); output uses Uri.parse. Fully typed Location/PublishDiagnostics/TextDocumentEdit fields require this Uri type. We must not silently drop valid analysis results, panic, canonicalize routing identity or choose input restrictions just because serialization needs a type.\nActual URI helper has only2productioncalls didOpen/didChange into SourceDb display/latest-by-path map; docs/pending/request routing/output use original String. IDE analysis is in-memory by immutable SourceId; helper triggers no filesystem/import loader. It wrongly decodes nonfile percent sequences despite verbatim promise, loses invalid decoded UTF8, flattens authorities into relative paths and appends query/fragment to filename. Released url2.5.8 std is separate native conversion library, not identity owner. On shipped macOS/Linux it allows local empty/localhost authorities and rejects remote conversion; Unix returns arbitrary nonUTF8/NUL bytes. Url also canonicalizes dot segments, scheme case, file:/ and file:relative.can to absolute-looking paths. Windows drive/UNC branch is source-only/unshipped. Native conversion should use strict String extraction/raw fallback and explicitly distinguish actual filesystem conversion from display; NUL is not usable as a filesystem path. Need choose narrow historical explicit file:// forms versus all WHATWG file normalization, with all original protocol identities retained.",
+    "questions": {
+      "output_uri": {
+        "type": "choice",
+        "instructions": "Choose the URI-field compatibility policy for typed outgoing values, considering existing input/public callbacks and avoiding result loss.",
+        "criteria": {
+          "compatibility_views": "Use standard lsp-types DTOs for accepted Uri text; narrow typed serialization views carry original String URI for unsupported syntax, with all nonURI fields/library types retained. No new admission or normalization, modest exceptional-output glue.",
+          "strict_admission": "Require crate Uri parsing for document input/backend output, classify new invalid requests/notifications and invalid backend results explicitly. Simpler fully typed DTOs, but broader input/API behavior changes.",
+          "string_views": "Keep all URI-bearing outer wire structs as small typed String-URI views with lsp-types field values, one uniform path. Preserves all identities/input but adopts less of complete standard structs."
+        }
+      },
+      "file_display": {
+        "type": "choice",
+        "instructions": "Select native display conversion scope for the frozen Unix release profile; every option preserves original wire/document identity.",
+        "criteria": {
+          "narrow_native": "Only explicit case-insensitive file:// forms derive native path; check file scheme, local/native authority and exact UTF8, reject NUL conversion and otherwise use original String. Separate path from wire identity; query/fragment omitted from display, dot resolution follows library within these forms.",
+          "broad_native": "Parse every file form accepted by Url, including file:/ and file:relative, into native display with strictUTF8/noNUL/raw fallback. More forms supported, larger metadata normalization changes.",
+          "portable_display": "Use URI component-based portable display retaining authority, rather than native path conversion. More stable cross-host display but extra adaptation and no native filesystem path claim."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "output_uri": {
+        "type": "choice",
+        "choice": "compatibility_views",
+        "confidence": 0.99,
+        "probabilities": {
+          "string_views": 0.01,
+          "compatibility_views": 0.99,
+          "strict_admission": 0.0
+        }
+      },
+      "file_display": {
+        "type": "choice",
+        "choice": "narrow_native",
+        "confidence": 0.98,
+        "probabilities": {
+          "portable_display": 0.0,
+          "broad_native": 0.01,
+          "narrow_native": 0.99
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1234,
+      "output_tokens": 95
+    }
+  }
+}
