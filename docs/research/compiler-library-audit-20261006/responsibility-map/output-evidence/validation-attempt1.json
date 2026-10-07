@@ -1,0 +1,1719 @@
+{
+  "scope": "Mechanical input/receipt/source/ledger/link validation; independent semantic review separate",
+  "compiler_source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "compiler_diff": "",
+  "ledger_records": 494,
+  "output_duties": 35,
+  "findings": 5,
+  "pin_references_checked": 843,
+  "captured_command_references": 167,
+  "explicit_superseded_captures": [
+    {
+      "collection": "execution.json",
+      "name": "fresh-build",
+      "stream": "stdout"
+    },
+    {
+      "collection": "execution.json",
+      "name": "fresh-build",
+      "stream": "stderr"
+    },
+    {
+      "collection": "execution.json",
+      "name": "compile-probe",
+      "stream": "stderr"
+    },
+    {
+      "collection": "execution.json",
+      "name": "diagnostics",
+      "stream": "stdout"
+    }
+  ],
+  "cases": 61,
+  "selected_harness_passes": 113,
+  "reported_branch_skips": 1,
+  "later_outcomes": {
+    "checks": 377,
+    "passes": 367,
+    "failures": 10
+  },
+  "local_markdown_links_checked": 60,
+  "ledger_sha256": "0cdfc936a6ce33d18d859932634a8afa8e0415b3b4e7799773a3db05a96bf22c",
+  "errors": [
+    "missing local link /Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/README.md:output-validation.json"
+  ],
+  "final_evidence_pins": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/cargo-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/cargo-version.stdout",
+      "sha256": "1f88eaf7fe1aaec83184752cf4c944cd22f00184136ff36a3e4c318cc60ef566",
+      "bytes": 36
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-bad-escape.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-bad-escape.stdout",
+      "sha256": "7f0bd35a02fd0da37badd96225bfb74e9d6a394140461c54c78f2b4898b6eade",
+      "bytes": 62
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-bad-tab.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-bad-tab.stdout",
+      "sha256": "03dc644059b8a36d4843f3b9b230504b984f9c3b7edab3c55404bc4414439ed8",
+      "bytes": 78
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-comments-layout.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-comments-layout.stdout",
+      "sha256": "337e322ccbff12f6cb07dd230bac5883a1a6f830e76873c9abdaf6103f473b65",
+      "bytes": 567
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-controls-precision.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-controls-precision.stdout",
+      "sha256": "c0990a48cbf21ff94392488adc00c9601fdbc71c1349ebce29d7cb580194f08c",
+      "bytes": 493
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanAffiliate.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanAffiliate.stdout",
+      "sha256": "a41b435d354b6e12c8157e3bcc7dfe5db5897d350445ac981ef469fd92a91bb1",
+      "bytes": 28834
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanApprove.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanApprove.stdout",
+      "sha256": "035eb07351bde259d6fc275b83d44f349f91f4b7614671849e2fd2d6420e1d29",
+      "bytes": 33605
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanBoard.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanBoard.stdout",
+      "sha256": "f5a345c60723bae688715dd87a1103b585223f2efb5cf25a1fa08336e57348f9",
+      "bytes": 17563
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanBook.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanBook.stdout",
+      "sha256": "36f60f9a0fb76d6ab66846d25c9492a83b9fc9a6ae9791dc0eb29ed83417c8b4",
+      "bytes": 41410
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCRM.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCRM.stdout",
+      "sha256": "9cc0a37d6387bc915dd06d448888eca99a1ef4a06fed5d56c62cfc73754dc1fd",
+      "bytes": 32440
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCatch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCatch.stdout",
+      "sha256": "b69890c6d25e6d78e3f821eb9fd38f2dcdb2fc1b9203f31dea79c53a185ed9fd",
+      "bytes": 24201
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanChat.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanChat.stdout",
+      "sha256": "e920be6ed086bbab5a34236590379c5bf3982ecebfc103d3fb911033fa04cc9e",
+      "bytes": 22156
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCheck.stdout",
+      "sha256": "c61c848abf94c17046ea809078c8f265784f916c8f0459b34e2d81d1bfdf5753",
+      "bytes": 16260
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanContract.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanContract.stdout",
+      "sha256": "4560456e38fc61557b5887e4a246a3c0c6bf5c9b40a536db5844de8b9835f03c",
+      "bytes": 23578
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCreative.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCreative.stdout",
+      "sha256": "fedc2eb328e1b9ee2fee292850e3bb9f1fd38813e566dc50b2f6b22a9ce37231",
+      "bytes": 24182
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCustomer.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanCustomer.stdout",
+      "sha256": "f8cc53ebe5b13bc2a7bb41f199fa12f3768538a61811b038e0c3b573be875bb5",
+      "bytes": 26745
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanDecide.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanDecide.stdout",
+      "sha256": "c5defda8fa9133b7ad1ff1b0c416937bef8a027190ebb2680719371531c19d7d",
+      "bytes": 18207
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanDesk.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanDesk.stdout",
+      "sha256": "515b0cf369647b5d94babbc707ad50514ea1d2a5c82b2120c586e607414709f9",
+      "bytes": 24910
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanDiscover.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanDiscover.stdout",
+      "sha256": "62ce3d864ce949065a5924ce0311e24e7c7085549afd6a18620004cb94aad6c2",
+      "bytes": 33876
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanDo.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanDo.stdout",
+      "sha256": "ae1b20148c44ca2c7a6d6637751736a2d1b11daa008d8b89be38eb09332d3e11",
+      "bytes": 18310
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanEnrich.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanEnrich.stdout",
+      "sha256": "5487102f70a50dd2c4e43d69df4dd0187a13f0249f874e0559bbbcfd4170954c",
+      "bytes": 15927
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanEvent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanEvent.stdout",
+      "sha256": "c03d6036c0370f8b1eb7f9e47d02ba3610f4923d6aca8f4b79761a65d78b3b6d",
+      "bytes": 68340
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanExpense.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanExpense.stdout",
+      "sha256": "6d9804a06f081971820a8577e988679fa876ee59bbf5dd7e9220c2c79fe67ab8",
+      "bytes": 48088
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanFeedback.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanFeedback.stdout",
+      "sha256": "ac3204de4cbdb7040ff5bdac8b3e2056006af3ef60944fbd137f512db74dd60f",
+      "bytes": 29767
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanField.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanField.stdout",
+      "sha256": "8513794c4f4c3bca94a965d66e2d59025262fd9d9dd51006c1fc3e163f960322",
+      "bytes": 25860
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanGallery.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanGallery.stdout",
+      "sha256": "a083d896fe0c09becdcb4e365797ad830d1e516e7b4bfed4a9c11b2799ebfe8c",
+      "bytes": 12100
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanGrant.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanGrant.stdout",
+      "sha256": "cecb3c2d5092957d74856deaca03566294538946c8dbfa034856d7c1cfd70f9c",
+      "bytes": 48246
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanHire.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanHire.stdout",
+      "sha256": "0289f02916235426e5dbe88b7c7e15142e5493896e3fadec24350acbd392d1f3",
+      "bytes": 36104
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanInbox.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanInbox.stdout",
+      "sha256": "82eb3ba498172e29ac1fdfdcd84e257423cca4e9ae7ee95d53c7e14b71d1311a",
+      "bytes": 39407
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanInvoice.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanInvoice.stdout",
+      "sha256": "c1c6d2360f283cf70d5dd99add5a3cd97b344a5209fdc79ec9956810d3a40800",
+      "bytes": 104780
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanKnowledge.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanKnowledge.stdout",
+      "sha256": "613d2ca2d1fbdc754b25a16dbaff78361d8b38bb2b6836bef95be28776a140f5",
+      "bytes": 30644
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanLearn.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanLearn.stdout",
+      "sha256": "b53745b46e82fb46dcd89ab1faa16a5611cd1ac13ec78df9651b2a026056dc00",
+      "bytes": 17533
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanLeave.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanLeave.stdout",
+      "sha256": "418cfde9ea228171ae2baa15c66e05c8a8cc43215dd8935658a2cf43a5bb294b",
+      "bytes": 29115
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanLoyalty.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanLoyalty.stdout",
+      "sha256": "d4428cbe34fa9fe307843862e5091eba73283caa69ea70722d15a8c89ef8e3b2",
+      "bytes": 28128
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanMail.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanMail.stdout",
+      "sha256": "ba6e15c7bb6e8c298c292e47e000621c46843ae1f811d41d5a01b86fb3b8c6a4",
+      "bytes": 45165
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanMaintain.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanMaintain.stdout",
+      "sha256": "6707c8a9babc0243d4f0702f95a39c9d5d6dc5ae0aea7e57a7e9d2ff5f7845b6",
+      "bytes": 49445
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanMember.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanMember.stdout",
+      "sha256": "c34b08d39ecd69f618b88d40d0992d0964c24c26b3d083c875b71a61d288c817",
+      "bytes": 82667
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanOnboard.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanOnboard.stdout",
+      "sha256": "4a84d28471154a87fd337a81439a6c7f91e0f388b9e2a1e294fb7c7cfb8e44f5",
+      "bytes": 17478
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanPropose.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanPropose.stdout",
+      "sha256": "0256094aee4738cb5ffb7d24aeec1049be81ee56c2c1af72840c6eea5c95c291",
+      "bytes": 48988
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanPurchase.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanPurchase.stdout",
+      "sha256": "235d16f3ae9bf38be52c5742f9be5016baa7338a076df13ccacd2b24497075a0",
+      "bytes": 48162
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanReception.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanReception.stdout",
+      "sha256": "aea9a973b33cdd2d1b2fbae734155b6ab5f1a237dd69b545465097fe4c14c7c2",
+      "bytes": 45854
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanRefer.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanRefer.stdout",
+      "sha256": "3c607a55677a534371c7419b442d91ff4ca22b8ffcf4d0913f8cf506b22d3f9e",
+      "bytes": 26582
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanRent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanRent.stdout",
+      "sha256": "655ba754967f793ee9df13ea7ef843b624f7bcceb18140ffb0c5ab07e3e4a8a3",
+      "bytes": 202503
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanReport.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanReport.stdout",
+      "sha256": "76ab8bab9069fe98d922a4226245f0e60197fc1f11204a5dbdc8f69507ae5f0c",
+      "bytes": 16636
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanShift.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanShift.stdout",
+      "sha256": "e8b827c1115bcb1d7ac644b0ce630be8e637bec410be4394e8232116e8863e59",
+      "bytes": 78
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanStats.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanStats.stdout",
+      "sha256": "50b354695dcbe2748aea8eb418fee89853cd644fdaac5a1813b542b540d49b8f",
+      "bytes": 20700
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanStock.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanStock.stdout",
+      "sha256": "81a2d81f1dd8b805649da509243982f8df417cffa8a85a42c48d20f76626a674",
+      "bytes": 21063
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanSuccess.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanSuccess.stdout",
+      "sha256": "5cb79f0408717fbe0e3b00afdf38b0647e5be0cce17f95aef345791b50ecc8ad",
+      "bytes": 19037
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanSync.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanSync.stdout",
+      "sha256": "a55d61a1ebe9e2f290daaea8ed39b10174c651d64532edf99c81cbf7861685fe",
+      "bytes": 18557
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanTable.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanTable.stdout",
+      "sha256": "21e139f760ac4deca14249304ac26e6029a6f591bdf7f9867f83c8d76390c0c7",
+      "bytes": 18081
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanTime.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanTime.stdout",
+      "sha256": "eb231a26f3b964e4e8867f32f39236b22162ef034a713e15fae35e63771e4090",
+      "bytes": 31178
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanTrade.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanTrade.stdout",
+      "sha256": "78bee51fc5756a5bcd7958832d6691cc1a1ce4f0f4f92a242c74652f4bf57736",
+      "bytes": 12787
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanVolunteer.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanVolunteer.stdout",
+      "sha256": "e8b827c1115bcb1d7ac644b0ce630be8e637bec410be4394e8232116e8863e59",
+      "bytes": 78
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanWorkbench.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-CanWorkbench.stdout",
+      "sha256": "333a29a697c99091f89784a7724cca7a88fe45c7450df2a4bbee8b9d035629a6",
+      "bytes": 16166
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-Employees.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-Employees.stdout",
+      "sha256": "30cd56d5aed1b8dc34844e77f868f8feea7353495a7b643b46e5ff080b3fe53c",
+      "bytes": 3582
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-ExpenseFlow.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-ExpenseFlow.stdout",
+      "sha256": "6a31998cde98fe6dc65d605093e356bdd97eba5797ad2e1bd7c44541ac86aa14",
+      "bytes": 8720
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-Locations.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-Locations.stdout",
+      "sha256": "6d1c9c4b281a8d8ebe53d33e2386a74626d2adce474dcca8d709749e4115541c",
+      "bytes": 11583
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-Suppliers.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-Suppliers.stdout",
+      "sha256": "f64b969413919180e125660380f675d94d28ff0afbe00b32bd3aef3acead2cd3",
+      "bytes": 1422
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-TeamTasks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-TeamTasks.stdout",
+      "sha256": "27f2df345b1ac32b1f8e057aaced6db1913d3264b1fd85dcbdf7c178f5f18750",
+      "bytes": 3813
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanAffiliate.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanAffiliate.stdout",
+      "sha256": "a41b435d354b6e12c8157e3bcc7dfe5db5897d350445ac981ef469fd92a91bb1",
+      "bytes": 28834
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanApprove.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanApprove.stdout",
+      "sha256": "035eb07351bde259d6fc275b83d44f349f91f4b7614671849e2fd2d6420e1d29",
+      "bytes": 33605
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanBoard.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanBoard.stdout",
+      "sha256": "f5a345c60723bae688715dd87a1103b585223f2efb5cf25a1fa08336e57348f9",
+      "bytes": 17563
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanBook.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanBook.stdout",
+      "sha256": "36f60f9a0fb76d6ab66846d25c9492a83b9fc9a6ae9791dc0eb29ed83417c8b4",
+      "bytes": 41410
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCRM.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCRM.stdout",
+      "sha256": "9cc0a37d6387bc915dd06d448888eca99a1ef4a06fed5d56c62cfc73754dc1fd",
+      "bytes": 32440
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCatch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCatch.stdout",
+      "sha256": "b69890c6d25e6d78e3f821eb9fd38f2dcdb2fc1b9203f31dea79c53a185ed9fd",
+      "bytes": 24201
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanChat.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanChat.stdout",
+      "sha256": "e920be6ed086bbab5a34236590379c5bf3982ecebfc103d3fb911033fa04cc9e",
+      "bytes": 22156
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCheck.stdout",
+      "sha256": "c61c848abf94c17046ea809078c8f265784f916c8f0459b34e2d81d1bfdf5753",
+      "bytes": 16260
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanContract.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanContract.stdout",
+      "sha256": "4560456e38fc61557b5887e4a246a3c0c6bf5c9b40a536db5844de8b9835f03c",
+      "bytes": 23578
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCreative.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCreative.stdout",
+      "sha256": "fedc2eb328e1b9ee2fee292850e3bb9f1fd38813e566dc50b2f6b22a9ce37231",
+      "bytes": 24182
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCustomer.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanCustomer.stdout",
+      "sha256": "f8cc53ebe5b13bc2a7bb41f199fa12f3768538a61811b038e0c3b573be875bb5",
+      "bytes": 26745
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanDecide.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanDecide.stdout",
+      "sha256": "c5defda8fa9133b7ad1ff1b0c416937bef8a027190ebb2680719371531c19d7d",
+      "bytes": 18207
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanDesk.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanDesk.stdout",
+      "sha256": "515b0cf369647b5d94babbc707ad50514ea1d2a5c82b2120c586e607414709f9",
+      "bytes": 24910
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanDiscover.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanDiscover.stdout",
+      "sha256": "62ce3d864ce949065a5924ce0311e24e7c7085549afd6a18620004cb94aad6c2",
+      "bytes": 33876
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanDo.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanDo.stdout",
+      "sha256": "ae1b20148c44ca2c7a6d6637751736a2d1b11daa008d8b89be38eb09332d3e11",
+      "bytes": 18310
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanEnrich.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanEnrich.stdout",
+      "sha256": "5487102f70a50dd2c4e43d69df4dd0187a13f0249f874e0559bbbcfd4170954c",
+      "bytes": 15927
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanEvent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanEvent.stdout",
+      "sha256": "c03d6036c0370f8b1eb7f9e47d02ba3610f4923d6aca8f4b79761a65d78b3b6d",
+      "bytes": 68340
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanExpense.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanExpense.stdout",
+      "sha256": "6d9804a06f081971820a8577e988679fa876ee59bbf5dd7e9220c2c79fe67ab8",
+      "bytes": 48088
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanFeedback.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanFeedback.stdout",
+      "sha256": "ac3204de4cbdb7040ff5bdac8b3e2056006af3ef60944fbd137f512db74dd60f",
+      "bytes": 29767
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanField.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanField.stdout",
+      "sha256": "8513794c4f4c3bca94a965d66e2d59025262fd9d9dd51006c1fc3e163f960322",
+      "bytes": 25860
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanGallery.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanGallery.stdout",
+      "sha256": "a083d896fe0c09becdcb4e365797ad830d1e516e7b4bfed4a9c11b2799ebfe8c",
+      "bytes": 12100
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanGrant.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanGrant.stdout",
+      "sha256": "cecb3c2d5092957d74856deaca03566294538946c8dbfa034856d7c1cfd70f9c",
+      "bytes": 48246
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanHire.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanHire.stdout",
+      "sha256": "0289f02916235426e5dbe88b7c7e15142e5493896e3fadec24350acbd392d1f3",
+      "bytes": 36104
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanInbox.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanInbox.stdout",
+      "sha256": "82eb3ba498172e29ac1fdfdcd84e257423cca4e9ae7ee95d53c7e14b71d1311a",
+      "bytes": 39407
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanInvoice.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanInvoice.stdout",
+      "sha256": "c1c6d2360f283cf70d5dd99add5a3cd97b344a5209fdc79ec9956810d3a40800",
+      "bytes": 104780
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanKnowledge.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanKnowledge.stdout",
+      "sha256": "613d2ca2d1fbdc754b25a16dbaff78361d8b38bb2b6836bef95be28776a140f5",
+      "bytes": 30644
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanLearn.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanLearn.stdout",
+      "sha256": "b53745b46e82fb46dcd89ab1faa16a5611cd1ac13ec78df9651b2a026056dc00",
+      "bytes": 17533
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanLeave.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanLeave.stdout",
+      "sha256": "418cfde9ea228171ae2baa15c66e05c8a8cc43215dd8935658a2cf43a5bb294b",
+      "bytes": 29115
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanLoyalty.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanLoyalty.stdout",
+      "sha256": "d4428cbe34fa9fe307843862e5091eba73283caa69ea70722d15a8c89ef8e3b2",
+      "bytes": 28128
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanMail.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanMail.stdout",
+      "sha256": "ba6e15c7bb6e8c298c292e47e000621c46843ae1f811d41d5a01b86fb3b8c6a4",
+      "bytes": 45165
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanMaintain.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanMaintain.stdout",
+      "sha256": "6707c8a9babc0243d4f0702f95a39c9d5d6dc5ae0aea7e57a7e9d2ff5f7845b6",
+      "bytes": 49445
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanMember.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanMember.stdout",
+      "sha256": "c34b08d39ecd69f618b88d40d0992d0964c24c26b3d083c875b71a61d288c817",
+      "bytes": 82667
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanOnboard.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanOnboard.stdout",
+      "sha256": "4a84d28471154a87fd337a81439a6c7f91e0f388b9e2a1e294fb7c7cfb8e44f5",
+      "bytes": 17478
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanPropose.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanPropose.stdout",
+      "sha256": "0256094aee4738cb5ffb7d24aeec1049be81ee56c2c1af72840c6eea5c95c291",
+      "bytes": 48988
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanPurchase.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanPurchase.stdout",
+      "sha256": "235d16f3ae9bf38be52c5742f9be5016baa7338a076df13ccacd2b24497075a0",
+      "bytes": 48162
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanReception.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanReception.stdout",
+      "sha256": "aea9a973b33cdd2d1b2fbae734155b6ab5f1a237dd69b545465097fe4c14c7c2",
+      "bytes": 45854
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanRefer.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanRefer.stdout",
+      "sha256": "3c607a55677a534371c7419b442d91ff4ca22b8ffcf4d0913f8cf506b22d3f9e",
+      "bytes": 26582
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanRent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanRent.stdout",
+      "sha256": "655ba754967f793ee9df13ea7ef843b624f7bcceb18140ffb0c5ab07e3e4a8a3",
+      "bytes": 202503
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanReport.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanReport.stdout",
+      "sha256": "76ab8bab9069fe98d922a4226245f0e60197fc1f11204a5dbdc8f69507ae5f0c",
+      "bytes": 16636
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanShift.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanShift.stdout",
+      "sha256": "e8b827c1115bcb1d7ac644b0ce630be8e637bec410be4394e8232116e8863e59",
+      "bytes": 78
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanStats.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanStats.stdout",
+      "sha256": "50b354695dcbe2748aea8eb418fee89853cd644fdaac5a1813b542b540d49b8f",
+      "bytes": 20700
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanStock.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanStock.stdout",
+      "sha256": "81a2d81f1dd8b805649da509243982f8df417cffa8a85a42c48d20f76626a674",
+      "bytes": 21063
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanSuccess.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanSuccess.stdout",
+      "sha256": "5cb79f0408717fbe0e3b00afdf38b0647e5be0cce17f95aef345791b50ecc8ad",
+      "bytes": 19037
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanSync.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanSync.stdout",
+      "sha256": "a55d61a1ebe9e2f290daaea8ed39b10174c651d64532edf99c81cbf7861685fe",
+      "bytes": 18557
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanTable.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanTable.stdout",
+      "sha256": "21e139f760ac4deca14249304ac26e6029a6f591bdf7f9867f83c8d76390c0c7",
+      "bytes": 18081
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanTime.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanTime.stdout",
+      "sha256": "eb231a26f3b964e4e8867f32f39236b22162ef034a713e15fae35e63771e4090",
+      "bytes": 31178
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanTrade.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanTrade.stdout",
+      "sha256": "78bee51fc5756a5bcd7958832d6691cc1a1ce4f0f4f92a242c74652f4bf57736",
+      "bytes": 12787
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanVolunteer.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanVolunteer.stdout",
+      "sha256": "e8b827c1115bcb1d7ac644b0ce630be8e637bec410be4394e8232116e8863e59",
+      "bytes": 78
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanWorkbench.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-CanWorkbench.stdout",
+      "sha256": "333a29a697c99091f89784a7724cca7a88fe45c7450df2a4bbee8b9d035629a6",
+      "bytes": 16166
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-shared-Employees.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-shared-Employees.stdout",
+      "sha256": "30cd56d5aed1b8dc34844e77f868f8feea7353495a7b643b46e5ff080b3fe53c",
+      "bytes": 3582
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-shared-Locations.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-shared-Locations.stdout",
+      "sha256": "6d1c9c4b281a8d8ebe53d33e2386a74626d2adce474dcca8d709749e4115541c",
+      "bytes": 11583
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-shared-Suppliers.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-draft-shared-Suppliers.stdout",
+      "sha256": "f64b969413919180e125660380f675d94d28ff0afbe00b32bd3aef3acead2cd3",
+      "bytes": 1422
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-examples-ExpenseFlow.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-examples-ExpenseFlow.stdout",
+      "sha256": "6a31998cde98fe6dc65d605093e356bdd97eba5797ad2e1bd7c44541ac86aa14",
+      "bytes": 8720
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-examples-TeamTasks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-corpus-examples-TeamTasks.stdout",
+      "sha256": "27f2df345b1ac32b1f8e057aaced6db1913d3264b1fd85dcbdf7c178f5f18750",
+      "bytes": 3813
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-fix-comments.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-fix-comments.stdout",
+      "sha256": "10bdc7c9656526d1581a580405631460637eed4c3ab9c7d628b6a62507c830bd",
+      "bytes": 888
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-fix-safe-access.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-fix-safe-access.stdout",
+      "sha256": "f918c67bf32c43a9d11cfaebeaec2acd56ac154071c32f95a07b4aeb04f5d190",
+      "bytes": 715
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-fix-semicolon.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/case-fix-semicolon.stdout",
+      "sha256": "b44d99e5b60d18ba101fce0699ecc035eea3a77c1fe4c60c9858163fab4dee86",
+      "bytes": 231
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/cases-initial.json",
+      "sha256": "839cd36801dba813e4b504a6f69f70eeaa876b747e9c25730d63c2bbe954263c",
+      "bytes": 1757963
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/cases.json",
+      "sha256": "9ad9950db1e2e7832deaced9b7fc5b741aae739716a60a708f9508a93cc27407",
+      "bytes": 1758314
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/cli-cases.json",
+      "sha256": "9cb0c5531c4c8d580e4ece4d2a0a820140388a614567ddd8ed9698dc0c4b7b04",
+      "bytes": 2658
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/cli-execution.json",
+      "sha256": "d0bbf849cc85081e592859b87a85b2b5e11289610b84062007239f90770f4c41",
+      "bytes": 16846
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/cli-observations.json",
+      "sha256": "549b4d6df7bcd1599836de20dc7eb7bf90ea7d2dff61a08464388b7dbca79b82",
+      "bytes": 3162
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/cli.py",
+      "sha256": "35942e04cc854e1e23a03469745a7d0cd9f6198f346897c0dd0e1bd27e593241",
+      "bytes": 4302
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/compile-probe-attempt1.stderr",
+      "sha256": "cc61ace333c2963e1b54f668183b659503fe217cd4d3195faab97296262148e3",
+      "bytes": 1144
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/compile-probe-attempt1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/compile-probe.stderr",
+      "sha256": "d000eb433b2151414aa0b068421c34042f5358277d8e608462e9d883b321c4c6",
+      "bytes": 434
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/compile-probe.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/coordinates.json",
+      "sha256": "cd0dfb195963dbbf8460c6adee01ae7d36428cd4223043124159eac2b2bd0634",
+      "bytes": 6489
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/coordinates.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/coordinates.stdout",
+      "sha256": "3edcc11040a4461f2e4f154b1e8817c9e0f3246858f5be7c8049d4f4a53f618e",
+      "bytes": 2270
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/diagnostics-initial.stdout",
+      "sha256": "2ed4dd0b706992c7866657e82aedd2b903d037fe58dd010adafc5e9e00a95052",
+      "bytes": 918
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/diagnostics.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/diagnostics.stdout",
+      "sha256": "69c9061b2e5aae493c4274e0636b67f2bcf1ce1a21b51689d16e3bc4c35cfceb",
+      "bytes": 914
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/docs-backslash.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/docs-backslash.stdout",
+      "sha256": "b6fe8858855196e1f2f30f908ac449ebf86728fd8907d3d90a0db9ee848af059",
+      "bytes": 849
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/docs-backtick.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/docs-backtick.stdout",
+      "sha256": "8fc3d106a5ad4f6428443becfb03984554a676914f824405681355b97282d163",
+      "bytes": 846
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/docs-pipe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/docs-pipe.stdout",
+      "sha256": "27edf110f08e47714ce0b99edd60c7cd3c1238d83674292621737acf67aa7bb8",
+      "bytes": 841
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/execution.json",
+      "sha256": "fb4e2dfa6ac151c8aff9f99b8099289aa4b25d4b7a74e53cde38ae74bdb9b8fa",
+      "bytes": 48176
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fmt-check-before.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fmt-check-before.stdout",
+      "sha256": "379b2bcfb284af04541cefc1611ab8bff3fdd772f7fddc40919c796830e139e7",
+      "bytes": 84
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fmt-multiple-malformed.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fmt-multiple-malformed.stdout",
+      "sha256": "873228cdabb31e4ae67aa18ecbd4f2aa7f72db1c816fcfe1e25509b160ef11bf",
+      "bytes": 637
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fmt-noop.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fmt-noop.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fmt-write.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fmt-write.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/focused-suites.stderr",
+      "sha256": "82218f2d34b7473a8c41ea04703e1df07f4cf7595ac5561cd325357947d2e2c6",
+      "bytes": 3754
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/focused-suites.stdout",
+      "sha256": "68fd0acdebb4f12cacb4931907cbbfa7e770004f08b946e118a3de71fb24356c",
+      "bytes": 11303
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fresh-build.stderr",
+      "sha256": "299f16a2c523be18fef769975d2df00e0505521db047540feea3a74b94666887",
+      "bytes": 72
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/fresh-build.stdout",
+      "sha256": "0f191760fe50aad632d12e0218d2cc22aaaa0b46ccb5358cb2a6b70dd2ad39f1",
+      "bytes": 78756
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-await-0.mjs",
+      "sha256": "def7a981823d2d30287a8117adca966472b7830a8e7bc22ae63367f1ae520665",
+      "bytes": 844
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-await-check.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-await-check.stdout",
+      "sha256": "982442642fcdc884bec3cf21a2944c846bcf34b5956f78cbfb9784e1b1fdf0bb",
+      "bytes": 327
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-await-compile.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-await-compile.stdout",
+      "sha256": "810c614c94600fdb8e46f49f72c3f7b512c2e34f63e6c4438315d4b523cc7a67",
+      "bytes": 2002
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-await-node-0.stderr",
+      "sha256": "19384dc1fae6f6bb07658a3bd54824263d77673f48e4999fa87418e021dda403",
+      "bytes": 264
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-await-node-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-c-0.mjs",
+      "sha256": "72d19f9b03d32d978777e588e9be15c438e20e086afbcf1f266ca8e1db06e9b2",
+      "bytes": 828
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-c-check.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-c-check.stdout",
+      "sha256": "e81f09cd8e0327107fa96851feeaefe032ef5dd5f5b43d72ca3a9a6088949e1c",
+      "bytes": 323
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-c-compile.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-c-compile.stdout",
+      "sha256": "8a5f95bb167a22c3a79de45c81c981781bb1ed72556f2381ab2b4572952b3e4d",
+      "bytes": 1966
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-c-node-0.stderr",
+      "sha256": "d44bdd8372be1ae52ff679d37ab065636bb086c670d345c72cf02535f5a3f2e3",
+      "bytes": 280
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-c-node-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-class-0.mjs",
+      "sha256": "f4e42ef3e52b61e25f8d8526c2ac152e0df6d658832063d57d5e69c9b7e6143d",
+      "bytes": 844
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-class-check.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-class-check.stdout",
+      "sha256": "141f0132e50f8fbcc30d3c7aaba1406622250dc62fd2e4c9194b8bafbc1d0306",
+      "bytes": 327
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-class-compile.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-class-compile.stdout",
+      "sha256": "d9e86268277ee495a2becbc516bdc08717b65580876815bf1c03836ce4a9f3c7",
+      "bytes": 2002
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-class-node-0.stderr",
+      "sha256": "50342467c0382c6d26043ddb484ecdd7f235fde1c03bf3e0c0289b793bcfe781",
+      "bytes": 264
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-class-node-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-default-0.mjs",
+      "sha256": "fd6372144d56b0a3e61d6ed9868ce3ec587334ff639bb42958b5df27da38b1fd",
+      "bytes": 852
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-default-check.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-default-check.stdout",
+      "sha256": "cef81c98c9dfc6e5093dd0e73322c6d0190a218edb7bba0f2508ba562e554195",
+      "bytes": 329
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-default-compile.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-default-compile.stdout",
+      "sha256": "0e76614aa0a8b4e2e9a4d1a450424a25f9c97cd1c024f801897da65b2a03bee7",
+      "bytes": 2020
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-default-node-0.stderr",
+      "sha256": "2dc4e10f8b95323b5f63ece3375926c775dbe3c9c9f6d3e4781eae5731a2429f",
+      "bytes": 272
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-default-node-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-value-0.mjs",
+      "sha256": "d5abed082ec2e3f48ba2c374a37a748b985afc5f3766509a27ffb44b37bb6b86",
+      "bytes": 844
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-value-check.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-value-check.stdout",
+      "sha256": "06b2b57d986d73780d9ac1d6eacd30abda6249d4fb5b530a02729d05e9f398c7",
+      "bytes": 327
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-value-compile.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-value-compile.stdout",
+      "sha256": "3e233f8e43e12d27ab23850e7806ce26e6d0b6a4720552ba58475c65cfb30de9",
+      "bytes": 2002
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-value-node-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/identifier-value-node-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/inputs.json",
+      "sha256": "384408ef5ac2e2f2c2ec412fd054279985d348485332f8ba2294c6dda1335cbc",
+      "bytes": 3096
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/integrate.py",
+      "sha256": "1b9a37f9b017edfac479fe53ea3bf04bb934ef08834ca94cc84d3b58fd7a2e12",
+      "bytes": 7070
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/lint-fix-report.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/lint-fix-report.stdout",
+      "sha256": "4d39916bb6d4c221c057fa41f7c95d65da8551fd02af5fe02e476047e1d7f749",
+      "bytes": 706
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/node-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/node-version.stdout",
+      "sha256": "f2ec568164f99546161909b0189b57bb5be3e80f8e2ccd8a51a4aed8c4055a04",
+      "bytes": 9
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/observations-initial.json",
+      "sha256": "6fb43eb6a6c7aa2380ebfc16ff3677b5db84a2e2a7fb61d57da5559a89f5dec1",
+      "bytes": 34864
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/observations.json",
+      "sha256": "236e0e976e87669f428c069cedbbf91d83b778e00f7347ae9db0b6b1f2ee4cb1",
+      "bytes": 35566
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/observer-corrections.json",
+      "sha256": "95606a26c812ccff32bf662cb49634e73cbe5ebd173c7288d04be416e5e5f1d7",
+      "bytes": 1107
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/observer-execution.json",
+      "sha256": "8684d6d98d3300b20107510052ef31c5092fc345835c79582a8f860fd0f7182b",
+      "bytes": 45803
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/outcome-verification.json",
+      "sha256": "b944640c0c2657bf782d8db27504e25800275be364845943f72a0c7d54adcebd",
+      "bytes": 50692
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/probe-attempt1.rs",
+      "sha256": "2d3099e93bc5102951dbc975fbef4ac5379d3e1c435ed2d4eabf38377c13b4bc",
+      "bytes": 4999
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/probe.rs",
+      "sha256": "d56124665aee093f41abf481d173c073884e4952f37b95fb6541a18e6b76f06a",
+      "bytes": 4972
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/review-transforms.json",
+      "sha256": "9b3267f2ddfe04a1d6bcb357750ef4d0542a3d6c43cff8c849a134ebbc2a8237",
+      "bytes": 9862
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/review-transforms.md",
+      "sha256": "fa4fa9e31ca0da7ea818a8a5e001cf6ff2fce5c76ab31e46c91c1cab18d173ac",
+      "bytes": 2714
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/run.py",
+      "sha256": "67b06154d66c9901812a68ff7d090aacc911486e7c35964d87ec1c8665aa2676",
+      "bytes": 9340
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/rustc-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/rustc-version.stdout",
+      "sha256": "352d6857968e80a6357a926ac685b9b07f77c479aaafde33e73a53945e802909",
+      "bytes": 192
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/serialization-notes.md",
+      "sha256": "65ee57b1307bd3faa549685ea75fd120c918c8f6991efa4a4303c9d7f60f6f38",
+      "bytes": 2786
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/serialization.json",
+      "sha256": "038bbd212729d2ab55fd0626a4c959b704f661f6e47826adb32a9b072e264e08",
+      "bytes": 23873
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/suites-execution.json",
+      "sha256": "6b1828b46e5b444cdce312f7a1a4bf438580da3f7ab1aa1ce7ce23b2668cd9aa",
+      "bytes": 3458
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/support-inputs.json",
+      "sha256": "244d1ad8c485ab75c4e9904f14189bf3531890de905c51e1bbde8e982d01ab38",
+      "bytes": 8958
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/transforms.json",
+      "sha256": "88b17bd535e9385992175085b1caf721fc89439093b3ac85d0e3d10a0df0103d",
+      "bytes": 11503
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/unit-cli--replacement_tests.stderr",
+      "sha256": "0ccbcf57da890690fc1c7cf987daf575b22fe761a16393218e366c4c0f2c3c3d",
+      "bytes": 170
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/unit-cli--replacement_tests.stdout",
+      "sha256": "a4536f1340121236047b6691d47ad3e4dcb7ba1637cedf167126f67986ee0935",
+      "bytes": 820
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/unit-lsp--uri--.stderr",
+      "sha256": "0ccbcf57da890690fc1c7cf987daf575b22fe761a16393218e366c4c0f2c3c3d",
+      "bytes": 170
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/unit-lsp--uri--.stdout",
+      "sha256": "4486b97f0b64bc5c3314221c57d566e27b5dd843e9d38804d332ae1803d1224c",
+      "bytes": 275
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/unit-source--.stderr",
+      "sha256": "de64cf76b91d5e4d72549f5131fbeffe6aad39cd9da76ab899c2bf278ebee2b4",
+      "bytes": 248
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/unit-source--.stdout",
+      "sha256": "2f0395be4d63a4a441908d8490698564ed17d06f483f07adebd6d8e030bf9975",
+      "bytes": 430
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/validate.py",
+      "sha256": "ab796042ff061f0fbae88b41759329c91d70878435c73ecd117cd015cfad5459",
+      "bytes": 6817
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/verify.py",
+      "sha256": "ea7c51c7b3f9e8406c25da0ea3d5f65e57f5b170821d3d006980f10f4489c4cc",
+      "bytes": 5774
+    }
+  ],
+  "limits": [
+    "finite duties/sampled witnesses, not every source branch",
+    "superseded initial capture names explicit; final observers/suites separate",
+    "Markdown standards-derived meaning, no parser execution",
+    "native/installed-dist/current-source consumers, not rebuilt packages/release/GUI/other-host acceptance",
+    "historical skill validator bundle unavailable; local joined validation used"
+  ]
+}

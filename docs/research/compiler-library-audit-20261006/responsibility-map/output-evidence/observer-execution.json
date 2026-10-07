@@ -1,0 +1,1045 @@
+{
+  "commands": [
+    {
+      "name": "rustc-version",
+      "argv": [
+        "rustc",
+        "-Vv"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.044,
+      "stdout": "rustc-version.stdout",
+      "stdout_sha256": "352d6857968e80a6357a926ac685b9b07f77c479aaafde33e73a53945e802909",
+      "stderr": "rustc-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cargo-version",
+      "argv": [
+        "cargo",
+        "-V"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.036,
+      "stdout": "cargo-version.stdout",
+      "stdout_sha256": "1f88eaf7fe1aaec83184752cf4c944cd22f00184136ff36a3e4c318cc60ef566",
+      "stderr": "cargo-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "node-version",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 4.85,
+      "stdout": "node-version.stdout",
+      "stdout_sha256": "f2ec568164f99546161909b0189b57bb5be3e80f8e2ccd8a51a4aed8c4055a04",
+      "stderr": "node-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "fresh-build",
+      "argv": [
+        "cargo",
+        "build",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--lib",
+        "--bin",
+        "can",
+        "--message-format=json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.213,
+      "stdout": "fresh-build.stdout",
+      "stdout_sha256": "0f191760fe50aad632d12e0218d2cc22aaaa0b46ccb5358cb2a6b70dd2ad39f1",
+      "stderr": "fresh-build.stderr",
+      "stderr_sha256": "299f16a2c523be18fef769975d2df00e0505521db047540feea3a74b94666887"
+    },
+    {
+      "name": "compile-probe",
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/probe.rs",
+        "--extern",
+        "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+        "--extern",
+        "serde_json=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "-o",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 2.647,
+      "stdout": "compile-probe.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "compile-probe.stderr",
+      "stderr_sha256": "d000eb433b2151414aa0b068421c34042f5358277d8e608462e9d883b321c4c6"
+    },
+    {
+      "name": "case-controls-precision",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/controls-precision.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.276,
+      "stdout": "case-controls-precision.stdout",
+      "stdout_sha256": "c0990a48cbf21ff94392488adc00c9601fdbc71c1349ebce29d7cb580194f08c",
+      "stderr": "case-controls-precision.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-comments-layout",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/comments-layout.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.013,
+      "stdout": "case-comments-layout.stdout",
+      "stdout_sha256": "337e322ccbff12f6cb07dd230bac5883a1a6f830e76873c9abdaf6103f473b65",
+      "stderr": "case-comments-layout.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-bad-escape",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/bad-escape.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "case-bad-escape.stdout",
+      "stdout_sha256": "7f0bd35a02fd0da37badd96225bfb74e9d6a394140461c54c78f2b4898b6eade",
+      "stderr": "case-bad-escape.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-bad-tab",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/bad-tab.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "case-bad-tab.stdout",
+      "stdout_sha256": "03dc644059b8a36d4843f3b9b230504b984f9c3b7edab3c55404bc4414439ed8",
+      "stderr": "case-bad-tab.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-fix-comments",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "fix",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/fix-comments.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.006,
+      "stdout": "case-fix-comments.stdout",
+      "stdout_sha256": "10bdc7c9656526d1581a580405631460637eed4c3ab9c7d628b6a62507c830bd",
+      "stderr": "case-fix-comments.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-fix-safe-access",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "fix",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/fix-safe-access.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "case-fix-safe-access.stdout",
+      "stdout_sha256": "f918c67bf32c43a9d11cfaebeaec2acd56ac154071c32f95a07b4aeb04f5d190",
+      "stderr": "case-fix-safe-access.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-fix-semicolon",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "fix",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/fix-semicolon.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "case-fix-semicolon.stdout",
+      "stdout_sha256": "b44d99e5b60d18ba101fce0699ecc035eea3a77c1fe4c60c9858163fab4dee86",
+      "stderr": "case-fix-semicolon.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-examples-ExpenseFlow",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-examples-ExpenseFlow.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.081,
+      "stdout": "case-corpus-examples-ExpenseFlow.stdout",
+      "stdout_sha256": "6a31998cde98fe6dc65d605093e356bdd97eba5797ad2e1bd7c44541ac86aa14",
+      "stderr": "case-corpus-examples-ExpenseFlow.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-examples-TeamTasks",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-examples-TeamTasks.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.034,
+      "stdout": "case-corpus-examples-TeamTasks.stdout",
+      "stdout_sha256": "27f2df345b1ac32b1f8e057aaced6db1913d3264b1fd85dcbdf7c178f5f18750",
+      "stderr": "case-corpus-examples-TeamTasks.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanAffiliate",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanAffiliate.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.312,
+      "stdout": "case-corpus-draft-CanAffiliate.stdout",
+      "stdout_sha256": "a41b435d354b6e12c8157e3bcc7dfe5db5897d350445ac981ef469fd92a91bb1",
+      "stderr": "case-corpus-draft-CanAffiliate.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanApprove",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanApprove.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.373,
+      "stdout": "case-corpus-draft-CanApprove.stdout",
+      "stdout_sha256": "035eb07351bde259d6fc275b83d44f349f91f4b7614671849e2fd2d6420e1d29",
+      "stderr": "case-corpus-draft-CanApprove.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanBoard",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanBoard.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.172,
+      "stdout": "case-corpus-draft-CanBoard.stdout",
+      "stdout_sha256": "f5a345c60723bae688715dd87a1103b585223f2efb5cf25a1fa08336e57348f9",
+      "stderr": "case-corpus-draft-CanBoard.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanBook",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanBook.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.477,
+      "stdout": "case-corpus-draft-CanBook.stdout",
+      "stdout_sha256": "36f60f9a0fb76d6ab66846d25c9492a83b9fc9a6ae9791dc0eb29ed83417c8b4",
+      "stderr": "case-corpus-draft-CanBook.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanCRM",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanCRM.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.311,
+      "stdout": "case-corpus-draft-CanCRM.stdout",
+      "stdout_sha256": "9cc0a37d6387bc915dd06d448888eca99a1ef4a06fed5d56c62cfc73754dc1fd",
+      "stderr": "case-corpus-draft-CanCRM.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanCatch",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanCatch.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.269,
+      "stdout": "case-corpus-draft-CanCatch.stdout",
+      "stdout_sha256": "b69890c6d25e6d78e3f821eb9fd38f2dcdb2fc1b9203f31dea79c53a185ed9fd",
+      "stderr": "case-corpus-draft-CanCatch.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanChat",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanChat.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.256,
+      "stdout": "case-corpus-draft-CanChat.stdout",
+      "stdout_sha256": "e920be6ed086bbab5a34236590379c5bf3982ecebfc103d3fb911033fa04cc9e",
+      "stderr": "case-corpus-draft-CanChat.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanCheck",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanCheck.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.203,
+      "stdout": "case-corpus-draft-CanCheck.stdout",
+      "stdout_sha256": "c61c848abf94c17046ea809078c8f265784f916c8f0459b34e2d81d1bfdf5753",
+      "stderr": "case-corpus-draft-CanCheck.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanContract",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanContract.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.259,
+      "stdout": "case-corpus-draft-CanContract.stdout",
+      "stdout_sha256": "4560456e38fc61557b5887e4a246a3c0c6bf5c9b40a536db5844de8b9835f03c",
+      "stderr": "case-corpus-draft-CanContract.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanCreative",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanCreative.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.273,
+      "stdout": "case-corpus-draft-CanCreative.stdout",
+      "stdout_sha256": "fedc2eb328e1b9ee2fee292850e3bb9f1fd38813e566dc50b2f6b22a9ce37231",
+      "stderr": "case-corpus-draft-CanCreative.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanCustomer",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanCustomer.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.251,
+      "stdout": "case-corpus-draft-CanCustomer.stdout",
+      "stdout_sha256": "f8cc53ebe5b13bc2a7bb41f199fa12f3768538a61811b038e0c3b573be875bb5",
+      "stderr": "case-corpus-draft-CanCustomer.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanDecide",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanDecide.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.175,
+      "stdout": "case-corpus-draft-CanDecide.stdout",
+      "stdout_sha256": "c5defda8fa9133b7ad1ff1b0c416937bef8a027190ebb2680719371531c19d7d",
+      "stderr": "case-corpus-draft-CanDecide.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanDesk",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanDesk.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.249,
+      "stdout": "case-corpus-draft-CanDesk.stdout",
+      "stdout_sha256": "515b0cf369647b5d94babbc707ad50514ea1d2a5c82b2120c586e607414709f9",
+      "stderr": "case-corpus-draft-CanDesk.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanDiscover",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanDiscover.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.405,
+      "stdout": "case-corpus-draft-CanDiscover.stdout",
+      "stdout_sha256": "62ce3d864ce949065a5924ce0311e24e7c7085549afd6a18620004cb94aad6c2",
+      "stderr": "case-corpus-draft-CanDiscover.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanDo",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanDo.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.201,
+      "stdout": "case-corpus-draft-CanDo.stdout",
+      "stdout_sha256": "ae1b20148c44ca2c7a6d6637751736a2d1b11daa008d8b89be38eb09332d3e11",
+      "stderr": "case-corpus-draft-CanDo.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanEnrich",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanEnrich.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.178,
+      "stdout": "case-corpus-draft-CanEnrich.stdout",
+      "stdout_sha256": "5487102f70a50dd2c4e43d69df4dd0187a13f0249f874e0559bbbcfd4170954c",
+      "stderr": "case-corpus-draft-CanEnrich.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanEvent",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanEvent.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.767,
+      "stdout": "case-corpus-draft-CanEvent.stdout",
+      "stdout_sha256": "c03d6036c0370f8b1eb7f9e47d02ba3610f4923d6aca8f4b79761a65d78b3b6d",
+      "stderr": "case-corpus-draft-CanEvent.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanExpense",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanExpense.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.552,
+      "stdout": "case-corpus-draft-CanExpense.stdout",
+      "stdout_sha256": "6d9804a06f081971820a8577e988679fa876ee59bbf5dd7e9220c2c79fe67ab8",
+      "stderr": "case-corpus-draft-CanExpense.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanFeedback",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanFeedback.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.296,
+      "stdout": "case-corpus-draft-CanFeedback.stdout",
+      "stdout_sha256": "ac3204de4cbdb7040ff5bdac8b3e2056006af3ef60944fbd137f512db74dd60f",
+      "stderr": "case-corpus-draft-CanFeedback.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanField",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanField.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.302,
+      "stdout": "case-corpus-draft-CanField.stdout",
+      "stdout_sha256": "8513794c4f4c3bca94a965d66e2d59025262fd9d9dd51006c1fc3e163f960322",
+      "stderr": "case-corpus-draft-CanField.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanGallery",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanGallery.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.122,
+      "stdout": "case-corpus-draft-CanGallery.stdout",
+      "stdout_sha256": "a083d896fe0c09becdcb4e365797ad830d1e516e7b4bfed4a9c11b2799ebfe8c",
+      "stderr": "case-corpus-draft-CanGallery.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanGrant",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanGrant.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.557,
+      "stdout": "case-corpus-draft-CanGrant.stdout",
+      "stdout_sha256": "cecb3c2d5092957d74856deaca03566294538946c8dbfa034856d7c1cfd70f9c",
+      "stderr": "case-corpus-draft-CanGrant.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanHire",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanHire.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.372,
+      "stdout": "case-corpus-draft-CanHire.stdout",
+      "stdout_sha256": "0289f02916235426e5dbe88b7c7e15142e5493896e3fadec24350acbd392d1f3",
+      "stderr": "case-corpus-draft-CanHire.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanInbox",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanInbox.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.43,
+      "stdout": "case-corpus-draft-CanInbox.stdout",
+      "stdout_sha256": "82eb3ba498172e29ac1fdfdcd84e257423cca4e9ae7ee95d53c7e14b71d1311a",
+      "stderr": "case-corpus-draft-CanInbox.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanInvoice",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanInvoice.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 1.253,
+      "stdout": "case-corpus-draft-CanInvoice.stdout",
+      "stdout_sha256": "c1c6d2360f283cf70d5dd99add5a3cd97b344a5209fdc79ec9956810d3a40800",
+      "stderr": "case-corpus-draft-CanInvoice.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanKnowledge",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanKnowledge.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.302,
+      "stdout": "case-corpus-draft-CanKnowledge.stdout",
+      "stdout_sha256": "613d2ca2d1fbdc754b25a16dbaff78361d8b38bb2b6836bef95be28776a140f5",
+      "stderr": "case-corpus-draft-CanKnowledge.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanLearn",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanLearn.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.193,
+      "stdout": "case-corpus-draft-CanLearn.stdout",
+      "stdout_sha256": "b53745b46e82fb46dcd89ab1faa16a5611cd1ac13ec78df9651b2a026056dc00",
+      "stderr": "case-corpus-draft-CanLearn.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanLeave",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanLeave.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.322,
+      "stdout": "case-corpus-draft-CanLeave.stdout",
+      "stdout_sha256": "418cfde9ea228171ae2baa15c66e05c8a8cc43215dd8935658a2cf43a5bb294b",
+      "stderr": "case-corpus-draft-CanLeave.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanLoyalty",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanLoyalty.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.325,
+      "stdout": "case-corpus-draft-CanLoyalty.stdout",
+      "stdout_sha256": "d4428cbe34fa9fe307843862e5091eba73283caa69ea70722d15a8c89ef8e3b2",
+      "stderr": "case-corpus-draft-CanLoyalty.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanMail",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanMail.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.521,
+      "stdout": "case-corpus-draft-CanMail.stdout",
+      "stdout_sha256": "ba6e15c7bb6e8c298c292e47e000621c46843ae1f811d41d5a01b86fb3b8c6a4",
+      "stderr": "case-corpus-draft-CanMail.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanMaintain",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanMaintain.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.571,
+      "stdout": "case-corpus-draft-CanMaintain.stdout",
+      "stdout_sha256": "6707c8a9babc0243d4f0702f95a39c9d5d6dc5ae0aea7e57a7e9d2ff5f7845b6",
+      "stderr": "case-corpus-draft-CanMaintain.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanMember",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanMember.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 1.046,
+      "stdout": "case-corpus-draft-CanMember.stdout",
+      "stdout_sha256": "c34b08d39ecd69f618b88d40d0992d0964c24c26b3d083c875b71a61d288c817",
+      "stderr": "case-corpus-draft-CanMember.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanOnboard",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanOnboard.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.198,
+      "stdout": "case-corpus-draft-CanOnboard.stdout",
+      "stdout_sha256": "4a84d28471154a87fd337a81439a6c7f91e0f388b9e2a1e294fb7c7cfb8e44f5",
+      "stderr": "case-corpus-draft-CanOnboard.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanPropose",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanPropose.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.561,
+      "stdout": "case-corpus-draft-CanPropose.stdout",
+      "stdout_sha256": "0256094aee4738cb5ffb7d24aeec1049be81ee56c2c1af72840c6eea5c95c291",
+      "stderr": "case-corpus-draft-CanPropose.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanPurchase",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanPurchase.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.587,
+      "stdout": "case-corpus-draft-CanPurchase.stdout",
+      "stdout_sha256": "235d16f3ae9bf38be52c5742f9be5016baa7338a076df13ccacd2b24497075a0",
+      "stderr": "case-corpus-draft-CanPurchase.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanReception",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanReception.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.539,
+      "stdout": "case-corpus-draft-CanReception.stdout",
+      "stdout_sha256": "aea9a973b33cdd2d1b2fbae734155b6ab5f1a237dd69b545465097fe4c14c7c2",
+      "stderr": "case-corpus-draft-CanReception.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanRefer",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanRefer.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.324,
+      "stdout": "case-corpus-draft-CanRefer.stdout",
+      "stdout_sha256": "3c607a55677a534371c7419b442d91ff4ca22b8ffcf4d0913f8cf506b22d3f9e",
+      "stderr": "case-corpus-draft-CanRefer.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanRent",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanRent.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 2.809,
+      "stdout": "case-corpus-draft-CanRent.stdout",
+      "stdout_sha256": "655ba754967f793ee9df13ea7ef843b624f7bcceb18140ffb0c5ab07e3e4a8a3",
+      "stderr": "case-corpus-draft-CanRent.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanReport",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanReport.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.191,
+      "stdout": "case-corpus-draft-CanReport.stdout",
+      "stdout_sha256": "76ab8bab9069fe98d922a4226245f0e60197fc1f11204a5dbdc8f69507ae5f0c",
+      "stderr": "case-corpus-draft-CanReport.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanShift",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanShift.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.015,
+      "stdout": "case-corpus-draft-CanShift.stdout",
+      "stdout_sha256": "e8b827c1115bcb1d7ac644b0ce630be8e637bec410be4394e8232116e8863e59",
+      "stderr": "case-corpus-draft-CanShift.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanStats",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanStats.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.29,
+      "stdout": "case-corpus-draft-CanStats.stdout",
+      "stdout_sha256": "50b354695dcbe2748aea8eb418fee89853cd644fdaac5a1813b542b540d49b8f",
+      "stderr": "case-corpus-draft-CanStats.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanStock",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanStock.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.239,
+      "stdout": "case-corpus-draft-CanStock.stdout",
+      "stdout_sha256": "81a2d81f1dd8b805649da509243982f8df417cffa8a85a42c48d20f76626a674",
+      "stderr": "case-corpus-draft-CanStock.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanSuccess",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanSuccess.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.207,
+      "stdout": "case-corpus-draft-CanSuccess.stdout",
+      "stdout_sha256": "5cb79f0408717fbe0e3b00afdf38b0647e5be0cce17f95aef345791b50ecc8ad",
+      "stderr": "case-corpus-draft-CanSuccess.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanSync",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanSync.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.21,
+      "stdout": "case-corpus-draft-CanSync.stdout",
+      "stdout_sha256": "a55d61a1ebe9e2f290daaea8ed39b10174c651d64532edf99c81cbf7861685fe",
+      "stderr": "case-corpus-draft-CanSync.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanTable",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanTable.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.221,
+      "stdout": "case-corpus-draft-CanTable.stdout",
+      "stdout_sha256": "21e139f760ac4deca14249304ac26e6029a6f591bdf7f9867f83c8d76390c0c7",
+      "stderr": "case-corpus-draft-CanTable.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanTime",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanTime.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.366,
+      "stdout": "case-corpus-draft-CanTime.stdout",
+      "stdout_sha256": "eb231a26f3b964e4e8867f32f39236b22162ef034a713e15fae35e63771e4090",
+      "stderr": "case-corpus-draft-CanTime.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanTrade",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanTrade.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.126,
+      "stdout": "case-corpus-draft-CanTrade.stdout",
+      "stdout_sha256": "78bee51fc5756a5bcd7958832d6691cc1a1ce4f0f4f92a242c74652f4bf57736",
+      "stderr": "case-corpus-draft-CanTrade.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanVolunteer",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanVolunteer.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.01,
+      "stdout": "case-corpus-draft-CanVolunteer.stdout",
+      "stdout_sha256": "e8b827c1115bcb1d7ac644b0ce630be8e637bec410be4394e8232116e8863e59",
+      "stderr": "case-corpus-draft-CanVolunteer.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-CanWorkbench",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-CanWorkbench.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.199,
+      "stdout": "case-corpus-draft-CanWorkbench.stdout",
+      "stdout_sha256": "333a29a697c99091f89784a7724cca7a88fe45c7450df2a4bbee8b9d035629a6",
+      "stderr": "case-corpus-draft-CanWorkbench.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-shared-Employees",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-shared-Employees.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.04,
+      "stdout": "case-corpus-draft-shared-Employees.stdout",
+      "stdout_sha256": "30cd56d5aed1b8dc34844e77f868f8feea7353495a7b643b46e5ff080b3fe53c",
+      "stderr": "case-corpus-draft-shared-Employees.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-shared-Locations",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-shared-Locations.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.186,
+      "stdout": "case-corpus-draft-shared-Locations.stdout",
+      "stdout_sha256": "6d1c9c4b281a8d8ebe53d33e2386a74626d2adce474dcca8d709749e4115541c",
+      "stderr": "case-corpus-draft-shared-Locations.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-draft-shared-Suppliers",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/corpus-draft-shared-Suppliers.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.014,
+      "stdout": "case-corpus-draft-shared-Suppliers.stdout",
+      "stdout_sha256": "f64b969413919180e125660380f675d94d28ff0afbe00b32bd3aef3acead2cd3",
+      "stderr": "case-corpus-draft-shared-Suppliers.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "coordinates",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "coordinates"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "coordinates.stdout",
+      "stdout_sha256": "3edcc11040a4461f2e4f154b1e8817c9e0f3246858f5be7c8049d4f4a53f618e",
+      "stderr": "coordinates.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "diagnostics",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-bnrkpjtx/probe",
+        "diagnostics"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.003,
+      "stdout": "diagnostics.stdout",
+      "stdout_sha256": "69c9061b2e5aae493c4274e0636b67f2bcf1ce1a21b51689d16e3bc4c35cfceb",
+      "stderr": "diagnostics.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "libraries": [
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+      "sha256": "36f44df2d884805d367ea18cf81737b7e1ac8660a0c2d70f5fbf2f086687448a"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+      "sha256": "9df7249a7ee38c342a482ae8da8d164e14dd17f3749232dd0d6b4c8e43021aac"
+    }
+  ],
+  "scope": "Corrected unique path IDs; fresh bounded observer rerun only; prior focused suites retained separately."
+}

@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "step": "10 outputs/source transformations",
+  "source_baseline": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "finite_duties": [
+    {
+      "id": "CO-01",
+      "duty": "Immutable source revision identities",
+      "defining_declarations": [
+        "compiler/src/source.rs:14\u201373"
+      ],
+      "caller_closure": [
+        "SourceDb::add/get/lookup -> SourceId + sha256"
+      ],
+      "real_consumers": [
+        "analysis, diagnostics, fixes, artifacts, editor"
+      ],
+      "independent_authority": [
+        "SourceId immutable bytes; newest path lookup separate"
+      ],
+      "witnesses": [
+        "6 selected source unit tests"
+      ],
+      "limits": "Same display path can mean distinct SourceIds; renderer cannot certify supplied foreign carriers",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "CO-02",
+      "duty": "Byte span and human columns",
+      "defining_declarations": [
+        "compiler/src/source.rs:77\u2013159; compiler/src/diagnostic.rs:275\u2013310"
+      ],
+      "caller_closure": [
+        "Span; LineIndex::line_col -> human diagnostics"
+      ],
+      "real_consumers": [
+        "CLI diagnostic human consumer"
+      ],
+      "independent_authority": [
+        "half-open UTF8 bytes; one-based byte column; CRLF clamping"
+      ],
+      "witnesses": [
+        "19 fixed coordinate rows + source unit tests"
+      ],
+      "limits": "Byte columns can address interior UTF8 bytes; public caller spans require validity; human columns not scalar columns",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "CO-03",
+      "duty": "Byte to LSP UTF16 conversion",
+      "defining_declarations": [
+        "compiler/src/source.rs:159\u2013181; compiler/src/lsp/server.rs:458\u2013472"
+      ],
+      "caller_closure": [
+        "LineIndex::to_lsp -> range; LSP capabilities UTF16"
+      ],
+      "real_consumers": [
+        "editor diagnostics, rename, tokens, actions"
+      ],
+      "independent_authority": [
+        "zero-based UTF16; inside scalar clamp back; CRLF CR not addressable"
+      ],
+      "witnesses": [
+        "19 independent byte/UTF16/byte-mode vectors; real framed session"
+      ],
+      "limits": "Public helper byte mode does not imply server negotiates UTF8",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "CO-04",
+      "duty": "LSP positions to bytes",
+      "defining_declarations": [
+        "compiler/src/ide/queries.rs:100\u2013125"
+      ],
+      "caller_closure": [
+        "offset_at_position -> query snapshot"
+      ],
+      "real_consumers": [
+        "hover, definition, references, rename, actions"
+      ],
+      "independent_authority": [
+        "inverse UTF16 with split-scalar/end clamp; nonexistent line None"
+      ],
+      "witnesses": [
+        "32 independent inverse vectors"
+      ],
+      "limits": "No bijection for inside-scalar/clamped offsets; no roundtrip-only oracle",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "CO-05",
+      "duty": "LSP ranges, versions and URI keys",
+      "defining_declarations": [
+        "compiler/src/lsp/server.rs:525\u2013615,793\u2013930,932\u2013996; compiler/src/lsp/output.rs"
+      ],
+      "caller_closure": [
+        "authored docs HashMap keys -> SourceDb display path; OpenDoc.version -> typed output"
+      ],
+      "real_consumers": [
+        "real LSP process/editor"
+      ],
+      "independent_authority": [
+        "UTF16 only; authored URI identity, current document version and stale snapshot handling"
+      ],
+      "witnesses": [
+        "lsp_typed_output live Unicode/CRLF/nonfile session"
+      ],
+      "limits": "DTO unit tests are not real editor-application or all encodings acceptance",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "CO-06",
+      "duty": "Source-map coordinates, order and attribution",
+      "defining_declarations": [
+        "compiler/src/codegen/sourcemap.rs:1\u2013245; compiler/src/codegen/js.rs:JsWriter"
+      ],
+      "caller_closure": [
+        "generated line col0 -> source Span.start -> byte original col -> library IDs -> typed envelope"
+      ],
+      "real_consumers": [
+        "actual Cloudflare BDD source locator/failure reporter"
+      ],
+      "independent_authority": [
+        "released original Can byte profile; ordered IDs/content/name mapping, explicit unmapped"
+      ],
+      "witnesses": [
+        "sourcemap_contract independent arithmetic VLQ + actual consumer fixture"
+      ],
+      "limits": "Qualified existing byte consumer, not browser debugger navigation; line-granularity spans supplied by emitter not independently proving all runtime attribution",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "CO-07",
+      "duty": "Native file projection vs URI identities",
+      "defining_declarations": [
+        "compiler/src/lsp/uri.rs:7\u201352; compiler/src/lsp/server.rs:1141\u20131143"
+      ],
+      "caller_closure": [
+        "native_file_path/url::to_file_path -> display_path only"
+      ],
+      "real_consumers": [
+        "SourceDb display; authored URI stays protocol key"
+      ],
+      "independent_authority": [
+        "host-specific authority/UTF8/NUL policy; unsupported/nonfile remains original"
+      ],
+      "witnesses": [
+        "2 native URI unit tests; real nonfile framed session"
+      ],
+      "limits": "Windows cfg source traced only, not executed; projection does not access filesystem or confer trusted origin",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    }
+  ],
+  "limits": "Finite declared responsibility slices; navigation does not certify whole file. Source ranges descriptive; named APIs define writer closure."
+}

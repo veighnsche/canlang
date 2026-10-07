@@ -4,7 +4,7 @@
   "source_baseline": "1fd07722090fe70228a6b661e3c6e136275ca84b",
   "starting_head": "0edfde19",
   "mode": "planning/evidence only; bounded read-only production source and consumer/contracts scan",
-  "execution": "none: no builds/tests/CLI probes performed by this worker",
+  "execution": "Worker source inspection only. Root fresh witnesses are referenced separately in observer/CLI/suite/outcome receipts; no execution by this worker.",
   "finite_duties": [
     {
       "id": "SER-01",
@@ -72,7 +72,7 @@
         "compiler/tests/typed_diagnostics_cli.rs; diagnostic.rs:347\u2013360 (read); Step5 provenance receipts reused"
       ],
       "obligation": "Exact envelope member order, always present complete/omitted/sources/related/tags; diagnostics sorted by file/start/end/code/message. Text resolves paths and one-based line/byte-column coordinates from SourceDb.",
-      "limits": "Renderer receives a finished coherent result; no independent SourceDb verification. Public tied sort keys with different payloads retain insertion order; root probe pending. Byte-order guard is stronger than consumer JSON equality but documented locally."
+      "limits": "Renderer receives a finished coherent result; no independent SourceDb verification. Public tied sort keys with different payloads retain insertion order; root tags-only public witness confirmed; no CLI producer shown. Byte-order guard is stronger than consumer JSON equality but documented locally."
     },
     {
       "id": "SER-04",
@@ -230,7 +230,7 @@
         "compiler/tests/typed_reference_policy_consumers.rs:90\u2013208; packages/interfaces/test/docs-reference.test.ts (inventory only)"
       ],
       "obligation": "Compiler transport uses stdin JSON with fixed argv, captures truthful renderer failure; no business handlers/examples run. Authored prose HTML/entities/Markdown tokens escaped at Markdown sink; source strings are not executable. Authored examples use codeBlock with a backtick fence longer than any payload backtick run (491\u2013498); examples remain labeled as authored.",
-      "limits": "Downstream package renderer owns Markdown escaping. codeSpan uses one backtick plus backslash escape and omits pipe escaping; root probe pending. No HTML raw script embedding exists in inspected compiler docs/reference path; do not claim JSON quoting protects arbitrary HTML scripts."
+      "limits": "Downstream package renderer owns Markdown escaping. codeSpan uses one backtick plus backslash escape and omits pipe escaping; root actual docs chain witnessed; standards-derived interpretation, no Markdown parser executed. No HTML raw script embedding exists in inspected compiler docs/reference path; do not claim JSON quoting protects arbitrary HTML scripts."
     },
     {
       "id": "SER-11",
@@ -390,29 +390,32 @@
     {
       "id": "SER-LEAD-1",
       "family": "identifier transformation",
-      "status": "source lead; root fresh CLI/Node witness requested",
+      "status": "Root fresh check/compile accepts class/await/default/c; Node syntax rejects them. value control passes; real compiler output defects, see TR-13.",
       "anchor": "compiler/src/codegen/js.rs:1063\u20131075",
       "vector": "scenario echo(class:text) read=true -> text by=members; do return class",
       "authority": "GRAMMAR.md:74 contextual identifiers vs JavaScript reserved words",
-      "scope": "not shared JSON string serialization"
+      "scope": "not shared JSON string serialization",
+      "receipt": "cli-observations.json; identifier-*-node-0.stderr"
     },
     {
       "id": "SER-LEAD-2",
       "family": "diagnostic ordering",
-      "status": "public API source lead; root witness/contract classification requested",
+      "status": "Root same-code/severity/message/span tags-only witness differs after reverse insertion; public documented determinism defect; no production CLI producer shown.",
       "anchor": "compiler/src/diagnostic.rs:244\u2013265",
       "vector": "reverse insertion of two diagnostics with identical sort key but different severity/related/tags; finish then compare to_json",
       "authority": "finish doc claims insertion-order-independent byte determinism; defining key documents narrower order",
-      "scope": "no production CLI producer occurrence demonstrated"
+      "scope": "no production CLI producer occurrence demonstrated",
+      "receipt": "diagnostics.stdout; outcome-verification.json"
     },
     {
       "id": "SER-LEAD-3",
       "family": "Markdown code-span embedding",
-      "status": "downstream package source lead; root public renderer witness requested",
+      "status": "Root actual docs chain emits bad inline/table escaping for backtick/pipe/backslash. Downstream Markdown interpretation derived from official CommonMark/GFM; no parser executed.",
       "anchor": "packages/interfaces/src/docs/reference.ts:173\u2013178",
       "vector": "field.default source spelling containing embedded backtick and pipe, e.g. a`|b",
       "authority": "renderer escapes value in Markdown code span; single backticks/backslash not a delimiter-safe code span",
-      "scope": "outside compiler source; no package edits authorized"
+      "scope": "outside compiler source; no package edits authorized",
+      "receipt": "cli-observations.json; docs-backtick/docs-pipe/docs-backslash.stdout; outcome-verification.json"
     }
   ],
   "overall_limit": "Defining declarations and consumer contracts were inspected selectively. Regression records distinguish read source from inventory-only navigation; all fresh verification and acceptance stay root-owned. No API/policy decision, JEV call or implementation authorized."

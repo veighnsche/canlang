@@ -1,0 +1,1176 @@
+{
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "commands": [
+    {
+      "name": "rustc-version",
+      "argv": [
+        "rustc",
+        "-Vv"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.026,
+      "stdout": "rustc-version.stdout",
+      "stdout_sha256": "352d6857968e80a6357a926ac685b9b07f77c479aaafde33e73a53945e802909",
+      "stderr": "rustc-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cargo-version",
+      "argv": [
+        "cargo",
+        "-V"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.014,
+      "stdout": "cargo-version.stdout",
+      "stdout_sha256": "1f88eaf7fe1aaec83184752cf4c944cd22f00184136ff36a3e4c318cc60ef566",
+      "stderr": "cargo-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "node-version",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 6.119,
+      "stdout": "node-version.stdout",
+      "stdout_sha256": "f2ec568164f99546161909b0189b57bb5be3e80f8e2ccd8a51a4aed8c4055a04",
+      "stderr": "node-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "fresh-build",
+      "argv": [
+        "cargo",
+        "build",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--lib",
+        "--bin",
+        "can",
+        "--message-format=json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.127,
+      "stdout": "fresh-build.stdout",
+      "stdout_sha256": "954cebe76cd5960a369cc92771a6923c387f5f92ef428cdd37f1220075e4385a",
+      "stderr": "fresh-build.stderr",
+      "stderr_sha256": "c92508a29848820f033cd2ea015c85dde0953c88b07cc967ce34b7c08f610549"
+    },
+    {
+      "name": "compile-probe",
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/probe.rs",
+        "--extern",
+        "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+        "--extern",
+        "serde_json=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "-o",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.525,
+      "stdout": "compile-probe.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "compile-probe.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-controls-precision",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/controls-precision.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.289,
+      "stdout": "case-controls-precision.stdout",
+      "stdout_sha256": "c0990a48cbf21ff94392488adc00c9601fdbc71c1349ebce29d7cb580194f08c",
+      "stderr": "case-controls-precision.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-comments-layout",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/comments-layout.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.012,
+      "stdout": "case-comments-layout.stdout",
+      "stdout_sha256": "337e322ccbff12f6cb07dd230bac5883a1a6f830e76873c9abdaf6103f473b65",
+      "stderr": "case-comments-layout.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-bad-escape",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/bad-escape.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "case-bad-escape.stdout",
+      "stdout_sha256": "7f0bd35a02fd0da37badd96225bfb74e9d6a394140461c54c78f2b4898b6eade",
+      "stderr": "case-bad-escape.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-bad-tab",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/bad-tab.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "case-bad-tab.stdout",
+      "stdout_sha256": "03dc644059b8a36d4843f3b9b230504b984f9c3b7edab3c55404bc4414439ed8",
+      "stderr": "case-bad-tab.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-fix-comments",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "fix",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/fix-comments.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.006,
+      "stdout": "case-fix-comments.stdout",
+      "stdout_sha256": "10bdc7c9656526d1581a580405631460637eed4c3ab9c7d628b6a62507c830bd",
+      "stderr": "case-fix-comments.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-fix-safe-access",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "fix",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/fix-safe-access.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "case-fix-safe-access.stdout",
+      "stdout_sha256": "f918c67bf32c43a9d11cfaebeaec2acd56ac154071c32f95a07b4aeb04f5d190",
+      "stderr": "case-fix-safe-access.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-fix-semicolon",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "fix",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/fix-semicolon.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "case-fix-semicolon.stdout",
+      "stdout_sha256": "b44d99e5b60d18ba101fce0699ecc035eea3a77c1fe4c60c9858163fab4dee86",
+      "stderr": "case-fix-semicolon.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-ExpenseFlow",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-ExpenseFlow.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.082,
+      "stdout": "case-corpus-ExpenseFlow.stdout",
+      "stdout_sha256": "6a31998cde98fe6dc65d605093e356bdd97eba5797ad2e1bd7c44541ac86aa14",
+      "stderr": "case-corpus-ExpenseFlow.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-TeamTasks",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-TeamTasks.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.034,
+      "stdout": "case-corpus-TeamTasks.stdout",
+      "stdout_sha256": "27f2df345b1ac32b1f8e057aaced6db1913d3264b1fd85dcbdf7c178f5f18750",
+      "stderr": "case-corpus-TeamTasks.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanAffiliate",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanAffiliate.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.305,
+      "stdout": "case-corpus-CanAffiliate.stdout",
+      "stdout_sha256": "a41b435d354b6e12c8157e3bcc7dfe5db5897d350445ac981ef469fd92a91bb1",
+      "stderr": "case-corpus-CanAffiliate.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanApprove",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanApprove.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.363,
+      "stdout": "case-corpus-CanApprove.stdout",
+      "stdout_sha256": "035eb07351bde259d6fc275b83d44f349f91f4b7614671849e2fd2d6420e1d29",
+      "stderr": "case-corpus-CanApprove.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanBoard",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanBoard.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.163,
+      "stdout": "case-corpus-CanBoard.stdout",
+      "stdout_sha256": "f5a345c60723bae688715dd87a1103b585223f2efb5cf25a1fa08336e57348f9",
+      "stderr": "case-corpus-CanBoard.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanBook",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanBook.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.479,
+      "stdout": "case-corpus-CanBook.stdout",
+      "stdout_sha256": "36f60f9a0fb76d6ab66846d25c9492a83b9fc9a6ae9791dc0eb29ed83417c8b4",
+      "stderr": "case-corpus-CanBook.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanCRM",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanCRM.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.31,
+      "stdout": "case-corpus-CanCRM.stdout",
+      "stdout_sha256": "9cc0a37d6387bc915dd06d448888eca99a1ef4a06fed5d56c62cfc73754dc1fd",
+      "stderr": "case-corpus-CanCRM.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanCatch",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanCatch.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.238,
+      "stdout": "case-corpus-CanCatch.stdout",
+      "stdout_sha256": "b69890c6d25e6d78e3f821eb9fd38f2dcdb2fc1b9203f31dea79c53a185ed9fd",
+      "stderr": "case-corpus-CanCatch.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanChat",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanChat.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.247,
+      "stdout": "case-corpus-CanChat.stdout",
+      "stdout_sha256": "e920be6ed086bbab5a34236590379c5bf3982ecebfc103d3fb911033fa04cc9e",
+      "stderr": "case-corpus-CanChat.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanCheck",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanCheck.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.201,
+      "stdout": "case-corpus-CanCheck.stdout",
+      "stdout_sha256": "c61c848abf94c17046ea809078c8f265784f916c8f0459b34e2d81d1bfdf5753",
+      "stderr": "case-corpus-CanCheck.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanContract",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanContract.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.271,
+      "stdout": "case-corpus-CanContract.stdout",
+      "stdout_sha256": "4560456e38fc61557b5887e4a246a3c0c6bf5c9b40a536db5844de8b9835f03c",
+      "stderr": "case-corpus-CanContract.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanCreative",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanCreative.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.281,
+      "stdout": "case-corpus-CanCreative.stdout",
+      "stdout_sha256": "fedc2eb328e1b9ee2fee292850e3bb9f1fd38813e566dc50b2f6b22a9ce37231",
+      "stderr": "case-corpus-CanCreative.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanCustomer",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanCustomer.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.247,
+      "stdout": "case-corpus-CanCustomer.stdout",
+      "stdout_sha256": "f8cc53ebe5b13bc2a7bb41f199fa12f3768538a61811b038e0c3b573be875bb5",
+      "stderr": "case-corpus-CanCustomer.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanDecide",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanDecide.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.174,
+      "stdout": "case-corpus-CanDecide.stdout",
+      "stdout_sha256": "c5defda8fa9133b7ad1ff1b0c416937bef8a027190ebb2680719371531c19d7d",
+      "stderr": "case-corpus-CanDecide.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanDesk",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanDesk.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.254,
+      "stdout": "case-corpus-CanDesk.stdout",
+      "stdout_sha256": "515b0cf369647b5d94babbc707ad50514ea1d2a5c82b2120c586e607414709f9",
+      "stderr": "case-corpus-CanDesk.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanDiscover",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanDiscover.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.42,
+      "stdout": "case-corpus-CanDiscover.stdout",
+      "stdout_sha256": "62ce3d864ce949065a5924ce0311e24e7c7085549afd6a18620004cb94aad6c2",
+      "stderr": "case-corpus-CanDiscover.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanDo",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanDo.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.202,
+      "stdout": "case-corpus-CanDo.stdout",
+      "stdout_sha256": "ae1b20148c44ca2c7a6d6637751736a2d1b11daa008d8b89be38eb09332d3e11",
+      "stderr": "case-corpus-CanDo.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanEnrich",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanEnrich.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.173,
+      "stdout": "case-corpus-CanEnrich.stdout",
+      "stdout_sha256": "5487102f70a50dd2c4e43d69df4dd0187a13f0249f874e0559bbbcfd4170954c",
+      "stderr": "case-corpus-CanEnrich.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanEvent",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanEvent.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.755,
+      "stdout": "case-corpus-CanEvent.stdout",
+      "stdout_sha256": "c03d6036c0370f8b1eb7f9e47d02ba3610f4923d6aca8f4b79761a65d78b3b6d",
+      "stderr": "case-corpus-CanEvent.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanExpense",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanExpense.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.556,
+      "stdout": "case-corpus-CanExpense.stdout",
+      "stdout_sha256": "6d9804a06f081971820a8577e988679fa876ee59bbf5dd7e9220c2c79fe67ab8",
+      "stderr": "case-corpus-CanExpense.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanFeedback",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanFeedback.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.3,
+      "stdout": "case-corpus-CanFeedback.stdout",
+      "stdout_sha256": "ac3204de4cbdb7040ff5bdac8b3e2056006af3ef60944fbd137f512db74dd60f",
+      "stderr": "case-corpus-CanFeedback.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanField",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanField.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.306,
+      "stdout": "case-corpus-CanField.stdout",
+      "stdout_sha256": "8513794c4f4c3bca94a965d66e2d59025262fd9d9dd51006c1fc3e163f960322",
+      "stderr": "case-corpus-CanField.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanGallery",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanGallery.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.126,
+      "stdout": "case-corpus-CanGallery.stdout",
+      "stdout_sha256": "a083d896fe0c09becdcb4e365797ad830d1e516e7b4bfed4a9c11b2799ebfe8c",
+      "stderr": "case-corpus-CanGallery.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanGrant",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanGrant.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.552,
+      "stdout": "case-corpus-CanGrant.stdout",
+      "stdout_sha256": "cecb3c2d5092957d74856deaca03566294538946c8dbfa034856d7c1cfd70f9c",
+      "stderr": "case-corpus-CanGrant.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanHire",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanHire.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.373,
+      "stdout": "case-corpus-CanHire.stdout",
+      "stdout_sha256": "0289f02916235426e5dbe88b7c7e15142e5493896e3fadec24350acbd392d1f3",
+      "stderr": "case-corpus-CanHire.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanInbox",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanInbox.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.437,
+      "stdout": "case-corpus-CanInbox.stdout",
+      "stdout_sha256": "82eb3ba498172e29ac1fdfdcd84e257423cca4e9ae7ee95d53c7e14b71d1311a",
+      "stderr": "case-corpus-CanInbox.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanInvoice",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanInvoice.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 1.253,
+      "stdout": "case-corpus-CanInvoice.stdout",
+      "stdout_sha256": "c1c6d2360f283cf70d5dd99add5a3cd97b344a5209fdc79ec9956810d3a40800",
+      "stderr": "case-corpus-CanInvoice.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanKnowledge",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanKnowledge.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.303,
+      "stdout": "case-corpus-CanKnowledge.stdout",
+      "stdout_sha256": "613d2ca2d1fbdc754b25a16dbaff78361d8b38bb2b6836bef95be28776a140f5",
+      "stderr": "case-corpus-CanKnowledge.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanLearn",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanLearn.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.188,
+      "stdout": "case-corpus-CanLearn.stdout",
+      "stdout_sha256": "b53745b46e82fb46dcd89ab1faa16a5611cd1ac13ec78df9651b2a026056dc00",
+      "stderr": "case-corpus-CanLearn.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanLeave",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanLeave.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.319,
+      "stdout": "case-corpus-CanLeave.stdout",
+      "stdout_sha256": "418cfde9ea228171ae2baa15c66e05c8a8cc43215dd8935658a2cf43a5bb294b",
+      "stderr": "case-corpus-CanLeave.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanLoyalty",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanLoyalty.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.323,
+      "stdout": "case-corpus-CanLoyalty.stdout",
+      "stdout_sha256": "d4428cbe34fa9fe307843862e5091eba73283caa69ea70722d15a8c89ef8e3b2",
+      "stderr": "case-corpus-CanLoyalty.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanMail",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanMail.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.514,
+      "stdout": "case-corpus-CanMail.stdout",
+      "stdout_sha256": "ba6e15c7bb6e8c298c292e47e000621c46843ae1f811d41d5a01b86fb3b8c6a4",
+      "stderr": "case-corpus-CanMail.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanMaintain",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanMaintain.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.584,
+      "stdout": "case-corpus-CanMaintain.stdout",
+      "stdout_sha256": "6707c8a9babc0243d4f0702f95a39c9d5d6dc5ae0aea7e57a7e9d2ff5f7845b6",
+      "stderr": "case-corpus-CanMaintain.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanMember",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanMember.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 1.043,
+      "stdout": "case-corpus-CanMember.stdout",
+      "stdout_sha256": "c34b08d39ecd69f618b88d40d0992d0964c24c26b3d083c875b71a61d288c817",
+      "stderr": "case-corpus-CanMember.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanOnboard",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanOnboard.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.198,
+      "stdout": "case-corpus-CanOnboard.stdout",
+      "stdout_sha256": "4a84d28471154a87fd337a81439a6c7f91e0f388b9e2a1e294fb7c7cfb8e44f5",
+      "stderr": "case-corpus-CanOnboard.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanPropose",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanPropose.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.561,
+      "stdout": "case-corpus-CanPropose.stdout",
+      "stdout_sha256": "0256094aee4738cb5ffb7d24aeec1049be81ee56c2c1af72840c6eea5c95c291",
+      "stderr": "case-corpus-CanPropose.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanPurchase",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanPurchase.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.568,
+      "stdout": "case-corpus-CanPurchase.stdout",
+      "stdout_sha256": "235d16f3ae9bf38be52c5742f9be5016baa7338a076df13ccacd2b24497075a0",
+      "stderr": "case-corpus-CanPurchase.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanReception",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanReception.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.532,
+      "stdout": "case-corpus-CanReception.stdout",
+      "stdout_sha256": "aea9a973b33cdd2d1b2fbae734155b6ab5f1a237dd69b545465097fe4c14c7c2",
+      "stderr": "case-corpus-CanReception.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanRefer",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanRefer.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.315,
+      "stdout": "case-corpus-CanRefer.stdout",
+      "stdout_sha256": "3c607a55677a534371c7419b442d91ff4ca22b8ffcf4d0913f8cf506b22d3f9e",
+      "stderr": "case-corpus-CanRefer.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanRent",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanRent.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 2.776,
+      "stdout": "case-corpus-CanRent.stdout",
+      "stdout_sha256": "655ba754967f793ee9df13ea7ef843b624f7bcceb18140ffb0c5ab07e3e4a8a3",
+      "stderr": "case-corpus-CanRent.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanReport",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanReport.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.19,
+      "stdout": "case-corpus-CanReport.stdout",
+      "stdout_sha256": "76ab8bab9069fe98d922a4226245f0e60197fc1f11204a5dbdc8f69507ae5f0c",
+      "stderr": "case-corpus-CanReport.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanShift",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanShift.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.015,
+      "stdout": "case-corpus-CanShift.stdout",
+      "stdout_sha256": "e8b827c1115bcb1d7ac644b0ce630be8e637bec410be4394e8232116e8863e59",
+      "stderr": "case-corpus-CanShift.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanStats",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanStats.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.294,
+      "stdout": "case-corpus-CanStats.stdout",
+      "stdout_sha256": "50b354695dcbe2748aea8eb418fee89853cd644fdaac5a1813b542b540d49b8f",
+      "stderr": "case-corpus-CanStats.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanStock",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanStock.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.246,
+      "stdout": "case-corpus-CanStock.stdout",
+      "stdout_sha256": "81a2d81f1dd8b805649da509243982f8df417cffa8a85a42c48d20f76626a674",
+      "stderr": "case-corpus-CanStock.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanSuccess",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanSuccess.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.209,
+      "stdout": "case-corpus-CanSuccess.stdout",
+      "stdout_sha256": "5cb79f0408717fbe0e3b00afdf38b0647e5be0cce17f95aef345791b50ecc8ad",
+      "stderr": "case-corpus-CanSuccess.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanSync",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanSync.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.381,
+      "stdout": "case-corpus-CanSync.stdout",
+      "stdout_sha256": "a55d61a1ebe9e2f290daaea8ed39b10174c651d64532edf99c81cbf7861685fe",
+      "stderr": "case-corpus-CanSync.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanTable",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanTable.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.22,
+      "stdout": "case-corpus-CanTable.stdout",
+      "stdout_sha256": "21e139f760ac4deca14249304ac26e6029a6f591bdf7f9867f83c8d76390c0c7",
+      "stderr": "case-corpus-CanTable.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanTime",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanTime.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.366,
+      "stdout": "case-corpus-CanTime.stdout",
+      "stdout_sha256": "eb231a26f3b964e4e8867f32f39236b22162ef034a713e15fae35e63771e4090",
+      "stderr": "case-corpus-CanTime.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanTrade",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanTrade.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.127,
+      "stdout": "case-corpus-CanTrade.stdout",
+      "stdout_sha256": "78bee51fc5756a5bcd7958832d6691cc1a1ce4f0f4f92a242c74652f4bf57736",
+      "stderr": "case-corpus-CanTrade.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanVolunteer",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanVolunteer.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.01,
+      "stdout": "case-corpus-CanVolunteer.stdout",
+      "stdout_sha256": "e8b827c1115bcb1d7ac644b0ce630be8e637bec410be4394e8232116e8863e59",
+      "stderr": "case-corpus-CanVolunteer.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-CanWorkbench",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-CanWorkbench.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.201,
+      "stdout": "case-corpus-CanWorkbench.stdout",
+      "stdout_sha256": "333a29a697c99091f89784a7724cca7a88fe45c7450df2a4bbee8b9d035629a6",
+      "stderr": "case-corpus-CanWorkbench.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-Employees",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-Employees.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.04,
+      "stdout": "case-corpus-Employees.stdout",
+      "stdout_sha256": "30cd56d5aed1b8dc34844e77f868f8feea7353495a7b643b46e5ff080b3fe53c",
+      "stderr": "case-corpus-Employees.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-Locations",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-Locations.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.186,
+      "stdout": "case-corpus-Locations.stdout",
+      "stdout_sha256": "6d1c9c4b281a8d8ebe53d33e2386a74626d2adce474dcca8d709749e4115541c",
+      "stderr": "case-corpus-Locations.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "case-corpus-Suppliers",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "format",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/corpus-Suppliers.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.014,
+      "stdout": "case-corpus-Suppliers.stdout",
+      "stdout_sha256": "f64b969413919180e125660380f675d94d28ff0afbe00b32bd3aef3acead2cd3",
+      "stderr": "case-corpus-Suppliers.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "coordinates",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "coordinates"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "coordinates.stdout",
+      "stdout_sha256": "3edcc11040a4461f2e4f154b1e8817c9e0f3246858f5be7c8049d4f4a53f618e",
+      "stderr": "coordinates.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "diagnostics",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-ccohsuh8/probe",
+        "diagnostics"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.003,
+      "stdout": "diagnostics.stdout",
+      "stdout_sha256": "2ed4dd0b706992c7866657e82aedd2b903d037fe58dd010adafc5e9e00a95052",
+      "stderr": "diagnostics.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "focused-suites",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--test",
+        "format",
+        "--test",
+        "lint",
+        "--test",
+        "typed_json",
+        "--test",
+        "typed_artifact",
+        "--test",
+        "typed_artifact_consumer",
+        "--test",
+        "typed_descriptors",
+        "--test",
+        "typed_diagnostics_cli",
+        "--test",
+        "typed_reference_policy_consumers",
+        "--test",
+        "typed_bdd",
+        "--test",
+        "typed_explain",
+        "--test",
+        "typed_fixes",
+        "--test",
+        "typed_fixes_cli",
+        "--test",
+        "typed_policy",
+        "--test",
+        "typed_references",
+        "--test",
+        "sourcemap_contract",
+        "--test",
+        "lsp_typed_output",
+        "--test",
+        "file_ownership",
+        "--test",
+        "string_payload_runtime",
+        "--",
+        "--nocapture"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 112.824,
+      "stdout": "focused-suites.stdout",
+      "stdout_sha256": "68fd0acdebb4f12cacb4931907cbbfa7e770004f08b946e118a3de71fb24356c",
+      "stderr": "focused-suites.stderr",
+      "stderr_sha256": "82218f2d34b7473a8c41ea04703e1df07f4cf7595ac5561cd325357947d2e2c6"
+    },
+    {
+      "name": "unit-source--",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--lib",
+        "source::",
+        "--",
+        "--nocapture"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 3.626,
+      "stdout": "unit-source--.stdout",
+      "stdout_sha256": "2f0395be4d63a4a441908d8490698564ed17d06f483f07adebd6d8e030bf9975",
+      "stderr": "unit-source--.stderr",
+      "stderr_sha256": "de64cf76b91d5e4d72549f5131fbeffe6aad39cd9da76ab899c2bf278ebee2b4"
+    },
+    {
+      "name": "unit-cli--replacement_tests",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--lib",
+        "cli::replacement_tests",
+        "--",
+        "--nocapture"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.056,
+      "stdout": "unit-cli--replacement_tests.stdout",
+      "stdout_sha256": "a4536f1340121236047b6691d47ad3e4dcb7ba1637cedf167126f67986ee0935",
+      "stderr": "unit-cli--replacement_tests.stderr",
+      "stderr_sha256": "0ccbcf57da890690fc1c7cf987daf575b22fe761a16393218e366c4c0f2c3c3d"
+    },
+    {
+      "name": "unit-lsp--uri--",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--lib",
+        "lsp::uri::",
+        "--",
+        "--nocapture"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.05,
+      "stdout": "unit-lsp--uri--.stdout",
+      "stdout_sha256": "4486b97f0b64bc5c3314221c57d566e27b5dd843e9d38804d332ae1803d1224c",
+      "stderr": "unit-lsp--uri--.stderr",
+      "stderr_sha256": "0ccbcf57da890690fc1c7cf987daf575b22fe761a16393218e366c4c0f2c3c3d"
+    }
+  ],
+  "libraries": [
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+      "sha256": "36f44df2d884805d367ea18cf81737b7e1ac8660a0c2d70f5fbf2f086687448a"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+      "sha256": "9df7249a7ee38c342a482ae8da8d164e14dd17f3749232dd0d6b4c8e43021aac"
+    }
+  ],
+  "suite_exit": 0,
+  "scope": "Native host only; selected suites and bounded witnesses. Temporary executables removed; recipe retained.",
+  "superseded_captures": [
+    "fresh-build",
+    "compile-probe",
+    "diagnostics"
+  ],
+  "capture_limit": "Those same-name captures were replaced by observer rerun; use observer-execution.json for current probes and suites-execution.json for unchanged suites. Historical pre-rerun commands not a hermetic replay claim."
+}

@@ -1,0 +1,294 @@
+{
+  "schema_version": 1,
+  "step": "10 outputs/source transformations",
+  "source_baseline": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "finite_duties": [
+    {
+      "id": "TR-01",
+      "duty": "Formatter admission and pure result",
+      "defining_declarations": [
+        "compiler/src/format.rs:98\u2013133"
+      ],
+      "caller_closure": [
+        "format_source -> parse_source -> lex -> Emitter"
+      ],
+      "real_consumers": [
+        "CLI run_fmt; public Rust format_source"
+      ],
+      "independent_authority": [
+        "DIAGNOSTICS.md:31; malformed source must not rewrite"
+      ],
+      "witnesses": [
+        "bad-escape, bad-tab, 54 corpus"
+      ],
+      "limits": "No recovery formatter; malformed source returns FormatError",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-02",
+      "duty": "Physical layout and token gap classification",
+      "defining_declarations": [
+        "compiler/src/format.rs:134\u2013295,296\u2013715"
+      ],
+      "caller_closure": [
+        "LineContext, brace/bracket classification, Emitter::emit/gap"
+      ],
+      "real_consumers": [
+        "formatted Can reparsed by compiler/editor"
+      ],
+      "independent_authority": [
+        "GRAMMAR layout and context-specific token grammar"
+      ],
+      "witnesses": [
+        "comments-layout, corpus, format integration"
+      ],
+      "limits": "Bounded syntax topology witnesses; all contexts/cross-products not proved",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-03",
+      "duty": "Exact tokens, decoded strings and numeric source scale",
+      "defining_declarations": [
+        "compiler/src/format.rs:296\u2013510"
+      ],
+      "caller_closure": [
+        "Emitter::code_line appends token slices; lexer-owned string_value"
+      ],
+      "real_consumers": [
+        "same syntax/analysis IR owners"
+      ],
+      "independent_authority": [
+        "exact literal values in GRAMMAR; DIAGNOSTICS31 preservation"
+      ],
+      "witnesses": [
+        "controls-precision; typed_descriptors; string_payload_runtime"
+      ],
+      "limits": "CST and decoded token equality does not prove all emitted runtime semantics",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-04",
+      "duty": "Comment and description normalization",
+      "defining_declarations": [
+        "compiler/src/format.rs:34\u201342,307\u2013396"
+      ],
+      "caller_closure": [
+        "comment/Desc line branches, preserved"
+      ],
+      "real_consumers": [
+        "authored prose and related declarations"
+      ],
+      "independent_authority": [
+        "documented indentation/trailing-whitespace/LF exceptions"
+      ],
+      "witnesses": [
+        "comments-layout, corpus recursive projections"
+      ],
+      "limits": "Comment line whitespace masked only at declared exceptions; meaningful prose text retained",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-05",
+      "duty": "Fixed-point and topology preservation",
+      "defining_declarations": [
+        "compiler/src/format.rs:98\u2013133,296\u2013715"
+      ],
+      "caller_closure": [
+        "format_source twice; recursive nontrivia CST including decoded token values"
+      ],
+      "real_consumers": [
+        "public formatter/CLI consumer"
+      ],
+      "independent_authority": [
+        "idempotence and source structure promised in DIAGNOSTICS31"
+      ],
+      "witnesses": [
+        "52 clean corpus files; 2 known corpus refusals; selected format suite"
+      ],
+      "limits": "Topology ignores NodeDetail on interior nodes; not full semantic equivalence proof",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-06",
+      "duty": "CLI formatting operand and mode behavior",
+      "defining_declarations": [
+        "compiler/src/cli.rs:1224\u20131355"
+      ],
+      "caller_closure": [
+        "run_fmt parses/formats all -> check gate -> sequential writes"
+      ],
+      "real_consumers": [
+        "real CLI fmt --check/write"
+      ],
+      "independent_authority": [
+        "CLI help/check exit + no malformed rewrite obligation"
+      ],
+      "witnesses": [
+        "fmt-check-before, fmt-write, fmt-noop, fmt-multiple-malformed"
+      ],
+      "limits": "No all-files filesystem transaction; independently owned changing files remain concurrency boundary",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-07",
+      "duty": "Owned replacement and stale source refusal",
+      "defining_declarations": [
+        "compiler/src/cli.rs:1356\u20131461"
+      ],
+      "caller_closure": [
+        "write_file_atomic -> replace_file_with -> destination-local NamedTempFile"
+      ],
+      "real_consumers": [
+        "fmt and docs --out"
+      ],
+      "independent_authority": [
+        "selected destination mode/link/host contract from Pass0/4"
+      ],
+      "witnesses": [
+        "file_ownership; 8 cli replacement unit passes"
+      ],
+      "limits": "0600/native link/failure tests only; mode4750 fixture branch skipped; no ACL/owner/crash durability claim",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-08",
+      "duty": "Unreachable statement removal",
+      "defining_declarations": [
+        "compiler/src/lint/rules.rs:669\u2013767"
+      ],
+      "caller_closure": [
+        "whole_line, terminal_kind, statement_lists -> PendingFix"
+      ],
+      "real_consumers": [
+        "collect_fixes; CLI report; real LSP actions; public applications"
+      ],
+      "independent_authority": [
+        "DIAGNOSTICS29 safe fixes preserve meaning; require false independently terminal"
+      ],
+      "witnesses": [
+        "fix-comments, fix-semicolon; lint suite"
+      ],
+      "limits": "Leading ## is in removed stmt span; comment-preservation policy unresolved; no broad dead-code equivalence proof",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-09",
+      "duty": "Redundant safe-member operator fix",
+      "defining_declarations": [
+        "compiler/src/lint/rules.rs:1048\u20131097"
+      ],
+      "caller_closure": [
+        "node_types receiver proven_nonnull -> ?. span replacement ."
+      ],
+      "real_consumers": [
+        "same lint/IDE/LSP closures"
+      ],
+      "independent_authority": [
+        "non-null receiver makes optional member form redundant"
+      ],
+      "witnesses": [
+        "fix-safe-access; lint suite; current-revision source"
+      ],
+      "limits": "TypeTable coherence precondition; no mixed-carrier public input qualification",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-10",
+      "duty": "Driver batch guard and UTF8 edit admission",
+      "defining_declarations": [
+        "compiler/src/lint/driver.rs:239\u2013370"
+      ],
+      "caller_closure": [
+        "apply_fix/apply_fixes -> expected hash compare -> check_span -> descending edits"
+      ],
+      "real_consumers": [
+        "public Rust application helpers"
+      ],
+      "independent_authority": [
+        "documented current hash and same-file caller preconditions; half-open byte ranges"
+      ],
+      "witnesses": [
+        "fresh/stale/invalid/overlap observer; lint suite"
+      ],
+      "limits": "Driver trusts supplied hash; does not compute text hash; foreign-file/forged-hash input violates preconditions",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-11",
+      "duty": "IDE and LSP versioned edit guard",
+      "defining_declarations": [
+        "compiler/src/ide/fixes.rs:119\u2013180; compiler/src/lsp/server.rs:379\u2013455,495\u2013522,734\u2013778"
+      ],
+      "caller_closure": [
+        "Snapshot rename/collect_fixes -> hash/range/file filters -> current doc version DTO"
+      ],
+      "real_consumers": [
+        "editor applies WorkspaceEdit; IDE helper self-hashes text"
+      ],
+      "independent_authority": [
+        "same source revision/current version and byte->UTF16 range contract"
+      ],
+      "witnesses": [
+        "fix observer; real lsp_typed_output session"
+      ],
+      "limits": "Server offers edits, not transactional client application; unknown cross-document versions explicit",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-12",
+      "duty": "CLI fixes are reports",
+      "defining_declarations": [
+        "compiler/src/cli.rs:1630\u20131767; compiler/src/lint/driver.rs:390\u2013480"
+      ],
+      "caller_closure": [
+        "run_lint -> analyzer error gate -> collect_fixes -> typed envelope"
+      ],
+      "real_consumers": [
+        "CLI agent/editor consumes JSON, separately applies guarded edit"
+      ],
+      "independent_authority": [
+        "CLI help says --fix reports, never writes"
+      ],
+      "witnesses": [
+        "lint-fix-report exact bytes/inode and one offered fix"
+      ],
+      "limits": "No CLI autofix execution exists to qualify",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    },
+    {
+      "id": "TR-13",
+      "duty": "Generated lexical bindings and injected names",
+      "defining_declarations": [
+        "compiler/src/codegen/js.rs:1063\u20131075,1631\u20131642,1739\u20131741,2545,5541\u20135574,5580\u20135625"
+      ],
+      "caller_closure": [
+        "sanitize_ident; expression names, locals, params; implicit context c"
+      ],
+      "real_consumers": [
+        "actual emitted Node module; runtime public callable registry"
+      ],
+      "independent_authority": [
+        "GRAMMAR contextual NAME permits class/await/default; ordinary c legal; generated JS must parse"
+      ],
+      "witnesses": [
+        "identifier-class/await/default/c; identifier-value control"
+      ],
+      "limits": "Four actual accepted sources emit invalid JS; broader name allocation/collisions and property binding contexts need repair closure, not keyword-only patch",
+      "status": "bounded inspected/executed; explicit failures and gates in findings",
+      "allocation": "root; gpt-6.1-sol medium independent review"
+    }
+  ],
+  "limits": "Finite declared responsibility slices; navigation does not certify whole file. Source ranges descriptive; named APIs define writer closure."
+}

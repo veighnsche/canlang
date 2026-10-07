@@ -1,0 +1,55 @@
+[
+  {
+    "id": "identifier-class",
+    "source": "app Shop\nGiven\nWhen\n scenario echo(class:text) read=true -> text by=members\n  do\n   return class\nThen\n",
+    "source_sha256": "c9fe08245381aee2414e1471908ce828a96f766d526a4a5731badda80ff1a974",
+    "expected": "legal Can contextual/ordinary binding produces parseable JS"
+  },
+  {
+    "id": "identifier-await",
+    "source": "app Shop\nGiven\nWhen\n scenario echo(await:text) read=true -> text by=members\n  do\n   return await\nThen\n",
+    "source_sha256": "bd6ccb9b793c2f8d25bdd2d461c03d949ad0e8ecdd0ad4590762681aaa6ac4a6",
+    "expected": "legal Can contextual/ordinary binding produces parseable JS"
+  },
+  {
+    "id": "identifier-default",
+    "source": "app Shop\nGiven\nWhen\n scenario echo(default:text) read=true -> text by=members\n  do\n   return default\nThen\n",
+    "source_sha256": "cd6e4053c8784ae7e42be7e46092f7567b8ee9ebe6f4df763fe30c3976870dc2",
+    "expected": "legal Can contextual/ordinary binding produces parseable JS"
+  },
+  {
+    "id": "identifier-c",
+    "source": "app Shop\nGiven\nWhen\n scenario echo(c:text) read=true -> text by=members\n  do\n   return c\nThen\n",
+    "source_sha256": "80265d8f78cf8f2628af975cc7212c4b05ef73bd9e87b3f13ccce301d3c07cf1",
+    "expected": "legal Can contextual/ordinary binding produces parseable JS"
+  },
+  {
+    "id": "identifier-value",
+    "source": "app Shop\nGiven\nWhen\n scenario echo(value:text) read=true -> text by=members\n  do\n   return value\nThen\n",
+    "source_sha256": "a2920905116890237b82194d1e13879bc97bcd31fe620a93e56e5e7ba8c5f07c",
+    "expected": "legal Can contextual/ordinary binding produces parseable JS"
+  },
+  {
+    "id": "docs-backtick",
+    "source": "app Shop\nGiven\n Gadget { title:text=\"a`b\" }\nWhen\nThen\n",
+    "source_sha256": "358cc6f479dbc5182839dae668b49cdd23ac47712d0640e23a41e27a8a91bd51",
+    "expected": "default literal remains one exact code span/table cell"
+  },
+  {
+    "id": "docs-pipe",
+    "source": "app Shop\nGiven\n Gadget { title:text=\"a|b\" }\nWhen\nThen\n",
+    "source_sha256": "bd34c716dc792131f3a664d2d5d53362e54b1a0d034943cdffc3cf3d26e7fd1f",
+    "expected": "default literal remains one exact code span/table cell"
+  },
+  {
+    "id": "docs-backslash",
+    "source": "app Shop\nGiven\n Gadget { title:text=\"a\\\\b\" }\nWhen\nThen\n",
+    "source_sha256": "1633f9d28435a9a747e28e7ff12ca990e2ff19029db494bf6c565beac59a429a",
+    "expected": "default literal remains one exact code span/table cell"
+  },
+  {
+    "id": "cli-fmt",
+    "source": "app T\nGiven\n Item { title : text }\nWhen\nThen\n",
+    "expected": "app T\nGiven\n Item { title:text }\nWhen\nThen\n"
+  }
+]

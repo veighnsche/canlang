@@ -1,0 +1,159 @@
+[
+  {
+    "id": "identifier-class",
+    "command": "check",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-class-check.stdout"
+  },
+  {
+    "id": "identifier-class",
+    "command": "compile",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-class-compile.stdout",
+    "js_checks": [
+      {
+        "module": "shop.mjs",
+        "exit": 1,
+        "raw": "identifier-class-node-0.stderr"
+      }
+    ]
+  },
+  {
+    "id": "identifier-await",
+    "command": "check",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-await-check.stdout"
+  },
+  {
+    "id": "identifier-await",
+    "command": "compile",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-await-compile.stdout",
+    "js_checks": [
+      {
+        "module": "shop.mjs",
+        "exit": 1,
+        "raw": "identifier-await-node-0.stderr"
+      }
+    ]
+  },
+  {
+    "id": "identifier-default",
+    "command": "check",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-default-check.stdout"
+  },
+  {
+    "id": "identifier-default",
+    "command": "compile",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-default-compile.stdout",
+    "js_checks": [
+      {
+        "module": "shop.mjs",
+        "exit": 1,
+        "raw": "identifier-default-node-0.stderr"
+      }
+    ]
+  },
+  {
+    "id": "identifier-c",
+    "command": "check",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-c-check.stdout"
+  },
+  {
+    "id": "identifier-c",
+    "command": "compile",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-c-compile.stdout",
+    "js_checks": [
+      {
+        "module": "shop.mjs",
+        "exit": 1,
+        "raw": "identifier-c-node-0.stderr"
+      }
+    ]
+  },
+  {
+    "id": "identifier-value",
+    "command": "check",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-value-check.stdout"
+  },
+  {
+    "id": "identifier-value",
+    "command": "compile",
+    "exit": 0,
+    "codes": [],
+    "raw": "identifier-value-compile.stdout",
+    "js_checks": [
+      {
+        "module": "shop.mjs",
+        "exit": 0,
+        "raw": "identifier-value-node-0.stderr"
+      }
+    ]
+  },
+  {
+    "id": "docs-backtick",
+    "exit": 0,
+    "raw": "docs-backtick.stdout",
+    "default_table_rows": [
+      "| `title` | `text` | no | no | `\"a\\`b\"` | — | No description. |"
+    ]
+  },
+  {
+    "id": "docs-pipe",
+    "exit": 0,
+    "raw": "docs-pipe.stdout",
+    "default_table_rows": [
+      "| `title` | `text` | no | no | `\"a|b\"` | — | No description. |"
+    ]
+  },
+  {
+    "id": "docs-backslash",
+    "exit": 0,
+    "raw": "docs-backslash.stdout",
+    "default_table_rows": [
+      "| `title` | `text` | no | no | `\"a\\\\\\\\b\"` | — | No description. |"
+    ]
+  },
+  {
+    "id": "fmt-check-before",
+    "exit": 10,
+    "unchanged": true
+  },
+  {
+    "id": "fmt-write",
+    "exit": 0,
+    "exact_expected": true
+  },
+  {
+    "id": "fmt-noop",
+    "exit": 0,
+    "bytes_unchanged": true,
+    "inode_unchanged": true
+  },
+  {
+    "id": "fmt-multiple-malformed",
+    "exit": 10,
+    "first_operand_unchanged": true
+  },
+  {
+    "id": "lint-fix-report",
+    "exit": 0,
+    "bytes_unchanged": true,
+    "inode_unchanged": true,
+    "fixes_reported": 1
+  }
+]
