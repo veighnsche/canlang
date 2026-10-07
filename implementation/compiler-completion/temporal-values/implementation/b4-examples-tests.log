@@ -1,0 +1,33 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.16s
+     Running tests/b4_examples.rs (compiler/target/debug/deps/b4_examples-d17d793d1dc0add8)
+
+running 25 tests
+test header_non_case_still_e2001 ... ok
+test header_enum_case_elides_like_fixture ... ok
+test t02_derive_state_read_builtin_rejected ... ok
+test t02_derive_pure_accepted ... ok
+test t02_completion_body_sees_typed_envelope ... ok
+test t02_preferences_invariant_nullable_actor_rejected ... ok
+test t02_preferences_invariant_guarded_actor_accepted ... ok
+test minimal_table_rows_emit_expected_and_error ... ok
+test t35r24_completion_result_version_observable ... ok
+test t35r24_contained_parent_rejected ... ok
+test t35r24_event_value_id_observable ... ok
+test t35r24_parent_midpath_navigates ... ok
+test t35r24_event_value_version_observable ... ok
+test t35r24_provenance_key_parent ... ok
+test t35r24_stored_created_rejected ... ok
+test t35r24_provenance_key_payload_vs_stored ... ok
+test t35r24_stored_id_rejected ... ok
+test t35r24_stored_version_rejected ... ok
+test t35r24_desk139_value_id_observable ... ok
+test t36_report_parent_override_resolved ... ok
+test canfeedback_176_planned_elides ... ok
+test caninbox_header_routine_parity ... ok
+test canfeedback_tables_row_parity ... ok
+test caninbox_tables_row_parity ... ok
+test t35r24_propose_result_and_value_version_observable ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+

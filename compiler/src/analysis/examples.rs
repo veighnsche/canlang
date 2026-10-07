@@ -2995,6 +2995,7 @@ enum IcuType {
     TextLike,
     Bool,
     Enum,
+    Date,
     DateTime,
     Other,
 }
@@ -3015,7 +3016,8 @@ impl IcuType {
             ) => IcuType::TextLike,
             ResolvedType::Scalar(Scalar::Bool) => IcuType::Bool,
             ResolvedType::Enum { .. } => IcuType::Enum,
-            ResolvedType::Scalar(Scalar::Date | Scalar::Datetime) => IcuType::DateTime,
+            ResolvedType::Scalar(Scalar::Date) => IcuType::Date,
+            ResolvedType::Scalar(Scalar::Datetime) => IcuType::DateTime,
             _ => IcuType::Other,
         }
     }
@@ -3154,7 +3156,12 @@ impl<'t> IcuParser<'t> {
                 self.expect_close(&name)?;
             }
             "date" | "time" => {
-                self.check_arg(&name, &[IcuType::DateTime], format.as_str())?;
+                let allowed: &[IcuType] = if format == "date" {
+                    &[IcuType::Date, IcuType::DateTime]
+                } else {
+                    &[IcuType::DateTime]
+                };
+                self.check_arg(&name, allowed, format.as_str())?;
                 if self.chars.get(self.pos) == Some(&',') {
                     self.pos += 1;
                     self.skip_ws();

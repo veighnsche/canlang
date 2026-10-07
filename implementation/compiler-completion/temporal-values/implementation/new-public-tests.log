@@ -1,0 +1,12 @@
+    Blocking waiting for file lock on build directory
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.49s
+     Running tests/temporal_message_types.rs (compiler/target/debug/deps/temporal_message_types-f10b261a47762231)
+
+running 3 tests
+test calendar_date_time_is_rejected_at_the_authored_literal ... ok
+test temporal_formats_preserve_coverage_type_and_style_diagnostics ... ok
+test calendar_dates_and_instants_have_distinct_message_formats ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

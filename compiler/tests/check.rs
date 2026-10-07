@@ -775,7 +775,8 @@ fn icu_selector_types() {
         "\"it''s quoted\"",
         "\"'{not a slot}'\"",
     ] {
-        let src = message_source(&format!("(n:int,d:date,s:text) = {template}@{{}}"));
+        // This shared valid fixture includes both date and time templates.
+        let src = message_source(&format!("(n:int,d:datetime,s:text) = {template}@{{}}"));
         assert_e5_clean(&src);
     }
 }

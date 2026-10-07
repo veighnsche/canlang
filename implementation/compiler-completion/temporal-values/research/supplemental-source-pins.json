@@ -1,0 +1,8 @@
+{
+  "meaning": "Post-control read-only source snapshots; not buildinputs attribution",
+  "files": {
+    "compiler/src/analysis/examples.rs": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+    "packages/state/src/effects/guards.ts": "ef1899105ff9e4ea7e63fd4f59e5c08b8320f6ee008bc6df2bc700a2bdd4a032",
+    "packages/stdlib/src/index.ts": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09"
+  }
+}

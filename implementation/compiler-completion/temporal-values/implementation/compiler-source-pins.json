@@ -1,0 +1,14 @@
+{
+  "compiler/src/analysis/examples.rs": {
+    "before_sha256": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+    "after_sha256": "43389ebb83b37e1bf6942761a82197e109d10e151258d9c37ef3a9d71b093120"
+  },
+  "compiler/tests/check.rs": {
+    "before_sha256": "fc806cb8bc4418452c6ecdcec39b2bd04f755864c17a127ee8d161dac214c533",
+    "after_sha256": "cfd5856ddd05418574f67d30fe0ce94fb623a24d37f022b850f30f2ec2b36b7d"
+  },
+  "compiler/tests/temporal_message_types.rs": {
+    "before_sha256": null,
+    "after_sha256": "92e2547c7d6076cda35409a4532d3c034fcf3ca7370d6bd5f7ea8685ca78ce11"
+  }
+}
