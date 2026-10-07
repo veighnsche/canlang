@@ -1,0 +1,38 @@
+{
+  "packet": "VERIFY-TV01 Identity/Work release",
+  "status": "accepted narrow default runner/resource correction",
+  "independent_root_controls": [
+    {
+      "package": "identity",
+      "files": [
+        "dist/src/authentication/t16b-context.test.js",
+        "dist/src/authentication/t32b-revocation.test.js"
+      ],
+      "passed": 12,
+      "exit": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/test-discovery-root-check/identity.log",
+      "sha256": "1af11f6a4708e8f2928852180af9bef1ca543ab89c07bfd0f1a56b1acd12e1b9"
+    },
+    {
+      "package": "work-kernel",
+      "files": [
+        "dist/conformance/numeric-text.contract.test.js"
+      ],
+      "passed": 74,
+      "exit": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/test-discovery-root-check/work-kernel.log",
+      "sha256": "3f1b643c4d54b0d48da4a81403f8d3449f801a9274e1d8f51f83816143934d8d"
+    }
+  ],
+  "missing_fixture_refuses": true,
+  "implementation_receipt_sha256": "8837a09c006d8d440b638760047d150a9345b3f571b78f015dc67415aa9b4dd0",
+  "source_manifests": {
+    "packages/identity/package.json": "bfa816930f592063f798273533fa138a0a8d9fa3a35cb3222af6d9c313fd87f4",
+    "packages/work-kernel/package.json": "29fb0dc4159f74727e2a000ac624e5c4cff70722d3017a55fc07415bc967be8c"
+  },
+  "limits": [
+    "Values path/provenance remains unresolved",
+    "Full native observer, installed and backend acceptance remain separate",
+    "Source/default script correction only; private fresh outputs"
+  ]
+}

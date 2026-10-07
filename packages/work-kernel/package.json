@@ -25,7 +25,7 @@
     "build:wasm": "cargo build --locked --manifest-path Cargo.toml --target wasm32-unknown-unknown --release",
     "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/work-kernel",
     "clean": "rm -rf dist/ target/",
-    "build:emit": "tsc -p tsconfig.json",
+    "build:emit": "tsc -p tsconfig.json && mkdir -p dist/conformance/fixtures && cp conformance/numeric-text.oracle.mjs dist/conformance/ && cp conformance/fixtures/numeric-text.json dist/conformance/fixtures/",
     "typecheck:check": "tsc --noEmit -p tsconfig.json",
     "test:unit": "node --test 'dist/conformance/**/*.test.js'",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"

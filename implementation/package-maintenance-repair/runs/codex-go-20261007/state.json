@@ -618,7 +618,7 @@
     },
     "VERIFY-TV01": {
       "planning_status": "ready",
-      "state": "Identity/Work independent runner/resource repair accepted; committing; Values path/provenance still open",
+      "state": "Identity/Work default runner/resource repair accepted; committing; Values and original joins open",
       "files": [
         "packages/identity/package.json",
         "packages/values/package.json",
@@ -627,7 +627,13 @@
       "agent": "/root/review_test_discovery",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "review": "test-discovery-root-review.json"
+      "review": "test-discovery-root-review.json",
+      "subscopes": {
+        "identity_default_discovery": "accepted 13 unique emitted source/test files; private actual default 92/92 and root source-test 12/12",
+        "work_default_resources": "accepted original oracle/fixture staged byte-equally; private actual default 464/464 and root numeric 74/74; missing fixture refuses",
+        "values_string_contract": "open: emitted lookup and current donor provenance adjudication needed",
+        "full_native_observer": "open original gate, not executed"
+      }
     },
     "TECH-V02-violations": {
       "planning_status": "ready",
@@ -705,7 +711,7 @@
     },
     "DEL-U01-draft": {
       "planning_status": "ready",
-      "state": "exact ACK; profile-matched private leaf implementation active",
+      "state": "candidate released; independent Sol medium review active",
       "files": [
         "packages/ui/src/controls.ts",
         "packages/ui/src/forms.ts",
@@ -714,7 +720,8 @@
       "agent": "/root/review_test_discovery",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "reason": "Multiple matched renderer/form leaf profiles; preserve divergent datetime profile"
+      "reason": "Multiple matched renderer/form leaf profiles; preserve divergent datetime profile",
+      "reviewer": "/root/impl_work_numeric"
     },
     "DEL-A01-error": {
       "planning_status": "ready",
@@ -750,7 +757,7 @@
     },
     "DEL-A01-admission": {
       "planning_status": "ready",
-      "state": "accepted private leaf reduction; committing",
+      "state": "accepted private reduction; committed",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/http/export.ts",
@@ -764,7 +771,8 @@
       "reason": "Frozen private object-body/Bearer mechanics only; policies stay local",
       "review": "input-admission-independent-review.json",
       "readable_reduction": 28,
-      "full_closure_reduction": 26
+      "full_closure_reduction": 26,
+      "commit": "db50ed0"
     },
     "DEL-A01-canonical": {
       "planning_status": "ready",
@@ -793,7 +801,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:24:02.582639+00:00",
+  "updated_utc": "2026-10-07T19:26:26.097308+00:00",
   "critical_security_review": {
     "state": "frozen review received; root source-current joins under adjudication",
     "agent": "/root/critical_package_security",

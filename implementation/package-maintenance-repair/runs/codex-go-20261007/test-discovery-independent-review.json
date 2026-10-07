@@ -1,0 +1,493 @@
+{
+  "reviewId": "VERIFY-TV01-independent-source-discovery",
+  "scope": "identity, values, work-kernel source-current TS discovery/fixture recipe only; private strict emits and finite existing tests; no full package/default Turbo acceptance or installed/native/backend acceptance",
+  "timestamp": "2026-10-07T19:07:31.836Z",
+  "verdict": "confirmed finite discovery/fixture defects with counterevidence; original full string oracle reaches provenance mismatch after path repair; no parent closure",
+  "evidence": {
+    "observations": "/private/tmp/canlang-repair-go-20261007/discovery-review/observations.json",
+    "observationsSha256": "6d5d775f440d41d5a29b0fe1a844ff45d2f0ac715d3337aacc4278ddbc85d1d8",
+    "reviewDriverSha256": "df9d77547b7c25bcb519d83d7f1d4a5004882a2c1ab9e2ca00aebdffd8c7065f",
+    "sourceSha256": {
+      "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+      "packages/identity/package.json": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "packages/identity/src/accounts/passwords.ts": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "packages/identity/src/accounts/recovery.ts": "78c8589260eaea5536b2f90374d004d7664184b664b85135c7a0924da2f5e367",
+      "packages/identity/src/accounts/registration.ts": "72de65f3832a562cd8564a11063a1c14ef01e5184e8ac91c6bf22f967e7c898f",
+      "packages/identity/src/authentication/audience.ts": "cd65de45aa5d251df01c39b300e7d783e415d8554ef1bfad8a9be5833c623158",
+      "packages/identity/src/authentication/context.ts": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "packages/identity/src/authentication/grants.ts": "56f26d214a51de1caa8cc28b6757d9319c582e26f744cfc9e81e4c1a70418df4",
+      "packages/identity/src/authentication/oauth.ts": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+      "packages/identity/src/authentication/revocation.ts": "3b18c1865f4f78cfda004b5d2bbb2959910c307c8a6a21c0c5928b15a2e5eb56",
+      "packages/identity/src/authentication/t16b-context.test.ts": "a839b605a2e17dda2171b13305b658567e8d1eb113ed11d337ae5b74b905466a",
+      "packages/identity/src/authentication/t32b-revocation.test.ts": "74de2e90788dba97bfdd9fa7887973a9be9ddf14bdf16c31ad98be9273f0a265",
+      "packages/identity/src/distribution.ts": "b80bc671dc80c3fbaa1c86dcd920f2347620603d4a18ad012aff5a8d19aae1ee",
+      "packages/identity/src/index.ts": "05d683037a72bbac78477e7bdd554d0f64769aae36a2ee3ecff704a083472f17",
+      "packages/identity/src/ports.ts": "6145aef4de7dc0fabeed0a285a3dd8191c8c6f6c37d6554ca0659173a210a1bd",
+      "packages/identity/src/sessions/comparison-node.ts": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "packages/identity/src/sessions/comparison-worker.ts": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "packages/identity/src/sessions/comparison.ts": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "packages/identity/src/sessions/cookies.ts": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "packages/identity/src/sessions/csrf.ts": "b577b2619951a51f1aaccc62ae3db942a7d2237aec5f6d5c2d6d65a815040d60",
+      "packages/identity/src/sessions/presession.ts": "f2c4cc913ea8fc3a70c7688991dd4a0a68cb05682efa433705d1654b3dda213d",
+      "packages/identity/src/sessions/tokens.ts": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "packages/identity/src/storage/d1.ts": "7d25f77228fdd17c2fe49684c8cbefd1f3c50acf621533dc349dedaa66a3f18f",
+      "packages/identity/src/teams/invitations.ts": "88eefc9e11d639d1bc701dc72b743aa6db5987ac85abcb189dc872a2d7550c1d",
+      "packages/identity/src/teams/membership.ts": "8297f93d24b3062dd25bdc225fb71b8973c2c2551ba307b80becfe97161b334d",
+      "packages/identity/src/teams/roles.ts": "3c7c75a62b8de6e5a61f79c38b1b0a4ee337e15d26fc3e1193d4b93d0b111d0f",
+      "packages/identity/src/teams/selection.ts": "e8acd7d1a8c01bc88bda3f9eefd7e2b8e52283fdc5ad5fb8f5692e9c9b3420f0",
+      "packages/identity/src/testing.ts": "7419c5ca51bd0bc315a75e12b6d9ac06792f3180ae6d8de81dfe84db8db6660b",
+      "packages/identity/test/accounts.test.ts": "f781848aec4423040a429cf5df26a9cf43c40e1aa6ab7669b7bbbd52a9de4fe4",
+      "packages/identity/test/b4-credential-liveness.test.ts": "1ed99cfd6b02b5e3b4d58dff0034b2038a94821e434e94d16587627ac2da7df2",
+      "packages/identity/test/comparison.test.ts": "384a94a493c83baabbd2b588dda973e8bb075b102e30bf8a670c9aad90add572",
+      "packages/identity/test/context.test.ts": "e85794b375dac710072bb21685e88bc706c3d6cd42da562a31860a953914b2a7",
+      "packages/identity/test/contracts.test.ts": "4554ee1b6821161f64fcf6ba6e28451c0b6dcf55689b1a42c8c8b068c1ca5dd4",
+      "packages/identity/test/d1.test.ts": "abce3089265b711872856f5a27ce4cc44cde0f88be2d6dd7d44a1cbebfac8301",
+      "packages/identity/test/fixtures/revoked-session.json": "b54d1e98d689c8b4d4f9273666dcca181ed7f4450c8208eaeff6002768355b23",
+      "packages/identity/test/fixtures/two-user-team.json": "be93279e1fc89a3bba55f22ab6658b73328be647e2423085523e5fcc86425716",
+      "packages/identity/test/grants.test.ts": "98538b24437f7e855c192833a2f5862b2460bb1e82de1bef5002fd96378d8dc2",
+      "packages/identity/test/oauth.test.ts": "af9ec4f52dbcb0f1fd39b8b1e16500bc94539593676852fdb5b91f076df3b26c",
+      "packages/identity/test/presession.test.ts": "1cb6149cc8b2a329e1fc8199dabaf143f6e9e964f6031032ad147816a486f64a",
+      "packages/identity/test/sessions.test.ts": "2e8b9808c058a14a023e35cdd1bb6048dca3b0c4edaf8f190aac11aef9817b9c",
+      "packages/identity/test/teams.test.ts": "0c67b785a5cd992734dcf8185b22f9416191b7007ff5d60271219cfb9d72770e",
+      "packages/identity/tsconfig.json": "9adf2ee2e9d8bde76914fdc27f3af06bb9f6ebebf0a662c3f9d619a166ee0da7",
+      "packages/values/bindings/backend.ts": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "packages/values/bindings/bootstrap.ts": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "packages/values/bindings/carriers.ts": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+      "packages/values/bindings/generated/BUILD.json": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+      "packages/values/bindings/generated/values_semantics.d.ts": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "packages/values/bindings/owned-input.ts": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+      "packages/values/bindings/plans.ts": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+      "packages/values/bindings/validation.ts": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+      "packages/values/conformance/numeric-text.json": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+      "packages/values/conformance/numeric-text.oracle.mjs": "bd831d965063a0c57fee063f0714a223c622c3fae4f36ad321b87afd9319770d",
+      "packages/values/conformance/owned-input/v1/cases.json": "a2c78dfc8c7d5335e0f8ae079e065c2cdc5f555b0c7bcaa1d9e0b21435d92ab1",
+      "packages/values/conformance/owned-input/v2/cases.json": "cf10b9451032eb868cf15f4e7716d0ae0d318c6a9a6dc5f7555d2108c6ae2d4a",
+      "packages/values/conformance/ports/exact/cases.json": "3d2503508cff64c76e28f5b141c385d5fbc144ef23bac766d1338a453eebc7a4",
+      "packages/values/conformance/ports/exact/differential.mjs": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17",
+      "packages/values/conformance/string-escape.json": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+      "packages/values/conformance/string-escape.oracle.mjs": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+      "packages/values/conformance/v1/values.json": "7b352f68235ce03c834b44f5cf0345e362ff43140280b77db6c42a269af52b37",
+      "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "packages/values/scripts/build-semantics.mjs": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71",
+      "packages/values/scripts/emit-catalog.mjs": "45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d",
+      "packages/values/scripts/emit-semantics-inputs.mjs": "209f2de86240cca25a238bb87e4419e41d60674fdcf19c15ea03bdb95db253f8",
+      "packages/values/scripts/stage-semantics.mjs": "7103d8d25dd579eef418420a427d1acb8ab444aceeaf24cc4f0a1d3f41c486a8",
+      "packages/values/semantics/currency-facts.json": "cea5c560989f960835332fd5e21d47ea0816e39a86b9113ae9f0bf840bd5bcf3",
+      "packages/values/src/array.ts": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4",
+      "packages/values/src/catalog.ts": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+      "packages/values/src/currency-data.ts": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
+      "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "packages/values/src/distribution.ts": "d42f490fe465f366cef6be65adc2514bcf6e7a0e3ff6c5a3bc85cb03cdae94fb",
+      "packages/values/src/equality.ts": "3903807b4dc38bc5777e7a2758bc351041820d20bd500bb0100dfe411943fafb",
+      "packages/values/src/errors.ts": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8",
+      "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+      "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "packages/values/src/int.ts": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
+      "packages/values/src/internal/gregorian.ts": "99142cba4caf04ca931e445f03b073afc0336542e1a79a346c36acce15f0320f",
+      "packages/values/src/internal/schema-core.ts": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+      "packages/values/src/internal/violations.ts": "087a62903932fbe20c8f9813d2db276dc77eb6b5568571e712c13896ee485ea5",
+      "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+      "packages/values/src/kinds.ts": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+      "packages/values/src/locale.ts": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e",
+      "packages/values/src/money.ts": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824",
+      "packages/values/src/prepared/codec.ts": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+      "packages/values/src/prepared/plan.ts": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+      "packages/values/src/prepared/validation.ts": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+      "packages/values/src/schema.ts": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+      "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+      "packages/values/src/temporal.ts": "51d8ab0f6bf7aeed7cd06420e660111bbf6b82997d76fedeab5c0602728481dc",
+      "packages/values/src/text.ts": "64e39e7522af1b301c964337addbb61cf199192b1aa340c3a0ce308c322510e1",
+      "packages/values/src/timezone.ts": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+      "packages/values/src/types.ts": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+      "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+      "packages/values/test/array.test.ts": "fa9212ace3579ccb479c9ead31f22aad0f6418169e55fa4a838987f02392141e",
+      "packages/values/test/catalog.test.ts": "8aca35c1d0ae98b064bfe3e8f65486ab7c791d2c35eab5d90a36e1b1e294b62c",
+      "packages/values/test/conformance.test.ts": "625b56e9c637defc1b0ef21be6ed703018b443687f8ef7d09793f0639201cead",
+      "packages/values/test/decimal-oracle.test.ts": "d20b01371ace3f2c07f8b99ecb584d2facfc255afd8cb4b25647bd4b3f36a9f3",
+      "packages/values/test/decimal.test.ts": "dfd55fc1227ea33ba79b352b3b6eb71b7ad7ad0871396c8faca12d93d60bd795",
+      "packages/values/test/equality.test.ts": "83e2eae9914567158bee80ec2258f277787c0ac9244ee936868210f2ab65c8ec",
+      "packages/values/test/errors.test.ts": "275295482deab8bbe537d463ccc8125feb6e934610502b398de04391dca280df",
+      "packages/values/test/exact-bootstrap.test.ts": "ed597f7668781ea8523a1fbaaa07a341c5210f155283494f2408fc7e14af7ba0",
+      "packages/values/test/exact-bootstrap.workerd.mjs": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1",
+      "packages/values/test/exports-conformance.test.ts": "956934f15eb0d987efa9c9d3c74b9cc9becd8b70206dcd031a52b91a0f11f859",
+      "packages/values/test/icu.test.ts": "670d14e786085707967e23714707f18c5fb381b8175f058149b9b769adb26486",
+      "packages/values/test/index.test.ts": "86e60deff2f4106c5fa383a8bf780550322078db8807e5a4166f4b984ff20eba",
+      "packages/values/test/int.test.ts": "c5452b074d65bcd7a34f10ba22145fe7c450122750f00ac2ce943b2ce3f3d9e9",
+      "packages/values/test/kinds.test.ts": "79cee82786b32760c380f6d117c9573cd7072845bc5a116b2666a7583338fb56",
+      "packages/values/test/legacy-validation-traces.test.ts": "fce47c3cc8bcf2512a7651ffc1cae8159ca12010b12c6345ed6657769775aee9",
+      "packages/values/test/locale.test.ts": "bbf122d32d39063e70a27c723003918579f0aa081df194b15bb009892dce8469",
+      "packages/values/test/money.test.ts": "78f5baface686d246e25c4eff5221cb5c5240f6988efd5520d76d21b28db5b3a",
+      "packages/values/test/numeric-text.contract.test.ts": "da34c7c52a5b4ec9eaad4b54a878dcfada3cb0fe4ba40f5f0c46d6becc91ff4a",
+      "packages/values/test/owned-input.test.ts": "c7efd84ad346ca6b2336de3242aaf5039249dfe6a7e506b283c66270cd4a5217",
+      "packages/values/test/prepared-hook.test.ts": "b9f7e31d0c22df220c98ea9c6e597a96599e031ee5b66d970d160d73064eca7c",
+      "packages/values/test/prepared-validation.test.ts": "66042a3bf631a1160959bf1f58c5078c8db35843aafd2f29e666a9dca3879458",
+      "packages/values/test/schema.test.ts": "4d158e06f87f9a7c795df8d0e083152ee1e5c69b257f36d56da884030fc48e67",
+      "packages/values/test/stdlib-pure.test.ts": "2d14abf500f1c97ac4b94a647a852cdfa12c3823dcf439f10bef953943514463",
+      "packages/values/test/string-escape.contract.test.ts": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6",
+      "packages/values/test/temporal.test.ts": "1da3b9f7857af4d7731ccae5e9f4d4835ad96857fe885f80fc873864f5d9533c",
+      "packages/values/test/text.test.ts": "bbe174b047ad38109286ce332ad5e07f193a1205ff59d10800737d0ebccea5aa",
+      "packages/values/test/timezone.test.ts": "0d8e50d2b57a20cf18c85f6970272adb58f3de86b4576ab1110abb331bec8d69",
+      "packages/values/test/types.test.ts": "3d6552dec3eef5f90fcf7a88ee3f3ba1166739c87424e93ba2b9c8c7af9e2ee3",
+      "packages/values/test/validation-binding.test.ts": "21de66496d8f8dbf359ab36cfa1cdd0da5216ca47a9247bfccaa6dd891b91345",
+      "packages/values/test/wire.test.ts": "ccca38dbcf19d3bfd4cb149bcf8c2786e376df8b703fd4b5d01e95e7c7945e54",
+      "packages/values/tsconfig.json": "ec1f36490ca95056639fee4dbc7d6240e5d8370fd2bded3eb3547770ff95722e",
+      "packages/work-kernel/bindings/host-values.ts": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+      "packages/work-kernel/conformance/every.test.ts": "188a7da54e3f833f1d3674ab5e23605260d0cc74f024096415b43cb69d4891c1",
+      "packages/work-kernel/conformance/fixtures/numeric-text.json": "7e4ee0155f23a7f21b62dc44a62c8a8e6e567e911ae515c1bcba1b8b1d028fa2",
+      "packages/work-kernel/conformance/fixtures/policy/every.json": "48d193bc044174293e2f19f2cea0826b22b22fce6d106dc9f503168e46b3deab",
+      "packages/work-kernel/conformance/fixtures/policy/lifecycle.json": "a78374dcd84bc3be4077cbba57e2012aebf9fb16628c8f93cd05803221fe9751",
+      "packages/work-kernel/conformance/fixtures/policy/retry.json": "630bafad41c27b5ffb8023f4d6a6f92f353c80a75f51d079d9b6748275c30018",
+      "packages/work-kernel/conformance/fixtures/receipts/linkage.json": "f5d2c38ef5ba3d72796343d42874de1587fdb08cace9d0d16330d31d9259dccd",
+      "packages/work-kernel/conformance/fixtures/receipts/receipt.json": "b18cf4101947da95942a212223d9517ab3629543b6c73642457cc07e6eb44751",
+      "packages/work-kernel/conformance/fixtures/receipts/recovery.json": "b5b64fda283461e245230a668c31afb42021e0ff99b37ace58efa1e0cc897d8c",
+      "packages/work-kernel/conformance/fixtures/rows/dispatch.json": "ebd1abdc187b7f5e21ed39428067c4ab151b94bb633f74bcf32098e4602b1941",
+      "packages/work-kernel/conformance/fixtures/rows/every_slot.json": "902db640c1a669aa26ff158aeeba3c16016688bebc353866bdb02155ac657c57",
+      "packages/work-kernel/conformance/fixtures/rows/fanout_checkpoint.json": "e7b03ae84429c3772fdd5109bcabfc357582379d1a5291c2520734ba7a25227a",
+      "packages/work-kernel/conformance/fixtures/rows/fanout_child.json": "f45c5057aed0573582b6bfefaa8e677b77dcba95650bd4c7d75862a2ded8f37f",
+      "packages/work-kernel/conformance/fixtures/rows/fanout_intent.json": "bbf074dd2aa4bb14cb769e43a19f0bb2226f5160f0bce7952bcbb9699ce9c175",
+      "packages/work-kernel/conformance/fixtures/rows/occurrence.json": "77829dda1425300b0a1b1fae57cd05a12d199704cfe9b07a4453aa2700a10c4a",
+      "packages/work-kernel/conformance/fixtures/rows/schedule.json": "222364093c4e0f2a9f5938d28720967542d26d77f97727309e9d1513c66222b6",
+      "packages/work-kernel/conformance/fixtures/rows/supersession.json": "c7f1f6f2a5924f4dbc5009554472d9d6ea14349a1ddb83ebf22fd0422f6ca17f",
+      "packages/work-kernel/conformance/fixtures/traces/refs.json": "84a141dbca6ae1a8d06c74c0a593e85db89ae4b44fabda528f2cf6ca7473d962",
+      "packages/work-kernel/conformance/host-values.test.ts": "054d2a2aaee37e331abb940cb68473e4f612501065342c6105adfb4ad221018b",
+      "packages/work-kernel/conformance/lifecycle.test.ts": "2df829ad83761aedd8e054c9d0519137a96dff8bf080fa242c58928ccb6ce510",
+      "packages/work-kernel/conformance/linkage.test.ts": "afa1a902d9d19d1ef23dcdb0b97b2a6f49b7edc4d39e4e7cb96e1ffe6d23ede6",
+      "packages/work-kernel/conformance/numeric-text.contract.test.ts": "08d5ad8c3773c1fcf14dbe1d9a7a2891139ab85f0e4391e0a6d2a88dc709e0bc",
+      "packages/work-kernel/conformance/numeric-text.oracle.d.mts": "dc8dbae0939b9d88b8f14f2caf5c13224c1706c6d142ea5a8c00420010da2369",
+      "packages/work-kernel/conformance/numeric-text.oracle.mjs": "0f3757e763e1ab72d0a90c91a1f97d4e3f5f3b99390ae05a42d4b7345f4b2f2c",
+      "packages/work-kernel/conformance/receipt.test.ts": "94a16fb8ae8bd92baf7a5fe2f47b0f66ac3bb0f1749f6f810001592e1e87c408",
+      "packages/work-kernel/conformance/recovery.test.ts": "d8feedab3089ed89128739610fc6c5762f731293bea9fabf47b92979f69bb168",
+      "packages/work-kernel/conformance/registered-differential.mjs": "bdbb31eff01512d79d0ed3f4e7a41e7928e7867035d75cc06da71b8ca41574f9",
+      "packages/work-kernel/conformance/retry.test.ts": "543dc8f2670dc438772ad0a37dfd34e15f93ca897f0dbecfc1cd42fd7aa4b86a",
+      "packages/work-kernel/conformance/rows.test.ts": "46d2eab38d12a615da2e532fbb83c879f86f588cd6ec362a9711105597410ce8",
+      "packages/work-kernel/package.json": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+      "packages/work-kernel/src/distribution.ts": "b80bc671dc80c3fbaa1c86dcd920f2347620603d4a18ad012aff5a8d19aae1ee",
+      "packages/work-kernel/src/every.ts": "1996c7e3e1ca693024df3a07033f7248b0cb8afdeb0b17e4826c3b45589ee3dd",
+      "packages/work-kernel/src/facts.ts": "d10518896028ef5243d066fab4938fcb3657b0b85a90feea680a9dfdaeb6c61a",
+      "packages/work-kernel/src/index.ts": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+      "packages/work-kernel/src/lifecycle.ts": "9262f69b01c7c0b4d00b7968439bc25dd4c05426008e9362836161d13c82d71c",
+      "packages/work-kernel/src/linkage.ts": "ecc6c6cee42a14e7b012ef47875553d51207902d2498b0adef935a8555a047d4",
+      "packages/work-kernel/src/receipt.ts": "3442bd7a14dab43caa296e03c3575e777856d5003f8365a1cd1c9fe0eb027a4f",
+      "packages/work-kernel/src/recovery.ts": "c65cda6a6898cbfff2f0df57f2e1a67c312da6f4123b4c364a482b5f417d0cf6",
+      "packages/work-kernel/src/retry.ts": "2f95964c9e809ff62b628733e1c9c89c89d65df82ef5f633ca2f86b5896044e4",
+      "packages/work-kernel/src/rows.ts": "5267d759fcb0f17cae6cd9ea864783cc16e793fe0ac6658f4e0d1dbf6d0e0c4d",
+      "packages/work-kernel/tsconfig.json": "be538f73951bafb9b1a89fa55702abfbceab4adb06e2c5e8f869207d57e22bab",
+      "scripts/build-package.mjs": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+      "scripts/run-tasks.mjs": "3e055c26a0130829843f52cf5ddbf6b45e32bbc7a8a4d0124d8db2a8b107cc37",
+      "tsconfig.base.json": "56d05912029f16842996d66df2e6fc4279950a243874a794d9ff2e13e220ded8",
+      "turbo.json": "2f908d0dfa6b20fb38ae182a66eeaf564da6007d4404299032dbf3fe5df2d2b4"
+    },
+    "changedDuringCompileAndInitialControls": [],
+    "changedSinceCompile": [],
+    "changedFromOriginalRawSnapshot": [],
+    "commands": [
+      {
+        "label": "compile-identity",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+          "-p",
+          "/Users/vince/Projects/canlang/packages/identity/tsconfig.json",
+          "--outDir",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/identity/dist",
+          "--declaration",
+          "false",
+          "--declarationMap",
+          "false",
+          "--sourceMap",
+          "false"
+        ],
+        "cwd": "/Users/vince/Projects/canlang",
+        "status": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/compile-identity.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "identity-contract-control",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/identity/dist/test/contracts.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/discovery-review/identity",
+        "status": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/identity-contract-control.log",
+        "logSha256": "d665951f7f68f884f41ed86be66512ad83b6529f3f84563cd14376e4e3b6c10e"
+      },
+      {
+        "label": "identity-omitted-source-controls",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/identity/dist/src/authentication/t16b-context.test.js",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/identity/dist/src/authentication/t32b-revocation.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/discovery-review/identity",
+        "status": 1,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/identity-omitted-source-controls.log",
+        "logSha256": "1874bc28c9bae5b168fdf015f0a7d35bc879fc77177ed78689afa54a5db87f55"
+      },
+      {
+        "label": "compile-values",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+          "-p",
+          "/Users/vince/Projects/canlang/packages/values/tsconfig.json",
+          "--outDir",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/values/dist",
+          "--declaration",
+          "false",
+          "--declarationMap",
+          "false",
+          "--sourceMap",
+          "false"
+        ],
+        "cwd": "/Users/vince/Projects/canlang",
+        "status": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/compile-values.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "values-string-escape-default-failure",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/values/dist/test/string-escape.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/discovery-review/values",
+        "status": 1,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/values-string-escape-default-failure.log",
+        "logSha256": "8de210e6229873f1a01e75db09d7107d04f6ecd51089436b19ffbf0577ffffd0"
+      },
+      {
+        "label": "values-numeric-default-layout-control",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/values/dist/test/numeric-text.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/discovery-review/values",
+        "status": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/values-numeric-default-layout-control.log",
+        "logSha256": "2b6c60499fc97ef29e114dcf88fa61870c9e149b5b4f79248c446b3c9e42c959"
+      },
+      {
+        "label": "values-string-fixture-staging-control",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "--test-name-pattern=deliberate escaping",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/values/dist/test/string-escape.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/discovery-review/values",
+        "status": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/values-string-fixture-staging-control.log",
+        "logSha256": "a404384be1006b458f52d2db3e7ae3109efc50ba4e396d4377627a679e92dba8"
+      },
+      {
+        "label": "compile-work-kernel",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+          "-p",
+          "/Users/vince/Projects/canlang/packages/work-kernel/tsconfig.json",
+          "--outDir",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/work-kernel/dist",
+          "--declaration",
+          "false",
+          "--declarationMap",
+          "false",
+          "--sourceMap",
+          "false"
+        ],
+        "cwd": "/Users/vince/Projects/canlang",
+        "status": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/compile-work-kernel.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "kernel-numeric-default-failure",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/work-kernel/dist/conformance/numeric-text.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/discovery-review/work-kernel",
+        "status": 1,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/kernel-numeric-default-failure.log",
+        "logSha256": "9395feb9678ee4c116c4d90405da0e029ec858cf480c780ef3ce7cb323c34fbd"
+      },
+      {
+        "label": "kernel-host-values-source-fallback-control",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/work-kernel/dist/conformance/host-values.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/discovery-review/work-kernel",
+        "status": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/kernel-host-values-source-fallback-control.log",
+        "logSha256": "317400cf31e99d6127e798613540545ca188de4c651c6bf859534fb744db976f"
+      },
+      {
+        "label": "kernel-numeric-oracle-only-failure",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/work-kernel/dist/conformance/numeric-text.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/discovery-review/work-kernel",
+        "status": 1,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/kernel-numeric-oracle-only-failure.log",
+        "logSha256": "35e8d25f2644614dfd39e48f00c881ab87f316c2bd01a41823ff1f84cb44a4c0"
+      },
+      {
+        "label": "kernel-numeric-staging-control",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/work-kernel/dist/conformance/numeric-text.contract.test.js"
+        ],
+        "cwd": "/private/tmp/canlang-repair-go-20261007/discovery-review/work-kernel",
+        "status": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/kernel-numeric-staging-control.log",
+        "logSha256": "9ae1f2f340ef6b3c83272123653750738f7c1a2d0aff1010673964104306481d"
+      },
+      {
+        "label": "identity-omitted-source-private-package-deps-control",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/identity/dist/src/authentication/t16b-context.test.js",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/identity/dist/src/authentication/t32b-revocation.test.js"
+        ],
+        "cwd": "/Users/vince/Projects/canlang",
+        "status": 0,
+        "result": "12/12 pass after private node_modules link corrected to existing identity/node_modules",
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/identity-omitted-source-private-package-deps-control.log",
+        "logSha256": "8f105096d8e8a0243bac1183ec87593ed842ee50bcffa90dc644eb22d648e932"
+      },
+      {
+        "label": "values-string-original-oracle-private-path-control",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/values/dist/test/string-escape.contract.test.js"
+        ],
+        "cwd": "/Users/vince/Projects/canlang",
+        "status": 1,
+        "result": "1/2 pass; original capture conformance fails source.donorHashes equality after path repair",
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/values-string-original-oracle-private-path-control.log",
+        "logSha256": "7960b9b59997cf7399bc62dcaa1bffc71fcbcb534809d884c36a1516b7575034"
+      },
+      {
+        "label": "string-oracle-current-capture",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "packages/values/conformance/string-escape.oracle.mjs",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/string-oracle-current-source",
+          "/private/tmp/canlang-repair-go-20261007/discovery-review/string-oracle-current-capture.json"
+        ],
+        "cwd": "/Users/vince/Projects/canlang",
+        "status": 0,
+        "result": "explicit private comparison capture only, never replacement expectations",
+        "log": "/private/tmp/canlang-repair-go-20261007/discovery-review/string-oracle-current-capture.log",
+        "logSha256": "1204120b546172fb57406912b2a2dcdee3a3502f183ba0c85a9934bf4e5b92ac"
+      }
+    ]
+  },
+  "discovery": {
+    "identity": {
+      "sourceTests": 13,
+      "defaultGlobCovered": 11,
+      "omitted": [
+        "src/authentication/t16b-context.test.ts",
+        "src/authentication/t32b-revocation.test.ts"
+      ],
+      "proof": "included by src/**/*.ts; private strict emit creates both dist/src/authentication/*.test.js; glob dist/test/**/*.test.js excludes both; explicit existing tests pass 12/12"
+    },
+    "values": {
+      "sourceTests": 29,
+      "defaultGlobCovered": 29,
+      "omitted": [],
+      "proof": "all source test/*.test.ts emit under matching dist/test/**/*.test.js"
+    },
+    "workKernel": {
+      "sourceTests": 9,
+      "defaultGlobCovered": 9,
+      "omitted": [],
+      "staleDistOnly": [
+        "host-values.test.js",
+        "numeric-text.contract.test.js"
+      ],
+      "proof": "both absent in raw captured dist but emitted by exact current include conformance/**/*.ts and matched by default glob; full private numeric control passes 74/74"
+    }
+  },
+  "producerProof": {
+    "turbo": "test:unit dependsOn build; build dependsOn ^build and cache:false build:prepare; build-package cleans owned dist before build:emit (except separately-owned values catalog). Stale dist filenames alone are not fresh-run discovery evidence.",
+    "identity": "build:emit stages test/fixtures recursively after TS emit; stored source/copy fixtures byte-identical. Existing contracts control passes; no missing identity fixture stage.",
+    "values": "build:emit = tsc + stage-semantics.mjs; stage-semantics validates/stages only generated binding inventory, JS, declarations, wasm; no conformance fixture or oracle stage. numeric-text and v1 tests access source conformance via ../../conformance; string-escape resolves ../conformance from dist/test => dist/conformance, absent. Copying oracle to dist moves its root calculation and does not repair frozen-source path.",
+    "workKernel": "build:emit = tsc only. Most stored JSON tests including host-values fall back to source conformance; numeric contract has direct relative import/read with no fallback: missing dist/conformance/numeric-text.oracle.mjs then missing dist/conformance/fixtures/numeric-text.json. Exact byte copies of these 2 resources suffice for 74 tests; whole fixture tree staging unnecessary for source checkout default."
+  },
+  "actualCallers": {
+    "valuesNumeric": "default numeric-text.contract.test consumes stored original numeric JSON and builtin/caller observations; it does not launch numeric-text.oracle.mjs",
+    "valuesString": "default string-escape.contract.test consumes stored JSON and explicitly launches original string-escape.oracle.mjs; complete case/control envelopes compared, with engine omitted but source donor hashes currently included",
+    "valuesV1": "default conformance.test consumes v1 values.json via source-layout fallback",
+    "valuesDecimal": "default decimal-oracle.test is independent Decimal.js oracle (not stored fixture/native differential)",
+    "valuesNativeExact": "conformance/ports/exact/differential.mjs is explicit source-side Rust/TS harness; not matched by .test.js scripts; not executed",
+    "valuesWorkerd": "test/exact-bootstrap.workerd.mjs is explicit private staged host foundation harness; not matched by .test.js scripts; not executed",
+    "kernelStored": "default rows/every/retry/lifecycle/receipt/recovery/linkage/host-values use stored original JSON; numeric contract uses stored primitive/caller data plus observeNumber from numeric-text.oracle.mjs",
+    "kernelNative": "registered-differential.mjs is explicit source-side gate, not .test.js discovery; original fixture pins, private TS compile, full native observer and frozen expectations remain required; not executed"
+  },
+  "stringCaptureCounterevidence": {
+    "storedSha256": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+    "privateCaptureSha256": "0f17195764b4cdef1f1c7de85ba1b37f24d3f05a5de08f3affcebb7676d2fc88",
+    "differingTopKeys": [
+      "source"
+    ],
+    "semanticKeys": [
+      "schemaVersion",
+      "contract",
+      "strings",
+      "callers",
+      "controls",
+      "routeSummary",
+      "limits"
+    ],
+    "semanticEqual": true,
+    "sourceDonorHashesEqual": false,
+    "interpretation": "Fresh capture differs only in provenance source donorHashes. All string bytes, complete caller observations, controls and routeSummary equal immutable stored expectations. This is not behavioral mismatch and is not a passing full current test. Current test compares source provenance alongside observation oracle; provenance handling remains a separately reviewable finite proposal. Stored JSON/oracle must not be regenerated."
+  },
+  "proposedFiniteFixes": [
+    {
+      "ids": [
+        "VERIFY-TV01",
+        "DEL-R01"
+      ],
+      "file": "packages/identity/package.json",
+      "change": "include dist/src/**/*.test.js alongside existing dist/test/**/*.test.js in test:unit; preserve existing tests"
+    },
+    {
+      "ids": [
+        "VERIFY-TV01"
+      ],
+      "file": "packages/work-kernel/package.json",
+      "change": "stage exact original conformance/numeric-text.oracle.mjs and conformance/fixtures/numeric-text.json to same emitted conformance relative paths after TS emit; byte copy only"
+    },
+    {
+      "ids": [
+        "VERIFY-TV01"
+      ],
+      "file": "packages/values/test/string-escape.contract.test.ts",
+      "change": "source/dist-aware conformance lookup uses owning source fixture and original source oracle. Independently resolve provenance equality after path fix: compare full observation keys against frozen fixture while validating immutable oracle/fixture pins and recording current donor provenance separately; preserve original observations, controls and complete error envelopes. Proposal only; no assertions edited here."
+    }
+  ],
+  "boundaries": [
+    "No repo files, shared dist, caches, root manifests or fixtures changed. Private staging and dependency links only.",
+    "Identity first omitted-test failure was reviewer private root dependency link omission; corrected existing package dependency link passes.",
+    "Strict compilation and finite test witnesses are not complete package suites. Values stage-semantics producer not executed; generated bindings/native observer gate unqualified.",
+    "Discovery does not close VERIFY-TV01 or DEL-R01 parents, establish global queue barrier, or propose production budget/security policy."
+  ]
+}
