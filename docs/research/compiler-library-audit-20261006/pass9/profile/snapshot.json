@@ -1,0 +1,23 @@
+{
+  "started_at": "2026-10-07T02:39:19.224119+00:00",
+  "completed_at": "2026-10-07T02:39:19.259555+00:00",
+  "snapshot": "/private/tmp/canlang-pass9-profile/current",
+  "source_root": "/Users/vince/Projects/canlang",
+  "source_count": 112,
+  "source_bytes": 4247000,
+  "git_head": "29b70a69c76acb311dd6bd7ea37a699a8c02bac6",
+  "excluded": [
+    "compiler/target",
+    ".git",
+    ".DS_Store",
+    "full packages",
+    "full editor"
+  ],
+  "extra_fixtures": [
+    "examples/ExpenseFlow.can",
+    "examples/TeamTasks.can",
+    "editors/vscode/test/lsp-capabilities.can",
+    "editors/vscode/test/lsp-codeaction.can",
+    "docs/research/compiler-library-audit-20261006/pass3/url/vectors.json"
+  ]
+}

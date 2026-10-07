@@ -1,0 +1,10 @@
+{
+  "command": "CAN_COMPLETION_REQUIRE_ENGINES=1 CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=1 cargo test --offline --locked --manifest-path compiler/Cargo.toml",
+  "exit": 0,
+  "harnesses": 50,
+  "passed": 1048,
+  "failed": 0,
+  "ignored": 0,
+  "filtered_out": 0,
+  "runtime_limits": "Standard harness output does not establish absence of every preexisting conditional subcase skip; mandatory Pass9 engine and fresh CLI witnesses are separately executed, Linux focused receipt explicitly reports no in-body skips."
+}

@@ -1,0 +1,40 @@
+{
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "architecture": "arm64",
+  "tools": {
+    "rustc -Vv": {
+      "exit": 0,
+      "stdout": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+      "stderr": ""
+    },
+    "cargo -V": {
+      "exit": 0,
+      "stdout": "cargo 1.99.0 (5f94df478 2026-08-27)\n",
+      "stderr": ""
+    },
+    "node --version": {
+      "exit": 0,
+      "stdout": "v24.21.0\n",
+      "stderr": ""
+    },
+    "bash --version": {
+      "exit": 0,
+      "stdout": "GNU bash, version 3.2.57(1)-release (arm64-apple-darwin26)\nCopyright (C) 2007 Free Software Foundation, Inc.\n",
+      "stderr": ""
+    },
+    "zsh --version": {
+      "exit": 0,
+      "stdout": "zsh 5.9 (arm64-apple-darwin26.0)\n",
+      "stderr": ""
+    },
+    "python3 --version": {
+      "exit": 0,
+      "stdout": "Python 3.14.7\n",
+      "stderr": ""
+    }
+  },
+  "cargo_incremental": "0",
+  "cargo_jobs": "1",
+  "clippy_exit": 0,
+  "scoped_rustfmt_exit": 0
+}

@@ -1,0 +1,16 @@
+{
+  "disk_before_snapshot": "/dev/disk3s1 228Gi total,160Gi used,24Gi available (df -h /private/tmp)",
+  "disk_after_snapshot": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s1   228Gi   161Gi    26Gi    87%    2.5M  273M    1%   /System/Volumes/Data\n",
+  "snapshot_archive": {
+    "bytes": 884920,
+    "sha256": "4610d38f556dffffa77a8be1e42c7ef08c689da49087c62f6f8febbef80baac5"
+  },
+  "existing_shared_targets": [
+    "/private/tmp/canlang-pass5-profile/current-linux-target"
+  ],
+  "existing_shared_cache": "/private/tmp/canlang-pass5-profile/cargo-home",
+  "new_target_directories": 0,
+  "cleanup": "None; existing baseline, cached archives and target retained. No settings/services changed or images pruned.",
+  "disk_final": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s1   228Gi   160Gi    25Gi    87%    2.5M  267M    1%   /System/Volumes/Data\n",
+  "task_owned_snapshot": "4.3M\t/private/tmp/canlang-pass9-profile\n"
+}

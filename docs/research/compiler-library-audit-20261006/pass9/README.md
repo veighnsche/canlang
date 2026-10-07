@@ -1,0 +1,47 @@
+# Pass9 remaining-mechanism evaluation receipt
+
+All five released comparison packets are completed and independently reviewed. Retain the small production mechanisms for now; no candidate dependency enters compiler Cargo. Three separately released correctness boundaries are implemented, reviewed and committed: ICU numeric admission, embedded shell completions, and inverse positions/lexical parents. Other measured findings have finite queued packets rather than a blanket framework or architecture migration.
+
+## Candidate decisions and evidence
+
+| Packet | Executed comparison | Decision and adoption gate |
+| --- | --- | --- |
+| [CLI/completions](cli/assessment.md) |60real process cases,11extra help/malformed characterizations; actual Bash/Zsh engines; pinned clap/clap_complete4.6.7 prototype |Retain current grammar. Defaults change help precedence, consume thin-command flags and remove a child separator. Complete preservation adapter and simpler shared metadata are unimplemented; no release-size/workload claim. Generated candidate Zsh/Fish engines unexecuted. |
+| [ICU](icu/README.md) |8type/50structure/six rendering vectors through actual public source and built owner; pinned FormatJS0.3.1 source/API qualification |Retain bounded scanner. Published crate has no parse-core/profile features or parse-time depth cap and parses exact keys as i32; full build/run was deliberately not executed after mandatory gates failed. Hypothetical parse-core remains proposed. |
+| [Temporal](temporal/ASSESSMENT.md) |43fixed owner/compiler admission+UTC-ms vectors; executed time0.3.55 adapter matches43 |Retain compiler helpers. Preservation requires spelling/year/leap/all-fraction/post-offset guards and allocation, with production diagnostic adapter unimplemented. Private shared core linkage requires L-F03. No current temporal defect found. |
+| [Graphs](graphs/ASSESSMENT.md) |512three-node graphs times2origin orders, exact SCC-prefilter+legacyDFS witness parity; synthetic workload timings; actual compiler scope/instability probes |Retain/defer shared iterative or petgraph0.8.3 adoption. Large synthetic-chain gains coexist with slower cycle-heavy cases; actual compiler/editor workloads and complete compatibility integration are unmeasured. Distinct upstream/membership/witness policies remain. |
+| [Positions/paths](positions-medium/ASSESSMENT.md) |27fixed vectors, actual line-index0.1.2 adapter parity, executed path-clean1.0.1 differences,fixed supplementary lexical witnesses |Retain existing shared mechanisms. Index adapter keeps unit/backoff/CRLF/clamp glue and builds a full index per inverse call. Path-clean clamps rooted parents differently. No measured workload benefit or simpler complete adapter. |
+
+Comparison inputs are pinned per lane, including actual callable closures, candidate features, archives/scratch locks, owner source/built roots and saved failures/retries. Historical baseline probes must use their recorded original binary/source snapshots; replay against the fixed compiler is not expected to reproduce the original defects. Candidate registry sources and snapshots are evidence, not production vendoring. Cost figures remain local prototype/archive/rlib or synthetic timings; none is a compiler release delta.
+
+## Released repairs
+
+- **C09I-1:** ordinary number accepts int/decimal; integer style accepts int; cardinal accepts int/decimal; ordinal accepts int. Style-first error reason precedence is intentional; E5007 and authored literal byte anchors remain. Permanent eight-way source/translation matrix and invalid-style/escaped-name controls pass; eight fixtures pass through a fresh actual CLI. Runtime decimal lowering/descriptions are not claimed by this packet. [Evidence](correctness/icu-types/repair-receipt.md).
+- **C09C:** lint-only --fix declarations; Bash/Zsh true-separator versus consumed-value handling; correct Zsh shell operand context; all five thin commands have file-only completion without interpreting platform tail flags. Independent review found the preexisting Bash format-domain gap and root repaired it with actual all-five-command regressions. Fish engine/terminator behavior remains unqualified; its declaration and exact embedding pass. [Evidence](correctness/completions/RECEIPT.md).
+- **P09:** inverse LSP strips CR only before LF; bare EOF/internal CR counts as a scalar. Docs lexical normalization retains consecutive leading parents and the existing Unix literal parents above root. Unicode/CRLF/clamp/roundtrip and private/public path tests pass. This does not settle broader relative-root absolute-external wording or missing-suffix symlink identity. [Evidence](correctness/positions/RECEIPT.md).
+
+Independent reviews accept the implementations after raw-diff review: [numeric/comparison review](review/substantive-review.md), [completion/position review](review/completion-position-review.md), [graph/position comparison review](review/graph-position-comparison-review.md). Reviews distinguish historical pins, actual execution, source/API evidence and proposed adapters.
+
+## Verification and host limits
+
+[Native integration](verification/README.md):1,048passed harness cases in50harnesses,0failed/ignored/filtered; required actual Bash3.2.57/Zsh5.9/Python engines; all-target offline locked Clippy with -D warnings passes. Changed Rust files pass scoped rustfmt. Whole-tree fmt has the same83legacy hunks across13unchanged files; no added formatting debt. Standard harness output does not certify every preexisting conditional subcase; mandatory new engine/CLI witnesses execute separately. Raw PTY/registry/log whitespace is preserved as evidence.
+
+[Pinned offline Linux](profile/README.md):68executed bodies passed,0in-body skips; focused4ICU/2lexical plus full30docs/32IDE.157unrelated entries deliberately filtered.112frozen inputs match live sources. Compiler-only Linux excludes package runtime/shell engine execution; Rust1.99is executed without a lower-MSRV claim. Windows, Fish and untested editor/client behaviors are unqualified. No dependency change, clean-build comparison, release footprint or general speed claim.
+
+[Final pins](verification/final-inputs.json) classify exactly the six intended source/script changes, with no unexplained starting-pin drift; Cargo, owning values/catalog and DESIGN pins match. Linux additionally pins all relevant compiler tests/fixtures. Native package-dependent suites use the live checkout, not a hermetic whole-package snapshot. Unrelated package/shared-plan edits and commits remain owned by the other agent and are neither staged nor reset.
+
+## Finite next work and blocked policies
+
+[Correctness queue](correctness/QUEUE.md) and [exact ICU packets](icu/correctness-packets.md) are the next implementation sequence. Highest concrete obligations are undeclared-argument coverage/quoting and unsupported rich tags/categories; then exact-duplicate and parse-time argument-depth preservation. Hyphen selectors and exact-key lexical profile follow as lower-priority owner alignment. Ten measured syntax vector IDs form six correction mechanisms; top-level pound is the eleventh distinct syntax row and a separate policy boundary. Each writer release requires its own finite acceptance. No all-at-once scanner/framework rewrite is selected.
+
+**G09-1 stable call-cycle origins** and **outside-plural ICU pound** are awaiting specific approval for three verified-context JEV requests. [Saved requests/status](consultation/README.md) contain balanced equivalent alternatives and exact request hashes. Automatic approval review rejected sending the repository-derived context to the JEV endpoint despite general AGENTS consultation authorization; human approval for this concrete payload is pending, and no requests were sent or policy selected. This blocks those dependent packets only. Existing graph algorithm advice selects no new witness API or SCC policy.
+
+Broader missing-relative-root external identity and missing-suffix symlink behavior remain separate unreleased boundaries. Rowan, Salsa and a JS AST/printer stay separate architectural projects, with real editor workloads required before adoption. No new broad plan or architectural implementation is needed to release the completed repairs.
+
+## Integration and resources
+
+[Actual economical dispatch](dispatch.md) records per-candidate Sol low/medium/high use and the justified low→medium position/path conflict escalation. Frozen repair writers use Sol low; semantic reviews and Linux integration use Sol medium. Root owns shared decisions/scoped staging and commits. API prices are verified model-page information, not subscription usage or a measured task optimum.
+
+Scoped commits:158df3d4(packet release),5022dd05(defect queue),b7051b9a(repair contracts),29b70a69(ICU numeric repair),d13eaf4(comparison decisions/evidence),80c0b4c(completion/position repairs). Shared DECISIONS entries stage only this task's accepted append, leaving concurrent edits untouched. Final receipt commit follows. No merge or living-filetree checkpoint advancement.
+
+Existing native/Linux targets and caches are reused, one job with incremental disabled. Unique original binary/source snapshots and all raw comparison evidence remain; final disk/process/open-file checks are saved in verification/storage-final.json, with no additional cleanup. Build-in-public artwork/copy are local reviewable output only; no post/publication is sent. The artwork contains decorative synthetic labels and is not a technical regression oracle.

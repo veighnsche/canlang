@@ -1,0 +1,10 @@
+{
+  "checked_at_utc": "2026-10-07T02:44:43.764274+00:00",
+  "free_bytes": 28406562816,
+  "free_gib": 26.455673217773438,
+  "build_processes": [],
+  "open_target_pids": [],
+  "lsof_exit": 1,
+  "cleanup": "none; adequate free space, existing shared targets/caches and unique baseline evidence preserved",
+  "sandbox_observation": "Initial sandbox ps denied; escalated read-only process/open-file verification requested."
+}

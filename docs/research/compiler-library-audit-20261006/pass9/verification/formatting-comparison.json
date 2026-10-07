@@ -1,0 +1,22 @@
+{
+  "baseline_hunks": 83,
+  "current_hunks": 83,
+  "added_hunks": 0,
+  "reason": "All files producing legacy format diffs match Pass8 source hashes; every Pass9 changed Rust file passes scoped rustfmt.",
+  "legacy_file_parity": {
+    "compiler/src/analysis/catalog.rs": true,
+    "compiler/src/analysis/resolve.rs": true,
+    "compiler/src/analysis/types.rs": true,
+    "compiler/src/codegen/ir.rs": true,
+    "compiler/src/codegen/js.rs": true,
+    "compiler/src/syntax/parser.rs": true,
+    "compiler/tests/b3_i5.rs": true,
+    "compiler/tests/b4_check.rs": true,
+    "compiler/tests/b4_examples.rs": true,
+    "compiler/tests/b4_parse.rs": true,
+    "compiler/tests/codegen.rs": true,
+    "compiler/tests/exe.rs": true,
+    "compiler/tests/mcp_p1.rs": true
+  },
+  "raw_receipt_exceptions": "Preserved PTY transcript whitespace, registry CRLF source bytes and original raw test-log blank EOF are not production/prose formatting defects."
+}

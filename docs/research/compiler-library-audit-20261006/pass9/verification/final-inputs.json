@@ -1,0 +1,38 @@
+{
+  "git_head_context": "80c0b4c0641917e4da48c2d6a432be0135222299",
+  "files": {
+    "AGENTS.md": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "compiler/src/cli.rs": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679",
+    "compiler/can-completions.bash": "cff5fd9090a72077da49f6cd6e2f68a68ae7c01dd0ff7c4e4962d2fc89300982",
+    "compiler/can-completions.zsh": "84cc050e46fd0d0de14d42f37ed2da3010da6a77110ce4d3b3f13bbb62ba650e",
+    "compiler/can-completions.fish": "31cd7cd411d8c3954afe22ea598c1fd2d8278a21379a60c010ff01ecb386a3ef",
+    "compiler/src/analysis/examples.rs": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+    "compiler/src/analysis/types.rs": "91c73cd3ee28bfc2e62f84226fd0170291c0b06e56e0fbf6bc5e39a5914b734f",
+    "compiler/src/analysis/resolve.rs": "c1dc6a79b65a8e9fad2a1c63e5c550315012ca4b4849c39330f9527394810e50",
+    "compiler/src/source.rs": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a",
+    "compiler/src/ide/queries.rs": "070e6a13702a5da87bd1da5b1ec92ee27361d682cf31849c37502076556215d8",
+    "compiler/src/docs.rs": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+    "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+    "packages/values/src/temporal.ts": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+    "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+    "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "docs/specification/DESIGN.md": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+    "docs/ideal-filetree-plan/finished-product/reviews/language.md": "f36d5b93326681ac7e9ceed3077ba909efb5acd20f4d487905922830e03ae862",
+    "docs/research/compiler-library-audit-20261006/model-allocation-20261007.md": "f7f96701e9588cba6e22bad1d01cfd06517202d2fd99959763d77173243341d8"
+  },
+  "authorized_changed_inputs": [
+    "compiler/can-completions.bash",
+    "compiler/can-completions.zsh",
+    "compiler/can-completions.fish",
+    "compiler/src/analysis/examples.rs",
+    "compiler/src/ide/queries.rs",
+    "compiler/src/docs.rs"
+  ],
+  "unexplained_starting_pin_drift": [],
+  "binary_sha256": "a4dd1b3028b9095e903d40cbd06505ea0b134ed78e64f8ef850c7c87955c5ff1",
+  "owner_scope": "Owning values source/index/package/catalog and DESIGN match starting pins. Package-dependent native suites use live checkout, not a whole-package hermetic snapshot; unrelated package/shared-plan edits are outside this compiler packet.",
+  "linux_snapshot": "../profile/source-manifest.json:112inputs; independently verified snapshot/live parity"
+}

@@ -1,0 +1,29 @@
+{
+  "linux": [
+    "docker",
+    "run",
+    "--rm",
+    "--pull=never",
+    "--platform",
+    "linux/amd64",
+    "--network",
+    "none",
+    "-e",
+    "CARGO_HOME=/cargo-home",
+    "-e",
+    "CARGO_BUILD_JOBS=1",
+    "-e",
+    "CARGO_INCREMENTAL=0",
+    "-v",
+    "/private/tmp/canlang-pass9-profile:/profile:ro",
+    "-v",
+    "/private/tmp/canlang-pass5-profile/cargo-home:/cargo-home",
+    "-v",
+    "/private/tmp/canlang-pass5-profile/current-linux-target:/linux-target",
+    "rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+    "sh",
+    "/profile/linux-tests.sh"
+  ],
+  "script": "linux-tests.sh",
+  "started_at": "2026-10-07T02:39:30.688602+00:00"
+}
