@@ -116,7 +116,6 @@
     "TECH-SV03",
     "TECH-SV04",
     "DEL-D01",
-    "DEL-D02",
     "DEL-C01",
     "DEL-C02",
     "DEL-C02-order",
@@ -162,7 +161,7 @@
     "files": [
       "packages/cloudflare/src/worker/main.ts"
     ],
-    "state": "independently accepted inline primitive; committing",
+    "state": "accepted narrow reduction; committed a7faf70",
     "review": "keyed-promise-independent-review.json"
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
@@ -181,5 +180,569 @@
       "effort": "medium",
       "state": "dispatched exact kinds/temporal private calendar slice"
     }
-  ]
+  ],
+  "packet_state": {
+    "TECH-V01-values": {
+      "planning_status": "ready",
+      "state": "accepted narrow reduction; committed 511ecd7",
+      "files": [
+        "packages/values/semantics/src/representations/numeric.rs"
+      ],
+      "agent": "/root/impl_values_numeric",
+      "review": "numeric-independent-review.json",
+      "commit": "511ecd7"
+    },
+    "TECH-V01-work": {
+      "planning_status": "ready",
+      "state": "accepted narrow reduction; committed 414c16a",
+      "files": [
+        "packages/work-kernel/decisions/numeric_text.rs",
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs"
+      ],
+      "agent": "/root/impl_work_numeric",
+      "review": "numeric-independent-review.json",
+      "commit": "414c16a"
+    },
+    "TECH-W01-quote": {
+      "planning_status": "ready",
+      "state": "released candidate; independent Sol medium review running",
+      "files": [
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/lib.rs",
+        "packages/work-kernel/decisions/utf16_json.rs"
+      ],
+      "agent": "/root/review_ui_appearance"
+    },
+    "TECH-W01-uri": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/lib.rs",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock",
+        "packages/work-kernel/decisions/uri_text.rs"
+      ]
+    },
+    "TECH-V03": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/values/bindings/owned-input.ts",
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/src/prepared/codec.ts",
+        "packages/values/src/prepared/validation.ts"
+      ]
+    },
+    "TECH-V04": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/values/semantics/src/transport/exact.rs",
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "packages/values/semantics/src/input.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/bindings/plans.ts",
+        "packages/values/bindings/bootstrap.ts"
+      ]
+    },
+    "TECH-V05": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/values/src/timezone.ts",
+        "packages/values/src/locale.ts",
+        "packages/values/src/currency-data.ts"
+      ]
+    },
+    "TECH-S01": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/state/src/storage/d1.ts",
+        "packages/state/src/storage/durable-object.ts",
+        "packages/state/src/migration/validate.ts",
+        "packages/state/src/mutation/pipeline.ts",
+        "packages/state/src/mutation/crud.ts",
+        "packages/state/src/mutation/models.ts",
+        "packages/state/src/policy/grants.ts",
+        "packages/state/src/storage/sqlite-codecs.ts",
+        "packages/state/src/internal/own-data.ts"
+      ]
+    },
+    "TECH-S01-own-key": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/state/src/storage/d1.ts",
+        "packages/state/src/storage/durable-object.ts"
+      ]
+    },
+    "TECH-S02": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/state/src/mutation/crud.ts",
+        "packages/state/src/mutation/pipeline.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/replay.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/interfaces/src/http/operations.ts"
+      ]
+    },
+    "TECH-S03": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/src/runtime/env-assembly.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/query/engine.ts",
+        "packages/state/src/storage/d1.ts"
+      ]
+    },
+    "TECH-W02": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/state/src/fanout/lifecycle.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/state/src/invocation/invoke.ts"
+      ]
+    },
+    "TECH-W03": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/work-kernel/src/index.ts",
+        "packages/work-kernel/src/facts.ts",
+        "packages/work-kernel/bindings/host-values.ts",
+        "packages/work-kernel/decisions/lib.rs",
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ]
+    },
+    "TECH-I01": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/identity/src/ports.ts",
+        "packages/identity/src/storage/d1.ts",
+        "packages/identity/src/accounts/registration.ts",
+        "packages/identity/src/accounts/recovery.ts",
+        "packages/identity/src/sessions/presession.ts",
+        "packages/identity/src/authentication/oauth.ts",
+        "packages/identity/src/teams/invitations.ts",
+        "packages/identity/src/teams/membership.ts",
+        "packages/identity/src/teams/roles.ts",
+        "packages/contracts/src/identity.ts",
+        "packages/state/src/ports/identity.ts"
+      ]
+    },
+    "TECH-I02": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/identity/src/authentication/oauth.ts",
+        "packages/identity/src/sessions/presession.ts",
+        "packages/identity/src/authentication/revocation.ts",
+        "packages/interfaces/src/oauth/routes.ts",
+        "packages/interfaces/src/http/auth.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/cloudflare/src/runtime/grant-route.ts",
+        "packages/cloudflare/src/worker/main.ts"
+      ]
+    },
+    "TECH-F01": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/files/src/ports.ts",
+        "packages/files/src/upload/index.ts",
+        "packages/files/src/upload/fs-blob-store.ts",
+        "packages/files/src/finalize/index.ts",
+        "packages/files/src/provenance/index.ts",
+        "packages/files/src/bridge.ts",
+        "packages/interfaces/src/uploads/routes.ts"
+      ]
+    },
+    "TECH-F02": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/files/src/upload/index.ts",
+        "packages/files/src/finalize/index.ts",
+        "packages/files/src/retention/index.ts",
+        "packages/files/src/provenance/index.ts",
+        "packages/interfaces/src/uploads/kernel.ts",
+        "packages/interfaces/src/uploads/routes.ts",
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/interfaces/src/ingress/routes.ts",
+        "packages/interfaces/src/ingress/mapping.ts"
+      ]
+    },
+    "TECH-SV01": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/services/src/judgments/systemone.ts",
+        "packages/services/src/media/comfyui.ts"
+      ]
+    },
+    "TECH-SV02": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/services/src/mail/redact.ts",
+        "packages/services/src/mail/adapter.ts",
+        "packages/services/src/models/ollama.ts",
+        "packages/services/src/media/comfyui.ts",
+        "packages/services/src/http/client.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/work/src/receipt/index.ts"
+      ]
+    },
+    "TECH-SV03": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/services/src/media/mapping.ts",
+        "packages/services/src/media/comfyui.ts",
+        "packages/files/src/bridge.ts"
+      ]
+    },
+    "TECH-SV04": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/services/src/scenarios.ts",
+        "packages/testkit/src/fixtures/playback.ts",
+        "packages/services/src/judgments/harness.ts",
+        "packages/services/src/media/harness.ts",
+        "packages/services/src/models/harness.ts",
+        "packages/services/src/ports.ts",
+        "packages/services/src/internal/scenario-admission.ts",
+        "packages/services/src/internal/controlled-http.ts"
+      ]
+    },
+    "DEL-D01": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/cloudflare/src/preparation/build-adapter.ts",
+        "packages/cloudflare/src/preparation/host.ts",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "scripts/build-package.mjs"
+      ]
+    },
+    "DEL-D02": {
+      "planning_status": "ready",
+      "state": "accepted narrow reduction; committed",
+      "files": [
+        "packages/cloudflare/src/worker/main.ts"
+      ],
+      "commit": "a7faf70",
+      "review": "keyed-promise-independent-review.json"
+    },
+    "DEL-C01": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/interfaces/src/http/csv.ts",
+        "packages/ui/src/csv/parse.ts",
+        "packages/ui/src/csv/grammar.ts"
+      ]
+    },
+    "DEL-C02": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/interfaces/src/http/csv.ts",
+        "packages/ui/src/csv/confirm.ts",
+        "packages/ui/src/csv/preview.ts"
+      ]
+    },
+    "DEL-C02-order": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/interfaces/src/http/csv.ts"
+      ]
+    },
+    "DEL-B01": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/ui/src/browser/polling.ts",
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/src/client.ts",
+        "packages/ui/src/htmx.ts",
+        "packages/ui/scripts/build-browser.mjs"
+      ]
+    },
+    "DEL-B02": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/ui/src/client.ts",
+        "packages/ui/src/browser/export.ts",
+        "packages/ui/src/browser/print.ts",
+        "packages/ui/src/browser/instrumentation.ts",
+        "packages/ui/src/csv/preview.ts",
+        "packages/interfaces/src/http/limits.ts",
+        "packages/interfaces/src/http/assets.ts",
+        "packages/interfaces/src/http/export.ts",
+        "packages/interfaces/src/http/print.ts",
+        "packages/interfaces/src/http/pages.ts"
+      ]
+    },
+    "DEL-D03": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/preparation/build-adapter.ts",
+        "packages/cloudflare/src/preparation/host.ts",
+        "packages/cloudflare/src/cli/platform.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/cloudflare/src/dev/row-scope.ts",
+        "packages/cloudflare/src/upgrade/apply.ts"
+      ]
+    },
+    "DEL-D04": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/deploy/module-imports.ts",
+        "packages/cloudflare/src/deploy/module-maps.ts",
+        "packages/cloudflare/src/runtime/modules.ts",
+        "packages/cloudflare/src/runtime/sourcemap.ts",
+        "packages/cloudflare/src/dev/local-run.ts"
+      ]
+    },
+    "DEL-D05": {
+      "planning_status": "deferred",
+      "state": "held",
+      "files": [
+        "packages/cloudflare/src/preparation/inputs.ts",
+        "packages/cloudflare/src/preparation/protocol.ts",
+        "packages/cloudflare/src/preparation/executable.ts",
+        "packages/cloudflare/src/preparation/host.ts",
+        "packages/cloudflare/src/preparation/publication.ts",
+        "packages/cloudflare/preparation/src/input.rs",
+        "packages/cloudflare/preparation/src/protocol.rs",
+        "packages/cloudflare/preparation/src/job.rs",
+        "packages/cloudflare/preparation/src/main.rs"
+      ]
+    },
+    "DEL-R01": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/cloudflare/package.json",
+        "packages/cloudflare/src/cli/platform.ts",
+        "packages/cloudflare/src/deploy/package-assets.ts",
+        "packages/cloudflare/src/deploy/producer-files.ts",
+        "packages/cloudflare/src/release/manifest.ts",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/interfaces/package.json",
+        "packages/identity/package.json",
+        "packages/ui/package.json",
+        "packages/values/package.json",
+        "packages/work-kernel/package.json",
+        "package.json",
+        "bun.lock"
+      ]
+    },
+    "DEL-E02": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/testkit/src/runner/table.ts",
+        "packages/testkit/src/assertions/equal.ts",
+        "packages/testkit/src/runner/loader.ts",
+        "packages/testkit/src/fixtures/recipes.ts",
+        "packages/cloudflare/src/dev/row-scope.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/values/scripts/stage-semantics.mjs"
+      ]
+    },
+    "REPLAY-IP07": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/src/http/csv.ts",
+        "packages/interfaces/src/envelope/validate.ts"
+      ]
+    },
+    "PARSER-DP01": {
+      "planning_status": "ready",
+      "state": "finite Sol low assignment submitted; exact ACK pending",
+      "files": [
+        "packages/interfaces/src/http/limits.ts",
+        "packages/interfaces/src/http/operations.ts",
+        "packages/contracts/src/wire.ts"
+      ],
+      "agent": "/root/impl_form_own_keys"
+    },
+    "VERIFY-TV01": {
+      "planning_status": "ready",
+      "state": "finite Luna medium extraction submitted; technical adjudication retained by root/reviewer",
+      "files": [
+        "packages/identity/package.json",
+        "packages/values/package.json",
+        "packages/work-kernel/package.json"
+      ],
+      "agent": "/root/impl_values_gregorian"
+    },
+    "TECH-V02-violations": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/values/src/internal/schema-core.ts",
+        "packages/values/src/internal/wire-core.ts",
+        "packages/values/src/internal/violations.ts"
+      ]
+    },
+    "TECH-V02-gregorian": {
+      "planning_status": "ready",
+      "state": "independently accepted calendar extraction; committing",
+      "files": [
+        "packages/values/src/kinds.ts",
+        "packages/values/src/temporal.ts",
+        "packages/values/src/internal/gregorian.ts"
+      ],
+      "agent": "/root/review_ui_appearance",
+      "review": "gregorian-independent-review.json"
+    },
+    "TECH-S04-admission": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/replay.ts",
+        "packages/work/src/kernel/commands.ts"
+      ]
+    },
+    "TECH-S04-query": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/state/src/query/engine.ts",
+        "packages/state/src/storage/d1.ts",
+        "packages/state/src/storage/durable-object.ts",
+        "packages/work/src/kernel/commands.ts"
+      ]
+    },
+    "TECH-S04-cohort": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": [
+        "packages/state/src/fanout/membership.ts",
+        "packages/state/src/fanout/progress.ts",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ]
+    },
+    "DEL-U01-appearance": {
+      "planning_status": "ready",
+      "state": "accepted narrow extraction; committed 890fc3b",
+      "files": [
+        "packages/ui/src/collections.ts",
+        "packages/ui/src/controls.ts",
+        "packages/ui/src/groups.ts",
+        "packages/ui/src/leaves.ts",
+        "packages/ui/src/media.ts",
+        "packages/ui/src/navigation.ts",
+        "packages/ui/src/overlays.ts",
+        "packages/ui/src/panels.ts",
+        "packages/ui/src/review.ts",
+        "packages/ui/src/settings.ts",
+        "packages/ui/src/internal/appearance-props.ts"
+      ],
+      "agent": "/root/impl_ui_appearance",
+      "review": "ui-appearance-independent-review.json",
+      "commit": "890fc3b"
+    },
+    "DEL-U01-draft": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/ui/src/controls.ts",
+        "packages/ui/src/forms.ts",
+        "packages/ui/src/internal/draft-values.ts"
+      ]
+    },
+    "DEL-A01-error": {
+      "planning_status": "ready",
+      "state": "released candidate; independent Sol medium review queued after Work quote",
+      "files": [
+        "packages/ui/src/browser/export.ts",
+        "packages/ui/src/csv/parse.ts",
+        "packages/ui/src/internal/business-errors.ts"
+      ],
+      "agent": "/root/review_ui_appearance"
+    },
+    "DEL-A01-binding": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/interfaces/src/envelope/prepared.ts",
+        "packages/interfaces/src/mcp/prepared.ts"
+      ]
+    },
+    "DEL-A01-admission": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/interfaces/src/http/csv.ts",
+        "packages/interfaces/src/http/export.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/interfaces/src/uploads/routes.ts"
+      ]
+    },
+    "DEL-A01-canonical": {
+      "planning_status": "ready",
+      "state": "ready for finite assignment",
+      "files": [
+        "packages/interfaces/src/http/csv.ts",
+        "packages/interfaces/src/http/export.ts",
+        "packages/interfaces/src/http/canonical-json.ts"
+      ]
+    },
+    "FINAL-R03": {
+      "planning_status": "blocked",
+      "state": "blocked on packet prerequisites",
+      "files": []
+    }
+  },
+  "state_authority": "packet_state is current one-per-packet disposition; dispatched/next_active_packets preserve earlier submissions, not proof of current activity.",
+  "pending_cleanup": {
+    "owner": "root",
+    "roots": [
+      "/private/tmp/canlang-repair-go-20261007"
+    ],
+    "state": "active readers/commands and private evidence; no cleanup while actual readers remain"
+  }
 }

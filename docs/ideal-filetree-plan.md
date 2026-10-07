@@ -148,3 +148,5 @@ Work numeric text retains its package-local owner while caller imports replace s
 Ten UI renderers now consume the single internal appearance-props picker; render/composition/error ownership stays local and public declarations stay equal. The private owner removes duplicate mechanics with source-current selected caller qualification; broader browser workflow and accumulated-source review remain open.
 
 The worker environment-cache primitive remains inline in main.ts to preserve the enforced no-static-runtime-import boundary. Two defining caches/accessors remain separate, with exact Promise/throw/retry lifetime proof; a proposed private file was not required. Complete checkpoint unchanged.
+
+Values internal/gregorian.ts now owns the unchanged pure leap/month rules for kinds and temporal without introducing a cycle or changing public declarations. Calendar qualification is source-current and narrow; original temporal host and backend joins remain open. Complete checkpoint unchanged.
