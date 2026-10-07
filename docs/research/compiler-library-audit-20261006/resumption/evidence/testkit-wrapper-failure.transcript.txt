@@ -1,0 +1,51 @@
+Tool-stream transcription (not separately redirected stdout/stderr).
+Command: bun run typecheck
+Cwd: /Users/vince/Projects/canlang/packages/testkit
+Exit: 1
+The initial exec returned session 95524; the continuation returned the failure.
+
+Prepared/cleaned producer outputs (and top-level tsbuildinfo), from observed scheduler lines:
+@canlang/values, @canlang/cloudflare, @canlang/work, @canlang/services,
+@canlang/stdlib, @canlang/ui, @canlang/files, @canlang/contracts,
+@canlang/testkit, @canlang/identity, @canlang/state, @canlang/interfaces.
+Values catalog.json and Cloudflare preparation executables/manifest are separately owned and preserved by build-package.mjs.
+
+Observed failure lines (copied from complete continuation tool output):
+@canlang/identity:build: src/sessions/cookies.ts(9,49): error TS2307: Cannot find module 'cookie' or its corresponding type declarations.
+@canlang/identity:build: src/sessions/cookies.ts(51,52): error TS7006: Parameter 'value' implicitly has an 'any' type.
+@canlang/identity:build: src/sessions/cookies.ts(54,36): error TS2339: Property 'trim' does not exist on type '{}'.
+@canlang/identity:build: src/sessions/cookies.ts(88,19): error TS7006: Parameter 'value' implicitly has an 'any' type.
+@canlang/identity:build: src/sessions/tokens.ts(10,37): error TS2307: Cannot find module '@scure/base' or its corresponding type declarations.
+@canlang/identity:build: error: script "build:emit" exited with code 1
+@canlang/identity:build: node:internal/errors:999
+@canlang/identity:build:   const err = new Error(message);
+@canlang/identity:build:               ^
+@canlang/identity:build:
+@canlang/identity:build: Error: Command failed: bun run build:emit
+@canlang/identity:build:     at genericNodeError (node:internal/errors:544:15)
+@canlang/identity:build:     at wrappedFn (node:internal/errors:999:14)
+@canlang/identity:build:     at checkExecSyncError (node:child_process:943:11)
+@canlang/identity:build:     at execFileSync (node:child_process:979:15)
+@canlang/identity:build:     at file:///Users/vince/Projects/canlang/scripts/build-package.mjs:45:3
+@canlang/identity:build:     at ModuleJob.run (node:internal/modules/esm/module_job:569:25)
+@canlang/identity:build:     at async node:internal/modules/esm/loader:650:26
+@canlang/identity:build:     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:105:5) {
+@canlang/identity:build:   status: 1,
+@canlang/identity:build:   signal: null,
+@canlang/identity:build:   output: [ null, null, null ],
+@canlang/identity:build:   pid: 74413,
+@canlang/identity:build:   stdout: null,
+@canlang/identity:build:   stderr: null
+@canlang/identity:build: }
+@canlang/identity:build:
+@canlang/identity:build: Node.js v26.10.0
+@canlang/identity:build: error: script "build" exited with code 1
+@canlang/identity#build:  ERROR  command (/Users/vince/Projects/canlang/packages/identity) /Users/vince/.bun/bin/bun run build exited (1)
+ Tasks:    13 successful, 18 total
+Cached:    0 cached, 18 total
+  Time:    2.108s
+Failed:    @canlang/identity#build
+ ERROR  run failed: command  exited (1)
+error: script "typecheck" exited with code 1
+
+This is a retained excerpt/transcription, not a new replay or a byte-hashed raw file capture of the original wrapper. Full tool output is retained in the task history. Later producer recovery stdout/stderr are directly redirected to can-resume-build-*.stdout/stderr. Exact frozen-lock install is root-owned and separately captured. No producer build that emitted while returning errors is qualified as a successful build.

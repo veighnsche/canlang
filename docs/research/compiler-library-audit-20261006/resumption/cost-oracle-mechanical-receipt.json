@@ -1,0 +1,65 @@
+{
+  "commands": [
+    {
+      "argv": [
+        "cargo",
+        "tree",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--edges",
+        "features"
+      ],
+      "exit": 0,
+      "stdout_sha256": "f219a92d6ea89aa8b32b6c2867546058fc444724cf54441047162d7d3da02b8e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "cargo",
+        "metadata",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--locked",
+        "--offline",
+        "--format-version",
+        "1",
+        "--filter-platform",
+        "aarch64-apple-darwin"
+      ],
+      "exit": 0,
+      "stdout_sha256": "51e9508feeaf2687f95fed2f8bb7be3a8c4b0a86211ae04efddf35304d3dc0fc",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "pins": {
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64"
+  },
+  "source_observation_pins": {
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/src/ide/queries.rs": "070e6a13702a5da87bd1da5b1ec92ee27361d682cf31849c37502076556215d8",
+    "compiler/src/lint/driver.rs": "c16c9473a594066de41ebf88e1409584bd8fbb9375a94f110a964a19307a17dc",
+    "compiler/src/docs.rs": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+    "compiler/src/codegen/ir.rs": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005",
+    "compiler/src/json.rs": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+    "compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+    "compiler/src/lsp/server.rs": "74dce1e5fd588099749693e1ca8c62d053c9a67432cb9486b0d9f241bee9d176",
+    "compiler/tests/json_input_contract.rs": "71453aa8f6fde527103c6aa2ab79b99e0c119283322cbd508d8e00e5f081dd83",
+    "compiler/tests/codegen.rs": "ff7ecd4aab382ae9978c00d1b6a63d25242a80989d56df3ed3e15d92a4ab470d",
+    "compiler/tests/typed_artifact.rs": "b7fc0141b45bbe6793dddd12caa58a216e5d12c2dbd1eb063575256fb66aa649",
+    "compiler/tests/typed_bdd.rs": "acef30f79b76fb64a1c97afc2c835aff373fc8db48dce1e35a749739eeec7380",
+    "compiler/tests/sourcemap_contract.rs": "d6b245794c1aa323ba9eaa14804d734da1eaaf7c30e0a22e4ffaa39ed0c4bece",
+    "compiler/tests/string_payload_runtime.rs": "e19503a4192fcfecce15d656df6a73f9826f239d18c674bca611b2b98be54133",
+    "compiler/tests/value_admission.rs": "803d85c823a132d7ae44457bd9cf259df41bfa15493c057d88018b92a805ccf9",
+    "compiler/tests/catalog_producer_runtime.rs": "9b6a236c3f4e0b2603923c46ca2caf9b34c6e0fadf2f5c7893ab03f9d4c03e54",
+    "compiler/tests/typed_reference_policy_consumers.rs": "3fe72c51b2d7a8b09638798b8c9b81b87ccbe1c851d2a20f808ff0c4c408f8a4",
+    "compiler/tests/typed_artifact_consumer.rs": "0fd919e9375db037fc07928d34d903d8c0e92f021e91d2d96dd0ec5d293e4929",
+    "compiler/tests/lsp_typed_output.rs": "c63b83e4e21d3a26d5de91973b1bced654283587765ca5ed3cdfaea7b6e6fb98",
+    "compiler/tests/completion_contract.rs": "0959fb8c1eaf93441c83dc651abc1d66fbb57a3c6f09d72cc2dd551517bac4ad",
+    "compiler/tests/file_ownership.rs": "809b5e18239440cd12870bbede492947bb0bec96a15619c52c1b83a1a63fc5a7",
+    "editors/vscode/test/client-currentness.cjs": "10349e00704b3137b5d63fda2f6bae697efe830cde8f7b36a3d2b28b329efa13"
+  },
+  "scope": "Dependency commands and selected static source observation only; other production writers active, no whole compiler release source freeze or before/after runtime pin guarantee."
+}

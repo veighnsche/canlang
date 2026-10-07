@@ -10,9 +10,27 @@
     "raw_streams": 174,
     "flat_sources": 6,
     "catalog_mutations": 9,
-    "local_links": 58
+    "local_links": 61
   },
   "historical_pins_with_live_drift": [
+    {
+      "path": "compiler/README.md",
+      "audit_sha256": "936a11512bd39e4b0a8cee9ddc467658d4741a1f112cd23f46288e295b170a8c",
+      "current_sha256": "4bfd5e4764ba0f1e25093f3f8c66015a310e78765c2950fa3aec04e01ba52624",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "audit_sha256": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f",
+      "current_sha256": "2304ab658e1299dfc626035a683db395876ca2c0203f15ed67d786670d361dcc",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "audit_sha256": "11a20d031e8c038ee9ba70fb5a55c6d5d6eafe508910e76f9bc9bdeae712c63d",
+      "current_sha256": "399937a74f54eea115b3e7fba93c02c9befbf6e96db50be7761870489d84547d",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
     {
       "path": "compiler/src/analysis/types.rs",
       "audit_sha256": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa",
@@ -20,15 +38,21 @@
       "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
     },
     {
+      "path": "compiler/src/cli.rs",
+      "audit_sha256": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679",
+      "current_sha256": "694324ec94440f9d2d4938b940e35e4a37b36818e0c1f15648ee39a2f18e5380",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
       "path": "compiler/src/codegen/bdd.rs",
       "audit_sha256": "35f1f801d858e822e60c37351264c7b4a9d0155253b5d0140a00ec8f9e26d3db",
-      "current_sha256": "651a54f2ca60cf729e2fe0a14a423692e0b2f4994cb854f8131f7bcdd8ac0397",
+      "current_sha256": "13f465b553276046198bda84db340dc1bfbfeef4327ae273698cc200093f68a4",
       "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
     },
     {
       "path": "compiler/src/codegen/js.rs",
       "audit_sha256": "1f1ef2bec0a008566ed800d746fc65feb90b9cc4683e9803940f83dac4b1eab8",
-      "current_sha256": "442942db03746b6b09fe93dbc1eeb68ea07c1e132f6eadb7632f70f245d50547",
+      "current_sha256": "dbd68e5fa390c754d314ffac20e0c63a5f4f9f349a80f2b5841f1935578c2f0f",
       "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
     },
     {
@@ -44,6 +68,12 @@
       "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
     },
     {
+      "path": "compiler/src/ide/queries.rs",
+      "audit_sha256": "070e6a13702a5da87bd1da5b1ec92ee27361d682cf31849c37502076556215d8",
+      "current_sha256": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
       "path": "compiler/src/lsp/output.rs",
       "audit_sha256": "8b9a350c847dcc326007ca08108fc8a986cb5f0089b2438a22a8b04f33ee0a0b",
       "current_sha256": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c",
@@ -56,9 +86,39 @@
       "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
     },
     {
+      "path": "compiler/tests/b1_join.rs",
+      "audit_sha256": "eb58b469184cdbe56d157193baa0980089179ea8d29609219661a536ef8f5dcc",
+      "current_sha256": "18dc3fc06acaa79f11a697a93dfb5f1e75742f21b3653474f08405dbc926dcc5",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/tests/b3_i5.rs",
+      "audit_sha256": "a7a3d85a27902e436435283fbccb6fd0b5555ae67643000ed3c56af6f4137750",
+      "current_sha256": "a9282eab1697a7f788f41150d875119f550f55260ca863fb2287480d57d5b1ee",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
       "path": "compiler/tests/b4_check.rs",
       "audit_sha256": "0d4122ca2f1222f5891289b6b516cf8357c44bdca731a19b5cdca5d38d70403e",
       "current_sha256": "ca50a18147ef4d621ac07ce18120db4b337889b6de19c9a782904c60f4d9b4bf",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/tests/codegen.rs",
+      "audit_sha256": "ff7ecd4aab382ae9978c00d1b6a63d25242a80989d56df3ed3e15d92a4ab470d",
+      "current_sha256": "dbe8f5e12c21d4d275e7fb0f5615db6acbd96675cc72f396465a746684e7b107",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/tests/effects.rs",
+      "audit_sha256": "017ffa89d034d034b74cf03facafc7a912f82e235d436cbfcffffb0117ad60d8",
+      "current_sha256": "5d87ccedb9fdc48b1ab1b1dcd4b27fda4473ac6ed5fa2f7731b89145cd468890",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/tests/fixtures/sourcemap-consumer.mjs",
+      "audit_sha256": "3b16e56520173a45ca44e98858009714e2308b7281353a3d6ddeb67f805f0b32",
+      "current_sha256": "bdbb513c0065187da8d67eb48519704062f26c3d06a9499175538b710d43c797",
       "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
     },
     {
@@ -70,29 +130,41 @@
     {
       "path": "compiler/tests/ide.rs",
       "audit_sha256": "b1279200fae3b6fa750561b4dcc9eb391b0010c3fc5b89555d92d319f2a9b932",
-      "current_sha256": "a99985fd69b852f7e126d76cbefe6cb616725cf4aaf4bce8609f023747997afb",
+      "current_sha256": "7dc8eb5db8fdff6930a6a68f335b03c297cfbc7470930e78c877bb32cc6c6336",
       "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
     },
     {
       "path": "compiler/tests/lsp_typed_output.rs",
       "audit_sha256": "90e1f426e136fac00e8acda84be017a94e9541f6caed8eabbb83e484da7b2116",
-      "current_sha256": "c63b83e4e21d3a26d5de91973b1bced654283587765ca5ed3cdfaea7b6e6fb98",
+      "current_sha256": "2ade57e0df122a34e3f1dff4c341bbe708e1462f73136304ccd0afeb8bbedb90",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "compiler/tests/typed_bdd.rs",
+      "audit_sha256": "acef30f79b76fb64a1c97afc2c835aff373fc8db48dce1e35a749739eeec7380",
+      "current_sha256": "cdebbc7f9dc35d526a733438bcd5ae54a6cf85a76ec80a2189f235817cb74935",
+      "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/compiler-correctness-simplicity-audit.md",
+      "audit_sha256": "36b372a0c1687fca8e3d15494428b7ddd43760ee9cc1aff2b8c7f3c922f69677",
+      "current_sha256": "56b66141cb8e1a7a12efa19542f0e3ef14485e45dee29b8a5f1356fb8addd68e",
       "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
     },
     {
       "path": "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
       "audit_sha256": "57bde089b75c1d1640e04856867d2fe3564f500cdcc6c8d7ad15c12b6436a11f",
-      "current_sha256": "17979e58b31907ee45bb8f02688fb05c2a774646a28f326717171c28ebcb7d8f",
+      "current_sha256": "8f00f254f1a0088769b1bcc9f5e655ded7a0a6098800e0b6eca7cf0b86228faa",
       "scope": "Audit source snapshot only; concurrent repair/bookkeeping is outside retained execution"
     }
   ],
-  "ledger_records": 591,
+  "ledger_records": 667,
   "duties": 44,
   "packets": 7,
   "observed_stack_aborts": 5,
   "file_harness_passes": 17,
   "reported_ownership_body_skips": 1,
-  "ledger_sha256": "17979e58b31907ee45bb8f02688fb05c2a774646a28f326717171c28ebcb7d8f",
+  "ledger_sha256": "8f00f254f1a0088769b1bcc9f5e655ded7a0a6098800e0b6eca7cf0b86228faa",
   "errors": [],
   "limits": [
     "native debug retained receipts only",

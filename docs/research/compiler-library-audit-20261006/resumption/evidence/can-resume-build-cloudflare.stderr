@@ -1,0 +1,1 @@
+$ tsc -p tsconfig.json && chmod +x dist/cli/platform.js

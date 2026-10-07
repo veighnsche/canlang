@@ -1,0 +1,118 @@
+# Editor final receipt — retained session transcript
+
+This is a verbatim export of four completed CommandExecution records from the actual retained Codex session. It is not newly executed qualification and was not separately redirected native raw output at execution time.
+Source session: /Users/vince/.codex/sessions/2026/10/07/rollout-2026-10-07T18-06-02-01a1171d-5c6f-78e2-aa45-f5ba16016964.jsonl
+Only the commands, original stdout/stderr, timestamp, exit status and command metadata below are exported. No current-source/binary hash is substituted for a contemporaneous pin. GUI application remains unqualified.
+
+## strict-typescript
+UTC timestamp: 2026-10-07T16:37:37.978Z
+Source session line: 667
+Execution ID: exec-25fc658d-190d-470f-b09c-147457104f0b
+CWD: file:///Users/vince/Projects/canlang
+Command: node node_modules/.bun/typescript@5.9.3/node_modules/typescript/lib/tsc.js --strict --target es2022 --module commonjs --lib es2022 --typeRoots ./editors/vscode/.empty-typeroot --outDir editors/vscode/out --rootDir editors/vscode/src editors/vscode/src/extension.ts editors/vscode/src/client.ts
+Status: completed; exit_code: 0
+
+--- verbatim retained stdout ---
+
+--- verbatim retained stderr ---
+
+--- end retained streams ---
+
+## protocol-39
+UTC timestamp: 2026-10-07T16:39:44.290Z
+Source session line: 768
+Execution ID: exec-4de16b98-2286-4134-a001-d91557deac3a
+CWD: file:///Users/vince/Projects/canlang
+Command: node editors/vscode/test/lsp-capabilities.cjs
+Status: completed; exit_code: 0
+
+--- verbatim retained stdout ---
+binary: /Users/vince/Projects/canlang/compiler/target/debug/can
+PASS initialize/hoverProvider
+PASS initialize/completionProvider
+PASS initialize/definitionProvider
+PASS initialize/referencesProvider
+PASS initialize/renameProvider
+PASS initialize/semanticTokensProvider.full
+PASS initialize/codeActionProvider
+PASS initialize/positionEncoding
+PASS initialize/legend.tokenTypes
+PASS initialize/legend.tokenModifiers
+PASS hover/Todo-decl
+PASS hover/param-use
+PASS hover/keyword-empty
+PASS completion/has-task
+PASS completion/has-label
+PASS completion/has-Todo
+PASS completion/has-complete
+PASS completion/has-and
+PASS completion/has-or
+PASS completion/kind-Todo-Class
+PASS completion/kind-task-Variable
+PASS completion/kind-and-Keyword
+PASS completion/sorted
+PASS completion/type-position
+PASS definition/task-use
+PASS definition/keyword-empty
+PASS references/task
+PASS rename/task
+PASS rename/invalid-name-empty
+PASS semanticTokens/quintuples
+PASS semanticTokens/Todo-decl
+PASS semanticTokens/field-decl
+PASS semanticTokens/param-use
+PASS semanticTokens/keyword
+PASS codeAction/nonempty
+PASS codeAction/title
+PASS codeAction/kind
+PASS codeAction/rewrite
+PASS codeAction/clean-range-empty
+ALL LSP CAPABILITY CHECKS PASSED
+
+--- verbatim retained stderr ---
+
+--- end retained streams ---
+
+## startup-11
+UTC timestamp: 2026-10-07T16:39:44.324Z
+Source session line: 769
+Execution ID: exec-e42ee8f8-ba1e-4a9f-9a71-bbf337dd1635
+CWD: file:///Users/vince/Projects/canlang
+Command: node editors/vscode/test/server-startup.cjs
+Status: completed; exit_code: 0
+
+--- verbatim retained stdout ---
+PASS current Can document folder
+PASS first local folder when editor is not Can
+PASS unowned Can document
+PASS remote owner falls back to local workspace
+PASS no workspace preserves process cwd
+PASS remote-only workspace preserves process cwd
+PASS activation registers document/config listeners and quick fixes
+PASS strict public API mock rejects the previous activation typo
+PASS change notifications and published diagnostic clearing
+PASS reopen uses the newly opened Can document
+PASS existing three-argument callers preserve process cwd
+
+--- verbatim retained stderr ---
+
+--- end retained streams ---
+
+## currentness-5
+UTC timestamp: 2026-10-07T16:39:49.578Z
+Source session line: 777
+Execution ID: exec-fc07c341-d00c-4487-ab46-5cdb2b95b4d9
+CWD: file:///Users/vince/Projects/canlang
+Command: node editors/vscode/test/client-currentness.cjs
+Status: completed; exit_code: 0
+
+--- verbatim retained stdout ---
+PASS real client current/stale/closed/reopen diagnostics and repair clears
+PASS all seven actual providers suppress pre-cancelled calls
+PASS actual type, variable and keyword completion host identities
+PASS all seven providers suppress stale revisions and settle live cancellation
+PASS host stand-in applies current wire-version rename/action edits with Unicode/CRLF ranges
+
+--- verbatim retained stderr ---
+
+--- end retained streams ---

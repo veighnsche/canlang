@@ -1,0 +1,4 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
+     Running tests/bdd_binding_runtime.rs (compiler/target/debug/deps/bdd_binding_runtime-7f66ea5153eb937e)
+BDD bindings: reserved/context recipes, Unicode payloads, suite paths and progressive sequence property/Map reads executed

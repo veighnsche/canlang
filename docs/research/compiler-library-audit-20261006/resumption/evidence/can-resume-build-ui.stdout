@@ -1,0 +1,1 @@
+build-browser: installed bootstrap.js, polling.js, can-style.css + manifest.json (daisyui 5.7.47, catalog 0.1.0-lane05-draft, binders guarded-form,once-action,poll-region)

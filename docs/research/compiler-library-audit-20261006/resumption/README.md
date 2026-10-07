@@ -1,0 +1,55 @@
+# Resumed compiler audit and bounded repair qualification
+
+The interrupted work is recovered. The remaining finite audit reviews are complete, the released existing-contract repairs are committed, and final compiler/consumer checks pass. This closes the resumed audit and its released packets. It does not certify every semantic branch or the original application, and it does not achieve the programme's aggregate production-reduction goal.
+
+The [release receipt](release-receipt.json) pins the production checkpoint `7f4b26cfc6a4d8c77a012387eebf1c373d90be75`, source inputs and retained streams. The original compiler tree was `db66f796be4a6e1b7c9c51ab21ef78f7d7e87810` (last source change `4ecd991a80ca025b6d5899ffdcea96075c60c25e`). Historical coverage ranges and receipts retain that source; they are not silently recredited to the repairs. The same [coverage ledger](../responsibility-map/coverage.jsonl) remains authoritative. This task performed no merge and does not advance the [living file-tree plan](../../../ideal-filetree-plan.md) checkpoint.
+
+## Audit scope and independent challenge
+
+- Steps 1–8 and 10–11 retain their earlier bounded source/consumer evidence. [Step 12](../responsibility-map/failure.md) recovers 44 duties, seven classified packets, 87 captured build/resource/file commands and 174 hash-checked raw streams. Host/profile failures and skipped bodies remain explicit.
+- [Step 9](lowering-and-execution.md) maps 11 finite checked-fact/lowering/consumer duties, every current expression/statement variant and the UI owner families. Eight follow-ups preserve public cohort, selected-call, evaluation-order, UI/value, BDD and actual application gates. Mapping a variant does not execute all its combinations.
+- [Steps 13–14](audit-costs-and-oracles.md) review independent expectations, actual consumers, constructed/test-only carriers, mocks, early returns and unexecuted profiles. All seven direct dependencies remain used. Native feature/license/MSRV declarations, historical costs and the matched repaired-source workload have distinct scopes; no upgrade, cache or new public API is selected.
+- [Step 15 independent priorities](independent-priorities.md) accounts for 30 historical finding records and ten integration candidates. The [scope review](independent-scope-review.md) joins 19 later failure/oracle/dependency/cost/architecture records without double counting findings. OR-03 and the BDD runtime defects have their own owning witnesses. [Binding review](binding-review.md) reproduced a new hook-scope regression before the repair; [rename review](rename-review.md) retains invalid observer attempts separately from clean acceptance; [BDD review](bdd-sequence-review.md) corrected a vacuous/correlated expectation before acceptance.
+- [Final independent acceptance](final-independent-review.md) replays the input/stream hashes, finding joins, test-body counts, cost observations and debug/release distinction after the status corrections. It accepts this bounded scope.
+- Step 16 implements only the released closures in small checked commits, retires predecessors and records accepted versus proposed choices in [DECISIONS](../../../specification/DECISIONS.md). No broad framework, support policy, public API retirement or deployment is selected.
+
+## Released outcomes
+
+| Packet | Result and permanent witness |
+| --- | --- |
+| SYN-R02 + SEM-R01 | Unrelated malformed siblings preserve valid owning source metadata; nullable-array peer order preserves rejection and ordinary controls. The targeted b4 suite had 281 passes. |
+| SYN-R01 + SEM-R02 | Effects retain intact sibling diagnostics/policy tables; recurring scope follows bound derive/query dependencies with a visited closure. The effects suite had 46 passes. |
+| OUT-R02 | One total diagnostic comparator covers every serialized field, preserving authored related/tag order. Exact rotations, reversal, text/JSON and idempotence controls pass. |
+| OUT-R01 | Injective scoped bindings, canonical callable registry, disjoint imports, case-distinct module paths and authored property identities. Two runtime bodies execute actual CLI/Cloudflare consumers; constructed IR remains separately labelled. |
+| ED-R04/08 + ED-R05 | Close clears/cancels; queued work retains immutable source/version identity; shutdown gates publication. References honor declaration exclusion and edits honor negotiated carriers. Unit and actual framed-process controls pass. |
+| OR-03 | Statement-time mutation-head facts join declaration/read/set/delete rename without later-shadow or selector corruption. 35 IDE and eight typed-process tests include clean Unicode/CRLF apply/recheck. |
+| ED-R01/02/03 | One live revision owner rejects delayed, closed and reopened results; all seven providers obey cancellation; target versions and host enum identity survive conversion. Strict TypeScript, 11 startup checks, 39 protocol checks and five host-stand-in groups pass. |
+| BDD quote simplification | One byte-compatible string adapter replaces the duplicate helper. Two typed and six actual CLI/testkit Unicode/control witnesses pass. |
+| OR-BDD-ID + OR-BDD-SEQUENCE | Shared identities preserve legal fixture names, dependencies and three independent suite owners. One existing scope facade replaces the raw Map handoff at all five sequence closure positions. A production CLI/actual testkit body executes fixture and causal-binding outcomes. |
+| FAIL-R02 | Executable E7005/exit 2 wording now covers unwinds precisely; abort/public-library limits are explicit. This is a documentation correction. |
+
+These targeted counts qualify their stated checkpoints and are not additive. The final full run reports **1,070 passed, zero failed or ignored, across 52 result blocks**. One mode-4750 body explicitly skips because this host strips fixture bits. Formatting and Clippy with warnings denied pass. Exact locked dependencies were restored without manifest/lock changes after the testkit wrapper cleaned outputs and failed; successful supported producer builds, testkit typechecking, its 36 tests and actual consumer replays follow that restoration. Failed/partial builds are retained and excluded.
+
+[Final body accounting](final-test-accounting.md) separates actual executed recipes from harness names, optional prerequisites, constructed carriers and host seams. A later test-only strengthening of the BDD expectation was independently replayed; it does not manufacture a new full-suite count. Actual GUI apply, installed/original application, full worker/disposal, browser coordinates and other-host profiles remain open.
+
+## Mechanisms and production counts
+
+Retired mechanisms include the duplicate BDD escaper and sanitizer, three duplicate diagnostic sorts, lossy JS sanitization/export retry/path lowercasing/local CRUD-name reconstruction, URI/version-only queued work and unchecked editor conversions. Required scopes, negotiated carriers, revision admission and recovery/dependency checks add code.
+
+The [published physical counter](production-counts.json) excludes exact inline test items and counts comments/blank lines. Compiler production is **69,255 → 69,416 (+161)** in this resumption, or **+297** against the original programme's 69,119. Complete changed compiler closures are metadata/type +1, effects +43, diagnostics −15, quote −5, LSP +82, mutation queries +19, JS identity +45 and BDD identity −9. Editor TypeScript adds 111 lines; testkit sequence source adds three. Bounded complete-closure simplifications remove **26 lines**: quote five, comparator 15 and BDD/testkit six. Necessary correctness growth is counted honestly; these removals do not satisfy aggregate reduction.
+
+The [matched native release profile](profile/results.json) uses the same lock/toolchain, stripped `z`/LTO profile and absent Git metadata on both copies. Binary size is **2,250,480 → 2,250,512 bytes (+32)**. Three warmups and 20 alternating samples per side yield fixed-workload CLI medians 6.1601455/6.0996455 ms and persistent compiler LSP edit-plus-seven-query medians 1.2834375/1.3438335 ms. Metadata projections match except explicitly changed implementation identities; same-side artifacts are deterministic. Exact reference/rename expectations admit the intended repaired behavior. These observations are not general speed or causal library claims: cache and concurrent host activity are uncontrolled, and cold build/install, RSS/heap, GUI and other hosts were not measured.
+
+## Failure localization and design advice
+
+Fresh final-source [debug stage receipts](flat-evidence/final-results.json) separate observed public boundaries from inferred internal helpers. The full pipeline completes at 64 and 512 terms, aborts during JS emission at 1,024, typing at 2,048 and resolution at 3,000. Direct `Emitter.lower_expr` completes at 512 and aborts at 1,024 after construction; whole-item clone and normal destruction complete at both sizes. A 512-term emitted sum executes through the actual stdlib and returns 512n. These subprocesses use bounded time and disabled core dumps; no portable threshold or internal backtrace attribution is claimed.
+
+The same final native [release binary](flat-evidence/release-results.json) successfully checks and compiles the retained 1,024/2,048/3,000-term sources in all six controls. Release survival does not repair the debug defect or establish a universal limit.
+
+Three independently worded equivalent JEV requests compare iterative complete-consumer work, structural admission and bounded stack support. All advise investigating iterative work first, with confidence 0.49/0.94/0.86 and probability 0.66/0.96/0.91. [Request/response 1](flat-stack-choice-1.response.json), [2](flat-stack-choice-2.response.json) and [3](flat-stack-choice-3.response.json) retain the first wording's lower confidence. The chosen direction agrees; uncertainty about complete consumer closure, effort and other hosts remains. Advice does not select a new language limit or release a structural redesign. **FAIL-R01 remains unresolved.**
+
+## Unreleased obligations
+
+The historical findings, ten integration candidates, eight Step-9 follow-ups and later finite task table retain exact owners, dependencies and independent acceptance. Syntax/UI/Corpus/recovery policy; format/temporal/email/graph contracts; Markdown/comment attachment; public source/catalog cohorts; workspace/history ownership; JSON/map retirement; and original/installed application/GUI/other-host profiles remain proposals or qualification gates. FAIL-R04's existing-contract missing-path build-watch correction remains a ready candidate, not a policy block or implemented repair. No deferred outcome is weakened or substituted with mocks.
+
+[Mechanical validation](validation.json) checks input/stream pins, executed counts, source metrics, profiles and saved advice. It verifies evidence consistency, not semantic completeness.

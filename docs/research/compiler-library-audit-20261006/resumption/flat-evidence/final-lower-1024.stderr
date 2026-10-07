@@ -1,0 +1,10 @@
+begin parse
+begin resolve
+begin types
+begin effects
+begin examples
+begin IR
+begin direct lower_expr
+
+thread 'main' (1072582) has overflowed its stack
+fatal runtime error: stack overflow, aborting

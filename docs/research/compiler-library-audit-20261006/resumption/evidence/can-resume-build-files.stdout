@@ -1,0 +1,7 @@
+src/scenarios.ts(21,36): error TS2307: Cannot find module '@canlang/services/scenarios' or its corresponding type declarations.
+test/provider-output.test.ts(23,8): error TS2307: Cannot find module '@canlang/services/media/comfyui' or its corresponding type declarations.
+test/provider-output.test.ts(24,44): error TS2307: Cannot find module '@canlang/services/media/harness' or its corresponding type declarations.
+test/provider-output.test.ts(25,44): error TS2307: Cannot find module '@canlang/services/media/harness' or its corresponding type declarations.
+test/provider-output.test.ts(26,29): error TS2307: Cannot find module '@canlang/services/media/mapping' or its corresponding type declarations.
+test/provider-output.test.ts(765,32): error TS7006: Parameter 'request' implicitly has an 'any' type.
+test/scenarios.test.ts(8,35): error TS2307: Cannot find module '@canlang/services/scenarios' or its corresponding type declarations.

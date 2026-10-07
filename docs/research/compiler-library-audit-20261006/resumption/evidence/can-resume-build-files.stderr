@@ -1,0 +1,2 @@
+$ tsc -p tsconfig.json
+error: script "build:emit" exited with code 1

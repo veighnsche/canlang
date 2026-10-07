@@ -1,0 +1,36 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": "A compiler accepts legal flat arithmetic parsed as a left-deep binary tree. Existing parser recursion limits bound recursive parser calls but not this loop-built structural depth. Fresh native debug observations: 512 additions complete all stages; 1024 parse/resolve/types/effects/IR complete then JavaScript emission aborts; 2048 abort in types; 3000 abort in resolution. Inputs are 2–6 KiB, diagnostics empty before the failing stage. These are one-host/debug observations, not portable thresholds. Recursive visitors and derived Clone/Drop also need closure review. Preserve ordinary arithmetic evaluation order, exact overflow behavior, local recovery and independent sibling diagnostics. The project values user adoption, concise ownership, simplicity and measurable total mechanism cost. No broader depth policy is yet accepted.",
+    "questions": {
+      "repair_direction": {
+        "type": "choice",
+        "instructions": "Which repair direction should be investigated first given this verified evidence and the same preservation, adoption, simplicity and qualification requirements? Choose one direction; advice does not constitute acceptance or prove implementation feasibility.",
+        "criteria": {
+          "iterative": "Preserve currently accepted flat expressions by converting the affected traversal, clone/drop and lowering closure to explicit iterative work. Potential benefit: no new authoring limit and explicit order. Cost: multiple owner changes, explicit work stacks and complete regression qualification.",
+          "structural_limit": "Introduce a documented structural-expression-depth admission bound before vulnerable consumers, with one localized diagnostic and intact-sibling analysis. Potential benefit: small coherent safety boundary. Cost: changes accepted authoring/support, threshold/profile choice and compatibility review; parser call-depth alone is insufficient.",
+          "stack_support": "Retain recursive algorithms with a bounded stack-growth library or selected worker stack profile. Potential benefit: concentrated retrofit preserving more inputs. Cost: dependency/host behavior, profile budgets and failure modes need measured qualification; no infinite-input guarantee."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "repair_direction": {
+        "type": "choice",
+        "choice": "iterative",
+        "confidence": 0.49,
+        "probabilities": {
+          "iterative": 0.66,
+          "structural_limit": 0.28,
+          "stack_support": 0.06
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 673,
+      "output_tokens": 45
+    }
+  }
+}

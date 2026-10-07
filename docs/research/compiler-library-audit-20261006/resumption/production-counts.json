@@ -1,0 +1,689 @@
+{
+  "method": "Published parser-free physical LOC split, exact top-level cfg(test) item spans excluded; comments/blank lines count, tests/docs/metadata not production-reduction credit",
+  "counter": "../responsibility-map/integration-evidence/count.py",
+  "before_ref": "3ff5fbd66324869ba2277fdbe4333fb95256810b",
+  "before_production": 69255,
+  "after_production": 69416,
+  "rows": [
+    {
+      "path": "compiler/src/analysis/catalog.rs",
+      "before": {
+        "production": 2031,
+        "inline_test": 722,
+        "physical": 2753
+      },
+      "after": {
+        "production": 2031,
+        "inline_test": 722,
+        "physical": 2753
+      },
+      "before_sha256": "af4aa22270db711cd251c3e0df433004b33f1b4f7f6367775ffa0668c488306c",
+      "after_sha256": "af4aa22270db711cd251c3e0df433004b33f1b4f7f6367775ffa0668c488306c"
+    },
+    {
+      "path": "compiler/src/analysis/check.rs",
+      "before": {
+        "production": 142,
+        "inline_test": 0,
+        "physical": 142
+      },
+      "after": {
+        "production": 142,
+        "inline_test": 0,
+        "physical": 142
+      },
+      "before_sha256": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+      "after_sha256": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "before": {
+        "production": 5272,
+        "inline_test": 0,
+        "physical": 5272
+      },
+      "after": {
+        "production": 5315,
+        "inline_test": 0,
+        "physical": 5315
+      },
+      "before_sha256": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f",
+      "after_sha256": "2304ab658e1299dfc626035a683db395876ca2c0203f15ed67d786670d361dcc"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "before": {
+        "production": 3318,
+        "inline_test": 0,
+        "physical": 3318
+      },
+      "after": {
+        "production": 3318,
+        "inline_test": 0,
+        "physical": 3318
+      },
+      "before_sha256": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+      "after_sha256": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5"
+    },
+    {
+      "path": "compiler/src/analysis/migrate_check.rs",
+      "before": {
+        "production": 509,
+        "inline_test": 107,
+        "physical": 616
+      },
+      "after": {
+        "production": 509,
+        "inline_test": 107,
+        "physical": 616
+      },
+      "before_sha256": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb",
+      "after_sha256": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb"
+    },
+    {
+      "path": "compiler/src/analysis/mod.rs",
+      "before": {
+        "production": 233,
+        "inline_test": 0,
+        "physical": 233
+      },
+      "after": {
+        "production": 233,
+        "inline_test": 0,
+        "physical": 233
+      },
+      "before_sha256": "4debfe707daf81d33d5f67e10b3a0da3d1f0bd0e465c62204ae8ace19fef99ec",
+      "after_sha256": "4debfe707daf81d33d5f67e10b3a0da3d1f0bd0e465c62204ae8ace19fef99ec"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "before": {
+        "production": 5431,
+        "inline_test": 0,
+        "physical": 5431
+      },
+      "after": {
+        "production": 5443,
+        "inline_test": 0,
+        "physical": 5443
+      },
+      "before_sha256": "11a20d031e8c038ee9ba70fb5a55c6d5d6eafe508910e76f9bc9bdeae712c63d",
+      "after_sha256": "399937a74f54eea115b3e7fba93c02c9befbf6e96db50be7761870489d84547d"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "before": {
+        "production": 15706,
+        "inline_test": 0,
+        "physical": 15706
+      },
+      "after": {
+        "production": 15707,
+        "inline_test": 0,
+        "physical": 15707
+      },
+      "before_sha256": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa",
+      "after_sha256": "dcee4df7029048bd800ca8119634c20668e624a88e0d0b50954931ece3e69190"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "before": {
+        "production": 1621,
+        "inline_test": 717,
+        "physical": 2338
+      },
+      "after": {
+        "production": 1621,
+        "inline_test": 717,
+        "physical": 2338
+      },
+      "before_sha256": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679",
+      "after_sha256": "694324ec94440f9d2d4938b940e35e4a37b36818e0c1f15648ee39a2f18e5380"
+    },
+    {
+      "path": "compiler/src/codegen/artifact.rs",
+      "before": {
+        "production": 663,
+        "inline_test": 0,
+        "physical": 663
+      },
+      "after": {
+        "production": 663,
+        "inline_test": 0,
+        "physical": 663
+      },
+      "before_sha256": "5ee76bea1b84bb36985e99277292e688f02ae9097257ecafbb5571774c2c5d61",
+      "after_sha256": "5ee76bea1b84bb36985e99277292e688f02ae9097257ecafbb5571774c2c5d61"
+    },
+    {
+      "path": "compiler/src/codegen/bdd.rs",
+      "before": {
+        "production": 434,
+        "inline_test": 18,
+        "physical": 452
+      },
+      "after": {
+        "production": 420,
+        "inline_test": 18,
+        "physical": 438
+      },
+      "before_sha256": "35f1f801d858e822e60c37351264c7b4a9d0155253b5d0140a00ec8f9e26d3db",
+      "after_sha256": "13f465b553276046198bda84db340dc1bfbfeef4327ae273698cc200093f68a4"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "before": {
+        "production": 8809,
+        "inline_test": 33,
+        "physical": 8842
+      },
+      "after": {
+        "production": 8809,
+        "inline_test": 33,
+        "physical": 8842
+      },
+      "before_sha256": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005",
+      "after_sha256": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005"
+    },
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "before": {
+        "production": 5842,
+        "inline_test": 18,
+        "physical": 5860
+      },
+      "after": {
+        "production": 5887,
+        "inline_test": 18,
+        "physical": 5905
+      },
+      "before_sha256": "1f1ef2bec0a008566ed800d746fc65feb90b9cc4683e9803940f83dac4b1eab8",
+      "after_sha256": "dbd68e5fa390c754d314ffac20e0c63a5f4f9f349a80f2b5841f1935578c2f0f"
+    },
+    {
+      "path": "compiler/src/codegen/mod.rs",
+      "before": {
+        "production": 223,
+        "inline_test": 0,
+        "physical": 223
+      },
+      "after": {
+        "production": 208,
+        "inline_test": 0,
+        "physical": 208
+      },
+      "before_sha256": "b8c4a5a8faa39500193afedb7053d49ad023dc74dca0c7a4e7969bf61fa658e3",
+      "after_sha256": "abf74f2bd5a0bf2dd9cd0602ed142232f6d5f3bfd84bdd6983d9c2231129bc7b"
+    },
+    {
+      "path": "compiler/src/codegen/sourcemap.rs",
+      "before": {
+        "production": 233,
+        "inline_test": 136,
+        "physical": 369
+      },
+      "after": {
+        "production": 233,
+        "inline_test": 136,
+        "physical": 369
+      },
+      "before_sha256": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+      "after_sha256": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a"
+    },
+    {
+      "path": "compiler/src/diagnostic.rs",
+      "before": {
+        "production": 326,
+        "inline_test": 73,
+        "physical": 399
+      },
+      "after": {
+        "production": 341,
+        "inline_test": 73,
+        "physical": 414
+      },
+      "before_sha256": "9fd7f517cb57423c45eb11f8cae995746181d678966b6d9d379334a93d4c99de",
+      "after_sha256": "2a27b52767a5f99af4b69853c5f924be5edd32b2b082abad68a65f1e6b37bc2d"
+    },
+    {
+      "path": "compiler/src/docs.rs",
+      "before": {
+        "production": 1223,
+        "inline_test": 44,
+        "physical": 1267
+      },
+      "after": {
+        "production": 1223,
+        "inline_test": 44,
+        "physical": 1267
+      },
+      "before_sha256": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+      "after_sha256": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70"
+    },
+    {
+      "path": "compiler/src/explain.rs",
+      "before": {
+        "production": 1034,
+        "inline_test": 45,
+        "physical": 1079
+      },
+      "after": {
+        "production": 1034,
+        "inline_test": 45,
+        "physical": 1079
+      },
+      "before_sha256": "c021111e7c042d0becc1d1be6c36966b7442eec2f5ea4b12923765734388c593",
+      "after_sha256": "c021111e7c042d0becc1d1be6c36966b7442eec2f5ea4b12923765734388c593"
+    },
+    {
+      "path": "compiler/src/format.rs",
+      "before": {
+        "production": 714,
+        "inline_test": 0,
+        "physical": 714
+      },
+      "after": {
+        "production": 714,
+        "inline_test": 0,
+        "physical": 714
+      },
+      "before_sha256": "13897d9c121f7f4941d5ce5af65b0f23f3b56aca30460fe134613e580b900c03",
+      "after_sha256": "13897d9c121f7f4941d5ce5af65b0f23f3b56aca30460fe134613e580b900c03"
+    },
+    {
+      "path": "compiler/src/ide/fixes.rs",
+      "before": {
+        "production": 165,
+        "inline_test": 0,
+        "physical": 165
+      },
+      "after": {
+        "production": 165,
+        "inline_test": 0,
+        "physical": 165
+      },
+      "before_sha256": "dec86317bd2bd2bc22f66c27643d5afc70d4997abacd174058031fd35402399d",
+      "after_sha256": "dec86317bd2bd2bc22f66c27643d5afc70d4997abacd174058031fd35402399d"
+    },
+    {
+      "path": "compiler/src/ide/mod.rs",
+      "before": {
+        "production": 12,
+        "inline_test": 0,
+        "physical": 12
+      },
+      "after": {
+        "production": 12,
+        "inline_test": 0,
+        "physical": 12
+      },
+      "before_sha256": "cadad2e06e0c21495f96fddaa04c3ec898e16779e4055e7092fc77a916a8a542",
+      "after_sha256": "cadad2e06e0c21495f96fddaa04c3ec898e16779e4055e7092fc77a916a8a542"
+    },
+    {
+      "path": "compiler/src/ide/queries.rs",
+      "before": {
+        "production": 1442,
+        "inline_test": 0,
+        "physical": 1442
+      },
+      "after": {
+        "production": 1449,
+        "inline_test": 0,
+        "physical": 1449
+      },
+      "before_sha256": "070e6a13702a5da87bd1da5b1ec92ee27361d682cf31849c37502076556215d8",
+      "after_sha256": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5"
+    },
+    {
+      "path": "compiler/src/ide/tokens.rs",
+      "before": {
+        "production": 445,
+        "inline_test": 0,
+        "physical": 445
+      },
+      "after": {
+        "production": 445,
+        "inline_test": 0,
+        "physical": 445
+      },
+      "before_sha256": "08907dd10a6d7b44ef3e5e28ba8a55e02b0c05e98ccfd534363cd8eebc2bd96c",
+      "after_sha256": "08907dd10a6d7b44ef3e5e28ba8a55e02b0c05e98ccfd534363cd8eebc2bd96c"
+    },
+    {
+      "path": "compiler/src/json.rs",
+      "before": {
+        "production": 373,
+        "inline_test": 182,
+        "physical": 555
+      },
+      "after": {
+        "production": 373,
+        "inline_test": 182,
+        "physical": 555
+      },
+      "before_sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+      "after_sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244"
+    },
+    {
+      "path": "compiler/src/lib.rs",
+      "before": {
+        "production": 38,
+        "inline_test": 0,
+        "physical": 38
+      },
+      "after": {
+        "production": 38,
+        "inline_test": 0,
+        "physical": 38
+      },
+      "before_sha256": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+      "after_sha256": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971"
+    },
+    {
+      "path": "compiler/src/lint/driver.rs",
+      "before": {
+        "production": 544,
+        "inline_test": 0,
+        "physical": 544
+      },
+      "after": {
+        "production": 544,
+        "inline_test": 0,
+        "physical": 544
+      },
+      "before_sha256": "c16c9473a594066de41ebf88e1409584bd8fbb9375a94f110a964a19307a17dc",
+      "after_sha256": "c16c9473a594066de41ebf88e1409584bd8fbb9375a94f110a964a19307a17dc"
+    },
+    {
+      "path": "compiler/src/lint/mod.rs",
+      "before": {
+        "production": 27,
+        "inline_test": 0,
+        "physical": 27
+      },
+      "after": {
+        "production": 27,
+        "inline_test": 0,
+        "physical": 27
+      },
+      "before_sha256": "fd8590276ed4362722b252398936d519e4964a70fee4cef30faa854d1cd4dc0d",
+      "after_sha256": "fd8590276ed4362722b252398936d519e4964a70fee4cef30faa854d1cd4dc0d"
+    },
+    {
+      "path": "compiler/src/lint/rules.rs",
+      "before": {
+        "production": 1264,
+        "inline_test": 0,
+        "physical": 1264
+      },
+      "after": {
+        "production": 1264,
+        "inline_test": 0,
+        "physical": 1264
+      },
+      "before_sha256": "05998b3045048f6b1b64f319422be2178ec530297bfa2e4141f0bf5eb9c5983e",
+      "after_sha256": "05998b3045048f6b1b64f319422be2178ec530297bfa2e4141f0bf5eb9c5983e"
+    },
+    {
+      "path": "compiler/src/lsp/mod.rs",
+      "before": {
+        "production": 9,
+        "inline_test": 0,
+        "physical": 9
+      },
+      "after": {
+        "production": 9,
+        "inline_test": 0,
+        "physical": 9
+      },
+      "before_sha256": "722f436d11ac0cfdbf0a04ed958f7c75c86e31d98118adcdb6b0fba6fe11421e",
+      "after_sha256": "722f436d11ac0cfdbf0a04ed958f7c75c86e31d98118adcdb6b0fba6fe11421e"
+    },
+    {
+      "path": "compiler/src/lsp/output.rs",
+      "before": {
+        "production": 184,
+        "inline_test": 164,
+        "physical": 348
+      },
+      "after": {
+        "production": 234,
+        "inline_test": 212,
+        "physical": 446
+      },
+      "before_sha256": "8b9a350c847dcc326007ca08108fc8a986cb5f0089b2438a22a8b04f33ee0a0b",
+      "after_sha256": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "before": {
+        "production": 1211,
+        "inline_test": 347,
+        "physical": 1558
+      },
+      "after": {
+        "production": 1228,
+        "inline_test": 347,
+        "physical": 1575
+      },
+      "before_sha256": "79c53edb9ba35b411e48d7d0064776dfbb4b8b622f748dbb13d3958cb9f78743",
+      "after_sha256": "74dce1e5fd588099749693e1ca8c62d053c9a67432cb9486b0d9f241bee9d176"
+    },
+    {
+      "path": "compiler/src/lsp/transport.rs",
+      "before": {
+        "production": 251,
+        "inline_test": 311,
+        "physical": 562
+      },
+      "after": {
+        "production": 251,
+        "inline_test": 311,
+        "physical": 562
+      },
+      "before_sha256": "27b0a48d691a9e7f497023d0bf6541226c666aefb045d64ed7d15a42fdc42862",
+      "after_sha256": "27b0a48d691a9e7f497023d0bf6541226c666aefb045d64ed7d15a42fdc42862"
+    },
+    {
+      "path": "compiler/src/lsp/uri.rs",
+      "before": {
+        "production": 52,
+        "inline_test": 60,
+        "physical": 112
+      },
+      "after": {
+        "production": 52,
+        "inline_test": 60,
+        "physical": 112
+      },
+      "before_sha256": "3e7cf29690c1a257085d35f04b6dc50d0fb3255911ac6c5fdaf37e471245a08f",
+      "after_sha256": "3e7cf29690c1a257085d35f04b6dc50d0fb3255911ac6c5fdaf37e471245a08f"
+    },
+    {
+      "path": "compiler/src/main.rs",
+      "before": {
+        "production": 43,
+        "inline_test": 0,
+        "physical": 43
+      },
+      "after": {
+        "production": 43,
+        "inline_test": 0,
+        "physical": 43
+      },
+      "before_sha256": "5e8cd0e926e46ea407ced9032706d07a3d608d1a5720f44d3f21eb0ccf688bdd",
+      "after_sha256": "5e8cd0e926e46ea407ced9032706d07a3d608d1a5720f44d3f21eb0ccf688bdd"
+    },
+    {
+      "path": "compiler/src/policy.rs",
+      "before": {
+        "production": 733,
+        "inline_test": 125,
+        "physical": 858
+      },
+      "after": {
+        "production": 733,
+        "inline_test": 125,
+        "physical": 858
+      },
+      "before_sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+      "after_sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "before": {
+        "production": 191,
+        "inline_test": 159,
+        "physical": 350
+      },
+      "after": {
+        "production": 191,
+        "inline_test": 159,
+        "physical": 350
+      },
+      "before_sha256": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a",
+      "after_sha256": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a"
+    },
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "before": {
+        "production": 415,
+        "inline_test": 41,
+        "physical": 456
+      },
+      "after": {
+        "production": 415,
+        "inline_test": 41,
+        "physical": 456
+      },
+      "before_sha256": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6",
+      "after_sha256": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "before": {
+        "production": 752,
+        "inline_test": 121,
+        "physical": 873
+      },
+      "after": {
+        "production": 752,
+        "inline_test": 121,
+        "physical": 873
+      },
+      "before_sha256": "3f8cda7a4ba1f18c98af49a6c78f518c89b699e7ccc92ea72679129e6d338a87",
+      "after_sha256": "3f8cda7a4ba1f18c98af49a6c78f518c89b699e7ccc92ea72679129e6d338a87"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "before": {
+        "production": 814,
+        "inline_test": 106,
+        "physical": 920
+      },
+      "after": {
+        "production": 814,
+        "inline_test": 106,
+        "physical": 920
+      },
+      "before_sha256": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0",
+      "after_sha256": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0"
+    },
+    {
+      "path": "compiler/src/syntax/mod.rs",
+      "before": {
+        "production": 103,
+        "inline_test": 0,
+        "physical": 103
+      },
+      "after": {
+        "production": 103,
+        "inline_test": 0,
+        "physical": 103
+      },
+      "before_sha256": "2a1517f81512614a7761082b3b03700023f51e6444175f69c8d865dca318b04d",
+      "after_sha256": "2a1517f81512614a7761082b3b03700023f51e6444175f69c8d865dca318b04d"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "before": {
+        "production": 6423,
+        "inline_test": 0,
+        "physical": 6423
+      },
+      "after": {
+        "production": 6423,
+        "inline_test": 0,
+        "physical": 6423
+      },
+      "before_sha256": "1b70f50c11b20fa23ab7f938d872f02b373b89129c2af3235b47ba0c5f0febf1",
+      "after_sha256": "1b70f50c11b20fa23ab7f938d872f02b373b89129c2af3235b47ba0c5f0febf1"
+    }
+  ],
+  "original_programme_production": 69119,
+  "editor_net": 111,
+  "testkit_steps_net": 3,
+  "bounded_simplification_net_removed": 26,
+  "limits": "Physical metric is not semantic adequacy or a causal library benefit; necessary correctness growth is counted separately",
+  "compiler_net": 161,
+  "versus_original_net": 297,
+  "closure_accounting": [
+    {
+      "id": "BDD-QUOTE",
+      "commit": "c84b815",
+      "method": "Published compiler production counter, selected complete changed production closure at commit parent vs commit",
+      "files": {
+        "compiler/src/codegen/bdd.rs": {
+          "before": 434,
+          "after": 429
+        },
+        "compiler/src/codegen/js.rs": {
+          "before": 5842,
+          "after": 5842
+        }
+      },
+      "net": -5
+    },
+    {
+      "id": "OUT-R02",
+      "commit": "cdfd1ed",
+      "method": "Published compiler production counter, selected complete changed production closure at commit parent vs commit",
+      "files": {
+        "compiler/src/diagnostic.rs": {
+          "before": 326,
+          "after": 341
+        },
+        "compiler/src/codegen/mod.rs": {
+          "before": 223,
+          "after": 208
+        },
+        "compiler/src/lsp/server.rs": {
+          "before": 1211,
+          "after": 1196
+        }
+      },
+      "net": -15
+    },
+    {
+      "id": "OR-BDD-ID+OR-BDD-SEQUENCE",
+      "commit": "25263de",
+      "method": "Published compiler production counter; testkit steps physical lines includes comments/blank lines, owning package tests separate",
+      "files": {
+        "compiler/src/codegen/bdd.rs": {
+          "before": 429,
+          "after": 420
+        },
+        "compiler/src/codegen/js.rs": {
+          "before": 5887,
+          "after": 5887
+        },
+        "packages/testkit/src/runner/steps.ts": {
+          "before": 306,
+          "after": 309
+        }
+      },
+      "net": -6
+    }
+  ]
+}

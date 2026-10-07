@@ -1,0 +1,74 @@
+[
+  {
+    "label": "strict-typescript",
+    "source_session": "/Users/vince/.codex/sessions/2026/10/07/rollout-2026-10-07T18-06-02-01a1171d-5c6f-78e2-aa45-f5ba16016964.jsonl",
+    "source_session_line": 667,
+    "utc_timestamp": "2026-10-07T16:37:37.978Z",
+    "command": [
+      "/bin/zsh",
+      "-lc",
+      "node node_modules/.bun/typescript@5.9.3/node_modules/typescript/lib/tsc.js --strict --target es2022 --module commonjs --lib es2022 --typeRoots ./editors/vscode/.empty-typeroot --outDir editors/vscode/out --rootDir editors/vscode/src editors/vscode/src/extension.ts editors/vscode/src/client.ts"
+    ],
+    "cwd": "file:///Users/vince/Projects/canlang",
+    "execution_id": "exec-25fc658d-190d-470f-b09c-147457104f0b",
+    "exit_code": 0,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "PASS_lines": 0,
+    "stream_origin": "verbatim retained CommandExecution session export; not independently redirected native raw"
+  },
+  {
+    "label": "protocol-39",
+    "source_session": "/Users/vince/.codex/sessions/2026/10/07/rollout-2026-10-07T18-06-02-01a1171d-5c6f-78e2-aa45-f5ba16016964.jsonl",
+    "source_session_line": 768,
+    "utc_timestamp": "2026-10-07T16:39:44.290Z",
+    "command": [
+      "/bin/zsh",
+      "-lc",
+      "node editors/vscode/test/lsp-capabilities.cjs"
+    ],
+    "cwd": "file:///Users/vince/Projects/canlang",
+    "execution_id": "exec-4de16b98-2286-4134-a001-d91557deac3a",
+    "exit_code": 0,
+    "stdout_sha256": "051cc0b7864eab60ca39b79e28d34c0112df037f79039acf2bae784abfd6c9df",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "PASS_lines": 39,
+    "stream_origin": "verbatim retained CommandExecution session export; not independently redirected native raw"
+  },
+  {
+    "label": "startup-11",
+    "source_session": "/Users/vince/.codex/sessions/2026/10/07/rollout-2026-10-07T18-06-02-01a1171d-5c6f-78e2-aa45-f5ba16016964.jsonl",
+    "source_session_line": 769,
+    "utc_timestamp": "2026-10-07T16:39:44.324Z",
+    "command": [
+      "/bin/zsh",
+      "-lc",
+      "node editors/vscode/test/server-startup.cjs"
+    ],
+    "cwd": "file:///Users/vince/Projects/canlang",
+    "execution_id": "exec-e42ee8f8-ba1e-4a9f-9a71-bbf337dd1635",
+    "exit_code": 0,
+    "stdout_sha256": "1e7d6a431d911e0f9fcc9d702466aa9b07860b2bf830cd32bac32598b3c5589b",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "PASS_lines": 11,
+    "stream_origin": "verbatim retained CommandExecution session export; not independently redirected native raw"
+  },
+  {
+    "label": "currentness-5",
+    "source_session": "/Users/vince/.codex/sessions/2026/10/07/rollout-2026-10-07T18-06-02-01a1171d-5c6f-78e2-aa45-f5ba16016964.jsonl",
+    "source_session_line": 777,
+    "utc_timestamp": "2026-10-07T16:39:49.578Z",
+    "command": [
+      "/bin/zsh",
+      "-lc",
+      "node editors/vscode/test/client-currentness.cjs"
+    ],
+    "cwd": "file:///Users/vince/Projects/canlang",
+    "execution_id": "exec-fc07c341-d00c-4487-ab46-5cdb2b95b4d9",
+    "exit_code": 0,
+    "stdout_sha256": "d52eb3596d831671e3546f3cd544b6e6ca7a9d175a9a7a622624ced3f852cd78",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "PASS_lines": 5,
+    "stream_origin": "verbatim retained CommandExecution session export; not independently redirected native raw"
+  }
+]

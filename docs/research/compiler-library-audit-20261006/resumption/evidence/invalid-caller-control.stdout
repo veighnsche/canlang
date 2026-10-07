@@ -1,0 +1,11 @@
+
+running 1 test
+test fixture_bindings_and_suite_paths_execute_through_testkit ... FAILED
+
+failures:
+
+failures:
+    fixture_bindings_and_suite_paths_execute_through_testkit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+

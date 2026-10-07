@@ -1,0 +1,34 @@
+{
+  "case": "invalid-comment-indent",
+  "source": "app Tasks\r\nGiven\r\n Todo { title:text }\r\nWhen\r\n scenario complete(task:Todo) by=members\r\n  do\r\n   ## \u00e9\ud83d\ude00\r\n  let label=task.title\r\n   set task {title=label}\r\nThen\r\n",
+  "source_sha256": "d946eb1347a8b7d91509079d71aa4deef8e42698cb993e687267208aecc82030",
+  "exit": 10,
+  "diagnostics": [
+    {
+      "code": "E1204",
+      "severity": "error",
+      "message": "block do requires statements",
+      "primary": {
+        "file": 0,
+        "start": 90,
+        "end": 92
+      },
+      "related": [],
+      "tags": []
+    },
+    {
+      "code": "E1216",
+      "severity": "error",
+      "message": "expected leading require, one do body, then examples",
+      "primary": {
+        "file": 0,
+        "start": 110,
+        "end": 113
+      },
+      "related": [],
+      "tags": []
+    }
+  ],
+  "stdout_sha256": "c2a37eb57e26b807c75ed09a0c113053471e458f8a81a99d72742b81432784a5",
+  "stderr": ""
+}

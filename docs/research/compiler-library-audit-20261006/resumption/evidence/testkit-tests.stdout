@@ -1,0 +1,13 @@
+
+ RUN  v3.2.7 /Users/vince/Projects/canlang
+
+ ✓ packages/testkit/test/table.test.ts (6 tests) 3ms
+ ✓ packages/testkit/test/emitted-scope.test.ts (3 tests) 15ms
+ ✓ packages/testkit/test/loader.test.ts (5 tests) 29ms
+ ✓ packages/testkit/test/fixtures.test.ts (22 tests) 81ms
+
+ Test Files  4 passed (4)
+      Tests  36 passed (36)
+   Start at  19:05:59
+   Duration  363ms (transform 188ms, setup 0ms, collect 304ms, tests 128ms, environment 0ms, prepare 218ms)
+

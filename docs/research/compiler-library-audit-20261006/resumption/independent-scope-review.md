@@ -1,0 +1,52 @@
+# Independent resumed-scope challenge
+
+**Historical draft challenge.** Pending Step-9, BDD, count and cost fields below describe the reviewed draft. The current [resumption receipt](README.md) supplies those final joins; this report retains the initial review and its requested corrections rather than recrediting them as new execution.
+
+Read-only review of resumption/README.md, independent-priorities.md, audit-costs-and-oracles.md, rename/binding reviews, original syntax/semantic/output/editor/integration/failure maps, and current accepted DECISIONS/commits. Root remains sole docs/ledger integrator. No production/doc changes or test reruns during this challenge. lowering-and-execution.md is pending author delivery and cannot yet be accepted.
+
+## Result
+
+No missing *already released* production packet or blanket full-semantic/product/host/aggregate-reduction acceptance is found in the draft README. The new BDD fixture-identity/import SyntaxError packet is explicitly released/in progress and is not yet earned acceptance. Its complete shared JS/BDD identity codec/actual testkit closure must appear in Step9 and final release/measurement inputs. FAIL-R01 remains actual unresolved authored-source stack safety, despite localization/advice. Current source repair counts +170 compiler/+111 editor and matching no-Git native 2250480→2250512 are pre-reserved-BDD-identity checkpoints, not final values; README appropriately leaves final count/footprint fields pending. Quote consolidation is already included in +170, so “pre-BDD identity” should say “before reserved-fixture identity repair, after quote consolidation” to avoid ambiguity.
+
+Mechanical count: historical table contains exactly30 distinct IDs (SYN8, SEM8, OUT5, ED9). Original integration retirement table contains10 candidates. Failure map contains7 packet rows; cost/oracle table contains12 distinct IDs (OR6, DEP3, COST1, ARCH2). This yields59 *records*, not59 independent implementations or wins. FAIL-R07 reuses ED-R06; OR-03 joins ED/reference support; OR-04 qualifies multiple historical repairs; OR-06/OUT-R05/workflows share consumer gates; DEP/ARCH rows restate integration ownership. The new BDD identity packet is additional, not part of the retired BDD quote candidate.
+
+## Concrete corrections before final integration
+
+1. **OR-03 stale current/unreleased claim (material status error).** audit-costs-and-oracles.md still says set target is absent, client offers only declaration/read, and OR-03 “needs writer release.” Change to retained pre-repair finding, then qualified statement-time head closure:35 IDE+8 typed-process checks, clean declaration/read/set/delete Unicode/CRLF apply/recheck, later-shadow/selectors/unresolved controls. Keep wider member/external/cross-file/collision support gated. Keep E3002 text+text client fixture classified currentness-only; clean semantic control is the separate actual process test. Link rename-review.md for accepted outcome, retain original failed receipts.
+2. **Initial priority report needs a historical snapshot fence.** independent-priorities.md says “current source/no compiler changes,” URI+version-only queue, ignored notification output and sanitizer active; OUT-R02 still says contract clarification. These were true at its initial review, not at committed repair source. Mark the entire initial priority/30-row inventory as pre-repair snapshot and link current README outcome statuses; do not silently rewrite the old receipt into fresh acceptance. Its eleven immediate candidates are historical: current accepted historical records number12 once OUT-R02 is qualified (SYN01/02, SEM01/02, OUT01/02, ED01/02/03/04/05/08).
+3. **Step15 disposition crosswalk is incomplete for later findings.** README links all7 failure records and12 cost/oracle rows, but independent-priorities.md accounts only30+10 and an unnumbered flat-stack omission. Add/link a finite joined status/priority table for failure7 and cost/oracle12 (below). This is accountability, not a request to release all proposals. FAIL-R04 is an existing-mechanism ready candidate with observed unnecessary rebuilds; it is not hidden inside a new support-policy gate and is not falsely described as a stale version bug.
+4. **Step9 link is pending, not accepted.** README currently has one missing local target lowering-and-execution.md; all other checked local links in README/priority/costs resolve. This is expected draft state, but final publication needs the file and independent review. Step9 must carry OR-BDD-ID clean import/testkit closure plus actual new hook→CRUD repaired execution and the separate constructed-IR profiles; actual loader/assembler/invoke with host stdlib seam is not full engine/original application execution.
+5. **Shared metric wording.** Three former sort closures now delegate to one comparator: “three duplicated ordering closures” is clearer than “3 duplicate sorts.” Only net20 quote/comparator lines are accepted bounded simplification; +170 compiler/+111 editor correctness growth cannot be summed into aggregate reduction. Publish exact before/final source, counter exclusions, binary/catalog/package/toolchain/profile/host/no-Git pins and failed build/copy attempts. A pending BDD identity repair invalidates earlier final-footprint wording even if bytes happen to match.
+6. **Currentness qualifications stay distinct.** Bundled client monotonic wire revisions distinguish same host-version reopen; server queued SourceId+version guards arbitrary reused client versions. Already emitted same-URI/same-version third-party frames lack an epoch discriminator. The draft does not overclaim that profile; keep this distinction in final ledger and no universal stale-result guarantee.
+
+## Joined later-disposition/priority table
+
+| Record | Current disposition / finite next gate |
+| --- | --- |
+| FAIL-R01 | High unresolved correctness issue; localized public-stage aborts, iterative direction advised, responsible complete-consumer implementation not accepted; no new depth limit chosen |
+| FAIL-R02 | Released/committed documentation correction; unwinding E7005 boundary; no abort/stack repair credit |
+| FAIL-R03 | Header/body budget and lifecycle policy gate; preserve legal framing/extensions; no numeric cap newly authorized |
+| FAIL-R04 | Ready existing-mechanism candidate, not released/implemented here; actual metadata paths/unchanged supported layouts; observed unnecessary rebuild, stale-hash hypothesis falsified |
+| FAIL-R05 | Subprocess/write/signal qualification before production repair; bounds/reap/all-sink source leads remain |
+| FAIL-R06 | Separate carrier/source/u32/used-catalog/graph/map/output qualification; no giant allocation, global cap or allocator guarantee |
+| FAIL-R07 | Reused ED-R06 retention gate plus unestablished4750/other-host profiles; existing C04F policy retained |
+| OR-01 | Proposed evidence accounting for optional bodies/prerequisites/raw skip output; not every body requalified |
+| OR-02 | Bounded actual emitted witnesses implemented for released bindings; broader values/options/evaluation/runtime closure remains Step9; OR-BDD-ID newly in progress |
+| OR-03 | Released, implemented, committed and qualified35+8; mutation heads only, wider supported rename profiles remain separate |
+| OR-04 | Permanent bounded ordering/recovery/state regressions accepted for landed repairs; not exhaustive all semantic branch/cross-product proof |
+| OR-05 | Retain current JSON/framing witnesses; independently specified missing grammar/outcome state space proposed; generic framework deferred |
+| OR-06 | Original application/generated rows/full worker/disclosure/disposal/actual GUI/maps/installed support gates remain |
+| DEP-01 | Retain pinned public API/private behavior JSON coupling; exact lookahead/origin/lexeme/depth callers before upgrade; replacement deferred |
+| DEP-02 | Retain source-map owner; extraction/public decoder retirement/API upgrade gates; independent decoder and actual attribution |
+| DEP-03 | Target/license/archive/notice/MSRV release inventory proposed; native metadata declarations are not multi-host/distribution approval |
+| COST-01 | Await final source/catalog/package/profile/toolchain/host freeze; representative alternating CLI/editor/query/edit checks and functional parity; no general speed/causal-library claim |
+| ARCH-01 | Checked facts/repeated work measured before reusable snapshot/cache design; immutable cohort/catalog/invalidation/history ownership gate |
+| ARCH-02 | Public support/caller closure/replacement oracle/net mechanism budgets before API retirement; nonuse insufficient |
+
+## Preserved gaps and acceptance scope
+
+Historical original/tree and source-checkpoint counts remain explicit. README correctly preserves SYN03 Tab and SYN04 structured order owner joins; SYN05 corpus/judgment admission; SYN06 recovery/JEV; SYN07 finite UI availability; SEM03 named binding/context facade; SEM04 email floor; SEM05 temporal partition/timezone membership; SEM06 package/year/tagged carriers; SEM07 graph witness policy; SEM08 remaining trials/default/scalar/publicbytes leads; OUT03 Markdown; OUT04 comment policy; ED06 history; ED07 workspace; ED09 startup leads and OUT05 actual owner/host profiles. None becomes accepted merely because full compiler tests pass. Public source/catalog cohort enforcement is separate from coherent normal CLI paths. No actual CLI tags-only producer is claimed for comparator; public hand-created diagnostics qualify its existing public byte contract. Missing native special bits, cold/RSS/editor workload profiles, original installed application and every semantic branch remain open.
+
+The report's dependency conclusions are retain7 used pins with separate effective transitive features/licenses/MSRV, not blanket license/upgrade compliance. Historical Pass10 footage and warm workload qualify those frozen sources only. Fresh oracle/source observation pins were captured while writers were active; do not credit them as final release pins. Native-only executed body and Unix cfg/prerequisite skips must stay visible in final raw receipt. No cache/framework/new parser/API deletion/unchecked GUI workaround is selected.
+
+Overall: accept the draft's bounded outcomes and honest growth/gate narrative after the status corrections and final pending fields/Step9 are integrated. No further source repair is newly released by this scope review; OR-BDD-ID remains the sole currently released source closure in progress beyond the committed packets listed above.

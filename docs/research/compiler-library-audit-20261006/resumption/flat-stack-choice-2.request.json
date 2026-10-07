@@ -1,0 +1,15 @@
+{
+  "model": "jev-latest",
+  "state": "For a language compiler, a legal sequence of additions forms a tall binary expression although its parser does not recurse deeply. On the tested native debug build, a 512-term expression completes, a 1024-term expression reaches JS emission and aborts there, a 2048-term expression aborts while checking types, and a 3000-term expression aborts while resolving names. Source sizes are only 2\u20136 KiB and earlier stages have no errors. Those observations do not establish cross-host limits. Traversals plus tree cloning/destruction require verification together. Any chosen repair must preserve arithmetic sequencing and overflow, malformed-expression locality and intact sibling analysis. Ease of authoring, small owned mechanisms and measured aggregate complexity are priorities. There is no authorized new structural-depth contract yet.",
+  "questions": {
+    "repair_direction": {
+      "type": "choice",
+      "instructions": "Under these established observations and equal correctness/user/cost goals, select the first repair approach to investigate. Your selection is advisory, not a released support policy or verified implementation.",
+      "criteria": {
+        "stack_support": "Use constrained stack expansion or a defined worker stack to keep recursive routines. This can centralize the retrofit and preserve more source, but adds dependency/platform/budget obligations and still needs full closure tests.",
+        "iterative": "Replace recursive consumers, including necessary clone/destruction paths, with ordered explicit traversal work while retaining admitted flat expressions. This preserves authoring and exposes sequencing, at the price of multi-owner edits and broader qualification.",
+        "structural_limit": "Reject expressions beyond a newly documented structural tree depth before downstream work, keeping the diagnostic local and checking valid siblings. This simplifies the boundary but revises accepted source and requires a justified portable threshold and support review."
+      }
+    }
+  }
+}

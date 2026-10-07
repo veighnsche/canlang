@@ -1,0 +1,5 @@
+begin parse
+begin resolve
+
+thread 'main' (1072557) has overflowed its stack
+fatal runtime error: stack overflow, aborting

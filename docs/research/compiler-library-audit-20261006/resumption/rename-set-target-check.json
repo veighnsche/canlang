@@ -1,0 +1,54 @@
+{
+  "binary_sha256": "e1d6517edca7dbda5511332ba1c15a1c124e46063dcfe924db707355268d9416",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "scope": "One immutable task-temp copy of the existing native debug compiler is executed for both controls; not a final release or whole current source freeze. Clean original fixture plus correctly indented Unicode explanatory comment and CRLF. Renamed source follows the actual client witness offered declaration/read edit pattern and leaves set target unchanged. Prior text concatenation and wrong indentation observers remain recorded as invalid positive controls.",
+  "cases": [
+    {
+      "case": "control",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-rename-pinned-daoyht1z/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-rename-pinned-daoyht1z/control.can"
+      ],
+      "source": "app Tasks\r\nGiven\r\n Todo { title:text }\r\nWhen\r\n scenario complete(task:Todo) by=members\r\n  do\r\n   ## \u00e9\ud83d\ude00\r\n   let label=task.title\r\n   set task {title=label}\r\nThen\r\n",
+      "source_sha256": "9946536a35963a5b470c0389a2a7c16279bba441be86076a50b521eff7013eab",
+      "exit": 0,
+      "diagnostics": [],
+      "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-rename-pinned-daoyht1z/control.can\",\"sha256\":\"9946536a35963a5b470c0389a2a7c16279bba441be86076a50b521eff7013eab\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+      "stderr": ""
+    },
+    {
+      "case": "offered-renamed",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-rename-pinned-daoyht1z/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-rename-pinned-daoyht1z/offered-renamed.can"
+      ],
+      "source": "app Tasks\r\nGiven\r\n Todo { title:text }\r\nWhen\r\n scenario complete(job:Todo) by=members\r\n  do\r\n   ## \u00e9\ud83d\ude00\r\n   let label=job.title\r\n   set task {title=label}\r\nThen\r\n",
+      "source_sha256": "fef91a007d67ae19e324ec6713387738c30a59e39f73ff47a1e91c7b7a23a013",
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E2001",
+          "severity": "error",
+          "message": "unresolved name 'task'",
+          "primary": {
+            "file": 0,
+            "start": 138,
+            "end": 142
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-rename-pinned-daoyht1z/offered-renamed.can\",\"sha256\":\"fef91a007d67ae19e324ec6713387738c30a59e39f73ff47a1e91c7b7a23a013\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E2001\",\"severity\":\"error\",\"message\":\"unresolved name 'task'\",\"primary\":{\"file\":0,\"start\":138,\"end\":142},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+      "stderr": ""
+    }
+  ]
+}
