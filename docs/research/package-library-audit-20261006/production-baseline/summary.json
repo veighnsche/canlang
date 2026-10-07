@@ -1,0 +1,693 @@
+{
+  "delta_lines": {
+    "asset": 0,
+    "build-tooling": 0,
+    "definitions": 83,
+    "documentation": 0,
+    "fixture-data": 230468,
+    "generated": 0,
+    "implementation": 113,
+    "inline-rust-tests": 51,
+    "metadata": 140,
+    "runtime-data": 0,
+    "scaffolding": -6,
+    "test-code": 17764
+  },
+  "explicit_implementation_transfers": 2,
+  "git_rename_detection": [
+    "M\tpackages/cloudflare/package.json",
+    "M\tpackages/cloudflare/src/deploy/bundle.ts",
+    "A\tpackages/cloudflare/src/deploy/module-imports.ts",
+    "A\tpackages/cloudflare/src/deploy/module-maps.ts",
+    "M\tpackages/cloudflare/src/runtime/invoke.ts",
+    "M\tpackages/cloudflare/src/runtime/modules.ts",
+    "M\tpackages/cloudflare/src/runtime/sourcemap.ts",
+    "M\tpackages/cloudflare/test/deploy-bundle.test.ts",
+    "A\tpackages/cloudflare/test/fixtures/import-policy-contract.json",
+    "A\tpackages/cloudflare/test/fixtures/map-composition-contract.json",
+    "A\tpackages/cloudflare/test/fixtures/raw-source-map-contract.json",
+    "A\tpackages/cloudflare/test/map-composition-contract.test.ts",
+    "A\tpackages/cloudflare/test/module-imports-contract.test.ts",
+    "M\tpackages/cloudflare/test/modules.test.ts",
+    "A\tpackages/cloudflare/test/raw-source-map-contract.test.ts",
+    "M\tpackages/cloudflare/test/sourcemap.test.ts",
+    "M\tpackages/identity/package.json",
+    "M\tpackages/identity/src/accounts/passwords.ts",
+    "A\tpackages/identity/src/sessions/comparison-node.ts",
+    "A\tpackages/identity/src/sessions/comparison-worker.ts",
+    "A\tpackages/identity/src/sessions/comparison.ts",
+    "M\tpackages/identity/src/sessions/cookies.ts",
+    "M\tpackages/identity/src/sessions/tokens.ts",
+    "M\tpackages/identity/test/accounts.test.ts",
+    "A\tpackages/identity/test/comparison.test.ts",
+    "M\tpackages/identity/test/sessions.test.ts",
+    "M\tpackages/interfaces/src/http/csv.ts",
+    "A\tpackages/interfaces/test/csv-grammar-join.test.ts",
+    "M\tpackages/interfaces/test/csv-review.test.ts",
+    "M\tpackages/services/src/http/client.ts",
+    "A\tpackages/services/test/http-lifecycle.test.ts",
+    "M\tpackages/ui/package.json",
+    "A\tpackages/ui/src/csv/grammar.ts",
+    "M\tpackages/ui/src/csv/parse.ts",
+    "A\tpackages/ui/test/csv-grammar.test.ts",
+    "M\tpackages/values/Cargo.lock",
+    "M\tpackages/values/bindings/backend.ts",
+    "M\tpackages/values/bindings/bootstrap.ts",
+    "M\tpackages/values/bindings/generated/BUILD.json",
+    "M\tpackages/values/bindings/generated/values_semantics_bg.wasm",
+    "A\tpackages/values/conformance/numeric-text.json",
+    "A\tpackages/values/conformance/numeric-text.oracle.mjs",
+    "A\tpackages/values/conformance/string-escape.json",
+    "A\tpackages/values/conformance/string-escape.oracle.mjs",
+    "M\tpackages/values/semantics/Cargo.toml",
+    "M\tpackages/values/semantics/src/codecs/numeric.rs",
+    "M\tpackages/values/semantics/src/representations/numeric.rs",
+    "A\tpackages/values/semantics/tests/numeric_text_contract.rs",
+    "A\tpackages/values/semantics/tests/string_escape_contract.rs",
+    "A\tpackages/values/semantics/tests/transport_number_roundtrip.rs",
+    "A\tpackages/values/src/internal/schema-core.ts",
+    "A\tpackages/values/src/internal/wire-core.ts",
+    "M\tpackages/values/src/prepared/codec.ts",
+    "M\tpackages/values/src/prepared/validation.ts",
+    "M\tpackages/values/src/schema.ts",
+    "M\tpackages/values/src/wire.ts",
+    "M\tpackages/values/test/exact-bootstrap.test.ts",
+    "A\tpackages/values/test/exact-bootstrap.workerd.mjs",
+    "A\tpackages/values/test/numeric-text.contract.test.ts",
+    "A\tpackages/values/test/prepared-hook.test.ts",
+    "A\tpackages/values/test/string-escape.contract.test.ts",
+    "M\tpackages/work-kernel/Cargo.lock",
+    "M\tpackages/work-kernel/Cargo.toml",
+    "M\tpackages/work-kernel/bindings/host-values.ts",
+    "A\tpackages/work-kernel/conformance/fixtures/numeric-text.json",
+    "A\tpackages/work-kernel/conformance/host-values.test.ts",
+    "A\tpackages/work-kernel/conformance/native-numeric-text.rs",
+    "A\tpackages/work-kernel/conformance/numeric-text.contract.test.ts",
+    "A\tpackages/work-kernel/conformance/numeric-text.oracle.d.mts",
+    "A\tpackages/work-kernel/conformance/numeric-text.oracle.mjs",
+    "A\tpackages/work-kernel/conformance/registered-differential.mjs",
+    "A\tpackages/work-kernel/conformance/registered-native.rs",
+    "A\tpackages/work-kernel/decisions/lib.rs",
+    "M\tpackages/work-kernel/decisions/linkage.rs",
+    "A\tpackages/work-kernel/decisions/numeric_text.rs",
+    "M\tpackages/work-kernel/decisions/receipt.rs",
+    "M\tpackages/work-kernel/decisions/recovery.rs",
+    "M\tpackages/work-kernel/decisions/rows.rs",
+    "M\tpackages/work-kernel/rust/lib.rs"
+  ],
+  "schema": 1,
+  "scope": "All committed packages/ blobs at two immutable refs; source accounting, not shipped/reachable proof",
+  "snapshots": {
+    "current": {
+      "bytes": 22909800,
+      "categories": {
+        "asset": {
+          "bytes": 17173,
+          "containing_files": 2,
+          "file_bytes": 17173,
+          "files": 2,
+          "nonblank_lines": 475,
+          "physical_lines": 503
+        },
+        "build-tooling": {
+          "bytes": 28672,
+          "containing_files": 7,
+          "file_bytes": 28672,
+          "files": 7,
+          "nonblank_lines": 644,
+          "physical_lines": 703
+        },
+        "definitions": {
+          "bytes": 494239,
+          "containing_files": 265,
+          "nonblank_lines": 14658,
+          "physical_lines": 14674
+        },
+        "documentation": {
+          "bytes": 54331,
+          "containing_files": 15,
+          "file_bytes": 54331,
+          "files": 15,
+          "nonblank_lines": 995,
+          "physical_lines": 1205
+        },
+        "fixture-data": {
+          "bytes": 6994753,
+          "containing_files": 44,
+          "file_bytes": 6994753,
+          "files": 44,
+          "nonblank_lines": 250260,
+          "physical_lines": 250263
+        },
+        "generated": {
+          "bytes": 671375,
+          "containing_files": 6,
+          "file_bytes": 671375,
+          "files": 7,
+          "nonblank_lines": 706,
+          "physical_lines": 754
+        },
+        "implementation": {
+          "bytes": 4101183,
+          "containing_files": 348,
+          "file_bytes": 5112072,
+          "files": 348,
+          "nonblank_lines": 101630,
+          "physical_lines": 108200
+        },
+        "inline-rust-tests": {
+          "bytes": 512226,
+          "containing_files": 14,
+          "nonblank_lines": 13006,
+          "physical_lines": 13042
+        },
+        "metadata": {
+          "bytes": 54950,
+          "containing_files": 43,
+          "file_bytes": 54950,
+          "files": 43,
+          "nonblank_lines": 1842,
+          "physical_lines": 1913
+        },
+        "runtime-data": {
+          "bytes": 2833,
+          "containing_files": 1,
+          "file_bytes": 2833,
+          "files": 1,
+          "nonblank_lines": 187,
+          "physical_lines": 187
+        },
+        "scaffolding": {
+          "bytes": 4424,
+          "containing_files": 2,
+          "nonblank_lines": 101,
+          "physical_lines": 101
+        },
+        "test-code": {
+          "bytes": 9973641,
+          "containing_files": 377,
+          "file_bytes": 9973641,
+          "files": 377,
+          "nonblank_lines": 152891,
+          "physical_lines": 161080
+        }
+      },
+      "files": 844,
+      "interface_candidates": 4044,
+      "manifest_summary": {
+        "cargo_dependency_specs": {
+          "packages/cloudflare/preparation/Cargo.toml": {
+            "serde": {
+              "features": [
+                "derive"
+              ],
+              "version": "1.0"
+            },
+            "serde_json": "1.0",
+            "sha2": "0.10"
+          },
+          "packages/testkit/conformance/ports/loader-smoke/Cargo.toml": {},
+          "packages/values/Cargo.toml": {},
+          "packages/values/bindings/Cargo.toml": {
+            "values-semantics": {
+              "path": "../semantics"
+            },
+            "wasm-bindgen": "0.2"
+          },
+          "packages/values/semantics/Cargo.toml": {
+            "num-bigint": "0.4",
+            "num-traits": "0.2",
+            "ryu-js": {
+              "default-features": false,
+              "features": [],
+              "version": "=1.0.3"
+            },
+            "serde": {
+              "features": [
+                "derive"
+              ],
+              "version": "1"
+            },
+            "serde_json": {
+              "features": [
+                "float_roundtrip"
+              ],
+              "version": "1"
+            }
+          },
+          "packages/work-kernel/Cargo.toml": {
+            "ryu-js": {
+              "default-features": false,
+              "version": "=1.0.3"
+            }
+          }
+        },
+        "cargo_manifests": 6,
+        "external_runtime_npm_dependencies": {
+          "@jridgewell/remapping": "2.3.5",
+          "@jridgewell/sourcemap-codec": "1.6.0",
+          "@modelcontextprotocol/sdk": "1.32.0",
+          "@scure/base": "2.4.0",
+          "cookie": "2.0.1",
+          "csv-parse": "7.0.3",
+          "es-module-lexer": "3.0.3",
+          "magic-string": "1.4.3",
+          "miniflare": "4.20260730.0"
+        },
+        "npm_bins": 1,
+        "npm_export_subpaths": 156,
+        "npm_internal_import_keys": 1,
+        "npm_packages": 13
+      },
+      "package_tree_sha256": "5a236b0ccc0fb80682df16fe51a34beea8e1578a7fe30435fa8dbe2ac01b189b",
+      "packages": {
+        "cloudflare": {
+          "bytes": 6200265,
+          "definition_lines": 2739,
+          "files": 142,
+          "implementation_lines": 21522,
+          "inline_rust_test_lines": 147,
+          "runtime_source_lines": 24261
+        },
+        "contracts": {
+          "bytes": 304432,
+          "definition_lines": 3592,
+          "files": 27,
+          "implementation_lines": 3585,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 7177
+        },
+        "files": {
+          "bytes": 160229,
+          "definition_lines": 333,
+          "files": 26,
+          "implementation_lines": 1834,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 2167
+        },
+        "identity": {
+          "bytes": 238222,
+          "definition_lines": 453,
+          "files": 43,
+          "implementation_lines": 2801,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 3254
+        },
+        "interfaces": {
+          "bytes": 1036197,
+          "definition_lines": 1068,
+          "files": 85,
+          "implementation_lines": 9027,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 10095
+        },
+        "services": {
+          "bytes": 340902,
+          "definition_lines": 539,
+          "files": 31,
+          "implementation_lines": 5508,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 6047
+        },
+        "state": {
+          "bytes": 1832065,
+          "definition_lines": 2050,
+          "files": 128,
+          "implementation_lines": 18217,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 20267
+        },
+        "stdlib": {
+          "bytes": 24203,
+          "definition_lines": 68,
+          "files": 6,
+          "implementation_lines": 187,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 255
+        },
+        "testkit": {
+          "bytes": 282066,
+          "definition_lines": 144,
+          "files": 38,
+          "implementation_lines": 1243,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 1387
+        },
+        "ui": {
+          "bytes": 1231156,
+          "definition_lines": 1237,
+          "files": 69,
+          "implementation_lines": 12384,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 13621
+        },
+        "values": {
+          "bytes": 5763118,
+          "definition_lines": 640,
+          "files": 134,
+          "implementation_lines": 16082,
+          "inline_rust_test_lines": 500,
+          "runtime_source_lines": 16722
+        },
+        "work": {
+          "bytes": 907001,
+          "definition_lines": 1160,
+          "files": 60,
+          "implementation_lines": 5981,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 7141
+        },
+        "work-kernel": {
+          "bytes": 4589944,
+          "definition_lines": 651,
+          "files": 55,
+          "implementation_lines": 9829,
+          "inline_rust_test_lines": 12395,
+          "runtime_source_lines": 10480
+        }
+      },
+      "physical_lines": 552625,
+      "ref": "8f33aa5e29d25bf3ea4d6035c7b2e3ddc0427854",
+      "root_input_hashes": {
+        "bun.lock": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+        "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3"
+      },
+      "source_lines_by_language_and_role": {
+        ".can": {
+          "fixture-data": 10
+        },
+        ".js": {
+          "generated": 253,
+          "test-code": 88
+        },
+        ".mjs": {
+          "build-tooling": 703,
+          "test-code": 3139
+        },
+        ".mts": {
+          "test-code": 9
+        },
+        ".rs": {
+          "generated": 193,
+          "implementation": 17518,
+          "inline-rust-tests": 13042,
+          "scaffolding": 89,
+          "test-code": 23697
+        },
+        ".ts": {
+          "definitions": 14674,
+          "generated": 72,
+          "implementation": 90682,
+          "runtime-data": 187,
+          "scaffolding": 12,
+          "test-code": 134147
+        }
+      },
+      "typescript_parser": "5.9.3"
+    },
+    "original": {
+      "bytes": 15163247,
+      "categories": {
+        "asset": {
+          "bytes": 17173,
+          "containing_files": 2,
+          "file_bytes": 17173,
+          "files": 2,
+          "nonblank_lines": 475,
+          "physical_lines": 503
+        },
+        "build-tooling": {
+          "bytes": 28672,
+          "containing_files": 7,
+          "file_bytes": 28672,
+          "files": 7,
+          "nonblank_lines": 644,
+          "physical_lines": 703
+        },
+        "definitions": {
+          "bytes": 490506,
+          "containing_files": 259,
+          "nonblank_lines": 14575,
+          "physical_lines": 14591
+        },
+        "documentation": {
+          "bytes": 54331,
+          "containing_files": 15,
+          "file_bytes": 54331,
+          "files": 15,
+          "nonblank_lines": 995,
+          "physical_lines": 1205
+        },
+        "fixture-data": {
+          "bytes": 470730,
+          "containing_files": 38,
+          "file_bytes": 470730,
+          "files": 38,
+          "nonblank_lines": 19792,
+          "physical_lines": 19795
+        },
+        "generated": {
+          "bytes": 640458,
+          "containing_files": 6,
+          "file_bytes": 640458,
+          "files": 7,
+          "nonblank_lines": 706,
+          "physical_lines": 754
+        },
+        "implementation": {
+          "bytes": 4084734,
+          "containing_files": 337,
+          "file_bytes": 5089614,
+          "files": 337,
+          "nonblank_lines": 101555,
+          "physical_lines": 108087
+        },
+        "inline-rust-tests": {
+          "bytes": 509950,
+          "containing_files": 13,
+          "nonblank_lines": 12956,
+          "physical_lines": 12991
+        },
+        "metadata": {
+          "bytes": 51188,
+          "containing_files": 43,
+          "file_bytes": 51188,
+          "files": 43,
+          "nonblank_lines": 1717,
+          "physical_lines": 1773
+        },
+        "runtime-data": {
+          "bytes": 2833,
+          "containing_files": 1,
+          "file_bytes": 2833,
+          "files": 1,
+          "nonblank_lines": 187,
+          "physical_lines": 187
+        },
+        "scaffolding": {
+          "bytes": 4737,
+          "containing_files": 3,
+          "file_bytes": 313,
+          "files": 1,
+          "nonblank_lines": 106,
+          "physical_lines": 107
+        },
+        "test-code": {
+          "bytes": 8807935,
+          "containing_files": 354,
+          "file_bytes": 8807935,
+          "files": 354,
+          "nonblank_lines": 135238,
+          "physical_lines": 143316
+        }
+      },
+      "files": 805,
+      "interface_candidates": 3997,
+      "manifest_summary": {
+        "cargo_dependency_specs": {
+          "packages/cloudflare/preparation/Cargo.toml": {
+            "serde": {
+              "features": [
+                "derive"
+              ],
+              "version": "1.0"
+            },
+            "serde_json": "1.0",
+            "sha2": "0.10"
+          },
+          "packages/testkit/conformance/ports/loader-smoke/Cargo.toml": {},
+          "packages/values/Cargo.toml": {},
+          "packages/values/bindings/Cargo.toml": {
+            "values-semantics": {
+              "path": "../semantics"
+            },
+            "wasm-bindgen": "0.2"
+          },
+          "packages/values/semantics/Cargo.toml": {
+            "num-bigint": "0.4",
+            "num-traits": "0.2",
+            "serde": {
+              "features": [
+                "derive"
+              ],
+              "version": "1"
+            },
+            "serde_json": "1"
+          },
+          "packages/work-kernel/Cargo.toml": {}
+        },
+        "cargo_manifests": 6,
+        "external_runtime_npm_dependencies": {
+          "@modelcontextprotocol/sdk": "1.32.0",
+          "miniflare": "4.20260730.0"
+        },
+        "npm_bins": 1,
+        "npm_export_subpaths": 154,
+        "npm_internal_import_keys": 0,
+        "npm_packages": 13
+      },
+      "package_tree_sha256": "8dff9074b8d699462c5f2e99351d76792a34aff3d7f521dd8fa10d7299858de8",
+      "packages": {
+        "cloudflare": {
+          "bytes": 5635859,
+          "definition_lines": 2677,
+          "files": 134,
+          "implementation_lines": 21343,
+          "inline_rust_test_lines": 147,
+          "runtime_source_lines": 24020
+        },
+        "contracts": {
+          "bytes": 304432,
+          "definition_lines": 3592,
+          "files": 27,
+          "implementation_lines": 3585,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 7177
+        },
+        "files": {
+          "bytes": 160229,
+          "definition_lines": 333,
+          "files": 26,
+          "implementation_lines": 1834,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 2167
+        },
+        "identity": {
+          "bytes": 223015,
+          "definition_lines": 450,
+          "files": 39,
+          "implementation_lines": 2782,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 3232
+        },
+        "interfaces": {
+          "bytes": 1035092,
+          "definition_lines": 1068,
+          "files": 84,
+          "implementation_lines": 9100,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 10168
+        },
+        "services": {
+          "bytes": 336677,
+          "definition_lines": 543,
+          "files": 30,
+          "implementation_lines": 5551,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 6094
+        },
+        "state": {
+          "bytes": 1832065,
+          "definition_lines": 2050,
+          "files": 128,
+          "implementation_lines": 18217,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 20267
+        },
+        "stdlib": {
+          "bytes": 24203,
+          "definition_lines": 68,
+          "files": 6,
+          "implementation_lines": 187,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 255
+        },
+        "testkit": {
+          "bytes": 282066,
+          "definition_lines": 144,
+          "files": 38,
+          "implementation_lines": 1243,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 1387
+        },
+        "ui": {
+          "bytes": 1227015,
+          "definition_lines": 1229,
+          "files": 67,
+          "implementation_lines": 12393,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 13622
+        },
+        "values": {
+          "bytes": 1997925,
+          "definition_lines": 626,
+          "files": 121,
+          "implementation_lines": 15998,
+          "inline_rust_test_lines": 452,
+          "runtime_source_lines": 16624
+        },
+        "work": {
+          "bytes": 907001,
+          "definition_lines": 1160,
+          "files": 60,
+          "implementation_lines": 5981,
+          "inline_rust_test_lines": 0,
+          "runtime_source_lines": 7141
+        },
+        "work-kernel": {
+          "bytes": 1197668,
+          "definition_lines": 651,
+          "files": 45,
+          "implementation_lines": 9873,
+          "inline_rust_test_lines": 12392,
+          "runtime_source_lines": 10524
+        }
+      },
+      "physical_lines": 304012,
+      "ref": "309644a6881909d8dba32560bc6711f67e00a7ab",
+      "root_input_hashes": {
+        "bun.lock": "28eeb481d3b6ce420b1ccc6573581572b47da25a0b8eb5ff833d1143e5cc4c19",
+        "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3"
+      },
+      "source_lines_by_language_and_role": {
+        ".can": {
+          "fixture-data": 10
+        },
+        ".js": {
+          "generated": 253,
+          "test-code": 88
+        },
+        ".mjs": {
+          "build-tooling": 703,
+          "test-code": 2574
+        },
+        ".rs": {
+          "generated": 193,
+          "implementation": 17598,
+          "inline-rust-tests": 12991,
+          "scaffolding": 95,
+          "test-code": 8186
+        },
+        ".ts": {
+          "definitions": 14591,
+          "generated": 72,
+          "implementation": 90489,
+          "runtime-data": 187,
+          "scaffolding": 12,
+          "test-code": 132468
+        }
+      },
+      "typescript_parser": "5.9.3"
+    }
+  }
+}

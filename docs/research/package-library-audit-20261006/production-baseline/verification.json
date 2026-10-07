@@ -1,0 +1,59 @@
+{
+  "baseline_inputs_sha256": {
+    "classifications.json": "466564d1dd4194b30a14fd4deaca743f24aa7436904469d5124fe33dff7344ea",
+    "measure.py": "b93773b9af67018859b60d82536222f3a372e4a754d6c654343752f72cf587df",
+    "mechanisms.jsonl": "a587d3458beaabb7794b2020b2a8a0b468c687cc962aae0a478a7609789c5728",
+    "ts-inventory.cjs": "d554cbe6260449bbee49a16f329779b22e12b284ca7cd0e649cb0ea1de2b1ad5"
+  },
+  "checks": {
+    "Luna_manifest_hashes_match_root": 38,
+    "Rust_raw_strings_nested_comments_test_items_and_external_module_controls": "pass",
+    "Sol_final_artifact_review": "totals, all input/output hashes and new scaffold ranges verified; clarified root 0-to-9 source contribution; no other bounded errors",
+    "TS_overload_all_type_export_and_mixed_line_controls": "pass",
+    "committed_summary_matches": true,
+    "exclusive_physical_lines_and_bytes_reconcile": true,
+    "independent_Sol_inline_ranges_match": 29,
+    "two_output_runs_byte_identical": [
+      "summary.json",
+      "files.tsv",
+      "classified-ranges.tsv",
+      "manifests.jsonl",
+      "interfaces.tsv",
+      "moves.tsv"
+    ]
+  },
+  "delegation": [
+    {
+      "effort": "low",
+      "model": "gpt-6-luna",
+      "reason": "mechanical extraction from fixed refs",
+      "result": "corrected original/current labeling; independently hash-verified",
+      "task": "manifest and marker extraction"
+    },
+    {
+      "effort": "medium",
+      "model": "gpt-6.1-sol",
+      "reason": "mixed-file semantics and assembly ambiguity",
+      "result": "exact Rust ranges verified; overload/type-export and snapshot stage corrections incorporated",
+      "task": "ambiguous classification and measurement review"
+    }
+  ],
+  "generated_output_sha256": {
+    "classified-ranges.tsv": "9f5e23ab4fb10c65760237a75d21bc04527a5ba5c5f066adf4587e15c74c150b",
+    "files.tsv": "f442755d97138e7f415b569647a56c380c5d2dc162e8efa584316673fa358313",
+    "interfaces.tsv": "14a772dff45c3846e852943f6597b8977cdd27bcf6bd1548c82da7abe4bcb824",
+    "manifests.jsonl": "3cf7578aacdccfe8fd5fb5d704695831ba5b17224b4812cd06b62802c552e82d",
+    "moves.tsv": "380536af781fa89f13b756263a9b867aeaee0605eea4d5683131a6bd8a871174",
+    "summary.json": "3a769981d55573894410aeddaa8b897cf1e64c2c6f7370a8ed20750a1e61496a"
+  },
+  "limits": [
+    "No product builds/tests/installations or runtime reachability proof",
+    "No release/task-parent or filetree checkpoint advancement",
+    "Foreign compiler/editor/shared work preserved",
+    "Preparation implementation remains held"
+  ],
+  "observed_head": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "package_dirty_and_untracked_paths": [],
+  "package_tree_equal_to_current_pin": true,
+  "schema": 1
+}
