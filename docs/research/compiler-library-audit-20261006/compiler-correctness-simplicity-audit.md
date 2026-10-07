@@ -14,6 +14,8 @@ Pin compiler source and dirty changes, Cargo/features/toolchain, catalog content
 
 **Output:** reproducible starting inputs and an evidence ledger marking verified, invalid, stale and unqualified claims. **Allocation:** Luna low for pins/counts; Sol medium for interpreting disputed evidence.
 
+**Executed:** [Step 1 baseline and evidence](baseline-verification/README.md) pins current compiler/dependency/catalog/runtime/tool inputs, corrects category counts, classifies prior receipts and captures a fresh native debug build plus bounded six-test consumer replay. Whole-current qualification and independent per-run temporal reconstruction retain their explicit limits. This completion does not execute Steps 2–15.
+
 ### 2. Build complete responsibility coverage
 
 Inventory every compiler source, test, fixture, build/configuration file, completion script and public recipe, plus relevant external joins. Establish a finite initial responsibility list, including public/critical declarations and mechanisms; large mixed files need several slices. Assign owners to these slices, without requiring a paperwork record per declaration. Expand a slice when concrete evidence reveals another dependency or omitted workflow. Record structural, workflow, independent-review and model/writer coverage separately. File inspection alone is insufficient; mark unreviewed branches, interfaces and joins explicitly. Do not treat a previous utility audit as complete semantic coverage or let speculative edges turn the audit into an unlimited investigation.

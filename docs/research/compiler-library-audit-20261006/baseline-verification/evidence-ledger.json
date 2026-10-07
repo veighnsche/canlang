@@ -1,0 +1,569 @@
+{
+  "schema_version": 1,
+  "scope": "Step1 existing evidence verification and bounded current baseline witnesses. This is not a whole compiler audit or current full-suite qualification.",
+  "classification_definition": {
+    "verified-historical": "Raw outcomes/commands/pins support the declared historical scope; not automatically current qualification.",
+    "verified-current-bounded": "Fresh recorded command on pinned current inputs supports only named outcomes.",
+    "invalid-attempt": "Failed or stale-artifact attempt supplies no successful-build evidence.",
+    "unqualified": "Required process/body/input/artifact evidence absent or scope not exercised.",
+    "superseded-measurement": "Known incorrect measurement replaced with a reviewed method."
+  },
+  "historical_integrity": {
+    "pass10_manifest_entries": 156,
+    "pass10_manifest_mismatches": 0,
+    "consumer_nested_manifest_entries": 75,
+    "consumer_nested_manifest_mismatches": 0,
+    "checks_log_pairs": 4,
+    "checks_log_mismatches": 0,
+    "selected_runtime_log_mismatches": 0,
+    "consumer_process_stream_hash_mismatches": 0,
+    "release_source_rows": 47,
+    "historical_git_source_hash_mismatches": 0,
+    "release_artifacts_present_now": 0,
+    "release_artifacts_recorded": 5
+  },
+  "earlier_passes": [
+    {
+      "pass": 1,
+      "scope": "source/string decoding",
+      "actual_behavior_and_limits": "Raw tab label/description/variant early candidate fabricated E3016; final comparison retains only baseline E1006 and source spans. Full suite preceded final recovery correction; focused final logs qualify correction.",
+      "raw_log_observations": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass1/full-suite.log",
+          "harnesses": 29,
+          "passed": 915,
+          "failed": 0,
+          "explicit_skip_lines": [],
+          "sha256": "a1f3efcccd4b8e7998938cc884826e742d99cd7d5c01461d2ca73dc3c92731b9",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        }
+      ],
+      "historical_applicability": "Frozen saved inputs/recorded hosts only; not current checkout qualification."
+    },
+    {
+      "pass": 2,
+      "scope": "LSP transport/envelope",
+      "actual_behavior_and_limits": "29 C02 outcome transfers; 2 framing gates deferred; 13 C06 unchanged. Exact number ID lexemes separately exercised. Full suite predates final bare-LF/case witnesses; final library/process120 cover them.",
+      "raw_log_observations": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass2/full-suite.log",
+          "harnesses": 30,
+          "passed": 945,
+          "failed": 0,
+          "explicit_skip_lines": [],
+          "sha256": "e53d47212a959c2ec703265474dba23c94d1ea25c08cd6592ef8f250bd76f428",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        }
+      ],
+      "historical_applicability": "Frozen saved inputs/recorded hosts only; not current checkout qualification."
+    },
+    {
+      "pass": 3,
+      "scope": "URL and locale owner comparisons",
+      "actual_behavior_and_limits": "29 URL release cases: baseline16 qualified, final29; Unicode invalid URL error10 replaces potential panic. Locale53+6 duplicate pairs show4 admission and7 identity mismatches: candidate failed gate; no locale replacement.",
+      "raw_log_observations": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass3/full-suite.log",
+          "harnesses": 31,
+          "passed": 948,
+          "failed": 0,
+          "explicit_skip_lines": [],
+          "sha256": "a0bccf7598af61e36586a01c4f3c890bc2d40c49b22d44fb84913fcbcef670d7",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        }
+      ],
+      "historical_applicability": "Frozen saved inputs/recorded hosts only; not current checkout qualification."
+    },
+    {
+      "pass": 4,
+      "scope": "file writers and hash",
+      "actual_behavior_and_limits": "File fixture macOS04750 body skip; Linux special bits executed. Hash16 fixed answers; sha2 0.10.9 qualified, 0.11.0 explicitly unqualified.",
+      "raw_log_observations": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass4/full-suite.log",
+          "harnesses": 32,
+          "passed": 967,
+          "failed": 0,
+          "explicit_skip_lines": [],
+          "sha256": "63b16065c4e27312b2b41917d2e0b6d0b6b6fc17a322fa767e42a54952a0381d",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        }
+      ],
+      "historical_applicability": "Frozen saved inputs/recorded hosts only; not current checkout qualification."
+    },
+    {
+      "pass": 5,
+      "scope": "typed output eight finite families",
+      "actual_behavior_and_limits": "Native1005 with mode4750 subcase skipped. Linux142 harness passes include3 package runtime skips. Two exit137 attempts invalid/incomplete; third succeeds. Production decimal default E6008 gap; independent output fixtures only. RawValue syntax qualification does not establish Unicode scalar validation.",
+      "raw_log_observations": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass5/full-tests-final.log",
+          "harnesses": 44,
+          "passed": 1005,
+          "failed": 0,
+          "explicit_skip_lines": [
+            "SKIP mode 4750: this host did not retain the requested fixture bits"
+          ],
+          "sha256": "001648bbc20f8317773844ca807ced4ae1356eac76710a2eeba9edac925dab9e",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        }
+      ],
+      "historical_applicability": "Frozen saved inputs/recorded hosts only; not current checkout qualification."
+    },
+    {
+      "pass": 6,
+      "scope": "ordered JSON input",
+      "actual_behavior_and_limits": "Frozen duplicate order/get-first and raw number/depth witnesses preserve independent contract, not arbitrary old error prose. Caller errors/catalog/LSP fixed mappings checked; native1026. Linux153 harness passes with2 producer-runtime body skips. Native byte offset correction evidence separate.",
+      "raw_log_observations": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass6/native-full-tests.log",
+          "harnesses": 47,
+          "passed": 1026,
+          "failed": 0,
+          "explicit_skip_lines": [],
+          "sha256": "9b158d00b4575d41777a76bb20953fd1ad62fb97cd67d141112cb67492aafe42",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        }
+      ],
+      "historical_applicability": "Frozen saved inputs/recorded hosts only; not current checkout qualification."
+    },
+    {
+      "pass": 7,
+      "scope": "typed LSP output",
+      "actual_behavior_and_limits": "Native1034; editor39 and3 process sessions/61frames/43responses/18notifications. Fixed profile witnesses do not claim every client/editor.",
+      "raw_log_observations": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass7/verification/native-full.log",
+          "harnesses": 48,
+          "passed": 1034,
+          "failed": 0,
+          "explicit_skip_lines": [],
+          "sha256": "676417c3f4463909217e539cd2db9794e1740b1df74a706e9a2f7e7dce47caa8",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        }
+      ],
+      "historical_applicability": "Frozen saved inputs/recorded hosts only; not current checkout qualification."
+    },
+    {
+      "pass": 8,
+      "scope": "source-map codecs/consumer",
+      "actual_behavior_and_limits": "Native1040. Frozen original TS raw consumer277cases/910lookups; fresh CLI1module/24points and synthetic invocation coordinate.can:1:7. Byte-column profile; browserUTF16 explicitly unqualified. Cost3warmups20rounds,3modules55points; fixed workload only.",
+      "raw_log_observations": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass8/verification/native-full.log",
+          "harnesses": 49,
+          "passed": 1040,
+          "failed": 0,
+          "explicit_skip_lines": [],
+          "sha256": "23f2695a1d7b1fc8316b89ad5b4026560c1eadead9d2649799d30e2d0f3781bc",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        }
+      ],
+      "historical_applicability": "Frozen saved inputs/recorded hosts only; not current checkout qualification."
+    },
+    {
+      "pass": 9,
+      "scope": "conditional candidate/repair work",
+      "actual_behavior_and_limits": "Native1048 harness passes: standard output does not prove absence of all preexisting body skips. Linux68 focused/157filtered/no body skips, only ICU/IDE/docs; shells/package runtime excluded. ICU8type/50syntax/6render owner comparison has2type+11syntax baseline mismatches; fresh CLI8 repairs qualification. Temporal/CLI candidates are bounded prototypes, not adopted policy.",
+      "raw_log_observations": [
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass9/verification/native-full.log",
+          "harnesses": 50,
+          "passed": 1048,
+          "failed": 0,
+          "explicit_skip_lines": [],
+          "sha256": "d0e0546d212f1ceb7acd45be1081ea6c596c6c6dedc11ed6885f069f5ef3ae7f",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        },
+        {
+          "path": "docs/research/compiler-library-audit-20261006/pass9/profile/linux-tests.log",
+          "harnesses": 4,
+          "passed": 68,
+          "failed": 0,
+          "explicit_skip_lines": [],
+          "sha256": "33606c91c539fd0b685adb39c82db912326dd0d6013e6573a295743668164e06",
+          "exit_limitation": "Harness text establishes outcomes; process exit only where structured receipt separately records it."
+        }
+      ],
+      "historical_applicability": "Frozen saved inputs/recorded hosts only; not current checkout qualification."
+    }
+  ],
+  "pass10_and_r01": [
+    {
+      "packet": "pass10/checks",
+      "classification": "verified-historical",
+      "current_applicability": "stale-for-current",
+      "evidence": [
+        "checks/results.json",
+        "checks/logs/{build,test,lint}.stdout.log",
+        "checks/test-summary.json",
+        "checks/runner-profile.json",
+        "checks/selected-runtime.log",
+        "checks/selected-runtime-results.json"
+      ],
+      "commands_recorded": 4,
+      "commands_exit_zero": 4,
+      "tasks_executed_each_build_test_lint": 1,
+      "task_cache_hits": 0,
+      "test_harnesses": 50,
+      "passed": 1048,
+      "failed": 0,
+      "ignored": 0,
+      "completion_engine_test_passed": true,
+      "runner_scope": "Temporary Turbo profile appends four env names; compiler-only tasks, no package producer dependency.",
+      "body_qualification": "Passing full-suite output captures successful test stderr, so it alone does not exclude runtime early returns. Three selected runtime tests explicitly permit missing-input/Node skips. Separate later --nocapture run proves their bodies executed on recorded inputs.",
+      "selected_harnesses": 5,
+      "selected_passed": 6,
+      "selected_skip_markers": 0,
+      "selected_runtime_test_source_drift": [],
+      "selected_scope": {
+        "catalog": "actual owner source/dist equality, 59 entries, 15 features, isolated emitted catalog and fresh CLI",
+        "strings": "six real production CLI + metadata + testkit witnesses",
+        "url": "29 owner vectors, 15 metadata defaults; no application execution",
+        "sourcemap": "fresh CLI artifact and current source consumers; synthetic mapped invocation coordinate.can:1:7; browser UTF16 unqualified",
+        "bdd": "two exact emitted-JS fixture comparisons; no runtime BDD execution"
+      }
+    },
+    {
+      "packet": "pass10/profile exit-checked retries and production build",
+      "classification": "verified-historical",
+      "current_applicability": "stale-for-current",
+      "evidence": [
+        "profile/{native-baseline,native-final,linux-release}-retry-results.json",
+        "profile/retry-native-{baseline,final}.py",
+        "profile/run-linux-release.py",
+        "profile/logs/*exitchecked*",
+        "profile/logs/production-release.log",
+        "profile/source-parity.json"
+      ],
+      "successful_release_builds": 5,
+      "version_help_checks": 10,
+      "native_bytes": {
+        "baseline": 1918224,
+        "final": 2250544,
+        "production": 2250544
+      },
+      "linux_bytes": {
+        "baseline": 2685944,
+        "final": 3079312
+      },
+      "native_delta_bytes": 332320,
+      "linux_delta_bytes": 393368,
+      "current_release_source_drift": [
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/lsp/output.rs",
+        "compiler/src/syntax/parser.rs"
+      ],
+      "limits": [
+        "All five historical artifact paths are absent now; recorded historical hashes remain supported by logs/manifests but cannot be rehashed/replayed.",
+        "Shared cache-warm target timing only; no clean-build speed qualification.",
+        "CLI --version/--help only for Linux, no full Linux consumer/application run.",
+        "Native full offline metadata failed for uncached futures-task 0.3.34; Linux-filtered metadata exists and dependency/license material reused from Pass8."
+      ]
+    },
+    {
+      "packet": "pass10/profile failed initial Linux attempts",
+      "classification": "invalid-attempt",
+      "evidence": [
+        "profile/logs/linux-attempt1-invalid.log",
+        "profile/logs/linux-attempt2-invalid.log"
+      ],
+      "attempts": 2,
+      "reason": [
+        "First attempt lacks /usr/bin/time; subsequent commands still version/copy stale equal 3077520-byte artifacts with aa12c4a6... hash. No build occurred.",
+        "Second attempt lacks shell time and terminates before build."
+      ],
+      "credited_to_successful_retries": false
+    },
+    {
+      "packet": "pass10/profile older non-retry logs",
+      "classification": "unqualified",
+      "evidence": [
+        "profile/logs/native-final-release.log",
+        "profile/logs/linux-release.log"
+      ],
+      "reason": "Older final-native log has empty exit=; older Linux log has Finished/version/hash records but no individually retained build exits. They are superseded by explicit subprocess retry receipts; do not use their timings as retry timings."
+    },
+    {
+      "packet": "pass10/consumers",
+      "classification": "verified-historical",
+      "current_applicability": "stale-for-current",
+      "evidence": [
+        "consumers/process-results.json",
+        "consumers/probe.py",
+        "consumers/replay.sh",
+        "consumers/{current,installed}-artifact.stdout",
+        "consumers/artifact-probe.mjs",
+        "consumers/installed-provenance.json",
+        "consumers/{pre,post}-pins.json"
+      ],
+      "direct_process_probes": 18,
+      "lsp_probes": 13,
+      "all_exit_codes_match_expected": true,
+      "expected_nonzero_exits": 5,
+      "artifact_runtime_probes": 2,
+      "pre_post_pins": 18,
+      "pre_post_equal": true,
+      "installed_tarballs": 13,
+      "installed_files_compared_recorded": 2268,
+      "actual_emitted_scope": "Actual assembleModules, import, canApp/default values, real refused generated handler, mapper and testkit in current dist and isolated installed mode.",
+      "original_app": {
+        "exit": 10,
+        "diagnostics": [
+          "E3001",
+          "E3010",
+          "E3010"
+        ],
+        "acceptance": "unqualified"
+      },
+      "limits": [
+        "No complete app workflow/browser/Worker qualification.",
+        "Historical installed scratch paths are absent now; root rehashed all13 original checkout archives against recorded hashes but did not recreate the installed consumer."
+      ]
+    },
+    {
+      "packet": "pass10/workload",
+      "classification": "verified-historical",
+      "current_applicability": "stale-for-current",
+      "evidence": [
+        "workload/cli-cost.py",
+        "workload/results.json",
+        "workload/{baseline,current}.json",
+        "workload/run.log"
+      ],
+      "warmups_per_side": 3,
+      "measured_rounds_per_side": 20,
+      "total_compiles_recorded": 46,
+      "modules": 3,
+      "decoded_points_recorded": 55,
+      "saved_full_artifacts_equal": true,
+      "saved_input_files_sha256_match": true,
+      "median_ms": {
+        "baseline": 7.9527705,
+        "current": 7.930875
+      },
+      "limits": "Single fixed native compile fixture includes process startup; no general performance claim; binary paths absent now.",
+      "saved_map_segment_count_verified": 55
+    },
+    {
+      "packet": "production-reduction/verification",
+      "classification": "verified-historical",
+      "current_applicability": "stale-for-current",
+      "evidence": [
+        "production-reduction/verification/test.log",
+        "production-reduction/verification/results.json",
+        "production-reduction/verification/{inputs-before,inputs-after}.json",
+        "production-reduction/verification/root-checks.json",
+        "production-reduction/verification/{fmt,clippy}.log",
+        "production-reduction/verification/closure.json"
+      ],
+      "integration_harnesses": 3,
+      "integration_passed": 62,
+      "failed": 0,
+      "ignored": 0,
+      "test_exit": 0,
+      "fmt_exit": 0,
+      "clippy_exit": 0,
+      "fmt_clippy_log_hash_match": true,
+      "pre_post_pins": 98,
+      "pre_post_equal": true,
+      "current_input_drift": [
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/syntax/parser.rs",
+        "compiler/tests/analysis.rs",
+        "compiler/tests/lsp_typed_output.rs",
+        "compiler/tests/syntax.rs"
+      ],
+      "output_source_pin_matches_current": true,
+      "limits": "Contemporaneous dirty resolve/analysis/lsp-output-test inputs were pinned; later parser/resolver/test work is outside this packet. Root fmt/Clippy runs have worktree concurrency limits."
+    },
+    {
+      "packet": "production-reduction output unit count",
+      "classification": "unqualified",
+      "evidence": [
+        "production-reduction/verification/closure.json"
+      ],
+      "claimed_passed": 3,
+      "reason": "Exclusive-writer report plus independent unchanged-inline-fixture inspection; no corresponding raw unit test run log in verification packet."
+    }
+  ],
+  "historical_discrepancies": [
+    {
+      "evidence": "profile/linux-release-retry-results.json",
+      "detail": "cargo_finished_seconds is null for both builds because script regex reads stdout while Cargo Finished appears in stderr; combined exitchecked logs establish 31.07s/36.11s, which summary results.json correctly records. This is a metadata extraction gap, not a failed build."
+    },
+    {
+      "evidence": "pass10/final-inputs.json",
+      "detail": "114 saved input entries are intact historically; current drift contains README plus three production source and three integration test files. Older receipts must not be promoted to current whole-compiler qualification.",
+      "current_drift": [
+        "compiler/README.md",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/lsp/output.rs",
+        "compiler/src/syntax/parser.rs",
+        "compiler/tests/analysis.rs",
+        "compiler/tests/lsp_typed_output.rs",
+        "compiler/tests/syntax.rs"
+      ]
+    }
+  ],
+  "earlier_hash_verification": {
+    "checked": 23,
+    "mismatches": 0,
+    "manifests": [
+      "docs/research/compiler-library-audit-20261006/pass4/files/verification.json",
+      "docs/research/compiler-library-audit-20261006/pass4/hash/verification.json",
+      "docs/research/compiler-library-audit-20261006/pass9/temporal/evidence-sha256.json"
+    ],
+    "scope": "Selected earlier receipts sampled; Pass10 has complete saved-manifest checks. No claim of byte verification of every earlier audit file."
+  },
+  "latest_owner_evidence": {
+    "scope": "Read-only raw latest owner evidence audit; no test, GUI or build executed.",
+    "exact_diagnostics_files": [
+      "/private/tmp/canlang-diagnostics-final-tests.log",
+      "/private/tmp/canlang-diagnostics-clippy.log"
+    ],
+    "raw_receipts": [
+      {
+        "path": "/private/tmp/canlang-diagnostics-final-tests.log",
+        "sha256": "e6b0c04c8d30ffe4c28fe1e4c98153d1fe1735b68c0f010a80e51698096aed5c",
+        "bytes": 6782,
+        "harnesses": 50,
+        "passed": 1054,
+        "failed": 0,
+        "ignored": 0,
+        "filtered_out": 0,
+        "explicit_SKIP_lines": [],
+        "observation": "Quiet harness output corroborates1054/50 successful outcomes; command, exit code and input hashes absent.",
+        "durable_copy": "docs/research/compiler-library-audit-20261006/baseline-verification/owner-final-tests.log"
+      },
+      {
+        "path": "/private/tmp/canlang-diagnostics-clippy.log",
+        "sha256": "3e6698111fb67ba6f8e25b550893b4e7d2049f1ad34288b46dea171e48996ce1",
+        "bytes": 151,
+        "harnesses": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered_out": 0,
+        "explicit_SKIP_lines": [],
+        "observation": "Compiling compiler and Finished dev profile corroborate successful cargo-style completion, but command flags and explicit process exit absent.",
+        "durable_copy": "docs/research/compiler-library-audit-20261006/baseline-verification/owner-clippy.log"
+      }
+    ],
+    "current_observation_pins": [
+      {
+        "path": "compiler/src/analysis/resolve.rs",
+        "sha256": "11a20d031e8c038ee9ba70fb5a55c6d5d6eafe508910e76f9bc9bdeae712c63d",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "compiler/src/syntax/parser.rs",
+        "sha256": "1b70f50c11b20fa23ab7f938d872f02b373b89129c2af3235b47ba0c5f0febf1",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "compiler/tests/analysis.rs",
+        "sha256": "69d974c2b7945fc15c209d5346c8e883ef81fe2954e8fa4d6e71331472ef2453",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "compiler/tests/lsp_typed_output.rs",
+        "sha256": "90e1f426e136fac00e8acda84be017a94e9541f6caed8eabbb83e484da7b2116",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "compiler/tests/syntax.rs",
+        "sha256": "b0976f8de37a466c7d78479fa94b6b1b1f1a19c0b62a49c2bac949647c51ff22",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "editors/vscode/src/client.ts",
+        "sha256": "048b44dce7fc1ba5bba80985ba3b4710c392993f2b03d8db19fd0a48072063af",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "editors/vscode/src/extension.ts",
+        "sha256": "916ccb65410f7f55e1b4ffe5a3e9a1e0294d6fba11abb3ffd802515103da86b6",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "editors/vscode/test/server-startup.cjs",
+        "sha256": "4e6330d7b7ab04021e090740c1c4ac3b352637cae79f9a4fbd0e61eb01300fca",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "editors/vscode/out/client.js",
+        "sha256": "47a8de28f1dfaec38b22436aa4432d3d095cca213a44401e938db18bc0e2e03f",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "editors/vscode/out/extension.js",
+        "sha256": "472240bb06e7529b691cc4b62618c0871f6192b3ce0ff22c59ce4c46e5bbdcf9",
+        "scope": "current bytes only; no link to historical command execution established"
+      },
+      {
+        "path": "compiler/target/debug/can",
+        "sha256": "615fea2fa5c60493c9ab262507d9527bfa4bf5f4c69592c7ed5539ed6fa74cdb",
+        "scope": "current bytes only; no link to historical command execution established"
+      }
+    ],
+    "verified": [
+      "Raw final test log contains50 successful harness summaries,1054passes,0failed,0ignored,0filtered.",
+      "Clippy-named log contains a successful Finished dev profile line.",
+      "Commit4ecd991a changes resolve/parser/regressions and editor activation/startup mock source, matching decision scope."
+    ],
+    "reported_not_raw_qualified": [
+      "Locked compiler command and exit0; no command/exit receipt accompanies available raw log.",
+      "Whole compiler fmt and Clippy all-targets -Dwarnings flags lack raw invocation/exit evidence in these two files.",
+      "11 startup checks and existing LSP capability checks lack saved raw command/result log here. Test source shows checks but cannot prove execution.",
+      "Actual Cursor activation,0\u21923\u21920 Problems counts and protocol versions1/2/3 are decision claims; no durable raw editor/session transcript or source/binary pin closure found among diagnostics files.",
+      "Installed client hash parity is reported; no installed-path hash manifest supplied in these files.",
+      "Debug binary reported version5e55fb2d alone does not qualify latest semantic source."
+    ],
+    "missing_provenance": [
+      "Exact argv/environment/cwd and process exit for test and Clippy runs.",
+      "Source/input/package catalog and runtime hashes at run start/end; commit/tree/dirty-state linkage to4ecd991a.",
+      "Raw fmt/startup/LSP capability commands and exits; startup stdout with11 checks.",
+      "Build command/exit and semantic-source manifest linking debug executable hash to latest parser/resolve/test bytes.",
+      "Installed extension destination and hash parity manifest plus raw Cursor session evidence."
+    ],
+    "limits": [
+      "No SKIP text under quiet default capture does not establish no conditional in-body skips.",
+      "Current hashes are observations only, not retrospective provenance or current qualification."
+    ],
+    "decision_claim_path": "docs/specification/DECISIONS.md:1317",
+    "observation_time_scope": "Source/binary observations collected by reviewer before root fresh build; original observed binary hash is not the final baseline artifact."
+  },
+  "current_baseline": {
+    "classification": "verified-current-bounded",
+    "inputs": "inputs.json",
+    "counts": "counts.json",
+    "build": "fresh-build.json",
+    "consumer_replay": "selected-replay.json",
+    "historical_archives": "All 13 original checkout release archives rehashed and match prior hashes; installed scratch and five exact historical binary paths are absent.",
+    "runtime_drift": "Cloudflare/identity/ui source manifests differ from recorded packaging-source hashes; Cloudflare adds ./runtime/invoke and ui adds ./csv/grammar. Prior export entries remain unchanged. Identity imports changed. Source and packed workspace dependency ranges deliberately differ.",
+    "decoder_profile": "Fixture selects existing cached1.6.0 independent decoder; raw replay confirms exact hash and body execution. Missing top-level package is not a skip or failure.",
+    "full_suite": "Latest owner raw log corroborates1054/50; missing invocation/exits/input pins prevent independent current whole-suite qualification from that log. This packet does not rerun the whole suite."
+  },
+  "measurement_correction": {
+    "invalid_old_aggregate": {
+      "pass10": 22,
+      "r01": -29
+    },
+    "corrected_frozen_aggregate": {
+      "pass10": 181,
+      "r01": 130
+    },
+    "current_src_production": 69255,
+    "current_vs_original": 136,
+    "definition": "Gross compiler/src physical lines excluding only exact complete top-level cfg(test) item spans; not complexity or executable LOC. Build/completion implementation remains separately classified."
+  },
+  "remaining_scope": [
+    "Whole compiler current full-suite/fmt/Clippy and GUI claims need execution provenance at their required scope.",
+    "No current installed-package/original-app/Worker/browser/release/other-host qualification by the selected replay.",
+    "No new source-only reproducibility or clean/cold dependency installation proof.",
+    "Existing locale/ICU/graph/path and original product prerequisites remain independent of this evidence freeze."
+  ],
+  "temporal_integrity_limit": "Capture receipts record pin counts and changed-input lists. Shared per-file input hashes are retained, but separate per-run before/after hash maps were not written. Independent review verifies present bytes and scoped outputs; it cannot independently reconstruct every temporal read during those runs.",
+  "independent_review": "independent-review.json"
+}
