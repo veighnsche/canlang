@@ -1,0 +1,7 @@
+app Shop
+Given
+When
+Then
+ page / title="Home"
+  card "Card"
+   text "Child"

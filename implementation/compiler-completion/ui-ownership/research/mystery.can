@@ -1,0 +1,6 @@
+app Shop
+Given
+When
+Then
+ page / title="Home"
+  mystery unsupported=5

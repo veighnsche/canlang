@@ -1,0 +1,17 @@
+app Nested
+Given
+ Item { name:text }
+ policy Item read=members
+When
+Then
+ page / title="Nested"
+  list Item
+   tabs
+    tab row.name
+     text "Outer panel"
+     list Item
+      card "Nested card"
+       tabs
+        tab row.name
+         require count(Item)>0
+         text count(Item)

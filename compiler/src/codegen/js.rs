@@ -3442,6 +3442,12 @@ impl<'a> Emitter<'a> {
     /// Lower one UI node under an explicit context expression. Children
     /// inherit the context; row scopes thread their view name instead.
     pub fn lower_ui_ctx(&mut self, node: &IrUi, ctx: &str) -> String {
+        self.lower_ui_occurrence(node, ctx, &[])
+    }
+
+    /// Occurrence identities thread through enclosing collection rows so
+    /// repeated tabsets never share their radio group or panel identifiers.
+    fn lower_ui_occurrence(&mut self, node: &IrUi, ctx: &str, occurrences: &[String]) -> String {
         if !is_ui_factory(&node.factory) {
             self.unsupported(
                 "UI node",
@@ -3457,19 +3463,33 @@ impl<'a> Emitter<'a> {
         // gate reads the same scope the node renders in.
         let gate = node.gate.as_ref().map(|g| self.lower_expr(g));
         self.ui.insert(node.factory.clone());
+        let transient_tabs = node.factory == "tabs"
+            && node.props.iter().any(|(key, _)| key == "id")
+            && node.children.iter().all(|child| child.factory == "tabItem");
         let mut props = vec![format!("context:{ctx}")];
         for (key, value) in &node.props {
-            props.push(format!("{}:{}", object_key(key), self.lower_expr(value)));
+            let value = self.lower_expr(value);
+            let value = if transient_tabs && key == "id" && !occurrences.is_empty() {
+                format!(
+                    r#"{value}+"-"+encodeURIComponent(JSON.stringify([{}]))"#,
+                    occurrences.join(",")
+                )
+            } else {
+                value
+            };
+            props.push(format!("{}:{value}", object_key(key)));
         }
         match &node.row_scope {
             Some((row, view)) => {
                 self.enter_scope();
                 let row = self.bind(row);
                 let child_ctx = self.bind(view);
+                let mut child_occurrences = occurrences.to_vec();
+                child_occurrences.push(format!("{row}.id"));
                 let children = node
                     .children
                     .iter()
-                    .map(|c| self.lower_ui_ctx(c, &child_ctx))
+                    .map(|c| self.lower_ui_occurrence(c, &child_ctx, &child_occurrences))
                     .collect::<Vec<_>>()
                     .join(",");
                 // `async` exactly when a row child awaits.
@@ -3487,12 +3507,49 @@ impl<'a> Emitter<'a> {
                 // A2b: `fab` and `chatBubble` take grouped suites,
                 // never `children` (their F props have no children
                 // slot; shapes validated at decode).
-                if node.factory == "fab" {
+                if transient_tabs {
+                    let items = node
+                        .children
+                        .iter()
+                        .map(|item| {
+                            let gate = item.gate.as_ref().map(|gate| self.lower_expr(gate));
+                            let mut fields = Vec::new();
+                            for (key, value) in &item.props {
+                                fields.push(format!(
+                                    "{}:{}",
+                                    object_key(key),
+                                    self.lower_expr(value)
+                                ));
+                            }
+                            // Eager arrays preserve authored depth-first evaluation:
+                            // each caption then its descendants, exactly once.
+                            let children = item
+                                .children
+                                .iter()
+                                .map(|child| self.lower_ui_occurrence(child, ctx, occurrences))
+                                .collect::<Vec<_>>()
+                                .join(",");
+                            fields.push(format!("children:[{children}]"));
+                            let item = format!("({{{}}})", fields.join(","));
+                            match gate {
+                                Some(gate) => format!("{gate}?{item}:null"),
+                                None => item,
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    props.push(format!("items:[{items}].filter(item=>item!=null)"));
+                } else if node.factory == "fab" {
                     let mut kids = node.children.iter();
                     if let Some(main) = kids.next() {
-                        props.push(format!("main:[{}]", self.lower_ui_ctx(main, ctx)));
+                        props.push(format!(
+                            "main:[{}]",
+                            self.lower_ui_occurrence(main, ctx, occurrences)
+                        ));
                     }
-                    let rest: Vec<String> = kids.map(|c| self.lower_ui_ctx(c, ctx)).collect();
+                    let rest: Vec<String> = kids
+                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences))
+                        .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
                 } else if node.factory == "chatBubble" {
                     // Slot children group by slot name in
@@ -3516,7 +3573,7 @@ impl<'a> Emitter<'a> {
                             .filter(|c| crate::codegen::ir::ui_slot_name(c) == Some(name))
                         {
                             for grand in &child.children {
-                                group.push(self.lower_ui_ctx(grand, ctx));
+                                group.push(self.lower_ui_occurrence(grand, ctx, occurrences));
                             }
                         }
                         props.push(format!("{}:[{}]", object_key(name), group.join(",")));
@@ -3525,7 +3582,7 @@ impl<'a> Emitter<'a> {
                     let children = node
                         .children
                         .iter()
-                        .map(|c| self.lower_ui_ctx(c, ctx))
+                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences))
                         .collect::<Vec<_>>()
                         .join(",");
                     props.push(format!("children:[{children}]"));
