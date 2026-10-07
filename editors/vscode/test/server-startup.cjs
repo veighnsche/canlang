@@ -56,6 +56,7 @@ function startup({ folders, document, owner }, transformExtension = (source) => 
     commands: { registerCommand: () => disposable },
     SemanticTokensLegend: class {},
     CodeActionKind: { QuickFix: 'quickfix' },
+    CompletionItemKind: {},
     Uri: { parse: (value) => ({ toString: () => value }) },
     Position: class { constructor(line, character) { this.line = line; this.character = character; } },
     Range: class { constructor(start, end) { this.start = start; this.end = end; } },
