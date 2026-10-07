@@ -111,10 +111,11 @@ const UNKNOWN_TYPE: &str = "unknown";
 // --- Model -----------------------------------------------------------------
 
 /// Project-relative source span of one owning declaration.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceSourceLocation {
     /// Portable source identity (see [`portable_source_id`]): paths under
     /// the project root relativized, paths outside marked `external:...`.
+    #[serde(rename = "sourceId")]
     pub source_id: String,
     /// Zero-based start offset in the source file.
     pub start: u32,
@@ -123,7 +124,7 @@ pub struct ReferenceSourceLocation {
 }
 
 /// One ordered locale variant of a checked description.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceDescriptionVariant {
     /// BCP 47 tag as authored (canonicalized at render time).
     pub tag: String,
@@ -133,11 +134,12 @@ pub struct ReferenceDescriptionVariant {
 
 /// Checked description value: source prose plus owning source language,
 /// ordered variants and the owning declaration location. No parameters.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceDescriptionValue {
     /// Source-language prose (`""` is authored-empty text, not absence).
     pub source: String,
     /// Owning source language tag.
+    #[serde(rename = "sourceLang")]
     pub source_lang: String,
     /// Variants in written order.
     pub variants: Vec<ReferenceDescriptionVariant>,
@@ -146,7 +148,7 @@ pub struct ReferenceDescriptionValue {
 }
 
 /// One resolved value constraint on a field or operation input.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceConstraint {
     /// Constraint kind as located by analysis (`trim`, `min`, `max`, `unique`).
     pub kind: String,
@@ -155,60 +157,71 @@ pub struct ReferenceConstraint {
 }
 
 /// One model/contract field with creation metadata kept separate from type.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceField {
     /// Field name (never localized).
     pub name: String,
     /// Declared type spelling (never localized); `!` marks required arrays.
+    #[serde(rename = "type")]
     pub ty: String,
     /// Value nullability from the resolved type.
     pub nullable: bool,
     /// Creation requiredness (distinct from value nullability).
+    #[serde(rename = "creationRequired")]
     pub creation_required: bool,
     /// Default value spelling, when the declaration supplies one.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<String>,
     /// Value constraints in written order.
     pub constraints: Vec<ReferenceConstraint>,
     /// Field description, when authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<ReferenceDescriptionValue>,
 }
 
 /// One user-operation input parameter.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceOperationInput {
     /// Input name (never localized).
     pub name: String,
     /// Declared type spelling (never localized).
+    #[serde(rename = "type")]
     pub ty: String,
     /// Value nullability from the resolved type.
     pub nullable: bool,
     /// Creation requiredness (distinct from value nullability).
+    #[serde(rename = "creationRequired")]
     pub creation_required: bool,
     /// Default value spelling, when the declaration supplies one.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<String>,
     /// Value constraints (empty in v1: parameters carry no modifiers).
     pub constraints: Vec<ReferenceConstraint>,
     /// Input description, when authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<ReferenceDescriptionValue>,
 }
 
 /// Declared result of one user operation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceOperationResult {
     /// Declared result spelling, or `void` when undeclared (never localized).
+    #[serde(rename = "type")]
     pub ty: String,
     /// Value nullability from the resolved type (`false` for `void`).
     pub nullable: bool,
     /// Result description (always `None` in v1: no source slot exists).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<ReferenceDescriptionValue>,
 }
 
 /// One user operation: callable surface only, no inferred authorization.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceOperation {
     /// Canonical operation id (never localized).
     pub id: String,
     /// Operation description, when authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<ReferenceDescriptionValue>,
     /// Inputs in signature order.
     pub inputs: Vec<ReferenceOperationInput>,
@@ -225,7 +238,7 @@ pub struct ReferenceOperation {
 
 /// One source example with its expected result. V1 carries NO execution
 /// status: generation never runs examples or invents passed/failed state.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceExample {
     /// Example label from source (the fixture name).
     pub label: String,
@@ -236,11 +249,13 @@ pub struct ReferenceExample {
     /// sequences, whose whole authored block — calls, assertions and
     /// `error(code)` spellings — is preserved verbatim in `source`
     /// instead of inventing one single expectation).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expected: Option<String>,
 }
 
 /// Declaration kind covered by v1.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ReferenceDeclarationKind {
     /// Stored model.
     Model,
@@ -259,7 +274,7 @@ impl ReferenceDeclarationKind {
 }
 
 /// One model or contract declaration with its fields and examples.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceDeclaration {
     /// Owning module name (never localized).
     pub owner: String,
@@ -268,6 +283,7 @@ pub struct ReferenceDeclaration {
     /// Declaration kind.
     pub kind: ReferenceDeclarationKind,
     /// Declaration description, when authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<ReferenceDescriptionValue>,
     /// Fields in declaration order.
     pub fields: Vec<ReferenceField>,
@@ -278,7 +294,7 @@ pub struct ReferenceDeclaration {
 }
 
 /// One canonical owner with its declarations and user operations.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceOwner {
     /// Module name (never localized).
     pub name: String,
@@ -291,7 +307,8 @@ pub struct ReferenceOwner {
 /// Implementation availability: `unknown` unless a verified owner/catalog
 /// supplies a fact. The extractor always yields `Unknown` in v1 (no such
 /// fact exists in analysis); passing analysis never implies availability.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "status", rename_all = "lowercase")]
 pub enum ReferenceAvailability {
     /// No verified implementation fact.
     Unknown,
@@ -305,17 +322,21 @@ pub enum ReferenceAvailability {
 }
 
 /// Frozen reference model v1 root.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReferenceModel {
     /// [`REFERENCE_MODEL_VERSION`].
     pub version: u32,
     /// Content hash of the analyzed sources (hex SHA-256).
+    #[serde(rename = "sourceRevision")]
     pub source_revision: String,
     /// Catalog version, or `None` (`null`) when no catalog contributed.
+    #[serde(rename = "catalogVersion")]
     pub catalog_version: Option<String>,
     /// Language version identity.
+    #[serde(rename = "languageVersion")]
     pub language_version: String,
     /// App default locale (BCP 47); render fallback route.
+    #[serde(rename = "appDefaultLocale")]
     pub app_default_locale: String,
     /// Owners by name.
     pub owners: Vec<ReferenceOwner>,
@@ -1090,179 +1111,61 @@ fn rel_to_portable(rel: &Path) -> String {
 
 // --- JSON ------------------------------------------------------------------
 
+// Compatibility-only ordered Json view. Production docs output serializes the
+// typed model directly; admission still belongs to the existing JSON parser.
+fn reference_json<T: serde::Serialize>(value: &T) -> Json {
+    let encoded =
+        json::to_compact_string(value).expect("closed reference JSON value must serialize");
+    json::parse(&encoded).expect("serialized reference JSON must parse")
+}
+
 impl ReferenceModel {
     /// Render the model as compact JSON matching `reference.ts` exactly:
     /// camelCase keys in contract order, `None` optionals omitted, `null`
     /// for absent translations and missing catalog versions. This is the
     /// `can docs` stdin payload shape (rendering/CLI are later slices).
     pub fn to_json_string(&self) -> String {
-        json::render(&self.to_json())
+        json::to_compact_string(self).expect("closed reference JSON model must serialize")
     }
 
     /// The model as a [`Json`] value (same shape as [`Self::to_json_string`]).
     pub fn to_json(&self) -> Json {
-        Json::Obj(vec![
-            ("version".to_string(), Json::Num(self.version.to_string())),
-            (
-                "sourceRevision".to_string(),
-                Json::Str(self.source_revision.clone()),
-            ),
-            (
-                "catalogVersion".to_string(),
-                match &self.catalog_version {
-                    Some(version) => Json::Str(version.clone()),
-                    None => Json::Null,
-                },
-            ),
-            (
-                "languageVersion".to_string(),
-                Json::Str(self.language_version.clone()),
-            ),
-            (
-                "appDefaultLocale".to_string(),
-                Json::Str(self.app_default_locale.clone()),
-            ),
-            (
-                "owners".to_string(),
-                Json::Arr(self.owners.iter().map(ReferenceOwner::to_json).collect()),
-            ),
-            ("availability".to_string(), self.availability.to_json()),
-        ])
+        reference_json(self)
     }
 }
 
 impl ReferenceOwner {
     /// Owner as JSON (`name`, `declarations`, `operations`).
     pub fn to_json(&self) -> Json {
-        Json::Obj(vec![
-            ("name".to_string(), Json::Str(self.name.clone())),
-            (
-                "declarations".to_string(),
-                Json::Arr(
-                    self.declarations
-                        .iter()
-                        .map(ReferenceDeclaration::to_json)
-                        .collect(),
-                ),
-            ),
-            (
-                "operations".to_string(),
-                Json::Arr(
-                    self.operations
-                        .iter()
-                        .map(ReferenceOperation::to_json)
-                        .collect(),
-                ),
-            ),
-        ])
+        reference_json(self)
     }
 }
 
 impl ReferenceDeclaration {
     /// Declaration as JSON (`description` omitted when undescribed).
     pub fn to_json(&self) -> Json {
-        let mut members = vec![
-            ("owner".to_string(), Json::Str(self.owner.clone())),
-            ("name".to_string(), Json::Str(self.name.clone())),
-            (
-                "kind".to_string(),
-                Json::Str(self.kind.as_str().to_string()),
-            ),
-        ];
-        if let Some(description) = &self.description {
-            members.push(("description".to_string(), description.to_json()));
-        }
-        members.push((
-            "fields".to_string(),
-            Json::Arr(self.fields.iter().map(ReferenceField::to_json).collect()),
-        ));
-        members.push((
-            "examples".to_string(),
-            Json::Arr(
-                self.examples
-                    .iter()
-                    .map(ReferenceExample::to_json)
-                    .collect(),
-            ),
-        ));
-        members.push(("location".to_string(), self.location.to_json()));
-        Json::Obj(members)
+        reference_json(self)
     }
 }
 
 impl ReferenceField {
     /// Field as JSON (`default`/`description` omitted when absent).
     pub fn to_json(&self) -> Json {
-        let mut members = vec![
-            ("name".to_string(), Json::Str(self.name.clone())),
-            ("type".to_string(), Json::Str(self.ty.clone())),
-            ("nullable".to_string(), Json::Bool(self.nullable)),
-            (
-                "creationRequired".to_string(),
-                Json::Bool(self.creation_required),
-            ),
-        ];
-        if let Some(default) = &self.default {
-            members.push(("default".to_string(), Json::Str(default.clone())));
-        }
-        members.push((
-            "constraints".to_string(),
-            Json::Arr(
-                self.constraints
-                    .iter()
-                    .map(ReferenceConstraint::to_json)
-                    .collect(),
-            ),
-        ));
-        if let Some(description) = &self.description {
-            members.push(("description".to_string(), description.to_json()));
-        }
-        Json::Obj(members)
+        reference_json(self)
     }
 }
 
 impl ReferenceOperationInput {
     /// Input as JSON (`default`/`description` omitted when absent).
     pub fn to_json(&self) -> Json {
-        let mut members = vec![
-            ("name".to_string(), Json::Str(self.name.clone())),
-            ("type".to_string(), Json::Str(self.ty.clone())),
-            ("nullable".to_string(), Json::Bool(self.nullable)),
-            (
-                "creationRequired".to_string(),
-                Json::Bool(self.creation_required),
-            ),
-        ];
-        if let Some(default) = &self.default {
-            members.push(("default".to_string(), Json::Str(default.clone())));
-        }
-        members.push((
-            "constraints".to_string(),
-            Json::Arr(
-                self.constraints
-                    .iter()
-                    .map(ReferenceConstraint::to_json)
-                    .collect(),
-            ),
-        ));
-        if let Some(description) = &self.description {
-            members.push(("description".to_string(), description.to_json()));
-        }
-        Json::Obj(members)
+        reference_json(self)
     }
 }
 
 impl ReferenceOperationResult {
     /// Result as JSON (`description` omitted when absent).
     pub fn to_json(&self) -> Json {
-        let mut members = vec![
-            ("type".to_string(), Json::Str(self.ty.clone())),
-            ("nullable".to_string(), Json::Bool(self.nullable)),
-        ];
-        if let Some(description) = &self.description {
-            members.push(("description".to_string(), description.to_json()));
-        }
-        Json::Obj(members)
+        reference_json(self)
     }
 }
 
@@ -1272,121 +1175,48 @@ impl ReferenceOperation {
     /// material. `examples` is always present (possibly empty), mirroring
     /// declarations; pre-R4 payloads omit the key and still render.
     pub fn to_json(&self) -> Json {
-        let mut members = vec![("id".to_string(), Json::Str(self.id.clone()))];
-        if let Some(description) = &self.description {
-            members.push(("description".to_string(), description.to_json()));
-        }
-        members.push((
-            "inputs".to_string(),
-            Json::Arr(
-                self.inputs
-                    .iter()
-                    .map(ReferenceOperationInput::to_json)
-                    .collect(),
-            ),
-        ));
-        members.push(("result".to_string(), self.result.to_json()));
-        members.push((
-            "examples".to_string(),
-            Json::Arr(
-                self.examples
-                    .iter()
-                    .map(ReferenceExample::to_json)
-                    .collect(),
-            ),
-        ));
-        members.push(("location".to_string(), self.location.to_json()));
-        Json::Obj(members)
+        reference_json(self)
     }
 }
 
 impl ReferenceExample {
     /// Example as JSON (`expected` omitted when the source states none).
     pub fn to_json(&self) -> Json {
-        let mut members = vec![
-            ("label".to_string(), Json::Str(self.label.clone())),
-            ("source".to_string(), Json::Str(self.source.clone())),
-        ];
-        if let Some(expected) = &self.expected {
-            members.push(("expected".to_string(), Json::Str(expected.clone())));
-        }
-        Json::Obj(members)
+        reference_json(self)
     }
 }
 
 impl ReferenceDescriptionValue {
     /// Description as JSON (`source`, `sourceLang`, `variants`, `location`).
     pub fn to_json(&self) -> Json {
-        Json::Obj(vec![
-            ("source".to_string(), Json::Str(self.source.clone())),
-            (
-                "sourceLang".to_string(),
-                Json::Str(self.source_lang.clone()),
-            ),
-            (
-                "variants".to_string(),
-                Json::Arr(
-                    self.variants
-                        .iter()
-                        .map(ReferenceDescriptionVariant::to_json)
-                        .collect(),
-                ),
-            ),
-            ("location".to_string(), self.location.to_json()),
-        ])
+        reference_json(self)
     }
 }
 
 impl ReferenceDescriptionVariant {
     /// Variant as JSON (`text` is `null` for absent translations).
     pub fn to_json(&self) -> Json {
-        Json::Obj(vec![
-            ("tag".to_string(), Json::Str(self.tag.clone())),
-            (
-                "text".to_string(),
-                match &self.text {
-                    Some(text) => Json::Str(text.clone()),
-                    None => Json::Null,
-                },
-            ),
-        ])
+        reference_json(self)
     }
 }
 
 impl ReferenceConstraint {
     /// Constraint as JSON (`kind`, `detail`).
     pub fn to_json(&self) -> Json {
-        Json::Obj(vec![
-            ("kind".to_string(), Json::Str(self.kind.clone())),
-            ("detail".to_string(), Json::Str(self.detail.clone())),
-        ])
+        reference_json(self)
     }
 }
 
 impl ReferenceSourceLocation {
     /// Location as JSON (`sourceId`, `start`, `end`).
     pub fn to_json(&self) -> Json {
-        Json::Obj(vec![
-            ("sourceId".to_string(), Json::Str(self.source_id.clone())),
-            ("start".to_string(), Json::Num(self.start.to_string())),
-            ("end".to_string(), Json::Num(self.end.to_string())),
-        ])
+        reference_json(self)
     }
 }
 
 impl ReferenceAvailability {
     /// Availability as JSON (`{status}` or `{status, owner, catalog}`).
     pub fn to_json(&self) -> Json {
-        match self {
-            ReferenceAvailability::Unknown => Json::Obj(vec![(
-                "status".to_string(),
-                Json::Str("unknown".to_string()),
-            )]),
-            ReferenceAvailability::Available { owner, catalog } => Json::Obj(vec![
-                ("status".to_string(), Json::Str("available".to_string())),
-                ("owner".to_string(), Json::Str(owner.clone())),
-                ("catalog".to_string(), Json::Str(catalog.clone())),
-            ]),
-        }
+        reference_json(self)
     }
 }

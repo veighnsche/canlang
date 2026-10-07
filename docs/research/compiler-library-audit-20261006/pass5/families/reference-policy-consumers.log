@@ -1,0 +1,11 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.82s
+     Running tests/typed_reference_policy_consumers.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_reference_policy_consumers-74627cd53931abc5)
+
+running 2 tests
+PASS typed policy: fresh CLI through actual policyDumpSections and policyPage escaping
+test fresh_policy_cli_enters_actual_policy_sections_and_html_page ... ok
+PASS typed reference: fresh docs CLI and extracted JSON through public Markdown renderer
+test fresh_docs_cli_and_extracted_typed_json_enter_public_markdown_renderer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.38s
