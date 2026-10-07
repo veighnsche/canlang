@@ -1,0 +1,2406 @@
+{
+  "schema_version": 1,
+  "audit": "planning_only_TS_Rust_Wasm_ownership_preparation_UI_testkit",
+  "source_pin_supplied_by_parent": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "root": "/Users/vince/Projects/canlang",
+  "source_pin_independently_git_verified": false,
+  "captured_at_utc": "2026-10-07T11:57:07.245340+00:00",
+  "scope": [
+    "cloudflare native preparation and TS complete consumers",
+    "UI source renderer/browser inventory",
+    "testkit tiny Wasm fixture and actual TS runner/local host boundaries"
+  ],
+  "methods": [
+    "source reads",
+    "finite operation/definer/caller tracing",
+    "SHA256 source hashes",
+    "prior receipts read and selected source hash comparison"
+  ],
+  "no_new_execution_or_acceptance": true,
+  "prohibited_work_performed": false,
+  "compiler_owner_preserved": true,
+  "hold": "Native artifact preparation/native release HUMAN HOLD; TS deploy default; no implementation/adoption/default change/retirement authorization",
+  "records": [
+    {
+      "id": "BP-01",
+      "finite_operation_families": [
+        "parsed-artifact structural admission",
+        "compiled identity assertions",
+        "artifact original-tree retention"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/cloudflare/src/runtime/artifact.ts",
+          "line": 144,
+          "symbol": "loadArtifactFile",
+          "source_line": "export function loadArtifactFile(path: string): LoadedArtifact {"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/artifact.ts",
+          "line": 161,
+          "symbol": "parseArtifactText",
+          "source_line": "export function parseArtifactText(text: string, sourcePath: string): LoadedArtifact {"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/artifact.ts",
+          "line": 49,
+          "symbol": "assertCompiledIdentity",
+          "source_line": "export function assertCompiledIdentity("
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/artifact.rs",
+          "line": 283,
+          "symbol": "validate_artifact",
+          "source_line": "pub fn validate_artifact<'a>("
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/artifact.rs",
+          "line": 659,
+          "symbol": "assert_compiled_identity",
+          "source_line": "pub fn assert_compiled_identity("
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 251,
+          "symbol": "loadArtifactFile build",
+          "source_line": "    loaded = loadArtifactFile(artifactPath);"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 300,
+          "symbol": "loadArtifactFile deploy",
+          "source_line": "    loaded = loadArtifactFile(artifactPath);"
+        },
+        {
+          "path": "packages/cloudflare/src/cli/platform.ts",
+          "line": 212,
+          "symbol": "loadArtifactFile run",
+          "source_line": "    loaded = loadArtifactFile(path);"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 469,
+          "symbol": "validate_artifact real branch",
+          "source_line": "    let validated = match validate_artifact(&artifact_tree, artifact_path) {"
+        }
+      ],
+      "current_stage": "TS product admission; native tagged-tree validator registered and used inside artifact_path prototype job; native identity assertion has no job consumer",
+      "bounded_proposed_ownership": "Keep compiler artifact producer/contract owned by compiler/contracts. TS reads/parses and retains syntax attribution. Native pure acceptance may own admitted-tree decisions only behind explicit future real-job adapter and demonstrated domain parity. Public synchronous TS arbitrary-object helper compatibility remains.",
+      "representation_and_adapter_cost": {
+        "TS": "JSON.parse JS objects/arrays, original admitted fields retained; sourcePath errors",
+        "native": "borrowed validated views over ordered Node UTF-16/number-bit tree; not serde closed artifact structs",
+        "cost": "host encode + IPC + native tree decode/validation; native depth/nodes/units caps are new transfer limits requiring caller maxima proof"
+      },
+      "required_unfinished_gates": [
+        "ports:P05.3 real host artifact_path adapter",
+        "exact admitted-domain and failure-order differential",
+        "complete native CLI/install gates before adoption"
+      ],
+      "prior_responsibility_ids": [
+        "CF-artifact",
+        "CF-native-artifact"
+      ],
+      "evidence_limits": [
+        "Presence and Rust calls are source observations; no new artifact execution or acceptance claim."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "CF-C01",
+        "CF-C02",
+        "CF-C31",
+        "CF-C32"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "CF-artifact",
+          "caller_status": "production-observed-source",
+          "original_limits": []
+        },
+        {
+          "id": "CF-native-artifact",
+          "caller_status": "prototype-unadopted",
+          "original_limits": []
+        }
+      ]
+    },
+    {
+      "id": "BP-02",
+      "finite_operation_families": [
+        "lossless admitted-tree encode/decode",
+        "bounded binary frame encode/decode",
+        "handshake Begin NeedHost Resume Abort terminal ordering",
+        "host/core error conversion"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/cloudflare/src/preparation/inputs.ts",
+          "line": 120,
+          "symbol": "encodeAdmittedTree",
+          "source_line": "export function encodeAdmittedTree(value: unknown): TaggedNode {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/input.rs",
+          "line": 347,
+          "symbol": "decode_tree",
+          "source_line": "pub fn decode_tree(json: &[u8]) -> Result<Node, DecodeError> {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/protocol.ts",
+          "line": 43,
+          "symbol": "encodeFrame",
+          "source_line": "export function encodeFrame(tag: number, payload: Uint8Array): Uint8Array {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/protocol.ts",
+          "line": 63,
+          "symbol": "FrameDecoder",
+          "source_line": "export class FrameDecoder {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/protocol.ts",
+          "line": 127,
+          "symbol": "driveSession",
+          "source_line": "export async function driveSession(options: {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/protocol.rs",
+          "line": 113,
+          "symbol": "read_frame",
+          "source_line": "pub fn read_frame(reader: &mut impl Read) -> Result<Option<(u8, Vec<u8>)>, FrameError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/protocol.rs",
+          "line": 237,
+          "symbol": "parse_host_message",
+          "source_line": "pub fn parse_host_message(payload: &[u8]) -> Option<HostMessage> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 33,
+          "symbol": "run_job",
+          "source_line": "pub fn run_job(reader: &mut impl Read, writer: &mut impl Write) -> i32 {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 531,
+          "symbol": "failNative",
+          "source_line": "export function failNative(command: string, code: string, detail: string): never {"
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 574,
+          "symbol": "driveSession",
+          "source_line": "    const prepared = await driveSession({"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/protocol.ts",
+          "line": 225,
+          "symbol": "writes Begin mode only",
+          "source_line": "    stdin.write(encodeJsonFrame({ begin: { mode } }));"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 161,
+          "symbol": "dispatch artifact_path presence",
+          "source_line": "    // A Begin WITHOUT artifact_path runs the frozen scaffold script;"
+        },
+        {
+          "path": "packages/cloudflare/test/preparation-protocol.test.ts",
+          "line": 57,
+          "symbol": "runNativeJob scaffold test",
+          "source_line": "      const result = await runNativeJob(\"deploy\", mode);"
+        }
+      ],
+      "current_stage": "Both framed protocol implementations exist. Public TS driver has no artifact_path/env/preview/yes Begin carrier and sends mode only; default helper answers probe stages. Rust real-job transport consumes tagged trees but TS driver does not reach it.",
+      "bounded_proposed_ownership": "Keep protocol codec and JS/native carrier adaptation beside owning cloudflare host. Use one native process/job only if explicit resume of HOLD and real consumer proof. Do not count error protocol or scaffold terminal as completed build/deploy.",
+      "representation_and_adapter_cost": {
+        "wire": "tag:u8 + length:u32LE + bytes; tag 0 closed JSON metadata/tag1 bytes; 64MiB cap, protocol can-preparation v1",
+        "tree": "null/bool/num(bits hex+JSON.stringify spelling)/text(u16 units)/arr/obj(ordered entry pairs); own __proto__, enumeration, surrogate, negative-zero/nonfinite preservation; depth32 nodes1048576 units16777216",
+        "errors": "Rust semantic FailureBody can carry command/stage; TS Failed interface/ProtocolError retains code/detail only and failNative adds native- prefix; actual CLI code/exit/stderr parity is unfinished",
+        "cost": "duplicated framing is required cross-language transport; full tree serializes units and number spelling; raw byte tag existence is not wired mixed preparation delivery"
+      },
+      "required_unfinished_gates": [
+        "ports:P05.3 Begin handoff and real handlers",
+        "ports:P08.1/P08.2 exact CLI envelopes/codes/exits/stderr",
+        "ports:P10.1 resource and startup budgets"
+      ],
+      "prior_responsibility_ids": [
+        "CF-native-frame",
+        "CF-native-host-protocol",
+        "CF-native-entry"
+      ],
+      "evidence_limits": [
+        "Protocol tests are source witnesses only; no fresh native launch performed."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "CF-C29",
+        "CF-C30",
+        "CF-C31",
+        "CF-C32"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "CF-native-frame",
+          "caller_status": "prototype-unadopted",
+          "original_limits": []
+        },
+        {
+          "id": "CF-native-host-protocol",
+          "caller_status": "prototype-unadopted",
+          "original_limits": [
+            "Real stages require concrete host handlers; default onNeed accepts only scaffold probes. Normal CLI uses TS route."
+          ]
+        },
+        {
+          "id": "CF-native-entry",
+          "caller_status": "prototype-unadopted",
+          "original_limits": [
+            "Registered Rust code is executable; it is not the normal TS CLI backend. Scaffold and real branches both exist."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BP-03",
+      "finite_operation_families": [
+        "build lockstep release decision",
+        "installed runtime fact derivation",
+        "ordered compatibility verdicts",
+        "preview/yes confirmation gate",
+        "compiler version comparison",
+        "activation host request ordering"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/cloudflare/src/release/stamp.ts",
+          "line": 97,
+          "symbol": "assertLockstep",
+          "source_line": "export function assertLockstep(inputs: LockstepInputs): void {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/compat.ts",
+          "line": 29,
+          "symbol": "checkCompatibility",
+          "source_line": "export function checkCompatibility("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/compat.ts",
+          "line": 114,
+          "symbol": "installedFromTree",
+          "source_line": "export function installedFromTree("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/compat.ts",
+          "line": 130,
+          "symbol": "checkCompilerVersionMatch",
+          "source_line": "export function checkCompilerVersionMatch("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/review.ts",
+          "line": 144,
+          "symbol": "requireYes",
+          "source_line": "export function requireYes(yes: boolean, what: string): void {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/release.rs",
+          "line": 76,
+          "symbol": "assert_lockstep",
+          "source_line": "pub fn assert_lockstep(inputs: &LockstepInputs) -> Result<(), String> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/compatibility.rs",
+          "line": 116,
+          "symbol": "installed_from_tree",
+          "source_line": "pub fn installed_from_tree<'a>("
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/compatibility.rs",
+          "line": 199,
+          "symbol": "check_compatibility",
+          "source_line": "pub fn check_compatibility("
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/compatibility.rs",
+          "line": 381,
+          "symbol": "check_compiler_version_match",
+          "source_line": "pub fn check_compiler_version_match("
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 248,
+          "symbol": "runPreparedBuild",
+          "source_line": "export async function runPreparedBuild(artifactPath: string): Promise<void> {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 324,
+          "symbol": "checkCompatibility",
+          "source_line": "  const compat = checkCompatibility(descriptor, environment, installed);"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 353,
+          "symbol": "activate",
+          "source_line": "  const verdict = await activate({"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 491,
+          "symbol": "run_build_tail",
+          "source_line": "fn run_build_tail("
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/job.rs",
+          "line": 615,
+          "symbol": "run_deploy_tail",
+          "source_line": "fn run_deploy_tail("
+        }
+      ],
+      "current_stage": "Real native artifact_path build branch requests LOAD_ARTIFACT + LOCKSTEP_INPUTS and returns release/module/page/callable summaries. Native deploy branch requests LOAD_ARTIFACT + LOAD_COMPANIONS + ACTIVATION_REQUEST and returns verdict/compiler summary. Prefix is implemented, but no normal TS consumer and no plan/bundle/review outputs.",
+      "bounded_proposed_ownership": "Smallest supported native seam is pure accepted-tree artifact/compatibility/lockstep decisions with TS host owning IO and activation producers. Retain TS deployed/public helpers until complete-call evidence; preserve native source as held proposal without adopting/retiring it.",
+      "representation_and_adapter_cost": {
+        "ordering": "native artifact acceptance before env/companions; compatibility before confirm; compiler compute before activation; native compiler refusal currently at prefix end, TS refuses only after bundle/plan/prior/diff/render",
+        "semantic_split": "Real native job prefix duplicates TS decisions. Presence of full Rust helper files does not extend this prefix. Native prepared scaffold:false is insufficient evidence of full deploy."
+      },
+      "required_unfinished_gates": [
+        "ports:P05.4 full retained stages",
+        "ports:P06.3 compiler refusal after preparation/diff/render",
+        "ports:P08 actual CLI consumer",
+        "truthful activation-incomplete remains until owning producer gates exist"
+      ],
+      "prior_responsibility_ids": [
+        "CF-ts-build",
+        "CF-ts-deploy",
+        "CF-native-plan",
+        "CF-native-integrity",
+        "CF-activation"
+      ],
+      "evidence_limits": [
+        "No blanket parity claimed; native current refusal position explicitly differs from complete TS deploy."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "CF-C03",
+        "CF-C05",
+        "CF-C06",
+        "CF-C08",
+        "CF-C09",
+        "CF-C10",
+        "CF-C18",
+        "CF-C19",
+        "CF-C20",
+        "CF-C21",
+        "CF-C31",
+        "CF-C32",
+        "CF-C33"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "CF-ts-build",
+          "caller_status": "production-observed-source",
+          "original_limits": [
+            "The current build command summarizes validated emission; its name alone does not prove a Rust/native packaging route."
+          ]
+        },
+        {
+          "id": "CF-ts-deploy",
+          "caller_status": "production-observed-source",
+          "original_limits": [
+            "Publication/deployment was not executed in this audit. Plain CLI route does not select native backend or the opt-in binary-asset bundle API."
+          ]
+        },
+        {
+          "id": "CF-native-plan",
+          "caller_status": "prototype-unadopted",
+          "original_limits": [
+            "Admitted semantics and registered modules are separate from current CLI adoption."
+          ]
+        },
+        {
+          "id": "CF-native-integrity",
+          "caller_status": "prototype-unadopted",
+          "original_limits": []
+        },
+        {
+          "id": "CF-activation",
+          "caller_status": "production-observed-source",
+          "original_limits": [
+            "CLI has no complete real migration/work-inventory gates; activation-incomplete is a truthful refusal, not end-to-end activation acceptance."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BP-04",
+      "finite_operation_families": [
+        "ECMAScript import discovery/kind policy",
+        "relative/producer edge admission",
+        "literal-only import rewrite with original-coordinate edits",
+        "source-map edit generation/composition",
+        "raw mappings decode/lookup",
+        "portable module inventories/loadability/link checks/hash/render"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "line": 141,
+          "symbol": "scanModuleImports",
+          "source_line": "export function scanModuleImports(js: string, modulePath: string, prefix: ImportErrorPrefix = \"deploy bundle\"): readonly ModuleImport[] {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "line": 164,
+          "symbol": "validateArtifactModuleImports",
+          "source_line": "export function validateArtifactModuleImports(modules: readonly ImportModuleInput[], prefix: ImportErrorPrefix = \"deploy bundle\"): void {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "line": 197,
+          "symbol": "rewriteModuleImports",
+          "source_line": "export function rewriteModuleImports("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-maps.ts",
+          "line": 71,
+          "symbol": "composeModuleMap",
+          "source_line": "export function composeModuleMap<T extends RawModuleMap>(original: T | undefined, stagesNewestFirst: readonly ImportTransformMap[], originalJs: string): ModuleMapView<T> {"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+          "line": 76,
+          "symbol": "decodeMappings",
+          "source_line": "export function decodeMappings(mappings: string): DecodedLine[] {"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+          "line": 134,
+          "symbol": "lookup",
+          "source_line": "export function lookup(map: SourceMap, genLine: number, genCol: number): MappedPosition | null {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 533,
+          "symbol": "stageArtifactModules",
+          "source_line": "function stageArtifactModules(artifact: CompileArtifact): { modules: Record<string, string>; sourceMaps: Record<string, SourceMap> } {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 871,
+          "symbol": "assertWorkerdLoadable",
+          "source_line": "export function assertWorkerdLoadable(modules: Readonly<Record<string, string>>): void {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 896,
+          "symbol": "assertLinksResolve",
+          "source_line": "export function assertLinksResolve("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 936,
+          "symbol": "buildDeployBundle",
+          "source_line": "export function buildDeployBundle("
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 948,
+          "symbol": "rewrite_artifact_imports",
+          "source_line": "pub fn rewrite_artifact_imports(js: &[u16], module_path: &[u16]) -> Vec<u16> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 970,
+          "symbol": "rewrite_runtime_imports",
+          "source_line": "pub fn rewrite_runtime_imports(js: &[u16], module_key: &[u16]) -> Vec<u16> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1002,
+          "symbol": "rewrite_vendor_imports",
+          "source_line": "pub fn rewrite_vendor_imports(js: &[u16], module_key: &[u16]) -> Vec<u16> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1064,
+          "symbol": "validate_artifact_imports",
+          "source_line": "pub fn validate_artifact_imports(modules: &[StagingModule]) -> Result<(), ModulesError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1102,
+          "symbol": "stage_artifact_modules",
+          "source_line": "pub fn stage_artifact_modules("
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1184,
+          "symbol": "bundle_sha256",
+          "source_line": "pub fn bundle_sha256(main_module: &[u16], modules: &[(&[u16], &[u16])]) -> String {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1232,
+          "symbol": "render_staged_deployment",
+          "source_line": "pub fn render_staged_deployment(artifact: &Node, modules: &Node, verdict: &Node) -> String {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 300,
+          "symbol": "relative_specifier",
+          "source_line": "pub fn relative_specifier(from_module: &[u16], to_key: &[u16]) -> Vec<u16> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 317,
+          "symbol": "assert_safe_relative_path",
+          "source_line": "pub fn assert_safe_relative_path(path: &[u16], what: &str) -> Result<(), ModulesError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 846,
+          "symbol": "assert_workerd_loadable",
+          "source_line": "pub fn assert_workerd_loadable(modules: &[(&[u16], &[u16])]) -> Result<(), ModulesError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 871,
+          "symbol": "assert_links_resolve",
+          "source_line": "pub fn assert_links_resolve(modules: &[(&[u16], &[u16])]) -> Result<(), ModulesError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 905,
+          "symbol": "assert_bundle_checks",
+          "source_line": "pub fn assert_bundle_checks(modules: &[(&[u16], &[u16])]) -> Result<(), ModulesError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1155,
+          "symbol": "merge_module_layers",
+          "source_line": "pub fn merge_module_layers(layers: &[ModuleMap]) -> ModuleMap {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1176,
+          "symbol": "sort_module_keys",
+          "source_line": "pub fn sort_module_keys(modules: &mut [(Vec<u16>, Vec<u16>)]) {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1205,
+          "symbol": "portable_assembled_modules",
+          "source_line": "pub fn portable_assembled_modules(module_paths: &[&[u16]]) -> Result<Node, ModulesError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1246,
+          "symbol": "deploy_bundle_main",
+          "source_line": "pub fn deploy_bundle_main(stem: &[u16]) -> String {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "line": 1257,
+          "symbol": "bundle_manifest",
+          "source_line": "pub fn bundle_manifest("
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "packages/cloudflare/src/runtime/modules.ts",
+          "line": 120,
+          "symbol": "rewriteModuleImports",
+          "source_line": "    const rewritten = rewriteModuleImports(mod.js, mod.path, (specifier) =>"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/modules.ts",
+          "line": 124,
+          "symbol": "composeModuleMap",
+          "source_line": "    const view = composeModuleMap(mod.map, rewritten.map === undefined ? [] : [rewritten.map], mod.js);"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 436,
+          "symbol": "rewriteModuleImports",
+          "source_line": "  return rewriteModuleImports(js, modulePath, (specifier) => {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+          "line": 220,
+          "symbol": "buildDeployBundle",
+          "source_line": "  return buildDeployBundle(artifact, options);"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/lib.rs",
+          "line": 10,
+          "symbol": "pub mod modules registration only",
+          "source_line": "pub mod modules;"
+        }
+      ],
+      "current_stage": "TS real assembly/deploy callers use es-module-lexer minimal/js + MagicString + remapping + sourcemap-codec policy adapters. Native modules pure port is registered/tested source, not imported by job; older custom scanner/rewrite behavior and old state sibling specifiers remain. Native v2 mixed support is expressly unported.",
+      "bounded_proposed_ownership": "Keep library-based JS parsing/edit/maps and emitted JS text as one TS host stage. A future native inventory/plan consumer should consume host-derived edge/map/staged-module facts only after stage contract parity, rather than revive a parallel JS scanner. This is bounded proposal, not cancellation/redesign of original held port.",
+      "representation_and_adapter_cost": {
+        "libraries": "es-module-lexer3.0.3/minimal/js synchronous no init/await; MagicString1.4.3 original UTF-16 spans; remapping2.3.5 point views; codec1.6.0 with signed/order adapter",
+        "maps": "original maps preserve raw indices/optional fields; derived map only after edits; no-edit passes original; invalid maps explicitly retain invalid status",
+        "native": "ModuleMap Vec<(Vec<u16>,Vec<u16>)>; handmade syntax recognition/rewrite; text-only v1 hashes; no current library-equivalence proof",
+        "cost": "Crossing text/maps into Rust duplicates grammar/serializer and risks divergent source-map bytes; keep complete mechanism together; hash wrapper already calls native crypto and does not itself evidence speedup"
+      },
+      "required_unfinished_gates": [
+        "ports:P05.3/P05.4 consume current owning exports and original stage order",
+        "ports:P05.5 actual Bun/MCP/workerd parity",
+        "ports:P05.mixed typed actual binary+glue+installed outcomes",
+        "preserve accepted finite import/map profiles and unknown caller domains"
+      ],
+      "prior_responsibility_ids": [
+        "CF-imports",
+        "CF-maps",
+        "CF-bundle",
+        "CF-native-modules",
+        "CF-diagnostics"
+      ],
+      "evidence_limits": [
+        "Prior CF-native-modules chain from job.rs491 is too broad: source has no modules call. No new import/map execution; prior accepted finite receipts reused only if exact source hashes match."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "CF-C09",
+        "CF-C11",
+        "CF-C12",
+        "CF-C13",
+        "CF-C14",
+        "CF-C15",
+        "CF-C16",
+        "CF-C17",
+        "CF-C24",
+        "CF-C31",
+        "CF-C32",
+        "CF-C35",
+        "CF-C36"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "CF-imports",
+          "caller_status": "production-observed-source",
+          "original_limits": []
+        },
+        {
+          "id": "CF-maps",
+          "caller_status": "production-observed-source",
+          "original_limits": []
+        },
+        {
+          "id": "CF-bundle",
+          "caller_status": "production-observed-source",
+          "original_limits": [
+            "Build/admission/staging are distinct from authenticated serving. Work receipt bare specifier has no matching vendor rewrite/staging in this pin."
+          ]
+        },
+        {
+          "id": "CF-native-modules",
+          "caller_status": "prototype-unadopted",
+          "original_limits": [
+            "Native algorithm equivalence/fixtures do not replace accepted TS import/map library production adapters yet."
+          ]
+        },
+        {
+          "id": "CF-diagnostics",
+          "caller_status": "conditional-production",
+          "original_limits": [
+            "Standalone legacy generic callable path has test/support callers; canonical mutation/read uses its separate loader. Existing Node/workerd changed-length diagnostic receipts are finite test fixture evidence, not arbitrary app operation proof."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BP-05",
+      "finite_operation_families": [
+        "deploy resource resolution and plan calculation",
+        "fixed JSON/TOML serialization",
+        "previous-plan admission/read boundary",
+        "ordered keyed projection/diffs",
+        "review preview text"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/cloudflare/src/deploy/plan.ts",
+          "line": 82,
+          "symbol": "buildDeployPlan",
+          "source_line": "export function buildDeployPlan("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/render.ts",
+          "line": 33,
+          "symbol": "renderWranglerToml",
+          "source_line": "export function renderWranglerToml(plan: DeployPlan): string {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/render.ts",
+          "line": 105,
+          "symbol": "renderPlanJson",
+          "source_line": "export function renderPlanJson(plan: DeployPlan): string {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/review.ts",
+          "line": 114,
+          "symbol": "loadPreviousPlan",
+          "source_line": "export function loadPreviousPlan(path: string): DeployPlan | null {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/review.ts",
+          "line": 80,
+          "symbol": "diffPlans",
+          "source_line": "export function diffPlans(previous: DeployPlan | null, next: DeployPlan): PlanDiff {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/review.ts",
+          "line": 151,
+          "symbol": "formatPreview",
+          "source_line": "export function formatPreview(plan: DeployPlan, diff: PlanDiff): string {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/plan.rs",
+          "line": 124,
+          "symbol": "build_deploy_plan",
+          "source_line": "pub fn build_deploy_plan("
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/render.rs",
+          "line": 200,
+          "symbol": "render_plan_json",
+          "source_line": "pub fn render_plan_json(plan: &Node) -> String {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/render.rs",
+          "line": 231,
+          "symbol": "render_wrangler_toml",
+          "source_line": "pub fn render_wrangler_toml(plan: &Node) -> Result<String, RenderError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/review.rs",
+          "line": 42,
+          "symbol": "check_previous_plan",
+          "source_line": "pub fn check_previous_plan(node: &Node, path: &str) -> Result<(), ReviewError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/review.rs",
+          "line": 226,
+          "symbol": "diff_plans",
+          "source_line": "pub fn diff_plans(previous: Option<&Node>, next: &Node) -> Result<PlanDiff, ReviewError> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/review.rs",
+          "line": 268,
+          "symbol": "format_preview",
+          "source_line": "pub fn format_preview(plan: &Node, diff: &PlanDiff) -> Result<String, RenderError> {"
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 381,
+          "symbol": "buildDeployPlan",
+          "source_line": "    plan = buildDeployPlan(descriptor, environment, {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 394,
+          "symbol": "loadPreviousPlan",
+          "source_line": "    previous = loadPreviousPlan(planPath);"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 398,
+          "symbol": "diffPlans",
+          "source_line": "  const diff = diffPlans(previous, plan);"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 399,
+          "symbol": "renderDeployPlan",
+          "source_line": "  const rendered = renderDeployPlan(plan);"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/lib.rs",
+          "line": 11,
+          "symbol": "plan registration",
+          "source_line": "pub mod plan;"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/lib.rs",
+          "line": 14,
+          "symbol": "render/review registration",
+          "source_line": "pub mod render;"
+        }
+      ],
+      "current_stage": "TS owns current complete preparation plan/review bytes. Native plan/render/review pure implementations are library-visible but absent from current native job imports/stages.",
+      "bounded_proposed_ownership": "Potential future pure native plan/diff decision seam only after owning resource facts and exact representation contracts are proved; keep complete serializer/review bytes together in one owner. Avoid TS/native rendering split or changed permissive previous-plan schema. Current TS remains.",
+      "representation_and_adapter_cost": {
+        "carrier": "TS DeployPlan object vs Rust Node preserving tagged unknown fields/UTF-16 number spellings; native own JS-compatible serializer not generic serde JSON formatting",
+        "domain": "schedules stay unmapped comments; missing previous plan means first deployment; preview+yes must preview without writes"
+      },
+      "required_unfinished_gates": [
+        "ports:P06.3 native current plan before prior-plan read",
+        "ports:P06 exact bytes/unknown fields/reason ordering/repeat determinism",
+        "ports:P07 reviewed-byte retention/publication",
+        "ports:P08 CLI parity"
+      ],
+      "prior_responsibility_ids": [
+        "CF-deploy-plan",
+        "CF-deploy-review",
+        "CF-native-plan"
+      ],
+      "evidence_limits": [
+        "Prior CF-native-plan chain overstates real deploy-tail call reach: compatibility is real; plan/render/review are not consumed."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "CF-C05",
+        "CF-C07",
+        "CF-C18",
+        "CF-C19",
+        "CF-C21",
+        "CF-C31",
+        "CF-C32"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "CF-deploy-plan",
+          "caller_status": "production-observed-source",
+          "original_limits": []
+        },
+        {
+          "id": "CF-deploy-review",
+          "caller_status": "production-observed-source",
+          "original_limits": []
+        },
+        {
+          "id": "CF-native-plan",
+          "caller_status": "prototype-unadopted",
+          "original_limits": [
+            "Admitted semantics and registered modules are separate from current CLI adoption."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BP-06",
+      "finite_operation_families": [
+        "filesystem artifact/companions/producer discovery",
+        "Bun MCP and HTTP build phases",
+        "owning interfaces catalog derivation",
+        "activation producers and CLI envelopes",
+        "reviewed staging integrity",
+        "deployment publication and Wrangler apply"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+          "line": 178,
+          "symbol": "runMcpBunPhase",
+          "source_line": "export function runMcpBunPhase(_repoRoot?: string): {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+          "line": 195,
+          "symbol": "runCatalogPhase",
+          "source_line": "export function runCatalogPhase(artifact: CompileArtifact): string {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+          "line": 216,
+          "symbol": "buildBundleWithHostPhases",
+          "source_line": "export function buildBundleWithHostPhases("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 600,
+          "symbol": "buildMcpBundle owning helper",
+          "source_line": "export function buildMcpBundle(_repoRoot?: string): string {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 669,
+          "symbol": "buildHttpOperationsBundle owning helper",
+          "source_line": "export function buildHttpOperationsBundle(_repoRoot?: string): string {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 194,
+          "symbol": "PublicationSession",
+          "source_line": "export class PublicationSession {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 255,
+          "symbol": "verifyReviewed",
+          "source_line": "  verifyReviewed(staged: StagedRecord[], reviewed: ReviewedBuffer[]): void {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 281,
+          "symbol": "publish",
+          "source_line": "  publish("
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 334,
+          "symbol": "withPublicationSession",
+          "source_line": "export function withPublicationSession<T>(mode: SessionMode, fn: (session: PublicationSession) => T): T {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 990,
+          "symbol": "writeDeployBundle",
+          "source_line": "export function writeDeployBundle(bundle: DeployBundle, outDir: string): WrittenDeployBundle {"
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 362,
+          "symbol": "buildBundleWithHostPhases",
+          "source_line": "    const bundle = buildBundleWithHostPhases(loaded.artifact, { verdict });"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 429,
+          "symbol": "writeDeployBundle",
+          "source_line": "    const written = writeDeployBundle(deployBundle, join(dir, `${stem}${DEPLOY_DIR_SUFFIX}`));"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 432,
+          "symbol": "direct writeFileSync plan/toml",
+          "source_line": "  writeFileSync(planPath, rendered.json, \"utf8\");"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 440,
+          "symbol": "runWranglerDeploy",
+          "source_line": "    const result = runWranglerDeploy({ yes: true, configPath, workingDir: dir });"
+        },
+        {
+          "path": "packages/cloudflare/test/preparation-protocol.test.ts",
+          "line": 191,
+          "symbol": "runMcpBunPhase controlled test",
+          "source_line": "    const bun = runMcpBunPhase(repoRoot);"
+        },
+        {
+          "path": "packages/cloudflare/test/preparation-publication.test.ts",
+          "line": 117,
+          "symbol": "withPublicationSession controlled test",
+          "source_line": "    withPublicationSession(\"confirmed\", (session) => {"
+        }
+      ],
+      "current_stage": "Normal TS bundle adapter calls owning buildDeployBundle; explicit runMcpBunPhase/runCatalogPhase adapter functions have only observed test calls and duplicate owning builders. PublicationSession exists with controlled tests; current TS deploy directly writes bundle/plan/toml, does not consume session. Native job has no Bun/catalog/publication handlers.",
+      "bounded_proposed_ownership": "Retain TS host effects and owning library imports. On eventual authorized resume, remove duplicated adapter builder copies by consuming owning exports; retain Bun/catalog at current once-only stages and reviewed exact-byte publication with truthful partial failures.",
+      "representation_and_adapter_cost": {
+        "stage_order": "artifact/page/callable checks before worker probe; runtime/vendor outputs before Bun; verdict artifact render before catalog; loadability before links. Worker missing returns legacy warning and no Bun/catalog. Preview writes no deployment paths.",
+        "publication": "private staging root/key/containment/symlink fences; lengths+sha reviewed buffers; direct current writer is nontransactional. verifyReviewed currently one-way stage→review map; publish rereads bytes without enforcing post-review digest itself (caller must prove binding); not a certified reviewed/published-byte join."
+      },
+      "required_unfinished_gates": [
+        "ports:P05.3 real host stages and delete adapter copies",
+        "ports:P07 exact reviewed/published byte and lifecycle proof incl timeout/cancel/partial writes",
+        "ports:P08 build/preview/confirmed all negative routes",
+        "keep activation-incomplete/OPEN-139 honest"
+      ],
+      "prior_responsibility_ids": [
+        "CF-ts-deploy",
+        "CF-publication",
+        "CF-bundle",
+        "CF-activation",
+        "CF-apply"
+      ],
+      "evidence_limits": [
+        "No deployment/publication run; source-only gap, not acceptance."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "CF-C03",
+        "CF-C05",
+        "CF-C06",
+        "CF-C09",
+        "CF-C12",
+        "CF-C13",
+        "CF-C14",
+        "CF-C20",
+        "CF-C21",
+        "CF-C24",
+        "CF-C35",
+        "CF-C36"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "CF-ts-deploy",
+          "caller_status": "production-observed-source",
+          "original_limits": [
+            "Publication/deployment was not executed in this audit. Plain CLI route does not select native backend or the opt-in binary-asset bundle API."
+          ]
+        },
+        {
+          "id": "CF-publication",
+          "caller_status": "test-only-observed-call",
+          "original_limits": [
+            "Protocol/publication tests exercise lifecycle; no current normal prepared deploy host call to this session API."
+          ]
+        },
+        {
+          "id": "CF-bundle",
+          "caller_status": "production-observed-source",
+          "original_limits": [
+            "Build/admission/staging are distinct from authenticated serving. Work receipt bare specifier has no matching vendor rewrite/staging in this pin."
+          ]
+        },
+        {
+          "id": "CF-activation",
+          "caller_status": "production-observed-source",
+          "original_limits": [
+            "CLI has no complete real migration/work-inventory gates; activation-incomplete is a truthful refusal, not end-to-end activation acceptance."
+          ]
+        },
+        {
+          "id": "CF-apply",
+          "caller_status": "production-observed-source",
+          "original_limits": [
+            "Live network deployment is not part of this read-only audit."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BP-07",
+      "finite_operation_families": [
+        "native crate/bin registration",
+        "executable resolution/spawn/kill/readiness",
+        "backend selection before evaluation",
+        "native build/package/manifest/license provenance",
+        "dist manifest byte inventory"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/cloudflare/preparation/Cargo.toml",
+          "line": 1,
+          "symbol": "can-preparation standalone crate",
+          "source_line": "[package]"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/main.rs",
+          "line": 18,
+          "symbol": "binary delegates job",
+          "source_line": "    let code = job::run_job(&mut stdin().lock(), &mut stdout().lock());"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/executable.ts",
+          "line": 85,
+          "symbol": "resolvePreparationBinary",
+          "source_line": "export async function resolvePreparationBinary(options?: {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/executable.ts",
+          "line": 121,
+          "symbol": "launchPreparation",
+          "source_line": "export function launchPreparation(binaryPath: string): LaunchedChild {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 510,
+          "symbol": "selectBackend",
+          "source_line": "export async function selectBackend(request: BackendRequest): Promise<BackendSelection> {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 607,
+          "symbol": "probeReadiness",
+          "source_line": "export async function probeReadiness(binaryPath: string): Promise<boolean> {"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/executable-manifest.ts",
+          "line": 94,
+          "symbol": "verifyExecutableManifest",
+          "source_line": "export async function verifyExecutableManifest("
+        },
+        {
+          "path": "packages/cloudflare/scripts/build-preparation.mjs",
+          "line": 53,
+          "symbol": "buildRelease",
+          "source_line": "export function buildRelease({ triple = hostTriple(), outDir = join(PACKAGE_ROOT, \"dist\") } = {}) {"
+        },
+        {
+          "path": "packages/cloudflare/scripts/package-preparation.mjs",
+          "line": 94,
+          "symbol": "packageBundle",
+          "source_line": "export function packageBundle({ triple = hostTriple(), outDir = join(PACKAGE_ROOT, \"dist\") } = {}) {"
+        },
+        {
+          "path": "packages/cloudflare/src/release/manifest.ts",
+          "line": 70,
+          "symbol": "buildDistManifest",
+          "source_line": "export function buildDistManifest(repoRoot: string, distDirs: readonly string[]): DistManifest {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/release.rs",
+          "line": 207,
+          "symbol": "build_dist_manifest",
+          "source_line": "pub fn build_dist_manifest(roots: &[ScannedRoot]) -> Result<DistManifest, String> {"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/release.rs",
+          "line": 384,
+          "symbol": "check_executable_manifest",
+          "source_line": "pub fn check_executable_manifest("
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "packages/cloudflare/src/cli/platform.ts",
+          "line": 394,
+          "symbol": "build → runPreparedBuild",
+          "source_line": "  await runPreparedBuild(artifactPath);"
+        },
+        {
+          "path": "packages/cloudflare/src/cli/platform.ts",
+          "line": 404,
+          "symbol": "deploy → runPreparedDeploy",
+          "source_line": "  await runPreparedDeploy(artifactPath, env, preview, yes);"
+        },
+        {
+          "path": "packages/cloudflare/test/preparation-protocol.test.ts",
+          "line": 21,
+          "symbol": "selectBackend/runNativeJob test import",
+          "source_line": "import { probeReadiness, runNativeJob, selectBackend } from \"../src/preparation/host.js\";"
+        },
+        {
+          "path": "packages/cloudflare/package.json",
+          "line": 80,
+          "symbol": "build:emit tsc only",
+          "source_line": "    \"build:emit\": \"tsc -p tsconfig.json && chmod +x dist/cli/platform.js\","
+        }
+      ],
+      "current_stage": "CLI parser has no backend flag and never selectBackend/runNativeJob. Standalone Rust native binary has serde/serde_json/sha2 only, Rust1.99 toolchain; no compiler dependency and no Wasm binding. Resolver checks file/X_OK, not manifest integrity; separately implemented manifest verifier is not its caller. Explicit tooling scripts exist, normal package build does not invoke them.",
+      "bounded_proposed_ownership": "Keep Node/native process lifecycle and distribution glue in cloudflare; native pure checks may remain crate library. Retain TS CLI default and HUMAN HOLD. Adoption requires exact installed binaries per claimed host and validated resolution before job, rather than source registration/package labels.",
+      "representation_and_adapter_cost": {
+        "resolution": "CAN_PREPARATION_BIN→dist/preparation/<platform>-<arch>-<libc>/→dev debug fallback; no shell argv; group kill grace; startup failures no started-job TS fallback",
+        "claims": "package tooling declares linux-x64-gnu/darwin-arm64, only claims inventory here; no fresh host launch evidence. Build metadata includes binary hash/bytes/toolchain/lock/sourceHead; package license/protocol metadata is source implementation, not proof shipped installs have it.",
+        "errors": "selectBackend auto may choose TS only during resolution failure; native failures failNative; real CLI bypasses all of this"
+      },
+      "required_unfinished_gates": [
+        "ports:P08 real CLI selection with no semantic fallback",
+        "ports:P09 installed/archive binary integrity + corruption/protocol/release skew + supported-host proof",
+        "ports:P10 full-job budgets and rollback rationale",
+        "ports:P11 declared remaining TS/helpers and scope closure",
+        "explicit human resume required before implementation of held work"
+      ],
+      "prior_responsibility_ids": [
+        "CF-native-build-tool",
+        "CF-native-package-tool",
+        "CF-native-selection",
+        "CF-native-integrity",
+        "CF-dist-integrity"
+      ],
+      "evidence_limits": [
+        "Previous integrity-checked resolver phrase narrowed: verifier exists separately. Native manifest algorithms other than lockstep have no job consumers. No native source implies adoption."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "CF-C08",
+        "CF-C09",
+        "CF-C10",
+        "CF-C29",
+        "CF-C33",
+        "CF-C34"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "CF-native-build-tool",
+          "caller_status": "conditional-production",
+          "original_limits": [
+            "Build tooling is production delivery support, not current backend adoption; not executed in this audit."
+          ]
+        },
+        {
+          "id": "CF-native-package-tool",
+          "caller_status": "conditional-production",
+          "original_limits": [
+            "Not automatically called by current package normal build command; no fresh package/license command execution."
+          ]
+        },
+        {
+          "id": "CF-native-selection",
+          "caller_status": "prototype-unadopted",
+          "original_limits": [
+            "Current CLI never calls selectBackend/runNativeJob; backend adoption is held. Scripts/protocol tests prove support machinery, not native default adoption."
+          ]
+        },
+        {
+          "id": "CF-native-integrity",
+          "caller_status": "prototype-unadopted",
+          "original_limits": []
+        },
+        {
+          "id": "CF-dist-integrity",
+          "caller_status": "conditional-production",
+          "original_limits": [
+            "Existing source caller/receipt must retain exact output/input scope; no fresh build executed."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BP-08",
+      "finite_operation_families": [
+        "optional binary inventory/hash/pins",
+        "values glue+Wasm asset collection",
+        "browser CSS/client resources",
+        "mixed byte writer",
+        "local workerd CompiledWasm staging"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 1041,
+          "symbol": "inventorizeAssets",
+          "source_line": "export function inventorizeAssets("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 1171,
+          "symbol": "attachBinaries",
+          "source_line": "export function attachBinaries("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 1199,
+          "symbol": "writeDeployBundleMixed",
+          "source_line": "export function writeDeployBundleMixed(bundle: MixedDeployBundle, outDir: string): WrittenDeployBundle {"
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 1276,
+          "symbol": "buildDeployBundleWithAssets",
+          "source_line": "export function buildDeployBundleWithAssets("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/package-assets.ts",
+          "line": 112,
+          "symbol": "gatherValuesWasmAssets",
+          "source_line": "export function gatherValuesWasmAssets("
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/package-assets.ts",
+          "line": 145,
+          "symbol": "gatherBrowserAssets",
+          "source_line": "export function gatherBrowserAssets("
+        },
+        {
+          "path": "packages/cloudflare/src/dev/local-run.ts",
+          "line": 65,
+          "symbol": "startLocalDev",
+          "source_line": "export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev> {"
+        },
+        {
+          "path": "packages/cloudflare/src/dev/local-run.ts",
+          "line": 84,
+          "symbol": "stages binary modules",
+          "source_line": "  for (const [name, bytes] of Object.entries(options.binaryModules ?? {})) {"
+        },
+        {
+          "path": "packages/cloudflare/src/dev/row-scope.ts",
+          "line": 72,
+          "symbol": "createLocalRowScope",
+          "source_line": "export async function createLocalRowScope("
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "scripts/verify-installed-worker.mjs",
+          "line": 85,
+          "symbol": "buildDeployBundleWithAssets",
+          "source_line": "  const first = api.buildDeployBundleWithAssets(artifact, options);"
+        },
+        {
+          "path": "scripts/verify-installed-worker.mjs",
+          "line": 110,
+          "symbol": "writeDeployBundleWithAssets",
+          "source_line": "  api.writeDeployBundleWithAssets(first, output);"
+        },
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+          "line": 91,
+          "symbol": "attachBinaries fixture",
+          "source_line": "  const bundle = attachBinaries("
+        },
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+          "line": 140,
+          "symbol": "startLocalDev fixture",
+          "source_line": "      const dev = await startLocalDev({"
+        }
+      ],
+      "current_stage": "Actual TS host/bundle binary support exists and opt-in consumers/finite receipts are distinct from normal CLI plain text build/write. Native modules v2 unported. Wasm bytes initialized by values owner or smoke worker, not by asset gather/stage.",
+      "bounded_proposed_ownership": "Retain typed raw-byte host delivery in TS and owning package bootstrap. Native preparation future inventory must preserve kind/length/hash/version and glue identity without rendering Wasm as text. No default Wasm selection follows from bundle assets.",
+      "representation_and_adapter_cost": {
+        "contract": "text-only v1 stable JS serialization; v2 byte inventory exact binary kinds/hash/length. Local workerd typed CompiledWasm. Resources independent from binary semantics.",
+        "init": "asset collection/staging is not initialization or consumer adoption; browser resource mount/start and values backend selection separate gates"
+      },
+      "required_unfinished_gates": [
+        "ports:P05.mixed actual compiled binary+glue+installed delivery",
+        "fresh installed/archive/host closure per owner and claims",
+        "real CLI assets route if selected; current CLI remains plain",
+        "values default/whole-domain gates owned by other lane"
+      ],
+      "prior_responsibility_ids": [
+        "CF-asset-bundle",
+        "testkit-loader-smoke",
+        "ui-build-assets"
+      ],
+      "evidence_limits": [
+        "Bounded prior loaded fixture evidence is not input validation or renderer/testkit native adoption."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "AD-ui-build-assets",
+        "CF-C09",
+        "CF-C35",
+        "CF-C36"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "CF-asset-bundle",
+          "caller_status": "conditional-production",
+          "original_limits": [
+            "Default prepared CLI uses plain build/write APIs. Browser bootstrap/polling/CSS staging is not automatic initialization or a mounted asset route. Values backend is explicit opt-in and finite accepted smoke, not validation adoption."
+          ]
+        },
+        {
+          "id": "testkit-loader-smoke",
+          "caller_status": "test-only-observed-call",
+          "original_limits": [
+            "Read-only source inspection; no build, conformance run or consumer execution this turn."
+          ]
+        },
+        {
+          "id": "ui-build-assets",
+          "caller_status": "generated-staged",
+          "original_limits": [
+            "Read-only source inspection; no build, conformance run or consumer execution this turn."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BP-09",
+      "finite_operation_families": [
+        "server HTML component/collection/form renderers",
+        "escaped locale/navigation page shell",
+        "CSV grammar and advisory clients",
+        "browser binder lifecycle/style assets"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/ui/src/index.ts",
+          "line": 10,
+          "symbol": "public canonical factories",
+          "source_line": "export {"
+        },
+        {
+          "path": "packages/ui/src/shell.ts",
+          "line": 191,
+          "symbol": "renderPage",
+          "source_line": "export const renderPage: RenderPageFn = async ("
+        },
+        {
+          "path": "packages/ui/src/shell.ts",
+          "line": 304,
+          "symbol": "renderLogin",
+          "source_line": "export async function renderLogin(props: LoginProps): Promise<string> {"
+        },
+        {
+          "path": "packages/ui/src/csv/grammar.ts",
+          "line": 30,
+          "symbol": "parseCsvGrammar csv-parse adapter",
+          "source_line": "export function parseCsvGrammar(text: string): CsvGrammarResult {"
+        },
+        {
+          "path": "packages/ui/src/browser/bootstrap.ts",
+          "line": 297,
+          "symbol": "startBrowserClient",
+          "source_line": "export function startBrowserClient(options: BrowserClientOptions): BrowserClient {"
+        },
+        {
+          "path": "packages/ui/src/distribution.ts",
+          "line": 2,
+          "symbol": "producer URLs",
+          "source_line": "export const distribution = {"
+        },
+        {
+          "path": "packages/ui/scripts/build-browser.mjs",
+          "line": 132,
+          "symbol": "assembled copied browser files/CSS/manifest",
+          "source_line": "// 6. Assemble + install."
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "packages/interfaces/src/http/pages.ts",
+          "line": 313,
+          "symbol": "renderPage",
+          "source_line": "      html = await renderPage(context, match.descriptor, [children]);"
+        },
+        {
+          "path": "packages/cloudflare/src/worker/assembly.ts",
+          "line": 1421,
+          "symbol": "page descriptor render callback",
+          "source_line": "      html = (await match.render(context, bindings)) as unknown;"
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 156,
+          "symbol": "parseCsvGrammar",
+          "source_line": "    const parsed = parseCsvGrammar(text);"
+        },
+        {
+          "path": "packages/ui/src/csv/parse.ts",
+          "line": 119,
+          "symbol": "parseCsvGrammar",
+          "source_line": "    return { ok: true, ...parseCsvGrammar(text) };"
+        },
+        {
+          "path": "packages/ui/package.json",
+          "line": 41,
+          "symbol": "build:emit tsc + browser builder",
+          "source_line": "    \"build:emit\": \"tsc -p tsconfig.json && node scripts/build-browser.mjs\","
+        }
+      ],
+      "current_stage": "UI package source/exports/build are TS/JS/CSS; no Cargo.toml/Rust/Wasm renderer/binding/generated native glue under actual UI package. Native in markup comments refers native HTML behavior, not Rust renderer.",
+      "bounded_proposed_ownership": "Keep UI semantics/DOM host effects and SSR on current TS owner. No supported native renderer seam or consumer exists; do not invent one from fixture loader or imported package names. Preserve actual .can composition/compiler contracts without auditing/changing compiler source.",
+      "representation_and_adapter_cost": {
+        "values": "string HTML promises, props/contracts, authorization supplied by caller, DOM/client callbacks; csv-parse7.0.3 strings/admitted rows",
+        "assets": "build copies tsc bootstrap/polling and pinned daisyUI5.7.47+themes+style.css; manifest files hashes/catalog/binder ids informational. No full binder coverage claim.",
+        "unfinished": "full ordinary descriptor render reaches shell-missing throw without shell; shell has no script/CSS refs; bootstrap start has no non-test observed caller; selected resource staging does not mount/serve/init assets; form/CSV/export/print/error clients need real browser joins"
+      },
+      "required_unfinished_gates": [
+        "FP.BROWSER mount+page refs+explicit start+cleanup real authored browser workflows",
+        "E/F form/CSV/export/print/error binding and finite DOM+server joins",
+        "fresh installed/archive asset provenance and claimed-host browser proof",
+        "preserve known SSR shell and activation gaps"
+      ],
+      "prior_responsibility_ids": [
+        "ui-shell",
+        "ui-component-renderers",
+        "ui-browser-bootstrap",
+        "ui-build-assets",
+        "ui-csv-grammar"
+      ],
+      "evidence_limits": [
+        "Native renderer absence is scoped to package source inventory; compiler emitting JS factory calls remains compiler-owned; no fresh browser/runtime probe."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "AD-csv-exact-grammar",
+        "AD-ui-browser-bootstrap",
+        "AD-ui-build-assets",
+        "AD-ui-component-renderers",
+        "AD-ui-csv-grammar",
+        "AD-ui-form-installed-gap",
+        "AD-ui-poll-contract",
+        "AD-ui-shell",
+        "AD-ui-shell-missing-join"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "ui-shell",
+          "caller_status": "conditional-production",
+          "original_limits": [
+            "Compiler generated descriptor render calls renderPage without shell. Worker calls match.render(context,bindings), an indirect descriptor callback rather than direct renderPage call. For ordinary generated non-partial pages, this reaches shell.ts full-page shell-missing throw; Worker catches and projects rule_failed before raw HTML response. Partial renders can return main. Full interface pages also invoke descriptor render before wrapping; emitted imports alone do not prove full-page success. Shell includes no browser JS/CSS references or bootstrap."
+          ]
+        },
+        {
+          "id": "ui-component-renderers",
+          "caller_status": "conditional-production",
+          "original_limits": [
+            "Compiler resolves known UI factories dynamically by collected import names. Individual factory execution depends on authored .can page. Catalog presence/import does not establish each factory called."
+          ]
+        },
+        {
+          "id": "ui-browser-bootstrap",
+          "caller_status": "generated-staged",
+          "original_limits": [
+            "Build copies bootstrap/polling only and import seeds binders. No startBrowserClient call outside tests, no auto-initialization; worker does not mount assets handler and page shell has no scripts. Polling runs only after explicit start and markup selection."
+          ]
+        },
+        {
+          "id": "ui-build-assets",
+          "caller_status": "generated-staged",
+          "original_limits": [
+            "Read-only source inspection; no build, conformance run or consumer execution this turn."
+          ]
+        },
+        {
+          "id": "ui-csv-grammar",
+          "caller_status": "conditional-production",
+          "original_limits": [
+            "Authoritative server handler and advisory UI use same grammar; no worker CSV mount. Controlled installed receipt is narrow direct CSV proof if source equality verified."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BP-10",
+      "finite_operation_families": [
+        "tiny loader fixture ABI version",
+        "tiny wrapping integer add",
+        "sync Wasm Module/Instance startup failure vectors",
+        "typed deployment-map+workerd loader propagation",
+        "TS inline-example runner/report/local-scope support"
+      ],
+      "defining_implementations": [
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/Cargo.toml",
+          "line": 1,
+          "symbol": "loader-smoke cdylib fixture",
+          "source_line": "[package]"
+        },
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/src/lib.rs",
+          "line": 15,
+          "symbol": "smoke_version",
+          "source_line": "pub extern \"C\" fn smoke_version() -> u32 {"
+        },
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/src/lib.rs",
+          "line": 21,
+          "symbol": "smoke_add",
+          "source_line": "pub extern \"C\" fn smoke_add(a: i32, b: i32) -> i32 {"
+        },
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/host.mjs",
+          "line": 34,
+          "symbol": "loadBinding",
+          "source_line": "export function loadBinding(wasmPath) {"
+        },
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+          "line": 53,
+          "symbol": "smokeWorkerEntry",
+          "source_line": "export function smokeWorkerEntry(wasmSpecifier) {"
+        },
+        {
+          "path": "packages/testkit/src/scopes/local.ts",
+          "line": 1,
+          "symbol": "Cloudflare local scope reexport",
+          "source_line": "export { createLocalRowScope, type LocalRowScope, type LocalRowScopeOptions } from \"@canlang/cloudflare/dev/row-scope\";"
+        },
+        {
+          "path": "packages/testkit/src/runner/loader.ts",
+          "line": 231,
+          "symbol": "TS emitted-suite loader",
+          "source_line": "export async function loadExampleSuite("
+        },
+        {
+          "path": "packages/testkit/src/runner/table.ts",
+          "line": 246,
+          "symbol": "TS row runner",
+          "source_line": "export async function runTable<Scope extends RowScope>(spec: TableSpec<Scope>): Promise<TableCaseResult> {"
+        },
+        {
+          "path": "packages/testkit/src/reporting/report.ts",
+          "line": 56,
+          "symbol": "TS reporting",
+          "source_line": "export function createReport(artifact: { digest: string; sourceRevision: string }): ReportBuilder {"
+        }
+      ],
+      "current_callers": [
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/host.mjs",
+          "line": 90,
+          "symbol": "runSmoke",
+          "source_line": "export function runSmoke(wasmPath = resolveWasmPath()) {"
+        },
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+          "line": 128,
+          "symbol": "runWorkerdSmoke",
+          "source_line": "export async function runWorkerdSmoke(wasmPath = resolveWasmPath()) {"
+        },
+        {
+          "path": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+          "line": 165,
+          "symbol": "createLocalRowScope fixture",
+          "source_line": "    const scope = await createLocalRowScope('c04-smoke-row', {"
+        },
+        {
+          "path": "tests/e2e/fixtures/pilot-examples.ts",
+          "line": 341,
+          "symbol": "loadExampleSuite",
+          "source_line": "    const suite = await loadExampleSuite(suiteUrl, this.bindings(), {"
+        },
+        {
+          "path": "tests/e2e/fixtures/pilot-examples.ts",
+          "line": 345,
+          "symbol": "runTable",
+          "source_line": "    return runTable({"
+        }
+      ],
+      "current_stage": "Fixture crate declares dependency-free sync version/add ABI proof. It is not a testkit semantic core, native renderer, validation, or work decisions. No fixture binary/export in testkit published package exports/build scripts. Testkit runner/fixtures/report remain TS; cloudflare CLI test directly scope-boots and reports executed:0.",
+      "bounded_proposed_ownership": "Retain fixture solely as loader capability evidence; host loader supports once-only synchronous instances and loud missing/corrupt/wrong-ABI errors. Keep runner semantics and production admission host in TS owner. No native testkit migration proposal is supported by this fixture.",
+      "representation_and_adapter_cost": {
+        "wasm": "raw i32/u32 exports; no imports/allocator/handles/serde/domain errors; sync WebAssembly.Module(bytes)/Instance(module,{})",
+        "provenance": "bytes from loader-smoke Cargo release wasm32 target or LOADER_SMOKE_WASM; generated inline worker text imports CompiledWasm, instantiates once; typed attach/write/readback hashes. No wasm-bindgen generated production glue.",
+        "scope": "Controlled Node/Bun and local workerd fixtures; empty-module wrong ABI and corruption vectors; testkit local-scope is cloudflare reexport"
+      },
+      "required_unfinished_gates": [
+        "actual producer binary/install/archive/host proof must use real owning values/work cores before adoption",
+        "testkit emitted-suite CLI consumer if intended, rather than executed:0",
+        "fixture evidence retained within C04 loader scope only"
+      ],
+      "prior_responsibility_ids": [
+        "testkit-loader-smoke",
+        "testkit-runner",
+        "testkit-local-scope",
+        "testkit-conformance-observers"
+      ],
+      "evidence_limits": [
+        "No smoke run, binary inspection, test or host runtime probe performed in this audit."
+      ],
+      "execution_authorized": false,
+      "required_behavior_contract_ids": [
+        "AD-testkit-local-scope",
+        "AD-testkit-runner",
+        "AD-testkit-sequence-gap"
+      ],
+      "prior_caller_receipts": [
+        {
+          "id": "testkit-loader-smoke",
+          "caller_status": "test-only-observed-call",
+          "original_limits": [
+            "Read-only source inspection; no build, conformance run or consumer execution this turn."
+          ]
+        },
+        {
+          "id": "testkit-runner",
+          "caller_status": "test-only-observed-call",
+          "original_limits": [
+            "Executable test product support. Current cloudflare CLI test directly boots its own row scope and reports executed:0; stale comments claiming testkit import are not proof of runner adoption."
+          ]
+        },
+        {
+          "id": "testkit-local-scope",
+          "caller_status": "test-only-observed-call",
+          "original_limits": [
+            "Owner implementation is @canlang/cloudflare/dev/row-scope; testkit provides public compatibility surface. CLI imports Cloudflare implementation directly."
+          ]
+        },
+        {
+          "id": "testkit-conformance-observers",
+          "caller_status": "test-only-observed-call",
+          "original_limits": [
+            "Read-only source inspection; no build, conformance run or consumer execution this turn."
+          ]
+        }
+      ]
+    }
+  ],
+  "source_snapshot": [
+    {
+      "path": "packages/cloudflare/package.json",
+      "sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+      "bytes": 3427,
+      "lines": 106
+    },
+    {
+      "path": "packages/cloudflare/preparation/Cargo.lock",
+      "sha256": "5760d15ea1d15e7003382d4be593d7c3690655c0c3b4b36f63e630dae729d33f",
+      "bytes": 4892,
+      "lines": 191
+    },
+    {
+      "path": "packages/cloudflare/preparation/Cargo.toml",
+      "sha256": "7b0ae8cb004ba26524d3733b55a94e1d966fd5671221917e4c72415462816128",
+      "bytes": 343,
+      "lines": 16
+    },
+    {
+      "path": "packages/cloudflare/preparation/rust-toolchain.toml",
+      "sha256": "ff13c9224217a4ccd63320d8b89cc82d7fa64da14a627e499f9f18db4c6602d0",
+      "bytes": 31,
+      "lines": 2
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/artifact.rs",
+      "sha256": "f914d433c496f39882ed6c2d3ca1c043780e0f2ff3999a2b41da61ada65d50e9",
+      "bytes": 28812,
+      "lines": 732
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/compatibility.rs",
+      "sha256": "cf14e584ecf2216f306fadb61a66e53eb891ac0719fb157d73a14d46a890bb22",
+      "bytes": 14770,
+      "lines": 399
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/failures.rs",
+      "sha256": "2176d6b5c0b1701a8397be3ebf32161314b4d0829d46852f5737166b842ed5c4",
+      "bytes": 3032,
+      "lines": 59
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "sha256": "c0475ca0c94514e47011e594122ddadf3980232bfbce1e29557077c6f37b8002",
+      "bytes": 17277,
+      "lines": 503
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/job.rs",
+      "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61",
+      "bytes": 31666,
+      "lines": 870
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/lib.rs",
+      "sha256": "ed81bd6505722b5f559479423f3a6cf243c9b276c6aec4be8a3f806c60ae7ee2",
+      "bytes": 365,
+      "lines": 15
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/main.rs",
+      "sha256": "3bdb8d22d7f1d383597836ce02074c5eac7b9a31cb3788121d3dad634ebf59d0",
+      "bytes": 654,
+      "lines": 20
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "sha256": "51ddde6db165e5feeafdda2b9b8e7969b3e87506def82b734412107c3c205794",
+      "bytes": 45340,
+      "lines": 1301
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/plan.rs",
+      "sha256": "89912255b6f8280240b5b29ba72403e0864fd672e8967e12d83d90cf49750726",
+      "bytes": 10754,
+      "lines": 279
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/protocol.rs",
+      "sha256": "7c532c8afb1865ce53a4679b75698ff138b46cd5261111bb7fb6cd4f67db182f",
+      "bytes": 8942,
+      "lines": 279
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/release.rs",
+      "sha256": "3bae8768bdd18c9a5edcc856008faa35170690ec46969b7d2ea7884a12bfa289",
+      "bytes": 16961,
+      "lines": 471
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/render.rs",
+      "sha256": "be9c5592d305fb3f37487f79d0521d1314375a3b5f6607eb9782529934d1a337",
+      "bytes": 15371,
+      "lines": 395
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/review.rs",
+      "sha256": "60b579e2f414cd181a94318b201a57605bfbbaec6a51823c97a9f8420da7305a",
+      "bytes": 11381,
+      "lines": 286
+    },
+    {
+      "path": "packages/cloudflare/scripts/build-preparation.mjs",
+      "sha256": "04e95cbea4ea0be19a3f6da6aefc2744df2a535650b32e8f44a48e7c923c1981",
+      "bytes": 4042,
+      "lines": 105
+    },
+    {
+      "path": "packages/cloudflare/scripts/package-preparation.mjs",
+      "sha256": "7126578ef2cbefbd42d9862485faeca5440cd4718b464eccd21b31803e2e73fb",
+      "bytes": 5937,
+      "lines": 145
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "bytes": 17588,
+      "lines": 451
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "bytes": 62748,
+      "lines": 1424
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/compat.ts",
+      "sha256": "f78595dfc66957678a187e78b6fd3bd2ab20ec560c850637d7cb7425bbca2138",
+      "bytes": 5099,
+      "lines": 142
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "bytes": 12176,
+      "lines": 243
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "bytes": 5985,
+      "lines": 94
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/package-assets.ts",
+      "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+      "bytes": 6745,
+      "lines": 174
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/plan.ts",
+      "sha256": "b3e90850bc619c6f1e8df843f393f639fef7c8dc0e59e3bdeae50eb2ed9ab335",
+      "bytes": 4934,
+      "lines": 146
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "sha256": "75bb7fb5eeb0cebafdf5c31079c12c63075b00d5708edaedf5a7f9c89b5bc980",
+      "bytes": 4125,
+      "lines": 111
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/review.ts",
+      "sha256": "7483e3867b3eaf0f7087d5846196512e96707acd6093667227cf78f94c1cbf5a",
+      "bytes": 5663,
+      "lines": 157
+    },
+    {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+      "bytes": 4434,
+      "lines": 110
+    },
+    {
+      "path": "packages/cloudflare/src/dev/row-scope.ts",
+      "sha256": "e291abb4f1b5d171f9f1949b1e8f30c4590377128c6d069ba56c8db235208183",
+      "bytes": 3077,
+      "lines": 89
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383",
+      "bytes": 8501,
+      "lines": 221
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "sha256": "d479c648351dc2b13116d4f96bb83817f80fefbd472a95f24d77bf17048a442e",
+      "bytes": 4457,
+      "lines": 128
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable.ts",
+      "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3",
+      "bytes": 5760,
+      "lines": 163
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+      "bytes": 24710,
+      "lines": 650
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac",
+      "bytes": 4404,
+      "lines": 127
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8",
+      "bytes": 9584,
+      "lines": 261
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8",
+      "bytes": 12131,
+      "lines": 341
+    },
+    {
+      "path": "packages/cloudflare/src/release/manifest.ts",
+      "sha256": "0f1253522b0ee681173f788700835facdeb3bd2028daf2a461b75f1dc4c8a48d",
+      "bytes": 6729,
+      "lines": 173
+    },
+    {
+      "path": "packages/cloudflare/src/release/stamp.ts",
+      "sha256": "d731f609c69be92b2fce043e8670b08a40da5c4f23dd72f0647e33d628be6863",
+      "bytes": 6346,
+      "lines": 161
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/artifact.ts",
+      "sha256": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d",
+      "bytes": 16101,
+      "lines": 396
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "bytes": 6362,
+      "lines": 144
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "bytes": 6534,
+      "lines": 161
+    },
+    {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "bytes": 67887,
+      "lines": 1710
+    },
+    {
+      "path": "packages/cloudflare/test/preparation-protocol.test.ts",
+      "sha256": "10b67f7245a1a0b7fdb2bd459ce336dfa355061f78e0aa95965c498a56606447",
+      "bytes": 8982,
+      "lines": 236
+    },
+    {
+      "path": "packages/cloudflare/test/preparation-publication.test.ts",
+      "sha256": "0dc3bae139fc6547308632dd9802bb3a1843ddf36257a9bd91f644cf682ac2a6",
+      "bytes": 10623,
+      "lines": 280
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "bytes": 22419,
+      "lines": 567
+    },
+    {
+      "path": "packages/interfaces/src/http/pages.ts",
+      "sha256": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+      "bytes": 13736,
+      "lines": 373
+    },
+    {
+      "path": "packages/testkit/conformance/ports/loader-smoke/Cargo.toml",
+      "sha256": "453b76a3f5a40405fc8ba11507ca827a6e2e94c4545697afc07218aa29f7f92b",
+      "bytes": 300,
+      "lines": 15
+    },
+    {
+      "path": "packages/testkit/conformance/ports/loader-smoke/host.mjs",
+      "sha256": "c6e44d105b22e736d6419245bcf2410fa73cb6e3e1178fd91d15281c0b6caf3a",
+      "bytes": 4767,
+      "lines": 120
+    },
+    {
+      "path": "packages/testkit/conformance/ports/loader-smoke/src/lib.rs",
+      "sha256": "45c84e5e3724ca6f5b5f85c0f00908feae53730ad8dfc211d2328d88ac9801f3",
+      "bytes": 1329,
+      "lines": 46
+    },
+    {
+      "path": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+      "sha256": "0fa1fe506f8903b61029ddd102dd97f1920824a3af7f99ef04e23b19286dc328",
+      "bytes": 9386,
+      "lines": 259
+    },
+    {
+      "path": "packages/testkit/package.json",
+      "sha256": "d4836564d2f24cb9181944e53f1c37596af4ca88c61bd117252ffa0b368b2ced",
+      "bytes": 2007,
+      "lines": 64
+    },
+    {
+      "path": "packages/testkit/src/reporting/report.ts",
+      "sha256": "79cbbfce42ed673196b6f0d2b32d567a3d302e4b8104429119bfd52a6ae6bcd1",
+      "bytes": 3099,
+      "lines": 102
+    },
+    {
+      "path": "packages/testkit/src/runner/loader.ts",
+      "sha256": "571912f1495932351ac116f4a40c42617076d9b16f15b29d4c9d26d7afd6efb0",
+      "bytes": 21662,
+      "lines": 551
+    },
+    {
+      "path": "packages/testkit/src/runner/table.ts",
+      "sha256": "b714b1150c8b0b9b32e641e4fb3bd2056b5d0c065948533827f001e4670f67dd",
+      "bytes": 7914,
+      "lines": 259
+    },
+    {
+      "path": "packages/testkit/src/scopes/local.ts",
+      "sha256": "3980344ee616cf90b8c2ebb387208946cfcd015a9e167e453f376b143d9ded40",
+      "bytes": 120,
+      "lines": 1
+    },
+    {
+      "path": "packages/ui/package.json",
+      "sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "bytes": 1747,
+      "lines": 59
+    },
+    {
+      "path": "packages/ui/scripts/build-browser.mjs",
+      "sha256": "c0cb5e7e1ae2dfae3285813546ca613e3b84f7335fe0b453b25bb0cb3536ee0f",
+      "bytes": 7013,
+      "lines": 171
+    },
+    {
+      "path": "packages/ui/src/appearance.ts",
+      "sha256": "ece7d62ee0cc16688c06cd9d32155c56c25d377b4540b9003eb80d169b94b95c",
+      "bytes": 2985,
+      "lines": 79
+    },
+    {
+      "path": "packages/ui/src/browser/bootstrap.ts",
+      "sha256": "fd2653db365a154785a2d8e8677b3213e41aff2d493d3d6346c7e103cf5f4fda",
+      "bytes": 13295,
+      "lines": 383
+    },
+    {
+      "path": "packages/ui/src/browser/export.ts",
+      "sha256": "9c85f8b85632ef10383eaffba1b0aea12c48302effc0a5d609c22a0c85070e63",
+      "bytes": 18311,
+      "lines": 449
+    },
+    {
+      "path": "packages/ui/src/browser/instrumentation.ts",
+      "sha256": "17c3f2325b9933220beedb44f7921ba765b67628693340f17473cb6d543e8b50",
+      "bytes": 7744,
+      "lines": 202
+    },
+    {
+      "path": "packages/ui/src/browser/polling.ts",
+      "sha256": "ad1128ee754ce52073bc539dcc508016751f6851dffcf1f2d78b50d6d17da88c",
+      "bytes": 9259,
+      "lines": 280
+    },
+    {
+      "path": "packages/ui/src/browser/print.ts",
+      "sha256": "5568e1f1e1daf62bcf50de5332e6bc935171b51a8f5f21deffcf1192919f51e2",
+      "bytes": 5508,
+      "lines": 137
+    },
+    {
+      "path": "packages/ui/src/browser/style.css",
+      "sha256": "1f1129862e404bf44ac56378802c01b13f4786ece8f9f2b592133fcd4540e7fb",
+      "bytes": 4540,
+      "lines": 144
+    },
+    {
+      "path": "packages/ui/src/catalog.ts",
+      "sha256": "6fd37786692fdf2932aa5cd5e04a75156695e1db8f26f9677d22654392d1dc01",
+      "bytes": 35798,
+      "lines": 129
+    },
+    {
+      "path": "packages/ui/src/client.ts",
+      "sha256": "11a100466b0cb9d591d7ae8bfc0611ead3bb9396b20a75582406d992902ac6db",
+      "bytes": 24663,
+      "lines": 770
+    },
+    {
+      "path": "packages/ui/src/collections.ts",
+      "sha256": "c9568ffd924ba2ba842c776adb1cf75cbb5df7af73702d12fe3718d572bde3ab",
+      "bytes": 39338,
+      "lines": 1036
+    },
+    {
+      "path": "packages/ui/src/components.ts",
+      "sha256": "aac65d11bf63110625f10ab3428186770a1954e2f3b992f08894b6bd435ecc7c",
+      "bytes": 6517,
+      "lines": 181
+    },
+    {
+      "path": "packages/ui/src/controls.ts",
+      "sha256": "ddf2dc4c1a098bcbf2f2beb92e2df551ffc09843b84bafd7ffdc4d9bbd56ccd8",
+      "bytes": 38909,
+      "lines": 1058
+    },
+    {
+      "path": "packages/ui/src/csv/confirm.ts",
+      "sha256": "58b9c1bcb9ad935b57c50a038bed8d6c7448f1bc740798630fa6827696864d1e",
+      "bytes": 18795,
+      "lines": 447
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "bytes": 2662,
+      "lines": 71
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "bytes": 7779,
+      "lines": 189
+    },
+    {
+      "path": "packages/ui/src/csv/preview.ts",
+      "sha256": "87c9f661f0b0df1830892981b103b2e43098053a89b41afe97eadd07434719e7",
+      "bytes": 17141,
+      "lines": 403
+    },
+    {
+      "path": "packages/ui/src/distribution.ts",
+      "sha256": "e8c9fc9c6c413a64fcbc088d69661c4dcce0b68286c1acadc1e36aa8e3f33194",
+      "bytes": 214,
+      "lines": 5
+    },
+    {
+      "path": "packages/ui/src/escape.ts",
+      "sha256": "6408018844f663e1d644821c9884a9089ba26cad38b170d2d751ced4dc71b65c",
+      "bytes": 3057,
+      "lines": 89
+    },
+    {
+      "path": "packages/ui/src/forms.ts",
+      "sha256": "8c4e1890c0d7a52bf6e91be83b26f2d40f675bed8bfab222797f19eaf4b67f71",
+      "bytes": 74034,
+      "lines": 2051
+    },
+    {
+      "path": "packages/ui/src/groups.ts",
+      "sha256": "a9c4b976518a73c5905480ab86352b02f794db161335c0129f47dde1b3ea5e0f",
+      "bytes": 20121,
+      "lines": 489
+    },
+    {
+      "path": "packages/ui/src/htmx.ts",
+      "sha256": "7b5378a412be129b256b234dca1bd87b086f73397dd2e80c5229d05223c4419f",
+      "bytes": 10005,
+      "lines": 258
+    },
+    {
+      "path": "packages/ui/src/index.ts",
+      "sha256": "e84a76c8b9585f03d5c87288a8d0e6d2ce2418146c65759e14e9c8be33e50369",
+      "bytes": 7773,
+      "lines": 431
+    },
+    {
+      "path": "packages/ui/src/leaves.ts",
+      "sha256": "7b6adec794d80689be67a03993632d8ef9fa107b266ae613c3f8bc58d5051e4e",
+      "bytes": 12261,
+      "lines": 312
+    },
+    {
+      "path": "packages/ui/src/media.ts",
+      "sha256": "22de7f0408016471ec6d84ca62498a59c2ee7e6732a5ff866321008fa1f43a52",
+      "bytes": 9219,
+      "lines": 213
+    },
+    {
+      "path": "packages/ui/src/messages.ts",
+      "sha256": "d731b8a2b2cd57d03be0a8f3b12c55e48cdcac498eb167b5f2a0707e360eeac5",
+      "bytes": 39421,
+      "lines": 1080
+    },
+    {
+      "path": "packages/ui/src/navigation.ts",
+      "sha256": "b361c673d0cef45297673394e08679f8f55d5458bbff2a0847f5f40ed244e869",
+      "bytes": 28447,
+      "lines": 709
+    },
+    {
+      "path": "packages/ui/src/overlays.ts",
+      "sha256": "125ddc7c0d491a9056b55db5e4fd8d14dbd69e156b995f5fb3d3d9769ade4b4c",
+      "bytes": 19706,
+      "lines": 460
+    },
+    {
+      "path": "packages/ui/src/panels.ts",
+      "sha256": "3d8bd4461930b48e326ec2f733f7d95acb5e01b52dc3a4fe8097e51fbdd7838e",
+      "bytes": 17314,
+      "lines": 414
+    },
+    {
+      "path": "packages/ui/src/policyPage.ts",
+      "sha256": "1cc2f7ee2fe273154cb2fc637ac841e23e6e63053b258f67b822cd2b1c10e1e7",
+      "bytes": 21559,
+      "lines": 603
+    },
+    {
+      "path": "packages/ui/src/review.ts",
+      "sha256": "b01e6fa2923dae76cbd4e743b9618d891cfd07dc79060e77bec2c04d381bcfea",
+      "bytes": 4406,
+      "lines": 116
+    },
+    {
+      "path": "packages/ui/src/settings.ts",
+      "sha256": "f82458311f13871649ff392368efb17fc85c17250eede1153450b5f509b8136f",
+      "bytes": 9881,
+      "lines": 218
+    },
+    {
+      "path": "packages/ui/src/shell.ts",
+      "sha256": "9a123b4ca0affe2503045fd8d6e16f415c5c7beaa0588b334276dc8a751f8f30",
+      "bytes": 14821,
+      "lines": 359
+    },
+    {
+      "path": "scripts/verify-installed-worker.mjs",
+      "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443",
+      "bytes": 16239,
+      "lines": 232
+    },
+    {
+      "path": "tests/e2e/fixtures/pilot-examples.ts",
+      "sha256": "3a89a35aa4ad00c2cec049a24f81f2704fefb2a66be964b4afafa0d3c44681fe",
+      "bytes": 13434,
+      "lines": 352
+    }
+  ],
+  "anchor_line_bounds_checked": true,
+  "out_of_bounds_anchors": [],
+  "prior_evidence_reuse": {
+    "support_records": [
+      {
+        "path": "docs/research/package-library-audit-20261006/responsibility-callers/responsibilities.jsonl",
+        "sha256": "3c53a04dad77773000a65b5ebe928f4932889622551698ed685bae90567253ba"
+      },
+      {
+        "path": "docs/research/package-library-audit-20261006/required-behavior/responsibility-contracts.tsv",
+        "sha256": "4a67bf25bc5f284ed5c5e05ae29ff3c2a937c1a520788c8635353ce316f49bed"
+      },
+      {
+        "path": "docs/research/package-library-audit-20261006/adapter-branches/native-review.json",
+        "sha256": "754c9ba9ca71d4b3bb54b7bc8545347d49523e6011592a90c09aac77d545cbb8"
+      },
+      {
+        "path": "docs/research/package-library-audit-20261006/adapter-branches/delivery-review.json",
+        "sha256": "c717f95a0aad981e0fa38c7bb5a80ae118f1d072c26b6cbbf1dc6b9bdcea1343"
+      },
+      {
+        "path": "docs/research/package-library-audit-20261006/duplication-layers/candidates.jsonl",
+        "sha256": "7a0f7438f4f7aa3b7a38e42131bdd01a929300344e65f836ad3b030f66a9a23b"
+      },
+      {
+        "path": "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl",
+        "sha256": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be"
+      },
+      {
+        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
+        "sha256": "d61e2fc7e89cf46295ca2122308027db6bdb4e3fd54a198477d230479cf02091"
+      },
+      {
+        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/fresh-joined-gates.json",
+        "sha256": "e86338c2ad28f28bc2d6f117f046042728525412effeae5424eeba5cf21f0b02"
+      },
+      {
+        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
+        "sha256": "9f90272eab38c1a0f9cebd99c981fe4804610967fe975249b9792e34282ad514"
+      },
+      {
+        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/residual-task-index.json",
+        "sha256": "21501e24392b2974b18b282fb53a192f686f8deb750d44f8b059ed9a74895b34"
+      }
+    ],
+    "selected_current_source_comparison": [
+      {
+        "path": "packages/cloudflare/src/deploy/module-imports.ts",
+        "current_sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+        "prior_sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+        "equal": true
+      },
+      {
+        "path": "packages/cloudflare/src/deploy/module-maps.ts",
+        "current_sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+        "prior_sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+        "equal": true
+      },
+      {
+        "path": "packages/cloudflare/src/deploy/bundle.ts",
+        "current_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+        "prior_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+        "equal": true
+      },
+      {
+        "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+        "current_sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+        "prior_sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+        "equal": true
+      },
+      {
+        "path": "packages/cloudflare/src/runtime/modules.ts",
+        "current_sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+        "prior_sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+        "equal": true
+      },
+      {
+        "path": "packages/cloudflare/package.json",
+        "current_sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+        "prior_sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+        "equal": true
+      },
+      {
+        "path": "packages/ui/src/csv/grammar.ts",
+        "current_sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+        "prior_sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+        "equal": true
+      },
+      {
+        "path": "packages/ui/src/csv/parse.ts",
+        "current_sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+        "prior_sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+        "equal": true
+      },
+      {
+        "path": "packages/ui/package.json",
+        "current_sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+        "prior_sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+        "equal": true
+      },
+      {
+        "path": "packages/interfaces/src/http/csv.ts",
+        "current_sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+        "prior_sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+        "equal": true
+      }
+    ],
+    "interpretation": "Matching hashes preserve the narrowly admitted previous source profile; prior installed build/policy/Node map/native fallback/workerd receipts retain actual frozen inputs, hosts and exclusions. No re-execution, whole-package acceptance, native preparation acceptance, full UI browser acceptance or new installed/archive proof inferred.",
+    "source_caller_corrections": [
+      "CF-native-modules: job build tail is lockstep summary, no module staging call",
+      "CF-native-plan: real deploy tail only compatibility+activation prefix, no plan/render/review calls",
+      "CF-native-integrity: lockstep consumed, manifest/inventory helpers not consumed by job",
+      "CF-native-host-protocol: driveSession sends mode-only Begin, supplied onNeed cannot add artifact_path",
+      "CF-native-selection: resolver checks executable existence/X_OK; separate manifest verifier not invoked"
+    ]
+  },
+  "summary": {
+    "boundary_record_count": 10,
+    "native_preparation_normal_cli_consumers": 0,
+    "native_real_job_branch_exists": true,
+    "native_real_job_full_deploy_exists": false,
+    "UI_native_renderer_implementations": 0,
+    "testkit_native_semantic_core_implementations": 0,
+    "testkit_fixture_abi_exports": [
+      "smoke_version",
+      "smoke_add"
+    ],
+    "smallest_supported_seam": "Parsed-tree decision prefix (artifact acceptance/compatibility/lockstep), with TS host retaining FS/parser diagnostics/import+map/Bun/catalog/activation/publication; pure native extensions conditional on future exact consumers and gates",
+    "bounded_proposal_not_major_design_choice": true,
+    "sources_hashed": 92,
+    "all_reused_selected_hashes_equal": true,
+    "native_source_algorithm_modules_registered_not_job_consumed": [
+      "modules.rs",
+      "plan.rs",
+      "render.rs",
+      "review.rs"
+    ],
+    "native_release_functions_current_job_consumed": [
+      "assert_lockstep"
+    ],
+    "source_anchors_with_exact_line_text": 157
+  },
+  "source_pin_verification_limit": "All Git operations were forbidden for this delegated audit. Source pin is supplied by parent; hashes are from read-only filesystem source. False does not assert HEAD advanced or source mismatch. Parent independently verifies pin."
+}

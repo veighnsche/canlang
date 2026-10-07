@@ -1,0 +1,3784 @@
+{
+  "schema": 1,
+  "package": "values",
+  "pin": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "method": "Read-only frozen git show snapshot; source-only/advice. No build/test/install/runtime probe or repo edits. Generated binary integrity compared by bytes/hash only.",
+  "operations": [
+    {
+      "op": "int64",
+      "family": "integers",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 293,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 14,
+          "symbol": "int64",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/int.ts",
+        "line": 19,
+        "symbol": "int64",
+        "sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 125,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "add-int",
+      "family": "integers",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 297,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 19,
+          "symbol": "add_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/int.ts",
+        "line": 31,
+        "symbol": "addInt",
+        "sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 126,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": true
+    },
+    {
+      "op": "subtract-int",
+      "family": "integers",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 301,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 26,
+          "symbol": "subtract_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/int.ts",
+        "line": 38,
+        "symbol": "subtractInt",
+        "sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 127,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "multiply-int",
+      "family": "integers",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 307,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 33,
+          "symbol": "multiply_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/int.ts",
+        "line": 45,
+        "symbol": "multiplyInt",
+        "sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 128,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "mod-int",
+      "family": "integers",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 313,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 41,
+          "symbol": "mod_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/int.ts",
+        "line": 56,
+        "symbol": "modInt",
+        "sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 129,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "negate-int",
+      "family": "integers",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 317,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 52,
+          "symbol": "negate_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/int.ts",
+        "line": 69,
+        "symbol": "negateInt",
+        "sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 130,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": true
+    },
+    {
+      "op": "abs-int",
+      "family": "integers",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 321,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 66,
+          "symbol": "abs_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/int.ts",
+        "line": 78,
+        "symbol": "absInt",
+        "sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 131,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false,
+      "restriction": "Rust bigint guard rejects malformed nonbigint inputs; TS ternary relational coercion may select different guards or engine-native TypeError/SyntaxError. Differential source excludes such inputs from full parity."
+    },
+    {
+      "op": "compare-int",
+      "family": "integers",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 325,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 76,
+          "symbol": "compare_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/int.ts",
+        "line": 87,
+        "symbol": "compareInt",
+        "sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 132,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "round-rational",
+      "family": "rounding",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 332,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/rounding.rs",
+          "line": 13,
+          "symbol": "round_rational_half_even",
+          "sha256": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 140,
+        "symbol": "roundRationalHalfEven",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 133,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "add-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 340,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 20,
+          "symbol": "add_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 170,
+        "symbol": "addDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 134,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": true
+    },
+    {
+      "op": "subtract-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 347,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 30,
+          "symbol": "subtract_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 179,
+        "symbol": "subtractDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 135,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "multiply-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 354,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 41,
+          "symbol": "multiply_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 191,
+        "symbol": "multiplyDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 136,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "divide-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 361,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 100,
+          "symbol": "divide_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 257,
+        "symbol": "divideDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 137,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "divide-duration-ms",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 368,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 131,
+          "symbol": "divide_duration_ms",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 284,
+        "symbol": "divideDurationMs",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 138,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "negate-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 375,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 146,
+          "symbol": "negate_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 292,
+        "symbol": "negateDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 139,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": true
+    },
+    {
+      "op": "abs-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 382,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 157,
+          "symbol": "abs_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 300,
+        "symbol": "absDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 140,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "round-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 389,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 172,
+          "symbol": "round_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 313,
+        "symbol": "round",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 141,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "compare-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 396,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 204,
+          "symbol": "compare_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 331,
+        "symbol": "compareDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 142,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "equal-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 402,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 220,
+          "symbol": "equal_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 343,
+        "symbol": "equalDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 143,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "parse-decimal",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 408,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 250,
+          "symbol": "parse_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 356,
+        "symbol": "parseDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 144,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "decimal-from-integer",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 415,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 284,
+          "symbol": "decimal_from_integer",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 385,
+        "symbol": "decimalFromInteger",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 145,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "decimal-to-string",
+      "family": "decimals",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 422,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 292,
+          "symbol": "decimal_to_string",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 396,
+        "symbol": "decimalToString",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 146,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "currency-scale",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 430,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 24,
+          "symbol": "currency_scale",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 18,
+        "symbol": "currencyScale",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 147,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "is-known-currency",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 437,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 40,
+          "symbol": "is_known_currency",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 30,
+        "symbol": "isKnownCurrency",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 148,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 441,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 55,
+          "symbol": "make_money_value",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 56,
+        "symbol": "money",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 63,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "make-money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 448,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 249,
+          "symbol": "make_money_structural",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/kinds.ts",
+        "line": 68,
+        "symbol": "makeMoney",
+        "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 150,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "add-money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 455,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 85,
+          "symbol": "add_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 86,
+        "symbol": "addMoney",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 151,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": true
+    },
+    {
+      "op": "subtract-money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 462,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 103,
+          "symbol": "subtract_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 96,
+        "symbol": "subtractMoney",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 152,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "multiply-money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 469,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 138,
+          "symbol": "multiply_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 110,
+        "symbol": "multiplyMoney",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 153,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "divide-money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 476,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 156,
+          "symbol": "divide_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 127,
+        "symbol": "divideMoney",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 154,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "money-ratio",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 483,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 183,
+          "symbol": "money_ratio",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 151,
+        "symbol": "moneyRatio",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 155,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "compare-money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 490,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 196,
+          "symbol": "compare_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 164,
+        "symbol": "compareMoney",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 156,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "equal-money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 496,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 216,
+          "symbol": "equal_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 180,
+        "symbol": "equalMoney",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 157,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "negate-money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 500,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 223,
+          "symbol": "negate_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 187,
+        "symbol": "negateMoney",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 158,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "abs-money",
+      "family": "money",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 507,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 237,
+          "symbol": "abs_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/money.ts",
+        "line": 193,
+        "symbol": "absMoney",
+        "sha256": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 159,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "date-to-epoch-days",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 515,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 46,
+          "symbol": "date_to_epoch_days",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 113,
+        "symbol": "dateToEpochDays",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 160,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": true
+    },
+    {
+      "op": "epoch-days-to-date",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 523,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 57,
+          "symbol": "epoch_days_to_date",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 121,
+        "symbol": "epochDaysToDate",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 161,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "parse-date",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 530,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 109,
+          "symbol": "parse_date",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 189,
+        "symbol": "date",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 162,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "parse-datetime",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 537,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/instant.rs",
+          "line": 123,
+          "symbol": "parse_datetime",
+          "sha256": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 218,
+        "symbol": "datetime",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 163,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "make-date",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 544,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "line": 296,
+          "symbol": "make_date",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        },
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "line": 181,
+          "symbol": "is_integer_number",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/kinds.ts",
+        "line": 131,
+        "symbol": "makeDate",
+        "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 164,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "make-datetime",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 576,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "line": 350,
+          "symbol": "make_datetime",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/kinds.ts",
+        "line": 166,
+        "symbol": "makeDatetime",
+        "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 165,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "add-days",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 590,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 137,
+          "symbol": "add_days",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 283,
+        "symbol": "add_days",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 166,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "add-months",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 597,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 174,
+          "symbol": "add_months",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 309,
+        "symbol": "add_months",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 167,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "date-year",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 604,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 189,
+          "symbol": "date_year",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 326,
+        "symbol": "date_year",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 168,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "weekday",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 611,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 194,
+          "symbol": "weekday",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 331,
+        "symbol": "weekday",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 169,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "dates",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 618,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 203,
+          "symbol": "dates",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 346,
+        "symbol": "dates",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 170,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "overlaps",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 625,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/instant.rs",
+          "line": 233,
+          "symbol": "overlaps",
+          "sha256": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 391,
+        "symbol": "overlaps",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 171,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "add-duration",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 631,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/duration.rs",
+          "line": 18,
+          "symbol": "add_duration",
+          "sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 434,
+        "symbol": "addDuration",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 172,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "subtract-duration",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 641,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/duration.rs",
+          "line": 49,
+          "symbol": "subtract_duration",
+          "sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 454,
+        "symbol": "subtractDuration",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 173,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "multiply-duration",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 651,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/duration.rs",
+          "line": 67,
+          "symbol": "multiply_duration",
+          "sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 467,
+        "symbol": "multiplyDuration",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 174,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "divide-duration-by-int",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 657,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/duration.rs",
+          "line": 75,
+          "symbol": "divide_duration_by_int",
+          "sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 477,
+        "symbol": "divideDurationByInt",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 175,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "remainder-duration",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 663,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/duration.rs",
+          "line": 91,
+          "symbol": "remainder_duration",
+          "sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 493,
+        "symbol": "remainderDuration",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 176,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "compare-duration",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 669,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/duration.rs",
+          "line": 101,
+          "symbol": "compare_duration",
+          "sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 503,
+        "symbol": "compareDuration",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 177,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "negate-duration",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 675,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/duration.rs",
+          "line": 114,
+          "symbol": "negate_duration",
+          "sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 512,
+        "symbol": "negateDuration",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 178,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "abs-duration",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 679,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/duration.rs",
+          "line": 120,
+          "symbol": "abs_duration",
+          "sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 518,
+        "symbol": "absDuration",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 179,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "duration-between",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 683,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/instant.rs",
+          "line": 194,
+          "symbol": "duration_between",
+          "sha256": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 531,
+        "symbol": "durationBetween",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 180,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "compare-instant",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 689,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/instant.rs",
+          "line": 204,
+          "symbol": "compare_instant",
+          "sha256": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 538,
+        "symbol": "compareInstant",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 181,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "compare-date",
+      "family": "temporal",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 695,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 240,
+          "symbol": "compare_date",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/temporal.ts",
+        "line": 547,
+        "symbol": "compareDate",
+        "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 182,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "sum-int",
+      "family": "aggregates",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 702,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/aggregates/numeric.rs",
+          "line": 7,
+          "symbol": "require_domain",
+          "sha256": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4"
+        },
+        {
+          "path": "packages/values/semantics/src/aggregates/integer.rs",
+          "line": 12,
+          "symbol": "sum_int",
+          "sha256": "fd7feb03a1148a4912dcf40e049b7428aaa3a828e072a2d3564485b1834c148c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/array.ts",
+        "line": 152,
+        "symbol": "sumInt",
+        "sha256": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 183,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "sum-decimal",
+      "family": "aggregates",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 710,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/aggregates/numeric.rs",
+          "line": 7,
+          "symbol": "require_domain",
+          "sha256": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4"
+        },
+        {
+          "path": "packages/values/semantics/src/aggregates/decimal.rs",
+          "line": 16,
+          "symbol": "sum_decimal",
+          "sha256": "5bb363c93fd640aa16b64ab83520169dee7d2e4d548275f54b0d8fc03c717313"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/array.ts",
+        "line": 170,
+        "symbol": "sumDecimal",
+        "sha256": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 184,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "sum-duration",
+      "family": "aggregates",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 721,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/aggregates/numeric.rs",
+          "line": 7,
+          "symbol": "require_domain",
+          "sha256": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4"
+        },
+        {
+          "path": "packages/values/semantics/src/aggregates/integer.rs",
+          "line": 26,
+          "symbol": "sum_duration",
+          "sha256": "fd7feb03a1148a4912dcf40e049b7428aaa3a828e072a2d3564485b1834c148c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/array.ts",
+        "line": 201,
+        "symbol": "sumDuration",
+        "sha256": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 185,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "sum-money",
+      "family": "aggregates",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 729,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/aggregates/numeric.rs",
+          "line": 7,
+          "symbol": "require_domain",
+          "sha256": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4"
+        },
+        {
+          "path": "packages/values/semantics/src/aggregates/money.rs",
+          "line": 17,
+          "symbol": "sum_money",
+          "sha256": "60736655950fabdc910bb145118ca4e185880074ddf2b18dec0525400532cb0e"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/array.ts",
+        "line": 221,
+        "symbol": "sumMoney",
+        "sha256": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 186,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "decode-value",
+      "family": "codecs",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 749,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/codecs/numeric.rs",
+          "line": 550,
+          "symbol": "decode_value_scalar",
+          "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/wire.ts",
+        "line": 6,
+        "symbol": "decodeValue",
+        "sha256": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 187,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false,
+      "restriction": "native only int/decimal/money/date/datetime/duration scalar names; TS counterpart handles broad type AST; wasmBackend erases codec decode violations into generic ValueError",
+      "ts_counterpart_defining_core": {
+        "path": "packages/values/src/internal/wire-core.ts",
+        "line": 1178,
+        "symbol": "decodeValueTsCore",
+        "sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059"
+      }
+    },
+    {
+      "op": "encode-value",
+      "family": "codecs",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 790,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/codecs/numeric.rs",
+          "line": 696,
+          "symbol": "encode_value_scalar",
+          "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/wire.ts",
+        "line": 11,
+        "symbol": "encodeValue",
+        "sha256": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 188,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false,
+      "restriction": "native only int/decimal/money/date/datetime/duration scalar names; TS counterpart handles broad type AST; wasmBackend erases codec decode violations into generic ValueError",
+      "ts_counterpart_defining_core": {
+        "path": "packages/values/src/internal/wire-core.ts",
+        "line": 1763,
+        "symbol": "encodeValueTsCore",
+        "sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059"
+      }
+    },
+    {
+      "op": "is-decimal",
+      "family": "guards",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 809,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "line": 188,
+          "symbol": "is_decimal_value",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/decimal.ts",
+        "line": 96,
+        "symbol": "isDecimal",
+        "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 189,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "is-money",
+      "family": "guards",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 813,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "line": 214,
+          "symbol": "is_money_value",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/kinds.ts",
+        "line": 52,
+        "symbol": "isMoney",
+        "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 190,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "is-date",
+      "family": "guards",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 817,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "line": 262,
+          "symbol": "is_date_value",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/kinds.ts",
+        "line": 125,
+        "symbol": "isDateValue",
+        "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 191,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "is-datetime",
+      "family": "guards",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 821,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "line": 283,
+          "symbol": "is_datetime_value",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/kinds.ts",
+        "line": 149,
+        "symbol": "isDatetime",
+        "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 192,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false
+    },
+    {
+      "op": "is-currency-shape",
+      "family": "guards",
+      "native_status": "implemented in registered Rust core; production adoption not established",
+      "dispatch": {
+        "path": "packages/values/semantics/src/transport/exact.rs",
+        "line": 825,
+        "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+      },
+      "native_definitions": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "line": 98,
+          "symbol": "is_currency_shape",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        }
+      ],
+      "ts_counterpart": {
+        "path": "packages/values/src/kinds.ts",
+        "line": 48,
+        "symbol": "isCurrencyShape",
+        "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7"
+      },
+      "ts_differential": {
+        "path": "packages/values/conformance/ports/exact/differential.mjs",
+        "line": 193,
+        "sha256": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17"
+      },
+      "common_smoke_registry": false,
+      "restriction": "Rust returns false for all nonstrings; TS RegExp.test coerces and may throw on Symbol. Exact differential vectors explicitly avoid divergent inputs."
+    }
+  ],
+  "operation_counts": {
+    "native_exact": 69,
+    "ts_differential": 69,
+    "ts_host_smoke": 6,
+    "structural_scaffold": 6
+  },
+  "registry_parity": {
+    "native_vs_ts_differential_name_set": true,
+    "common_host_ops": [
+      "add-int",
+      "negate-int",
+      "add-decimal",
+      "negate-decimal",
+      "date-to-epoch-days",
+      "add-money"
+    ],
+    "claim_limit": "name registry equality is not full admitted-domain/outcome parity"
+  },
+  "structural_operations": [
+    {
+      "op": "input.digest",
+      "dispatch": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 646,
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "implementation": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 457,
+        "symbol": "op_input_digest",
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "status": "implemented scaffold; not validation semantics"
+    },
+    {
+      "op": "owner.create",
+      "dispatch": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 647,
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "implementation": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 504,
+        "symbol": "op_owner_create",
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "status": "implemented scaffold; not validation semantics"
+    },
+    {
+      "op": "plan.register",
+      "dispatch": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 648,
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "implementation": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 534,
+        "symbol": "op_plan_register",
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "status": "implemented scaffold; not validation semantics"
+    },
+    {
+      "op": "plan.get",
+      "dispatch": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 649,
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "implementation": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 577,
+        "symbol": "op_plan_get",
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "status": "implemented scaffold; not validation semantics"
+    },
+    {
+      "op": "plan.release",
+      "dispatch": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 650,
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "implementation": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 601,
+        "symbol": "op_plan_release",
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "status": "implemented scaffold; not validation semantics"
+    },
+    {
+      "op": "owner.retire",
+      "dispatch": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 651,
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "implementation": {
+        "path": "packages/values/semantics/src/profiles.rs",
+        "line": 614,
+        "symbol": "op_owner_retire",
+        "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+      },
+      "status": "implemented scaffold; not validation semantics"
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "BV01",
+      "title": "Exact core and opt-in host operation boundary",
+      "status": "implemented finite core/bridge; six-operation shared host registry",
+      "implementation": [
+        {
+          "path": "packages/values/semantics/src/transport/exact.rs",
+          "line": 286,
+          "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+        },
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "line": 31,
+          "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3"
+        },
+        {
+          "path": "packages/values/bindings/src/exact.rs",
+          "line": 22,
+          "sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423"
+        }
+      ],
+      "producer": [
+        "TS tag(args) -> JSON.stringify({v:1,op,args})"
+      ],
+      "consumer": [
+        "wasm-bindgen exact_call -> Rust handle_line -> dispatch -> encode_output -> host reconstruct"
+      ],
+      "representation": "69 native exact operation names; 69 TS differential counterparts; six TS backend entries; v1 JSON transport",
+      "limitations": [
+        "Public src arithmetic does not call backend; unknown native op/arity are transport faults; unsupported TS op rejected by Object.hasOwn before argument spread",
+        "Independent IR-01: six names intersect, but shared proof requires exact arities/plain-owned carriers. TS ignores some surplus arguments; native enforces arity and Wasm tags all arguments first. No owned-token gate enforces this whole finite profile today."
+      ],
+      "gates": [
+        "G01",
+        "G02",
+        "G03"
+      ]
+    },
+    {
+      "id": "BV02",
+      "title": "Exact carrier conversion and identity",
+      "status": "implemented supported-profile adapter",
+      "implementation": [
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "line": 47,
+          "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0"
+        },
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "line": 101,
+          "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0"
+        },
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "line": 140,
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        }
+      ],
+      "producer": [
+        "host BigInt/string/number/bool/null/undefined/structural objects"
+      ],
+      "consumer": [
+        "Rust Value BigInt/Num(f64)/Str(String)/Record(Vec<(String,Value)>)/exact parts"
+      ],
+      "representation": "BigInt decimal strings; Decimal coef string + numeric scale -> Rust BigInt/u8; money minor string+currency; date numeric parts; datetime ms string; ordered record entry tuples",
+      "limitations": [
+        "No lossless unpaired UTF16 exact channel: serde String input rejects lone-surrogate JSON escape; Rust strings are valid Unicode",
+        "JSON.stringify erases ordinary numeric -0; Decimal scale -0 explicitly refused; NaN/nonfinite numbers use strings",
+        "tag runs guards/Object.entries/property reads and array.map; getters/proxies, sparse arrays, symbol/nonenumerable keys, cycles, prototypes and identity are not mirrored",
+        "reconstruct uses TS constructors to restore frozen public scalar carriers; record/array containers from this adapter are not frozen",
+        "Exact direct record transport decoder does not enforce comment hygiene against duplicate keys; Rust record_field finds first key, JS reconstruction/Object.fromEntries selects last. Host tag Object.entries produces unique keys, so finite host-produced profile and arbitrary direct transport differ."
+      ],
+      "gates": [
+        "G03",
+        "G04",
+        "G05",
+        "G06"
+      ]
+    },
+    {
+      "id": "BV03",
+      "title": "Scalar wire codec semantics",
+      "status": "native implemented narrow scalar codec; public codec remains TS",
+      "implementation": [
+        {
+          "path": "packages/values/semantics/src/codecs/numeric.rs",
+          "line": 512,
+          "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217"
+        },
+        {
+          "path": "packages/values/semantics/src/codecs/numeric.rs",
+          "line": 550,
+          "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217"
+        },
+        {
+          "path": "packages/values/src/wire.ts",
+          "line": 6,
+          "sha256": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842"
+        },
+        {
+          "path": "packages/values/src/prepared/codec.ts",
+          "line": 119,
+          "sha256": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e"
+        }
+      ],
+      "producer": [
+        "exact transport tagged scalar name/wire value; public wire CanValue/typeId"
+      ],
+      "consumer": [
+        "native scalar codec or TS full AST converter"
+      ],
+      "representation": "Native six scalar names only; canonical persisted integers/decimal/duration/money minor are text; date ISO text; datetime strict millisecond UTC wire; money closed ordered object",
+      "limitations": [
+        "Native decode violations are retained in ABI envelope but wasmBackend throws generic invalid-construction and loses path/code/message payload",
+        "TS broad arrays/nominals/refs/action/invocation/delivery/secret/opaque JSON/stringlike domains are absent from native exact registry",
+        "Rust valid-str diagnostic quoting uses serde_json; 64 UTF16 diagnostic truncation differs where astral pair straddles cut"
+      ],
+      "gates": [
+        "G03",
+        "G05",
+        "G07",
+        "G08"
+      ]
+    },
+    {
+      "id": "BV04",
+      "title": "Owned host JSON input provenance",
+      "status": "implemented host token/lineage; no execution bridge",
+      "implementation": [
+        {
+          "path": "packages/values/bindings/owned-input.ts",
+          "line": 71,
+          "sha256": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139"
+        },
+        {
+          "path": "packages/values/bindings/owned-input.ts",
+          "line": 97,
+          "sha256": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139"
+        }
+      ],
+      "producer": [
+        "injected capped reader -> TextDecoder() -> JSON.parse -> WeakMap lineage token"
+      ],
+      "consumer": [
+        "readOwnedJson/ownedJsonText/ownedJsonValue; source tests only"
+      ],
+      "representation": "record stores original bytes, decoded text, parsed value, byteLength; JS enumeration/duplicate-key outcome preserved; token issuance identity required",
+      "limitations": [
+        "No plan selection/conversion/budget traversal during parse",
+        "No host token -> structural Frame serializer found",
+        "Stored bytes/value are exposed through readOwnedJson; token freeze does not freeze record/value/bytes",
+        "Reader cap/cancellation errors propagate by identity; parse errors become OwnedInputError(validation)"
+      ],
+      "gates": [
+        "G04",
+        "G05",
+        "G09"
+      ]
+    },
+    {
+      "id": "BV05",
+      "title": "Structural arena scaffold representation",
+      "status": "implemented arena and digest route",
+      "implementation": [
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 97,
+          "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 457,
+          "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+        },
+        {
+          "path": "packages/values/semantics/src/input.rs",
+          "line": 145,
+          "sha256": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b"
+        }
+      ],
+      "producer": [
+        "caller manually supplies frame/budgets JSON via validationBackend"
+      ],
+      "consumer": [
+        "InputArena::build -> digest_node; no semantic validator"
+      ],
+      "representation": "f64 hex bits; UTF16 arrays for text/keys; ordered entries; explicit missing vs own-null; budgets u32; unit widths checked before conversion; two-pass preflight/materialization",
+      "limitations": [
+        "NaN bit patterns rejected corrupt/nan-bits; Infinity/-0 remain distinguishable",
+        "Digest emits root identifying data/nodes, not validated values",
+        "Arena metadata/default/sentinel/drop tags exist but no production profile evaluation consumer",
+        "Frames and order supplied by caller; no genuine owned token or producer conversion bridge established"
+      ],
+      "gates": [
+        "G03",
+        "G04",
+        "G05",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "id": "BV06",
+      "title": "Prepared host plan and native lifecycle",
+      "status": "implemented separate lifecycle halves; incomplete cross-boundary assembly",
+      "implementation": [
+        {
+          "path": "packages/values/src/prepared/plan.ts",
+          "line": 528,
+          "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4"
+        },
+        {
+          "path": "packages/values/bindings/plans.ts",
+          "line": 58,
+          "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274"
+        },
+        {
+          "path": "packages/values/semantics/src/plans.rs",
+          "line": 356,
+          "sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c"
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 534,
+          "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+        }
+      ],
+      "producer": [
+        "TS normalized schema/owner plan; separately scaffold schema Meta/TypeBase"
+      ],
+      "consumer": [
+        "TS host NativePlanRegistry or native Plans/ProfileHost registry"
+      ],
+      "representation": "TS WeakSet/WeakMap owner and handle identity; native opaque u64 owner handle; native plan IDs scope abi/profile/backend/revision:generation:sequence; copied metadata/defaults",
+      "limitations": [
+        "Host registry returns same TS PreparedValidationPlan; it does not call Wasm or native registry",
+        "Host retire frees live-count; Rust retired-unreleased entries count against bound until release (declared divergence)",
+        "Scaffold provenance factory/revision strings are caller-supplied shape, not proof of TS factory lineage",
+        "No plan serializer connecting canonical TS schema/default refs to native registry found"
+      ],
+      "gates": [
+        "G04",
+        "G05",
+        "G09",
+        "G10",
+        "G11"
+      ]
+    },
+    {
+      "id": "BV07",
+      "title": "Validation owner",
+      "status": "public and prepared evaluation implemented in one TS core; native validation absent",
+      "implementation": [
+        {
+          "path": "packages/values/src/schema.ts",
+          "line": 26,
+          "sha256": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b"
+        },
+        {
+          "path": "packages/values/src/prepared/validation.ts",
+          "line": 456,
+          "sha256": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36"
+        },
+        {
+          "path": "packages/values/src/prepared/codec.ts",
+          "line": 135,
+          "sha256": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e"
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 645,
+          "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+        }
+      ],
+      "producer": [
+        "public schema/typeId/unknown/mode or prepared live-plan admission"
+      ],
+      "consumer": [
+        "internal/schema-core.ts and internal/wire-core.ts"
+      ],
+      "representation": "Prepared owner/schema/type coverage gates then canonical TS core; whole-call trace utilities compare both TS calls; no Rust validation route in six scaffold operations",
+      "limitations": [
+        "Rust structural registration/digest is not contract/default/update/disclosure/operation validation implementation",
+        "No native output materialization/projection nor production owner/request admission adapter",
+        "Arbitrary host getters/proxies/default identity/evaluation order require separate admitted-profile decision"
+      ],
+      "gates": [
+        "G03",
+        "G05",
+        "G08",
+        "G09",
+        "G10",
+        "G11"
+      ]
+    },
+    {
+      "id": "BV08",
+      "title": "Cargo/Wasm build and generated artifact provenance",
+      "status": "registered package-local crates and committed pinned assets",
+      "implementation": [
+        {
+          "path": "packages/values/Cargo.toml",
+          "line": 2,
+          "sha256": "083c91d33d9cf5c36b0c61e0e8f86b80bf1208bcf3202d681a77a52939e6efee"
+        },
+        {
+          "path": "packages/values/bindings/Cargo.toml",
+          "line": 13,
+          "sha256": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450"
+        },
+        {
+          "path": "packages/values/scripts/build-semantics.mjs",
+          "line": 52,
+          "sha256": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71"
+        },
+        {
+          "path": "packages/values/scripts/stage-semantics.mjs",
+          "line": 25,
+          "sha256": "7103d8d25dd579eef418420a427d1acb8ab444aceeaf24cc4f0a1d3f41c486a8"
+        }
+      ],
+      "producer": [
+        "Cargo values-semantics -> values-bindings cdylib -> wasm-bindgen web target"
+      ],
+      "consumer": [
+        "committed generated js/d.ts/wasm plus dist staging/package exports"
+      ],
+      "representation": "CLI version exactly equals lock crate; cargo --locked release wasm32-unknown-unknown; BUILD.json tool versions and asset byte hashes; stage validates full four-file set before copies",
+      "limitations": [
+        "BUILD.json lists binding source filenames but no source-content digest or semantics/Cargo dependency digest despite builder comment saying source hash",
+        "No fresh build/installed resolution/runtime host probe performed",
+        "Matching current source/asset provenance has retained STEP9 source-pinned same-toolchain two-prefix reproducibility and root refresh credit; BUILD alone remains incomplete. No universal reproducibility or fresh execution claim."
+      ],
+      "gates": [
+        "G12",
+        "G13",
+        "G14"
+      ]
+    },
+    {
+      "id": "BV09",
+      "title": "Init/backend selection/error authority",
+      "status": "explicit caller-supplied opt-in loading; startup gates implemented",
+      "implementation": [
+        {
+          "path": "packages/values/bindings/bootstrap.ts",
+          "line": 52,
+          "sha256": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c"
+        },
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "line": 88,
+          "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3"
+        },
+        {
+          "path": "packages/values/bindings/validation.ts",
+          "line": 43,
+          "sha256": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f"
+        },
+        {
+          "path": "packages/values/bindings/generated/values_semantics.js",
+          "line": 207,
+          "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0"
+        }
+      ],
+      "producer": [
+        "caller byte array/precompiled module or explicit generated initSync/init"
+      ],
+      "consumer": [
+        "bootstrapWasm returns ExactBackend only; validationBackend independently accepts glue"
+      ],
+      "representation": "Generated singleton initSync; bootstrap copies native bytes, pins first bytes/module identity, checks init consumed/ABI/function exports/memory/table; no fallback or retry; errors BootstrapError, ValueError, StructuralError stage/code/check",
+      "limitations": [
+        "Generated async default init can fetch relative wasm; bootstrap path itself uses sync caller assets",
+        "Post-init ABI/export failure occurs after generated singleton is installed; no rollback/reset implemented",
+        "Startup promises all failures BootstrapError but module top-level WebAssembly constructor lookup and wasmBackend ABI call occur outside bootstrap catch",
+        "raw glue/JSON parsing/trap errors are not wrapped by wasmBackend or validationBackend",
+        "Finite current-f587 startup/host checks have retained STEP9 accepted receipts; untested wider scenarios and failure profiles are not automatically covered."
+      ],
+      "gates": [
+        "G01",
+        "G07",
+        "G12",
+        "G13",
+        "G14"
+      ]
+    },
+    {
+      "id": "BV10",
+      "title": "Installed/deployment callers",
+      "status": "asset route implemented; retained accepted finite current-asset installed qualification; no production semantic switch",
+      "implementation": [
+        {
+          "path": "packages/cloudflare/src/deploy/package-assets.ts",
+          "line": 112,
+          "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f"
+        },
+        {
+          "path": "scripts/verify-installed-worker.mjs",
+          "line": 118,
+          "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443"
+        },
+        {
+          "path": "scripts/verify-installed-worker.mjs",
+          "line": 146,
+          "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443"
+        },
+        {
+          "path": "packages/interfaces/src/mcp/schemas.ts",
+          "line": 1072,
+          "sha256": "44e1e8f6df2cddfc3c0a7b0b3f080d74dfe96c53f0d7d0d9420b3a27786f22fb"
+        }
+      ],
+      "producer": [
+        "package distribution binding URL -> verified manifest asset read -> worker module/binary inventory"
+      ],
+      "consumer": [
+        "opt-in asset builder and installed smoke probe; MCP runtime decode uses @canlang/values TS public entry"
+      ],
+      "representation": "installed module paths from exports; containment/file integrity verification; generated glue+binary staged; test/probe initializes module and calls add-int",
+      "limitations": [
+        "No fresh installed/runtime execution in this audit; matching-current-digest saved finite qualification retained",
+        "Production worker boot/auth seam and separate add-int workerd probe are separate outcomes; no whole-operation adoption",
+        "Frozen textual search outside values found backend function usage only cloudflare test and installed verifier; dynamic/external consumers remain unproven",
+        "STEP9 workerd fixture uses actual owning installed local-run plus exact qualified sibling dist snapshots, handwritten13-module finite fixture; not whole sibling source rebuild or generated application/durable validation/work qualification."
+      ],
+      "gates": [
+        "G01",
+        "G02",
+        "G12",
+        "G13",
+        "G14"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "G01",
+      "title": "Backend selection authority",
+      "gate": "Keep explicit caller-selected backend. No native default, implicit fallback/retry or TS retirement follows from asset availability. Future adoption requires owner/consumer decision and rollback."
+    },
+    {
+      "id": "G02",
+      "title": "Complete operation inventory",
+      "gate": "Distinguish 69-op native/reference exact registries from six-op common host smoke table. Gate any advertised common surface on per-op arity/representation/error support; do not hide unsupported ops."
+    },
+    {
+      "id": "G03",
+      "title": "One selected semantic core",
+      "gate": "A proposed finite native cut must route all admitted arithmetic and validation execution to one selected core; TS host adapters may admit/project/construct, but must not rederive same numeric/default/validation semantics. Current selected public core is TS; Rust exact is opt-in, structural validation unimplemented."
+    },
+    {
+      "id": "G04",
+      "title": "Representation policy",
+      "gate": "Admitted domains must explicitly preserve UTF16 code units/unpaired surrogates, f64 bits/-0/nonfinite profile, exact integer/decimal parts and stored scale, null/missing/undefined/default/sentinel distinctions, ordered own keys, bytes and identity where required. Exact JSON and scaffold ABI are different domains; no automatic unification."
+    },
+    {
+      "id": "G05",
+      "title": "Evaluation and authority",
+      "gate": "Preserve getter/proxy invocation order, own-vs-inherited properties, sparse/cyclic/accessor refusals, owner/plan/default issuance, factory lineage, disclosure/unknown handling, and first failure stage/order. Snapshot or serializer addition must not claim arbitrary unknown semantics."
+    },
+    {
+      "id": "G06",
+      "title": "Host construction",
+      "gate": "Keep frozen public BigInt/Decimal/Money/Date/Datetime carriers via owning constructors. Host reconstruction should consume valid results, not run a second semantic validator with divergent error precedence."
+    },
+    {
+      "id": "G07",
+      "title": "Error projection",
+      "gate": "Retain ValueError code/message and schema violation path/order/expected/actual or explicitly select a revised finite contract. Startup, malformed transport, plan admission, semantic failure and runtime trap are distinct layers."
+    },
+    {
+      "id": "G08",
+      "title": "Operation family completeness",
+      "gate": "Native exact excludes full schema/default/update/operation validation, broad AST wire traversal/ref/secret/JSON/stringlike codecs, ICU/locale/timezone/text/equality/general array/pure dispatch. A minimal numeric cut must say these remain selected TS; a complete validation cut needs actual validators and output projection."
+    },
+    {
+      "id": "G09",
+      "title": "Producer/consumer assembly",
+      "gate": "Require real host-owned parsed input -> lossless frames -> issued native plan -> native execution -> owning output projection. Owned token, arena and plan files separately do not prove that chain."
+    },
+    {
+      "id": "G10",
+      "title": "Budget/profile decision",
+      "gate": "Arena budgets are explicit scaffold inputs, not adopted request caps; JSON parser prebuild and public recursive codec depths have separate gaps. Do not invent fixed limits or widen NaN profile based on names/comments."
+    },
+    {
+      "id": "G11",
+      "title": "Lifecycle/default identity",
+      "gate": "Unify only after qualifying owner/revision/generation/release/stale/foreign/bound/default identity semantics and resolving host/native retirement counting difference; no shape-only authority conversion."
+    },
+    {
+      "id": "G12",
+      "title": "Source and asset provenance",
+      "gate": "BUILD inventory alone contains binding filenames and asset integrity, not semantics source pins. Retain saved STEP9 independent source pins/158 tracked-source comparison, five-asset refresh and two-prefix same-toolchain reproducibility for current f587 asset; no universal platform/toolchain correspondence or future asset transfer without matching pins."
+    },
+    {
+      "id": "G13",
+      "title": "Installed and host qualification",
+      "gate": "Current f587 asset retains STEP9 finite six-operation installed Node24.21/Bun/workerd1.20260730.1 qualification, startup/ABI/export/mutation/missing/corrupt controls and finite structural scaffold credit. Do not extend this to full69-op admitted domains, actual generated .can durable/validation handlers, current installation outside saved runs, browser startup, new host versions or default adoption."
+    },
+    {
+      "id": "G14",
+      "title": "Receipt/version scope reconciliation",
+      "gate": "Old bootstrap-current b0d44d9…/622216 mismatch is historical, superseded for current finite asset credit by matching f5870905…/653133 STEP9 acceptance/independent-installed/workerd/reproducibility/root-asset-refresh. STEP12 released-source review preserves six-op scaffold credit. Keep old/narrow/current receipts separately versioned; no full-registry or production adoption inferred."
+    }
+  ],
+  "smallest_current_boundary": {
+    "status": "Implemented/source-supported; retained STEP9 finite six-op/scaffold Node/Bun/workerd qualification, no fresh execution",
+    "surface": "Explicit opt-in exact backend call(op,args), common TS/Wasm vocabulary six smoke ops; native ABI directly exposes 69 operations",
+    "architecture": "TS owns host input/projection/freezing and current public arithmetic/validation semantics; native exact functions are actual Rust implementations; structural native surface is scaffold only",
+    "admission": "Use finite plain owned value profile; refuse Decimal scale -0; do not advertise arbitrary unknown parity or whole codec/backend adoption Exact arities/plain-owned scope is finite proof scope, not an enforced owned-token admission gate."
+  },
+  "proposed_minimal_complete_cut": {
+    "status": "proposal only, preserves current selection until qualified; no adoption/JEV choice",
+    "exact_numeric_cut": "Package-private owner-managed synchronous registry covering the admitted exact operation family once; explicit construction/bootstrap; same host signatures and owning carriers; native semantic functions with thin lossless host marshalling/error projection. Scope out unsupported family as TS-selected explicitly. No per-caller serializer/registry or dual validation.",
+    "validation_cut": "Separately complete native plan/input/core/output chain: canonical plan serializer+factory lineage, owned input lossless frame producer, complete contract/default/update/operation validators, typed output/error projection. Six scaffold operations are prerequisites only. If this cannot simplify callers and preserve authority/evaluation order, retain TS selected core.",
+    "caller_complexity_gate": "New cut must remove duplicated per-caller dispatch/marshalling/revalidation and keep one owner API; compare token/call/conversion/error/lifecycle burden against existing direct TS. No performance or simplification claim from source alone."
+  },
+  "prior_narrow_evidence": [
+    {
+      "id": "vv.wire-exact",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 78,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": "persisted_protocol",
+      "uncertainty": []
+    },
+    {
+      "id": "vv.wire-input-normalization",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 79,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": "public_contract",
+      "uncertainty": [
+        "Current admission is explicitly documented; stricter canonical-only decoder would be a versioned acceptance change, not free mechanic replacement."
+      ]
+    },
+    {
+      "id": "vv.wire-time",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 80,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": "persisted_protocol",
+      "uncertainty": []
+    },
+    {
+      "id": "vv.wire-presence",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 86,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": "public_contract",
+      "uncertainty": [
+        "Explicit owner policy for arbitrary JS API, not JSON network values (undefined has no JSON spelling). Native owned-input tags must not invent it."
+      ]
+    },
+    {
+      "id": "vv.immutable-carriers",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 87,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": "public_contract",
+      "uncertainty": [
+        "Public immutability is documented. Exact repeated-call/default identity and raw-object getter traces are separate unresolved rules."
+      ]
+    },
+    {
+      "id": "vv.structural-nan-exclusion",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 117,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": "unresolved_assumption",
+      "uncertainty": [
+        "JSON.parse cannot produce NaN but raw carrier APIs can. Need profile/producer domain adjudication before widening or declaring universal bit preservation."
+      ]
+    },
+    {
+      "id": "vv.backend-own-operation",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 118,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": "deliberate_security_policy",
+      "uncertainty": [
+        "Bounded string operation vocabulary; no arbitrary Symbol/host-object operation-name claim."
+      ]
+    },
+    {
+      "id": "vv.transport-f64-roundtrip",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 119,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": "public_contract",
+      "uncertainty": [
+        "JSON -0/NaN carrier loss remains separate; Serde does not replace host request syntax stage. Feature and bytes are mechanism; finite f64 meaning is outcome."
+      ]
+    },
+    {
+      "id": "values-backend-wasm",
+      "path": "docs/research/package-library-audit-20261006/responsibility-callers/responsibilities.jsonl",
+      "line": 238,
+      "sha256": "3c53a04dad77773000a65b5ebe928f4932889622551698ed685bae90567253ba",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": null,
+      "uncertainty": [
+        "Host TS registry has six fixed ops; raw native transport has larger registry. Finite exact installed receipt does not establish default adoption."
+      ]
+    },
+    {
+      "id": "values-native-plan-handles",
+      "path": "docs/research/package-library-audit-20261006/responsibility-callers/responsibilities.jsonl",
+      "line": 256,
+      "sha256": "3c53a04dad77773000a65b5ebe928f4932889622551698ed685bae90567253ba",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": null,
+      "uncertainty": []
+    },
+    {
+      "id": "values-owned-input",
+      "path": "docs/research/package-library-audit-20261006/responsibility-callers/responsibilities.jsonl",
+      "line": 257,
+      "sha256": "3c53a04dad77773000a65b5ebe928f4932889622551698ed685bae90567253ba",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": null,
+      "uncertainty": [
+        "Reader injection mirrors host cap; interfaces production routes do not call this module."
+      ]
+    },
+    {
+      "id": "DV01",
+      "path": "docs/research/package-library-audit-20261006/duplication-layers/candidates.jsonl",
+      "line": 1,
+      "sha256": "7a0f7438f4f7aa3b7a38e42131bdd01a929300344e65f836ad3b030f66a9a23b",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": null,
+      "uncertainty": [
+        "Static source audit only; no builds/tests/runtime probes performed.",
+        "Cross-host adoption, deployed state and unobserved dynamic/external consumers remain outside proof."
+      ]
+    },
+    {
+      "id": "DV03",
+      "path": "docs/research/package-library-audit-20261006/duplication-layers/candidates.jsonl",
+      "line": 3,
+      "sha256": "7a0f7438f4f7aa3b7a38e42131bdd01a929300344e65f836ad3b030f66a9a23b",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": null,
+      "uncertainty": [
+        "Static source audit only; no builds/tests/runtime probes performed.",
+        "Cross-host adoption, deployed state and unobserved dynamic/external consumers remain outside proof.",
+        "Whole carrier/type merge remains HOLD. Generic enumeration across distinct carrier types can add conversion/generic plumbing; caller simplification is not yet proved."
+      ]
+    },
+    {
+      "id": "DV04",
+      "path": "docs/research/package-library-audit-20261006/duplication-layers/candidates.jsonl",
+      "line": 4,
+      "sha256": "7a0f7438f4f7aa3b7a38e42131bdd01a929300344e65f836ad3b030f66a9a23b",
+      "use": "reuse narrow declared-stage constraint/caller/source witness only; no fresh execution proof",
+      "classification": null,
+      "uncertainty": [
+        "Static source audit only; no builds/tests/runtime probes performed.",
+        "Cross-host adoption, deployed state and unobserved dynamic/external consumers remain outside proof."
+      ]
+    },
+    {
+      "id": "vv.structural-carrier",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 106,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "Prior accepted constraint/finite finding at declared stage only",
+      "classification": "public_contract",
+      "verdict": null,
+      "uncertainty": [
+        "Selected lossless profile contract under implementation/adoption, not public business wire protocol. Duplicate entry transport does not imply host JSON.parse stops last-wins behavior."
+      ]
+    },
+    {
+      "id": "vv.exact-transport",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 109,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "Prior accepted constraint/finite finding at declared stage only",
+      "classification": "public_contract",
+      "verdict": null,
+      "uncertainty": [
+        "JSON scalar num transport loses numeric -0/canonicalizes NaN payloads and Rust str cannot carry all JS UTF16. Structural lossless carrier is separate; opt-in scalar smoke qualification does not waive those gaps."
+      ]
+    },
+    {
+      "id": "vv.decimal-scale-negative-zero",
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "line": 116,
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+      "use": "Prior accepted constraint/finite finding at declared stage only",
+      "classification": "unresolved_assumption",
+      "verdict": null,
+      "uncertainty": [
+        "Mathematical scale -0 equals0; observable JS part identity is current API/port assumption, not original decimal business need. No silent native normalization."
+      ]
+    },
+    {
+      "id": "numeric-text",
+      "path": "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl",
+      "line": 1,
+      "sha256": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be",
+      "use": "Prior accepted constraint/finite finding at declared stage only",
+      "classification": null,
+      "verdict": "already-adopted; simplify redundant wrapper later",
+      "uncertainty": [
+        "No new runtime equivalence, builds, tests, install, target-size measurements, whole-host/default adoption or deployed-state proof."
+      ]
+    },
+    {
+      "id": "string-quoting",
+      "path": "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl",
+      "line": 2,
+      "sha256": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be",
+      "use": "Prior accepted constraint/finite finding at declared stage only",
+      "classification": null,
+      "verdict": "already-adopted; retain",
+      "uncertainty": [
+        "No new runtime equivalence, builds, tests, install, target-size measurements, whole-host/default adoption or deployed-state proof."
+      ]
+    },
+    {
+      "id": "lossless-transport",
+      "path": "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl",
+      "line": 9,
+      "sha256": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be",
+      "use": "Prior accepted constraint/finite finding at declared stage only",
+      "classification": null,
+      "verdict": "retain tagged transport over existing serde",
+      "uncertainty": [
+        "No new runtime equivalence, builds, tests, install, target-size measurements, whole-host/default adoption or deployed-state proof."
+      ]
+    }
+  ],
+  "generated_asset_integrity": {
+    "values_semantics.d.ts": {
+      "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "matches_inventory": true,
+      "bytes": 2184
+    },
+    "values_semantics.js": {
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "matches_inventory": true,
+      "bytes": 7869
+    },
+    "values_semantics_bg.wasm": {
+      "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+      "matches_inventory": true,
+      "bytes": 653133
+    },
+    "values_semantics_bg.wasm.d.ts": {
+      "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "matches_inventory": true,
+      "bytes": 643
+    }
+  },
+  "unproven_claims": [
+    "production/native-default adoption",
+    "current installed filesystem outside retained saved exact-source qualification corresponds to frozen source",
+    "source-to-Wasm correspondence from BUILD filenames alone",
+    "all 69 exact ops admitted-domain parity",
+    "lossless arbitrary UTF16/f64bits in exact JSON",
+    "native schema/operation validation execution",
+    "owned-input serializer and host/native plan bridge",
+    "full browser/Node/Bun/workerd behavior from asset staging and six-op smoke",
+    "a new shared abstraction reduces caller complexity"
+  ],
+  "source_hashes": {
+    "packages/values/.gitignore": "61022f949eb49fe0ee5b774835be844845b3d71d9001f676d9ac82bd433e49a7",
+    "packages/values/Cargo.lock": "653260b64e40898068cfed2728bb348d26284fe5af983ab3bf38d9d2aa57ebbe",
+    "packages/values/Cargo.toml": "083c91d33d9cf5c36b0c61e0e8f86b80bf1208bcf3202d681a77a52939e6efee",
+    "packages/values/README.md": "bb7a78b7b768eb20d2fff25cb632621e4595397f06f3073fd4e1ba7e1eff254a",
+    "packages/values/bindings/Cargo.toml": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450",
+    "packages/values/bindings/backend.ts": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+    "packages/values/bindings/bootstrap.ts": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+    "packages/values/bindings/carriers.ts": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+    "packages/values/bindings/generated/BUILD.json": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+    "packages/values/bindings/generated/values_semantics.d.ts": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+    "packages/values/bindings/generated/values_semantics.js": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+    "packages/values/bindings/generated/values_semantics_bg.wasm": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+    "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+    "packages/values/bindings/owned-input.ts": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+    "packages/values/bindings/plans.ts": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+    "packages/values/bindings/src/exact.rs": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+    "packages/values/bindings/src/lib.rs": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+    "packages/values/bindings/src/validation.rs": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+    "packages/values/bindings/validation.ts": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+    "packages/values/conformance/numeric-text.json": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+    "packages/values/conformance/numeric-text.oracle.mjs": "bd831d965063a0c57fee063f0714a223c622c3fae4f36ad321b87afd9319770d",
+    "packages/values/conformance/owned-input/v1/README.md": "8ddd0db5bda4a679e71acb0cc843501cc2500c95965500188a5ec786f394b85c",
+    "packages/values/conformance/owned-input/v1/cases.json": "a2c78dfc8c7d5335e0f8ae079e065c2cdc5f555b0c7bcaa1d9e0b21435d92ab1",
+    "packages/values/conformance/owned-input/v2/README.md": "338ba6d73ee3b0aa6b83369b06b23a91e7645a458c8984a6cda05ef085830896",
+    "packages/values/conformance/owned-input/v2/cases.json": "cf10b9451032eb868cf15f4e7716d0ae0d318c6a9a6dc5f7555d2108c6ae2d4a",
+    "packages/values/conformance/ports/exact/cases.json": "3d2503508cff64c76e28f5b141c385d5fbc144ef23bac766d1338a453eebc7a4",
+    "packages/values/conformance/ports/exact/differential.mjs": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17",
+    "packages/values/conformance/string-escape.json": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+    "packages/values/conformance/string-escape.oracle.mjs": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+    "packages/values/conformance/v1/README.md": "72556f351edea29e1c55b88a07ab6ca188bfd5d9aea8eaa6239ca49a1825ec01",
+    "packages/values/conformance/v1/values.json": "7b352f68235ce03c834b44f5cf0345e362ff43140280b77db6c42a269af52b37",
+    "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+    "packages/values/scripts/build-semantics.mjs": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71",
+    "packages/values/scripts/emit-catalog.mjs": "45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d",
+    "packages/values/scripts/emit-semantics-inputs.mjs": "209f2de86240cca25a238bb87e4419e41d60674fdcf19c15ea03bdb95db253f8",
+    "packages/values/scripts/stage-semantics.mjs": "7103d8d25dd579eef418420a427d1acb8ab444aceeaf24cc4f0a1d3f41c486a8",
+    "packages/values/semantics/Cargo.toml": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+    "packages/values/semantics/currency-facts.json": "cea5c560989f960835332fd5e21d47ea0816e39a86b9113ae9f0bf840bd5bcf3",
+    "packages/values/semantics/examples/conformance.rs": "d6e99aeea4ad96e8c0ae1af12939f904e7ddf0d68753e11b066ee80b52be70fc",
+    "packages/values/semantics/src/aggregates/decimal.rs": "5bb363c93fd640aa16b64ab83520169dee7d2e4d548275f54b0d8fc03c717313",
+    "packages/values/semantics/src/aggregates/integer.rs": "fd7feb03a1148a4912dcf40e049b7428aaa3a828e072a2d3564485b1834c148c",
+    "packages/values/semantics/src/aggregates/mod.rs": "561bee0d2993130b272568ea1b51e41700d8f99a08745c2ec0049c2fde169c9c",
+    "packages/values/semantics/src/aggregates/money.rs": "60736655950fabdc910bb145118ca4e185880074ddf2b18dec0525400532cb0e",
+    "packages/values/semantics/src/aggregates/numeric.rs": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4",
+    "packages/values/semantics/src/codecs/mod.rs": "4c8b202d2524e440fc9979aa01245da7adbdfbabc24506e8ed75a84e1ceacf20",
+    "packages/values/semantics/src/codecs/numeric.rs": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+    "packages/values/semantics/src/currency_facts.rs": "48e84ddf56c44e698e5d382e68736877b32c3773c56b8421ebe3b8893ed40c3f",
+    "packages/values/semantics/src/failures.rs": "28dca38a0670f354a25e5a9ab6e531c216f161c929413adc9c7276cddb51fc07",
+    "packages/values/semantics/src/input.rs": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+    "packages/values/semantics/src/lib.rs": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+    "packages/values/semantics/src/numeric/decimal.rs": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6",
+    "packages/values/semantics/src/numeric/integer.rs": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae",
+    "packages/values/semantics/src/numeric/mod.rs": "93ea4c83e9d8abae1d96bb4e4b2c93930f81c542893152705b9933845e0cae92",
+    "packages/values/semantics/src/numeric/money.rs": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad",
+    "packages/values/semantics/src/numeric/rounding.rs": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd",
+    "packages/values/semantics/src/plans.rs": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+    "packages/values/semantics/src/profiles.rs": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+    "packages/values/semantics/src/representations/mod.rs": "fce7ed1dc892ccd4c8377b6c69fdfb19d6901793709da60a833cc27b6314b830",
+    "packages/values/semantics/src/representations/numeric.rs": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+    "packages/values/semantics/src/temporal/civil.rs": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d",
+    "packages/values/semantics/src/temporal/duration.rs": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39",
+    "packages/values/semantics/src/temporal/instant.rs": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c",
+    "packages/values/semantics/src/temporal/mod.rs": "08df69e5fb8c6a9a9d3c6a2d655648da3d3d9ad1e5a72bbf74a9c81f4c6ead28",
+    "packages/values/semantics/src/transport/exact.rs": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+    "packages/values/semantics/src/transport/mod.rs": "fb7a358c36dd919ccba66c2a290c1e7ea6af0e50dbfe64353daae13cde3c10f6",
+    "packages/values/semantics/tests/aggregate_vectors.rs": "2f29810d290b6e446d662a71558fcebdabcc3fc4264b2198994279899b993480",
+    "packages/values/semantics/tests/decimal_vectors.rs": "384ff870c5393d9fd14c3840d41f217095e055193130f44e812dfe1f70c811c3",
+    "packages/values/semantics/tests/input_validation.rs": "bfc554a699b203e71b00edb0bc0eff61da025ba7b28d87d69fb3f89358cb17e1",
+    "packages/values/semantics/tests/input_validation/conformance_v1.rs": "1b06d96e293ff37714314faf5d725a1a688ad4d06fc9e9f6884d5c4429743d48",
+    "packages/values/semantics/tests/input_validation/input.rs": "c3ec52baab06df43c043a5c572ab74e0d525f87fc5625ae01fd7efd39876562a",
+    "packages/values/semantics/tests/input_validation/validation.rs": "e34693cf0abf86b2f657a6409ad4c7a1d39b6b2885ec4b3282cd80237bec036a",
+    "packages/values/semantics/tests/integer_vectors.rs": "48c0d8042a5b03e43571c0546809d2927b8b8c0b67be4ac63f33d2526b4718df",
+    "packages/values/semantics/tests/money_vectors.rs": "ef22cb2e71bc221d81b54d058efa06d95598dc722ac3cf82701486b298af65c2",
+    "packages/values/semantics/tests/numeric_text_contract.rs": "dba6878989028d5e0970fc62fb55ced2cf926c22bf50a956f2fb932b0c5f3459",
+    "packages/values/semantics/tests/rounding_vectors.rs": "da6f12e58afa25656093fab6abcd6a42e2a1bf1c3ad012e22fb01a37993fc00c",
+    "packages/values/semantics/tests/string_escape_contract.rs": "e596cd37c93470fa5d954f6d7b9c426451e3dbaf0a6ab16af7299e255cbfb30f",
+    "packages/values/semantics/tests/temporal_vectors.rs": "9f0d1b7898ce3ba74fa884519d9c32d31dcb22ae812751d16c191e514b588f02",
+    "packages/values/semantics/tests/transport_number_roundtrip.rs": "12acd30f09ceeed82288fcbe480046aba74f9ce69e98cfb38f1628928d0d5091",
+    "packages/values/src/array.ts": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4",
+    "packages/values/src/catalog.ts": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+    "packages/values/src/currency-data.ts": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
+    "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+    "packages/values/src/distribution.ts": "d42f490fe465f366cef6be65adc2514bcf6e7a0e3ff6c5a3bc85cb03cdae94fb",
+    "packages/values/src/equality.ts": "3903807b4dc38bc5777e7a2758bc351041820d20bd500bb0100dfe411943fafb",
+    "packages/values/src/errors.ts": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8",
+    "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+    "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+    "packages/values/src/int.ts": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
+    "packages/values/src/internal/schema-core.ts": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+    "packages/values/src/internal/wire-core.ts": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+    "packages/values/src/kinds.ts": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+    "packages/values/src/locale.ts": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e",
+    "packages/values/src/money.ts": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824",
+    "packages/values/src/prepared/codec.ts": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+    "packages/values/src/prepared/plan.ts": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+    "packages/values/src/prepared/validation.ts": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+    "packages/values/src/schema.ts": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+    "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+    "packages/values/src/temporal.ts": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+    "packages/values/src/text.ts": "64e39e7522af1b301c964337addbb61cf199192b1aa340c3a0ce308c322510e1",
+    "packages/values/src/timezone.ts": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+    "packages/values/src/types.ts": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+    "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "packages/values/test/array.test.ts": "fa9212ace3579ccb479c9ead31f22aad0f6418169e55fa4a838987f02392141e",
+    "packages/values/test/catalog.test.ts": "8aca35c1d0ae98b064bfe3e8f65486ab7c791d2c35eab5d90a36e1b1e294b62c",
+    "packages/values/test/conformance.test.ts": "625b56e9c637defc1b0ef21be6ed703018b443687f8ef7d09793f0639201cead",
+    "packages/values/test/decimal-oracle.test.ts": "d20b01371ace3f2c07f8b99ecb584d2facfc255afd8cb4b25647bd4b3f36a9f3",
+    "packages/values/test/decimal.test.ts": "dfd55fc1227ea33ba79b352b3b6eb71b7ad7ad0871396c8faca12d93d60bd795",
+    "packages/values/test/equality.test.ts": "83e2eae9914567158bee80ec2258f277787c0ac9244ee936868210f2ab65c8ec",
+    "packages/values/test/errors.test.ts": "275295482deab8bbe537d463ccc8125feb6e934610502b398de04391dca280df",
+    "packages/values/test/exact-bootstrap.test.ts": "ed597f7668781ea8523a1fbaaa07a341c5210f155283494f2408fc7e14af7ba0",
+    "packages/values/test/exact-bootstrap.workerd.mjs": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1",
+    "packages/values/test/exports-conformance.test.ts": "956934f15eb0d987efa9c9d3c74b9cc9becd8b70206dcd031a52b91a0f11f859",
+    "packages/values/test/icu.test.ts": "670d14e786085707967e23714707f18c5fb381b8175f058149b9b769adb26486",
+    "packages/values/test/index.test.ts": "86e60deff2f4106c5fa383a8bf780550322078db8807e5a4166f4b984ff20eba",
+    "packages/values/test/int.test.ts": "c5452b074d65bcd7a34f10ba22145fe7c450122750f00ac2ce943b2ce3f3d9e9",
+    "packages/values/test/kinds.test.ts": "79cee82786b32760c380f6d117c9573cd7072845bc5a116b2666a7583338fb56",
+    "packages/values/test/legacy-validation-traces.test.ts": "fce47c3cc8bcf2512a7651ffc1cae8159ca12010b12c6345ed6657769775aee9",
+    "packages/values/test/locale.test.ts": "bbf122d32d39063e70a27c723003918579f0aa081df194b15bb009892dce8469",
+    "packages/values/test/money.test.ts": "78f5baface686d246e25c4eff5221cb5c5240f6988efd5520d76d21b28db5b3a",
+    "packages/values/test/numeric-text.contract.test.ts": "da34c7c52a5b4ec9eaad4b54a878dcfada3cb0fe4ba40f5f0c46d6becc91ff4a",
+    "packages/values/test/owned-input.test.ts": "c7efd84ad346ca6b2336de3242aaf5039249dfe6a7e506b283c66270cd4a5217",
+    "packages/values/test/prepared-hook.test.ts": "b9f7e31d0c22df220c98ea9c6e597a96599e031ee5b66d970d160d73064eca7c",
+    "packages/values/test/prepared-validation.test.ts": "66042a3bf631a1160959bf1f58c5078c8db35843aafd2f29e666a9dca3879458",
+    "packages/values/test/schema.test.ts": "4d158e06f87f9a7c795df8d0e083152ee1e5c69b257f36d56da884030fc48e67",
+    "packages/values/test/stdlib-pure.test.ts": "2d14abf500f1c97ac4b94a647a852cdfa12c3823dcf439f10bef953943514463",
+    "packages/values/test/string-escape.contract.test.ts": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6",
+    "packages/values/test/temporal.test.ts": "1da3b9f7857af4d7731ccae5e9f4d4835ad96857fe885f80fc873864f5d9533c",
+    "packages/values/test/text.test.ts": "bbe174b047ad38109286ce332ad5e07f193a1205ff59d10800737d0ebccea5aa",
+    "packages/values/test/timezone.test.ts": "0d8e50d2b57a20cf18c85f6970272adb58f3de86b4576ab1110abb331bec8d69",
+    "packages/values/test/types.test.ts": "3d6552dec3eef5f90fcf7a88ee3f3ba1166739c87424e93ba2b9c8c7af9e2ee3",
+    "packages/values/test/validation-binding.test.ts": "21de66496d8f8dbf359ab36cfa1cdd0da5216ca47a9247bfccaa6dd891b91345",
+    "packages/values/test/wire.test.ts": "ccca38dbcf19d3bfd4cb149bcf8c2786e376df8b703fd4b5d01e95e7c7945e54",
+    "packages/values/tsconfig.json": "ec1f36490ca95056639fee4dbc7d6240e5d8370fd2bded3eb3547770ff95722e",
+    "scripts/verify-installed-worker.mjs": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443",
+    "packages/cloudflare/src/deploy/package-assets.ts": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+    "packages/cloudflare/test/deploy-package-assets.test.ts": "41b9ea6dc9ce4598b76be010f5cfb3a5d4a9e59022e5c60c08609de9768a0110",
+    "packages/interfaces/src/mcp/schemas.ts": "44e1e8f6df2cddfc3c0a7b0b3f080d74dfe96c53f0d7d0d9420b3a27786f22fb",
+    "packages/stdlib/src/index.ts": "6cdeadfd7ee2ffed08b80196a3bfe5e98236b02af95f8fa2028c1214cb210cee",
+    "packages/testkit/conformance/ports/observations.mjs": "8b8449cfdda125f9ec74d381894fabf199c1a1bcc6851f273a4ea451e2e56d4b",
+    "packages/contracts/src/values.ts": "162869eb5a7e317238390ad8ab552804afe5e9e712d3beccb6781d31b4dd5c39",
+    "packages/interfaces/src/http/limits.ts": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-current.json": "6c18d3844f2887d9bca107fbff9af466ed27daea7f8f260b5a06def1476bd4a6",
+    "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
+    "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
+    "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json": "bb93c8cf44154eefcf90e92c477a27af9134c5526a2a493436755b32d5e49afd",
+    "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
+    "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7",
+    "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555",
+    "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-source-review.json": "3a4ed358bea2549f1f1e27cc4a69f67e04d86d61546c1aa2dbce2aba9a871cc8",
+    "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json": "d61e2fc7e89cf46295ca2122308027db6bdb4e3fd54a198477d230479cf02091",
+    "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json": "9f90272eab38c1a0f9cebd99c981fe4804610967fe975249b9792e34282ad514",
+    "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/fresh-joined-gates.json": "e86338c2ad28f28bc2d6f117f046042728525412effeae5424eeba5cf21f0b02",
+    "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/source-bridge.json": "f7822f7beb1166990d202235cbae83ecba95e6591173b91308c246eb1e4ba42a",
+    "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/astra/source-bridge-check.json": "29a26542c8e3c0bf426e480aacfeb95a15b85726e06315ade200ebcdcf65ea57",
+    "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/ASTRA-CRITICAL.md": "f301710a547bf3fdd209546cf9ea7c942c5d9614f17cfbe7499e45a8f661c4d0"
+  },
+  "operation_family_findings": [
+    {
+      "family": "integers",
+      "source_supported_semantics": "Native num-bigint validates operands left then right, exact arithmetic then result int64 narrowing; comparison remains unrestricted; remainder dividend sign and no i64 MIN/-1 trap.",
+      "anchors": [
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 19,
+          "symbol": "add_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        },
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 41,
+          "symbol": "mod_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        },
+        {
+          "path": "packages/values/semantics/src/numeric/integer.rs",
+          "line": 76,
+          "symbol": "compare_int",
+          "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae"
+        }
+      ],
+      "proof_limit": "Mechanisms/registration observed, not complete TS equivalence or fresh runtime proof"
+    },
+    {
+      "family": "rounding",
+      "source_supported_semantics": "Shared native exact BigInt rational half-even rounding normalizes denominator sign, quotient/remainder, symmetric negatives and ties to even; no f64 numeric semantics.",
+      "anchors": [
+        {
+          "path": "packages/values/semantics/src/numeric/rounding.rs",
+          "line": 22,
+          "symbol": "round_rational",
+          "sha256": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd"
+        }
+      ],
+      "proof_limit": "Mechanisms/registration observed, not complete TS equivalence or fresh runtime proof"
+    },
+    {
+      "family": "decimals",
+      "source_supported_semantics": "Native exact max-scale add/subtract, summed-scale multiplication capped by half-even at 18, long division guard/sticky digit and 38 significant-digit result overflow. Stored scale retained. divideDecimal structural money/money branch deliberately weaker than full moneyRatio guard.",
+      "anchors": [
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 41,
+          "symbol": "multiply_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        },
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 56,
+          "symbol": "divide_integers",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        },
+        {
+          "path": "packages/values/semantics/src/numeric/decimal.rs",
+          "line": 100,
+          "symbol": "divide_decimal",
+          "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+        }
+      ],
+      "proof_limit": "Mechanisms/registration observed, not complete TS equivalence or fresh runtime proof"
+    },
+    {
+      "family": "money",
+      "source_supported_semantics": "Native generated currency facts own table lookup; constructor validates currency first, converts int/decimal exact minor scale and rounds once half-even then int64. Scaling/division likewise one rational rounding; compare mismatched currencies fails, equality returns false.",
+      "anchors": [
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 55,
+          "symbol": "make_money_value",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        },
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 156,
+          "symbol": "divide_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        },
+        {
+          "path": "packages/values/semantics/src/numeric/money.rs",
+          "line": 216,
+          "symbol": "equal_money",
+          "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+        }
+      ],
+      "proof_limit": "Mechanisms/registration observed, not complete TS equivalence or fresh runtime proof"
+    },
+    {
+      "family": "temporal",
+      "source_supported_semantics": "Native civil/instant/duration algorithms are real registered Rust mechanisms. Month add clips to target month; date sequence is half-open with endpoint guards and limit type before equal-endpoint shortcut, then limit value. UTC ms/range and duration integral division implemented; local-zone conversion stays TS Intl.",
+      "anchors": [
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 174,
+          "symbol": "add_months",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        },
+        {
+          "path": "packages/values/semantics/src/temporal/civil.rs",
+          "line": 203,
+          "symbol": "dates",
+          "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d"
+        },
+        {
+          "path": "packages/values/semantics/src/temporal/duration.rs",
+          "line": 75,
+          "symbol": "divide_duration_by_int",
+          "sha256": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39"
+        }
+      ],
+      "proof_limit": "Mechanisms/registration observed, not complete TS equivalence or fresh runtime proof"
+    },
+    {
+      "family": "aggregates",
+      "source_supported_semantics": "Native sums accumulate exact totals with final-only range/digit check; sumDecimal validates complete domain before selecting scale then summing; explicit money currency validated before elements, inferred currency requires nonempty domain.",
+      "anchors": [
+        {
+          "path": "packages/values/semantics/src/aggregates/integer.rs",
+          "line": 12,
+          "symbol": "sum_int",
+          "sha256": "fd7feb03a1148a4912dcf40e049b7428aaa3a828e072a2d3564485b1834c148c"
+        },
+        {
+          "path": "packages/values/semantics/src/aggregates/decimal.rs",
+          "line": 16,
+          "symbol": "sum_decimal",
+          "sha256": "5bb363c93fd640aa16b64ab83520169dee7d2e4d548275f54b0d8fc03c717313"
+        },
+        {
+          "path": "packages/values/semantics/src/aggregates/money.rs",
+          "line": 17,
+          "symbol": "sum_money",
+          "sha256": "60736655950fabdc910bb145118ca4e185880074ddf2b18dec0525400532cb0e"
+        }
+      ],
+      "proof_limit": "Mechanisms/registration observed, not complete TS equivalence or fresh runtime proof"
+    }
+  ],
+  "caller_search": {
+    "method": "Frozen git grep exact symbols across tracked packages/scripts, excludes implementation evidence blobs; source-only textual caller census, no dynamic/external proof",
+    "outside_values_matches": [
+      {
+        "path": "packages/cloudflare/test/deploy-package-assets.test.ts",
+        "line": 131,
+        "sha256": "41b9ea6dc9ce4598b76be010f5cfb3a5d4a9e59022e5c60c08609de9768a0110"
+      },
+      {
+        "path": "scripts/verify-installed-worker.mjs",
+        "line": 118,
+        "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443"
+      },
+      {
+        "path": "scripts/verify-installed-worker.mjs",
+        "line": 146,
+        "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443"
+      }
+    ],
+    "production_ts_witnesses": [
+      {
+        "path": "packages/interfaces/src/mcp/schemas.ts",
+        "line": 1072,
+        "sha256": "44e1e8f6df2cddfc3c0a7b0b3f080d74dfe96c53f0d7d0d9420b3a27786f22fb"
+      },
+      {
+        "path": "packages/values/src/stdlib-pure.ts",
+        "line": 95,
+        "sha256": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff"
+      }
+    ],
+    "owned_plan_scaffold_consumer_class": "Tests only at frozen pin; no production admission bridge found"
+  },
+  "operation_family_counts": {
+    "integers": 8,
+    "rounding": 1,
+    "decimals": 13,
+    "money": 13,
+    "temporal": 23,
+    "aggregates": 4,
+    "codecs": 2,
+    "guards": 5
+  },
+  "checks_performed": [
+    "Frozen source extraction/hash",
+    "69 native and TS differential name-set comparison",
+    "Each registry route mapped to existing native definition and TS export",
+    "Four committed artifact hashes/lengths compared to BUILD.json",
+    "Saved JSON parsed; source anchors generated from frozen bytes",
+    "Read matching-current-digest STEP9/STEP12 saved qualification and independently compared all158 tracked source-copy entries plus10 accepted source/asset pins to frozen revision; only2 generated .turbo logs absent"
+  ],
+  "checks_not_performed": [
+    "build",
+    "test",
+    "install",
+    "runtime Wasm/native/host probe",
+    "Git mutation",
+    "repo edit"
+  ],
+  "historical_host_qualification": {
+    "bootstrap_receipt": {
+      "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-current.json",
+      "line": 143,
+      "sha256": "6c18d3844f2887d9bca107fbff9af466ed27daea7f8f260b5a06def1476bd4a6"
+    },
+    "receipt_declared_stage": "finite repaired bootstrap/carrier foundation checks passed; renewed independent review pending; full A07.3 and installed/default adoption remain unaccepted",
+    "receipt_host_versions": {
+      "node": "v24.21.0",
+      "bun": "1.4.2",
+      "miniflare": "4.20260730.0",
+      "workerd": "1.20260730.1",
+      "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O"
+    },
+    "artifact_comparison": {
+      "values_semantics.d.ts": {
+        "receipt": {
+          "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+          "bytes": 2184
+        },
+        "frozen_inventory": {
+          "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+          "bytes": 2184
+        },
+        "same_bytes_by_digest_and_length": true
+      },
+      "values_semantics.js": {
+        "receipt": {
+          "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+          "bytes": 7869
+        },
+        "frozen_inventory": {
+          "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+          "bytes": 7869
+        },
+        "same_bytes_by_digest_and_length": true
+      },
+      "values_semantics_bg.wasm": {
+        "receipt": {
+          "sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+          "bytes": 622216
+        },
+        "frozen_inventory": {
+          "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+          "bytes": 653133
+        },
+        "same_bytes_by_digest_and_length": false
+      },
+      "values_semantics_bg.wasm.d.ts": {
+        "receipt": {
+          "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+          "bytes": 643
+        },
+        "frozen_inventory": {
+          "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+          "bytes": 643
+        },
+        "same_bytes_by_digest_and_length": true
+      }
+    },
+    "disposition": "Old bootstrap-current receipt describes b0d44d9…/622216; current f5870905…/653133 has separate STEP9 accepted installed Node/Bun/workerd six-op/scaffold qualification and source/asset reproducibility receipts. Preserve both scopes. Olddigest mismatch does not imply unqualified current asset.",
+    "bounded_search_limit": "Earlier bounded search omitted implementation/rust-port-orchestration receipts; superseded by explicitly read matching-current-digest STEP9 acceptance/independent/workerd/reproducibility records.",
+    "private_evidence": [
+      {
+        "receipt": {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+          "line": 2,
+          "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75"
+        },
+        "scope": "Finite six-op opt-in values consumer + structural scaffold qualification; two concrete integrity repairs; no full A07/V/default adoption",
+        "private_generated_status": {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+          "line": 526,
+          "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75"
+        },
+        "limits": "STEP9 committed summary pins fresh current f587 asset and unchanged glue explicitly; current frozen source pins match. Separate root-asset-refresh/acceptance moves qualified candidate asset credit to current committed bytes. Underlying private logs not reopened; credit remains finite six-op/scaffold under stated hosts."
+      },
+      {
+        "receipt": {
+          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+          "line": 2,
+          "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217"
+        },
+        "scope": "Root independent six-operation opt-in installed values profile only",
+        "limits": "Finite six-operation profile only; no whole-backend/native-default credit."
+      }
+    ]
+  },
+  "current_asset_qualification": {
+    "stage": "retained accepted finite qualification; reviewed saved receipts and compared source/digest pins, no fresh execution",
+    "asset_sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+    "asset_bytes": 653133,
+    "BUILD_sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+    "source_comparison_to_frozen_pin": {
+      "full_non_generated": {
+        "compared": 158,
+        "matching": 158,
+        "mismatches": [],
+        "absent_from_pin": [
+          "packages/contracts/.turbo/turbo-build.log",
+          "packages/values/.turbo/turbo-build.log"
+        ]
+      },
+      "acceptance_pins": {
+        "compared": 10,
+        "matching": 10,
+        "mismatches": [],
+        "absent_from_pin": []
+      }
+    },
+    "accepted_profiles": [
+      {
+        "profile": "Values explicit six-operation exact backend",
+        "hosts": [
+          "Node 24.21.0",
+          "Bun",
+          "workerd 1.20260730.1 via owning installed local-run"
+        ],
+        "native_tests": 87,
+        "runtime_tests": {
+          "pass": 887,
+          "skip": 1,
+          "excluded": "Emitted string-escape contract test requires absent dist/conformance fixture; original-source oracle passed and original failed stage is retained"
+        },
+        "frozen_actual_native_and_installed_Wasm_cases": 10301,
+        "original_and_seeded_differential_cases": 3309,
+        "installed_files_byte_equal": 298,
+        "fresh_Worker_isolates": 2,
+        "scope": "Opt-in scaffold operations, exact original errors, own-string-op refusal before args, pinned asset and startup controls; no full registry or production handler claim"
+      },
+      {
+        "profile": "Validation structural transport scaffold",
+        "scope": "Finite ABI/arena/owner/plan handle and structural transport controls only; no protected HTTP/MCP/state producer qualification"
+      }
+    ],
+    "independent_installed": {
+      "anchor": {
+        "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+        "line": 2,
+        "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217"
+      },
+      "node": "v24.21.0",
+      "loaded_wasm": {
+        "path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/consumer/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+        "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81"
+      },
+      "checks": {
+        "own_name_refusal": 6,
+        "zero_argument_effects": 6,
+        "fixed_expected_operation_outcomes": 6,
+        "error_byte_pairs": [
+          {
+            "op": "add-int",
+            "error": {
+              "name": "ValueError",
+              "code": "overflow",
+              "message": "int64 out of range: 9223372036854775808"
+            }
+          },
+          {
+            "op": "negate-int",
+            "error": {
+              "name": "ValueError",
+              "code": "overflow",
+              "message": "int64 out of range: 9223372036854775808"
+            }
+          },
+          {
+            "op": "add-money",
+            "error": {
+              "name": "ValueError",
+              "code": "currency-mismatch",
+              "message": "money addition needs matching currencies"
+            }
+          }
+        ],
+        "raw_transport_numeric_witnesses": 10,
+        "pinned_asset_change_refusal": true,
+        "explicit_ts_after_failed_bootstrap": true
+      },
+      "limits": [
+        "No full A07.3 registry",
+        "No negative-zero scale equivalence claim",
+        "No V validation profile producer or durable work consumer",
+        "Measurement/default decision not certified",
+        "Explicit independent TS use after failed startup is not persisted/profile swap or in-flight drainage rollback"
+      ]
+    },
+    "workerd": {
+      "anchor": {
+        "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+        "line": 2,
+        "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc"
+      },
+      "scope": "Fresh source-regenerated opt-in exact-values scaffold through installed emitted host and real owning startLocalDev/workerd module map",
+      "host_versions": {
+        "node": "24.21.0",
+        "miniflare": "4.20260730.0",
+        "workerd": "1.20260730.1"
+      },
+      "source_sha256": {
+        "packages/values/test/exact-bootstrap.workerd.mjs": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1",
+        "packages/cloudflare/src/dev/local-run.ts": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a"
+      },
+      "installed_sha256": {
+        "localRun": "3408bb34ddc38c7166fc451cc0582611bd0fc41f94e450285f8dc28c7823edb9",
+        "valuesWasm": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+        "valuesGlue": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0"
+      },
+      "checks": [
+        {
+          "hostCase": "compiled",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "abi",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "missing-exports",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "missing-transport-exports",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "caller-methods",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "first-asset-mutation",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "caller-methods-first",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "hostCase": "externally-initialized",
+          "status": "passed",
+          "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+        },
+        {
+          "workerdStartup": "missing",
+          "status": "rejected"
+        },
+        {
+          "workerdStartup": "corrupt",
+          "status": "rejected"
+        },
+        {
+          "workerd": "passed",
+          "freshIsolates": 2,
+          "localRun": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/node_modules/@canlang/cloudflare/dist/dev/local-run.js",
+          "moduleCount": 13
+        }
+      ],
+      "source_reuse": "Actual local-run source equals accepted324d624; owning installed Cloudflare fresh emission from step8 retained. Other installed Can deps remain step8 byte-verified dist snapshot scope, not whole-source rebuild. New values source/glue/binary emitted and freshly installed independently.",
+      "limits": [
+        "Handwritten finite module fixture, not full generated .can application/durable validation/work qualification",
+        "Exact scaffold ops only; A07.3/V profiles/resources open",
+        "No default selection or TS deletion",
+        "Workerd latest-date support not claimed"
+      ]
+    },
+    "acceptance": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json",
+      "line": 10,
+      "sha256": "bb93c8cf44154eefcf90e92c477a27af9134c5526a2a493436755b32d5e49afd"
+    },
+    "qualification": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+      "line": 241,
+      "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75"
+    },
+    "root_asset_refresh": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
+      "line": 34,
+      "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555"
+    },
+    "reproducibility": {
+      "anchor": {
+        "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
+        "line": 20,
+        "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7"
+      },
+      "record": {
+        "BUILD.json": {
+          "first_sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+          "independent_prefix_sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+          "byte_equal": true,
+          "bytes": [
+            985,
+            985
+          ]
+        },
+        "values_semantics.js": {
+          "first_sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+          "independent_prefix_sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+          "byte_equal": true,
+          "bytes": [
+            7869,
+            7869
+          ]
+        },
+        "values_semantics_bg.wasm": {
+          "first_sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+          "independent_prefix_sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+          "byte_equal": true,
+          "bytes": [
+            653133,
+            653133
+          ]
+        },
+        "values_semantics.d.ts": {
+          "first_sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+          "independent_prefix_sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+          "byte_equal": true,
+          "bytes": [
+            2184,
+            2184
+          ]
+        },
+        "values_semantics_bg.wasm.d.ts": {
+          "first_sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+          "independent_prefix_sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+          "byte_equal": true,
+          "bytes": [
+            643,
+            643
+          ]
+        }
+      },
+      "limit": "Byte-identical at two private source/target prefixes under same lock/rustc/wasm-bindgen/local platform; no universal platform/toolchain claim. BUILD alone lacks semantics pins, supplied here."
+    },
+    "scaffold_scope": {
+      "bits_UTF16_overflow_budgets_owner_plan_lifecycle": "passes existing tests + qualification.mjs",
+      "production_protected_authority": false,
+      "JSON_provenance_strings_are_not_production_admission": true
+    },
+    "remaining": [
+      "A07.3 full registry/admitted profiles; A08 public routing",
+      "V02.6 protected PH2/PH4, canonical DefaultRef/Decimal and lifetime bridge",
+      "V06 validation profiles, V07 complete resource/lifetime policy, V08 actual owning handler join",
+      "Full exact UTF16/unpaired and astral-cut residual; decimal negative-zero scale exclusion; arbitrary getter/proxy/array observability",
+      "Original full complete-call/adoption/resource budgets; no production/durable/MCP/default switch",
+      "Existing emitted source-only string fixture path gap"
+    ],
+    "retained_evidence_limit": "Committed acceptance/qualification/independent-installed/workerd/reproducibility receipts establish their stated finite historical credit. Underlying private installs/logs were not reopened and no execution repeated; this does not negate saved narrow acceptance."
+  },
+  "step12_evidence_reconciliation": {
+    "acceptance": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
+      "line": 4,
+      "sha256": "d61e2fc7e89cf46295ca2122308027db6bdb4e3fd54a198477d230479cf02091"
+    },
+    "scope": "Only actual released finite step4-11 package numeric/scaffold/import-map/identity/CSV/services/work-carrier profiles",
+    "source_equivalence": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
+      "line": 4,
+      "sha256": "9f90272eab38c1a0f9cebd99c981fe4804610967fe975249b9792e34282ad514"
+    },
+    "checked_sources": 37,
+    "all_equal": true,
+    "critical_review": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/ASTRA-CRITICAL.md",
+      "line": 11,
+      "sha256": "f301710a547bf3fdd209546cf9ea7c942c5d9614f17cfbe7499e45a8f661c4d0"
+    },
+    "sol_stale_asset_expectations": {
+      "anchor": {
+        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/source-bridge.json",
+        "line": 565,
+        "sha256": "f7822f7beb1166990d202235cbae83ecba95e6591173b91308c246eb1e4ba42a"
+      },
+      "mismatches": [
+        {
+          "path": "packages/values/bindings/generated/BUILD.json",
+          "prior": "step9 corrected actual values source",
+          "expected": "528bd710b2cd8fedaf95486baf94f03635b92efa0567e0e05e9c1e39558d75eb",
+          "current": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+          "equal": false
+        },
+        {
+          "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+          "prior": "step9 corrected actual values source",
+          "expected": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+          "current": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+          "equal": false
+        }
+      ],
+      "resolution": "Expected old BUILD/Wasm digests came from stale baseline pins; STEP9 corrected acceptance/root refresh/independent receipts explicitly pin current digests. Not unresolved current source or current-asset qualification absence."
+    },
+    "joined_gate_limit": [
+      "No deployment/publication",
+      "Only fresh current Cloudflare emitter plus copied exact qualified sibling installed outputs",
+      "No whole compiler/app/durable/backend adoption claim",
+      "Native preparation and native release HUMAN HOLD"
+    ],
+    "no_scope_expansion": "STEP12 is selected released finite package scope; original programme completeness/native release/default adoption/TS retirement remain false or held."
+  },
+  "root_review_reconciliation": {
+    "IR-01": "Narrow name intersection to exact arity/admitted profile; preserve different error/demand surfaces outside it.",
+    "IR-05/06": "Matching Step9/12 finite current asset credit retained; BUILD-alone and historical oldbootstrap receipt scopes distinguished."
+  }
+}

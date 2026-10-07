@@ -1,0 +1,185 @@
+{
+  "source_pin": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "method": "git show, SHA256/size, static binary export-section decode",
+  "runtime_execution": false,
+  "manifest": {
+    "builder": "packages/values/scripts/build-semantics.mjs",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "wasm_bindgen": "0.2.129",
+    "wasm_bindgen_crate": "0.2.129",
+    "semantics_crate": "path ../semantics",
+    "target": "wasm32-unknown-unknown",
+    "profile": "release",
+    "bindgen_target": "web",
+    "sources": [
+      "src/exact.rs",
+      "src/lib.rs",
+      "src/validation.rs"
+    ],
+    "files": {
+      "values_semantics.d.ts": {
+        "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+        "bytes": 2184
+      },
+      "values_semantics.js": {
+        "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+        "bytes": 7869
+      },
+      "values_semantics_bg.wasm": {
+        "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+        "bytes": 653133
+      },
+      "values_semantics_bg.wasm.d.ts": {
+        "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+        "bytes": 643
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "packages/values/bindings/generated/values_semantics.d.ts",
+      "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "bytes": 2184,
+      "manifest_equal": true
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics.js",
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "bytes": 7869,
+      "manifest_equal": true
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+      "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+      "bytes": 653133,
+      "manifest_equal": true
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts",
+      "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "bytes": 643,
+      "manifest_equal": true
+    }
+  ],
+  "binary": {
+    "format": "Wasm version 1",
+    "sections": [
+      {
+        "id": 1,
+        "bytes": 345
+      },
+      {
+        "id": 2,
+        "bytes": 60
+      },
+      {
+        "id": 3,
+        "bytes": 720
+      },
+      {
+        "id": 4,
+        "bytes": 9
+      },
+      {
+        "id": 5,
+        "bytes": 3
+      },
+      {
+        "id": 6,
+        "bytes": 25
+      },
+      {
+        "id": 7,
+        "bytes": 231
+      },
+      {
+        "id": 9,
+        "bytes": 246
+      },
+      {
+        "id": 10,
+        "bytes": 480553
+      },
+      {
+        "id": 11,
+        "bytes": 89188
+      },
+      {
+        "id": 0,
+        "bytes": 81448
+      },
+      {
+        "id": 0,
+        "bytes": 112
+      },
+      {
+        "id": 0,
+        "bytes": 148
+      }
+    ],
+    "exports": [
+      {
+        "name": "memory",
+        "kind": "memory",
+        "index": 0
+      },
+      {
+        "name": "abi_version",
+        "kind": "function",
+        "index": 711
+      },
+      {
+        "name": "exact_call",
+        "kind": "function",
+        "index": 614
+      },
+      {
+        "name": "structural_abi_version",
+        "kind": "function",
+        "index": 711
+      },
+      {
+        "name": "validation_call",
+        "kind": "function",
+        "index": 613
+      },
+      {
+        "name": "__abort_handler",
+        "kind": "global",
+        "index": 1
+      },
+      {
+        "name": "__instance_terminated",
+        "kind": "global",
+        "index": 2
+      },
+      {
+        "name": "__wbindgen_externrefs",
+        "kind": "table",
+        "index": 1
+      },
+      {
+        "name": "__wbindgen_malloc",
+        "kind": "function",
+        "index": 602
+      },
+      {
+        "name": "__wbindgen_realloc",
+        "kind": "function",
+        "index": 604
+      },
+      {
+        "name": "__wbindgen_free",
+        "kind": "function",
+        "index": 647
+      },
+      {
+        "name": "__wbindgen_start",
+        "kind": "function",
+        "index": 0
+      }
+    ],
+    "limit": "Section/export metadata only; no validation of instructions, types, imports, semantics or runtime."
+  },
+  "provenance_limit": "BUILD inventory alone has binding filenames but no content/Cargo/semantic source digests. Separate historical source/reproducibility/consumer receipts must be reconciled independently."
+}

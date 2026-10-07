@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "audit": "TS/Rust/Wasm defining ownership and smallest supported boundary",
+  "source_checkpoint": "b40b59e32381465faacb387df4a2ae73b0654b74",
+  "execution_authorized": false,
+  "package_scope": "All 13 owners / all316 prior responsibility records /395 inherited inventory files; finite native surfaces separately enumerated",
+  "user_model": "Sol high",
+  "delegated_model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "allocation_reason": "Cross-file semantic owners, lossless representations, ABI/registration/glue, callback demand/authority, installed source and error/lifecycle joins. User explicitly selected Sol high.",
+  "root_role": "synthesis, source correspondence/static metadata verification, scoped Git",
+  "compiler_policy": "Concurrent compiler and shared decisions preserved. No merge or filetree checkpoint advancement.",
+  "accepted_scope_change": false,
+  "new_runtime_acceptance": false,
+  "native_preparation": "HUMAN HOLD",
+  "excluded_actions": [
+    "product implementation",
+    "builds/tests/runtime/CI/install",
+    "Wasm compilation/instantiation",
+    "TS retirement/default adoption",
+    "Muse or scheduling",
+    "deployment/publication/push"
+  ]
+}
