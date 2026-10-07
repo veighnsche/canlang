@@ -1,0 +1,10 @@
+warning: unused import: `Severity`
+ --> /Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/probe.rs:5:64
+  |
+5 | use canlang_compiler::diagnostic::{Diagnostic,DiagnosticResult,Severity};
+  |                                                                ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: 1 warning emitted
+

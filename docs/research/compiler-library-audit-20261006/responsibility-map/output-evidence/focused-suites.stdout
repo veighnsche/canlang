@@ -1,0 +1,294 @@
+
+running 9 tests
+test fmt_missing_input_is_e7002_and_does_not_create_output ... ok
+test fmt_changed_hardlink_replaces_only_requested_entry ... ok
+test fmt_repeated_operands_and_already_formatted_alias_are_noops ... ok
+test fmt_changed_symlink_replaces_entry_and_keeps_target_private_and_unchanged ... ok
+test fmt_noop_preserves_inode_links_and_mode ... ok
+test fmt_preserves_modes_including_private_readonly_and_special_bits ... ok
+test docs_write_failure_keeps_directory_and_removes_staging ... ok
+test docs_new_output_obeys_umask_and_existing_output_keeps_mode ... ok
+test docs_symlink_outputs_replace_entry_and_keep_targets ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+
+running 20 tests
+test empty_input_stays_empty ... ok
+test crlf_becomes_lf_and_counts_as_changed ... ok
+test already_formatted_files_report_unchanged ... ok
+test definition_heads_stay_loose ... ok
+test control_flow_suites_keep_their_newlines ... ok
+test descriptions_comments_and_i18n_survive ... ok
+test intra_line_spacing_is_canonical ... ok
+test invalid_sources_yield_diagnostics_and_no_output ... ok
+test calls_suffixes_and_nested_commas_stay_tight ... ok
+test missing_final_newline_is_added ... ok
+test arrows_and_example_rows_keep_order ... ok
+test corpus_gallery_catalog_slot_and_edit_format ... ok
+test judgment_items_format ... ok
+test operation_parens_and_message_calls_stay_tight ... ok
+test invocation_and_group_heads_format ... ok
+test sloppy_continuation_indent_is_repaired ... ok
+test query_tails_routes_and_suffixes_format ... ok
+test operators_bind_tightly_and_groups_keep_space ... ok
+test semicolons_and_do_shapes_are_preserved ... ok
+corpus format table (54 files):
+    ERROR  ../draft/CanShift.can (expected E1203,E1203)
+    ERROR  ../draft/CanVolunteer.can (expected E1203,E1203)
+  changed  ../draft/CanChat.can
+  changed  ../draft/CanCreative.can
+  changed  ../draft/CanDecide.can
+  changed  ../draft/CanDiscover.can
+  changed  ../draft/CanEnrich.can
+  changed  ../draft/CanEvent.can
+  changed  ../draft/CanInvoice.can
+  changed  ../draft/CanLoyalty.can
+  changed  ../draft/CanMail.can
+  changed  ../draft/CanMember.can
+  changed  ../draft/CanPurchase.can
+  changed  ../draft/CanRent.can
+  changed  ../draft/CanSync.can
+  changed  ../draft/CanTime.can
+  changed  ../draft/CanWorkbench.can
+  changed  ../draft/shared/Locations.can
+  changed  ../examples/ExpenseFlow.can
+unchanged  ../draft/CanAffiliate.can
+unchanged  ../draft/CanApprove.can
+unchanged  ../draft/CanBoard.can
+unchanged  ../draft/CanBook.can
+unchanged  ../draft/CanCRM.can
+unchanged  ../draft/CanCatch.can
+unchanged  ../draft/CanCheck.can
+unchanged  ../draft/CanContract.can
+unchanged  ../draft/CanCustomer.can
+unchanged  ../draft/CanDesk.can
+unchanged  ../draft/CanDo.can
+unchanged  ../draft/CanExpense.can
+unchanged  ../draft/CanFeedback.can
+unchanged  ../draft/CanField.can
+unchanged  ../draft/CanGallery.can
+unchanged  ../draft/CanGrant.can
+unchanged  ../draft/CanHire.can
+unchanged  ../draft/CanInbox.can
+unchanged  ../draft/CanKnowledge.can
+unchanged  ../draft/CanLearn.can
+unchanged  ../draft/CanLeave.can
+unchanged  ../draft/CanMaintain.can
+unchanged  ../draft/CanOnboard.can
+unchanged  ../draft/CanPropose.can
+unchanged  ../draft/CanReception.can
+unchanged  ../draft/CanRefer.can
+unchanged  ../draft/CanReport.can
+unchanged  ../draft/CanStats.can
+unchanged  ../draft/CanStock.can
+unchanged  ../draft/CanSuccess.can
+unchanged  ../draft/CanTable.can
+unchanged  ../draft/CanTrade.can
+unchanged  ../draft/shared/Employees.can
+unchanged  ../draft/shared/Suppliers.can
+unchanged  ../examples/TeamTasks.can
+test corpus_formats_cleanly_and_is_idempotent ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+
+
+running 29 tests
+test default_config_is_recommended_without_fixes_or_catalog ... ok
+test fix_flag_off_offers_nothing ... ok
+test deprecated_ignores_shadowed_and_nonbuiltin ... ok
+test duplicate_description_invalid ... ok
+test empty_description_invalid ... ok
+test deprecated_warns_on_deprecated_call ... ok
+test fix_refuses_stale_and_invalid ... ok
+test deprecated_silent_without_catalog_data ... ok
+test fix_narrows_redundant_safe_access ... ok
+test fix_removes_unreachable_statement ... ok
+test description_valid_cases ... ok
+test rule_codes_resolve_in_explain_catalog ... ok
+test rule_table_is_consistent ... ok
+test redundant_null_invalid ... ok
+test fixes_apply_as_batch ... ok
+test unreachable_after_return_is_analysis_error_not_lint ... ok
+test redundant_null_valid_nullable_receiver ... ok
+test unreachable_require_false_semicolon_sequence_has_no_fix ... ok
+test shadow_warns_with_opt_in_only ... ok
+test unreachable_warns_after_require_false ... ok
+test unused_alias_collection_descendant_scope ... ok
+test unused_alias_invalid ... ok
+test unused_let_invalid ... ok
+test shadow_valid_cases ... ok
+test unreachable_valid_cases ... ok
+test unused_let_suppressed_by_shadowing ... ok
+test unused_alias_valid ... ok
+test unused_let_valid_reads ... ok
+corpus lint counts (informational; corpus need not be clean):
+  draft/CanAffiliate.can: total=0 {}
+  draft/CanApprove.can: total=0 {}
+  draft/CanBoard.can: total=0 {}
+  draft/CanBook.can: total=0 {}
+  draft/CanCRM.can: total=0 {}
+  draft/CanCatch.can: total=0 {}
+  draft/CanChat.can: total=0 {}
+  draft/CanCheck.can: total=0 {}
+  draft/CanContract.can: total=0 {}
+  draft/CanCreative.can: total=0 {}
+  draft/CanCustomer.can: total=0 {}
+  draft/CanDecide.can: total=0 {}
+  draft/CanDesk.can: total=0 {}
+  draft/CanDiscover.can: total=0 {}
+  draft/CanDo.can: total=0 {}
+  draft/CanEnrich.can: total=0 {}
+  draft/CanEvent.can: total=0 {}
+  draft/CanExpense.can: total=0 {}
+  draft/CanFeedback.can: total=0 {}
+  draft/CanField.can: total=0 {}
+  draft/CanGallery.can: total=0 {}
+  draft/CanGrant.can: total=0 {}
+  draft/CanHire.can: total=0 {}
+  draft/CanInbox.can: total=1 {"I1001": 1}
+  draft/CanInvoice.can: total=2 {"I1001": 2}
+  draft/CanKnowledge.can: total=0 {}
+  draft/CanLearn.can: total=0 {}
+  draft/CanLeave.can: total=0 {}
+  draft/CanLoyalty.can: total=0 {}
+  draft/CanMail.can: total=1 {"I1001": 1}
+  draft/CanMaintain.can: total=0 {}
+  draft/CanMember.can: total=1 {"I1001": 1}
+  draft/CanOnboard.can: total=0 {}
+  draft/CanPropose.can: total=0 {}
+  draft/CanPurchase.can: total=0 {}
+  draft/CanReception.can: total=0 {}
+  draft/CanRefer.can: total=0 {}
+  draft/CanRent.can: total=5 {"I1001": 5}
+  draft/CanReport.can: total=0 {}
+  draft/CanShift.can: total=0 {}
+  draft/CanStats.can: total=0 {}
+  draft/CanStock.can: total=0 {}
+  draft/CanSuccess.can: total=0 {}
+  draft/CanSync.can: total=0 {}
+  draft/CanTable.can: total=0 {}
+  draft/CanTime.can: total=0 {}
+  draft/CanTrade.can: total=0 {}
+  draft/CanVolunteer.can: total=0 {}
+  draft/CanWorkbench.can: total=2 {"I1001": 2}
+  examples/ExpenseFlow.can: total=0 {}
+  examples/TeamTasks.can: total=0 {}
+test corpus_noise_assessment ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.89s
+
+
+running 4 tests
+test real_version_increment_requeries_current_source_and_edits ... ok
+test real_diagnostics_keep_valid_siblings_after_a_parse_error ... ok
+test real_all_output_families_crlf_and_supplementary_utf16 ... ok
+test real_opaque_uri_identities_keep_notifications_locations_and_edit_routing ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 1 test
+test byte_point_maps_reach_independent_decoder_and_current_consumers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.27s
+
+
+running 1 test
+test c01_production_strings_execute_through_testkit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.95s
+
+
+running 2 tests
+test empty_artifact_has_fixed_fields_and_no_newline ... ok
+test populated_artifact_preserves_order_omissions_and_embedded_json ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test fresh_cli_artifact_loads_through_cloudflare ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.90s
+
+
+running 2 tests
+test generated_fixture_shell_keeps_quoted_error_and_throwing_function ... ok
+test generated_suite_keeps_strings_inside_executable_recipe ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test exact_literal_scalars_nested_order_and_controls ... ok
+test unary_overflow_and_nonliteral_rejection_and_constructor_calls ... ok
+test model_order_optional_members_and_array_false ... ok
+test nested_delivery_and_nominal_order ... ok
+test operation_order_omissions_and_present_empty_metadata ... ok
+test all_tags_and_defaults_are_closed ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test check_lint_and_fmt_diagnostics_keep_schema_order_and_one_newline ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test every_severity_uses_its_fixed_machine_spelling ... ok
+test six_keys_keep_blank_values_controls_unicode_and_no_newline ... ok
+test cli_known_code_matches_full_fixture_and_adds_one_newline ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 4 tests
+test fix_field_order_controls_unicode_and_u32_bounds ... ok
+test fixes_serialize_as_typed_envelope_members ... ok
+test fix_list_is_ordered_and_empty_is_brackets ... ok
+test every_rejection_variant_has_fixed_order_and_span_shape ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test lint_fix_flag_controls_presence_order_and_single_newline ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 4 tests
+test raw_value_is_not_a_unicode_scalar_validator_and_input_parser_stays_strict ... ok
+test serialization_errors_are_reported_without_fallback_output ... ok
+test typed_order_omission_null_and_exact_strings ... ok
+test qualified_raw_fragments_preserve_exact_scalar_spellings ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test empty_dump_has_one_serializer_newline ... ok
+test populated_dump_preserves_controls_blanks_and_inline_arrays ... ok
+test multiple_records_empty_nested_arrays_and_omitted_options ... ok
+test real_cli_keeps_the_existing_second_trailing_newline ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 2 tests
+test fresh_policy_cli_enters_actual_policy_sections_and_html_page ... ok
+test fresh_docs_cli_and_extracted_typed_json_enter_public_markdown_renderer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.92s
+
+
+running 3 tests
+test empty_reference_preserves_explicit_null_and_empty_arrays ... ok
+test optional_descriptions_are_omitted_only_when_none ... ok
+test populated_reference_preserves_source_strings_order_and_presence ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

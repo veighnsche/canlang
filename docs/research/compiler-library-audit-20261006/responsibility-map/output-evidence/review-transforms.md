@@ -1,0 +1,13 @@
+# Independent Step 10 transform and coordinate review
+
+Accept the 13 transform and 7 coordinate duties at their stated bounded scope, with CO-03 corrected to `source.rs:159–181`. Named APIs and real CLI/editor/Cloudflare consumers support the closure. No new execution was performed by this reviewer.
+
+The formatter observer compares recursive nontrivia CST topology and leaf spelling/decoded strings, not just a token sequence. It intentionally ignores interior NodeDetail and the documented comment indentation/trailing whitespace/CRLF normalizations. Clean reparse and idempotence establish the supplied syntactic outcomes; they do not prove arbitrary runtime semantics or unchanged description values beyond those normalization rules.
+
+Fix observers qualify two real safe-edit forms with fresh/stale/range/overlap behavior, and real LSP actions consume lint fixes despite the analysis-diagnostic fixes-for path returning no fixes. Driver hash checking assumes the caller supplies the current hash; the IDE helper hashes the text itself. CLI `lint --fix` reports and does not write. Removing a leading explanatory `##` inside an unreachable statement span is recorded as a comment-preservation contract gap; no runtime semantic defect was demonstrated.
+
+Fixed byte and UTF16 tables independently agree with the forward and inverse coordinate observers, including inside-scalar and CRLF clamping. Human columns are byte columns. Source-map qualification uses the existing byte-oriented Cloudflare consumer and independent arithmetic VLQ decoder; it does not certify browser debugger columns or every generated runtime source attribution.
+
+The final outcome report contains 377 checks: 367 pass and 10 do not. The ten are four actual accepted-source/generated-JS binding defects, one tags-only public diagnostic ordering counterexample with no CLI producer shown, three downstream Markdown defects interpreted from official standards without a parser run, one comment-preservation gate and one native qualification gate. The 113 native Rust test functions passed; a mode4750 fixture branch explicitly skipped and remains unqualified.
+
+Audit corrections are retained. The original observer failed to compile because LineIndex::line_col lacked its source-text argument, then was corrected. My corpus-collision warning was mistaken: I compared source and CST projection hashes. The original 61 case IDs were unique, so I retract that defect and the claimed rerun requirement. Root retained the original evidence and a subsequent defensive path-ID observer rerun; the native suites needed no repeat. Final diagnostics use a same-severity/tags-only counterexample, with the earlier mixed-severity witness preserved.

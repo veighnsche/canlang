@@ -1,0 +1,31 @@
+[
+  {
+    "attempt": 1,
+    "kind": "audit observer compilation error",
+    "error": "LineIndex::line_col requires source text argument",
+    "source": "probe-attempt1.rs",
+    "stderr": "compile-probe-attempt1.stderr",
+    "correction": "pass the same explicit source text; no compiler behavior change or outcome assertion changed"
+  },
+  {
+    "attempt": 2,
+    "kind": "retracted independent-review false lead",
+    "claim": "corpus receipt filenames collide",
+    "independent_check": "original cases and observations both had 61 unique IDs; no collision demonstrated",
+    "mistake": "review compared source bytes hash with recursive CST projection hash, different domains",
+    "original_cases": "cases-initial.json",
+    "original_observations": "observations-initial.json",
+    "result": "No compiler or capture defect. Path-derived IDs kept defensively and observer rerun retained; tests not rerun."
+  },
+  {
+    "attempt": 3,
+    "kind": "oracle isolation",
+    "correction": "Diagnostic tie rerun with same code/severity/message/span, only tags differ; prior mixed-severity witness saved."
+  },
+  {
+    "attempt": 4,
+    "kind": "mechanical validator self-link ordering",
+    "error": "README links output-validation.json before first validator invocation created it",
+    "correction": "First failed receipt retained; rerun after creating receipt; no source or acceptance change"
+  }
+]

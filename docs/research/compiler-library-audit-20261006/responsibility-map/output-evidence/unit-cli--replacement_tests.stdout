@@ -1,0 +1,13 @@
+
+running 8 tests
+test cli::replacement_tests::stale_format_input_is_rejected_before_staging ... ok
+test cli::replacement_tests::concurrent_creation_is_not_overwritten_and_staging_is_removed ... ok
+test cli::replacement_tests::concurrent_content_change_is_not_overwritten ... ok
+test cli::replacement_tests::partial_staging_write_failure_keeps_destination_and_cleans_up ... ok
+test cli::replacement_tests::symlink_target_permission_change_is_not_reverted ... ok
+test cli::replacement_tests::persist_failure_keeps_directory_and_cleans_up ... ok
+test cli::replacement_tests::concurrent_permission_change_is_not_reverted ... ok
+test cli::replacement_tests::replacement_inode_is_detected_with_equal_bytes_mode_and_mtime ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 118 filtered out; finished in 0.00s
+

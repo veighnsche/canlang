@@ -73,5 +73,8 @@
       "bytes": 11651
     }
   ],
-  "cases_sha256": "839cd36801dba813e4b504a6f69f70eeaa876b747e9c25730d63c2bbe954263c"
+  "cases_sha256": "839cd36801dba813e4b504a6f69f70eeaa876b747e9c25730d63c2bbe954263c",
+  "initial_cases_collection": "cases-initial.json",
+  "corrected_cases_sha256": "9ad9950db1e2e7832deaced9b7fc5b741aae739716a60a708f9508a93cc27407",
+  "correction": "Path-derived IDs added defensively after a review warning; original 61 cases had 61 unique IDs. Warning retracted; compiler/runtime baseline unchanged."
 }

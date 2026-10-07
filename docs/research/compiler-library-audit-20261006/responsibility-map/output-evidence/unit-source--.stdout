@@ -1,0 +1,11 @@
+
+running 6 tests
+test source::tests::line_index_lsp_utf16 ... ok
+test source::tests::sha256_vectors ... ok
+test source::tests::line_index_lf_crlf ... ok
+test source::tests::sha256_preserves_exact_bytes_and_hex_contract ... ok
+test source::tests::source_db_ids_stable ... ok
+test source::tests::sha256_padding_and_large_input ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 120 filtered out; finished in 0.06s
+

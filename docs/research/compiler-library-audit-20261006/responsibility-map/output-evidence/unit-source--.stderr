@@ -1,0 +1,3 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.58s
+     Running unittests src/lib.rs (compiler/target/debug/deps/canlang_compiler-8bc9585627feb9a7)

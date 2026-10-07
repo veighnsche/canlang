@@ -1,0 +1,37 @@
+{
+  "reviewer": "root",
+  "scope": "15 finite serialization duties; source/contracts and fresh declared consumer witnesses, not all branches",
+  "reviewed_ids": [
+    "SER-01",
+    "SER-02",
+    "SER-03",
+    "SER-04",
+    "SER-05",
+    "SER-06",
+    "SER-07",
+    "SER-08",
+    "SER-09",
+    "SER-10",
+    "SER-11",
+    "SER-12",
+    "SER-13",
+    "SER-14",
+    "SER-15"
+  ],
+  "accepted": "bounded source/caller/consumer view with exact wire versus semantic/scale/order/embedding distinctions",
+  "corrections": [
+    "Human diagnostic columns are bytes, not scalar columns; primary view corrected.",
+    "Constructed Decimal descriptor scale differs from runtime encoder normalization; production literal remains E6008.",
+    "JSON string quoting cannot qualify identifiers or Markdown/HTML sinks.",
+    "Raw/default compatibility and supplied-carrier fidelity remain public preconditions or source leads, not blanket admission guarantees."
+  ],
+  "independent_witnesses": [
+    "113 selected native harness passes with one4750 branch skip",
+    "Actual accepted-source reserved/context binding failures and ordinary name control",
+    "Same-severity tags-only public diagnostic counterexample; no actual CLI producer shown",
+    "Actual docs consumer bytes plus official Markdown interpretation, no parser run",
+    "Actual emitted string/testkit, artifact/docs/policy/source-map/LSP consumers at declared profile"
+  ],
+  "open": "Named defects and explicit gaps retained; no implementation/API/policy/library selected",
+  "limits": "Primary worker source inspection only; fresh execution by root. Generic serializer and DTO family tests do not qualify every production semantic context."
+}

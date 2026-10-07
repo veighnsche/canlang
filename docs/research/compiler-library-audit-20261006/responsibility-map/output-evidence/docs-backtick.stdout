@@ -1,0 +1,38 @@
+# Internal declaration reference
+
+- Source revision: `98bf807a4a72e8700dab3be41f14eadc03530399206bae5fe4e0cdbcfae9a2cd`
+- Catalog version: `0.1.0-lane02-draft`
+- Language version: `1.0`
+- Requested locale: `en`
+- App default locale: `en`
+
+## Owners
+
+- [`Shop`](#owner-shop)
+  - [`Shop.Gadget`](#decl-shop-gadget)
+
+<a id="owner-shop"></a>
+
+### `Shop`
+
+#### Declarations
+
+<a id="decl-shop-gadget"></a>
+
+##### `Shop.Gadget` (model)
+
+No description.
+
+- Source: `external:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-cli-3vp5csgd/docs-backtick.can` (14–43)
+
+**Fields**
+
+| Field | Type | Nullable | Required | Default | Constraints | Description |
+| --- | --- | --- | --- | --- | --- | --- |
+| `title` | `text` | no | no | `"a\`b"` | — | No description. |
+
+#### Operations
+
+## Availability
+
+**implementation status unknown**

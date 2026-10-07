@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "reviewer": "independent serialization worker; gpt-6.1-sol medium",
+  "scope": "Read-only independent review of root 13 transform duties, 7 coordinate duties, observer recipes, current raw case receipts, CLI recipes/observations, final outcome checks and native suite summaries; no new execution by reviewer.",
+  "verdict": "Accept the bounded classification and evidence after precise coordinate anchor correction; no whole compiler correctness or implementation acceptance implied.",
+  "reviewed_material": [
+    "transforms.json",
+    "coordinates.json",
+    "probe.rs",
+    "run.py",
+    "cases.json",
+    "case-*.stdout",
+    "coordinates.stdout",
+    "diagnostics.stdout",
+    "cli.py",
+    "cli-cases.json",
+    "cli-observations.json",
+    "cli-execution.json",
+    "observer-execution.json",
+    "observer-corrections.json",
+    "suites-execution.json",
+    "verify.py",
+    "outcome-verification.json"
+  ],
+  "row_review": [
+    {
+      "ids": [
+        "TR-01",
+        "TR-02",
+        "TR-03",
+        "TR-04",
+        "TR-05"
+      ],
+      "verdict": "bounded source/observer qualification accepted",
+      "evidence": "Formatter admits only clean parsing; recursive CST projection captures node kinds/topology, every nontrivia leaf spelling and decoded string_value. Controls/precision and comments-layout retain number/Decimal lexemes, string decoded values and statement/declaration shape; accepted corpus files reparse and reach a fixed point. Two known corpus refusals remain explicit.",
+      "limits": "Observer drops Trivia and interior NodeDetail; comment/description leading indentation, trailing spaces/tabs and CRLF are normalized under documented exceptions. These are syntactic witnesses, not full semantic/default/description/evaluation-order/runtime proof. Same parser is used before/after; independent outcome consists of conservation/topology and fixed expected literal/CLI vectors, not a second parser."
+    },
+    {
+      "ids": [
+        "TR-06",
+        "TR-07"
+      ],
+      "verdict": "CLI behavior accepted with native qualification gap",
+      "evidence": "Real fmt --check refuses needed change without writing; write output matches separately authored text; no-op preserves bytes/inode; malformed later input prevents earlier rewrite. Replacement tests and file_ownership source consumers qualify existing local-destination write machinery.",
+      "limits": "Writes are sequential, not an all-file transaction. Native mode4750 branch explicitly SKIP; 0600/link/failure branches do not prove setuid/mode4750 behavior, Windows, ACL/owner preservation or crash durability."
+    },
+    {
+      "ids": [
+        "TR-08",
+        "TR-09",
+        "TR-10",
+        "TR-11",
+        "TR-12"
+      ],
+      "verdict": "Fix slice accepted at coherent/honest caller boundary; comment preservation gate retained",
+      "evidence": "Unreachable removal consumes leading ## within whole-statement span; surrounding declaration/operation bytes retained. Optional-member fix replaces exactly ?. with . on checked nonnullable receiver. Fresh helper paths agree and stale/overlap/out-of-range cases refuse. Actual LSP server:411\u2013455 collects lint fixes and filters source/file/hash/range, then emits versioned edits; analysis-diagnostic fixes_for returning empty does not mean lint actions absent. CLI lint --fix only reports and preserves source/inode.",
+      "limits": "No generic meaning-preservation proof from clean before/after analysis/idempotence. Explanatory-comment deletion is an observed preservation contract gap, not a demonstrated runtime semantic defect. Driver apply_fixes trusts supplied current sha256 and same-file/coherent program preconditions; IDE helper computes actual text hash. Server offers WorkspaceEdit; client application atomicity is not exercised."
+    },
+    {
+      "ids": [
+        "TR-13"
+      ],
+      "verdict": "four actual compiler output defects accepted",
+      "evidence": "class/await/default and ordinary c sources check+compile successfully but emitted modules fail Node --check; value control succeeds. c collides with generated context parameter independently of reserved JS keywords.",
+      "limits": "This proves generated syntax failure, not execution of these invalid modules. Repair closure must cover lexical names, injected bindings and references consistently; a keyword-only patch cannot satisfy c control."
+    },
+    {
+      "ids": [
+        "CO-01",
+        "CO-02",
+        "CO-03",
+        "CO-04"
+      ],
+      "verdict": "bounded independent byte/UTF16 tables accepted; one anchor correction",
+      "evidence": "SourceDb immutable revision tests plus fixed \u00e9\ud83d\ude00x CRLF \u00e9\ud83d\ude00y tables agree with independently enumerated UTF8 byte starts and UTF16 units, scalar-interior clamping, CRLF endpoint and nonexistent-line behavior. verify.py uses fixed forward/inverse tables, not a mutual roundtrip oracle.",
+      "limits": "Human one-based columns count bytes and can point inside UTF8; LSP helper clamps to scalar starts. Non-bijection at scalar interiors/line-end clamps is intended. Public UTF8 mode does not imply server encoding negotiation. SourceId fidelity does not validate supplied foreign carriers."
+    },
+    {
+      "ids": [
+        "CO-05",
+        "CO-06",
+        "CO-07"
+      ],
+      "verdict": "qualified real consumers accepted",
+      "evidence": "Live lsp_typed_output session covers actual framed Unicode/CRLF/nonfile URI/version output. sourcemap_contract sends fixed byte point maps, independent arithmetic VLQ decoding and current Cloudflare consumer fixture; name/order/null/unmapped behavior separately qualified. Native URI tests keep authored protocol key separate from local display projection.",
+      "limits": "No browser debugger or all generated runtime line-attribution proof; byte-column source-map profile is qualified by current consumer. Windows cfg source inspection only; no Windows execution. URI display projection confers no origin trust or filesystem access."
+    }
+  ],
+  "exact_anchor_corrections": [
+    {
+      "id": "CO-03",
+      "old": "compiler/src/source.rs:161\u2013190",
+      "correct": "compiler/src/source.rs:159\u2013181",
+      "reason": "to_lsp starts159 and ends181; later range includes unrelated SHA256 documentation/helper."
+    },
+    {
+      "id": "TR-07",
+      "precision": "compiler/src/cli.rs:1356\u20131461 production replacement helpers;1464 onward replacement tests",
+      "reason": "Current wider descriptive range includes regression source; named helper closure is correct."
+    }
+  ],
+  "outcome_review": {
+    "checks": 377,
+    "passing": 367,
+    "nonpassing": 10,
+    "classification": "4 real compiler binding syntax defects;1 tags-only public DiagnosticResult ordering contradiction;3 downstream Markdown standards-derived defects;1 explanatory-comment preservation gate;1 native mode branch qualification gate. These are not ten compiler regressions or ten failing Rust tests.",
+    "diagnostic_tie": "Same code/severity/message/file/span; only tags differ. Reverse insertion after finish produces reversed payloads. Valid public documented insertion-independent determinism counterexample; no actual CLI producer demonstrated.",
+    "markdown": "Actual can docs -> fixed can-platform -> public renderer chain succeeds and produces malformed inline code/table escaping for authored backtick/pipe/backslash. Interpretation uses root-verified CommonMark/GFM rules; no Markdown parser execution claimed. Current verify.py negative-string/pipe-count checks characterize these supplied vectors, not a complete parser or general future encoding acceptance oracle.",
+    "native_tests": {
+      "total_passed": 113,
+      "focused_integration": 97,
+      "source": 6,
+      "replacement": 8,
+      "URI": 2,
+      "failed_rust_tests": 0,
+      "reported_branch_skips": 1,
+      "qualification_gap": "mode4750 fixture bits not retained on native host; skip must remain disclosed despite successful test-function status."
+    }
+  },
+  "corrections_and_false_leads": [
+    {
+      "kind": "Observer compilation correction",
+      "retained": "probe-attempt1.rs + compile-probe-attempt1.stderr + observer-corrections.json",
+      "meaning": "Missing source-text argument to LineIndex::line_col was observer code failure, not compiler behavior failure; corrected invocation uses same text."
+    },
+    {
+      "kind": "Reviewer retracted false corpus-collision lead",
+      "reviewer_mistake": "Compared input source_sha256 with before_projection_sha256 of normalized recursive CST, distinct hash domains; incorrectly inferred current filename collision.",
+      "verified_fact": "Original cases and observations had61 unique matching IDs; no observed collision.",
+      "disposition": "Explicitly retract defect/rerun requirement. Root already reran observer with path-derived IDs as defensive recipe improvement, retained original cases/observations; no native suite rerun required."
+    },
+    {
+      "kind": "Diagnostic oracle isolation",
+      "retained": "Prior mixed-severity witness preserved; final tags-only raw output used",
+      "meaning": "Avoids severity/code-coherence objection without broadening public counterexample to CLI producer."
+    }
+  ],
+  "reviewer_execution": "None. Recipe/source/raw-receipt review only; root retains execution, hash verification, source ledger and decision ownership.",
+  "remaining_gaps": [
+    "No release/other-host run",
+    "No generic formatting/fix semantic equivalence proof",
+    "No all-name binding repair or implementation performed",
+    "No production CLI emitter of tied diagnostic payloads demonstrated",
+    "No Markdown parser executed",
+    "No native mode4750 qualification",
+    "Source/catalog/carrier coherence remains precondition as Step5 established"
+  ]
+}

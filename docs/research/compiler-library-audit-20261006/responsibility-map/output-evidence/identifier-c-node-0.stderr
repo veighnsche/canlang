@@ -1,0 +1,8 @@
+/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step10-cli-3vp5csgd/identifier-c-0.mjs:8
+async echo(c,{c}){
+              ^
+
+SyntaxError: Duplicate parameter name not allowed in this context
+    at checkSyntax (node:internal/main/check_syntax:84:5)
+
+Node.js v24.21.0

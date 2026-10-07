@@ -1,0 +1,1930 @@
+{
+  "checks": [
+    {
+      "contract": "61 unique case identities with exact receipt join",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "controls-precision: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "controls-precision: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "controls-precision: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "controls-precision: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "controls-precision: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "comments-layout: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "comments-layout: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "comments-layout: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "comments-layout: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "comments-layout: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "bad-escape: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "bad-tab: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-comments: expected fix count",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-comments: analysis before/after clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-comments: batch idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-comments: stale refused both APIs",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-comments: invalid_range_rejected",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-comments: overlap_rejected",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-comments: fresh IDE/driver agree",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-safe-access: expected fix count",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-safe-access: analysis before/after clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-safe-access: batch idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-safe-access: stale refused both APIs",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-safe-access: invalid_range_rejected",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-safe-access: overlap_rejected",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-safe-access: fresh IDE/driver agree",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-semicolon: expected fix count",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-semicolon: analysis before/after clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix-semicolon: batch idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-ExpenseFlow: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-ExpenseFlow: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-ExpenseFlow: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-ExpenseFlow: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-ExpenseFlow: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-TeamTasks: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-TeamTasks: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-TeamTasks: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-TeamTasks: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-examples-TeamTasks: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanAffiliate: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanAffiliate: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanAffiliate: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanAffiliate: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanAffiliate: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanApprove: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanApprove: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanApprove: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanApprove: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanApprove: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBoard: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBoard: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBoard: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBoard: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBoard: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBook: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBook: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBook: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBook: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanBook: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCRM: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCRM: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCRM: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCRM: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCRM: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCatch: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCatch: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCatch: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCatch: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCatch: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanChat: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanChat: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanChat: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanChat: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanChat: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCheck: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCheck: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCheck: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCheck: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCheck: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanContract: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanContract: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanContract: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanContract: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanContract: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCreative: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCreative: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCreative: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCreative: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCreative: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCustomer: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCustomer: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCustomer: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCustomer: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanCustomer: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDecide: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDecide: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDecide: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDecide: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDecide: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDesk: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDesk: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDesk: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDesk: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDesk: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDiscover: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDiscover: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDiscover: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDiscover: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDiscover: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDo: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDo: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDo: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDo: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanDo: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEnrich: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEnrich: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEnrich: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEnrich: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEnrich: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEvent: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEvent: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEvent: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEvent: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanEvent: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanExpense: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanExpense: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanExpense: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanExpense: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanExpense: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanFeedback: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanFeedback: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanFeedback: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanFeedback: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanFeedback: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanField: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanField: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanField: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanField: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanField: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGallery: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGallery: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGallery: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGallery: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGallery: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGrant: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGrant: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGrant: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGrant: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanGrant: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanHire: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanHire: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanHire: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanHire: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanHire: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInbox: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInbox: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInbox: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInbox: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInbox: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInvoice: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInvoice: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInvoice: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInvoice: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanInvoice: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanKnowledge: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanKnowledge: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanKnowledge: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanKnowledge: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanKnowledge: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLearn: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLearn: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLearn: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLearn: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLearn: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLeave: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLeave: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLeave: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLeave: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLeave: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLoyalty: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLoyalty: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLoyalty: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLoyalty: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanLoyalty: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMail: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMail: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMail: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMail: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMail: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMaintain: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMaintain: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMaintain: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMaintain: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMaintain: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMember: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMember: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMember: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMember: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanMember: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanOnboard: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanOnboard: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanOnboard: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanOnboard: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanOnboard: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPropose: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPropose: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPropose: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPropose: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPropose: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPurchase: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPurchase: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPurchase: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPurchase: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanPurchase: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReception: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReception: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReception: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReception: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReception: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRefer: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRefer: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRefer: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRefer: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRefer: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRent: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRent: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRent: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRent: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanRent: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReport: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReport: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReport: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReport: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanReport: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanShift: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStats: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStats: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStats: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStats: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStats: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStock: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStock: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStock: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStock: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanStock: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSuccess: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSuccess: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSuccess: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSuccess: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSuccess: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSync: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSync: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSync: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSync: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanSync: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTable: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTable: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTable: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTable: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTable: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTime: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTime: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTime: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTime: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTime: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTrade: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTrade: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTrade: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTrade: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanTrade: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanVolunteer: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanWorkbench: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanWorkbench: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanWorkbench: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanWorkbench: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-CanWorkbench: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Employees: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Employees: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Employees: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Employees: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Employees: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Locations: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Locations: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Locations: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Locations: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Locations: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Suppliers: expected admission",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Suppliers: structure_equal",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Suppliers: idempotent",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Suppliers: after_coverage",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "corpus-draft-shared-Suppliers: after parse clean",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 0",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 1",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 2",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 3",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 4",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 5",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 6",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 7",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 8",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 9",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 10",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 11",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 12",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 13",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 14",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 15",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 16",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 17",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "coordinate byte 18",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (0, 0)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (0, 1)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (0, 2)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (0, 3)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (0, 4)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (0, 5)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (0, 6)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (0, 7)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (1, 0)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (1, 1)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (1, 2)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (1, 3)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (1, 4)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (1, 5)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (1, 6)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (1, 7)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (2, 0)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (2, 1)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (2, 2)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (2, 3)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (2, 4)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (2, 5)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (2, 6)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (2, 7)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (3, 0)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (3, 1)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (3, 2)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (3, 3)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (3, 4)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (3, 5)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (3, 6)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "inverse (3, 7)",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "same diagnostic key/severity but different tags has insertion-independent bytes",
+      "pass": false,
+      "classification": "public-API documented determinism defect; no CLI producer shown"
+    },
+    {
+      "contract": "diagnostic tie isolation",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-class check accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-class compile accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-class emitted module syntax",
+      "pass": false,
+      "classification": "compiler binding hygiene defect"
+    },
+    {
+      "contract": "identifier-await check accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-await compile accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-await emitted module syntax",
+      "pass": false,
+      "classification": "compiler binding hygiene defect"
+    },
+    {
+      "contract": "identifier-default check accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-default compile accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-default emitted module syntax",
+      "pass": false,
+      "classification": "compiler binding hygiene defect"
+    },
+    {
+      "contract": "identifier-c check accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-c compile accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-c emitted module syntax",
+      "pass": false,
+      "classification": "compiler binding hygiene defect"
+    },
+    {
+      "contract": "identifier-value check accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-value compile accepts legal source",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "identifier-value emitted module syntax",
+      "pass": true,
+      "classification": "qualification control"
+    },
+    {
+      "contract": "docs-backtick actual renderer success",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "docs-pipe actual renderer success",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "docs-backslash actual renderer success",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fmt check refuses changes without writing",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fmt exact independent expected layout",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fmt noop exact bytes/inode",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "malformed later operand prevents earlier rewrite",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "CLI fix reports without source write",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "fix preserves unrelated model and entire sibling operation bytes",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "attached explanatory comment preservation",
+      "pass": false,
+      "classification": "observed deletion; preservation contract gate, not demonstrated semantic defect"
+    },
+    {
+      "contract": "code span escapes embedded backtick by delimiter choice",
+      "pass": false,
+      "classification": "downstream package Markdown defect: CommonMark 6.1"
+    },
+    {
+      "contract": "table pipe remains one cell",
+      "pass": false,
+      "classification": "downstream package Markdown defect: GFM 4.10"
+    },
+    {
+      "contract": "code span retains authored default backslash spelling",
+      "pass": false,
+      "classification": "downstream package Markdown defect: CommonMark 6.1 literal backslashes"
+    },
+    {
+      "contract": "native suite focused-suites",
+      "pass": false,
+      "classification": "qualification"
+    },
+    {
+      "contract": "native suite unit-source--",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "native suite unit-cli--replacement_tests",
+      "pass": true,
+      "classification": "qualification"
+    },
+    {
+      "contract": "native suite unit-lsp--uri--",
+      "pass": true,
+      "classification": "qualification"
+    }
+  ],
+  "counts": {
+    "checks": 377,
+    "passes": 367,
+    "failures": 10
+  },
+  "native_suites": {
+    "focused-suites": {
+      "passed": 97,
+      "failed": 0,
+      "ignored": 0,
+      "reported_skips": 1,
+      "exit": 0
+    },
+    "unit-source--": {
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "reported_skips": 0,
+      "exit": 0
+    },
+    "unit-cli--replacement_tests": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "reported_skips": 0,
+      "exit": 0
+    },
+    "unit-lsp--uri--": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "reported_skips": 0,
+      "exit": 0
+    }
+  },
+  "limits": [
+    "recursive topology/decoded token preservation is not universal semantic/runtime preservation",
+    "honest current-hash precondition for lint driver; IDE computes actual hash",
+    "Markdown interpretation uses official standards, no Markdown parser executed",
+    "native macOS arm64 only; no release/application/other-host qualification"
+  ]
+}

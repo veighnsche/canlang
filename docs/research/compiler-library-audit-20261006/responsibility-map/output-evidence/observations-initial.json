@@ -1,0 +1,1593 @@
+[
+  {
+    "id": "controls-precision",
+    "source_sha256": "c0e70660dcb2f9131101cdf010fcdffac6a469a407f03e741dcb5486aff00a27",
+    "observation": "case-controls-precision.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "comments-layout",
+    "source_sha256": "a1d76cb447e56742962bbda88149a86040c24968d9943b9629c1395104d96245",
+    "observation": "case-comments-layout.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "bad-escape",
+    "source_sha256": "8319d24c09b01a35b118a57bd463bb62bbac27db220f577bac3cbdcba0224dc0",
+    "observation": "case-bad-escape.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "bad-tab",
+    "source_sha256": "68d6035b9e0831456cf152f5792e46bd62c983d53d03ea15b5151f66ab106507",
+    "observation": "case-bad-tab.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "fix-comments",
+    "source_sha256": "8932a21d7978ca319a1dfb0e4e3ef9c6f70ccc1238af5b9306888415fbda9d19",
+    "observation": "case-fix-comments.stdout",
+    "assertions": [
+      {
+        "contract": "expected fix count",
+        "pass": true
+      },
+      {
+        "contract": "analysis before/after clean",
+        "pass": true
+      },
+      {
+        "contract": "batch idempotent",
+        "pass": true
+      },
+      {
+        "contract": "stale refused both APIs",
+        "pass": true
+      },
+      {
+        "contract": "invalid_range_rejected",
+        "pass": true
+      },
+      {
+        "contract": "overlap_rejected",
+        "pass": true
+      },
+      {
+        "contract": "fresh IDE/driver agree",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "fix-safe-access",
+    "source_sha256": "ce22c7cb52f8d934497c8eb8a316b7a8cde636a4f471165d5b58882f905a36ca",
+    "observation": "case-fix-safe-access.stdout",
+    "assertions": [
+      {
+        "contract": "expected fix count",
+        "pass": true
+      },
+      {
+        "contract": "analysis before/after clean",
+        "pass": true
+      },
+      {
+        "contract": "batch idempotent",
+        "pass": true
+      },
+      {
+        "contract": "stale refused both APIs",
+        "pass": true
+      },
+      {
+        "contract": "invalid_range_rejected",
+        "pass": true
+      },
+      {
+        "contract": "overlap_rejected",
+        "pass": true
+      },
+      {
+        "contract": "fresh IDE/driver agree",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "fix-semicolon",
+    "source_sha256": "ef8d43f7e3ac7473e85205206e6fdd92ffd508a1f0e3e803bfce606ad06430e8",
+    "observation": "case-fix-semicolon.stdout",
+    "assertions": [
+      {
+        "contract": "expected fix count",
+        "pass": true
+      },
+      {
+        "contract": "analysis before/after clean",
+        "pass": true
+      },
+      {
+        "contract": "batch idempotent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-ExpenseFlow",
+    "source_sha256": "f5dc2988336e9368445f92cb9ba11d4517b23de07226f504bd6dfb707f19b98b",
+    "observation": "case-corpus-ExpenseFlow.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-TeamTasks",
+    "source_sha256": "78020054ba06d0282047d4c400487ea1da070e7ebdb624637f0ff1802683f3d0",
+    "observation": "case-corpus-TeamTasks.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanAffiliate",
+    "source_sha256": "faa275fa9870e055391e14099458bc30f8193be6ab95ce798897983a3ac6936c",
+    "observation": "case-corpus-CanAffiliate.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanApprove",
+    "source_sha256": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981",
+    "observation": "case-corpus-CanApprove.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanBoard",
+    "source_sha256": "8543ef7f369204a1bfcd4c3f4cef3076979d5505238699fea651339a7b0d4f25",
+    "observation": "case-corpus-CanBoard.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanBook",
+    "source_sha256": "ad7f51eef69d5f48dc862142c38d4796ead0e3f383270b2288f0210c92d36029",
+    "observation": "case-corpus-CanBook.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanCRM",
+    "source_sha256": "a057251d367686c7b58be3892bcebe0c8765a04db04305272a396767cbd53a0a",
+    "observation": "case-corpus-CanCRM.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanCatch",
+    "source_sha256": "2b1ba7bb44e5e0da8cc87580851b84f3e81c5f566b97762e545e00e0b78a1467",
+    "observation": "case-corpus-CanCatch.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanChat",
+    "source_sha256": "a507e133cd29022b873f50ae6b856a34bd8caf3abac28c691bde56ad103de2f1",
+    "observation": "case-corpus-CanChat.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanCheck",
+    "source_sha256": "6551ecf90dbadecff18e888d6ffb23dc9e20bb32d5dff50eced0b387bb29a663",
+    "observation": "case-corpus-CanCheck.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanContract",
+    "source_sha256": "a952eb4c5b3a3e18d6d5ea0e2db73e62066ece04adc3592accd9dc791f6a719c",
+    "observation": "case-corpus-CanContract.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanCreative",
+    "source_sha256": "a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52",
+    "observation": "case-corpus-CanCreative.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanCustomer",
+    "source_sha256": "6ad2631ef725d61f389dfad873df27fa4c28a67fea02662ca313c0b2ccc7d9d1",
+    "observation": "case-corpus-CanCustomer.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanDecide",
+    "source_sha256": "15a7e021e3400e6cb48620efcb48fb7dacda978c0b39d06a77c7a74a8ad89b15",
+    "observation": "case-corpus-CanDecide.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanDesk",
+    "source_sha256": "6a24957d8f85a11ab30bde21b030519f6ff40c1f8191e0ccf5a44a350e865cf0",
+    "observation": "case-corpus-CanDesk.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanDiscover",
+    "source_sha256": "99e2c4b84554bc7da82eca1f6b1d62443a752fac43772104de0ffed4a9ad54d6",
+    "observation": "case-corpus-CanDiscover.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanDo",
+    "source_sha256": "15761cc422c6d11827a6f13aa3cc3318a8bb393ef2110169f1a02ff046e4ec35",
+    "observation": "case-corpus-CanDo.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanEnrich",
+    "source_sha256": "81c2917899e84754c49e398be97f32da8a72dd045ab8767ad0bcab213156fe9a",
+    "observation": "case-corpus-CanEnrich.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanEvent",
+    "source_sha256": "1815b81afd22614cab410faa973c89d040ed8fe2a4e135ae7431db6abae6151b",
+    "observation": "case-corpus-CanEvent.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanExpense",
+    "source_sha256": "6fa07ded3b52d97eb0e3c73bb5c0bcb64c9bece7b5167155de37cf0622ee2aa9",
+    "observation": "case-corpus-CanExpense.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanFeedback",
+    "source_sha256": "2328f6463eb5ae5cd8ff4b0dc903c6a008c9c0e08cdf5ac1d1f95a93cd7d7b65",
+    "observation": "case-corpus-CanFeedback.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanField",
+    "source_sha256": "dbcf20e445eddc4477152cd4288ccb3875e0f4d62cbc66a209aaed8626013482",
+    "observation": "case-corpus-CanField.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanGallery",
+    "source_sha256": "a5eedb40bbe9b3efab41fd3576058a6b100b5b3f151f2b1a3410897798023083",
+    "observation": "case-corpus-CanGallery.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanGrant",
+    "source_sha256": "3d3e1f86aa1bad27927cf05932e67b4ee40b4baa3b613459334327399941f4c2",
+    "observation": "case-corpus-CanGrant.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanHire",
+    "source_sha256": "37c5a6255fc04dfc8ebd33355a9e1fb4252c3c2356753456852ef1e890d9f877",
+    "observation": "case-corpus-CanHire.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanInbox",
+    "source_sha256": "1f1b42f9527cdeacccd9f033d68331c1359b975f67ec8d480242f45ba2992c39",
+    "observation": "case-corpus-CanInbox.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanInvoice",
+    "source_sha256": "a79c22bd8797f5a9463933b218c210bff539e0408dbab4dafc1d4640f2e6de14",
+    "observation": "case-corpus-CanInvoice.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanKnowledge",
+    "source_sha256": "ce08ee68b969820747157d5412675f8179e7b0424c4087b886885aef2f78871d",
+    "observation": "case-corpus-CanKnowledge.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanLearn",
+    "source_sha256": "8880fe150887da7797f239a01e0d835ea379f32060d5663476ccbe61b93dacdf",
+    "observation": "case-corpus-CanLearn.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanLeave",
+    "source_sha256": "5965a2ff4a1e5294b4a3aac97ab99fb62f48be3c92bb2059a60e24cc47d09dca",
+    "observation": "case-corpus-CanLeave.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanLoyalty",
+    "source_sha256": "15705d0052f4a7173b6b4477fd2131d2014286618ddd7732aa50e2740881e7e3",
+    "observation": "case-corpus-CanLoyalty.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanMail",
+    "source_sha256": "c780a1d702ea54575e08645595b3b356bb6039693dc42532ca73a0ef2a7909bb",
+    "observation": "case-corpus-CanMail.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanMaintain",
+    "source_sha256": "1735b59a307e705e85642cd41f01d52dac0f8b421d2b60c838d02e1de414ae2b",
+    "observation": "case-corpus-CanMaintain.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanMember",
+    "source_sha256": "8494c035fb36c268d138cbd77c145f4f13d7aa965b3c342941e5afe316389426",
+    "observation": "case-corpus-CanMember.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanOnboard",
+    "source_sha256": "d6bfe20cc4e3fa47fcb92ed9329fe931a5df8bc443a5be608c22538878441a78",
+    "observation": "case-corpus-CanOnboard.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanPropose",
+    "source_sha256": "50d1d835f2bcb622864e522013cff5c942dd8378aeee3d1d698e356ce4036b35",
+    "observation": "case-corpus-CanPropose.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanPurchase",
+    "source_sha256": "2f4b6beef27c4329f03b7b0903b23326c47be2b775857862bf197a2e16e5be99",
+    "observation": "case-corpus-CanPurchase.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanReception",
+    "source_sha256": "c647d5430d82e16e40e95dfb364f80e2d11d3b2aee37b091a3aae369d2ccdf9c",
+    "observation": "case-corpus-CanReception.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanRefer",
+    "source_sha256": "87a3fee1ba5c4c86c43fa29c9df2e8ef31926b37f43b39ed622e9625d321c196",
+    "observation": "case-corpus-CanRefer.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanRent",
+    "source_sha256": "38122784280f5bc9e32cd4b62e7b236eb3bf3f51121a75751cfb087b25960654",
+    "observation": "case-corpus-CanRent.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanReport",
+    "source_sha256": "1f045a477832a2ec30dd7475fb7db70f837913fb3f4c7f7459732d57a9f3a779",
+    "observation": "case-corpus-CanReport.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanShift",
+    "source_sha256": "2377c3229156d495a9d3c06bfcbc7eb527ad196001d61765445d9d52e0a40998",
+    "observation": "case-corpus-CanShift.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanStats",
+    "source_sha256": "f618315a53963ff2efeaaef16167ee3af551e783a5f7d069491922b0ccae7581",
+    "observation": "case-corpus-CanStats.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanStock",
+    "source_sha256": "378c331736d493a3bd25a729731e3c5b5358a2aab931e8286c18fd47260d49f2",
+    "observation": "case-corpus-CanStock.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanSuccess",
+    "source_sha256": "f88453355369a4a098f865f1282fe969dc10ab3576cbcd60ed834e7a1618dd5f",
+    "observation": "case-corpus-CanSuccess.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanSync",
+    "source_sha256": "250407a5684f9d8cbf9a87bcc12dcc56a238672cfeb68e5715a0923e7df87fc2",
+    "observation": "case-corpus-CanSync.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanTable",
+    "source_sha256": "4291e10b8cdb6162de0df6fd4bc7a78b9c35fe6c00c0402b7361e1e99795c0ef",
+    "observation": "case-corpus-CanTable.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanTime",
+    "source_sha256": "3ebf5b368b249faf59b7760bb877f13ad51d9b3faa77510ff1e2bccd33efdf52",
+    "observation": "case-corpus-CanTime.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanTrade",
+    "source_sha256": "b58402d59a30f902492b425a27270dfca4872a8e24f6814e914e1a09d80ec3e2",
+    "observation": "case-corpus-CanTrade.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanVolunteer",
+    "source_sha256": "7ad2d4d3e862473da3841c5e2718340caa5e8b79467798848ee09023c3280b06",
+    "observation": "case-corpus-CanVolunteer.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-CanWorkbench",
+    "source_sha256": "c25965b58d7347a4fbdcc645494cac4056117ca6096e15a64ff656ef204288ba",
+    "observation": "case-corpus-CanWorkbench.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-Employees",
+    "source_sha256": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+    "observation": "case-corpus-Employees.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-Locations",
+    "source_sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+    "observation": "case-corpus-Locations.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "corpus-Suppliers",
+    "source_sha256": "828931c2fed61c24b269e5653c871f8576d7f798722da58635141645aaaa7878",
+    "observation": "case-corpus-Suppliers.stdout",
+    "assertions": [
+      {
+        "contract": "expected admission",
+        "pass": true
+      },
+      {
+        "contract": "structure_equal",
+        "pass": true
+      },
+      {
+        "contract": "idempotent",
+        "pass": true
+      },
+      {
+        "contract": "after_coverage",
+        "pass": true
+      },
+      {
+        "contract": "after parse clean",
+        "pass": true
+      }
+    ]
+  }
+]

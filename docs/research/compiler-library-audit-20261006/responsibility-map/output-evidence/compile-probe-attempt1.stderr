@@ -1,0 +1,16 @@
+error[E0061]: this method takes 2 arguments but 1 argument was supplied
+  --> /Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/output-evidence/probe.rs:24:94
+   |
+24 | ...).map(|b|json!({"byte":b,"human":idx.line_col(b as u32),"utf16":idx.to_lsp(s,b as u32,true),"byte_lsp":idx.to_lsp(s,b as u32,fals...
+   |                                         ^^^^^^^^ -------- argument #1 of type `&str` is missing
+   |
+note: method defined here
+  --> src/source.rs:137:11
+help: provide the argument
+   |
+24 |   println!("{}",json!({"text":s,"forward":(0..=s.len()+2).map(|b|json!({"byte":b,"human":idx.line_col(/* &str */, b as u32),"utf16":idx.to_lsp(s,b as u32,true),"byte_lsp":idx.to_lsp(s,b as u32,false)})).collect::<Vec<_>>(),"inverse":(0..=3).flat_map(|l|(0..=7).map(move|c|json!({"line":l,"character":c,"byte":offset_at_position(s,l,c)}))).collect::<Vec<_>>()}));return
+   |                                                                                                       +++++++++++
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0061`.

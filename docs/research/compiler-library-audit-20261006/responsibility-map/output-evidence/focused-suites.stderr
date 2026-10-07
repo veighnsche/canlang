@@ -1,0 +1,31 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.25s
+     Running tests/file_ownership.rs (compiler/target/debug/deps/file_ownership-cf0d212bd995ec29)
+SKIP mode 4750: this host did not retain the requested fixture bits
+     Running tests/format.rs (compiler/target/debug/deps/format-bc0b0fb509c870cd)
+     Running tests/lint.rs (compiler/target/debug/deps/lint-aa1c794f11be4578)
+     Running tests/lsp_typed_output.rs (compiler/target/debug/deps/lsp_typed_output-ea71e66763901e8c)
+     Running tests/sourcemap_contract.rs (compiler/target/debug/deps/sourcemap_contract-354f7960a36a2283)
+{"sourcePins":{"sourcemap.ts":"565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113","invoke.ts":"55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db","artifact.ts":"e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d","context.ts":"9f628244197b61fc376319c9a4fe5aed82fbd04a62b283c96e564f6877a614d8","report.ts":"79cbbfce42ed673196b6f0d2b32d567a3d302e4b8104429119bfd52a6ae6bcd1"},"profile":"original Can byte columns; generated point column zero","node":"24.21.0","codec":"1.6.0","codecSha256":"2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0","consumer":"current source artifact parse/load, lookup, invokeCallable, formatFailureLocation","syntheticInvocation":"coordinate.can:1:7","freshCliModules":1,"freshCliPoints":24,"browserUTF16":"unqualified"}
+     Running tests/string_payload_runtime.rs (compiler/target/debug/deps/string_payload_runtime-1a7304a1cd59972b)
+C01 witness 0: production CLI, runtime metadata, testkit closures passed
+C01 witness 1: production CLI, runtime metadata, testkit closures passed
+C01 witness 2: production CLI, runtime metadata, testkit closures passed
+C01 witness 3: production CLI, runtime metadata, testkit closures passed
+C01 witness 4: production CLI, runtime metadata, testkit closures passed
+C01 witness 5: production CLI, runtime metadata, testkit closures passed
+     Running tests/typed_artifact.rs (compiler/target/debug/deps/typed_artifact-bdd3a53d3b3f1049)
+     Running tests/typed_artifact_consumer.rs (compiler/target/debug/deps/typed_artifact_consumer-1b76d8e9cb9338d3)
+{"consumer":"actual Cloudflare parseArtifactText + loadArtifactFile","models":1,"operations":4,"sourceHash":"14afa30baf8e05569f07c56bb8c9650d3e8b1d0e5ed7eace22e60cd8eb43817c","decimalType":"decimal","decimalScaleGate":"production decimal literal E6008; separate typed artifact fixture covers scale","maps":1}
+     Running tests/typed_bdd.rs (compiler/target/debug/deps/typed_bdd-56de347b75eb7960)
+     Running tests/typed_descriptors.rs (compiler/target/debug/deps/typed_descriptors-1db4f47615a291e7)
+     Running tests/typed_diagnostics_cli.rs (compiler/target/debug/deps/typed_diagnostics_cli-d74278f2fcdd38a5)
+     Running tests/typed_explain.rs (compiler/target/debug/deps/typed_explain-c3e08809a9586445)
+     Running tests/typed_fixes.rs (compiler/target/debug/deps/typed_fixes-5450b7a5619186ee)
+     Running tests/typed_fixes_cli.rs (compiler/target/debug/deps/typed_fixes_cli-ffeafcd41b01c124)
+     Running tests/typed_json.rs (compiler/target/debug/deps/typed_json-7cc2e1bf15318278)
+     Running tests/typed_policy.rs (compiler/target/debug/deps/typed_policy-2e181dee377bda05)
+     Running tests/typed_reference_policy_consumers.rs (compiler/target/debug/deps/typed_reference_policy_consumers-9f73e960fedaa468)
+PASS typed policy: fresh CLI through actual policyDumpSections and policyPage escaping
+PASS typed reference: fresh docs CLI and extracted JSON through public Markdown renderer
+     Running tests/typed_references.rs (compiler/target/debug/deps/typed_references-153ed6709ab4ecc7)

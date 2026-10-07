@@ -1,0 +1,1 @@
+{"analysis_codes":[],"fixes":[],"result":{"analysis_codes":[],"batch_idempotent":true,"remaining_fixes":0,"text":"app T\nGiven\n Todo {title:text}\nWhen\n scenario s(task:Todo) by=members\n  do require false; let dead=2\nThen\n"}}
