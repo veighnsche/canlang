@@ -545,6 +545,132 @@ fn fix_removes_unreachable_statement() {
 }
 
 #[test]
+fn unreachable_removal_preserves_comment_lines_and_siblings() {
+    let fixtures = [
+        (
+            "   require false\n   ## Explain why this was attempted.\n   let dead=2\n",
+            "   require false\n   ## Explain why this was attempted.\n",
+            vec!["\n   ## Explain why this was attempted.\n   let dead=2"],
+        ),
+        (
+            "   require false\n   ## First: café.\n   ## Second: ✓\n   let dead=2\n   ## Between dead statements.\n   set task {title=\"z\"}\n   ## End of this suite.\n",
+            "   require false\n   ## First: café.\n   ## Second: ✓\n   ## Between dead statements.\n   ## End of this suite.\n",
+            vec![
+                "\n   ## First: café.\n   ## Second: ✓\n   let dead=2",
+                "\n   ## Between dead statements.\n   set task {title=\"z\"}",
+            ],
+        ),
+        (
+            "   require false\n   ## Before removed control flow.\n   if true\n    ## Inside removed control flow.\n    set task {title=\"z\"}\n",
+            "   require false\n   ## Before removed control flow.\n    ## Inside removed control flow.\n",
+            vec![
+                "\n   ## Before removed control flow.\n   if true\n    ## Inside removed control flow.\n    set task {title=\"z\"}",
+            ],
+        ),
+        (
+            "   require false\n   ## Authored comment.\n   set task {title=\"## string data, not a comment\"}\n",
+            "   require false\n   ## Authored comment.\n",
+            vec![
+                "\n   ## Authored comment.\n   set task {title=\"## string data, not a comment\"}",
+            ],
+        ),
+    ];
+    let suffix = " # Metadata for the surviving sibling.\n scenario sibling(task:Todo) by=members\n  do\n   set task {title=\"live\"}\nThen\n";
+    for (body, expected_body, anchors) in fixtures {
+        for newline in ["\n", "\r\n"] {
+            let text = format!("{PRELUDE}  do\n{body}{suffix}").replace('\n', newline);
+            let expected = format!("{PRELUDE}  do\n{expected_body}{suffix}").replace('\n', newline);
+            let (db, id, program, errors) = check(&text, None);
+            assert!(errors.is_empty(), "{errors:?}: {text}");
+            let config = LintConfig { fix: true, ..all() };
+            let fixes = collect_fixes(&program, &db, &config);
+            assert_eq!(fixes.len(), anchors.len(), "{fixes:?}: {text}");
+            for (fix, anchor) in fixes.iter().zip(&anchors) {
+                assert_eq!(fix.span.file, id);
+                assert_eq!(fix.span, span_of(id, &text, &anchor.replace('\n', newline)));
+                assert_eq!(fix.expected_sha256, sha256_hex(text.as_bytes()));
+                let authored = &text[fix.span.start as usize..fix.span.end as usize];
+                assert!(
+                    authored.contains("let dead")
+                        || authored.contains("set task")
+                        || authored.contains("if true")
+                );
+                assert!(!authored.contains("scenario sibling"));
+                assert!(!fix.replacement.contains("# Metadata"));
+            }
+            let fixed = apply_fixes(&text, &sha256_hex(text.as_bytes()), &fixes).unwrap();
+            assert_eq!(fixed, expected);
+            let (fixed_db, _, fixed_program, errors) = check(&fixed, None);
+            assert!(errors.is_empty(), "{errors:?}: {fixed}");
+            assert!(lint_program(&fixed_program, &fixed_db, &all()).is_empty());
+            assert!(collect_fixes(&fixed_program, &fixed_db, &config).is_empty());
+        }
+    }
+}
+
+#[test]
+fn unreachable_removal_refuses_descriptions_and_malformed_inline_comments() {
+    for (body, malformed) in [
+        (
+            "   require false\n   # Describes the dead binding.\n   let dead=2\n",
+            true,
+        ),
+        (
+            "   require false\n   if true\n    # Describes the nested binding.\n    let dead=2\n",
+            true,
+        ),
+        (
+            "   require false\n   let dead=2 ## unsupported trailing comment\n",
+            true,
+        ),
+        ("   require false; let dead=2\n", false),
+    ] {
+        let text = scenario(body);
+        let (db, _, program, errors) = check(&text, None);
+        assert_eq!(!errors.is_empty(), malformed, "{errors:?}: {text}");
+        if body.contains("# Describes") {
+            assert!(errors.iter().any(|diagnostic| diagnostic.code == "E1126"));
+        }
+        let config = LintConfig { fix: true, ..all() };
+        assert!(collect_fixes(&program, &db, &config).is_empty(), "{text}");
+        if !malformed {
+            assert!(
+                lint_program(&program, &db, &all())
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "W1001")
+            );
+        }
+    }
+}
+
+#[test]
+fn comment_preserving_removal_uses_existing_atomic_fix_guards() {
+    let text = scenario("   require false\n   ## Preserve this rationale.\n   let dead=2\n");
+    let (db, _, program, _) = check(&text, None);
+    let config = LintConfig { fix: true, ..all() };
+    let fixes = collect_fixes(&program, &db, &config);
+    assert_eq!(fixes.len(), 1);
+    let sha = sha256_hex(text.as_bytes());
+    let changed = text.replace("rationale", "explanation");
+    assert!(matches!(
+        apply_fixes(&changed, &sha256_hex(changed.as_bytes()), &fixes),
+        Err(FixRejected::Stale { .. })
+    ));
+    assert!(matches!(
+        apply_fixes(&text, &sha, &[fixes[0].clone(), fixes[0].clone()]),
+        Err(FixRejected::Overlap { .. })
+    ));
+    let invalid = LintFix {
+        span: Span::new(fixes[0].file, 0, u32::MAX),
+        ..fixes[0].clone()
+    };
+    assert!(matches!(
+        apply_fixes(&text, &sha, &[invalid]),
+        Err(FixRejected::SpanInvalid { .. })
+    ));
+}
+
+#[test]
 fn fix_narrows_redundant_safe_access() {
     let text = scenario_ret("text", "   let p=task?.title\n   return p\n");
     let (db, _, program, _) = check(text.as_str(), None);
