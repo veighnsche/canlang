@@ -1,0 +1,1453 @@
+compiler/src/lib.rs:1-25
+1: //! CanLang compiler library: one language model shared by compilation,
+2: //! checking, linting, formatting and editor diagnostics.
+3: //!
+4: //! Binary dispatch lives in the `cli` module (`main.rs` is a thin entry
+5: //! point); this crate owns source management, syntax, analysis, emission
+6: //! and authoring tools.
+7: 
+8: pub mod analysis;
+9: pub mod cli;
+10: pub mod codegen;
+11: pub mod diagnostic;
+12: pub mod docs;
+13: pub mod explain;
+14: pub mod format;
+15: pub mod ide;
+16: pub mod json;
+17: pub mod lint;
+18: pub mod lsp;
+19: pub mod policy;
+20: pub mod source;
+21: pub mod syntax;
+22: 
+23: /// Language version analyzed and emitted, e.g. `1.0`.
+24: pub const LANGUAGE_VERSION: &str = "1.0";
+25: 
+
+compiler/src/codegen/mod.rs:35-55
+35: //!   shape, or another unlowered position. The emitted placeholder
+36: //!   throws loudly.
+37: //! * `E6011` `checked-cohort-mismatch`: the source database or catalog
+38: //!   belongs to a different owner, or a selected source did not exist at
+39: //!   check time. Emission refuses before lowering, including in test-only mode.
+40: 
+41: pub mod artifact;
+42: pub mod bdd;
+43: pub mod ir;
+44: pub mod js;
+45: pub mod sourcemap;
+46: 
+47: use crate::analysis::CheckedProgram;
+48: use crate::analysis::catalog::Catalog;
+49: use crate::analysis::resolve::SymbolId;
+50: use crate::codegen::artifact::{CompileArtifact, to_json};
+51: use crate::codegen::bdd::BddModule;
+52: use crate::codegen::ir::{IrItemKind, IrProgram, ReferencedBuiltin};
+53: use crate::diagnostic::{Diagnostic, DiagnosticResult};
+54: use crate::source::{SourceDb, SourceId, Span};
+55: 
+
+compiler/src/lint/mod.rs:15-25
+15: //!   severities follow the normative `DIAGNOSTICS.md` severity table.
+16: //! - Shadowing (`W2001`) is opt-in until the coordinator promotes it.
+17: //! - Every rule skips already-erroring subtrees and documents the
+18: //!   cases it deliberately leaves out.
+19: 
+20: pub mod driver;
+21: pub mod rules;
+22: 
+23: pub use driver::{
+24:     DeprecatedSet, FixRejected, LintConfig, LintFix, RuleSet, apply_fix, apply_fixes,
+25:     collect_fixes, lint_program,
+
+compiler/src/codegen/js.rs:180-330
+180:     /// Leaf field name in producer order.
+181:     pub name: String,
+182:     /// Verbatim T13c declared kind spelling.
+183:     #[serde(rename = "type")]
+184:     pub declared: String,
+185: }
+186: 
+187: impl JsNominalLeaf {
+188:     /// Compact JSON in the owning artifact contract's field order.
+189:     pub fn to_json(&self) -> String {
+190:         descriptor_json(self)
+191:     }
+192: }
+193: 
+194: /// One T13 provider-result nominal with its T13c leaves (JSON shape
+195: /// of `ArtifactNominalResult`).
+196: #[derive(Debug, Clone, Serialize)]
+197: pub struct JsNominalResult {
+198:     /// Source nominal name (T13c source spelling, e.g. `ImageRun` —
+199:     /// never a TS wire alias).
+200:     pub name: String,
+201:     /// Leaves in T13c producer order.
+202:     pub fields: Vec<JsNominalLeaf>,
+203: }
+204: 
+205: impl JsNominalResult {
+206:     /// Compact JSON in the owning artifact contract's field order.
+207:     pub fn to_json(&self) -> String {
+208:         descriptor_json(self)
+209:     }
+210: }
+211: 
+212: /// One T15b provider delivery descriptor (JSON shape of
+213: /// `ArtifactDeliveryDescriptor`).
+214: ///
+215: /// Closed T04b-preview kind for T14c typed `std` receipts: the
+216: /// capability + operation identity plus the frozen capability
+217: /// contract version (T04a §7 version fencing) and the T13c result
+218: /// nominal. Old consumers precisely reject the unknown `delivery`
+219: /// kind per T04a §3/§7 (additive-only); T04b ratifies the shape.
+220: #[derive(Debug, Clone)]
+221: pub struct JsDeliveryDescriptor {
+222:     /// Qualified capability contract, e.g. `std.EmailV1`.
+223:     pub capability: String,
+224:     /// Consumed operation name, e.g. `send`.
+225:     pub operation: String,
+226:     /// Frozen capability contract version (`STD_*_VERSION`).
+227:     pub version: u32,
+228:     /// Declared provider result with its T13c leaves.
+229:     pub result: JsNominalResult,
+230: }
+231: 
+232: impl JsDeliveryDescriptor {
+233:     /// Compact JSON in the owning artifact contract's field order.
+234:     pub fn to_json(&self) -> String {
+235:         descriptor_json(self)
+236:     }
+237: }
+238: 
+239: /// Build the provider delivery descriptor for one consumed T13 `std`
+240: /// operation, or `None` when either join fails (fail-closed: callers
+241: /// keep exactly today's omit/`other` behavior; T04b owns ratification
+242: /// and nothing is fabricated).
+243: ///
+244: /// The capability version comes from the frozen consume layer
+245: /// ([`std_capability`]) and the result leaves from the T13c
+246: /// transcription ([`nominal_schema`]) in producer order.
+247: pub fn delivery_descriptor(capability: &str, op: &StdOperation) -> Option<JsDeliveryDescriptor> {
+248:     let version = std_capability(capability)?.version;
+249:     let schema = nominal_schema(op.result)?;
+250:     Some(JsDeliveryDescriptor {
+251:         capability: capability.to_string(),
+252:         operation: op.name.to_string(),
+253:         version,
+254:         result: JsNominalResult {
+255:             name: op.result.to_string(),
+256:             fields: schema
+257:                 .fields
+258:                 .iter()
+259:                 .map(|(name, declared)| JsNominalLeaf {
+260:                     name: (*name).to_string(),
+261:                     declared: (*declared).to_string(),
+262:                 })
+263:                 .collect(),
+264:         },
+265:     })
+266: }
+267: 
+268: impl JsMcpField {
+269:     /// Compact JSON in the owning artifact contract's field order.
+270:     pub fn to_json(&self) -> String {
+271:         descriptor_json(self)
+272:     }
+273: }
+274: 
+275: /// One T18 closed-set server initializer (JSON shape of
+276: /// `artifact.ts` `ArtifactServerInit`).
+277: #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+278: #[serde(rename_all = "snake_case")]
+279: pub enum JsServerInit {
+280:     /// `server=actor`: the invoking actor as a wire `{id}` user value.
+281:     Actor,
+282:     /// `server=now`: the frozen invocation clock as RFC 3339 millis.
+283:     Now,
+284:     /// `server=random_secret()`: fresh opaque hex material per execution.
+285:     RandomSecret,
+286:     /// Any other `server=` expression (e.g. `server=now+1h`): the L3
+287:     /// loader rejects such sets fail-closed (T04b vocabulary).
+288:     Computed,
+289: }
+290: 
+291: impl JsServerInit {
+292:     /// Compact JSON token per `artifact.ts` `ArtifactServerInit`.
+293:     pub fn to_json(self) -> &'static str {
+294:         match self {
+295:             JsServerInit::Actor => "\"actor\"",
+296:             JsServerInit::Now => "\"now\"",
+297:             JsServerInit::RandomSecret => "\"random_secret\"",
+298:             JsServerInit::Computed => "\"computed\"",
+299:         }
+300:     }
+301: }
+302: 
+303: /// One source-derived field default (JSON shape of `ArtifactFieldDefault`,
+304: /// mirroring L3 `CanonicalFieldDefault`).
+305: #[derive(Debug, Clone)]
+306: pub enum JsFieldDefault {
+307:     /// Wire-encoded literal value (pre-rendered compact JSON, never a JS
+308:     /// Number: ints/decimals/durations are canonical decimal strings,
+309:     /// money is `{minor, currency}`).
+310:     Literal(String),
+311:     /// Dot path off the loaded parent row (create only; leading `parent.`
+312:     /// stripped, e.g. `parent.parent.user` renders `"parent.user"`).
+313:     Parent { path: String },
+314:     /// Engine-resolved server initializer (T18 closed `init` vocabulary).
+315:     Server(JsServerInit),
+316:     /// Derived value marker (derived fields only; T18 executes).
+317:     Derived,
+318: }
+319: 
+320: impl JsFieldDefault {
+321:     /// Compact JSON in the owning artifact contract's field order.
+322:     pub fn to_json(&self) -> String {
+323:         descriptor_json(self)
+324:     }
+325: }
+326: 
+327: /// True for exactly `random_secret()` (no arguments): the one computed
+328: /// `server=` spelling the T18 closed set executes.
+329: fn is_random_secret_call(expr: &TypedExpr) -> bool {
+330:     match &expr.expr {
+
+compiler/src/codegen/js.rs:530-714
+530:     /// never present on update changes, which are partial).
+531:     pub default: Option<JsFieldDefault>,
+532:     /// Checked description source text, when authored (D03: the one
+533:     /// slot inline/attached/shared/legacy spellings feed; variants
+534:     /// never leave the source — localized MCP is deferred).
+535:     pub description: Option<String>,
+536: }
+537: 
+538: impl JsOperationField {
+539:     /// Compact JSON in the owning artifact contract's field order.
+540:     pub fn to_json(&self) -> String {
+541:         descriptor_json(self)
+542:     }
+543: }
+544: 
+545: /// One user-invocable operation descriptor (JSON shape of
+546: /// `OperationDescriptor`: `{name, kind, description, inputs}`).
+547: #[derive(Debug, Clone)]
+548: pub struct JsOperation {
+549:     /// Canonical operation identity (`Shop.approve`, `Shop.Gadget.create`).
+550:     pub name: String,
+551:     /// MCP operation kind.
+552:     pub kind: JsOperationKind,
+553:     /// Verbatim `#` description source text (`""` when absent).
+554:     pub description: String,
+555:     /// Closed typed inputs in signature order.
+556:     pub inputs: Vec<JsOperationField>,
+557: }
+558: 
+559: impl JsOperation {
+560:     /// Compact JSON in the owning artifact contract's field order.
+561:     pub fn to_json(&self) -> String {
+562:         descriptor_json(self)
+563:     }
+564: }
+565: 
+566: /// Whether an input list repeats a name. A repeated name (e.g. a model
+567: /// field literally named `record` beside the synthesized `record` ref)
+568: /// is an unmappable collision: the descriptors omit the operation
+569: /// rather than advertise an ambiguous closed schema.
+570: fn has_duplicate_names(inputs: &[JsOperationField]) -> bool {
+571:     let mut seen = BTreeSet::new();
+572:     inputs.iter().any(|input| !seen.insert(input.name.as_str()))
+573: }
+574: 
+575: /// Compact JSON array of operation descriptors, shared by the artifact
+576: /// envelope and the `canApp()` registry literal (one renderer, no drift).
+577: pub fn operations_json(operations: &[JsOperation]) -> String {
+578:     descriptor_json(operations)
+579: }
+580: 
+581: /// One stored-model field type tag (JSON shape of `ArtifactModelFieldType`).
+582: ///
+583: /// The `Ref`/scalar/`Enum`/`Delivery` members mirror [`JsMcpField`]
+584: /// (minus `require_version`, meaningless for stored rows); the
+585: /// `Date`..`Bytes` members are additive T04b-preview tags and `Other`
+586: /// is the honest fallback for bound-local deliveries, actions,
+587: /// unions, contracts and unknown shapes. T15b (provider join) refines
+588: /// T14c typed `std` receipts into `Delivery` here — never in a second
+589: /// format; unjoined shapes keep the `other` fallback.
+590: #[derive(Debug, Clone)]
+591: pub enum JsModelFieldType {
+592:     /// Stored-record reference: canonical target model.
+593:     Ref {
+594:         model: String,
+595:     },
+596:     String,
+597:     Integer,
+598:     Decimal,
+599:     Money,
+600:     Datetime,
+601:     Boolean,
+602:     File,
+603:     /// Anonymous enum: case spellings in declaration order.
+604:     Enum {
+605:         values: Vec<String>,
+606:     },
+607:     /// T15b provider delivery: a T14c typed `std` receipt (shared
+608:     /// [`JsDeliveryDescriptor`] shape with [`JsMcpField::Delivery`]).
+609:     Delivery(JsDeliveryDescriptor),
+610:     /// T04b-preview additive tags (source-exact; T04a intake ignores).
+611:     Date,
+612:     Duration,
+613:     Secret,
+614:     User,
+615:     Member,
+616:     Json,
+617:     Bytes,
+618:     /// Honest fallback: `type_id` is the source type id.
+619:     Other {
+620:         type_id: String,
+621:     },
+622: }
+623: 
+624: impl JsModelFieldType {
+625:     /// Compact JSON in the owning artifact contract's field order.
+626:     pub fn to_json(&self) -> String {
+627:         descriptor_json(self)
+628:     }
+629: }
+630: 
+631: /// One stored (or derived) model field (JSON shape of `ArtifactModelField`).
+632: #[derive(Debug, Clone)]
+633: pub struct JsModelField {
+634:     /// Field name (model-local).
+635:     pub name: String,
+636:     /// Element type tag (arrays add the `array` marker).
+637:     pub field: JsModelFieldType,
+638:     /// Whether omission rejects at creation.
+639:     pub required: bool,
+640:     /// Whether the field accepts explicit null.
+641:     pub nullable: bool,
+642:     /// Whether caller-supplied values are rejected.
+643:     pub server_only: bool,
+644:     /// T09 array marker for array fields (`!` spelling); `None` singular.
+645:     pub array_required: Option<bool>,
+646:     /// Source-declared default, when representable.
+647:     pub default: Option<JsFieldDefault>,
+648:     /// Optional field-owned lifecycle metadata.
+649:     pub machine: Option<JsMachine>,
+650:     /// Checked description source text, when authored.
+651:     pub description: Option<String>,
+652: }
+653: 
+654: impl JsModelField {
+655:     /// Compact JSON in the owning artifact contract's field order.
+656:     pub fn to_json(&self) -> String {
+657:         descriptor_json(self)
+658:     }
+659: }
+660: 
+661: /// One field-owned flat lifecycle, derived from checked transition sites.
+662: #[derive(Debug, Clone, Serialize)]
+663: pub struct JsMachine {
+664:     pub initial: String,
+665:     pub states: Vec<String>,
+666:     pub transitions: Vec<JsMachineTransition>,
+667: }
+668: 
+669: #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+670: pub struct JsMachineTransition {
+671:     pub from: String,
+672:     pub to: String,
+673:     pub operation: String,
+674: }
+675: 
+676: /// One stored model descriptor (JSON shape of `ArtifactModel`).
+677: #[derive(Debug, Clone, Serialize)]
+678: pub struct JsModel {
+679:     /// Canonical model identity.
+680:     pub name: String,
+681:     /// Stored then derived fields in source order.
+682:     pub fields: Vec<JsModelField>,
+683:     /// What a caller-asked remove does: `archive` (default), `remove`
+684:     /// (declared) or `none` (no enabled delete operation).
+685:     #[serde(rename = "deleteMode")]
+686:     pub delete_mode: String,
+687:     /// Unique keys in source order (empty omits the member).
+688:     #[serde(rename = "uniqueKeys", skip_serializing_if = "Vec::is_empty")]
+689:     pub unique_keys: Vec<String>,
+690:     /// Canonical parent model, for `in Parent` children.
+691:     #[serde(skip_serializing_if = "Option::is_none")]
+692:     pub parent: Option<String>,
+693:     /// Whether the model is app-scoped (`in app`).
+694:     #[serde(
+695:         rename = "scope",
+696:         skip_serializing_if = "is_false",
+697:         serialize_with = "serialize_app_scope"
+698:     )]
+699:     pub scope_app: bool,
+700: }
+701: 
+702: impl JsModel {
+703:     /// Compact JSON in the owning artifact contract's field order.
+704:     pub fn to_json(&self) -> String {
+705:         descriptor_json(self)
+706:     }
+707: }
+708: 
+709: /// Compact JSON array of model descriptors, rendered only by the artifact
+710: /// envelope (the runtime reads the richer `appDefinition.models` member;
+711: /// descriptors stay one format).
+712: pub fn models_json(models: &[JsModel]) -> String {
+713:     descriptor_json(models)
+714: }
+
+compiler/src/codegen/js.rs:715-970
+715: 
+716: impl Serialize for JsDeliveryDescriptor {
+717:     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+718:         let mut state = serializer.serialize_struct("Delivery", 5)?;
+719:         state.serialize_field("kind", "delivery")?;
+720:         state.serialize_field("capability", &self.capability)?;
+721:         state.serialize_field("operation", &self.operation)?;
+722:         state.serialize_field("version", &self.version)?;
+723:         state.serialize_field("result", &self.result)?;
+724:         state.end()
+725:     }
+726: }
+727: 
+728: // Borrowed wire adapters keep descriptor tags and member order explicit.
+729: #[derive(Serialize)]
+730: #[serde(tag = "kind", rename_all = "lowercase")]
+731: enum FieldTag<'a> {
+732:     Ref {
+733:         model: &'a str,
+734:         #[serde(rename = "requireVersion", skip_serializing_if = "Option::is_none")]
+735:         require_version: Option<bool>,
+736:     },
+737:     String,
+738:     Integer,
+739:     Decimal,
+740:     Money,
+741:     Datetime,
+742:     Boolean,
+743:     File,
+744:     Enum {
+745:         values: &'a [String],
+746:     },
+747:     Date,
+748:     Duration,
+749:     Secret,
+750:     User,
+751:     Member,
+752:     Json,
+753:     Bytes,
+754:     Other {
+755:         #[serde(rename = "type")]
+756:         type_id: &'a str,
+757:     },
+758: }
+759: 
+760: impl Serialize for JsMcpField {
+761:     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+762:         let tag = match self {
+763:             Self::Ref {
+764:                 model,
+765:                 require_version,
+766:             } => FieldTag::Ref {
+767:                 model,
+768:                 require_version: Some(*require_version),
+769:             },
+770:             Self::String => FieldTag::String,
+771:             Self::Integer => FieldTag::Integer,
+772:             Self::Decimal => FieldTag::Decimal,
+773:             Self::Money => FieldTag::Money,
+774:             Self::Datetime => FieldTag::Datetime,
+775:             Self::Boolean => FieldTag::Boolean,
+776:             Self::File => FieldTag::File,
+777:             Self::Enum { values } => FieldTag::Enum { values },
+778:             Self::Delivery(value) => return value.serialize(serializer),
+779:         };
+780:         tag.serialize(serializer)
+781:     }
+782: }
+783: 
+784: impl Serialize for JsModelFieldType {
+785:     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+786:         let tag = match self {
+787:             Self::Ref { model } => FieldTag::Ref {
+788:                 model,
+789:                 require_version: None,
+790:             },
+791:             Self::String => FieldTag::String,
+792:             Self::Integer => FieldTag::Integer,
+793:             Self::Decimal => FieldTag::Decimal,
+794:             Self::Money => FieldTag::Money,
+795:             Self::Datetime => FieldTag::Datetime,
+796:             Self::Boolean => FieldTag::Boolean,
+797:             Self::File => FieldTag::File,
+798:             Self::Enum { values } => FieldTag::Enum { values },
+799:             Self::Date => FieldTag::Date,
+800:             Self::Duration => FieldTag::Duration,
+801:             Self::Secret => FieldTag::Secret,
+802:             Self::User => FieldTag::User,
+803:             Self::Member => FieldTag::Member,
+804:             Self::Json => FieldTag::Json,
+805:             Self::Bytes => FieldTag::Bytes,
+806:             Self::Other { type_id } => FieldTag::Other { type_id },
+807:             Self::Delivery(value) => return value.serialize(serializer),
+808:         };
+809:         tag.serialize(serializer)
+810:     }
+811: }
+812: 
+813: impl Serialize for JsFieldDefault {
+814:     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+815:         #[derive(Serialize)]
+816:         #[serde(tag = "kind", rename_all = "lowercase")]
+817:         enum DefaultWire<'a> {
+818:             Literal {
+819:                 value: &'a serde_json::value::RawValue,
+820:             },
+821:             Parent {
+822:                 path: &'a str,
+823:             },
+824:             Server {
+825:                 init: JsServerInit,
+826:             },
+827:             Derived,
+828:         }
+829:         match self {
+830:             Self::Literal(json) => {
+831:                 let raw = serde_json::from_str::<&serde_json::value::RawValue>(json)
+832:                     .map_err(serde::ser::Error::custom)?;
+833:                 DefaultWire::Literal { value: raw }.serialize(serializer)
+834:             }
+835:             Self::Parent { path } => DefaultWire::Parent { path }.serialize(serializer),
+836:             Self::Server(init) => DefaultWire::Server { init: *init }.serialize(serializer),
+837:             Self::Derived => DefaultWire::Derived.serialize(serializer),
+838:         }
+839:     }
+840: }
+841: 
+842: #[derive(Serialize)]
+843: struct ArrayMarker {
+844:     required: bool,
+845: }
+846: 
+847: impl Serialize for JsOperationField {
+848:     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+849:         let mut state = serializer.serialize_struct(
+850:             "OperationField",
+851:             3 + usize::from(self.nullable)
+852:                 + usize::from(self.array_required.is_some())
+853:                 + usize::from(self.default.is_some())
+854:                 + usize::from(self.description.is_some()),
+855:         )?;
+856:         state.serialize_field("name", &self.name)?;
+857:         state.serialize_field("field", &self.field)?;
+858:         state.serialize_field("required", &self.required)?;
+859:         if self.nullable {
+860:             state.serialize_field("nullable", &true)?;
+861:         }
+862:         if let Some(required) = self.array_required {
+863:             state.serialize_field("array", &ArrayMarker { required })?;
+864:         }
+865:         if let Some(default) = &self.default {
+866:             state.serialize_field("default", default)?;
+867:         }
+868:         if let Some(description) = &self.description {
+869:             state.serialize_field("description", description)?;
+870:         }
+871:         state.end()
+872:     }
+873: }
+874: 
+875: impl Serialize for JsModelField {
+876:     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+877:         let mut state = serializer.serialize_struct(
+878:             "ModelField",
+879:             4 + usize::from(self.nullable)
+880:                 + usize::from(self.array_required.is_some())
+881:                 + usize::from(self.default.is_some())
+882:                 + usize::from(self.description.is_some())
+883:                 + usize::from(self.machine.is_some()),
+884:         )?;
+885:         state.serialize_field("name", &self.name)?;
+886:         state.serialize_field("field", &self.field)?;
+887:         state.serialize_field("required", &self.required)?;
+888:         state.serialize_field("serverOnly", &self.server_only)?;
+889:         if let Some(machine) = &self.machine {
+890:             state.serialize_field("machine", machine)?;
+891:         }
+892:         if self.nullable {
+893:             state.serialize_field("nullable", &true)?;
+894:         }
+895:         if let Some(required) = self.array_required {
+896:             state.serialize_field("array", &ArrayMarker { required })?;
+897:         }
+898:         if let Some(default) = &self.default {
+899:             state.serialize_field("default", default)?;
+900:         }
+901:         if let Some(description) = &self.description {
+902:             state.serialize_field("description", description)?;
+903:         }
+904:         state.end()
+905:     }
+906: }
+907: 
+908: impl Serialize for JsOperation {
+909:     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+910:         #[derive(Serialize)]
+911:         struct Inputs<'a> {
+912:             fields: &'a [JsOperationField],
+913:         }
+914:         let mut state = serializer.serialize_struct("Operation", 4)?;
+915:         state.serialize_field("name", &self.name)?;
+916:         state.serialize_field("kind", self.kind.as_str())?;
+917:         state.serialize_field("description", &self.description)?;
+918:         state.serialize_field(
+919:             "inputs",
+920:             &Inputs {
+921:                 fields: &self.inputs,
+922:             },
+923:         )?;
+924:         state.end()
+925:     }
+926: }
+927: 
+928: fn serialize_app_scope<S: Serializer>(_: &bool, serializer: S) -> Result<S::Ok, S::Error> {
+929:     serializer.serialize_str("app")
+930: }
+931: 
+932: /// Production modules plus link metadata.
+933: #[derive(Debug, Clone)]
+934: pub struct JsOutput {
+935:     /// Program entrypoint module (first in the artifact).
+936:     pub entry: JsModule,
+937:     /// One module per non-entrypoint package, in source order.
+938:     pub packages: Vec<JsModule>,
+939:     /// `E6008` diagnostics for checked-but-unlowerable positions.
+940:     pub diagnostics: Vec<Diagnostic>,
+941:     /// Catalog builtins the lowering references (for `E6007` checks).
+942:     pub referenced_builtins: Vec<ReferencedBuiltin>,
+943:     /// Callable registry entries in source order.
+944:     pub callables: Vec<JsCallable>,
+945:     /// Page descriptors in source order.
+946:     pub pages: Vec<JsPage>,
+947:     /// User-invocable operation descriptors in source order (MCP P1).
+948:     pub operations: Vec<JsOperation>,
+949:     /// `@canlang/stdlib` imports used by the entrypoint.
+950:     pub stdlib_imports: BTreeSet<String>,
+951:     /// `@canlang/ui` imports used by the entrypoint.
+952:     pub ui_imports: BTreeSet<String>,
+953: }
+954: 
+955: /// Line-oriented writer attributing every emitted line to a source span.
+956: #[derive(Debug, Default)]
+957: pub struct JsWriter {
+958:     buf: String,
+959:     lines: Vec<JsLine>,
+960: }
+961: 
+962: impl JsWriter {
+963:     /// Create an empty writer.
+964:     pub fn new() -> Self {
+965:         Self::default()
+966:     }
+967: 
+968:     /// Push one line attributed to `span` (and optionally `name`).
+969:     pub fn push(&mut self, span: Span, name: Option<String>, text: &str) {
+970:         self.buf.push_str(text);
+
+compiler/src/codegen/js.rs:5728-5740
+5728:         // inputs}` objects the artifact envelope carries (MCP P1).
+5729:         // Sparse like every other `canApp()` member: omitted when the
+5730:         // program has no operations.
+5731:         if !operations.is_empty() {
+5732:             out.push(
+5733:                 entry_span,
+5734:                 Some("canApp".to_string()),
+5735:                 &format!("operations:{},", operations_json(operations)),
+5736:             );
+5737:         }
+5738:         self.emit_rule_map(out, "read", entry_span);
+5739:         self.emit_rule_map(out, "invariants", entry_span);
+5740:         self.emit_locks_map(out, entry_span);
+
+compiler/src/codegen/artifact.rs:517-620
+517: pub fn to_json(artifact: &CompileArtifact) -> String {
+518:     let wire = ArtifactWire {
+519:         artifact_version: ARTIFACT_VERSION,
+520:         language_version: &artifact.language_version,
+521:         tool_version: &artifact.tool_version,
+522:         sources: artifact
+523:             .sources
+524:             .iter()
+525:             .map(|source| SourceWire {
+526:                 path: &source.path,
+527:                 sha256: &source.sha256,
+528:             })
+529:             .collect(),
+530:         modules: artifact.modules.iter().map(ModuleWire::new).collect(),
+531:         callables: artifact
+532:             .callables
+533:             .iter()
+534:             .map(|callable| CallableWire {
+535:                 id: &callable.id,
+536:                 kind: &callable.kind,
+537:                 module: &callable.module,
+538:                 export: &callable.export,
+539:                 member: &callable.member,
+540:                 input_style: callable.input_style.as_deref(),
+541:             })
+542:             .collect(),
+543:         operations: &artifact.operations,
+544:         models: &artifact.models,
+545:         pages: artifact
+546:             .pages
+547:             .iter()
+548:             .map(|page| PageWire {
+549:                 owner: &page.owner,
+550:                 path: &page.path,
+551:                 module: &page.module,
+552:                 export: &page.export,
+553:             })
+554:             .collect(),
+555:         migrations: artifact
+556:             .migrations
+557:             .iter()
+558:             .map(|migration| MigrationWire {
+559:                 id: &migration.id,
+560:                 owner: &migration.owner,
+561:                 from: &migration.from,
+562:                 body_digest: &migration.body_digest,
+563:                 directives: migration
+564:                     .directives
+565:                     .iter()
+566:                     .map(|directive| DirectiveWire {
+567:                         kind: &directive.kind,
+568:                         from: directive.from.as_deref(),
+569:                         to: directive.to.as_deref(),
+570:                         model: directive.model.as_deref(),
+571:                         field: directive.field.as_deref(),
+572:                         handler_contract: directive.handler_contract.as_deref(),
+573:                     })
+574:                     .collect(),
+575:             })
+576:             .collect(),
+577:         requires: artifact
+578:             .requires
+579:             .iter()
+580:             .map(|require| RequirementWire {
+581:                 capability: &require.capability,
+582:                 min_version: require.min_version,
+583:             })
+584:             .collect(),
+585:         tests: artifact
+586:             .tests
+587:             .iter()
+588:             .map(|test| TestWire {
+589:                 scope: &test.scope,
+590:                 module: ModuleWire::new(&test.module),
+591:                 fixtures: &test.fixtures,
+592:             })
+593:             .collect(),
+594:     };
+595:     crate::json::to_compact_string(&wire).expect("artifact DTO serialization is infallible")
+596: }
+597: 
+598: #[derive(Serialize)]
+599: struct ArtifactWire<'a> {
+600:     artifact_version: u32,
+601:     language_version: &'a str,
+602:     tool_version: &'a str,
+603:     sources: Vec<SourceWire<'a>>,
+604:     modules: Vec<ModuleWire<'a>>,
+605:     callables: Vec<CallableWire<'a>>,
+606:     operations: &'a [JsOperation],
+607:     models: &'a [JsModel],
+608:     pages: Vec<PageWire<'a>>,
+609:     migrations: Vec<MigrationWire<'a>>,
+610:     requires: Vec<RequirementWire<'a>>,
+611:     tests: Vec<TestWire<'a>>,
+612: }
+613: 
+614: #[derive(Serialize)]
+615: struct SourceWire<'a> {
+616:     path: &'a str,
+617:     sha256: &'a str,
+618: }
+619: 
+620: #[derive(Serialize)]
+
+compiler/src/lint/driver.rs:340-440
+340:     end: u32,
+341: }
+342: 
+343: impl From<Span> for FixSpan {
+344:     fn from(span: Span) -> Self {
+345:         Self {
+346:             start: span.start,
+347:             end: span.end,
+348:         }
+349:     }
+350: }
+351: 
+352: impl serde::Serialize for LintFix {
+353:     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+354:         #[derive(serde::Serialize)]
+355:         struct FixWire<'a> {
+356:             rule: &'a str,
+357:             title: &'a str,
+358:             file: u32,
+359:             span: FixSpan,
+360:             expected_sha256: &'a str,
+361:             replacement: &'a str,
+362:         }
+363:         FixWire {
+364:             rule: self.rule,
+365:             title: &self.title,
+366:             file: self.file.0,
+367:             span: self.span.into(),
+368:             expected_sha256: &self.expected_sha256,
+369:             replacement: &self.replacement,
+370:         }
+371:         .serialize(serializer)
+372:     }
+373: }
+374: 
+375: impl serde::Serialize for FixRejected {
+376:     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+377:         #[derive(serde::Serialize)]
+378:         #[serde(tag = "reason", rename_all = "snake_case")]
+379:         enum Detail<'a> {
+380:             Stale { expected: &'a str, found: &'a str },
+381:             SpanInvalid { start: u32, end: u32, len: usize },
+382:             Overlap { first: FixSpan, second: FixSpan },
+383:         }
+384:         #[derive(serde::Serialize)]
+385:         struct Rejection<'a> {
+386:             status: &'static str,
+387:             #[serde(flatten)]
+388:             detail: Detail<'a>,
+389:         }
+390:         let detail = match self {
+391:             Self::Stale { expected, found } => Detail::Stale { expected, found },
+392:             Self::SpanInvalid { start, end, len } => Detail::SpanInvalid {
+393:                 start: *start,
+394:                 end: *end,
+395:                 len: *len,
+396:             },
+397:             Self::Overlap { first, second } => Detail::Overlap {
+398:                 first: (*first).into(),
+399:                 second: (*second).into(),
+400:             },
+401:         };
+402:         Rejection {
+403:             status: "rejected",
+404:             detail,
+405:         }
+406:         .serialize(serializer)
+407:     }
+408: }
+409: 
+410: /// Render one fix as compact single-line JSON with fixed key order:
+411: ///
+412: /// `{"rule":..,"title":..,"file":N,"span":{"start":N,"end":N},"expected_sha256":..,"replacement":..}`
+413: ///
+414: /// `file` is the numeric [`SourceId`] resolvable through the envelope's
+415: /// `sources` array. String escaping uses the shared typed JSON adapter,
+416: /// matching the diagnostic envelope. This is the agent fix-JSON shape
+417: /// consumed by `can lint --fix --format=json` and downstream authoring
+418: /// work: keep the key order stable.
+419: pub fn fix_to_json(fix: &LintFix) -> String {
+420:     crate::json::to_compact_string(fix).expect("lint fix JSON serialization invariant")
+421: }
+422: 
+423: /// Render fixes as a compact JSON array (`[]` when empty). Callers pass
+424: /// [`collect_fixes`] output, which is already in deterministic
+425: /// `(file, start, end, rule)` order; this function preserves slice order.
+426: pub fn fixes_to_json(fixes: &[LintFix]) -> String {
+427:     crate::json::to_compact_string(fixes).expect("lint fixes JSON serialization invariant")
+428: }
+429: 
+430: /// Render a refusal as compact single-line JSON with fixed key order:
+431: ///
+432: /// * stale: `{"status":"rejected","reason":"stale","expected":..,"found":..}`
+433: /// * span: `{"status":"rejected","reason":"span_invalid","start":N,"end":N,"len":N}`
+434: /// * overlap: `{"status":"rejected","reason":"overlap","first":{"start":N,"end":N},"second":{...}}`
+435: ///
+436: /// Agents detect staleness from `"reason":"stale"` plus the two hashes;
+437: /// nothing here is silent.
+438: pub fn rejected_to_json(rejected: &FixRejected) -> String {
+439:     crate::json::to_compact_string(rejected).expect("lint rejection JSON serialization invariant")
+440: }
+
+compiler/src/cli.rs:1678-1735
+1678:     }
+1679:     let mut db = SourceDb::new();
+1680:     for path in operands {
+1681:         let text = match std::fs::read_to_string(path) {
+1682:             Ok(text) => text,
+1683:             Err(err) => {
+1684:                 return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
+1685:             }
+1686:         };
+1687:         db.add(path.clone(), text);
+1688:     }
+1689:     let owned = analyzer.analyze_owned(&db, tool_version());
+1690:     let mut result = owned.result;
+1691:     result.finish();
+1692:     if result.has_errors() {
+1693:         return emit_diagnostics(&result, &db, format);
+1694:     }
+1695:     let Some(program) = owned.program else {
+1696:         return DispatchResult::tool_error(
+1697:             "E7001",
+1698:             "can lint needs a pipeline analyzer; this backend keeps no checked program (production dispatch always passes one)".to_string(),
+1699:         );
+1700:     };
+1701:     let config = crate::lint::LintConfig {
+1702:         enabled: crate::lint::RuleSet::recommended(),
+1703:         fix,
+1704:         deprecated: owned
+1705:             .catalog
+1706:             .as_ref()
+1707:             .map(crate::lint::DeprecatedSet::from_catalog),
+1708:     };
+1709:     for finding in crate::lint::lint_program(&program, &db, &config) {
+1710:         result.push(finding);
+1711:     }
+1712:     result.finish();
+1713:     let fixes = crate::lint::collect_fixes(&program, &db, &config);
+1714:     let stdout = match format {
+1715:         OutputFormat::Json => {
+1716:             if !fix {
+1717:                 format!("{}\n", result.to_json())
+1718:             } else {
+1719:                 #[derive(serde::Serialize)]
+1720:                 struct LintOutput<'a> {
+1721:                     #[serde(flatten)]
+1722:                     diagnostics: &'a DiagnosticResult,
+1723:                     fixes: &'a [crate::lint::LintFix],
+1724:                 }
+1725:                 let output = crate::json::to_compact_string(&LintOutput {
+1726:                     diagnostics: &result,
+1727:                     fixes: &fixes,
+1728:                 })
+1729:                 .expect("closed lint output DTO must serialize");
+1730:                 format!("{output}\n")
+1731:             }
+1732:         }
+1733:         OutputFormat::Text => {
+1734:             let mut text = result.to_text(&db);
+1735:             if fix {
+
+compiler/tests/typed_descriptors.rs:1-400
+1: //! Independent byte contracts for descriptor Serde adapters and exact literals.
+2: use canlang_compiler::analysis::types::ResolvedType;
+3: use canlang_compiler::codegen::ir::{IrCallTarget, IrExpr, IrUnOp, TypedExpr};
+4: use canlang_compiler::codegen::js::*;
+5: use canlang_compiler::source::{SourceId, Span};
+6: 
+7: fn expr(value: IrExpr) -> TypedExpr {
+8:     TypedExpr::new(value, ResolvedType::Unknown, Span::new(SourceId(0), 0, 0))
+9: }
+10: fn delivery() -> JsDeliveryDescriptor {
+11:     JsDeliveryDescriptor {
+12:         capability: "std.EmailV1".into(),
+13:         operation: "send".into(),
+14:         version: 1,
+15:         result: JsNominalResult {
+16:             name: "Receipt".into(),
+17:             fields: vec![
+18:                 JsNominalLeaf {
+19:                     name: "z".into(),
+20:                     declared: "text?".into(),
+21:                 },
+22:                 JsNominalLeaf {
+23:                     name: "a".into(),
+24:                     declared: "file[]".into(),
+25:                 },
+26:             ],
+27:         },
+28:     }
+29: }
+30: #[test]
+31: fn nested_delivery_and_nominal_order() {
+32:     let expected = r#"{"kind":"delivery","capability":"std.EmailV1","operation":"send","version":1,"result":{"name":"Receipt","fields":[{"name":"z","type":"text?"},{"name":"a","type":"file[]"}]}}"#;
+33:     assert_eq!(delivery().to_json(), expected);
+34:     assert_eq!(JsMcpField::Delivery(delivery()).to_json(), expected);
+35:     assert_eq!(JsModelFieldType::Delivery(delivery()).to_json(), expected);
+36: }
+37: #[test]
+38: fn operation_order_omissions_and_present_empty_metadata() {
+39:     let mut input = JsOperationField {
+40:         name: "id".into(),
+41:         field: JsMcpField::Ref {
+42:             model: "P.Row".into(),
+43:             require_version: false,
+44:         },
+45:         required: true,
+46:         nullable: false,
+47:         array_required: None,
+48:         default: None,
+49:         description: None,
+50:     };
+51:     assert_eq!(
+52:         input.to_json(),
+53:         r#"{"name":"id","field":{"kind":"ref","model":"P.Row","requireVersion":false},"required":true}"#
+54:     );
+55:     input.nullable = true;
+56:     input.array_required = Some(false);
+57:     input.default = Some(JsFieldDefault::Literal(
+58:         r#"{"z":["9223372036854775807",null],"a":true}"#.into(),
+59:     ));
+60:     input.description = Some("".into());
+61:     let operation = JsOperation {
+62:         name: "P.go".into(),
+63:         kind: JsOperationKind::Scenario,
+64:         description: "é😀\n\t\u{8}\u{c}\u{1}\"\\".into(),
+65:         inputs: vec![input],
+66:     };
+67:     assert_eq!(
+68:         operations_json(&[operation]),
+69:         r#"[{"name":"P.go","kind":"scenario","description":"é😀\n\t\u0008\u000c\u0001\"\\","inputs":{"fields":[{"name":"id","field":{"kind":"ref","model":"P.Row","requireVersion":false},"required":true,"nullable":true,"array":{"required":false},"default":{"kind":"literal","value":{"z":["9223372036854775807",null],"a":true}},"description":""}]}}]"#
+70:     );
+71:     assert_eq!(operations_json(&[]), "[]");
+72: }
+73: #[test]
+74: fn all_tags_and_defaults_are_closed() {
+75:     let fields = [
+76:         JsMcpField::String,
+77:         JsMcpField::Integer,
+78:         JsMcpField::Decimal,
+79:         JsMcpField::Money,
+80:         JsMcpField::Datetime,
+81:         JsMcpField::Boolean,
+82:         JsMcpField::File,
+83:     ];
+84:     for (field, tag) in fields.iter().zip([
+85:         "string", "integer", "decimal", "money", "datetime", "boolean", "file",
+86:     ]) {
+87:         assert_eq!(field.to_json(), format!(r#"{{"kind":"{tag}"}}"#));
+88:     }
+89:     assert_eq!(
+90:         JsMcpField::Enum {
+91:             values: vec!["z".into(), "a".into()]
+92:         }
+93:         .to_json(),
+94:         r#"{"kind":"enum","values":["z","a"]}"#
+95:     );
+96:     let fields = [
+97:         JsModelFieldType::String,
+98:         JsModelFieldType::Integer,
+99:         JsModelFieldType::Decimal,
+100:         JsModelFieldType::Money,
+101:         JsModelFieldType::Datetime,
+102:         JsModelFieldType::Boolean,
+103:         JsModelFieldType::File,
+104:         JsModelFieldType::Date,
+105:         JsModelFieldType::Duration,
+106:         JsModelFieldType::Secret,
+107:         JsModelFieldType::User,
+108:         JsModelFieldType::Member,
+109:         JsModelFieldType::Json,
+110:         JsModelFieldType::Bytes,
+111:     ];
+112:     for (field, tag) in fields.iter().zip([
+113:         "string", "integer", "decimal", "money", "datetime", "boolean", "file", "date", "duration",
+114:         "secret", "user", "member", "json", "bytes",
+115:     ]) {
+116:         assert_eq!(field.to_json(), format!(r#"{{"kind":"{tag}"}}"#));
+117:     }
+118:     assert_eq!(
+119:         JsModelFieldType::Ref {
+120:             model: "P.Row".into()
+121:         }
+122:         .to_json(),
+123:         r#"{"kind":"ref","model":"P.Row"}"#
+124:     );
+125:     assert_eq!(
+126:         JsModelFieldType::Enum { values: vec![] }.to_json(),
+127:         r#"{"kind":"enum","values":[]}"#
+128:     );
+129:     assert_eq!(
+130:         JsModelFieldType::Other {
+131:             type_id: "P.X".into()
+132:         }
+133:         .to_json(),
+134:         r#"{"kind":"other","type":"P.X"}"#
+135:     );
+136:     assert_eq!(
+137:         JsFieldDefault::Parent {
+138:             path: "parent.user".into()
+139:         }
+140:         .to_json(),
+141:         r#"{"kind":"parent","path":"parent.user"}"#
+142:     );
+143:     assert_eq!(JsFieldDefault::Derived.to_json(), r#"{"kind":"derived"}"#);
+144:     for (init, tag) in [
+145:         (JsServerInit::Actor, "actor"),
+146:         (JsServerInit::Now, "now"),
+147:         (JsServerInit::RandomSecret, "random_secret"),
+148:         (JsServerInit::Computed, "computed"),
+149:     ] {
+150:         assert_eq!(
+151:             JsFieldDefault::Server(init).to_json(),
+152:             format!(r#"{{"kind":"server","init":"{tag}"}}"#)
+153:         );
+154:         assert_eq!(serde_json::to_string(&init).unwrap(), init.to_json());
+155:     }
+156:     assert!(serde_json::to_string(&JsFieldDefault::Literal("invalid".into())).is_err());
+157: }
+158: #[test]
+159: fn model_order_optional_members_and_array_false() {
+160:     let mut model = JsModel {
+161:         name: "P.Row".into(),
+162:         fields: vec![JsModelField {
+163:             name: "value".into(),
+164:             field: JsModelFieldType::Integer,
+165:             required: false,
+166:             nullable: false,
+167:             server_only: true,
+168:             array_required: None,
+169:             default: None,
+170:             description: None,
+171:             machine: None,
+172:         }],
+173:         delete_mode: "none".into(),
+174:         unique_keys: vec![],
+175:         parent: None,
+176:         scope_app: false,
+177:     };
+178:     assert_eq!(
+179:         model.to_json(),
+180:         r#"{"name":"P.Row","fields":[{"name":"value","field":{"kind":"integer"},"required":false,"serverOnly":true}],"deleteMode":"none"}"#
+181:     );
+182:     model.fields[0].nullable = true;
+183:     model.fields[0].array_required = Some(false);
+184:     model.fields[0].default = Some(JsFieldDefault::Literal("null".into()));
+185:     model.fields[0].description = Some("".into());
+186:     model.unique_keys = vec!["z".into(), "a".into()];
+187:     model.parent = Some("".into());
+188:     model.scope_app = true;
+189:     assert_eq!(
+190:         models_json(&[model]),
+191:         r#"[{"name":"P.Row","fields":[{"name":"value","field":{"kind":"integer"},"required":false,"serverOnly":true,"nullable":true,"array":{"required":false},"default":{"kind":"literal","value":null},"description":""}],"deleteMode":"none","uniqueKeys":["z","a"],"parent":"","scope":"app"}]"#
+192:     );
+193:     assert_eq!(models_json(&[]), "[]");
+194: }
+195: #[test]
+196: fn exact_literal_scalars_nested_order_and_controls() {
+197:     let literal = expr(IrExpr::Object(vec![
+198:         (
+199:             "z".into(),
+200:             expr(IrExpr::Array(vec![
+201:                 expr(IrExpr::Int(9223372036854775807)),
+202:                 expr(IrExpr::Decimal("12345678901234567890.1200".into())),
+203:                 expr(IrExpr::DurationMs(1200)),
+204:                 expr(IrExpr::Money {
+205:                     minor: 9223372036854775807,
+206:                     currency: "EUR".into(),
+207:                 }),
+208:                 expr(IrExpr::Bool(true)),
+209:                 expr(IrExpr::Null),
+210:             ])),
+211:         ),
+212:         (
+213:             "a\n".into(),
+214:             expr(IrExpr::Text("é😀\u{0}\u{8}\u{c}\r\t\"\\".into())),
+215:         ),
+216:         ("z".into(), expr(IrExpr::Date("2026-10-07".into()))),
+217:     ]));
+218:     assert_eq!(
+219:         literal_json(&literal).unwrap(),
+220:         r#"{"z":["9223372036854775807","12345678901234567890.1200","1200",{"minor":"9223372036854775807","currency":"EUR"},true,null],"a\n":"é😀\u0000\u0008\u000c\r\t\"\\","z":"2026-10-07"}"#
+221:     );
+222:     for (value, expected) in [
+223:         (IrExpr::Int(i128::MAX), format!("\"{}\"", i128::MAX)),
+224:         (IrExpr::Int(i128::MIN), format!("\"{}\"", i128::MIN)),
+225:         (IrExpr::Bool(false), "false".into()),
+226:         (IrExpr::Datetime("stamp".into()), "\"stamp\"".into()),
+227:     ] {
+228:         assert_eq!(literal_json(&expr(value)).unwrap(), expected);
+229:     }
+230: }
+231: #[test]
+232: fn unary_overflow_and_nonliteral_rejection_and_constructor_calls() {
+233:     let neg = |value| {
+234:         expr(IrExpr::Unary {
+235:             op: IrUnOp::Neg,
+236:             operand: Box::new(expr(value)),
+237:         })
+238:     };
+239:     assert_eq!(literal_json(&neg(IrExpr::Int(42))), Some("\"-42\"".into()));
+240:     assert_eq!(
+241:         literal_json(&neg(IrExpr::Decimal("1.500".into()))),
+242:         Some("\"-1.500\"".into())
+243:     );
+244:     assert_eq!(literal_json(&neg(IrExpr::Int(i128::MIN))), None);
+245:     assert_eq!(
+246:         literal_json(&expr(IrExpr::Array(vec![expr(IrExpr::Name("x".into()))]))),
+247:         None
+248:     );
+249:     let call = |id: &str, args| {
+250:         expr(IrExpr::Call {
+251:             target: IrCallTarget::Builtin {
+252:                 id: id.into(),
+253:                 awaited: false,
+254:             },
+255:             args,
+256:         })
+257:     };
+258:     assert_eq!(
+259:         literal_json(&call(
+260:             "money",
+261:             vec![expr(IrExpr::Int(7)), expr(IrExpr::Text("EUR".into()))]
+262:         )),
+263:         Some(r#"{"minor":"7","currency":"EUR"}"#.into())
+264:     );
+265:     for id in ["date", "datetime"] {
+266:         assert_eq!(
+267:             literal_json(&call(id, vec![expr(IrExpr::Text("stamp".into()))])),
+268:             Some("\"stamp\"".into())
+269:         );
+270:     }
+271: }
+
+compiler/tests/typed_fixes.rs:1-200
+1: //! Independent fixed bytes for the lint fix/rejection output contract.
+2: use canlang_compiler::lint::driver::{
+3:     FixRejected, LintFix, fix_to_json, fixes_to_json, rejected_to_json,
+4: };
+5: use canlang_compiler::source::{SourceId, Span};
+6: 
+7: fn fix() -> LintFix {
+8:     LintFix {
+9:         rule: "redundant-null-marker",
+10:         title: "é😀\n\r\t\u{0}\u{8}\u{c}\"\\".into(),
+11:         file: SourceId(u32::MAX),
+12:         span: Span::new(SourceId(7), 0, u32::MAX),
+13:         expected_sha256: "hash".into(),
+14:         replacement: "".into(),
+15:     }
+16: }
+17: 
+18: #[test]
+19: fn fix_field_order_controls_unicode_and_u32_bounds() {
+20:     assert_eq!(
+21:         fix_to_json(&fix()),
+22:         r#"{"rule":"redundant-null-marker","title":"é😀\n\r\t\u0000\u0008\u000c\"\\","file":4294967295,"span":{"start":0,"end":4294967295},"expected_sha256":"hash","replacement":""}"#
+23:     );
+24: }
+25: 
+26: #[test]
+27: fn fix_list_is_ordered_and_empty_is_brackets() {
+28:     assert_eq!(fixes_to_json(&[]), "[]");
+29:     let mut first = fix();
+30:     first.title = "z".into();
+31:     first.file = SourceId(9);
+32:     let mut second = first.clone();
+33:     second.title = "a".into();
+34:     second.file = SourceId(0);
+35:     second.replacement = "x\n".into();
+36:     assert_eq!(
+37:         fixes_to_json(&[first, second]),
+38:         r#"[{"rule":"redundant-null-marker","title":"z","file":9,"span":{"start":0,"end":4294967295},"expected_sha256":"hash","replacement":""},{"rule":"redundant-null-marker","title":"a","file":0,"span":{"start":0,"end":4294967295},"expected_sha256":"hash","replacement":"x\n"}]"#
+39:     );
+40: }
+41: 
+42: #[test]
+43: fn every_rejection_variant_has_fixed_order_and_span_shape() {
+44:     assert_eq!(
+45:         rejected_to_json(&FixRejected::Stale {
+46:             expected: "é😀\u{8}\u{c}\n\"\\".into(),
+47:             found: "".into()
+48:         }),
+49:         r#"{"status":"rejected","reason":"stale","expected":"é😀\u0008\u000c\n\"\\","found":""}"#
+50:     );
+51:     assert_eq!(
+52:         rejected_to_json(&FixRejected::SpanInvalid {
+53:             start: u32::MAX,
+54:             end: 0,
+55:             len: 0
+56:         }),
+57:         r#"{"status":"rejected","reason":"span_invalid","start":4294967295,"end":0,"len":0}"#
+58:     );
+59:     assert_eq!(
+60:         rejected_to_json(&FixRejected::Overlap {
+61:             first: Span::new(SourceId(5), 0, 7),
+62:             second: Span::new(SourceId(9), 2, u32::MAX)
+63:         }),
+64:         r#"{"status":"rejected","reason":"overlap","first":{"start":0,"end":7},"second":{"start":2,"end":4294967295}}"#
+65:     );
+66: }
+67: 
+68: #[test]
+69: fn fixes_serialize_as_typed_envelope_members() {
+70:     #[derive(serde::Serialize)]
+71:     struct Envelope<'a> {
+72:         version: u32,
+73:         fixes: &'a [LintFix],
+74:     }
+75:     let mut value = fix();
+76:     value.title = "".into();
+77:     value.file = SourceId(0);
+78:     value.span = Span::new(SourceId(0), 0, 0);
+79:     let values = [value];
+80:     assert_eq!(
+81:         canlang_compiler::json::to_compact_string(&Envelope {
+82:             version: 1,
+83:             fixes: &values
+84:         })
+85:         .unwrap(),
+86:         r#"{"version":1,"fixes":[{"rule":"redundant-null-marker","title":"","file":0,"span":{"start":0,"end":0},"expected_sha256":"hash","replacement":""}]}"#
+87:     );
+88: }
+
+compiler/tests/typed_fixes_cli.rs:1-100
+1: //! Actual CLI envelope extension, including the empty but present fixes array.
+2: use canlang_compiler::json::{self, Json};
+3: use std::process::Command;
+4: 
+5: #[test]
+6: fn lint_fix_flag_controls_presence_order_and_single_newline() {
+7:     let dir = tempfile::tempdir().unwrap();
+8:     let source = dir.path().join("empty.can");
+9:     let catalog = dir.path().join("catalog.json");
+10:     std::fs::write(&source, "app Demo\nGiven\nWhen\nThen\n").unwrap();
+11:     std::fs::write(
+12:         &catalog,
+13:         r#"{"language_version":"1.0","catalog_version":"test","entries":[]}"#,
+14:     )
+15:     .unwrap();
+16:     let mut without = String::new();
+17:     for fix in [false, true] {
+18:         let mut command = Command::new(env!("CARGO_BIN_EXE_can"));
+19:         command
+20:             .args(["lint", "--format=json", "--catalog"])
+21:             .arg(&catalog)
+22:             .arg(&source);
+23:         if fix {
+24:             command.arg("--fix");
+25:         }
+26:         let result = command.output().unwrap();
+27:         assert!(result.status.success(), "{result:?}");
+28:         assert!(result.stderr.is_empty());
+29:         let text = String::from_utf8(result.stdout).unwrap();
+30:         assert_eq!(text.bytes().filter(|byte| *byte == b'\n').count(), 1);
+31:         let Json::Obj(fields) = json::parse(&text).unwrap() else {
+32:             panic!("expected envelope")
+33:         };
+34:         let keys: Vec<_> = fields.iter().map(|(key, _)| key.as_str()).collect();
+35:         let mut expected = vec![
+36:             "tool",
+37:             "tool_version",
+38:             "language_version",
+39:             "schema_version",
+40:             "sources",
+41:             "complete",
+42:             "diagnostics",
+43:             "omitted",
+44:         ];
+45:         if fix {
+46:             expected.push("fixes");
+47:         }
+48:         assert_eq!(keys, expected);
+49:         let envelope = Json::Obj(fields);
+50:         assert_eq!(
+51:             envelope.get("diagnostics").unwrap().as_arr().unwrap().len(),
+52:             0
+53:         );
+54:         if fix {
+55:             assert_eq!(envelope.get("fixes").unwrap().as_arr().unwrap().len(), 0);
+56:             assert_eq!(
+57:                 text,
+58:                 format!("{},\"fixes\":[]}}\n", without.strip_suffix("}\n").unwrap())
+59:             );
+60:         } else {
+61:             assert!(envelope.get("fixes").is_none());
+62:             without = text;
+63:         }
+64:     }
+65: }
+
+docs/research/compiler-library-audit-20261006/responsibility-map/integrations.md:1-78
+1: # Complete library integrations — audit Step 6
+2: 
+3: The [single coverage ledger](coverage.jsonl) now accounts for all seven direct compiler dependencies in 22 engine/consumer-family result records. [Counts](integration-counts.json) join shared families, recursive caller graphs and public/CLI/editor routes; [validation](integration-validation.json) checks source ranges, inline-test exclusions, pins and union arithmetic. [Independent review](integration-review.json) accepts the bounded map after caller/count corrections. Recommendations are planning results, not implementation or API releases.
+4: 
+5: Compiler source remains `1fd07722090fe70228a6b661e3c6e136275ca84b`, with collection head `e9524b39`. Forty-nine supporting files are pinned in addition to the inherited 107-path inventory. Cached pinned library source supplies primary evidence for the current public APIs and implementation assumptions. Manifest/lock and the prior native feature receipt match; no upgrade, build, runtime or footprint experiment was performed in this step.
+6: 
+7: ## What the counts mean
+8: 
+9: Inclusive physical ranges include comments/blanks and de-duplicate nested/shared lines. The selected production closure covers **383 source units, 25 source files and 15,841 physical lines**. That includes domain DTOs, admission rules, callback implementations and large command/emitter handlers. It is **not 15,841 lines of library overhead or removable code**. A source unit can be an exact function/type or an explicitly grouped implementation/context block; it is not a semantic complexity measure.
+10: 
+11: Closure stops at named public APIs and actual command/editor/first-consumer boundaries. All internal direct callers and recorded intermediate routes are accounted for; unknown external Rust callers remain unresolved support obligations. Serde derives/trait callbacks are explicit joins. Same-owner inverse graphs are lexical, independently source-challenged, rather than Rust compiler call-graph output. External package bodies are pinned boundary evidence and excluded from compiler production totals; this does not re-audit all package workflows.
+12: 
+13: | Integration/family | Result | Integration slice / linked compiler closure, physical lines |
+14: | --- | --- | --- |
+15: | SHA2 | **retain** | 5 / 1,439; one digest wrapper, five direct caller functions |
+16: | tempfile | **retain** | 99 / 490; five policy functions and one metadata carrier, two direct writer callers |
+17: | Ordinary URL values | **retain** | 7 / 7,233; one parser/scheme validator; typechecking routes include 86 owner functions |
+18: | LSP URL display projection | **retain** | 47 / 666; three functions, two notification use sites |
+19: | Shared typed JSON output | **retain** | 38 / 8,322; 15 production-compiled direct caller functions |
+20: | JSON input engine | **defer** | 221 / 2,175; bounded ordered/raw visitor and reader coupling |
+21: | JSON views/accessors/rendering | **retain** | 85 / 2,241; preserve public/raw/duplicate semantics |
+22: | Catalog JSON admission | **retain** | 325 / 983; owning catalog shape/signature rules |
+23: | Diagnostic JSON | **retain** | 101 / 791; typed output projections |
+24: | Docs JSON compatibility views | **defer** | 279 / 545; typed schema plus legacy public bridge |
+25: | Policy JSON layout | **defer** | 252 / 517; future simplification requires an owning layout revision |
+26: | Explain JSON | **retain** | 20 / 234; direct typed projection |
+27: | Fix JSON | **retain** | 95 / 365; live CLI typed route plus public fragment helpers |
+28: | JS string serialization | **retain** | 3 / 3,768; 37 direct caller functions, 122 use sites including a callback |
+29: | JS descriptor serialization | **retain** | 258 / 838; legitimate domain DTOs and public fragment support |
+30: | JS encoded default representation | **defer** | 167 / 1,155; typed literal → string → RawValue bridge |
+31: | Descriptor fallback policies | **defer** | 755 / 1,250; domain admission/vocabulary, not generic JSON fallback |
+32: | Artifact typed JSON | **retain** | 174 / 869; source maps borrowed as typed values, zero map RawValue joins |
+33: | BDD JSON/string emission | **simplify** | 3 / 695; consolidate one duplicate private quote helper |
+34: | LSP typed output | **retain** | 145 / 1,520; server handlers counted as domain caller context separately |
+35: | LSP JSON admission/framing | **retain** | 319 / 936; input duties separate from output DTO library |
+36: | Source-map integration | **defer** | 193 / 789; retain qualified codec/contract, reopen extraction/public helper packets |
+37: 
+38: Slices include necessary domain/context code and are not uniformly adapters. Linked closures overlap and must not be summed. Exact units, current mechanisms, all public helpers, fallback/error paths, owners and retirement gates are in the ledger.
+39: 
+40: ## Findings and explicit retirement targets
+41: 
+42: | Packet | Current mechanism / measurable target | Gate and present result |
+43: | --- | --- | --- |
+44: | BDD quote consolidation | Retire private `bdd::js_string` (3 physical lines); seven caller functions/21 uses continue through one shared quote owner. Require **at least 3 net production lines deleted across both owners**, after imports/visibility/replacement changes. | **Simplify** as a bounded planning packet. Same output/error policy; shared writer coordination and required BDD/JS consumers. Threshold is an acceptance budget, not a demonstrated saving. |
+45: | JSON reader coupling | Retire `ValueOrigin`, `InputReader`, origin-adjusted entry/error cursor accounting and raw numeric extraction's dependence on one-byte lookahead. Require **at least 40 net production lines deleted** across input/catalog/LSP/public adapters, with no fallback grammar engine. | **Defer** supported replacement selection. Keep parse-time depth, duplicate/first-match behavior, lexical numbers, strict strings/surrogates and required error anchors. A blanket `serde_json::Value` loses required information. |
+46: | Docs legacy views | Remove 13 public `to_json` method bodies plus `reference_json`: **44 counted production body lines**, one serialize→parse site and 13 view entrypoints; conditional net target **44**. | **Defer** public support/API decision and independent consumer/oracle qualification. Live docs already serialize typed values directly. Repository nonuse does not waive public support. |
+47: | Policy layout engine | Retire `PolicyFormatter`, `Layout`, `indent` and formatter state callbacks: **142 counted physical production lines**, custom container/key/layout engine; conditional net target **120** after replacement. | **Defer now; simplify after an owning revision.** Current byte/readability/newline guards remain binding; a consumer parsing objects does not release them. |
+48: | Default JSON string bridge | Retire encoded `Literal(String)` storage/revalidation route: one typed literal→JSON text→RawValue parse site becomes zero; conditional net target **10** across IR/JS/artifact/public helpers. | **Defer** representation/public API choice. Preserve exact decimal-string values/scale, object/array shape, null and omission; count all substitute DTO/compatibility code. |
+49: | Source-map extraction | Retire `EncodedMappings`, temporary buffer, one library full-map encoding→projection parse and two `expect` sites. Target **16 inclusive physical lines** (12 executable/derive lines plus four comments); supported replacement must delete **at least 1 net production line** across closure. | **Defer** supported API/representation qualification. Current public library exposes encoded mappings through its writer; private encoder selection is not a qualified solution. |
+50: | Public map decoder | Retire/move from production one `DecodedSegment` and three decode/delta/guard functions: **85 production declaration lines**, four mechanisms. | **Defer** public API and independent oracle decision. A test-only move reduces production by 85 but can delete zero repository lines; do not report it as total code removal. |
+51: | Legacy LSP render builders | Consolidate `response_ok`, `response_err`, `notification`: **29 current declaration lines**, two internally live builders and one public/test-only helper; no positive net claim until replacement counted. | **Defer** byte/public helper and hand-built Json support policy. Typed payload emission already avoids reparsing. ID rendering→RawValue revalidation remains one narrow site. |
+52: | Public descriptor/fix fragments | Conditional removal of 11 unused JS fragment methods plus `models_json` (**41 total body lines** across 12 helpers, including four-arm static server initializer) and three fix string wrappers (**9 body lines**). | **Retain current support; defer retirement.** Production-compiled calls inside unused public methods are distinct from internally exercised routes. DTOs and live `operations_json` remain. |
+53: | LSP duplicate position carriers | Two public backend types plus one range adapter: **18 current declaration lines** potentially removable. | **Retain/defer API migration.** Backend callbacks, source-owned UTF16 conversion and URI identities must remain; no direct library type substitution selected. |
+54: 
+55: All targets are **proposed acceptance thresholds**, not candidate measurements or a sum of promised savings. Every replacement, fallback, shared helper, compatibility API and dependency change stays inside the closure budget. A packet that cannot meet its net/owned-mechanism target must revise its approach or retain the current implementation. Zero for a retained integration means no justified further deletion, not a requirement to force one.
+56: 
+57: ## Necessary boundaries and upgrade obligations
+58: 
+59: SHA2 has one engine; source/revision/migration framing and stale-fix comparisons are callers' policies. Tempfile owns allocation/cleanup; mode, before/after admission, existing versus missing entry replacement and fmt/docs distinctions remain compiler policies. There is no parallel predictable-temp allocator. Ordinary URL admission delegates grammar to URL and retains authored text; URI conversion only derives display metadata, without filesystem/import reading or changing protocol identity.
+60: 
+61: The custom six-variant `Json` tree is structurally similar to general JSON values but deliberately preserves member multiplicity/order and raw numeric lexemes. It is not evidence of copied library internals. The reader bridge calls public Serde APIs while relying on private `IoRead`/container lookahead behavior and native error suffix formatting. Requalify those assumptions on upgrades. The standard JSON grammar predecessor is retired; current visitor/lexeme/error/depth machinery remains a costly compatibility boundary worth reopening.
+62: 
+63: Typed wire DTOs implement owning compiler/runtime contracts rather than copies of Serde types. Current LSP output has six always-String URI envelopes, a raw semantic-token vector and two generic JSON-RPC envelopes; library DTOs own the remaining fields. There is no standard/exceptional URI serializer branch left to retire. Callback/domain types carry supported shapes that do not coincide with complete protocol types. Library field/enum use is public; no private LSP API coupling was found.
+64: 
+65: Can's minimal public `SourceMap` preserves source snapshots/order/content and byte-coordinate contract. Collision-free registration keys plus `set_source` depend on pinned builder registration behavior even though the calls are public. Its extraction roundtrip is incidental; source/name ID translation and final typed artifact borrowing are necessary. Runtime lookup, rewritten map composition, invalid-map handling and mapped exception frames are named first consumers. Testkit's public location formatter chain has no current production reporting caller; prior probe qualification does not establish one. Generated push versus physical-line attribution remains the Step 5 gap.
+66: 
+67: No Rust private values-core linkage or failed locale candidate is adopted. ICU locale data in the lock graph is transitive URL/IDNA data, not compiler Locale migration. CLI/ICU/temporal/graph/position candidate outcomes and L-F03 remain their existing retain/defer gates. New consequential support/layout/carrier alternatives need verified-context JEV consultation when released; this audit selects no such alternative and does not retry prior rejected transmissions.
+68: 
+69: ## Baseline, review and scope
+70: 
+71: [Whole compiler delta](integration-evidence/production-delta.json) replays original `309644a` versus pinned current source: **2,067 production lines removed, 2,203 added; 69,119→69,255, net +136**. Comments/blanks count; exact inline `cfg(test)` items do not. Mixed-file changes include correctness and other-owner work, so this is not a causal per-library cost allocation. The reduction criterion remains unmet. This step changes production by zero.
+72: 
+73: The first delta attempt failed its reconciliation assertion because same-text diff pairs could change production/test classification; it wrote no success receipt. [Retained attempt](integration-evidence/delta-attempt1.py) and [transcribed failure](integration-evidence/delta-attempt1.stderr) make that visible. The corrected counter accounts for those transitions and independently reconciles both snapshots. Published counter/catalogue/delta/validator scripts use the existing checkout; their replay is audit evidence, not compiler behavior execution.
+74: 
+75: Sol high owns the uncertain JSON compatibility investigation; Sol medium owns protocol/maps, independent family reviews and thin-boundary challenge; Luna medium replays inventory/counts. The same-day [researched allocation](../model-allocation-20261007.md) is reused, without an optimal-setting claim. Independent reviews identify missing routing/consumer bodies, correct artifact map typing and distinguish contextual slices from overhead. Final integrated review accepts the bounded map, with all 499 inherited/current pin references and linked closure counts reconciled. The public fragment target is 11 methods plus `models_json`, 12 helpers/41 body lines. [Fresh published-tool replay](integration-evidence/tool-replay.json) passes counter/catalogue/delta commands; no compiler behavior was executed.
+76: 
+77: No source/API/contract/dependency/host policy, merge or living-plan checkpoint change occurs. Full semantic correctness, upgrade/profile/performance costs, arbitrary external users and installed/original-app/editor/runtime qualification remain separate audit work.
