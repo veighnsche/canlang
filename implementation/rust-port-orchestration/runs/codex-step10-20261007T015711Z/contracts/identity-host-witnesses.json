@@ -1,0 +1,28 @@
+{
+  "node": {
+    "version": "v24.21.0",
+    "results": {
+      "equal": true,
+      "different": false,
+      "length": false,
+      "empty": true,
+      "subarray": true
+    }
+  },
+  "worker": {
+    "extension": "function",
+    "results": {
+      "equal": true,
+      "different": false,
+      "length": false,
+      "empty": true,
+      "subarray": true
+    }
+  },
+  "recipe": {
+    "miniflare": "4.20260730.0",
+    "compatibilityDate": "2026-07-15",
+    "compatibilityFlags": [],
+    "binding": "package imports node/default, owned Worker rewrite #identity-byte-compare to relative worker leaf"
+  }
+}

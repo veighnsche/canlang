@@ -1,0 +1,33 @@
+{
+  "state": {
+    "scope": "Can identity library adoption I01 only. Advice, not authority. Preserve sync token comparison helpers, async password API, persisted valid bytes and exact bearer text hashing; no static Node import in neutral entry. Root may approve explicit compatibility changes.",
+    "verified_sources": {
+      "tokens.ts": "Manual unpadded base64url decoder rejects empty, length mod4=1, nonalphabet, but ignores final unused bits. Zh and Zg decode to same byte. sha256HexText hashes TextEncoder output of exact presented text; no bearer decoder in lookup. timingSafeEqualHex uses parseInt per pair and accepts partial prefix 0g; correct to strict hex false.",
+      "passwords.ts": "hashPassword creates canonical pbkdf2-sha256$600000$16-byte-salt$32-byte-key. verifyPassword decodes stored salt/key using public base64UrlToBytes, accepts noncanonical unused tails today. D1 persists password_hash verbatim, registration/recovery generate canonical; public store APIs accept encoded strings. No real credentials inspected and no existing noncanonical persisted record demonstrated.",
+      "candidate": "Extracted @scure/base2.4.0 MIT zero deps: hex decoder strict case-insensitive; base64urlnopad strict trailing bits. Narrow final-sextet mask before library decode can retain old accepted tails without retaining whole codec.",
+      "host": "Node crypto.timingSafeEqual sync takes equal byte-length buffers. Worker crypto.subtle.timingSafeEqual synchronous nonstandard extension. Node process.getBuiltinModule added22.3.0; current package engines>=22. Default WebCrypto has no standardized sync timingSafeEqual. Current XOR loops have no proven constant-time engine guarantee. No native timing guarantee for surrounding decoding or error branches.",
+      "delivery": "Current portable entry has no Node import. Cloudflare staging scans/imports Worker closure and rejects Node builtins. Conditional package imports/exports need explicit root manifest and delivery resolution qualification, not assumed existing. Supported recipe can be privately exercised with installed Miniflare4.20260730.0; local Node24.21.0 is available, Node22 acceptance separately required."
+    },
+    "criteria": "Compare choices fairly: byte compatibility of actual accepted stored API, minimal authoring/API/lifecycle changes, native equal-byte primitives, complete current Node>=22/workerd support, delivery complexity and explicit uncertainty. No speculative exploitable auth claim or assumed legacy credentials."
+  },
+  "questions": {
+    "encoding": {
+      "type": "choice",
+      "question": "Which persisted codec compatibility policy best satisfies this verified scope?",
+      "criteria": {
+        "preserve_public_tails": "Keep existing public decoder acceptance, including stored password aliases, using a bounded validated final-character bit mask then strict library decoding; retain canonical encoder. Do not normalize bearer text. Avoids any decode API break but keeps a narrow compatibility adapter.",
+        "strict_everywhere": "Strict public and password decoding immediately, accepting canonical issued hashes unchanged but rejecting currently accepted tail aliases; explicit breaking stored acceptance correction without known affected record. Simplest adapter.",
+        "password_only_compat": "Tighten public decoder but preserve tails only inside password parser via private compatibility helper; prevents stored break but changes public API acceptance and adds a second decode policy."
+      }
+    },
+    "host": {
+      "type": "choice",
+      "question": "Which native comparison host arrangement best respects existing contracts?",
+      "criteria": {
+        "conditional_native": "Keep >=22. Use explicit Node/default host entry or conditional private import resolving Node timingSafeEqual vs Worker subtle primitive. No static Node import in neutral closure; root must qualify conditional resolution, direct-source tests and delivery. More wiring, preserves full Node range.",
+        "explicit_floor": "Use Worker subtle primitive first and Node global process.getBuiltinModule crypto lookup otherwise; explicitly raise supported Node floor to22.3 and root manifest contract, fail visibly when unavailable. Simple neutral module/no static Node import but drops22.0-22.2.",
+        "retain_and_hold": "Retain existing JS loop with accurate no-native-guarantee comments and hold I03 until a host binding can be qualified; no support-range change, but required native comparison adoption incomplete."
+      }
+    }
+  }
+}

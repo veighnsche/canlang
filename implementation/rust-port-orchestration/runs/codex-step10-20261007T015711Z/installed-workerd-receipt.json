@@ -1,0 +1,43 @@
+{
+  "node": "v24.21.0",
+  "compatibilityDate": "2026-07-15",
+  "compatibilityFlags": [],
+  "privateInstalled": true,
+  "rawStaged": {
+    "checks": 15,
+    "hostProvider": "crypto.subtle.timingSafeEqual",
+    "rawProductionMap": true
+  },
+  "identityCSV": {
+    "checks": 27,
+    "scope": "actual public identity and authoritative CSV handler with memory identity and scripted invoker; no durable deployed CSV mount claim"
+  },
+  "services": {
+    "H01": {
+      "passed": 10
+    },
+    "H02": {
+      "passed": 6
+    }
+  },
+  "productionBoot": {
+    "calls": [
+      {
+        "path": "/",
+        "status": 404,
+        "body": "{\"code\":\"not_found\",\"message\":\"Not found.\",\"retryable\":false}"
+      },
+      {
+        "path": "/mcp",
+        "status": 401,
+        "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Authentication required.\"}}"
+      }
+    ],
+    "scope": "empty controlled artifact with local D1; real staged main/HTTP/MCP instantiate; no CSV production mount or whole app acceptance"
+  },
+  "sourceSha256": {
+    "bundle": "d067681ec7f34ea9592d3d402cc6437de0b5a7a13233f29db97c5dd854c9bc52",
+    "identityCSV": "a16b64bc636b740bab4e0b9885335063dac7a3ba43a2b674147eab3db1cd75eb",
+    "services": "f27fe5a7558a3cbc6561be749b9d112c6738be95714cff7e46ac2dfa3c4bea4d"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "node": "v22.0.0",
+  "review": {
+    "statuses": [
+      "invalid",
+      "valid",
+      "duplicate"
+    ],
+    "candidate_count": 1,
+    "digest": "532a510fcc6aa867d13b00c475a78e4af203a83a92b76a0b2ff5d372c193a96a",
+    "commit": [
+      "committed",
+      "duplicate"
+    ],
+    "invocations": 1
+  },
+  "httpRows": [
+    {
+      "name": "httpRequest",
+      "error": "HttpBodyLimitError",
+      "calls": 1,
+      "bodyLocked": false
+    },
+    {
+      "name": "httpRequestBinary",
+      "error": "HttpBodyLimitError",
+      "calls": 1,
+      "bodyLocked": false
+    },
+    {
+      "name": "stream",
+      "error": "HttpBodyLimitError",
+      "calls": 1,
+      "bodyLocked": false
+    }
+  ]
+}

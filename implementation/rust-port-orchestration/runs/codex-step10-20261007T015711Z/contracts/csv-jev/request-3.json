@@ -1,0 +1,46 @@
+{
+  "state": {
+    "phase": "Human-released C01 CSV compatibility/ownership contract before implementation",
+    "verified_source": {
+      "packages/ui/src/csv/parse.ts": "ac598dc24be5e8c9a1049b81ba04d2bb4cfa3bbacd1e40c3b85d837c658dec28",
+      "packages/interfaces/src/http/csv.ts": "5d02bca4deab4d9ab08091a967ad944f04a46fe8295093fdb1cd5410fb29fea0",
+      "packages/ui/package.json": "14dd85da8bea318201aad0490034ab147f1282dc174dfac94be0506a9c5a1425",
+      "packages/interfaces/package.json": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad"
+    },
+    "source_facts": [
+      "Two scanners currently consume any quote inside a field; x\"q\" -> xq and \"q\"x ->qx, preserving row/candidate rawcellbytes. Their full parse precedes1000rowlimit; unterminatedquote wins beforelimit. CRLF+LF delimiters, loneCRliteral, BOM retained, blankrecords and allfieldcounts retained. Server is sole authority and re-parses echoedCSV at review+commit, derives candidate/digest/replay consent; clients advisory only.",
+      "Executed csv-parse7.0.3 MIT browser/esm/sync candidate with explicit CRLF/LF, arraymode/relaxcolumncount, no trim/cast/BOM/skip matches ordinary records but refuses the two malformed quote cases. It UTF8encodes input and replaces unpaired UTF16surrogates withU+FFFD. CurrentJS scanners preserve them. WellformedUnicode includingastralBOM can be preserved; a simple nativeUTF8roundtripadmission check (notgrammar scanner) can explicitlyrefuse unpairedsurrogates to avoidsilentinputnormalization. No automaticlate-first rowcutoff.",
+      "interfaces already depends on ui; ui has nointerfaces dependency. UI parser is packageexport and usedintests but no actual servedbrowser invocation foundyet. Proposed UI-owned pure csv/grammar exportedsubpath can be sharedwithoutnewpackage/cycle;2optionwrappers avoidexport but duplicate policy/error mapping.",
+      "No productioncredentials or storedcsvdata reviewed; sourcecompatibility changesmust be explicit. Existing valid admittedinputs shouldhaveidenticalconsent/digest/output. Root exclusively owns manifests/lock/exports/delivery; no activeCSVproductwriters."
+    ],
+    "outcomes": [
+      "Minimize maintained grammar and TS/Rust complexity",
+      "Preserve authored workflows, authority, errors, inputidentity, rowcounts and finite resource limits",
+      "No second custom prescanner/fork, no silent textnormalization or clientauthority"
+    ],
+    "uncertainty": [
+      "Primary docs do notqualify actual Node/workerd/installed acceptance",
+      "Strict rejected malformedlegacyforms change admission; need deliberate negativewitnesses and consumerchecks, not retrospectiveclaimbyte-neutral"
+    ]
+  },
+  "questions": {
+    "grammar_policy": {
+      "type": "choice",
+      "instructions": "Assess equivalent CSV contract choices against recorded source and actual candidate probes: retain current scanners, explicitly correct malformed admission with one library, or maintain split profiles.",
+      "criteria": {
+        "strict_explicit_correction": "Adopt one shared csv-parse strictgrammar, deliberately refuse embedded/afterclosing malformedquotes with fixedsafeerror, nativeUTF8admissionrefusesunpairedsurrogates beforelibrary to avoidsilentU+FFFDidentity. Preserve allnormalcells/BOM/CRLF/loneCR/blank/shape/fullcounts andunterminatederror; requiredactualreview/commit/negative/installed/hostprooftests, no newprescanner.",
+        "retain_current": "Retain current scanners now and record librarynonadoption becauselegacyquote andUTF16admission matters; no forcedfork/secondscanner andI/H/criticalportscontinue, but duplication andmanualgrammarremain.",
+        "split_profiles": "Retain legacy scanners andaddstrictlibraryprofile behindexplicitselection withtrustworthyroutingandseparatereviewconsent; preservesoldbehaviorbutduplicatemechanism/identitypolicycomplexity."
+      }
+    },
+    "owner": {
+      "type": "choice",
+      "instructions": "Decide pure grammar ownership without a new cycle, package or trust leak, weighting alternatives against actual callers.",
+      "criteria": {
+        "ui_leaf": "One UI-owned puregrammar leaf withnarrowexport consumedbyinterfaces; existingdependencydirection, onepinnedoptions/errorpolicy; realinstalledexportproof andactualbrowserclaimonlyifcallerexists.",
+        "two_wrappers": "Two short csv-parseoptionwrappers inui+interfaces, noexport butpolicyduplicationcheckedbysharedfrozencorpus.",
+        "new_package": "Separate new grammarpackage/export/manifests toavoidUIownership butextraassembly/cachesurfaceforoneleaf."
+      }
+    }
+  }
+}

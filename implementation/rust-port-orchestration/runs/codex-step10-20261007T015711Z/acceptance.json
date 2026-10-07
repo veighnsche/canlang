@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "captured_at_utc": "2026-10-07T02:42:11.900065+00:00",
+  "source_pins": "accepted-source-pins.json",
+  "scope": "Human step10 selected identity/CSV/services finite packets and one bounded critical port prerequisite; not full challenge/port/product closure",
+  "source_commits": {
+    "b9aafe90": "I02/I04/C02 pinned adapters",
+    "6686bc76": "H01 native cancellation",
+    "748149cc": "W03.2 finite guard/lifecycle prerequisite",
+    "694cd0c6": "C03 grammar adoption and valid-only candidate repair",
+    "e2cdef83": "H02 bounded redirect correction",
+    "ace2c0e8": "I03 native host comparison + exact delivery closure"
+  },
+  "selected_units": {
+    "I01": {
+      "status": "released_contract",
+      "review": "Astra high; three equivalent JEV responses saved; frozen exact encoding/host/cookie profiles"
+    },
+    "I02": {
+      "status": "finite_accepted",
+      "scope": "strict hex and noncanonical-tail compatible base64url via pinned scure; exact bearer hashing unchanged"
+    },
+    "I03": {
+      "status": "finite_accepted",
+      "scope": "native Node and workerd comparisons without JS fallback; unsupported host operational failure; primitive timing guarantee only",
+      "review": "independent Astra high source/Node22 and delivery-source review, then exact root actual installed target gates"
+    },
+    "I04": {
+      "status": "finite_accepted",
+      "scope": "pinned cookie grammar and first matching decode-once/once-invalid refusal; exact header order/defaults; optional Domain explicit refusal"
+    },
+    "C01": {
+      "status": "released_contract",
+      "scope": "one UI-owned pure grammar; strict quote/unpaired-UTF16 changes explicit; no policy authority"
+    },
+    "C02": {
+      "status": "finite_accepted",
+      "scope": "pure browser-entry grammar and advisory errors; installed narrow export; actual mounted advisory browser caller not established"
+    },
+    "C03": {
+      "status": "finite_accepted",
+      "scope": "authoritative real handler review/commit/digest/duplicate/replay/deny with unchanged existing authority; invalid partial row corrected separately",
+      "limits": [
+        "Memory identity/scripted invoker in actual Node/workerd proof; no durable deployed CSV mount"
+      ]
+    },
+    "C04": {
+      "status": "conditional_evaluation_complete_retain",
+      "scope": "retain bounded export serializer/formula policy; no serializer dependency or automatic rewrite",
+      "review": "reviews/C04-export-evaluation.md"
+    },
+    "H01": {
+      "status": "finite_accepted",
+      "scope": "AbortSignal.any winner identity, deadline classification, full-body/stream cleanup in all three readers"
+    },
+    "H02": {
+      "status": "conditional_correction_accepted",
+      "scope": "confirmed redirect quota violation repaired with same bounded reader; missing Location and detected-overflow precedence preserved"
+    },
+    "ports:W03.2": {
+      "status": "partial_original_gate",
+      "accepted": "immutable11 refs cases plus8 lifecycle/config/index controls; bounded guard fix",
+      "open": "real production consumer/profile point and demand-ordered host joins; no W03/W04 parent advancement"
+    }
+  },
+  "verification": {
+    "Node24.21.0": {
+      "identity_unit": {
+        "pass": 80,
+        "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/identity-final-tests.log"
+      },
+      "interfaces_csv_export": {
+        "pass": 45,
+        "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/interfaces-final-tests.log"
+      },
+      "services_unit": {
+        "pass": 153,
+        "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/services-final-tests.log"
+      },
+      "cloudflare_deploy": {
+        "pass": 29,
+        "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/cloudflare-deploy-tests.log"
+      },
+      "installed_identity_CSV": 27,
+      "installed_H01": 10,
+      "installed_H02": 6
+    },
+    "Node22.0.0": {
+      "identity_focused": 35,
+      "work_refs": 19,
+      "installed_identity_CSV": 27,
+      "installed_H01": 10,
+      "installed_H02": 6,
+      "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/installed-node22-final-current.log",
+      "limit": "test-only node:sqlite unavailable at earliestNode22; no D1 unit suite claim there"
+    },
+    "work_refs_Node24": 19,
+    "CSV_original_root_contract_comparisons": 5018,
+    "CSV_independent_finite_enumeration": {
+      "accepted_exact": 20781,
+      "intended_refusals": 16668
+    },
+    "installed_policy": {
+      "pass": 8,
+      "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/installed-policy.log"
+    },
+    "actual_workerd": {
+      "node": "v24.21.0",
+      "compatibilityDate": "2026-07-15",
+      "compatibilityFlags": [],
+      "privateInstalled": true,
+      "rawStaged": {
+        "checks": 15,
+        "hostProvider": "crypto.subtle.timingSafeEqual",
+        "rawProductionMap": true
+      },
+      "identityCSV": {
+        "checks": 27,
+        "scope": "actual public identity and authoritative CSV handler with memory identity and scripted invoker; no durable deployed CSV mount claim"
+      },
+      "services": {
+        "H01": {
+          "passed": 10
+        },
+        "H02": {
+          "passed": 6
+        }
+      },
+      "productionBoot": {
+        "calls": [
+          {
+            "path": "/",
+            "status": 404,
+            "body": "{\"code\":\"not_found\",\"message\":\"Not found.\",\"retryable\":false}"
+          },
+          {
+            "path": "/mcp",
+            "status": 401,
+            "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Authentication required.\"}}"
+          }
+        ],
+        "scope": "empty controlled artifact with local D1; real staged main/HTTP/MCP instantiate; no CSV production mount or whole app acceptance"
+      },
+      "sourceSha256": {
+        "bundle": "d067681ec7f34ea9592d3d402cc6437de0b5a7a13233f29db97c5dd854c9bc52",
+        "identityCSV": "a16b64bc636b740bab4e0b9885335063dac7a3ba43a2b674147eab3db1cd75eb",
+        "services": "f27fe5a7558a3cbc6561be749b9d112c6738be95714cff7e46ac2dfa3c4bea4d"
+      }
+    },
+    "private_fresh_emits": "source-current contracts/identity/UI/interfaces/services/work/state/stdlib/cloudflare; values production-only narrowed compile, not full values suite",
+    "raw_failures": "Sandbox loopback refusal; private fixture omissions/types and wrong harness export/scanner function preserved separately. Actual product CSV duplicate/slow-cancel red-to-green saved; no success inferred from failed commands"
+  },
+  "limits": [
+    "No empirical whole-auth constant-time guarantee",
+    "Synthetic persisted passwords and fixed corpora; no production stored-data migration claim",
+    "D1 production boot is an empty controlled artifact local gate, not full application acceptance",
+    "SDK/Miniflare/test tools use read-only existing installed tooling links; affected cookie/scure/csv runtime packages and package dists are physically private",
+    "UI browser asset build passed but actual CSV advisory bootstrap mount is unidentified",
+    "Original values/validation/work full backend/profile/durable/rollback gates remain open",
+    "Native preparation/native-release human HOLD unchanged",
+    "No default adoption, TS backend deletion, push, public publication, extra topology or compiler edits"
+  ],
+  "git": "Scoped commits on main preserve foreign index/files; no branch merge, hence no filetree checkpoint advancement",
+  "decisions": "DECISIONS-PENDING-HANDOFF.md holds finite choices while shared document has a foreign writer"
+}

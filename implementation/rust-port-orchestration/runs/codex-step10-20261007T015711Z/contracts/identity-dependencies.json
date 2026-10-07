@@ -1,0 +1,82 @@
+{
+  "cookie": {
+    "name": "cookie",
+    "version": "2.0.1",
+    "license": "MIT",
+    "main": null,
+    "module": null,
+    "types": null,
+    "exports": "./dist/index.js",
+    "engines": {
+      "node": ">=22"
+    },
+    "dependencies": null,
+    "dist": {
+      "shasum": "1fc7e9bddf38fa9567cd4d750820087cdb5d6e98",
+      "tarball": "https://registry.npmjs.org/cookie/-/cookie-2.0.1.tgz",
+      "fileCount": 6,
+      "integrity": "sha512-yuToqVvRrj6pfDXREyQAAv8SkAEk/8GS3jQRTiUMm66TVtBYmqQeoEjL2Lmq8Rpo6271vH76InTChTitEAm65w==",
+      "signatures": [
+        {
+          "sig": "MEYCIQCd+DPj02/R3xLeZrdf4Q6/zNT3EsZF+q/ean1rfX/pLQIhAKgjjkxuzLOAED5VgAxYTkKIZiHabhkmNiGEz+smwqnC",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        }
+      ],
+      "attestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/cookie@2.0.1",
+        "provenance": {
+          "predicateType": "https://slsa.dev/provenance/v1"
+        }
+      },
+      "unpackedSize": 60821
+    },
+    "tarballSha256": "8516126668fc55128916561047c055db77d0401dee1db108adce7267b4b06ff0",
+    "fileSha256": {
+      "LICENSE": "c02110eedc16c7114f1a9bdc026c65626ce1d9c7e27fd51a8e0feee8a48a6858",
+      "README.md": "2e7882908ae627923da088f61777e2db48db14546a9e4c63e23932b1ccc39150",
+      "package.json": "75cd16a27d7d0018a08dcbe46eef242f5cbaae4c47efd95979c77ddad59e5fac",
+      "dist/index.js": "b728aa01f45e9115920e2a92e2f3d71c1b5acfbb8bc1d702b87397860c4ba925",
+      "dist/index.js.map": "c1a85ffdee7849999b31811112054d29358ea836b2d6071177a5d6af9831702b",
+      "dist/index.d.ts": "d0c80866b3a63107db0659fa609f23e8a80e53117e7b0146ae1cfd3d3aa33b27"
+    }
+  },
+  "scure-base": {
+    "name": "@scure/base",
+    "version": "2.4.0",
+    "license": "MIT",
+    "main": "index.js",
+    "module": "index.js",
+    "types": "index.d.ts",
+    "exports": null,
+    "engines": null,
+    "dependencies": null,
+    "dist": {
+      "shasum": "61e4ed7d4447afc247f2bff9aeb8fca53267db86",
+      "tarball": "https://registry.npmjs.org/@scure/base/-/base-2.4.0.tgz",
+      "fileCount": 6,
+      "integrity": "sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==",
+      "signatures": [
+        {
+          "sig": "MEUCIAkP5oGD+NISkzbg2Qt6cst+b075e5CRClmwdov3cpefAiEAzKDMuMPFNNsuiqapb5u/cE0byc1Yxp44eIhTbYuxvGY=",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        }
+      ],
+      "attestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/@scure%2fbase@2.4.0",
+        "provenance": {
+          "predicateType": "https://slsa.dev/provenance/v1"
+        }
+      },
+      "unpackedSize": 145274
+    },
+    "tarballSha256": "2ba4feebe71cf6cc4bbcc89abce4bd09726f771f14649a536d97d2f20e8c8aec",
+    "fileSha256": {
+      "LICENSE": "3239e134eb6e6d64538ca76498c7fcb08a395249dd9d4af9927bf6d0169ee429",
+      "index.js": "4bd334e6606db7216143c7bffbc5c00716d2c137744a0c48b51495fa6d05444a",
+      "README.md": "56ce96f5d061cc0054d2744f923d0e0e6fe984accd12ab177c022e2ae0f45509",
+      "package.json": "0e74f731adcd5e84bb62b7e154047b585686ff70f64435d2e064b66452d2841a",
+      "index.ts": "85fa4c5065eb3eb8350f39d33509479db2ddbaf45b8ddc371fca683a00a1fbe8",
+      "index.d.ts": "1771c247d1d2303b832b7a2a8999dae30bc5debc06bcc1cfdc7c65d3339b37e6"
+    }
+  }
+}

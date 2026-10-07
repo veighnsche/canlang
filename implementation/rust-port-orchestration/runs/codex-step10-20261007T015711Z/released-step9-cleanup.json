@@ -1,0 +1,238 @@
+{
+  "time": "2026-10-07T02:40:34.553640+00:00",
+  "owner": "Codex /root",
+  "deleted_exact_released_targets": [
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/rebuild-prefix/packages/values/target",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/rebuild-prefix/packages/values/target",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target"
+  ],
+  "removed_logical_bytes": 970778002,
+  "preserved_native_wasm_binaries": [
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/rebuild-prefix/packages/values/target/wasm32-unknown-unknown/release/values_bindings.wasm",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/rebuild-prefix/packages/values/target/wasm32-unknown-unknown/release/values_bindings.wasm",
+      "size": 697530,
+      "sha256": "80aa4a3997b72eb8a4a490830f8278dbbeb6201368fd6909952dad59ba38a13a"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/rebuild-prefix/packages/values/target/wasm32-unknown-unknown/release/deps/values_bindings.wasm",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/rebuild-prefix/packages/values/target/wasm32-unknown-unknown/release/deps/values_bindings.wasm",
+      "size": 697530,
+      "sha256": "80aa4a3997b72eb8a4a490830f8278dbbeb6201368fd6909952dad59ba38a13a"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/examples/conformance-be8614cbc4d02546",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/examples/conformance-be8614cbc4d02546",
+      "size": 2619152,
+      "sha256": "bb1c9f2335c83b60481e658889bfef875cdaf6f318f3cec8e6760d7ab894654b"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/examples/conformance-3f3538d078bdb6f5",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/examples/conformance-3f3538d078bdb6f5",
+      "size": 2619152,
+      "sha256": "c814c1819e735ae6999fb18045d528e25d824fb9d1b1cc57dc4c67a5088e43b3"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/examples/conformance",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/examples/conformance",
+      "size": 2619152,
+      "sha256": "bb1c9f2335c83b60481e658889bfef875cdaf6f318f3cec8e6760d7ab894654b"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/values_semantics-5294321ec1564c2c",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/values_semantics-5294321ec1564c2c",
+      "size": 3159760,
+      "sha256": "ef696725e45c828bfba8c74b4a2050a0144f163ef04dda255d934293057d9e11"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/input_validation-69b84d57d9198e63",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/input_validation-69b84d57d9198e63",
+      "size": 3223536,
+      "sha256": "b429bc8d6d9d17d70d25e883d6d07a87bf959729ec3b45e2160a20bb1c0772bf"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/string_escape_contract-2274a437449a5883",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/string_escape_contract-2274a437449a5883",
+      "size": 3954072,
+      "sha256": "55466a985a19f1426e2fa5ccdc6e3680c1543359ecd42a761fd925c7c0fd207f"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/numeric_text_contract-09d78ad1d4e14aa9",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/numeric_text_contract-09d78ad1d4e14aa9",
+      "size": 6386808,
+      "sha256": "e5f484064301a75dda09fbb9297dcdeff72bf48405ae5d15f86cb685ee870064"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/money_vectors-ca4c62e80247f9b9",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/money_vectors-ca4c62e80247f9b9",
+      "size": 1700720,
+      "sha256": "b7193c7a48725901958fef0896cdd514f92d27487b99cf93e35aa97dbb641b7e"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/values_bindings-8f874050bcf4f3cc",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/values_bindings-8f874050bcf4f3cc",
+      "size": 1030176,
+      "sha256": "696ed213edfb00742a939305d974632dc2e3c9888ecd0700251d71b90bc5e3a1"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/integer_vectors-29490a445f9b5c72",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/integer_vectors-29490a445f9b5c72",
+      "size": 1510832,
+      "sha256": "ff039eea4a441c97b8a0b30341a081edc547cbcbe556cdc22d346961e414a4f9"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/temporal_vectors-962be8368b6df486",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/temporal_vectors-962be8368b6df486",
+      "size": 1929440,
+      "sha256": "7c1c8259be4a7d19074f21a031c75634228a4c462ddd622240391a1b5d020855"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/transport_number_roundtrip-f5e55183dc9bbe5a",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/transport_number_roundtrip-f5e55183dc9bbe5a",
+      "size": 3058952,
+      "sha256": "c263d6fcea8aca152e99e98c55dd542a264f8cc9ece89ee34ffcebdbef7b9f90"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/rounding_vectors-bd93e56469064db0",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/rounding_vectors-bd93e56469064db0",
+      "size": 1535072,
+      "sha256": "41d0ff97b303d433539f866e098782be30ac7df276eda08f57f229d63a5a5626"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/decimal_vectors-e781ca451d820227",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/decimal_vectors-e781ca451d820227",
+      "size": 1763744,
+      "sha256": "bc1d5e0b1ca5949621b62b16c1d4194e147721738faa70f5b3ed21b102640ba7"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/debug/deps/aggregate_vectors-ce192094059787bd",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/debug/deps/aggregate_vectors-ce192094059787bd",
+      "size": 1579440,
+      "sha256": "32dac69917331d0dffb2afcfef19b5e0bcb9e5de8098c5fe7b36f871cb22587f"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/wasm32-unknown-unknown/release/values_bindings.wasm",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/wasm32-unknown-unknown/release/values_bindings.wasm",
+      "size": 697530,
+      "sha256": "80aa4a3997b72eb8a4a490830f8278dbbeb6201368fd6909952dad59ba38a13a"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source/packages/values/target/wasm32-unknown-unknown/release/deps/values_bindings.wasm",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/corrected/source/packages/values/target/wasm32-unknown-unknown/release/deps/values_bindings.wasm",
+      "size": 697530,
+      "sha256": "80aa4a3997b72eb8a4a490830f8278dbbeb6201368fd6909952dad59ba38a13a"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/rebuild-prefix/packages/values/target/wasm32-unknown-unknown/release/values_bindings.wasm",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/rebuild-prefix/packages/values/target/wasm32-unknown-unknown/release/values_bindings.wasm",
+      "size": 650682,
+      "sha256": "68043361e687917ea61a243baa31a919a9a7197407202a96578b94479e8a7dcd"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/rebuild-prefix/packages/values/target/wasm32-unknown-unknown/release/deps/values_bindings.wasm",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/rebuild-prefix/packages/values/target/wasm32-unknown-unknown/release/deps/values_bindings.wasm",
+      "size": 650682,
+      "sha256": "68043361e687917ea61a243baa31a919a9a7197407202a96578b94479e8a7dcd"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/examples/conformance-0c3fed89e678e645",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/examples/conformance-0c3fed89e678e645",
+      "size": 2394048,
+      "sha256": "ba15e734cb6364594d98849078284e23e65c50404fa76f33117df39d0ad4eca7"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/examples/conformance-1f918b01bcd06863",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/examples/conformance-1f918b01bcd06863",
+      "size": 2394096,
+      "sha256": "d52b141382aee080210ebe7d9373d4c08763436a26f39e02aa1e9d64d2be5eb4"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/examples/conformance",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/examples/conformance",
+      "size": 2394096,
+      "sha256": "d52b141382aee080210ebe7d9373d4c08763436a26f39e02aa1e9d64d2be5eb4"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/string_escape_contract-8d0160cfc2c199f9",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/string_escape_contract-8d0160cfc2c199f9",
+      "size": 3745816,
+      "sha256": "b990162ccfde5384d842e3d0128e5433db1c48ce44e881f395f0b369594d0e9b"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/temporal_vectors-c9c82a75a6124d7f",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/temporal_vectors-c9c82a75a6124d7f",
+      "size": 1925360,
+      "sha256": "9f4627b315a11dc69068956545bb018c654e18a648cc870f4a261e3e945b12a0"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/values_semantics-b2382d7a27c5f218",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/values_semantics-b2382d7a27c5f218",
+      "size": 2931872,
+      "sha256": "132b78c1ca579f8b66df5ae2b41c0bc96f69ff05f353177b641b12af56dbda56"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/decimal_vectors-5432f74871a2db1a",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/decimal_vectors-5432f74871a2db1a",
+      "size": 1760000,
+      "sha256": "48ad0db076710d501e7b84dd6e19ad08fef86cec45cafc225d407b6dc80f28e1"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/input_validation-8b47ab0d18bc1f2e",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/input_validation-8b47ab0d18bc1f2e",
+      "size": 2996144,
+      "sha256": "b90abafa4d07f0e4e6accc926b55ec2f4188717097235f2ab51ea13b37176d32"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/rounding_vectors-1f7f9beaf5e64c74",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/rounding_vectors-1f7f9beaf5e64c74",
+      "size": 1532048,
+      "sha256": "f89fd08ac8ded00b76719c79df55bea4769c8dcb05e68e86590930e9b038e98e"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/values_bindings-1b71aa93d4194deb",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/values_bindings-1b71aa93d4194deb",
+      "size": 1030064,
+      "sha256": "1474e3362f3595f94ff569f4de7f93393eb89c546949c0e9cb87fc875ea854f4"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/money_vectors-9d689373a64ed6bd",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/money_vectors-9d689373a64ed6bd",
+      "size": 1697152,
+      "sha256": "d63c490151d03e65d13a780217a416f19819377c2140fb5f595367784abe34ce"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/integer_vectors-41b03ee3e5269d7c",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/integer_vectors-41b03ee3e5269d7c",
+      "size": 1507968,
+      "sha256": "3335786843bf4494b678fa5fb5a8ed592bb600feb1b0ab02a03fff01cfceabca"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/aggregate_vectors-8333d740413a9cfa",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/aggregate_vectors-8333d740413a9cfa",
+      "size": 1576032,
+      "sha256": "7141905af543f70e8d3b3e014a553936b874509c9ce18dbd4464a7e531e93a84"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/debug/deps/numeric_text_contract-bc68a1640a26d752",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/debug/deps/numeric_text_contract-bc68a1640a26d752",
+      "size": 6194472,
+      "sha256": "a6753bee8ff9380993433fa36bce8cb5ebfe5733d2ac19ea1a27c3cedf9de92b"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/wasm32-unknown-unknown/release/values_bindings.wasm",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/wasm32-unknown-unknown/release/values_bindings.wasm",
+      "size": 650682,
+      "sha256": "68043361e687917ea61a243baa31a919a9a7197407202a96578b94479e8a7dcd"
+    },
+    {
+      "original": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/target/wasm32-unknown-unknown/release/deps/values_bindings.wasm",
+      "preserved": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/released-target-binaries/values/source/packages/values/target/wasm32-unknown-unknown/release/deps/values_bindings.wasm",
+      "size": 650682,
+      "sha256": "68043361e687917ea61a243baa31a919a9a7197407202a96578b94479e8a7dcd"
+    }
+  ],
+  "all_original_compact_source_logs_receipts_retained": true,
+  "shared_caches_and_compiler_preserved": true,
+  "prerelease_evidence": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/released-step9-preclean.json"
+}

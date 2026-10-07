@@ -5,9 +5,9 @@
   "private_root": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
   "base": "295908144f14a070ac5f62122d1d0d982ea47c89",
   "previous_run": "codex-step9-20261007T012914Z",
-  "phase": "step10_identity_contract_plus_root_ready_work",
+  "phase": "step10_finite_accepted_future_scope_pending",
   "human_release": "Step10 identity/CSV/services finite packets and ready critical Rust-port prerequisites",
-  "execution_authorized": true,
+  "execution_authorized": false,
   "future_dispatch_authorized": false,
   "preparation_hold": true,
   "roles": [
@@ -18,23 +18,76 @@
       "scope": "I01 independently released encoding/cookie/host contracts",
       "ack": true,
       "source_lease": false,
-      "output_lease": "contracts/identity-*",
-      "progress": "Current source/callers/policy qualification in progress"
+      "output_lease": false,
+      "progress": "I01 contracts released; no product writer",
+      "released": true
     },
     {
       "owner": "/root",
       "scope": "C01 CSV source/grammar ownership; H01/H02 ready services work; current port prerequisite readiness; sole dependency/Git joins",
-      "source_lease": [
-        "packages/services/src/http/client.ts",
-        "packages/services/test/http-client.test.ts",
-        "packages/services/test/http-lifecycle.test.ts"
-      ],
-      "progress": "Verified source, quota gap and source snapshot preparation"
+      "source_lease": false,
+      "progress": "Verified source, quota gap and source snapshot preparation",
+      "released": true,
+      "output_lease": false
+    },
+    {
+      "owner": "/root/step10_identity_adapters",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "scope": "I02/I04 frozen codecs/cookies",
+      "ack": true,
+      "released": true,
+      "progress": "4 files released; Node24 identity 74/74 and frozen oracle checks pass; root independent installed closure pending",
+      "source_lease": false,
+      "output_lease": false
+    },
+    {
+      "owner": "/root/step10_csv_grammar",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "ack": true,
+      "released": true,
+      "scope": "C02 frozen browser grammar",
+      "progress": "39 focused tests and 5018 original comparisons; source committedb9aafe9",
+      "source_lease": false,
+      "output_lease": false
+    },
+    {
+      "owner": "/root/step10_identity_comparison",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack": true,
+      "released": true,
+      "scope": "I03 native host comparison",
+      "progress": "Node22/24 focused35/35; Astra independent source review; actual installedworkerd pending",
+      "source_lease": false,
+      "output_lease": false
+    },
+    {
+      "owner": "/root/step10_work_ref_unblocker",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "ack": true,
+      "released": true,
+      "scope": "ports:W03.2 finite frozen lifecycle runner",
+      "source_lease": false,
+      "progress": "actual refs/profile lifecycle and maxLive config probes, no Cargo/no fullparentacceptance",
+      "output_lease": false
+    },
+    {
+      "owner": "/root/step10_consumer_review",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "scope": "independent C03/H01/H02 consumers",
+      "ack": true,
+      "released": true,
+      "source_lease": false,
+      "progress": "two concrete findings fixed and independently renewed; report saved"
     }
   ],
   "heavy_grants": [],
   "native_timers": [],
-  "supervisor_status": "ACTIVE requested",
+  "supervisor_status": "PAUSED verified",
   "foreign_writer": "compiler and six dirty shared plan/decision paths preserved",
   "selected_units": [
     "library-sequence:I01",
@@ -50,5 +103,43 @@
   ],
   "root_owner": "Exact manifests/lock/exports/delivery/Git only; sole global assembly writer",
   "baseline_reference": "baseline.json",
-  "updated_at_utc": "2026-10-07T01:59:27.144918+00:00"
+  "updated_at_utc": "2026-10-07T02:42:11.900065+00:00",
+  "accepted_source_releases": {
+    "b9aafe9": [
+      "I02",
+      "I04",
+      "C02"
+    ],
+    "6686bc7": [
+      "H01"
+    ]
+  },
+  "accepted_source_commits": {
+    "b9aafe90": "I02/I04/C02 pinned adapters",
+    "6686bc76": "H01 native cancellation",
+    "748149cc": "W03.2 finite guard/lifecycle prerequisite",
+    "694cd0c6": "C03 grammar adoption and valid-only candidate repair",
+    "e2cdef83": "H02 bounded redirect correction",
+    "ace2c0e8": "I03 native host comparison + exact delivery closure"
+  },
+  "acceptance_reference": "acceptance.json",
+  "ready_blocked_reference": "ready-blocked-queue.json",
+  "active_command_handles": [],
+  "cleanup": {
+    "owner": "Codex /root",
+    "shared_resources_preserved": true,
+    "private_step10_evidence_retained": true,
+    "released_step9_targets": "released-step9-cleanup.json"
+  },
+  "historical_dispatcher_state": {
+    "step7_delivery": "pending_init; failed startup never source writer; do not revive",
+    "step8_delivery": "pending_init; failed startup never source writer; do not revive",
+    "new_C04_dispatch": "thread limit; root finite evaluation fallback recorded"
+  },
+  "supervisor_verified_at_utc": "2026-10-07T02:43:05.388787+00:00",
+  "build_in_public": {
+    "poster": "/Users/vince/Projects/canlang/output/build-in-public/csv-valid-row-ace2c0e-20261007.png",
+    "tweet": "/Users/vince/Projects/canlang/output/build-in-public/csv-valid-row-ace2c0e-20261007.txt",
+    "inspection": "Generated image viewed once: complete accurate supplied copy, legible, no branding; no refinement. Not published."
+  }
 }

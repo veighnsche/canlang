@@ -1,0 +1,65 @@
+{
+  "raw_tool_sessions": [
+    84646,
+    69988,
+    16365,
+    66902
+  ],
+  "failed_attempts": [
+    {
+      "name": "services-final-tests",
+      "argv": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "--test",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/contract-shapes.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/http-client.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/http-lifecycle.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/judgments-systemone.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/mail-adapter.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/mail-redaction.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/media-comfyui.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/models-ollama.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/pagination.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/services/dist/test/scenarios.test.js"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+      "exit": 1,
+      "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/services-final-tests.log",
+      "original_failure_excerpt_from_tool_output": "Initial sandbox-only loopback HTTP fixtures failed listen 127.0.0.1 EPERM. Authorized local test escalation rerun passed153.",
+      "log_path_reused_by_later_attempt": true
+    },
+    {
+      "name": "identity-final-tests",
+      "argv": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "--test",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/accounts.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/b4-credential-liveness.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/comparison.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/context.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/contracts.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/d1.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/grants.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/oauth.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/presession.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/sessions.test.js",
+        "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/source/packages/identity/dist/test/teams.test.js"
+      ],
+      "cwd": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z",
+      "exit": 1,
+      "log": "/private/tmp/canlang-rust-port-codex-step10-20261007T015711Z/delivery/identity-final-tests.log",
+      "original_failure_excerpt_from_tool_output": "Initial private harness did not copy test/fixtures/revoked-session.json beside emitted tests (ENOENT); package build:emit already declares this copy. Private fixture copy then80pass.",
+      "log_path_reused_by_later_attempt": true
+    }
+  ],
+  "meaning": "Harness errors were not product acceptance. Paths reused on rerun are explicitly flagged; first failure excerpts captured from actual tool output; successful latest logs support accepted final attempts.",
+  "separate_preserved_raw_controls": [
+    "delivery/installed-workerd-harness-export-error.log",
+    "delivery/installed-policy-harness-scanner-error.log",
+    "csv/C03-candidate-red.log",
+    "consumer-review/probe-results.json",
+    "consumer-review/probe-after-results.json",
+    "consumer-review/slow-cancel-before.json",
+    "work-refs/red-test.log"
+  ]
+}

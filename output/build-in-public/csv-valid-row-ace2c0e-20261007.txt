@@ -1,0 +1,1 @@
+CSV imports have enough ways to go wrong. One invalid row was poisoning duplicate detection for a later valid row. The fix tracks only valid candidates, with a regression that checks the consent digest and exactly one commit.
