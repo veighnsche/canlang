@@ -1,0 +1,93 @@
+{
+  "kind": "finite final documentation consistency review",
+  "status": "pass with limits",
+  "reviewer": "existing Sol high child",
+  "scope": [
+    "README.md",
+    "scope.json",
+    "review-status.json",
+    "review-reconciliation.json",
+    "verification.json",
+    "fix-queue.json",
+    "findings.jsonl"
+  ],
+  "source_audit_repeated": false,
+  "independent_security_acceptance": false,
+  "checks": {
+    "finding_count": true,
+    "priority_counts": true,
+    "readme_table_ids_priorities": true,
+    "unique_ids": true,
+    "queue_complete_once": true,
+    "all_witnesses_unexecuted": true,
+    "all_normalized_implementation_deferred": true,
+    "all_p1_critical_gate_pending": true,
+    "critical_acceptance_false": true,
+    "approval_pending_consistent": true,
+    "enforcement_counts_consistent": true,
+    "crosswalk_counts_declared_consistent": true,
+    "source_counts_declared_consistent": true,
+    "pin_consistent": true,
+    "local_review_cases_consistent": true,
+    "placeholder_original_id_removed": true,
+    "no_scope_execution_or_policy_approval": true
+  },
+  "counts": {
+    "normalized_findings": 29,
+    "P1": 7,
+    "P2": 17,
+    "P3": 5,
+    "fix_groups": 6
+  },
+  "concrete_doc_problems": [],
+  "route_stage_consistency": [
+    "SI01 and actual grant arm SI04 identify current special production caller, subject to valid-session/DB/installed prerequisites; generic State commit bypass is expressly unclaimed.",
+    "SI02/SI03 exported identity primitives remain distinct from unmounted auth/OAuth and unproved production team-management invocation.",
+    "SI08 retains helper gap and normalized reconciliation says actual interim files dispatcher never invokes kernel; SI09 durable crash profile and SI10 download/lifetime join conditional.",
+    "SI11 trusted verifier/sink ingress join missing; SEC-C04/C05/C06 and SR01 remain held/private/native, separate from selected CLI writer/build."
+  ],
+  "review_gate_consistency": "All seven P1 findings explicitly Astra approval pending. README, scope, review-status, reconciliation and verification do not claim completed Astra or critical acceptance. Two current visible-conclusion Sol challenges described as source-only, not cleanroom/Astra. No CLI egress/review execution claimed.",
+  "limits": [
+    "Document metadata and normalized-stage consistency only; no raw own findings treated as independent evidence and no audit rerun.",
+    "395-file/316-duty and429+13 source totals compared among published records only; underlying crosswalk/source files not independently enumerated or rehashed in this finite step.",
+    "No runtime/Git/network/repo edits. Standard-library JSON/text/count/hash operations only; SHA256 identifies reviewed documentation bytes, not security correctness.",
+    "Fix queue global proposed/no-execution status and scope deferred flags retained. Critical review remains pending; this pass does not authorize implementation or certify deployment."
+  ],
+  "sources": [
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/security-limits/README.md",
+      "sha256": "ada17073fcf6fdbf2d89981c9ba51e5146c0c353be5848a5f324dd0b4fd39087",
+      "bytes": 13167
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/security-limits/scope.json",
+      "sha256": "02f2707f1353f413e5663e1217e45fedb5dabc4b82de1e415503806a3d6031dd",
+      "bytes": 1782
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/security-limits/review-status.json",
+      "sha256": "fb1b44a9b564d932e76096c4b822bc4c8f579eca99adc0b6feb77852cd5fd431",
+      "bytes": 1613
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/security-limits/review-reconciliation.json",
+      "sha256": "a5a49b9d8933c038c729357ee2bc099a1b09859f3e8af27254960f704527d1c6",
+      "bytes": 1372
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/security-limits/verification.json",
+      "sha256": "3991456e81f8a3439bf713cb4b46dbd13f01987bc666aa5acb3e923fda7c8de9",
+      "bytes": 1194
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/security-limits/fix-queue.json",
+      "sha256": "8de2504627229f1ac8eba447586b547c209abf85bc6bb00ef6c7c42b47a4d87f",
+      "bytes": 6187
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/security-limits/findings.jsonl",
+      "sha256": "003ec7597794be9845a180db8f59b784c8aded4f969622fbfdd6da30cc571bf4",
+      "bytes": 64267
+    }
+  ]
+}

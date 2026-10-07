@@ -1,0 +1,38 @@
+{
+  "Astra": {
+    "status": "explicit egress approval pending",
+    "requested_model": "gpt-6-astra",
+    "reasoning_effort": "high",
+    "in_chat_attempt": "agent thread limit reached; no reviewer created",
+    "CLI_attempt": "automatic approval review rejected before process start; no CLI review/egress occurred",
+    "rejection": "Sending potentially private repository source/design details to OpenAI requires explicit approval for this payload/destination. No workaround attempted.",
+    "payload_prepared_local_only": "24 frozen code/design source excerpts, 185703 bytes in /private/tmp/canlang-security-astra-d83d11f; secret projection, owner correspondence and credential/revocation/single-use only. No egress.",
+    "approval_question_pending": true,
+    "critical_acceptance": false,
+    "payload_sha256": "0bc110f9fd72f030bd2f49b4d4d4040b40ceb253f355739528ffad38d6ecc9fe",
+    "pending_cleanup_owner": "Originating Codex after approved review or human decline; no native/Muse/session resources were launched."
+  },
+  "Sol_capacity": {
+    "reviewer": "protocol_identity_privacy",
+    "initial_attempt": "transient model at capacity; no credit",
+    "retry": "same existing Sol6.1 high identity reused and completed packet; no model6 replacement launched"
+  },
+  "supplementary_local_reviews": [
+    {
+      "path": "review-root-grant.json",
+      "cases": 7,
+      "status": "completed source challenge; not cleanroom or Astra"
+    },
+    {
+      "path": "review-identity.json",
+      "cases": 4,
+      "status": "completed source challenge; corrections retained; not cleanroom or Astra"
+    }
+  ],
+  "final_document_review": {
+    "path": "final-review.json",
+    "status": "pass with limits",
+    "metadata_checks": 17,
+    "scope": "documentation consistency only, not own findings independent proof or critical Astra acceptance"
+  }
+}

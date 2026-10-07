@@ -1,0 +1,595 @@
+{
+  "schema": "canlang-security-state-work/v1",
+  "requested_pin": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "model": "Sol high",
+  "method": "Read-only static source and saved test-scenario inspection; witnesses are source-derived and unexecuted. Root verifies source/pin correspondence. No package execution, builds, tests, install, network, Git writes, product changes, acceptance or policy decisions.",
+  "scope": [
+    "State admission/read/CRUD/projection/replay/fences/storage/system/receipt/fanout",
+    "Work intents/dispatch/receipts/retry/recovery/recurrence",
+    "work-kernel current candidates and fact validators",
+    "Cloudflare assembly and canonical serving/driver joins; HTTP framing only to qualify real taint entry"
+  ],
+  "sources": {
+    "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+    "docs/specification/DESIGN.md": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+    "packages/cloudflare/src/runtime/invoke.ts": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+    "packages/cloudflare/src/worker/assembly.ts": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+    "packages/interfaces/src/envelope/validate.ts": "115b21e75eb724664a2a87eea0434ab792114702e72e97cf8af9e8200d32d1ec",
+    "packages/interfaces/src/http/limits.ts": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc",
+    "packages/interfaces/src/http/operations.ts": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a",
+    "packages/interfaces/src/mcp/schemas.ts": "44e1e8f6df2cddfc3c0a7b0b3f080d74dfe96c53f0d7d0d9420b3a27786f22fb",
+    "packages/state/package.json": "cb41b927046a074cad9e267fd4eba6f630a0aad7157d333b0efe3dca9e37aa52",
+    "packages/state/src/effects/staging.ts": "e5526973013ddefe2dbe19baafd3f8c20b00378258eea0a84482265ae73313c7",
+    "packages/state/src/fanout/lifecycle.ts": "451e1c290611b80f28692cf4873d03897881b7f3e14c399d8a8b140c1a4f0f78",
+    "packages/state/src/fanout/membership.ts": "2b92b84a6e9bb37b27df64278b6c62985145d3589b9af150852cb2ab2a8e50f8",
+    "packages/state/src/fanout/progress.ts": "a63bd42cd0d882b864b79124fb16aeca895cde234d6faff579ddb0aa92cd51a6",
+    "packages/state/src/internal/json.ts": "dd16c61167cee0a9a8d22cbe5037715b9c6bf574b17f433342f6ba700e90ae73",
+    "packages/state/src/invocation/admission.ts": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+    "packages/state/src/invocation/context.ts": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f",
+    "packages/state/src/invocation/invoke.ts": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+    "packages/state/src/invocation/registry.ts": "38f59e468f47bf4e065ce23865ba57c72cdf4d9bce145cbd11a3eac084ca79c0",
+    "packages/state/src/invocation/replay.ts": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36",
+    "packages/state/src/mutation/crud.ts": "194bdcb9341aadd9bd21af141efc635853f05773c1c742b1a1f64fdbde202952",
+    "packages/state/src/mutation/pipeline.ts": "1160f08db792ebe64c1c48829e6e3be8df436c3019fb47e87746c9e5ac3c39b9",
+    "packages/state/src/mutation/t18-defaults.test.ts": "2e71ab9e2bd8496e5fe0bd8708d6295f2362013a9b2beb85b6c90338add294c1",
+    "packages/state/src/policy/grants.ts": "a52233ca9198d1d7364f528d783456d1877d48db0f1feb43b8bfb561e5614cd9",
+    "packages/state/src/policy/roles.ts": "77bc09d257a5a69e40f5464c6f815730b7a065907e0bb4e4f71837ea1a68fe94",
+    "packages/state/src/ports/read.ts": "a69f85d0095ea1f55711a72b30e419449bb13bba452d949a6a5182ec0b3863e9",
+    "packages/state/src/ports/system.ts": "85a496859cf838ed2fb24439d1679e799f6e898dfad13d8e59577626418428f7",
+    "packages/state/src/query/engine.ts": "9d8b5f499dd04f72a71511af3761c53051f2df5476174e40627eb91ada337a83",
+    "packages/state/src/receipt/grants.ts": "e67bcc93376bfd614374a07937b59c5e577b1260c7b2f293c2aa0773569c2a6f",
+    "packages/state/src/receipt/join.ts": "1246a8fa0aac1f4b53512050d8e32c33cae98b843717e7de92fac3b71dc6471d",
+    "packages/state/src/storage/d1.ts": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+    "packages/state/src/storage/durable-object.ts": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+    "packages/work-kernel/Cargo.toml": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+    "packages/work-kernel/decisions/lib.rs": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+    "packages/work-kernel/package.json": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+    "packages/work-kernel/src/distribution.ts": "b80bc671dc80c3fbaa1c86dcd920f2347620603d4a18ad012aff5a8d19aae1ee",
+    "packages/work-kernel/src/facts.ts": "d10518896028ef5243d066fab4938fcb3657b0b85a90feea680a9dfdaeb6c61a",
+    "packages/work-kernel/src/index.ts": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+    "packages/work/package.json": "c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906",
+    "packages/work/src/dispatch/index.ts": "aca8c5b3b72dfca2c7b7085bbb7d0d8d8fd6e3836b88813d1ea76e730b94bfb7",
+    "packages/work/src/event/index.ts": "25114e4933a6850f5f5cc623ce243d10d250c2a5c3623343ff6780b551229d6c",
+    "packages/work/src/intent/index.ts": "d1d81a088df85d848eed4bc67ac810d50b2a13961693579b8dcacd2933646995",
+    "packages/work/src/kernel/commands.ts": "3638d31b51317dd3b3fdd2a2935e21044c82ef1a9b63afd6dbfdebe65b3b3c7c",
+    "packages/work/src/observation/observation.ts": "9ea46b591b0854146d3df0c9676b689ccde1d8df7349d745b4100d9325292a03",
+    "packages/work/src/receipt/index.ts": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816",
+    "packages/work/src/schedule/every.ts": "1f9757d565c93384b12757e86fce184e603062aba8c8e6be0c940219fd700b30",
+    "packages/work/src/schedule/index.ts": "85fc30267d72ce6aa442f18192d0817f028fd6cbc7e32047b46f3bb96a2eaf78"
+  },
+  "enforcement": [
+    {
+      "id": "ESW01",
+      "entry": "HTTP /api/operations/<name> -> canonical invoker",
+      "guards": "Session, POST/name/media/object/route/handle gates, CSRF, ID, closed and optional derived arguments.",
+      "limits": "Streaming JSON/form1MiB; cancel excess/finally release.",
+      "missing_control": "No depth/node/read deadline/op rate check; intentional envelope extra leniency.",
+      "anchors": "packages/interfaces/src/http/operations.ts:174-297; packages/interfaces/src/http/limits.ts:24-85; packages/cloudflare/src/worker/assembly.ts:1287-1294",
+      "original_ids": [
+        "cv.wire-envelope",
+        "SW-023"
+      ],
+      "taint": "Untrusted HTTP JSON/form; identity separately resolved.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW02",
+      "entry": "buildContext + admit",
+      "guards": "UUIDv7; private trusted source nonempty/actor null; other kinds run by.",
+      "limits": "Unseen24h/5min future; frozennow.",
+      "missing_control": "Nonempty source not verification; host owns test isolation.",
+      "anchors": "packages/state/src/invocation/context.ts:24-133; packages/state/src/invocation/admission.ts:341-359",
+      "original_ids": [
+        "SW-011",
+        "SW-015",
+        "SW-091"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW03",
+      "entry": "evaluateBy/hasRole",
+      "guards": "Live active matching-team membership; owner distinct declared roles; written and/or/subject evaluation.",
+      "limits": "No AST/depth/time budget.",
+      "missing_control": "Operation role not arbitrary record grant; authoritative reader assumed.",
+      "anchors": "packages/state/src/policy/roles.ts:41-104; packages/state/src/policy/roles.ts:121-191",
+      "original_ids": [
+        "SW-015"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW04",
+      "entry": "admit ref loads",
+      "guards": "Declared ref model,id,positive1-15digit version; stale before archived; enroll refs/parent; array fill afterhash.",
+      "limits": "No ID length/ref count/depth cap.",
+      "missing_control": "Scalars presence-only; extras tolerated; resolved store required.",
+      "anchors": "packages/state/src/invocation/admission.ts:77-267; packages/state/src/invocation/admission.ts:361-414",
+      "original_ids": [
+        "SW-023",
+        "SW-024",
+        "SW-038"
+      ],
+      "taint": "Declared ref id/version/extra JSON members.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW05",
+      "entry": "hashInputs -> receipt lookup",
+      "guards": "Sorted raw digest before by/shape; unsafe JSON values reject; full receipt namespace; mismatch conflict.",
+      "limits": "No State hash byte/depth/node cap.",
+      "missing_control": "Private getters/toJSON not remoteJSON; deep refs SSW02.",
+      "anchors": "packages/state/src/invocation/replay.ts:21-71; packages/state/src/invocation/admission.ts:67-76; packages/state/src/invocation/admission.ts:315-340",
+      "original_ids": [
+        "SW-008",
+        "SW-009",
+        "SW-013",
+        "SW-014"
+      ],
+      "taint": "Exact supplied pre-normalization inputs.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW06",
+      "entry": "invoke saved receipt",
+      "guards": "Exact saved outcome before by/age/body; rejected code/message.",
+      "limits": "No lookup retention/result-expiry limit.",
+      "missing_control": "Raw replay projection oldSW012; HTTP age/session checks earlier.",
+      "anchors": "packages/state/src/invocation/invoke.ts:186-207; packages/state/src/storage/d1.ts:887-903; packages/interfaces/src/envelope/validate.ts:64-85",
+      "original_ids": [
+        "SW-010",
+        "SW-012",
+        "SW-089"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW07",
+      "entry": "invoke fenced success/rejection -> D1/DO commit",
+      "guards": "Revision/liveby/guard/eventual bar, fenced all-effects batch; DO transactionSync required.",
+      "limits": "Three canonical attempts; no total time/effect count.",
+      "missing_control": "Old fenced revoke race; credential check beforehandler; raw result SSW01.",
+      "anchors": "packages/state/src/invocation/invoke.ts:61; packages/state/src/invocation/invoke.ts:310-365; packages/state/src/invocation/admission.ts:615-687; packages/state/src/storage/d1.ts:670-697; packages/state/src/storage/durable-object.ts:86-92; packages/interfaces/src/http/operations.ts:280-293",
+      "original_ids": [
+        "SW-002",
+        "SW-004",
+        "SW-005",
+        "SW-006",
+        "SW-007"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW08",
+      "entry": "invokeRead/queryRecords viewer",
+      "guards": "Read-kind/by then shapes; unsupported readinputs refuse; exact rowgrants; project beforewhere; ownpaths/secret strip.",
+      "limits": "Limit optional/overflow after full scan/sort.",
+      "missing_control": "No scan budget/postscan revision reread shown; owner correspondence external.",
+      "anchors": "packages/state/src/invocation/invoke.ts:431-492; packages/state/src/query/engine.ts:140-310; packages/state/src/query/engine.ts:641-807; packages/state/src/policy/grants.ts:207-267",
+      "original_ids": [
+        "SW-016",
+        "SW-017",
+        "SW-019",
+        "SW-020",
+        "SW-021"
+      ],
+      "taint": "Viewer query paths; authored grants; stored rows.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW09",
+      "entry": "queryRecords/createReadPort owner mode",
+      "guards": "Bound deps win; ctx.records refuses owner; private owner mode deliberately skips membership.",
+      "limits": "Owner scan/result limit only.",
+      "missing_control": "Never expose authority arg as capability; host routes owningstore.",
+      "anchors": "packages/state/src/ports/read.ts:55-111; packages/state/src/query/engine.ts:812-839; packages/cloudflare/src/runtime/invoke.ts:2597-2621",
+      "original_ids": [
+        "SW-018",
+        "SW-001"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW10",
+      "entry": "descriptor registry + Cloudflare preload",
+      "guards": "Whole-set pin/kind/shape/dangling/duplicate validation; policy attach; delivery-strip original checks; ruled refusal.",
+      "limits": "No loader member/byte/depth cap.",
+      "missing_control": "T04a additive tags ignored; prepared flags not provenance/admission.",
+      "anchors": "packages/state/src/invocation/registry.ts:1-27; packages/state/src/invocation/registry.ts:115-198; packages/cloudflare/src/runtime/invoke.ts:2128-2164",
+      "original_ids": [
+        "SW-022",
+        "SW-025",
+        "CF-C06"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW11",
+      "entry": "CRUD mutation pipeline",
+      "guards": "Caller serverOnly/unknown reject; safe candidate keys; final own-field check; immutable input; locks/invariants/parent.",
+      "limits": "Full-model provisional scans; no effect/time cap.",
+      "missing_control": "Initial inherited field lookup cannot bypass final own-key guard; rawsuccess.",
+      "anchors": "packages/state/src/mutation/pipeline.ts:203-213; packages/state/src/mutation/pipeline.ts:340-360; packages/state/src/mutation/pipeline.ts:385-430; packages/state/src/mutation/crud.ts:438-534",
+      "original_ids": [
+        "SW-026",
+        "SW-027",
+        "SW-030",
+        "SW-032"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW12",
+      "entry": "stale-ref conflict current",
+      "guards": "Authorized-by stale refs intersect submitted fields; known serverOnly/topsecret withheld; unknown map metadataonly.",
+      "limits": "No current byte/depth cap.",
+      "missing_control": "No recursive grant/secret projection for nested current; domain qualification.",
+      "anchors": "packages/state/src/invocation/admission.ts:373-410; packages/cloudflare/src/runtime/invoke.ts:1805-1843",
+      "original_ids": [
+        "SW-037",
+        "SW-036"
+      ],
+      "taint": "Current row intersect submitted fields.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW13",
+      "entry": "State effects staging",
+      "guards": "ID128,cross-op/duplicate refusal,clone+stringify probe,nonnegative index/instant,ordered schedules.",
+      "limits": "No payload byte/depth/count or names cap.",
+      "missing_control": "Probe lossless gap oldSW035; bounds not totalbatch admission.",
+      "anchors": "packages/state/src/effects/staging.ts:29-146; packages/state/src/internal/json.ts:1-31",
+      "original_ids": [
+        "SW-033",
+        "SW-034",
+        "SW-035"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW14",
+      "entry": "SystemRegistry run",
+      "guards": "Private operator knowncommand/clonedargs/boundedID; reader-only stage; onefencedcommit.",
+      "limits": "ID128; no batch/query/depth/time cap.",
+      "missing_control": "Actor opaque, no role/session auth; private capability not endpoint.",
+      "anchors": "packages/state/src/ports/system.ts:84-193",
+      "original_ids": [
+        "SW-042",
+        "SW-005"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW15",
+      "entry": "D1/DO storage raw load/query/history",
+      "guards": "Bound SQL model/id/value; field regex/direction; version/fence; DO atomic closure.",
+      "limits": "Only supplied SQLlimit; unbounded history.",
+      "missing_control": "Owningstore external/owner blank; inherited column-map SSW07.",
+      "anchors": "packages/state/src/storage/d1.ts:116-135; packages/state/src/storage/d1.ts:231-255; packages/state/src/storage/d1.ts:636-667; packages/state/src/storage/d1.ts:699-720; packages/state/src/storage/d1.ts:935-945; packages/state/src/storage/durable-object.ts:139-158",
+      "original_ids": [
+        "SW-001",
+        "SW-021",
+        "SW-089"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW16",
+      "entry": "Work stageOutboxIntent/freezeRequest",
+      "guards": "Digestidentity,clone/freeze,commit-null refuses; marker helper pure.",
+      "limits": "Nonempty strings/index; no request byte/depth cap.",
+      "missing_control": "Helper cannot certify durable marker/source/provenance.",
+      "anchors": "packages/work/src/intent/index.ts:24-97; packages/work/src/intent/index.ts:130-174",
+      "original_ids": [
+        "SW-051",
+        "SW-052",
+        "SW-064"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW17",
+      "entry": "Work attemptDispatch + Cloudflare drive",
+      "guards": "Committed/supersession/state/availability/guard/liveauthority before kernelclaim; driver held-ID match.",
+      "limits": "Oneprovider attempt/drive; no deadline.",
+      "missing_control": "Optional ports; drive awaits readers beforekernel; paymentconsent separate.",
+      "anchors": "packages/work/src/dispatch/index.ts:170-218; packages/cloudflare/src/runtime/invoke.ts:4506-4518; packages/cloudflare/src/runtime/invoke.ts:4599-4660; packages/cloudflare/src/runtime/invoke.ts:4828-4853",
+      "original_ids": [
+        "SW-057",
+        "SW-058",
+        "SW-092"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW18",
+      "entry": "receipt outcome/retry/recovery",
+      "guards": "Delivered/failed/uncertain distinct; finitepolicy; exhaustion/dead; backoff/RNG demand.",
+      "limits": "Default8attempts24h; nominal1s-1h; no running-promise interruption.",
+      "missing_control": "Provider/evidence deadline ownership SSW06; neverdefinitefailure bytimeout.",
+      "anchors": "packages/work/src/receipt/index.ts:29-38; packages/work/src/receipt/index.ts:84-167; packages/work/src/receipt/index.ts:268-295; packages/cloudflare/src/runtime/invoke.ts:4835-4840",
+      "original_ids": [
+        "SW-059",
+        "SW-060",
+        "SW-061"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW19",
+      "entry": "work.dispatch.recover command",
+      "guards": "Positive limit/exactstate/refilter/cursor; release writes bounded; uncertainTruncated honest.",
+      "limits": "Full claimed+uncertain materialization; no visitedcap.",
+      "missing_control": "Returned limit not scanbound; oldcursor starvation separate.",
+      "anchors": "packages/work/src/kernel/commands.ts:1233-1324",
+      "original_ids": [
+        "SW-061",
+        "SW-082"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW20",
+      "entry": "fanout freeze/cohort/source admission",
+      "guards": "Owningcohort/cutoff/spec/knownmodel checks; stable revision; page overdelivery reject; chunk commits/retries.",
+      "limits": "Positivepage/chunk/attempt; complete array/Set and intent.",
+      "missing_control": "No totalresource admission; completecohort no500/truncate SSW05.",
+      "anchors": "packages/state/src/fanout/membership.ts:78-97; packages/state/src/fanout/membership.ts:175-255; packages/cloudflare/src/runtime/invoke.ts:6070-6172",
+      "original_ids": [
+        "SW-075",
+        "SW-076",
+        "SW-082"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW21",
+      "entry": "fanout claim/child/scheduler/progress",
+      "guards": "Freshguard/by/ref claim; unit join; data-minimized progress; missingunknown/pending.",
+      "limits": "Page/drive/retry bounds; progress Set/fullhistory.",
+      "missing_control": "Oldcachedrow andconversejoin gaps retained; no new finding.",
+      "anchors": "packages/cloudflare/src/runtime/invoke.ts:6564-6651; packages/cloudflare/src/runtime/invoke.ts:7160-7240; packages/cloudflare/src/runtime/invoke.ts:7406-7495; packages/state/src/fanout/progress.ts:42-128; packages/state/src/fanout/lifecycle.ts:75-97",
+      "original_ids": [
+        "SW-078",
+        "SW-079",
+        "SW-080",
+        "SW-082"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW22",
+      "entry": "selected receipt join + actual D3 serving",
+      "guards": "Closedlocator/staticmodel+declaredfield; authorizedpreload; everyuniqueleaf granted beforepresence; contentlifetime fence.",
+      "limits": "Fourleaf universe; no duplicateselected arraycap.",
+      "missing_control": "BareID notauthority; summary/content separate, no refill/redelivery.",
+      "anchors": "packages/state/src/receipt/join.ts:131-188; packages/state/src/receipt/join.ts:260-336; packages/state/src/receipt/grants.ts:93-143; packages/work/src/observation/observation.ts:127-163; packages/cloudflare/src/runtime/invoke.ts:3368-3435",
+      "original_ids": [
+        "SW-065",
+        "SW-067",
+        "SW-068",
+        "SW-069"
+      ],
+      "taint": "recordId/field/selected; statically bound model.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW23",
+      "entry": "event/schedule/every authoritative driver inputs",
+      "guards": "Pendingonly replace/cancel; accepteduncertain preserved; occurrenceidentity/slot scope; missingrootcohort refusal.",
+      "limits": "Slot/retry horizon not runtime walltime.",
+      "missing_control": "Helper no verifiedsource/expiry/tombstone/generatedjoin proof.",
+      "anchors": "packages/work/src/schedule/index.ts:74-110; packages/work/src/schedule/every.ts:113-143; packages/work/src/event/index.ts:1-32",
+      "original_ids": [
+        "SW-053",
+        "SW-054",
+        "SW-055",
+        "SW-089",
+        "SW-090",
+        "SW-091"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    },
+    {
+      "id": "ESW24",
+      "entry": "work-kernel neutral facts/native decisions",
+      "guards": "Version/profile/count-before-narrowing; calltoken/live-index; distinct carriers; purefact decisions.",
+      "limits": "Supplied count range; no runtime slot allocator.",
+      "missing_control": "Candidate/Cargo registration not selected production/native enforcement.",
+      "anchors": "packages/work-kernel/src/facts.ts:9-16; packages/work-kernel/src/facts.ts:95-107; packages/work-kernel/src/facts.ts:195-235; packages/work-kernel/src/index.ts:1-19; packages/work-kernel/decisions/lib.rs:1-16",
+      "original_ids": [
+        "SW-083",
+        "SW-084",
+        "SW-085"
+      ],
+      "taint": "Private owner/host/driver facts; authority not client-selected.",
+      "library_default": "Explicit owner checks; no platform quota credited."
+    }
+  ],
+  "findings": [
+    {
+      "id": "SSW01",
+      "priority": "P1",
+      "title": "Generated CRUD and supported public read can disclose server secret bytes",
+      "witness": "Minimal configured model M has writable label and token server=random_secret; admitted M.create {label:\"x\"} yields result.data.token=64hex because result is full changed row. A supported public read mark grants all declared fields and secretFields=[], so later M.read can return that same string; no secret-kind detector recognizes primitive hex. Mutation with no readable-field grant also returns ordinary hidden data. HTTP serializes the MutationResult object as outcome.result; raw changed-row data appears under JSON result.data.token, not an additional read projection.",
+      "prerequisites": "Compatible generated descriptors/real producers + registered model + admitted caller + assembly interfaces factory on HTTP route. Public-read arm separately requires supported public policy mark; t18 fixture itself uses members and ruled-read refusal, not public serving.",
+      "actual_consumer": "state generatedCrudExecute -> canonical invoke -> assembly buildInvoker -> HTTP JSON serialization; public slice -> query projection. No deployed/compiler/runtime proof.",
+      "strongest_counterevidence": "Caller cannot supply token; conflicts exclude serverOnly; generic viewer cleanCopy removes secret-kind values and explicit secretFields. Those controls do not cover plain hex secret with empty metadata or full successful row. T18 test sources deliberately assert raw row/hex as private engine results, not public privacy acceptance.",
+      "anchors": "packages/state/src/mutation/pipeline.ts:174-202; packages/state/src/mutation/crud.ts:471; packages/state/src/mutation/crud.ts:526; packages/state/src/invocation/invoke.ts:334-358; packages/cloudflare/src/runtime/invoke.ts:1783-1792; packages/cloudflare/src/runtime/invoke.ts:846-852; packages/cloudflare/src/runtime/invoke.ts:2151-2154; packages/cloudflare/src/worker/assembly.ts:919-920; packages/interfaces/src/http/operations.ts:297; packages/state/src/mutation/t18-defaults.test.ts:293; docs/specification/DESIGN.md:235; docs/specification/DESIGN.md:368; docs/specification/DESIGN.md:558",
+      "original_ids": [
+        "SW-012",
+        "SW-016",
+        "SW-026",
+        "SW-028",
+        "cv.wire-envelope"
+      ],
+      "required_fix_acceptance": "Enforce never-readable secret using owning schema/value metadata at every changed-row/read/replay/serialization path; successful mutation returns receipt plus currently authorized changed-record projection. Preserve raw private engine row where legitimately needed and saved idempotency without exposing it. Add source-qualified first success/public-read/replay negative witnesses including no read policy and explicit secret grant refusal.",
+      "uncertainty": "Required confidentiality outcome already accepted; exact opaque storage representation/result transition needs owner-compatible migration, not chosen here."
+    },
+    {
+      "id": "SSW02",
+      "priority": "P2",
+      "title": "Streaming body bytes do not bound recursive pre-authorization hash work",
+      "witness": "Valid JSON below1MiB: {inputs:{record:{id:\"r\",version:\"1\",extra:[[[...null...]]]}}}; N nested arrays in tolerated ref extra member. Framing checks only declared top-level names; checkBoundRef checks id/version but no extra traversal; stableStringify recursively walks extra before by/shape/ref load. For sufficiently deep N it can exhaust call stack; exact threshold not executed.",
+      "prerequisites": "Authenticated HTTP session+valid CSRF/current UUID, compatible ref operation shape; permitted deep JSON parse in host. Alternate private canonical caller can supply same plain data.",
+      "actual_consumer": "HTTP handleOperationRequest -> checkBoundRef -> assembly canonical admit -> hashInputs. A caller forbidden by operation still causes hashing first.",
+      "strongest_counterevidence": "1MiB cap, authentication/CSRF and closed top-level shape are real controls. JS executable getters/toJSON/cycles are not JSON transport inputs. Ref version1-15digit numeric conversion safe.",
+      "anchors": "packages/interfaces/src/http/limits.ts:24-85; packages/interfaces/src/http/operations.ts:260-293; packages/interfaces/src/mcp/schemas.ts:989-1013; packages/state/src/invocation/admission.ts:315-359; packages/state/src/invocation/replay.ts:38-67",
+      "original_ids": [
+        "SW-009",
+        "SW-013",
+        "SW-014",
+        "SW-024"
+      ],
+      "required_fix_acceptance": "Apply explicit depth/node/work admission at actual canonical input boundary before recursive hashing/allocation; iterative traversal can preserve digest/order. Retain tolerated ref extra-member semantics and exact raw hash bytes for admitted inputs; exceed budget loud before effects. Qualify finite adversarial-depth wire fixtures and bounded-resource refusal.",
+      "uncertainty": "Exact numeric cap/error/accepted-depth compatibility requires resource-contract owner; no new threshold selected. Stack threshold/source parse behavior unexecuted."
+    },
+    {
+      "id": "SSW03",
+      "priority": "P1",
+      "title": "Mixed-owner injected store has no enforced tenant row separation",
+      "witness": "Prerequisite shared store contains same model rows owned by teamsA/B. Caller active only inA admitted by members; policy grant members over fieldtitle no row-levelteam predicate. queryRecords scans both and evaluateBy uses callerA membership for every row; a ref toB id also loads bymodel+id. Checkpoint/receipt ownerA does not route or filter data.",
+      "prerequisites": "Host config passes mixed-owner StoragePort to assembled worker. No proof actual installed deployment does so; physically isolated owner store defeats witness.",
+      "actual_consumer": "assembleWorker single deps.store -> buildInvoker -> invokeRead/admit -> D1 SELECT model/id only; stored records owner inserted blank.",
+      "strongest_counterevidence": "StoragePort is explicitly owning capability; host could partition stores upstream. User business args cannot overwrite identity. Parent filters and cohort explicitowner comparison operate where supplied; receipt namespaces separated. No blanket deployed IDOR claim.",
+      "anchors": "packages/cloudflare/src/worker/assembly.ts:1690; packages/state/src/query/engine.ts:692-755; packages/state/src/invocation/admission.ts:367; packages/state/src/storage/d1.ts:636-666; packages/state/src/storage/d1.ts:705-717; packages/state/src/invocation/admission.ts:67-76; docs/specification/DESIGN.md:306",
+      "original_ids": [
+        "SW-001",
+        "SW-008",
+        "SW-016"
+      ],
+      "required_fix_acceptance": "Qualify/enforce correspondence between resolved app/team/owner and physical store or explicit schema-scoped predicates at serving admission; refuse mixed/unknown owner host binding before operations. Preserve explicit public exceptions and authoritative same-owner mutation semantics; addA/B same-model read/ref denial witness against actual routing join.",
+      "uncertainty": "Conditional configuration hazard. Choosing store partitioning versus scoped schema requires owning deployment authority; no topology/policy selected."
+    },
+    {
+      "id": "SSW04",
+      "priority": "P2",
+      "title": "Query/recovery returned limit is not bounded scanning or memory",
+      "witness": "M containsN stored rows. Canonical M.read passes no limit; query engine requests every row, projects, filters and sorts; even limit1 elsewhere only rejects afterward. Recovery limit1 queries all claimed plus all uncertain rows, materializes and sorts; if claims fresh it may visit all before releasing any.",
+      "prerequisites": "Attacker can legitimately grow/read M or cause retained pending/uncertain work; host permits enough data. Recovery itself is private scheduler, not attacker-invocable endpoint proved.",
+      "actual_consumer": "Canonical generated read and nested readModel; D1 all(); work.dispatch.recover bound system driver.",
+      "strongest_counterevidence": "Complete-set semantics and nontruncate overflow are intentional. D1 quotas/Worker limits may abort, but no project-controlled scan/work bound established. Snapshot consistency/lifecycle old gaps not new here.",
+      "anchors": "packages/state/src/invocation/invoke.ts:484-492; packages/state/src/query/engine.ts:749-807; packages/state/src/storage/d1.ts:666; packages/work/src/kernel/commands.ts:1257-1318; packages/state/src/mutation/pipeline.ts:340-360",
+      "original_ids": [
+        "SW-018",
+        "SW-019",
+        "SW-061",
+        "SW-082"
+      ],
+      "required_fix_acceptance": "Bound work/bytes/visited records at actual storage/driver join with indexed resumable pages and explicit budget refusal; preserve complete business query/all-or-reject behavior and recovery continuation. Push no caller limit as truncation. Include sparse stale claims, many denied rows and uncertain backlog witnesses.",
+      "uncertainty": "No specific row cap/query planner chosen; legitimate full queries may require explicit bounded-query contract. SQL query performance not measured."
+    },
+    {
+      "id": "SSW05",
+      "priority": "P2",
+      "title": "Fanout page/chunk bounds leave whole cohort and progress allocation unbounded",
+      "witness": "CohortN rows with pageLimit1: drainCanonicalMembers accumulatesN strings, drains admitted rows into Set, persists entire intent.members and admits all chunks in one freeze call. readFanoutProgress pageLimit1 drainsall and retainsseenN. One source can fan out beyond single-row/batch/host capacity despite perpage bounds.",
+      "prerequisites": "Actual supported same-owner cohort and admitted source withN data; Cloudflare F7 producer/driver join configured. No generated/installed support inferred from helper.",
+      "actual_consumer": "State freeze membership and F7 source admission/progress; private resource-owning caller.",
+      "strongest_counterevidence": "Complete membership mandatory; no arbitrary500 maximum or truncation allowed; pagination/overdelivery/refenced retries and bounded child commits are positive. Root cohort/incomplete capability refuses.",
+      "anchors": "packages/state/src/fanout/membership.ts:78-97; packages/state/src/fanout/membership.ts:175-255; packages/state/src/fanout/progress.ts:61-128; packages/cloudflare/src/runtime/invoke.ts:6070-6172",
+      "original_ids": [
+        "SW-075",
+        "SW-076",
+        "SW-082"
+      ],
+      "required_fix_acceptance": "Add explicit total resource admission before source success and durable resumable representation/progress where required, preserving complete frozen identity membership and honest pending/attention. Bound serialized member-row bytes and total work; avoid fixed cohort quota presented as semantics.",
+      "uncertainty": "Maximum memory/row representation/number choices remain owner decision; no threshold or alternative encoding selected. Existing stale release cursor GAP-L01 retained separately."
+    },
+    {
+      "id": "SSW06",
+      "priority": "P2",
+      "title": "Retry horizon cannot interrupt hung provider/evidence promises",
+      "witness": "Won committed claim, opts.callProvider returns a promise that never settles: drive awaits indefinitely and never records outcome. A stale-claim recovery may later release/re-drive while original provider call is still in flight. Callback lateness must remain uncertain, not definite failure.",
+      "prerequisites": "Private provider adapter lacks own bounded deadline/evidence/idempotency handling; no actual adapter deployed hang proved.",
+      "actual_consumer": "Cloudflare driveDispatchIntent awaits injected provider once; Work retry policy runs only after an outcome.",
+      "strongest_counterevidence": "Default eight attempts24h, held claim and stable outbox ID, uncertain classification on throws, caller can implement timeouts/idempotency. Scheduler being bounded does not time-bound this awaited port.",
+      "anchors": "packages/cloudflare/src/runtime/invoke.ts:4833-4840; packages/work/src/receipt/index.ts:29-31; packages/work/src/receipt/index.ts:156-167; packages/work/src/kernel/commands.ts:1278-1303",
+      "original_ids": [
+        "SW-058",
+        "SW-059",
+        "SW-060",
+        "SW-061"
+      ],
+      "required_fix_acceptance": "Require actual provider/evidence port bounded lifetime and late-result/uncertainty correlation; cancellation must not claim physical nonacceptance. Qualify stale claim plus still-live original call and late settled response with actual provider idempotency before release/retry.",
+      "uncertainty": "Deadline/cancellation versus remote acceptance is owning effect policy; no automatic retry/cancel/ack choice selected. Pure Work/native kernel cannot supply it."
+    },
+    {
+      "id": "SSW07",
+      "priority": "P3",
+      "title": "SQL field metadata lookup admits inherited names as columns",
+      "witness": "Private query order/where field=\"constructor\" or \"toString\": COLUMN_FIELDS[field] yields inherited function before regex and is returned as column; SQL interpolation emits function text, causing query error rather than data-column selection. Same code inD1 andDO.",
+      "prerequisites": "Trusted query caller/model permits identifier name or supplies suchorder; canonical generated reads expose no arbitrary client filter/order today, so remote SQL injection not shown.",
+      "actual_consumer": "Raw storage query/owner query internal caller; a hand-authored queryRecords order withconstructor field reaches toStorageOrder identifier forwarding.",
+      "strongest_counterevidence": "SQL values/model/IDs bound, unknown ordinary field names regex checked, direction constrained; prototype-safe projection and final mutation own-field check prevent corresponding object pollution. No external prototype pollution or arbitrary SQL execution claim.",
+      "anchors": "packages/state/src/storage/d1.ts:117-135; packages/state/src/storage/durable-object.ts:139-157; packages/state/src/query/engine.ts:94-126",
+      "original_ids": [
+        "SW-021",
+        "SW-036"
+      ],
+      "required_fix_acceptance": "Use Map or own-property metadata lookup, then ordinary field validation; preserve accepted own identifier semantics. Source witness against both adapters and error envelope must remain safe.",
+      "uncertainty": "Low-scope current caller correctness/security hardening; no exploit or runtime outcome executed."
+    }
+  ],
+  "prior_gaps_not_new_findings": [
+    {
+      "id": "SW-012",
+      "scope": "raw saved mutation result projection/current access/lifetime; SSW01 adds first-success path, not a new replay decision"
+    },
+    {
+      "id": "GAP-L01",
+      "scope": "stale fanout release cursor reset/starvation"
+    },
+    {
+      "id": "GAP-L02",
+      "scope": "authority revocation racing already-fenced batch; exact credential join ownership unresolved"
+    },
+    {
+      "id": "GAP-L03",
+      "scope": "F7 domain row cached across fresh retries/live authority"
+    },
+    {
+      "id": "GAP-L04",
+      "scope": "global terminal-outcome converse is weaker than per-checkpoint atomic unit"
+    },
+    {
+      "id": "SW-089/SW-090",
+      "scope": "retention and declared owner expiry requirements not proven by raw row/history/receipt adapters; no expiry schema/driver invented"
+    }
+  ],
+  "libraries": {
+    "production": "State/Work/work-kernel manifests rely on local contracts and State only; no third-party schema/query/rate limiter is enforcing these inspected paths. structuredClone/JSON.parse/JSON.stringify/TextEncoder/crypto are host primitives, not depth/work caps.",
+    "pinned_development": "state workers-types5.20261004.1,miniflare4.20260730.0; work matching CF pins; work-kernel TypeScript5.9.3. Types/test runtime pin does not establish installed D1/DO/Worker runtime resource behavior.",
+    "atomicity": "D1 code explicitly uses db.batch; DO refuses absent transactionSync. Platform-library runtime guarantees not newly executed/installed or independently browsed in this read-only offline task; owner source assumptions cited, no external quota credit."
+  },
+  "negatives": [
+    "No compile/generated/deployed/private-host consumer completion from helper or barrel reachability.",
+    "No unknown-kind fallback or owner-implies-role claim.",
+    "No unsafe ref version rounding claim: canonical maximum15 decimaldigits <2^53.",
+    "No JSON remote accessor/proxy/toJSON/cycle exploit claim; deep plain JSON/ref extras is separate supported carrier.",
+    "No client-supplied authority/kind/system command route invented.",
+    "No Cargo registration called port/adoption or native resource enforcement.",
+    "No process/SQL limits mistaken for owner-designed complete-query quotas.",
+    "No fixed500 fanout quota or blanket carrier/projection merge."
+  ],
+  "limits_of_review": "Finite join/family coverage, not exhaustive security proof. No authentication provider/production host topology/pinned binary verification, physical provider cancellation, D1/DO performance, executable tests, stack thresholds, generated policy completeness or deployed workflow acceptance. Models/backend/expiry schema may refuse unsupported modes; these refusals retained.",
+  "enforcement_stage": "ESW01-23 current TS configured source, no deployment/execution proof; ESW24 extracted/candidateTS and registerednative, not current enforcement. Taint: public HTTP JSON/form/ref/selected leaves versus private owner/system/driver artifacts, sources and effects; each entry/finding scopes caller capability.",
+  "findings_stage": "Current TS source-derived unexecuted witnesses, conditional configured paths; no new acceptance. Findings policy choices expressly unresolved."
+}
