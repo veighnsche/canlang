@@ -18,8 +18,10 @@ A Rust compiler with pinned, focused infrastructure libraries: library crate
 - `help [COMMAND]` — alias for `--help`.
 
 `can --version` prints the tool, commit, language, and schema versions
-(commit via `build.rs`, no VERGEN). Any internal fault prints one
-`error[E7005]` line and exits 2 — never a Rust trace or exit 101.
+(commit via `build.rs`, no VERGEN). An unwinding internal panic prints one
+`error[E7005]` line and exits 2. Aborts, including stack overflow and the
+default allocation-error handler, bypass that boundary; public library callers
+do not inherit the executable's panic handler.
 `can lsp` shuts down gracefully on stdin EOF or the `shutdown`/`exit`
 handshake. `can fmt` replaces each changed file atomically using a
 destination-local owned temporary file and preserves the promised source mode.

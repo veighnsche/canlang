@@ -256,8 +256,8 @@ pub fn dispatch(argv: &[String]) -> DispatchResult {
 /// [`CatalogAnalyzer`]).
 pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult {
     // Test-only hook for the panic path (`tests/exe.rs` drives the real
-    // binary with this set): no user input panics, so the E7005/exit-2
-    // mapping needs a forced fault. Production `main` catches this into
+    // binary with this set): this qualifies the E7005/exit-2 mapping for
+    // ordinary unwinds, not aborts. Production `main` catches this into
     // `error[E7005]`; in-process callers see the panic itself.
     if std::env::var("CAN_INTERNAL_TEST_PANIC").as_deref() == Ok("1") {
         panic!("forced internal error (CAN_INTERNAL_TEST_PANIC=1)");
