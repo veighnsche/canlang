@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "scope": "Independent Step8 authority/graph cross-review; source reading and existing raw-output inspection only",
+  "verdict": "accept with bounded reproducibility and coverage limits",
+  "pins": {
+    "compiler/src/analysis/effects.rs": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f",
+    "compiler/src/analysis/check.rs": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+    "compiler/src/analysis/types.rs": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa",
+    "docs/specification/DESIGN.md": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9"
+  },
+  "scope_finding": {
+    "classification": "demonstrated checker defect: transitive derive query omitted from recurring scope inference",
+    "authority": [
+      "DESIGN.md:314 derive inherits caller evaluation mode",
+      "DESIGN.md:526 every scope inferred from owner-bound queries/writes/local-call dependencies, mixed scope families fail checking"
+    ],
+    "source_closure": [
+      "effects.rs:2387-2390 own scenario subtree models",
+      "effects.rs:3055-3059 only statement Call callee edges",
+      "effects.rs:4052-4100 traversal of scenario_models/scenario_calls; only Scenario/CrudOp callee handling",
+      "effects.rs:1664-1738 walk_derive stores expression metadata without scope graph closure"
+    ],
+    "actual": {
+      "scope-direct": {
+        "file": "case-scope-direct.stdout",
+        "sha256": "1a6a567a83f7179bc734ac9530eb81a3dfc8ec9131c99e640f70890852cfdf33",
+        "complete": true,
+        "diagnostics": [
+          {
+            "code": "E4051",
+            "message": "recurring handler mixes app-scoped 'AppConfig' and team-scoped 'Todo' data",
+            "primary": {
+              "end": 124,
+              "file": 0,
+              "start": 115
+            },
+            "related": [],
+            "severity": "error",
+            "tags": []
+          }
+        ],
+        "sources": [
+          {
+            "id": 0,
+            "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-vn2fyzh3/scope-direct.can",
+            "sha256": "9071ea4c18a25958e248ca74ffc75de8fef11f7a16c6ea2645785e12d14f7837"
+          }
+        ],
+        "emission_diagnostics": "blocked-by-analysis-errors"
+      },
+      "scope-derived": {
+        "file": "case-scope-derived.stdout",
+        "sha256": "ca48405e5a573834a485e8ccea4dfa70609e260f8a3b445d401ae92380ef714e",
+        "complete": true,
+        "diagnostics": [],
+        "sources": [
+          {
+            "id": 0,
+            "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-vn2fyzh3/scope-derived.can",
+            "sha256": "e5214f7968b64698aeba23d1c7a73355ed782c23f50cd18727e2ff93e77cff6e"
+          }
+        ],
+        "emission_diagnostics": [
+          {
+            "code": "E6008",
+            "message": "cannot lower scenario Scope.tick: handler triggers have no \u00a713 member lowering",
+            "span": [
+              150,
+              154
+            ]
+          }
+        ]
+      },
+      "scope-scenario": {
+        "file": "case-scope-scenario.stdout",
+        "sha256": "dc95edd4ff3d74a74801bd468cf88e5dd98219715ff9cdb5497c9d8a071d65c4",
+        "complete": true,
+        "diagnostics": [
+          {
+            "code": "E4051",
+            "message": "recurring handler mixes app-scoped 'AppConfig' and team-scoped 'Todo' data",
+            "primary": {
+              "end": 185,
+              "file": 0,
+              "start": 176
+            },
+            "related": [],
+            "severity": "error",
+            "tags": []
+          }
+        ],
+        "sources": [
+          {
+            "id": 0,
+            "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-vn2fyzh3/scope-scenario.can",
+            "sha256": "a4f353727a8d01b3bb53170be792c3d21124c136f5ac67ad04acf31d5cf8ffae"
+          }
+        ],
+        "emission_diagnostics": "blocked-by-analysis-errors"
+      },
+      "call-cycle-upstream": {
+        "file": "case-call-cycle-upstream.stdout",
+        "sha256": "0e0778bcff77fea89922753936cfaa59f890296ed195e9a217a5641b58f0aa26",
+        "complete": true,
+        "diagnostics": [
+          {
+            "code": "E3005",
+            "message": "call cycle: a -> b -> a",
+            "primary": {
+              "end": 142,
+              "file": 0,
+              "start": 141
+            },
+            "related": [],
+            "severity": "error",
+            "tags": []
+          }
+        ],
+        "sources": [
+          {
+            "id": 0,
+            "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-vn2fyzh3/call-cycle-upstream.can",
+            "sha256": "e969a2594a6795e8bf889f1d4a5f264766bbbaddc05a03eb123170be039f42c3"
+          }
+        ],
+        "emission_diagnostics": "blocked-by-analysis-errors"
+      },
+      "ownership-cycle-upstream": {
+        "file": "case-ownership-cycle-upstream.stdout",
+        "sha256": "97b1d4403b6e5aca722968320aca3de230dd9ac98b7b3d89da2f67a830fe5590",
+        "complete": true,
+        "diagnostics": [
+          {
+            "code": "E2008",
+            "message": "containment cycle through model 'U'",
+            "primary": {
+              "end": 14,
+              "file": 0,
+              "start": 13
+            },
+            "related": [],
+            "severity": "error",
+            "tags": []
+          },
+          {
+            "code": "E2008",
+            "message": "containment cycle through model 'A'",
+            "primary": {
+              "end": 30,
+              "file": 0,
+              "start": 29
+            },
+            "related": [],
+            "severity": "error",
+            "tags": []
+          },
+          {
+            "code": "E2008",
+            "message": "containment cycle through model 'B'",
+            "primary": {
+              "end": 46,
+              "file": 0,
+              "start": 45
+            },
+            "related": [],
+            "severity": "error",
+            "tags": []
+          }
+        ],
+        "sources": [
+          {
+            "id": 0,
+            "path": "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-vn2fyzh3/ownership-cycle-upstream.can",
+            "sha256": "78c1b29cf37fc55230de57395b13eab6339f35984746d534547a21538076eed7"
+          }
+        ],
+        "emission_diagnostics": "blocked-by-analysis-errors"
+      }
+    },
+    "runtime_limit": "derived artifact emission contains E6008 handler triggers lack member lowering. No runtime recurring admission, permission bypass, confidential disclosure or cross-owner atomicity conclusion follows.",
+    "policy_limit": "Initializer/default/server transitive scope and generalized runtime authority propagation remain distinct unqualified hypotheses. No new policy selection required to identify the paired derive defect."
+  },
+  "graph_review": {
+    "repeat_count": 12,
+    "distinct_full_diagnostic_arrays": 2,
+    "finding": "existing call-cycle nondeterministic message and closing-edge span reproduced; rejection itself stable",
+    "dedup": "analysis/check.rs compares file,start,end,code,message, keeps first; related/severity/tags not in key",
+    "sort": "file,start,code only; not message/end or upstream traversal order",
+    "source": "types.rs:4957-5014: callable Scenario/DeriveFn only, visited traversal and sorted vertex path global reported set; CRUD/capability leaves",
+    "coverage_limits": [
+      "two-cycle/upstream fixture does not establish all graph edge scopes/multiplicity",
+      "containment upstream witness differs from call return-to-origin semantics",
+      "no new unified SCC report policy authorized",
+      "no dynamic dedup witness proves differing end/message retention, though implementation directly shows it",
+      "different metadata with same dedup key could collapse by defined implementation; no demonstrated defect claim for hypothetical related/severity differences"
+    ]
+  },
+  "reproducibility": "Scope temporary source paths absent when reviewer attempted read; stdout source hash and emitted JS retained. Root must retain fixture bytes/recipe for exact paired replay.",
+  "mutations": "only review-authority.json/.md; no source, primary evidence, tests, manifests, Git or JEV calls"
+}

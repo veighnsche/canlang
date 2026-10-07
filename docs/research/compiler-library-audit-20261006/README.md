@@ -26,6 +26,8 @@ The proposed [compiler correctness, ownership and simplicity audit](compiler-cor
 
 [Audit Step 7 is executed](responsibility-map/syntax.md): 186 full grammar productions, 119 CST kinds and 27 stage families are mapped in the same ledger. Fresh native evidence has 345 selected harness passes, 50 public stage probes, 54 corpus replays and 16 CLI calls. Independent review confirms residual effects/source-metadata recovery bugs, silent tab/order/corpus loss and separate delimiter/support gates. Six actual emitted-string/testkit witnesses pass; whole syntax branch execution, application/product/other-host acceptance and the eight proposed repair packets remain open. No production or policy change occurs.
 
+[Audit Step 8 is executed](responsibility-map/semantics.md): 44 finite semantic duties and eight repair/qualification records join the same ledger. Fresh evidence includes 440 selected passes, 73 public API fixtures, 12 current-build graph repeats, 70 public owner calls, eight CLI calls and two emitted pure-format executions. Array nullability, derive scope and format binding/runtime failures are independently corroborated; owner policy/data/presentation disagreements and broader authority/overload gaps remain classified. No production/package/policy implementation or full semantic/installed-release acceptance occurs.
+
 | Pass | Declared outcome / reference |
 | --- | --- |
 |0 |[Released contracts and witnesses](pass0/README.md) |

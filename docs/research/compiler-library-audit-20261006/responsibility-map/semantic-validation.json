@@ -1,0 +1,31 @@
+{
+  "scope": "Mechanical shared inventory/source/view/fixture/pin/command/outcome validation, independent semantic review separate",
+  "observed_head": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "compiler_source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "compiler_diff": "",
+  "ledger_records": 451,
+  "semantic_duties": 44,
+  "findings": 8,
+  "pin_references_checked": 834,
+  "captured_commands": 102,
+  "retained_source_fixtures": 73,
+  "public_owner_calls": 70,
+  "selected_native_passes": 440,
+  "reported_skips": 0,
+  "later_outcomes": {
+    "checks": 188,
+    "passes": 179,
+    "intentional_failures": 9
+  },
+  "local_markdown_links_checked": 110,
+  "ledger_sha256": "bcae2974d9a0218424b4dd52b501d9c52b5bc39614504256eb0b9f76a1cb120d",
+  "prior_ledger_receipt": "semantic-evidence/prior-syntax-validation.json",
+  "errors": [],
+  "limits": [
+    "finite semantic duties and sampled fixtures, not every branch/context/API",
+    "separate attempted-oracle corrections, owner policy gates and real defect failures",
+    "controlled catalog version not producer release compatibility",
+    "installed dist/pure empty-context execution not activation/browser/application/release/other-host acceptance",
+    "historical skill validator bundle unavailable; local joined validators used"
+  ]
+}

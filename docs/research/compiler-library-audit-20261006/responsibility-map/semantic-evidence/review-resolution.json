@@ -1,0 +1,281 @@
+{
+  "schema": "independent-resolution-review-v1",
+  "stage": "Step8 bounded source and raw receipt cross-review",
+  "initial_head": "1db4516c645799ff3c2d7287ebd6d470ecd5896c",
+  "source_ref": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "pins": [
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "sha256": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "sha256": "11a20d031e8c038ee9ba70fb5a55c6d5d6eafe508910e76f9bc9bdeae712c63d"
+    },
+    {
+      "path": "compiler/src/analysis/catalog.rs",
+      "sha256": "af4aa22270db711cd251c3e0df433004b33f1b4f7f6367775ffa0668c488306c"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "sha256": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005"
+    },
+    {
+      "path": "docs/specification/DESIGN.md",
+      "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9"
+    },
+    {
+      "path": "docs/specification/GRAMMAR.md",
+      "sha256": "ace09efbe7df6326fb3fa35090b76befeb8d554dab3e3a3123b7ddf285590c36"
+    },
+    {
+      "path": "packages/values/dist/catalog.json",
+      "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+    },
+    {
+      "path": "compiler/tests/analysis.rs",
+      "sha256": "69d974c2b7945fc15c209d5346c8e883ef81fe2954e8fa4d6e71331472ef2453"
+    },
+    {
+      "path": "compiler/tests/b4_check.rs",
+      "sha256": "0d4122ca2f1222f5891289b6b516cf8357c44bdca731a19b5cdca5d38d70403e"
+    },
+    {
+      "path": "compiler/tests/b4_resolve.rs",
+      "sha256": "35440927fe737430640de6adef022699b1e660694306331794d2a7e6dbf9491c"
+    },
+    {
+      "path": "compiler/tests/catalog_input_contract.rs",
+      "sha256": "814318bfab7d9f614594b17b958a5060e0d04c4b76672189ca4053d73e05ad2d"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/cases.json",
+      "sha256": "77348e24ced88fe905c17ac5c9726a144d3c2f44caeda2aaa688e37c786c7572"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/run.py",
+      "sha256": "a660846dffaae9f1ecf916abeee67efe8656b102b04677573971be73ce6499a3"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/inputs.json",
+      "sha256": "7c98eaf05eada069a699d57b49b8f0c03696102eb88f1010a99821117e2a366c"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/execution.json",
+      "sha256": "26b0b095b3e5e9002e14721c7d7735539cbfa1fe2badf4fb33f6b61b1b71bb8b"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-array-fixed-first.stdout",
+      "sha256": "07c89c476a28df6bfdd47e471435d157ada835bfb2391c8bc33a656d6bde6c4e"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-array-nullable-first.stdout",
+      "sha256": "657297e8fa6eb9f7df889c079df4141c5bb54ee1926680fea6c13038ac1b06e2"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-import-private.stdout",
+      "sha256": "c342ed4d0a74cfd1ec8a547fb4117b1e9bc152c03c42f602442d4f7eda9fb520"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-import-export.stdout",
+      "sha256": "506908aa3c38912b7ed410de5905d484ddfb70489b367d5b975669a018c4e8aa"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-import-missing.stdout",
+      "sha256": "d402a8b1e3feedcd35dfe3c44639171c85b35c08fee42a0615c5b6b576001f86"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-import-provider-unknown.stdout",
+      "sha256": "65d264fcc0eb77cd77cb930712d5f07c8b82c1a6a5153f52ba3ae28ca4f107f2"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-import-deployment.stdout",
+      "sha256": "cad5a10690b5caa5ca257b835dd9ae9a6dc84fc4b36da9c38ac3992cc3ac0834"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-import-bad-binding.stdout",
+      "sha256": "7dea2a11449749471fe82be80562b0de2f9af24525b8fdcb3577a996c54eae52"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-builtin-named-valid.stdout",
+      "sha256": "ad52cdfaff1dc4534ef7269144b377f481e3cbb4f91a818ec26f795e39d975dd"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-builtin-unknown.stdout",
+      "sha256": "51a7d3ba4220bf1348d3ccacb5bf8dc5b911dbbf8f828d73d90d993c75656fd4"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-builtin-missing.stdout",
+      "sha256": "eb39a4c94b0b3ffb16c5e9ced73c02b5eec4069616d7e69865646263a54b7b0c"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-builtin-excess.stdout",
+      "sha256": "363dcf6fdbb7af12fa0d584e1d6c8909baee10a4c8bffe7d41954dba12fd0fea"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-catalog-implemented.stdout",
+      "sha256": "ae76dfa0997f579a4870797df0613fe9bf7a55b5fd5f6f7f27728583f54be6b3"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-catalog-planned.stdout",
+      "sha256": "667b343f49c5b44578dc17b3e6ca336bea5616e196be0d80e02482cfdef79a71"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-catalog-external.stdout",
+      "sha256": "8f614e1a0dbbf416f5c0aa63987802e0be6d67c0eeaf4f6709b6dfd8b5360e13"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-catalog-helper.stdout",
+      "sha256": "e1cd22fe4ed3513406a5ff58d008c420343e75efed17c3b4a7ee9205e290752e"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-default-earlier-param.stdout",
+      "sha256": "43fe5879ee451cccbd8f9c337e27de0fabd1786fa01735ea6601001161df7683"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-default-later-param.stdout",
+      "sha256": "fef5a1b00dbb29cafc71eff73d117002e7ad0a39d2d7fdd807764b94dd140532"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/case-default-self.stdout",
+      "sha256": "e9c605ef5b411d0f1b69f68599caec8bafb4c206a358beccf0265704544cbd1f"
+    }
+  ],
+  "records": [
+    {
+      "id": "XR-RES-01",
+      "verdict": "confirmed",
+      "claim": "Nullable array element type can be erased when a nonnullable element occurs first, admitting unsupported data into text[] argument",
+      "independent_contract": [
+        "DESIGN139 nullable elements outside v1",
+        "GRAMMAR189/197 no nullable-element representation",
+        "DESIGN163,277 explicit typed calls checked"
+      ],
+      "source": [
+        "types.rs:type_array12346\u201312430 first concrete type retained; nullable stripped only for comparisons",
+        "types.rs:types_compatible9742\u20139825 array element compatibility; nullable cannot fit nonnullable"
+      ],
+      "raw": [
+        "case-array-fixed-first.stdout: parse_codes=[]; complete=true; no analysis/emission diagnostics; [\"fixed\",x] typed Array<Text>; x typed Nullable<Text>; JS preserves [\"fixed\",x]",
+        "case-array-nullable-first.stdout: parse_codes=[]; E3001 at82..93: argument xs expected array of text, found array of text?; emission blocked"
+      ],
+      "challenge": "List order affects business meaning; only type safety obligation is permutation invariant. A nullable binding is potentially null without needing runtime evaluation. Count witness demonstrates compile/emission admission, not a runtime crash or disclosure.",
+      "limits": [
+        "Reverse rejects at consumer rather than uniformly diagnosing nullable-element literal",
+        "No runtime-null call executed by review; emitted function may never be invoked",
+        "Empty/error/opaque/unknown/nested-array cross-products not covered by this pair"
+      ]
+    },
+    {
+      "id": "XR-RES-02",
+      "verdict": "confirmed bounded mechanisms",
+      "claim": "Known-provider import visibility and unknown deployment opacity follow reviewed implementation and existing normative ownership distinctions",
+      "independent_contract": [
+        "DESIGN85 export/import identity and no privilege",
+        "DESIGN89\u201391 bound exported interface/deployment semantics"
+      ],
+      "source": [
+        "resolve.rs:resolve_import1909\u20132070",
+        "resolve.rs:bind_import_alias2071\u20132098"
+      ],
+      "raw": [
+        "import-private E2003; import-export clean; import-missing E2004; unknown unbound provider E2005; unknown deployment-bound provider clean; other.remote E2001"
+      ],
+      "challenge": "Clean unknown bound imports are incomplete static knowledge, not validated interface existence, deployment compatibility, or data permissions.",
+      "limits": [
+        "No fresh root case for known bound private/missing member",
+        "No fresh root case for alias collisions, chained re-export, fixture namespace, composed-app message restriction or bound std unknown nominal",
+        "Imported CRUD aliases and schema extraction are separate duties with inspected prior tests; these six cases do not execute all"
+      ]
+    },
+    {
+      "id": "XR-RES-03",
+      "verdict": "confirmed bounded mechanisms",
+      "claim": "Builtin named/arity cases and signature earlier/self/later default scope match independent contracts",
+      "independent_contract": [
+        "DESIGN163 positional then unique named arguments",
+        "GRAMMAR228\u2013235 named-order/duplicate parser",
+        "DESIGN285 earlier default parameters only/preauthorization"
+      ],
+      "source": [
+        "types.rs:check_catalog_arg_names13997\u201314026; check_catalog_arity14027\u201314059; try_overload14060\u201314106",
+        "resolve.rs:resolve_param_defaults3101\u20133153",
+        "types.rs:bind_arguments13887\u201313996"
+      ],
+      "raw": [
+        "builtin named lower(value=\"X\") clean; unknown name/missing/excess E3005",
+        "earlier default clean; later/self default E2001"
+      ],
+      "challenge": "lower cases test catalog binder; they do not establish ordinary user function, message, operation object, heterogeneous action or invocation binder parity. Parser duplicate/order rejection remains its own boundary.",
+      "limits": [
+        "No fresh duplicate/mixed/reversed-two-param ordinary user binder cases",
+        "No fresh later impurity/error-typed arguments to validate error recovery/suppression",
+        "No execution of defaults or authorization-context reads"
+      ]
+    },
+    {
+      "id": "XR-RES-04",
+      "verdict": "confirmed controlled branch coverage; reject production capability inference",
+      "claim": "Availability/helper fixture outcomes qualify controlled producer status gates only",
+      "independent_contract": [
+        "Catalog availability contract; DESIGN221\u2013277 finite builtins"
+      ],
+      "source": [
+        "types.rs:call_builtin13417\u201313483 Planned\u2192E6001 before overload errors; External callable",
+        "resolve.rs:walk_expr helper branch4873\u20134931"
+      ],
+      "raw": [
+        "catalog-implemented clean; planned E6001; external clean; helper E2006"
+      ],
+      "real_catalog": {
+        "entries": 59,
+        "external": [
+          "active_member",
+          "random_secret"
+        ],
+        "planned": []
+      },
+      "challenge": "run.py modifies existing lower entry status/kind in a copied catalog. Installed catalog has active_member/random_secret external and no planned entry; lower external/helper results cannot establish provider implementation or installation readiness.",
+      "limits": [
+        "Loader malformed JSON/signature/duplicate-ID duties have independent existing test definitions, not these status probes",
+        "No external integration dispatch executed",
+        "Catalog External differs from ScopedName/Binding External"
+      ]
+    },
+    {
+      "id": "XR-RES-05",
+      "verdict": "structural distinction confirmed; broader exception claim rejected pending emission evidence",
+      "claim": "IR generic builtin argument order chooses first same-arity overload rather than carrying winner, but current ordinary real-catalog groups share parameter names/order",
+      "source": [
+        "types.rs:call_builtin13492\u201313570 selection counts nonempty/ordered markers",
+        "ir.rs:order_builtin_args2905\u20132930 chooses first same-arity overload",
+        "ir.rs:decode_name_call2771\u20132782 format unconditional specialized path",
+        "ir.rs:decode_format_call2932\u20132966 first positional descriptor, named literal locale only"
+      ],
+      "real_catalog_groups": [
+        "sum",
+        "min",
+        "max",
+        "abs",
+        "round",
+        "format",
+        "overlaps",
+        "money"
+      ],
+      "challenge": "Dedicated format path is not proof of same-arity named binding parity. All-named descriptor/template lacks first positional descriptor; ordinary values and dynamic locale need separate lowering qualification.",
+      "probe_leads": [
+        "format(descriptor=m,locale=null) versus format(m,locale=null)",
+        "format(template=\"Hi {n}\",values={n=\"Bo\"}) versus positional",
+        "format(m,locale=typed_locale_binding)"
+      ],
+      "limits": [
+        "No installed ordinary same-arity differing-name defect demonstrated by source scan",
+        "Controlled synthetic reorder/tie producer is mechanism evidence only",
+        "Format leads are not executed by review or newly classified defects; parent/Step9 owns emission tests"
+      ]
+    }
+  ],
+  "execution": "Review ran read/hash/JSON inventory only; uses root fresh-build raw receipts and execution.json, no independently rerun compiler/test processes.",
+  "production_edits": false,
+  "policy": "No new policy, consultation transmission, or graph replacement selected."
+}

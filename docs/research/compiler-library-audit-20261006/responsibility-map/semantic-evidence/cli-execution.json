@@ -1,0 +1,152 @@
+{
+  "commands": [
+    {
+      "name": "cli-check-array-fixed-first",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-cli-4xmva9fv/array-fixed-first.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.021,
+      "stdout": "cli-check-array-fixed-first.stdout",
+      "stderr": "cli-check-array-fixed-first.stderr",
+      "stdout_sha256": "59373958983d72eea12753ef05c3d50b6b6d43caac54cf5e65eb7c7db845761d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cli-compile-array-fixed-first",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-cli-4xmva9fv/array-fixed-first.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.007,
+      "stdout": "cli-compile-array-fixed-first.stdout",
+      "stderr": "cli-compile-array-fixed-first.stderr",
+      "stdout_sha256": "f208daef1843cb9f418740ed4170e297d2c53f1708dc02cbc8d67f370b5d1d8f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cli-check-array-nullable-first",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-cli-4xmva9fv/array-nullable-first.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 10,
+      "elapsed_seconds": 0.004,
+      "stdout": "cli-check-array-nullable-first.stdout",
+      "stderr": "cli-check-array-nullable-first.stderr",
+      "stdout_sha256": "489fabb33183aa0eed88083f887815e80cda59e547317eaa664a4d024a2fd9c4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cli-compile-array-nullable-first",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-cli-4xmva9fv/array-nullable-first.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 10,
+      "elapsed_seconds": 0.004,
+      "stdout": "cli-compile-array-nullable-first.stdout",
+      "stderr": "cli-compile-array-nullable-first.stderr",
+      "stdout_sha256": "489fabb33183aa0eed88083f887815e80cda59e547317eaa664a4d024a2fd9c4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cli-check-scope-derived",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-cli-4xmva9fv/scope-derived.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "cli-check-scope-derived.stdout",
+      "stderr": "cli-check-scope-derived.stderr",
+      "stdout_sha256": "02ed100f6baa86d086fae6b12cb174d22911b154f24a26c3557d4555f283afd0",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cli-compile-scope-derived",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-cli-4xmva9fv/scope-derived.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 10,
+      "elapsed_seconds": 0.005,
+      "stdout": "cli-compile-scope-derived.stdout",
+      "stderr": "cli-compile-scope-derived.stderr",
+      "stdout_sha256": "304b71e46d1ad7c05981dbb9da2f4a1e1d29fcad16c369e32eb30971b5c591bf",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cli-check-format-message-named",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-cli-4xmva9fv/format-message-named.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "elapsed_seconds": 0.004,
+      "stdout": "cli-check-format-message-named.stdout",
+      "stderr": "cli-check-format-message-named.stderr",
+      "stdout_sha256": "cd5b624100ca87cb369c3834d0bfd4831dfb7c09cac9f2fdfb33d71100252456",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cli-compile-format-message-named",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step8-cli-4xmva9fv/format-message-named.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 10,
+      "elapsed_seconds": 0.004,
+      "stdout": "cli-compile-format-message-named.stdout",
+      "stderr": "cli-compile-format-message-named.stderr",
+      "stdout_sha256": "4973d552df2d07f8373ed5cfa07d0c9f136d59aa30e04e3cda8ef83d562fae71",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "binary": {
+    "path": "compiler/target/debug/can",
+    "sha256": "f65f7be5a48829db75fdffef7e234d1160c352787b07fd9a3024de8308a40857"
+  }
+}

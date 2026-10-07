@@ -1,0 +1,66 @@
+{
+  "schema": "semantic-evidence/receipt-review-v1",
+  "scope": "Read-only mechanical verification of Step8 receipts, case oracles, source pins, and inference boundaries",
+  "verdict": "accept with oracle corrections and bounded claims",
+  "counts": {
+    "primary_cases": 47,
+    "primary_failed_case_assertions": 3,
+    "extra_cases": 26,
+    "extra_failed_case_assertions": 3,
+    "captured_execution_commands": 94,
+    "captured_command_hash_mismatches": 0,
+    "focused_suite_tests_passed": 440,
+    "focused_suite_failures": 0,
+    "focused_suite_ignored": 0,
+    "graph_repeats": 12,
+    "owner_observations": 70
+  },
+  "findings": [
+    {
+      "id": "array-fixed-first",
+      "classification": "compiler mismatch",
+      "detail": "The source is syntax-qualified, analysis-clean, and emits take(c,[\"fixed\",x]) although x has type text?. The expected E3005 code is not produced; this is the real nullable-array admission mismatch, not a receipt failure."
+    },
+    {
+      "id": "array-nullable-first",
+      "classification": "oracle code mismatch; rejection behavior observed",
+      "detail": "The source is rejected with E3001 (argument xs expects array of text, found array of text?). Requiring E3005 is over-specific and should not be counted as an additional compiler defect."
+    },
+    {
+      "id": "scope-derived",
+      "classification": "compiler mismatch",
+      "detail": "The analysis is clean despite the team query and call to app_count(), whose body queries app-scoped AppConfig. Emission reports E6008 for unsupported recurring-trigger lowering; it does not make the missed analysis diagnostic disappear. This demonstrates a checker mismatch, not recurring runtime execution or a permission bypass."
+    },
+    {
+      "id": "decimal-1",
+      "classification": "invalid oracle",
+      "detail": "The literal has 38 integer digits followed by .0, making 39 significant coefficient digits under the stated scale-preserving rule. E3001 is therefore consistent with the 38-significant-digit limit; this is not a compiler mismatch."
+    },
+    {
+      "id": "format-message-named",
+      "classification": "compiler mismatch",
+      "detail": "Analysis accepts the named descriptor and locale call, but emission produces E6008 (no descriptor argument). The paired positional case emits cleanly."
+    },
+    {
+      "id": "format-plain-named",
+      "classification": "compiler mismatch",
+      "detail": "Analysis accepts named template and values, but emission produces E6008 (no descriptor argument). The paired positional case emits cleanly."
+    }
+  ],
+  "integrity": {
+    "source_projection": "Primary and extra case source strings hash to the source_sha256 recorded in their observations. The observer source is retained in probe.rs and does not encode expected outcomes; expectations are separately declared in cases.json and extra-cases.json.",
+    "capture_hashes": "All stdout/stderr captures referenced by execution.json, extra-execution.json, and generated-execution.json exist and match their recorded SHA-256 values.",
+    "source_pins": "All 18 authority.json pinned source files match the current working-tree bytes and report equality with source_ref. The pinned compiler/specification/test files therefore show no source drift against the audited ref.",
+    "temporary_sources": "Case source bytes are retained as strings in cases.json and extra-cases.json and their hashes match observations. Temporary paths in argv and raw observer source metadata are not directly replayable after cleanup; source values and hashes are retained, but this is not a fully hermetic replay bundle.",
+    "catalogs": "All 26 extra cases use the installed catalog hash cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62. Primary cases use that catalog for 43 cases; four named catalog cases use retained controlled copies with changed lower availability/kind. The installed catalog has 59 entries, lower availability implemented, active_member and random_secret availability external, and no planned entries. Controlled catalog outcomes do not establish installed provider availability or deployed runtime behavior.",
+    "focused_suites": "The recorded cargo command exits zero. Eight test-result summaries total 440 passed, zero failed, and zero ignored; focused-suites.stdout is captured and its command hash validates. This is a focused compiler suite set, not a complete repository test run.",
+    "graph": "Twelve fresh-process graph receipts are retained and the structured diagnostics repeat; this is finite determinism evidence for the sampled call-cycle input, not proof for every graph algorithm or origin type.",
+    "generated_runtime": "The generated-format Node command exits zero. Its retained observations scope execution to selected production-emitted pure functions/imports with empty context; it does not qualify activation, server/browser integration, installed application paths, permissions, or the whole runtime."
+  },
+  "coverage_limits": [
+    "The 47 primary and 26 extra vectors are finite semantic samples, not exhaustive compiler or type-system coverage.",
+    "Owner observations exercise package-owned value encoders, decoders, and public exports on listed inputs; they do not by themselves prove compiler-to-runtime end-to-end application behavior.",
+    "Raw compiler JSON includes temporary source paths. Retained vector source and source hashes permit reconstruction of test inputs, but generated temporary files and the compiled probe executable are gone.",
+    "No assertion here establishes full-codebase behavior, host integration, deployed provider availability, authorization correctness, or runtime behavior beyond the specifically retained generated-format command and observations."
+  ]
+}

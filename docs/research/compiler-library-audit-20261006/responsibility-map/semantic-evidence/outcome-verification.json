@@ -1,0 +1,1200 @@
+{
+  "scope": "Later independently assessed outcome checks; not rewritten initial expectations or full compiler/runtime acceptance",
+  "checks": [
+    {
+      "id": "default-earlier-param",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "default-earlier-param",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "default-later-param",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "default-later-param",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "default-self",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "default-self",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "builtin-named-valid",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "builtin-named-valid",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "builtin-unknown",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "builtin-unknown",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "builtin-missing",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "builtin-missing",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "builtin-excess",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "builtin-excess",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "coalesce-null",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "coalesce-null",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "array-fixed-first",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "array-fixed-first",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "array-nullable-first",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "array-nullable-first",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "actor-r",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "actor-r",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "actor-public",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "actor-public",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "event-valid",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "event-valid",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "event-unknown",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "event-unknown",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-private",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-private",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-export",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-export",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-missing",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-missing",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-provider-unknown",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-provider-unknown",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-deployment",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-deployment",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-bad-binding",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "import-bad-binding",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "catalog-implemented",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "catalog-implemented",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "catalog-planned",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "catalog-planned",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "catalog-external",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "catalog-external",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "catalog-helper",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "catalog-helper",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "scope-direct",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "scope-direct",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "scope-derived",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "scope-derived",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "scope-scenario",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "scope-scenario",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "call-cycle-upstream",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "call-cycle-upstream",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "ownership-cycle-upstream",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "ownership-cycle-upstream",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-date-time",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-date-time",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-date-date",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-date-date",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-decimal-integer",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-decimal-integer",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-decimal-number",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-decimal-number",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-decimal-ordinal",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-decimal-ordinal",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-decimal-cardinal",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-decimal-cardinal",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-url-plain",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-url-plain",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-0",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-0",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-1",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-1",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-2",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-2",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-3",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-3",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-4",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-4",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-5",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-email-5",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-0",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-0",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-1",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-1",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-2",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-2",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-3",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-3",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-4",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "value-timezone-4",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int-0",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int-0",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int-1",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int-1",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int-2",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int-2",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int-3",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int-3",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-0",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-0",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-1",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-1",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-2",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-2",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-3",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-3",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-4",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-4",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-0",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-0",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-1",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-1",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-2",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-2",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-3",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-3",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-4",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-4",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-0",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-0",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-1",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-1",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-2",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-2",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-3",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-3",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-4",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-4",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-5",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-5",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-6",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-6",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-7",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "datetime-7",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-message-positional",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-message-positional",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-message-named",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-message-named",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-plain-positional",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-plain-positional",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-plain-named",
+      "contract": "Retained source bytes match observed compiler input hash",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-plain-named",
+      "contract": "All semantic fixtures are syntax qualified",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "array-fixed-first",
+      "contract": "Nullable array elements rejected independent of element order",
+      "pass": false,
+      "classification": "compiler-defect"
+    },
+    {
+      "id": "array-nullable-first",
+      "contract": "Nullable array elements rejected independent of element order",
+      "pass": true,
+      "classification": "compiler-defect"
+    },
+    {
+      "id": "scope-direct",
+      "contract": "Mixed owner scope diagnoses E4051 at every(5m)",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "scope-derived",
+      "contract": "Mixed owner scope diagnoses E4051 at every(5m)",
+      "pass": false,
+      "classification": "compiler-defect"
+    },
+    {
+      "id": "scope-scenario",
+      "contract": "Mixed owner scope diagnoses E4051 at every(5m)",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-message-positional",
+      "contract": "Real-catalog positional/named overload checking succeeds",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-message-positional",
+      "contract": "Supported format overload lowers without E6008",
+      "pass": true,
+      "classification": "compiler-defect"
+    },
+    {
+      "id": "format-message-named",
+      "contract": "Real-catalog positional/named overload checking succeeds",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-message-named",
+      "contract": "Supported format overload lowers without E6008",
+      "pass": false,
+      "classification": "compiler-defect"
+    },
+    {
+      "id": "format-plain-positional",
+      "contract": "Real-catalog positional/named overload checking succeeds",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-plain-positional",
+      "contract": "Supported format overload lowers without E6008",
+      "pass": true,
+      "classification": "compiler-defect"
+    },
+    {
+      "id": "format-plain-named",
+      "contract": "Real-catalog positional/named overload checking succeeds",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "format-plain-named",
+      "contract": "Supported format overload lowers without E6008",
+      "pass": false,
+      "classification": "compiler-defect"
+    },
+    {
+      "id": "int-9223372036854775807",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int-9223372036854775808",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int--9223372036854775808",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "int--9223372036854775809",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-0",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-1",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-2",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-3",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "decimal-4",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-2000-02-29",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "date-1900-02-29",
+      "contract": "Independent exact scalar/Gregorian boundary",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-values-number",
+      "contract": "DESIGN895 decimal number/cardinal allowed; integer/ordinal rejected",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-ui-number",
+      "contract": "DESIGN895 decimal number/cardinal allowed; integer/ordinal rejected",
+      "pass": true,
+      "classification": "package-profile-defect"
+    },
+    {
+      "id": "icu-values-integer",
+      "contract": "DESIGN895 decimal number/cardinal allowed; integer/ordinal rejected",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-ui-integer",
+      "contract": "DESIGN895 decimal number/cardinal allowed; integer/ordinal rejected",
+      "pass": false,
+      "classification": "package-profile-defect"
+    },
+    {
+      "id": "icu-values-ordinal",
+      "contract": "DESIGN895 decimal number/cardinal allowed; integer/ordinal rejected",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-ui-ordinal",
+      "contract": "DESIGN895 decimal number/cardinal allowed; integer/ordinal rejected",
+      "pass": false,
+      "classification": "package-profile-defect"
+    },
+    {
+      "id": "icu-values-cardinal",
+      "contract": "DESIGN895 decimal number/cardinal allowed; integer/ordinal rejected",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "icu-ui-cardinal",
+      "contract": "DESIGN895 decimal number/cardinal allowed; integer/ordinal rejected",
+      "pass": true,
+      "classification": "package-profile-defect"
+    },
+    {
+      "id": "email-0",
+      "contract": "Actual public encode/decode admit identically",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "email-1",
+      "contract": "Actual public encode/decode admit identically",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "email-2",
+      "contract": "Actual public encode/decode admit identically",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "email-3",
+      "contract": "Actual public encode/decode admit identically",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "email-4",
+      "contract": "Actual public encode/decode admit identically",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "email-5",
+      "contract": "Actual public encode/decode admit identically",
+      "pass": true,
+      "classification": "control"
+    },
+    {
+      "id": "call-cycle-upstream",
+      "contract": "Same input yields identical message/span/multiplicity across fresh processes",
+      "pass": false,
+      "classification": "existing-compiler-defect"
+    },
+    {
+      "id": "format-message-positional",
+      "contract": "Actual emitted supported format call does not throw invalid-construction",
+      "pass": false,
+      "classification": "compiler-runtime-defect"
+    },
+    {
+      "id": "format-plain-positional",
+      "contract": "Actual emitted supported format call does not throw invalid-construction",
+      "pass": false,
+      "classification": "compiler-runtime-defect"
+    },
+    {
+      "id": "public-format-plain-control",
+      "contract": "Public plain-format control returns independent Hi Bo result",
+      "pass": true,
+      "classification": "control"
+    }
+  ],
+  "passed": 179,
+  "failed": 9,
+  "suite_summaries": [
+    [
+      "37",
+      "0",
+      "0"
+    ],
+    [
+      "279",
+      "0",
+      "0"
+    ],
+    [
+      "25",
+      "0",
+      "0"
+    ],
+    [
+      "11",
+      "0",
+      "0"
+    ],
+    [
+      "6",
+      "0",
+      "0"
+    ],
+    [
+      "37",
+      "0",
+      "0"
+    ],
+    [
+      "44",
+      "0",
+      "0"
+    ],
+    [
+      "1",
+      "0",
+      "0"
+    ]
+  ],
+  "selected_harnesses": 8,
+  "selected_passes": 440,
+  "reported_skips": 0,
+  "expectation_corrections": [
+    {
+      "cases": [
+        "array-fixed-first",
+        "array-nullable-first"
+      ],
+      "original": "required E3005",
+      "corrected": "E3001 assignment/nullability failure after valid binding",
+      "reason": "Original exact code was a probe expectation mistake; reverse case correctly rejects. Fixed-first still wrongly admits unsupported nullable array."
+    },
+    {
+      "cases": [
+        "decimal-1"
+      ],
+      "original": "38integer digits+.0 accepted",
+      "corrected": "39significant authored digits rejected",
+      "reason": "Scale-preserving decimal fixture differs from owner integral38-digit input; not a compiler defect. Original assertions retained."
+    }
+  ],
+  "controlled_catalog_limit": "Initial overrides also replace catalog_version with non-semver audit label; E6007 version pin failure is synthetic and not evidence against real producer. Checking availability tests are still meaningful; no emission compatibility claim."
+}
