@@ -1,0 +1,97 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "check": "187 unique indexed source/receipt identities",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "indexed bytes correspond to immutable source freeze",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "42 unique challenges preserve source/proposal limits",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "opposing review covers all29 Values/Work+State/Identity claim IDs",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "primary source anchor bounds",
+      "passed": true,
+      "detail": {
+        "positions": 294,
+        "errors": []
+      }
+    },
+    {
+      "check": "five opposing qualifications applied and delivery scope narrowed",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "17 finite verification groups cover all42 challenges",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "dependency references exist and precede dependent group",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "every proposed group has independent chain, counterexample and finite limit",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "economical model/effort recheck at every finite dispatch",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "10 gated cleanup groups reference valid claims",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "frozen mechanical inventory reproducible including ordered record digest",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "metadata selection is packages/orchestration only",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "770 exact duplicate bytes and6 repeated top-level JSON arrays remain distinct",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "10213 ordered numeric primitive rows equal;131/72 caller rows separate",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "all13 package owners, implementation/runtime/policy/checkpoint deferred",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "local document/source links exist",
+      "passed": true,
+      "detail": {
+        "links": 59,
+        "errors": []
+      }
+    }
+  ],
+  "limits": "Source/Git/hash/JSON/anchor/dependency/document consistency only; no product tests, runtime, build, install, deployment or new acceptance."
+}

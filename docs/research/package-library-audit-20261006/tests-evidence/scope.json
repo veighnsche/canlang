@@ -1,0 +1,55 @@
+{
+  "freeze": "449563a30e33c312fcc0e47750bba4a24cb84f4c",
+  "date": "2026-10-07",
+  "stage": "planning-source-audit",
+  "packages": [
+    "cloudflare",
+    "contracts",
+    "files",
+    "identity",
+    "interfaces",
+    "services",
+    "state",
+    "stdlib",
+    "testkit",
+    "ui",
+    "values",
+    "work",
+    "work-kernel"
+  ],
+  "findings": 42,
+  "verification_groups": 17,
+  "cleanup_groups": 10,
+  "implementation_authorized": false,
+  "product_execution": false,
+  "dependency_installation": false,
+  "package_changes": false,
+  "canonical_task_status_changes": false,
+  "accepted_policy_changes": false,
+  "merge_or_filetree_checkpoint_advance": false,
+  "separate_critical_astra_review": "approval-pending; not performed or substituted by this Sol audit",
+  "delegation": [
+    {
+      "scope": "Values/Work/stdlib",
+      "model": "Sol",
+      "reasoning": "high"
+    },
+    {
+      "scope": "Delivery/UI/testkit",
+      "model": "Sol",
+      "reasoning": "high"
+    },
+    {
+      "scope": "State/identity/interfaces/services/files/contracts",
+      "model": "Sol",
+      "reasoning": "high"
+    },
+    {
+      "scope": "initial mechanical duplicate exploration",
+      "model": "Luna",
+      "reasoning": "medium"
+    }
+  ],
+  "root_refinement": "Root narrowed mechanical inventory to packages+orchestration and independently compared primitive numeric projection; full-corpus meaning remains separate.",
+  "no_new_policy": "No new consequential semantic/security mechanism selected; proposals retain required-behavior authority and any later decision gates."
+}
