@@ -1,0 +1,1441 @@
+{
+  "schema": "canlang-security-resource-services-delivery-v1",
+  "freeze": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "scope": "Services provider HTTP/caps/privacy plus Cloudflare artifact/import/maps/bundle/deploy/preparation/release security/resource enforcement. Root owns State/Values/UI/runtime admission, invoke/cache/assembly; only diagnostic fallback call read here.",
+  "evidence": "Source-derived unexecuted witnesses and arithmetic. Read-only source/stdlib file hashing+JSON output only; no runtime,tests,builds,package execution,network,install,Git or repo writes. Existing conclusions visible; not cleanroom.",
+  "authority": {
+    "sources": [
+      "S01",
+      "S02",
+      "S03"
+    ],
+    "stage": "Current CLI selects TS runPreparedBuild/runPreparedDeploy (S10:394,404); native transport/core/release/publication remains held. Finite operation/profile credit is not arbitrary-domain parity.",
+    "accepted_controls": "H01/H02 first reason AbortSignal.any, one request deadline, bounded redirect drain, quota precedence and missing Location normal bounded reader retained.",
+    "design": "No new global caps, retry/deduplication, cancel/GPU quota, artifact trust/sandbox or transaction policy chosen; root owns consequential decisions."
+  },
+  "enforcement": [
+    {
+      "id": "E01",
+      "owner": "Services HTTP origin, URL and header policy",
+      "stage": "selected TS; global host fetch",
+      "entry_chain": "Configured adapters -> HTTP wrapper -> global fetch",
+      "taint": "Binding origin/auth trusted; remote Location hostile.",
+      "anchors": [
+        [
+          "S38",
+          178
+        ],
+        [
+          "S38",
+          226
+        ],
+        [
+          "S38",
+          267
+        ],
+        [
+          "S38",
+          286
+        ]
+      ],
+      "guard": "http(s), same URL.origin on initial and every hop, manual redirects<=5, credentials omit; method policy preserved. One positive timeout/private AbortSignal.any deadline retains first reason.",
+      "limits": "Per-response positive body cap; no URL/header/IP/DNS/concurrency quota here. Same-origin path changes retain configured auth.",
+      "library_default": "Global fetch not pinned to installed Undici; see comparison.",
+      "gaps": "No user-controlled binding origin demonstrated; H01/H02 retained.",
+      "original_ids": [
+        "AD-services-http",
+        "AD-service-origin-policy",
+        "AD-service-cancel",
+        "H01",
+        "H02"
+      ]
+    },
+    {
+      "id": "E02",
+      "owner": "Services buffered/status/redirect bodies",
+      "stage": "selected TS",
+      "entry_chain": "HTTP final/status/redirect reader -> readBoundedBytes",
+      "taint": "Hostile remote bytes.",
+      "anchors": [
+        [
+          "S38",
+          96
+        ],
+        [
+          "S38",
+          226
+        ],
+        [
+          "S38",
+          347
+        ]
+      ],
+      "guard": "Count bytes before retaining; overcap cancel then quota, no truncation; release lock and clear request timer. Missing Location uses normal bounded reader.",
+      "limits": "Cap per response; up to6 bodies across redirects. Retained chunks+merged copy coexist; host single chunk can exceed cap transiently. Cancellation promise not separately timed.",
+      "library_default": "Host native fetch stream; arbitrary custom cancel promise not demonstrated.",
+      "gaps": "Raw bounded HttpStatusError body intentionally low-level; safe error mapping separate.",
+      "original_ids": [
+        "AD-service-quota",
+        "AD-service-cancel",
+        "AD-service-safe-errors",
+        "H02"
+      ]
+    },
+    {
+      "id": "E03",
+      "owner": "HTTP text stream and Ollama run",
+      "stage": "selected TS",
+      "entry_chain": "Ollama run -> HTTP async iterator -> NDJSON -> snapshots",
+      "taint": "Authorized history/model/tokens; hostile response stream.",
+      "anchors": [
+        [
+          "S38",
+          422
+        ],
+        [
+          "S50",
+          103
+        ],
+        [
+          "S50",
+          136
+        ],
+        [
+          "S50",
+          445
+        ],
+        [
+          "S50",
+          489
+        ]
+      ],
+      "guard": "Total wire byte cap/deadline, valid done:true only, first terminal retained; early return cancels/releases; per-run abort joins settlement.",
+      "limits": "Tail<=256 snapshots, each cumulative content; no global concurrent-run/history count/input token cap here. Suspended abandoned iterator needs owner return for finally.",
+      "library_default": "Native generator/stream lifetime; Ollama actually consumes/closes iterator.",
+      "gaps": "Remote inference stopping not proved; unexpected exception can reject done; root owns caller history admission.",
+      "original_ids": [
+        "AD-services-model",
+        "AD-model-final-and-cancel",
+        "AD-service-quota",
+        "H01",
+        "H02"
+      ]
+    },
+    {
+      "id": "E04",
+      "owner": "Mail preflight, judgment request and safe provider errors",
+      "stage": "selected TS APIs; mounted binding separately established",
+      "entry_chain": "Mail/SystemOne preflight -> one POST -> typed mapper",
+      "taint": "Authorized refs/state/text; hostile provider error text.",
+      "anchors": [
+        [
+          "S44",
+          146
+        ],
+        [
+          "S44",
+          347
+        ],
+        [
+          "S44",
+          401
+        ],
+        [
+          "S44",
+          582
+        ],
+        [
+          "S43",
+          161
+        ],
+        [
+          "S43",
+          276
+        ],
+        [
+          "S43",
+          339
+        ],
+        [
+          "S45",
+          18
+        ],
+        [
+          "S45",
+          45
+        ]
+      ],
+      "guard": "Finalized attachment refs+resolved size before send; judgment allowlist/unique IDs/valid criteria/JSON state; safe text<=200 units, single line/noNUL, discard if redaction changes it.",
+      "limits": "Mail nullable cap only attachments. Judgment nullable byte cap currently UTF16 length (SEC-S01), after stringify. Short error cap not confidentiality proof (SEC-S02).",
+      "library_default": "Fetch string body UTF8; installed Undici corroboration only.",
+      "gaps": "No automatic retry; same local ID on unknown; no new global cap or sensitive-text policy chosen.",
+      "original_ids": [
+        "AD-services-mail",
+        "AD-mail-attachment-quota",
+        "AD-services-judgments",
+        "AD-service-safe-errors",
+        "AD-service-quota"
+      ]
+    },
+    {
+      "id": "E05",
+      "owner": "ComfyUI graph, job history, downloads and cancellation",
+      "stage": "selected TS provider API; NativeAdapter name means native HTTP provider API, not Rust",
+      "entry_chain": "Configured graph/mapping -> submit; reconcile -> history -> binary; cancel -> observe",
+      "taint": "Trusted graph/binding; caller scalar business input; hostile remote history/filenames/bytes.",
+      "anchors": [
+        [
+          "S48",
+          51
+        ],
+        [
+          "S48",
+          121
+        ],
+        [
+          "S48",
+          173
+        ],
+        [
+          "S46",
+          401
+        ],
+        [
+          "S46",
+          450
+        ],
+        [
+          "S46",
+          496
+        ],
+        [
+          "S46",
+          556
+        ],
+        [
+          "S46",
+          638
+        ]
+      ],
+      "guard": "Exact graph digest+five mappings+existing scalar slots; clone/freeze. Output count cap before download, positive per-file byte cap, encoded paths/query, incomplete output explicit.",
+      "limits": "Per-request deadline, sequential <=N files; storage bounded by N*per-file cap, no aggregate observation timer. Positive dimensions/seed have no maxpixels/GPU/concurrency cap here.",
+      "library_default": "Own fetch wrapper, no provider SDK; digest is identity, not authorization.",
+      "gaps": "AD-media-graph-authority needs owning policy; trusted graph recursive digest not arbitrary graph ingress. No retry/poll; targeted cancel not stop proof.",
+      "original_ids": [
+        "AD-services-media",
+        "AD-media-graph-authority",
+        "AD-media-graph-digest",
+        "AD-service-quota"
+      ]
+    },
+    {
+      "id": "E06",
+      "owner": "Provider catalog and borrowed pagination",
+      "stage": "selected TS versus absent capability",
+      "entry_chain": "Catalog -> supported adapters; pagination -> one borrowed load",
+      "taint": "Caller cursor/limit, provider page; loader owns client.",
+      "anchors": [
+        [
+          "S37",
+          22
+        ],
+        [
+          "S40",
+          31
+        ],
+        [
+          "S40",
+          95
+        ],
+        [
+          "S36",
+          559
+        ]
+      ],
+      "guard": "Validate cursor/limit before loader and page afterward, no truncate/retry.",
+      "limits": "Nullable declared max page size; borrowed load has no helper deadline/cancel. Absent adapters own no worker.",
+      "library_default": "No SDK to audit for absent Payments/Errors/document/source/report/tracker.",
+      "gaps": "Missing capability joins remain required; absence is not successful disposal/quota proof.",
+      "original_ids": [
+        "AD-services-pagination",
+        "AD-services-catalog",
+        "AD-services-port-contract"
+      ]
+    },
+    {
+      "id": "E07",
+      "owner": "Cloudflare artifact admission",
+      "stage": "selected local CLI/public TS loader; root owns invocation/provenance policy",
+      "entry_chain": "Local CLI artifact -> full UTF8 file -> JSON.parse -> structural checks -> builder",
+      "taint": "Caller-chosen executable local compiler/build artifact; no hostile HTTP ingress demonstrated.",
+      "anchors": [
+        [
+          "S53",
+          161
+        ],
+        [
+          "S53",
+          193
+        ],
+        [
+          "S28",
+          248
+        ],
+        [
+          "S28",
+          292
+        ],
+        [
+          "S10",
+          394
+        ]
+      ],
+      "guard": "Version/source hash shape/module JS+v3 map/known page+callable module links; import checks later. Provenance check separate.",
+      "limits": "Full JSON/JS/maps allocated before validation, no artifact byte/module/depth quota here.",
+      "library_default": "Host FS/JSON.parse has no explicit quota option supplied.",
+      "gaps": "Root owns provenance/admission; no remote DoS from large authored local file alone. Namespace gate SEC-C02 conditional.",
+      "original_ids": [
+        "CF-C01",
+        "CF-C12",
+        "CF-C13"
+      ]
+    },
+    {
+      "id": "E08",
+      "owner": "Import lexer, original edits and module closure",
+      "stage": "selected TS build; declared dependency pins, three libraries absent locally",
+      "entry_chain": "Artifact/producer JS -> lexer -> original edits -> MagicString map",
+      "taint": "Local executable artifact; trusted installed producer profile separately allowed.",
+      "anchors": [
+        [
+          "S15",
+          75
+        ],
+        [
+          "S15",
+          90
+        ],
+        [
+          "S15",
+          102
+        ],
+        [
+          "S15",
+          196
+        ],
+        [
+          "S15",
+          222
+        ],
+        [
+          "S12",
+          538
+        ],
+        [
+          "S57",
+          95
+        ],
+        [
+          "S59",
+          540
+        ]
+      ],
+      "guard": "Decoded literal specifiers, no eval; closed artifact import kinds/computed-dynamic refusal, known relative targets/explicit bare allowlist; original UTF16 spans range+overlap guards and escaping.",
+      "limits": "Separator repair retries<=original U2028/U2029 count, with full parse/copy per retry. No practical byte/time ceiling; trusted profile can mark dynamic_unchecked.",
+      "library_default": "Declared lexer3.0.3/MagicString1.4.3 absent locally; older transitive copies not substituted.",
+      "gaps": "Hostile JS trust/resource profile requires owning decision; source wrappers do not certify full code sandbox.",
+      "original_ids": [
+        "CF-C11",
+        "CF-C12",
+        "CF-C35"
+      ]
+    },
+    {
+      "id": "E09",
+      "owner": "Sourcemap decode, compose and diagnostic fallback",
+      "stage": "selected TS, pinned codec local primary source available",
+      "entry_chain": "Map compose/lookup -> Can validation -> isolated codec; handler throw -> guarded diagnostic lookup",
+      "taint": "Local artifact maps, possibly malformed; diagnostic-only.",
+      "anchors": [
+        [
+          "S54",
+          55
+        ],
+        [
+          "S54",
+          76
+        ],
+        [
+          "S16",
+          71
+        ],
+        [
+          "S16",
+          80
+        ],
+        [
+          "S16",
+          87
+        ],
+        [
+          "S55",
+          266
+        ],
+        [
+          "S55",
+          292
+        ],
+        [
+          "D02",
+          30
+        ],
+        [
+          "D03",
+          16
+        ]
+      ],
+      "guard": "Validate VLQ alphabet/end/1,4,5fields; isolated codec preserves source order and legacy32 numeric semantics. Opaque indexes preserve identity; remapping loader()=>null; malformed mapping caught, original error retained.",
+      "limits": "Full map decode/materialization and JS-line expansion before lookup; raw carriers can scale with coordinates. No independent map byte/segment/time quota.",
+      "library_default": "Pinned codec1.6.0 sorts whole lines and uses bitwise32/loose validation; wrapper supplies strict shape checks. Remapping2.3.5 absent locally.",
+      "gaps": "CF-C15 pathologies unresolved; no hostile transport/OOM claim. Original-error fallback is a control.",
+      "original_ids": [
+        "CF-C14",
+        "CF-C15",
+        "CF-C16",
+        "CF-C17"
+      ]
+    },
+    {
+      "id": "E10",
+      "owner": "Portable bundle assembly, vendor traversal and Bun child",
+      "stage": "selected synchronous TS build; duplicate native phase helpers held",
+      "entry_chain": "Portable builder -> owned dists/vendor -> Bun argv -> output -> closure checks",
+      "taint": "Trusted installed producer trees/tools; caller dist override/local artifact.",
+      "anchors": [
+        [
+          "S12",
+          383
+        ],
+        [
+          "S12",
+          609
+        ],
+        [
+          "S12",
+          616
+        ],
+        [
+          "S12",
+          623
+        ],
+        [
+          "S12",
+          669
+        ],
+        [
+          "S12",
+          936
+        ],
+        [
+          "S19",
+          1
+        ],
+        [
+          "S25",
+          69
+        ]
+      ],
+      "guard": "No shell; temp root unique; spawn/read failure cleanup normally; marker/link/loadability checks.",
+      "limits": "Vendor stat-following recursion lacks cycle/depth/file/byte cap; installed-tree assumption. Bun no explicit timeout; entry write before cleanup try; whole maps retained.",
+      "library_default": "Host sync-child output/kill defaults not verified.",
+      "gaps": "SEC-C03 cleanup/bound; SEC-C02 conditional namespace collision. Cargo dependency lock is not publication lock.",
+      "original_ids": [
+        "CF-C09",
+        "CF-C12",
+        "CF-C20",
+        "CF-C35",
+        "P05.2",
+        "P05.3"
+      ]
+    },
+    {
+      "id": "E11",
+      "owner": "Selected text and optional mixed/package writers",
+      "stage": "CLI selects legacy writeDeployBundle; stronger package writer public TS optional",
+      "entry_chain": "Confirmed CLI -> legacy text writer; mixed/package writers optional",
+      "taint": "Reviewed keys and destination filesystem, including existing symlinks.",
+      "anchors": [
+        [
+          "S28",
+          429
+        ],
+        [
+          "S12",
+          525
+        ],
+        [
+          "S12",
+          990
+        ],
+        [
+          "S12",
+          1092
+        ],
+        [
+          "S12",
+          1199
+        ],
+        [
+          "S12",
+          1310
+        ],
+        [
+          "S12",
+          1346
+        ],
+        [
+          "S12",
+          1397
+        ]
+      ],
+      "guard": "Text POSIX lexical key guard only. Mixed preflights aliases/reserved names, snapshots binary/recomputes digest; package also lstat/root ancestor-realpath and file-dir checks.",
+      "limits": "Text follows symlinks and validates per-file after earlier writes; UTF16 manifest bytes metadata. Sequential writes, no mutex/transaction. Package preflight not concurrent hostile-FS race proof.",
+      "library_default": "Native FS follows symlinks; POSIX lexical rules differ from Windows join.",
+      "gaps": "SEC-C01 actual CLI containment gap; optional package checks not selected CLI credit.",
+      "original_ids": [
+        "CF-C13",
+        "CF-C20"
+      ]
+    },
+    {
+      "id": "E12",
+      "owner": "Package resource gathering and integrity",
+      "stage": "explicit optional TS assets, no implicit WASM backend selection",
+      "entry_chain": "Explicit resource gather -> realpath contained read -> finite manifest -> staged copies",
+      "taint": "Owned local producer directory/manifest; integrity distinct from origin authentication.",
+      "anchors": [
+        [
+          "S17",
+          43
+        ],
+        [
+          "S17",
+          54
+        ],
+        [
+          "S17",
+          77
+        ],
+        [
+          "S17",
+          118
+        ],
+        [
+          "S17",
+          160
+        ],
+        [
+          "S12",
+          1397
+        ]
+      ],
+      "guard": "Contained realpaths/files, exact finite4values/3browser key set, safe byte count+sha, actual length/hash; ancestor cycle check; binary stays bytes.",
+      "limits": "Read before size comparison; other wrapper JS only contained, outside finite generated manifest. No universal filebyte cap.",
+      "library_default": "Local FS, no external source fetching.",
+      "gaps": "Optional assets do not select WASM/native; strong guards not credited to legacy text writer.",
+      "original_ids": [
+        "CF-C08",
+        "CF-C13",
+        "CF-C36"
+      ]
+    },
+    {
+      "id": "E13",
+      "owner": "Confirmed Wrangler deploy and upgrade gates",
+      "stage": "selected TS deploy; full live upgrade backend absent",
+      "entry_chain": "Preview/yes/gates/review -> writes -> Wrangler argv child",
+      "taint": "Reviewed local plan/config; inherited host deployment credentials, external child output.",
+      "anchors": [
+        [
+          "S28",
+          292
+        ],
+        [
+          "S28",
+          400
+        ],
+        [
+          "S28",
+          429
+        ],
+        [
+          "S28",
+          440
+        ],
+        [
+          "S35",
+          62
+        ],
+        [
+          "S35",
+          146
+        ],
+        [
+          "S35",
+          184
+        ]
+      ],
+      "guard": "Preview returns, yes required, compiler mismatch refuses; no shell, ignorestdin/pipe output, default180000ms timeout, metrics off; no retry. Full live upgrade absent/rehearsal.",
+      "limits": "Host maxBuffer/killSignal not explicitly configured or verified; timeout not proof timely return if child ignores signal. No publication mutex.",
+      "library_default": "Node/Bun builtin runtime defaults not verified from types.",
+      "gaps": "LS07 started failure/nonzero/timeout cannot prove no remote deploy; inherited trusted env not request injection.",
+      "original_ids": [
+        "CF-C03",
+        "CF-C05",
+        "CF-C06",
+        "CF-C20",
+        "CF-C25"
+      ]
+    },
+    {
+      "id": "E14",
+      "owner": "Native executable resolution and process group",
+      "stage": "Held APIs/scaffold; current CLI build/deploy TS.",
+      "entry_chain": "Explicit native API -> resolve file/X_OK -> piped detached child -> session -> close",
+      "taint": "Env/installed/dev local binary; faulty/tampered private peer possible. Current CLI TS.",
+      "anchors": [
+        [
+          "S10",
+          394
+        ],
+        [
+          "S10",
+          404
+        ],
+        [
+          "S27",
+          85
+        ],
+        [
+          "S27",
+          121
+        ],
+        [
+          "S27",
+          137
+        ],
+        [
+          "S28",
+          548
+        ],
+        [
+          "S28",
+          565
+        ],
+        [
+          "S28",
+          597
+        ],
+        [
+          "S26",
+          94
+        ]
+      ],
+      "guard": "Empty argv, availability refusal/no started-job TS retry; groupTERM then2s KILL. Separate manifest triple/hash/bytes/toolchain helper not called by resolver.",
+      "limits": "Unbounded stderr; handler and final close wait outside frame timers. Fatal exit can bypass grace/join, grace timer not cleared. Manifest full read, binary path not separately contained.",
+      "library_default": "Child group/termination performance unexecuted; manifest integrity not signature trust.",
+      "gaps": "SEC-C04 adoption gate; invalid explicit override fallback CF-C34 unresolved; finite release hosts only.",
+      "original_ids": [
+        "CF-C29",
+        "CF-C30",
+        "CF-C32",
+        "CF-C33",
+        "CF-C34",
+        "P03.4",
+        "P09.1"
+      ]
+    },
+    {
+      "id": "E15",
+      "owner": "Private framing, queue and lossless admitted tree",
+      "stage": "Held native transport/core; finite validators implemented, selected release separate.",
+      "entry_chain": "Private driver frame queue -> host tagged tree -> Rust frame/tree decoder",
+      "taint": "Private peer/stdout and host values, not generic user query.",
+      "anchors": [
+        [
+          "S30",
+          19
+        ],
+        [
+          "S30",
+          43
+        ],
+        [
+          "S30",
+          67
+        ],
+        [
+          "S30",
+          141
+        ],
+        [
+          "S30",
+          194
+        ],
+        [
+          "S30",
+          239
+        ],
+        [
+          "S30",
+          252
+        ],
+        [
+          "S06",
+          131
+        ],
+        [
+          "S29",
+          19
+        ],
+        [
+          "S29",
+          48
+        ],
+        [
+          "S56",
+          230
+        ],
+        [
+          "S56",
+          347
+        ]
+      ],
+      "guard": "64MiB declared frames; Rust before payload allocate, JS outbound before frame allocate. Version/tag/token order, depth32/nodes1048576/units16777216, pre-Serde bracket100.",
+      "limits": "JS merge and JSON encoding allocate before frame guard; aggregate complete queue uncapped; Prepared only partialtail check. Semantic checks follow some copies/capacity allocations.",
+      "library_default": "Host JSON.parse; Serde whole WireNode before semantic budgets; pinned Serde comparison not completed.",
+      "gaps": "SEC-C04 queue/wholejob; SEC-C05 allocation claim. Finite frame limit remains real, not aggregate peak-memory guarantee.",
+      "original_ids": [
+        "CF-C30",
+        "CF-C31",
+        "CF-C32",
+        "P03.3",
+        "P04.1"
+      ]
+    },
+    {
+      "id": "E16",
+      "owner": "Private publication session",
+      "stage": "Held helper; not selected current CLI writer.",
+      "entry_chain": "Private session -> stage -> verifyReviewed -> publish -> dispose",
+      "taint": "Owned/private or explicit borrowed root; disk drift between calls.",
+      "anchors": [
+        [
+          "S31",
+          99
+        ],
+        [
+          "S31",
+          151
+        ],
+        [
+          "S31",
+          207
+        ],
+        [
+          "S31",
+          255
+        ],
+        [
+          "S31",
+          281
+        ],
+        [
+          "S31",
+          315
+        ],
+        [
+          "S31",
+          334
+        ]
+      ],
+      "guard": "Absolute/win32/backslash/NUL/traversal/symlink guards; recorded exact hash/bytes; preview refusal; honest partial written/pending.",
+      "limits": "No total byte/file quota; verify checks record metadata, not current disk or complete review key set; publish re-reads unchecked. Promise callback can outlive sync wrapper; disposed before rm success.",
+      "library_default": "Sync FS checks snapshots, not race-free transaction.",
+      "gaps": "SEC-C06 held exact-byte gate; LS11 async cleanup. Current CLI does not use helper.",
+      "original_ids": [
+        "CF-C13",
+        "CF-C20",
+        "P07.1"
+      ]
+    },
+    {
+      "id": "E17",
+      "owner": "Release/staging manifest and local SDK disposal comparison",
+      "stage": "Release tooling and held native release; pinned local Miniflare comparison.",
+      "entry_chain": "Release toolchain -> Cargo/copy/hash/sidecars; local SDK dispose comparison",
+      "taint": "Trusted toolchain/installed dists/persistent release roots.",
+      "anchors": [
+        [
+          "S08",
+          53
+        ],
+        [
+          "S08",
+          68
+        ],
+        [
+          "S09",
+          65
+        ],
+        [
+          "S09",
+          94
+        ],
+        [
+          "S32",
+          69
+        ],
+        [
+          "S26",
+          94
+        ],
+        [
+          "D09",
+          104906
+        ]
+      ],
+      "guard": "Finite target/toolchain/lock and hash inventory; verify explicit. Miniflare disposal aborts and closes browser/proxy/runtime/dispatchers/servers/registry in async path.",
+      "limits": "Tool/version/Cargo calls no explicit timeout; staging sequential, no mutex/transaction. Full file hashing, tsbuildinfo excluded. Miniflare tmp deletion fireAndForget104930.",
+      "library_default": "Pinned Miniflare4.20260730.0 source available; awaited dispose does not certify tmp removal settled or Can scratch cleanup.",
+      "gaps": "No live release/kill/cache/memory proof; binary available and verified separate; Cargo lock not mutex.",
+      "original_ids": [
+        "CF-C08",
+        "CF-C10",
+        "CF-C27",
+        "CF-C28",
+        "CF-C33"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "SEC-S01",
+      "priority": "P2",
+      "owner": "SystemOne configured request byte cap",
+      "stage": "selected TS adapter; configured maxRequestBytes required",
+      "anchors": [
+        [
+          "S43",
+          276
+        ],
+        [
+          "S43",
+          288
+        ],
+        [
+          "S43",
+          339
+        ]
+      ],
+      "witness": "Unexecuted source arithmetic: allowlisted model m, state {}, valid noul question {id:q,instructions:é}, maxRequestBytes77. Body {\"model\":\"m\",\"state\":{},\"questions\":{\"q\":{\"type\":\"noul\",\"instructions\":\"é\"}}} has JS length77, UTF8bytes78. Guard 77>77 false; send proceeds. ASCII e is77bytes.",
+      "preconditions": "Valid allowlist/binding/deliveryId/createdAt; ordinary Fetch UTF8 string body. No malformed or unsafe numeric input.",
+      "counterevidence": "Real HTTP response caps retained; null request cap intentionally disables ceiling; ASCII agrees. No new global maximum.",
+      "required_outcome": "Measure actual UTF8 body sent and refuse over configured byte ceiling before provider effect; preserve serialization identity/no truncation. Post-stringify cap is not preallocation bound.",
+      "negative_gate": "77-byte binding refuses é body; ASCII77 and configured78 admit. No package execution.",
+      "original_ids": [
+        "AD-services-judgments",
+        "AD-service-quota"
+      ]
+    },
+    {
+      "id": "SEC-S02",
+      "priority": "P2",
+      "owner": "Provider error specificity privacy",
+      "stage": "selected Mail/Ollama; ComfyUI result.detail separately",
+      "anchors": [
+        [
+          "S45",
+          18
+        ],
+        [
+          "S45",
+          25
+        ],
+        [
+          "S45",
+          45
+        ],
+        [
+          "S44",
+          377
+        ],
+        [
+          "S50",
+          378
+        ],
+        [
+          "S46",
+          295
+        ],
+        [
+          "S50",
+          538
+        ]
+      ],
+      "witness": "Unexecuted Mail400 JSON {\"error\":\"bearer abc123\"} -> failed.error={code:provider_rejected,message:\"bearer abc123\"}; regex is case sensitive. {\"error\":\"Account email alice@example.invalid\"} also survives. Ollama error text uses same helper; ComfyUI failure detail is succeeded observation result.state=failed.detail.",
+      "preconditions": "Provider text actually contains confidential token/account data; placeholders synthetic. Valid bounded short single-line provider message.",
+      "counterevidence": "Uppercase Bearer, assignments, known token/JWT/acct_ patterns and multiline/long messages discard specificity. Raw HttpStatusError carrier is separate boundary.",
+      "required_outcome": "Safe-error/detail consumers must not emit confidential case-variant bearer/account data. Generic-only versus structured safe provider classification remains owning design choice, not new regex policy.",
+      "negative_gate": "Confidential lowercase bearer/account-email generic or refused in actual safe consumers; legitimate safe specificity remains contract-consistent.",
+      "original_ids": [
+        "AD-service-safe-errors",
+        "IP08"
+      ]
+    },
+    {
+      "id": "SEC-C01",
+      "priority": "P2",
+      "owner": "Selected text deployment writer containment",
+      "stage": "actual confirmed CLI text writer",
+      "anchors": [
+        [
+          "S10",
+          404
+        ],
+        [
+          "S28",
+          429
+        ],
+        [
+          "S12",
+          525
+        ],
+        [
+          "S12",
+          990
+        ],
+        [
+          "S12",
+          1346
+        ]
+      ],
+      "witness": "Unexecuted: existing <artifact>.deploy/worker symlink targets writable directory outside deploy root; normal reviewed worker/main.js passes lexical check. mkdir/writeFileSync follow symlink and overwrite external main.js.",
+      "preconditions": "Confirmed yes/build gates pass; local pre-existing symlink and external write permission. No malicious key, race, Windows or remote attacker required.",
+      "counterevidence": "Lexical absolute/.. blocked; optional package writer lstat/root/ancestor checks stronger but not selected CLI. Fresh symlink-free output safe for witness; no race-free claim.",
+      "required_outcome": "Enforce selected writer destination containment before mutation, including root/ancestor/target symlinks and key aliases/reserved names; exact reviewed bytes/partial effects retained without new transaction.",
+      "negative_gate": "Outside-root root/worker/target symlink refuses before external write; ordinary contained output works.",
+      "original_ids": [
+        "CF-C13",
+        "CF-C20",
+        "LS08"
+      ]
+    },
+    {
+      "id": "SEC-C02",
+      "priority": "P3",
+      "owner": "Artifact namespace collision with platform bootstrap",
+      "stage": "Conditional local artifact trust/namespace boundary; compiler-produced reachability unproved.",
+      "anchors": [
+        [
+          "S53",
+          193
+        ],
+        [
+          "S12",
+          538
+        ],
+        [
+          "S12",
+          559
+        ],
+        [
+          "S12",
+          564
+        ],
+        [
+          "S12",
+          951
+        ],
+        [
+          "S12",
+          109
+        ]
+      ],
+      "witness": "Unexecuted: otherwise valid admitted local artifact contains worker/main.js with import-free JS export default {fetch(){return new Response(\"replacement\")}} and valid empty v3map. Artifact-last spread replaces platform bootstrap before digest/link checks. bundle.json key similarly collides with writer manifest.",
+      "preconditions": "Structurally valid caller-chosen local artifact admitted; installed dists/tools and remaining gates pass. Compiler .can output and hostile HTTP reachability not proved.",
+      "counterevidence": "Later fixed/vendor keys replace some collisions, not worker/main.js. Artifact already has executable authority; replacement alone proves no escalation. Compiler may guarantee disjoint namespace.",
+      "required_outcome": "Record owning artifact trust/namespace guarantee. If platform-owned names must be reserved, reject collisions at join before publication. Conditional boundary; no arbitrary JS sandbox choice.",
+      "negative_gate": "Under declared disjoint profile platform key collision refuses; legal relative keys preserve digests/loadability. Root verifies origin before priority elevation.",
+      "original_ids": [
+        "CF-C01",
+        "CF-C12",
+        "CF-C13",
+        "CF-C09"
+      ]
+    },
+    {
+      "id": "SEC-C03",
+      "priority": "P2",
+      "owner": "Bun build process and scratch bound",
+      "stage": "Selected synchronous build, called by CLI preview/confirmed deploy.",
+      "anchors": [
+        [
+          "S12",
+          609
+        ],
+        [
+          "S12",
+          616
+        ],
+        [
+          "S12",
+          623
+        ],
+        [
+          "S12",
+          669
+        ],
+        [
+          "S25",
+          69
+        ]
+      ],
+      "witness": "Unexecuted: mkdtemp succeeds then entry write throws before cleanup try -> surviving scratch root. Independently admitted local Bun tool starts then hangs; selected execFileSync has no explicit timeout.",
+      "preconditions": "Resolvable owned producer dists; post-create FS failure or faulty local tool stall. Ordinary authored input suffices; no remote/JS execution claim.",
+      "counterevidence": "Argv, no shell; spawn/read failures normally clean; output read finally removes root before link checks. Host pipe limits not verified. Native duplicates held.",
+      "required_outcome": "Own cleanup from successful create through entry write; bound external build while keeping sync API and truthful effects. Deadline/termination mechanism belongs to plan.",
+      "negative_gate": "Entry/spawn/read/link errors leave no owned scratch; hung tool ends with truthful bounded failure before publication, without untested kill guarantee.",
+      "original_ids": [
+        "CF-C20",
+        "CF-C35",
+        "P05.2",
+        "P05.3",
+        "LS06"
+      ]
+    },
+    {
+      "id": "SEC-C04",
+      "priority": "P2",
+      "owner": "Native session aggregate queue/diagnostics/wholejob resource gate",
+      "stage": "Held APIs/scaffold adoption gate; no selected CLI incident.",
+      "anchors": [
+        [
+          "S30",
+          67
+        ],
+        [
+          "S30",
+          141
+        ],
+        [
+          "S30",
+          159
+        ],
+        [
+          "S30",
+          194
+        ],
+        [
+          "S30",
+          239
+        ],
+        [
+          "S30",
+          252
+        ],
+        [
+          "S28",
+          565
+        ],
+        [
+          "S28",
+          597
+        ],
+        [
+          "S27",
+          157
+        ]
+      ],
+      "witness": "Unexecuted: valid private handshake+NeedHost1; onNeed never settles; peer emits many complete under64MiB JSON frames and stderr. Callback await has no timer; queue/stderr grow. Separately Prepared+open stdio waits close indefinitely; complete extra queued frame escapes partialtail check.",
+      "preconditions": "Explicit held native API; admitted local faulty/tampered peer or stalled host handler. Current CLI TS; current honest Rust single-NeedHost protocol retained.",
+      "counterevidence": "Real64MiB per-frame cap/version/token/tag checks, per-frame waits and TERM/KILL path; no native-to-TS retry. None bounds stalled callback/aggregate/exit. No OOM executed.",
+      "required_outcome": "Before adoption bound pending bytes/count, diagnostics, handler/whole-job/exit waits; close terminal to extra frames and join child/group/stdio; detach owned listeners only. No new threshold chosen.",
+      "negative_gate": "Under-cap flood during stall, stderr flood, Prepared/abortack+hang and complete extra terminal frame produce bounded truthful refusal/no fallback; valid finite protocol stays accepted.",
+      "original_ids": [
+        "CF-C29",
+        "CF-C30",
+        "CF-C32",
+        "P03.3",
+        "P03.4",
+        "LS09",
+        "LS10"
+      ]
+    },
+    {
+      "id": "SEC-C05",
+      "priority": "P3",
+      "owner": "Semantic admitted tree budgets versus allocation claims",
+      "stage": "Held implemented finite validators; semantic refusal is not peak-memory proof.",
+      "anchors": [
+        [
+          "S29",
+          48
+        ],
+        [
+          "S29",
+          78
+        ],
+        [
+          "S29",
+          89
+        ],
+        [
+          "S56",
+          273
+        ],
+        [
+          "S56",
+          283
+        ],
+        [
+          "S56",
+          347
+        ],
+        [
+          "S06",
+          131
+        ],
+        [
+          "S30",
+          59
+        ]
+      ],
+      "witness": "Unexecuted: TS string16777217 units allocates numeric array before unit cap refusal; array.map allocates before child budget. Rust tagged arr1048576 nullchildren fits under64MiB/nesting100 but totalnodes1048577: Serde full vector and output capacity precede node refusal.",
+      "preconditions": "Direct private tree encoder/frame consumer admits overbudget values. Final refusal exists; HTTP reachability or actual OOM not proved; wire cap finite.",
+      "counterevidence": "Depth32/node/unit checks real; pre-Serde bracket100 and frame64MiB bound recursion/wire extent. Input string already exists.",
+      "required_outcome": "Do not label semantic caps peak/preallocation bounds. Check known-sized owned copy/capacity budgets first where possible; hostile transport memory profile requires separate owner choice.",
+      "negative_gate": "Overbudget known-sized copies refused before unnecessary full allocation; valid exact-budget UTF16/bits/order remains lossless. No memory performance credit without measurement.",
+      "original_ids": [
+        "CF-C30",
+        "CF-C31",
+        "P04.1"
+      ]
+    },
+    {
+      "id": "SEC-C06",
+      "priority": "P2",
+      "owner": "Publication helper reviewed bytes bypass by disk drift",
+      "stage": "Held publication helper adoption gate; not selected CLI writer.",
+      "anchors": [
+        [
+          "S31",
+          231
+        ],
+        [
+          "S31",
+          255
+        ],
+        [
+          "S31",
+          265
+        ],
+        [
+          "S31",
+          281
+        ],
+        [
+          "S31",
+          300
+        ],
+        [
+          "S31",
+          324
+        ]
+      ],
+      "witness": "Unexecuted: confirmed stage a.js bytes a records hash(a)/len1; mutate staged disk file to b. verifyReviewed(record,review a) compares metadata and passes; publish re-reads and ships b without hash/length check. Extra reviewed key is never checked missing from stage.",
+      "preconditions": "Held helper used; filesystem/caller drift after stage, no forged record/symlink needed. Private root lowers outside attacker reachability; overRoot explicit borrowed root may change.",
+      "counterevidence": "Preview refusal, path/symlink checks, normal immutable flow and honest partial writes implemented. Comments assert disk drift check but readStagedBytes only reads. Current CLI legacy writer.",
+      "required_outcome": "Before helper adoption verify current disk exact reviewed bytes/complete key set at publication and enforce validated review state; public record metadata alone insufficient. Preserve partial-effect/cleanup truth.",
+      "negative_gate": "Stage a/review a/disk b refuses before shipping b; incomplete/extra/duplicate inventory refuses under declared contract; valid exact bytes publish honestly.",
+      "original_ids": [
+        "CF-C13",
+        "CF-C20",
+        "P07.1",
+        "LS11"
+      ]
+    }
+  ],
+  "library_comparison": {
+    "pins": [
+      [
+        "S57",
+        88
+      ],
+      [
+        "S57",
+        95
+      ],
+      [
+        "S59",
+        362
+      ],
+      [
+        "S59",
+        366
+      ],
+      [
+        "S59",
+        540
+      ],
+      [
+        "S59",
+        618
+      ],
+      [
+        "S59",
+        630
+      ]
+    ],
+    "available_primary": "Pinned codec1.6.0 source+export dist and Miniflare4.20260730.0 bundle available. Undici7.28.0 is local transitivedep reference, separate from global Service fetch. D-source bytes hashed separately from Git.",
+    "unavailable_pins": "Declared lexer3.0.3, MagicString1.4.3, remapping2.3.5 not available locally; older transitive copies not substituted. Serde/Bun/Node builtin primary comparison not completed. No network.",
+    "important_defaults": "Codec whole-line sorting/32bit/loose validation wrapped explicitly; remapping loader disabled; Miniflare temp deletion fireAndForget104930. Installed Undici Client headers/body300000ms,maxResponseSize-1,maxHeaderSize host http; not global Service host credit."
+  },
+  "coverage": {
+    "stage_limits": "No runtime/concurrency/FS race/OOM/provider/Wrangler/process-kill execution. P2 held findings are adoption gates; no independently demonstrated P1 remote exploit in scope, not overall security certification.",
+    "negative_findings": [
+      "H01/H02 first reason/full deadline/bounded redirect drain/quotas/missing Location retained.",
+      "No automatic provider retry/poll; targeted media cancel observes, model final-only/first terminal retained.",
+      "No eval in import decoder; original edit guards and diagnostic-error fallback retained.",
+      "Package asset containment/finite exact inventory and optional package writer checks real, separate from selected CLI.",
+      "Manifest integrity separate from executable availability/origin trust; Cargo dependency lock not publication mutex."
+    ],
+    "scope_limits": "Root owns runtime/UI/State/Values hostile ingress, provenance and global admission. Missing local cap alone is not a production DoS finding; authored local artifacts/owned tools differ from hostile transport. Absent adapters provide no successful lifecycle/quota credit. No exhaustive root-owned file coverage claimed."
+  },
+  "sources": {
+    "S01": {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89"
+    },
+    "S02": {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "sha256": "68dcaf6d9720685bb77e166add8a4018e576e67058f72d4ea7869d3a8a144793"
+    },
+    "S03": {
+      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+      "sha256": "2d7e72aa84ac62e2ec1448fbbb869539dee977dfe9662005e52f31794bafb9cb"
+    },
+    "S04": {
+      "path": "packages/cloudflare/preparation/src/job.rs",
+      "sha256": "c6e1869e1fae9ae0128023a5211434c70f8e5ef8d012e22a878312074c724b61"
+    },
+    "S05": {
+      "path": "packages/cloudflare/preparation/src/main.rs",
+      "sha256": "3bdb8d22d7f1d383597836ce02074c5eac7b9a31cb3788121d3dad634ebf59d0"
+    },
+    "S06": {
+      "path": "packages/cloudflare/preparation/src/protocol.rs",
+      "sha256": "7c532c8afb1865ce53a4679b75698ff138b46cd5261111bb7fb6cd4f67db182f"
+    },
+    "S08": {
+      "path": "packages/cloudflare/scripts/build-preparation.mjs",
+      "sha256": "04e95cbea4ea0be19a3f6da6aefc2744df2a535650b32e8f44a48e7c923c1981"
+    },
+    "S09": {
+      "path": "packages/cloudflare/scripts/package-preparation.mjs",
+      "sha256": "7126578ef2cbefbd42d9862485faeca5440cd4718b464eccd21b31803e2e73fb"
+    },
+    "S10": {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a"
+    },
+    "S12": {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741"
+    },
+    "S15": {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362"
+    },
+    "S16": {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98"
+    },
+    "S17": {
+      "path": "packages/cloudflare/src/deploy/package-assets.ts",
+      "sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f"
+    },
+    "S19": {
+      "path": "packages/cloudflare/src/deploy/producer-files.ts",
+      "sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba"
+    },
+    "S25": {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383"
+    },
+    "S26": {
+      "path": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "sha256": "d479c648351dc2b13116d4f96bb83817f80fefbd472a95f24d77bf17048a442e"
+    },
+    "S27": {
+      "path": "packages/cloudflare/src/preparation/executable.ts",
+      "sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3"
+    },
+    "S28": {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1"
+    },
+    "S29": {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac"
+    },
+    "S30": {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8"
+    },
+    "S31": {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8"
+    },
+    "S32": {
+      "path": "packages/cloudflare/src/release/manifest.ts",
+      "sha256": "0f1253522b0ee681173f788700835facdeb3bd2028daf2a461b75f1dc4c8a48d"
+    },
+    "S35": {
+      "path": "packages/cloudflare/src/upgrade/apply.ts",
+      "sha256": "167c77f7be30b29a3cbc37125d112208472ccf504a7f70e70e45e9d3aff73cca"
+    },
+    "S36": {
+      "path": "packages/contracts/src/services.ts",
+      "sha256": "91b1580b0b1c884af6ef0c2f162aad0f75cd76d41a369a087ec5310367ee4ebf"
+    },
+    "S37": {
+      "path": "packages/services/src/catalog.ts",
+      "sha256": "40b36de7ad8c84f1105e2bb274bdfad6ccebaf455c98a8ef7e542813e6a1af30"
+    },
+    "S38": {
+      "path": "packages/services/src/http/client.ts",
+      "sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034"
+    },
+    "S39": {
+      "path": "packages/services/src/http/errors.ts",
+      "sha256": "8b97f7d6fe8fdcc0acca684865b1b1591035bd9eb82da1e920f7cf4645890c9b"
+    },
+    "S40": {
+      "path": "packages/services/src/http/pagination.ts",
+      "sha256": "c00bb4a1d5b5ac859bf589f67ba33445e5642ce1fcb0b8a9304dd7e774633af5"
+    },
+    "S43": {
+      "path": "packages/services/src/judgments/systemone.ts",
+      "sha256": "5946aa0c1f863e8a347fdb29de54c0c086db0a4e9fb6a277de93943e21c92ecd"
+    },
+    "S44": {
+      "path": "packages/services/src/mail/adapter.ts",
+      "sha256": "065462278dfb0fe69fd3e15a18f5b370eb0abaf59766ef44eb1c615ba557f5d0"
+    },
+    "S45": {
+      "path": "packages/services/src/mail/redact.ts",
+      "sha256": "2da0f060f790820db04b783dfc9828dc73c0c7e6db32ed67d9aba5cca01c61c8"
+    },
+    "S46": {
+      "path": "packages/services/src/media/comfyui.ts",
+      "sha256": "694eb7caa69ee4d22af05cdf441fcb68638e33b1a3387191ddfb5e9a93a93f7b"
+    },
+    "S48": {
+      "path": "packages/services/src/media/mapping.ts",
+      "sha256": "507306b2f97b72ebe5aa4dce54fe0af2164bfd1dcf6604efea6d1b7ccd151da1"
+    },
+    "S50": {
+      "path": "packages/services/src/models/ollama.ts",
+      "sha256": "96c39834af0d132c64d164b0a8d4712fa75c203fb4fa8c4463e0ad8b5907df96"
+    },
+    "S53": {
+      "path": "packages/cloudflare/src/runtime/artifact.ts",
+      "sha256": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d"
+    },
+    "S54": {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113"
+    },
+    "S55": {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db"
+    },
+    "S56": {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "sha256": "c0475ca0c94514e47011e594122ddadf3980232bfbce1e29557077c6f37b8002"
+    },
+    "S57": {
+      "path": "packages/cloudflare/package.json",
+      "sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8"
+    },
+    "S58": {
+      "path": "packages/services/package.json",
+      "sha256": "160607d0145fa9f3b39568a64c17bbbcbdded562ee75d231d8e3046df9dcab7e"
+    },
+    "S59": {
+      "path": "bun.lock",
+      "sha256": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec"
+    },
+    "D01": {
+      "path": "node_modules/.bun/@jridgewell+sourcemap-codec@1.6.0/node_modules/@jridgewell/sourcemap-codec/package.json",
+      "sha256": "ac7afd57294dbee1f891ca797e19e405340f2cd6031808e6d3845fec60a5b43f"
+    },
+    "D02": {
+      "path": "node_modules/.bun/@jridgewell+sourcemap-codec@1.6.0/node_modules/@jridgewell/sourcemap-codec/src/sourcemap-codec.ts",
+      "sha256": "91d136138bf0d2a4c4d9ca811cc10af74eead3165b75edb5eaa9ddf5337e5fc9"
+    },
+    "D03": {
+      "path": "node_modules/.bun/@jridgewell+sourcemap-codec@1.6.0/node_modules/@jridgewell/sourcemap-codec/src/vlq.ts",
+      "sha256": "6aff12a00b5a44ada57df49bddc90f90fead9dc230463b49784904373bd11ecd"
+    },
+    "D04": {
+      "path": "node_modules/.bun/@jridgewell+sourcemap-codec@1.6.0/node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.mjs",
+      "sha256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0"
+    },
+    "D05": {
+      "path": "node_modules/.bun/undici@7.28.0/node_modules/undici/package.json",
+      "sha256": "c960701448bdc5935114768e2721d42554bc9ae83e087d05bac133662c11ab2b"
+    },
+    "D06": {
+      "path": "node_modules/.bun/undici@7.28.0/node_modules/undici/lib/dispatcher/client.js",
+      "sha256": "923945cc690e25d8cb7f33319fc0b2f98396a3a9b42be3d7c85cb69db95cf4e3"
+    },
+    "D07": {
+      "path": "node_modules/.bun/undici@7.28.0/node_modules/undici/lib/web/fetch/body.js",
+      "sha256": "fd7e1fe68e263f3296ecf0f4f799b3099717ecd8c9626db9bab73b7a4db7eb7d"
+    },
+    "D08": {
+      "path": "node_modules/.bun/miniflare@4.20260730.0/node_modules/miniflare/package.json",
+      "sha256": "f0025bdc4b9b70199ea393572c23ca35ea58efa3d81b270f19f5e8c8d27771f4"
+    },
+    "D09": {
+      "path": "node_modules/.bun/miniflare@4.20260730.0/node_modules/miniflare/dist/src/index.js",
+      "sha256": "25f0935c66e24b503a64561e77625b1dd163995ce2177485e3be48d05bde7d45"
+    }
+  },
+  "legend": "Anchor [sourceID,one-basedline] resolveswhole-fileSHA256/path; D entries localinstalledprimarysource hashed separately. Findings witness source-derived and unexecuted.",
+  "model_record": {
+    "requested": "Sol",
+    "reasoning_effort": "high",
+    "retained": "User-selected inherited settings; no worker override or model change.",
+    "role": "Focused independent source audit with prior conclusions visible."
+  },
+  "finding_order": {
+    "current_selected": [
+      "SEC-S01",
+      "SEC-S02",
+      "SEC-C01",
+      "SEC-C03"
+    ],
+    "conditional_trust_boundary": [
+      "SEC-C02"
+    ],
+    "held_adoption_gates": [
+      "SEC-C04",
+      "SEC-C06",
+      "SEC-C05"
+    ],
+    "note": "Priorities rank within declared stage; held P2 does not outrank current defects or establish current exposure."
+  }
+}

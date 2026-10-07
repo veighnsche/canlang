@@ -1,0 +1,198 @@
+{
+  "status": "proposed review/contract/repair grouping, not new canonical tasks or execution approval",
+  "groups": [
+    {
+      "id": "SQ01",
+      "findings": [
+        "SSW01",
+        "SSW03"
+      ],
+      "depends_on": [],
+      "action": "Release current secret-result/read/replay projection and actual owner-to-store correspondence contracts separately. A confidential value must not become an authorized client field because it is a plain primitive. Qualify real serving producer; retain legitimate raw internal rows.",
+      "acceptance_gate": "First-success/public-read/replay negative controls and A/B same-model read/ref denial on actual admitted storage join.",
+      "implementation_authorized": false,
+      "original_references": [
+        "SW-001",
+        "SW-008",
+        "SW-012",
+        "SW-016",
+        "SW-026",
+        "SW-028",
+        "cv.wire-envelope"
+      ]
+    },
+    {
+      "id": "SQ02",
+      "findings": [
+        "SI01",
+        "SI04",
+        "SI07"
+      ],
+      "depends_on": [],
+      "action": "Repair or qualify actual grant and MCP transport admission using owning session/origin/credential contract. Do not claim a pre-invoker read is exact commit-time fencing or that valid-bearer Origin acceptance proves auth bypass.",
+      "acceptance_gate": "Finite capped hostile body; released browser-site/Origin/CSRF and nonbrowser profile; revoke during suspended body/effect with owner-approved outcome.",
+      "implementation_authorized": false,
+      "original_references": [
+        "B4",
+        "FP.IDENTITY",
+        "FP.IDENTITY-CONTRACT",
+        "FP.INSTALLED-RELEASE",
+        "LF09",
+        "LI10",
+        "LI14",
+        "SW-007",
+        "T04",
+        "T32b"
+      ]
+    },
+    {
+      "id": "SQ03",
+      "findings": [
+        "SI02",
+        "SI03"
+      ],
+      "depends_on": [],
+      "action": "Resolve existing conditional consume winner, last-owner and cascade atomicity/recovery gaps. These are exported/unmounted routes until actual serving joins are proved; no new mechanism chosen.",
+      "acceptance_gate": "Concurrent contenders, zero-row loser and crash after each phase; exact one winner and truthful recovery with actual D1 owner.",
+      "implementation_authorized": false,
+      "original_references": [
+        "AD-identity-atomic-gap",
+        "FP.IDENTITY-CONTRACT",
+        "LI04",
+        "LI05",
+        "LI06",
+        "LI09",
+        "LI12"
+      ]
+    },
+    {
+      "id": "SQ04",
+      "findings": [
+        "SSW02",
+        "SSW04",
+        "SSW05",
+        "SSW06",
+        "SR01",
+        "SR02",
+        "SEC-S01",
+        "SEC-C03",
+        "SEC-C04",
+        "SEC-C05"
+      ],
+      "depends_on": [],
+      "action": "Define finite byte/depth/count/work/lifetime profiles at actual costly enforcement points; avoid a generic parallel validation framework. Correct UTF8 request unit mismatch independently of unresolved thresholds. Preserve complete-set semantics and first failure.",
+      "acceptance_gate": "UTF8 77/78-byte control, under-byte-cap deep input, large denied-store scan, complete cohort, late provider effect, stalled process and held native queue gates.",
+      "implementation_authorized": false,
+      "original_references": [
+        "AD-interfaces-csv",
+        "AD-service-quota",
+        "AD-services-judgments",
+        "AD-ui-csv-client",
+        "AD-ui-csv-grammar",
+        "C01",
+        "C02",
+        "C03",
+        "CF-C20",
+        "CF-C29",
+        "CF-C30",
+        "CF-C31",
+        "CF-C32",
+        "CF-C35",
+        "LS06",
+        "LS09",
+        "LS10",
+        "P03.3",
+        "P03.4",
+        "P04.1",
+        "P05.2",
+        "P05.3",
+        "SW-009",
+        "SW-013",
+        "SW-014",
+        "SW-018",
+        "SW-019",
+        "SW-024",
+        "SW-058",
+        "SW-059",
+        "SW-060",
+        "SW-061",
+        "SW-075",
+        "SW-076",
+        "SW-082",
+        "V01.1",
+        "V01.3",
+        "V01.4",
+        "V02.2",
+        "V07.1"
+      ]
+    },
+    {
+      "id": "SQ05",
+      "findings": [
+        "SEC-S02",
+        "SEC-C01",
+        "SEC-C02",
+        "SEC-C06",
+        "SR03"
+      ],
+      "depends_on": [],
+      "action": "Qualify privacy and path/import/publication trust at selected real consumers. Use existing strong writer guards where appropriate; public safe-error evidence and exact reviewed current bytes are distinct from helper metadata.",
+      "acceptance_gate": "Credential/account redaction, existing output symlink refusal, declared namespace collision, staged disk drift and renderer taint controls; keep held helper adoption separate.",
+      "implementation_authorized": false,
+      "original_references": [
+        "AD-service-safe-errors",
+        "AD-ui-csv-client",
+        "AD-ui-csv-grammar",
+        "C03",
+        "CF-C01",
+        "CF-C09",
+        "CF-C12",
+        "CF-C13",
+        "CF-C20",
+        "IP08",
+        "LS08",
+        "LS11",
+        "P07.1"
+      ]
+    },
+    {
+      "id": "SQ06",
+      "findings": [
+        "SI05",
+        "SI06",
+        "SI08",
+        "SI09",
+        "SI10",
+        "SI11",
+        "SSW07"
+      ],
+      "depends_on": [],
+      "action": "Complete original remaining identity/files/ingress and low-scope own-key gates at their declared stage; no replay of accepted narrow evidence. Keep operation authority, durable bytes, retention, provider freshness and SDK/profile controls with their owners.",
+      "acceptance_gate": "Missing/malformed PKCE, browser binding, unavailable upload slot, append crash, deleted bytes/expiry, replayed provider event, inherited SQL metadata name; real consumer releases required.",
+      "implementation_authorized": false,
+      "original_references": [
+        "AD-files-provenance",
+        "AD-identity-login-presession",
+        "AD-presession-origin-gap",
+        "FP.FILES-DURABLE",
+        "FP.IDENTITY",
+        "FP.SOURCE-MAPPINGS",
+        "IP09",
+        "LF01",
+        "LF02",
+        "LF03",
+        "LF04",
+        "LF05",
+        "LF06",
+        "LF08",
+        "LF09",
+        "LI06",
+        "LI09",
+        "SW-021",
+        "SW-036",
+        "T16",
+        "T24"
+      ]
+    }
+  ]
+}

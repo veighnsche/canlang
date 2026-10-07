@@ -1,0 +1,109 @@
+{
+  "schema": "canlang-security-local-challenge/v1",
+  "requested_pin": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "model": "Sol high",
+  "review": "Supplementary independent source challenge of root conclusions visible in /private/tmp/canlang-security-root.json; not cleanroom and not requested Astra review. Does not review this agent State findings.",
+  "method": "Read-only source and test-scenario inspection; no runtime/build/test/install/network/Git/repo changes. All witnesses unexecuted; no new acceptance or policy choice.",
+  "root_packet_sha256": "1b981da416874c72602b902f499c4b5e256f2e46088a3e870a1d8d103bd5460c",
+  "verdicts": [
+    {
+      "id": "LC01",
+      "challenged_claim": "ERU01/SR02 CSV byte/row/default bounds",
+      "verdict": "Supported with transport/default-source qualification",
+      "observation": "parseCsvGrammar invokes synchronous parse with no max_record_size/to, then records.slice(1), then 1000-data-row refusal. HTTP handleCsvRequest resolves session, parseObjectBody uses capped JSON parser1MiB, assertsCSRF, requires known operation and derived declaration before parsingCSV. Pure direct string callers have no local byte cap. package manifest and bun.lock pin csv-parse7.0.3.",
+      "required_correction_or_qualification": "Keep lack of parser allocation ceiling separate from unauthenticated/unbounded HTTP attack: authenticated and CSRF-qualified body remains byte-bounded. New early row/field options can change accepted parse-first quote error precedence and require finite compatibility outcome. Pinned upstream disabled max-record default is not independently reverified here: no installed copy/network read in this review; retain root primary-source receipt rather than claiming this local inspection proved library default.",
+      "strongest_counterevidence": "Existing1MiB bound prevents unbounded wire bytes; quoted errors fixed safe messages; scalar UTF16 check real; complete parse-first precedence deliberately selected. csv record-array/field amplification is source concern, no measured exhaustion or precise allocation multiplier.",
+      "anchors": "packages/ui/src/csv/grammar.ts:26-70; packages/interfaces/src/http/csv.ts:311-321; packages/interfaces/src/http/csv.ts:392-447; packages/interfaces/src/http/limits.ts:24-85; packages/ui/package.json:48; bun.lock:163; bun.lock:512"
+    },
+    {
+      "id": "LC02",
+      "challenged_claim": "ERV03/SR01 native pre-allocation",
+      "verdict": "Supported at private scaffold stage",
+      "observation": "ProfileHost.handle_line parses full SerdeValue first; op_input_digest parses recursive Frame before reading budgets; arrays/entries allocate Vec::with_capacity(items.len()). InputArena walk refuses before usable arena/materialized nodes, but array node pushes all children onto preorder before next max_nodes check.",
+      "required_correction_or_qualification": "Budget protects usable arena, not all earlier JSON/Frame/preorder allocations. Do not call this public native validator or six-op Wasm production input path. Serde parser may enforce a separate recursion limit; no exact default established/offline library implementation read here. Flatwide input avoids reliance on numeric recursion depth.",
+      "strongest_counterevidence": "Version/op/args reject; numeric narrowing checks real; iterative arena fail-closed and no partial usable result; private/unadopted validation profile, no actual remote routed native consumer proved.",
+      "anchors": "packages/values/semantics/src/profiles.rs:97-147; packages/values/semantics/src/profiles.rs:457-489; packages/values/semantics/src/profiles.rs:628-648; packages/values/semantics/src/input.rs:145-188; packages/values/semantics/Cargo.toml:18-21"
+    },
+    {
+      "id": "LC03",
+      "challenged_claim": "ERU02/SR03 renderer URL prop taint",
+      "verdict": "Supported conditional helper trust concern, no demonstrated production injection",
+      "observation": "CsvPreviewProps commitPath is caller-supplied; only nonempty string validation. renewal.href and form.action use escapeAttr, not safeHref. Central safeHref admits http/https/mailto/relative and refuses dangerous schemes. Static rg found no non-test serving csvPreviewSection call beyond declaration/catalog in packages.",
+      "required_correction_or_qualification": "Preserve adversarial prop prerequisite; do not call CSV cell input a URL-prop producer. javascript renewal and external form destinations become meaningful only with attacker-controlled props and user/host action. Attribute encoding prevents quote/markup injection. Same-origin requirement for forms versus ordinary-links policy not selected.",
+      "strongest_counterevidence": "Props can be trusted source-declared server routes; generated/runtime producer not proved. Missing URL policy is not established deployed XSS/token exfiltration. safeHref itself is intentionally not same-origin.",
+      "anchors": "packages/ui/src/csv/preview.ts:186-197; packages/ui/src/csv/preview.ts:268-274; packages/ui/src/csv/preview.ts:294-298; packages/ui/src/csv/preview.ts:317-324; packages/ui/src/escape.ts:42-68; packages/ui/src/catalog.ts:60"
+    },
+    {
+      "id": "LC04",
+      "challenged_claim": "Production /mcp/grants middleware/auth/body scope",
+      "verdict": "Actual separately mounted chain confirmed; generic Interfaces guards cannot be credited",
+      "observation": "createMainFetch builds entry outer required-binding gate, exactPOST /mcp/grants goes to grantsResponse and actual grant handler using production identityStore; does not traverse assembly HTTP operation/auth handler. env-assembly builds real identity D1 store. grant-route parses can_session, resolveIdentity validates live session/user, and requires team+active membership; req.json only then parses body. issueMcpGrant trims/max256 clientID and mints token.",
+      "required_correction_or_qualification": "No asserted public unauthenticated issuance: missing/expired/revoked session401, no active member403, invalidbody/client400. Route has no byte cap/content-type check/rate limiter/CSRF/Origin check. Known Interfaces 1MiB cap is not middleware inherited by this path. Method405 applies direct handler; production main only routesPOST and delegates other methods. Missing producers/joins fail loudly500/501.",
+      "strongest_counterevidence": "Body allocation occurs after authentication; clientID bounded256; raw token absent in D1 grant row, onlySHAhash boundSQL. Deployment actual installed modules/environment still not independently executed.",
+      "anchors": "packages/cloudflare/src/worker/main.ts:489-502; packages/cloudflare/src/worker/main.ts:577-590; packages/cloudflare/src/worker/main.ts:607-624; packages/cloudflare/src/worker/entry.ts:21-34; packages/cloudflare/src/runtime/env-assembly.ts:318-338; packages/cloudflare/src/runtime/grant-route.ts:134-204; packages/identity/src/authentication/context.ts:82-114; packages/identity/src/authentication/grants.ts:44-63; packages/identity/src/storage/d1.ts:772-797"
+    },
+    {
+      "id": "LC05",
+      "challenged_claim": "Production /mcp/grants CSRF prerequisites",
+      "verdict": "Missing explicit CSRF defense confirmed; bearer theft claim unsupported",
+      "observation": "Route accepts req.json regardless content-type with session cookie and noCSRF orOrigin admission. Same-site cross-origin attacker fetch credentialsinclude/no-cors text/plain with JSON {client_id:\"c\"} can cause issuance when browser sends eligible victimcookie; response readability not needed for persistent side effect. Cross-sitePOST under default SameSite=Lax ordinarily omits cookie and401s.",
+      "required_correction_or_qualification": "State-changing unsolicited issuance/rate/storage demand is the source-derived concern. Do not claim universal cross-sitePOST works or that attacker can read returned token: default cookie attributes and same-origin response isolation materially narrow exploit. No new consent/client-registration/CSRF policy selected; owner should qualify finite browser origin/transport domain.",
+      "strongest_counterevidence": "Cookie builder Secure,HttpOnly,SameSite=Lax default; no automatic token response cross-origin readability or CORS permissiveness shown. Origin attacker must meet same-site/cookie/send prerequisites or nondefault hostcookie policy.",
+      "anchors": "packages/cloudflare/src/runtime/grant-route.ts:149-190; packages/identity/src/sessions/cookies.ts:70-89; packages/cloudflare/src/worker/entry.ts:21-34; packages/cloudflare/src/worker/main.ts:607-624"
+    },
+    {
+      "id": "LC06",
+      "challenged_claim": "Production /mcp/grants issuance race versus revocation",
+      "verdict": "Snapshot-to-insert race exists; exact cancellation policy remains owner-qualified",
+      "observation": "Session+membership read resolves, route then awaits body; issueMcpGrant does not reread either before createMcpGrant SQLINSERT. Interleave: route initialvalid resolution, signOutEverywhere completes session/grant bulkrevocation, then body finishes and route creates NEW grant. Newlyminted grant unrevoked; resolveIdentity MCP checks own grant and membership, not originating session.",
+      "required_correction_or_qualification": "Record current auth snapshot is not exact atomic issuance authority. Current membership removal limits later grant use; blanket session-revoke destroys all independent existing grants is not selected semantics. Strong signOutEverywhere witness uses actual bulkrevoke-both entry, but atomic ordering/revoke-inflight scope requires owning identity authority qualification. No proposed destructive revocation behavior chosen.",
+      "strongest_counterevidence": "Grant is intentionally independent credential with30dayTTL and later active membership+expiry/revocation checks. Revocation racing a transaction needs actual owning implementation/gate; no new testexecuted. Authentication already fails when revocation happens before initialsessionload.",
+      "anchors": "packages/cloudflare/src/runtime/grant-route.ts:155-188; packages/identity/src/authentication/grants.ts:44-63; packages/identity/src/storage/d1.ts:772-797; packages/identity/src/authentication/revocation.ts:25-33; packages/identity/src/authentication/context.ts:118-143"
+    },
+    {
+      "id": "LC07",
+      "challenged_claim": "Production /mcp/grants logging/verified actor",
+      "verdict": "No explicit rawtoken logging/storage; prose confidentiality not universal",
+      "observation": "Success returns only documented token/grant/user/team. D1 stores token_sha256/clientID; unexpected failures console.log raw error.message/String(err) before generic500, recognizedIdentityError safe message returned. resolveIdentity carries email_verified but route checks actor presence/team/membership, no separate email_verified gate; regular login checks verification before sessioncreation.",
+      "required_correction_or_qualification": "Do not label every unexpected error log redacted or guarantee arbitrary failing producer cannot mention sensitive context. No observed rawtoken/error-input leakage from actual owning normalproducer shown. Wording verified actor means authenticated session here, not route independently tests verified-email. Testsource covers auth/member/malformed/clientlen/happypath only and is unexecuted.",
+      "strongest_counterevidence": "Producer-owned safeIdentityError messages and genericunexpected wire500; parameter-boundSQL; opaque32bytetoken hashonly persistence. Login normalpath verifies email; directhost sessioncreation remains private capability.",
+      "anchors": "packages/cloudflare/src/runtime/grant-route.ts:142-161; packages/cloudflare/src/runtime/grant-route.ts:165-204; packages/identity/src/authentication/context.ts:98-114; packages/identity/src/accounts/registration.ts:137-146; packages/identity/src/authentication/grants.ts:51-63; packages/identity/src/storage/d1.ts:772-797; packages/identity/src/sessions/tokens.ts:15-16; packages/cloudflare/test/mcp-grant-route.test.ts:66-145"
+    }
+  ],
+  "sources": {
+    "bun.lock": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+    "packages/cloudflare/src/runtime/env-assembly.ts": "d39b218d24926884b627a30dadb5a1bf46db87cfbc1e6834b6f01ee136b95c25",
+    "packages/cloudflare/src/runtime/grant-route.ts": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d",
+    "packages/cloudflare/src/worker/entry.ts": "106bfa11b9075dca53d4f4933497e5cb382d317471278d4f90c56402bad1580f",
+    "packages/cloudflare/src/worker/main.ts": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+    "packages/cloudflare/test/mcp-grant-route.test.ts": "516579799c5052d1439f5e48cae72b7333305ee586398efebcb4f8228dae6572",
+    "packages/identity/src/accounts/registration.ts": "72de65f3832a562cd8564a11063a1c14ef01e5184e8ac91c6bf22f967e7c898f",
+    "packages/identity/src/authentication/context.ts": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+    "packages/identity/src/authentication/grants.ts": "56f26d214a51de1caa8cc28b6757d9319c582e26f744cfc9e81e4c1a70418df4",
+    "packages/identity/src/authentication/revocation.ts": "3b18c1865f4f78cfda004b5d2bbb2959910c307c8a6a21c0c5928b15a2e5eb56",
+    "packages/identity/src/sessions/cookies.ts": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+    "packages/identity/src/sessions/tokens.ts": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+    "packages/identity/src/storage/d1.ts": "7d25f77228fdd17c2fe49684c8cbefd1f3c50acf621533dc349dedaa66a3f18f",
+    "packages/interfaces/src/http/csv.ts": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+    "packages/interfaces/src/http/limits.ts": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc",
+    "packages/ui/package.json": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+    "packages/ui/src/catalog.ts": "6fd37786692fdf2932aa5cd5e04a75156695e1db8f26f9677d22654392d1dc01",
+    "packages/ui/src/csv/grammar.ts": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+    "packages/ui/src/csv/preview.ts": "87c9f661f0b0df1830892981b103b2e43098053a89b41afe97eadd07434719e7",
+    "packages/ui/src/escape.ts": "6408018844f663e1d644821c9884a9089ba26cad38b170d2d751ced4dc71b65c",
+    "packages/values/semantics/Cargo.toml": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+    "packages/values/semantics/src/input.rs": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+    "packages/values/semantics/src/profiles.rs": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+  },
+  "limits": [
+    "No review of own State findings.",
+    "No installed csv-parse/Serde runtime default verification; manifest versions are declarations, not runtimebehavior.",
+    "No live origin/browser request, allocation measurement, revokeinterleaving or deployed grantconsumer acceptance.",
+    "No auth/session/grant policy or resource threshold selected."
+  ],
+  "source_checks": {
+    "root_packet_source_hashes": "All17 root packet source hashes match inspected working files; pin correspondence owned by parent.",
+    "local_anchors": "All local path anchors exist and line endpoints in file bounds; critical flows read directly.",
+    "execution_credit": false
+  }
+}

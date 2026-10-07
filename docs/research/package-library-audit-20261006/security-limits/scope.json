@@ -1,0 +1,31 @@
+{
+  "pin": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "mode": "planning-audit",
+  "execution_authorized": false,
+  "product_changes": false,
+  "package_runtime_execution": false,
+  "canonical_task_status_changes": false,
+  "accepted_policy_changes": false,
+  "user_requested_model": "Sol high with focused Astra security review",
+  "models": {
+    "local_auditors": "three reused Sol high workers; originating Codex synthesis; no price or benchmark claim",
+    "supplementary_reviews": "two reused Sol high source challenges, not cleanroom and not Astra",
+    "Astra": "gpt-6-astra/high requested; not launched due thread limit then external egress approval pending"
+  },
+  "counts": {
+    "enforcement": 63,
+    "candidate_findings": 29,
+    "file_crosswalk": 395,
+    "duty_crosswalk": 316,
+    "frozen_sources": 429,
+    "local_library_sources": 13
+  },
+  "priorities": "P1 critical confidentiality/authority outcome subject to stated prerequisites, P2 bounded repair/missing control, P3 conditional/scaffold hardening. Not CVEs, incidents, severity scores or executed defect counts.",
+  "limits": [
+    "Current source, configured join, conditional host, exported helper, unmounted route and human-held native paths kept separate.",
+    "Inherited coverage does not certify every body or downstream deployed/compiled consumer.",
+    "No tests/builds/package imports/installs/runtime/CI/Muse/schedules/push/deployment; only documentation metadata verification.",
+    "No consequential new security/limit/atomicity policy chosen; prior unresolved JEV inputs retained, no repeat consultation.",
+    "Compiler and shared DECISIONS untouched by this audit. A concurrent compiler audit adds evidence without changing package source; no merge or filetree checkpoint advance."
+  ]
+}

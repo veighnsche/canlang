@@ -1,0 +1,385 @@
+{
+  "schema": "canlang.security.root.v1",
+  "requested_pin": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "model": {
+    "name": "gpt-6.1-sol",
+    "effort": "high",
+    "role": "originating audit"
+  },
+  "execution_authorized": false,
+  "sources": {
+    "packages/values/bindings/owned-input.ts": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+    "packages/values/bindings/carriers.ts": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+    "packages/values/semantics/src/transport/exact.rs": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+    "packages/values/semantics/src/profiles.rs": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+    "packages/values/semantics/src/input.rs": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+    "packages/values/src/internal/wire-core.ts": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+    "packages/ui/src/csv/grammar.ts": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+    "packages/interfaces/src/http/csv.ts": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+    "packages/ui/src/escape.ts": "6408018844f663e1d644821c9884a9089ba26cad38b170d2d751ced4dc71b65c",
+    "packages/ui/src/csv/preview.ts": "87c9f661f0b0df1830892981b103b2e43098053a89b41afe97eadd07434719e7",
+    "packages/ui/src/browser/instrumentation.ts": "17c3f2325b9933220beedb44f7921ba765b67628693340f17473cb6d543e8b50",
+    "packages/interfaces/src/instrumentation/intake.ts": "7e300b3969269bac6ea8baa5aaeae9224622ecdeb8ce346dcd839d83763c52bb",
+    "packages/contracts/src/state.ts": "dd9263d8cae2eda4d046678c3d564217c54e0ae77d9b8d2e9b40c213ed588236",
+    "packages/stdlib/src/index.ts": "6cdeadfd7ee2ffed08b80196a3bfe5e98236b02af95f8fa2028c1214cb210cee",
+    "packages/stdlib/src/distribution.ts": "5e030ded286cf76540d5bbf91f858ed0b2d1c0c5b3ae1c18e8be3bb12ee5b83f",
+    "packages/testkit/src/runner/loader.ts": "571912f1495932351ac116f4a40c42617076d9b16f15b29d4c9d26d7afd6efb0"
+  },
+  "enforcement": [
+    {
+      "id": "ERV01",
+      "owner": "values",
+      "entry": "Interfaces capped body reader -> parseOwnedJsonBody -> token/derived value",
+      "guards": "WeakMap genuine-token lineage; private bridge; invalid JSON safe error; injected capped reader",
+      "limits": "Default requested body cap 1MiB; outer token frozen",
+      "missing_control": "Depth/node/CPU not checked by owned parser; outer freeze not deep derived-data immutability; callback must actually enforce bytes",
+      "anchors": [
+        {
+          "path": "packages/values/bindings/owned-input.ts",
+          "line": 65
+        },
+        {
+          "path": "packages/values/bindings/owned-input.ts",
+          "line": 74
+        },
+        {
+          "path": "packages/values/bindings/owned-input.ts",
+          "line": 102
+        }
+      ],
+      "stage": "current source"
+    },
+    {
+      "id": "ERV02",
+      "owner": "values",
+      "entry": "Private values Wasm tag -> JSON -> exact_call -> reconstruct",
+      "guards": "Explicit selected backend, registered six-operation profile; malformed carriers and -0 decimal scale refuse; no silent fallback",
+      "limits": "No explicit per-call size/depth/work limit here; host byte domain separate",
+      "missing_control": "Recursive conversion and big-digit parse before semantic range; actual external mounted consumer not established",
+      "anchors": [
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "line": 48
+        },
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "line": 83
+        },
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "line": 107
+        },
+        {
+          "path": "packages/values/semantics/src/transport/exact.rs",
+          "line": 844
+        }
+      ],
+      "stage": "private supported six-op host profile, broader native integration unjoined"
+    },
+    {
+      "id": "ERV03",
+      "owner": "values",
+      "entry": "Private native validation profile input_digest -> parse_frame -> InputArena",
+      "guards": "Final depth/node/text/entries refusal before usable arena; iterative arena walk",
+      "limits": "Semantic budgets supplied by owner; parse_frame allocates full tree first",
+      "missing_control": "Budgets do not bound prior Serde tree/frame/container allocation or fan-out stack",
+      "anchors": [
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 97
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 457
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 489
+        },
+        {
+          "path": "packages/values/semantics/src/input.rs",
+          "line": 161
+        }
+      ],
+      "stage": "private profile scaffold; no public HTTP native validation adoption"
+    },
+    {
+      "id": "ERV04",
+      "owner": "values",
+      "entry": "Public scalar wire decode -> int64",
+      "guards": "Fixed decimal syntax then int64 range; exact error protocol",
+      "limits": "Outer admitted body bytes may bound inbound digit bytes",
+      "missing_control": "BigInt(wire) computes arbitrary precision before final int64 range; no local work/digit budget",
+      "anchors": [
+        {
+          "path": "packages/values/src/internal/wire-core.ts",
+          "line": 318
+        },
+        {
+          "path": "packages/values/src/internal/wire-core.ts",
+          "line": 338
+        }
+      ],
+      "stage": "current source"
+    },
+    {
+      "id": "ERU01",
+      "owner": "ui",
+      "entry": "Interfaces CSV authoritative/review and UI adapter -> shared synchronous csv-parse",
+      "guards": "Scalar UTF-16 input; strict quote errors mapped to fixed messages; explicit BOM/trim/cast/blank semantics; all records parsed before cardinality refusal",
+      "limits": "1000 data rows after parse; Interfaces transport cap separately",
+      "missing_control": "No max_record_size/to option; upstream7.0.3 default record cap disabled; peak allocation/parse work not bounded by result-row cap",
+      "anchors": [
+        {
+          "path": "packages/ui/src/csv/grammar.ts",
+          "line": 29
+        },
+        {
+          "path": "packages/ui/src/csv/grammar.ts",
+          "line": 39
+        },
+        {
+          "path": "packages/ui/src/csv/grammar.ts",
+          "line": 67
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 154
+        }
+      ],
+      "stage": "current shared grammar; installed csv-parse copy absent here"
+    },
+    {
+      "id": "ERU02",
+      "owner": "ui",
+      "entry": "Renderer dynamic strings -> escapeHtml/escapeAttr/safeHref; CSV preview renewal/form URLs",
+      "guards": "HTML/attribute escapes fail closed on non-string; central unsafe-scheme refusal; formula cell protection",
+      "limits": "No claim same-origin: http(s)/mailto/external links intentionally admitted",
+      "missing_control": "Preview href/action only attribute-escaped; require trusted route props or explicit URL policy. No attacker-controlled route-prop serving producer demonstrated",
+      "anchors": [
+        {
+          "path": "packages/ui/src/escape.ts",
+          "line": 25
+        },
+        {
+          "path": "packages/ui/src/escape.ts",
+          "line": 44
+        },
+        {
+          "path": "packages/ui/src/escape.ts",
+          "line": 65
+        },
+        {
+          "path": "packages/ui/src/csv/preview.ts",
+          "line": 297
+        },
+        {
+          "path": "packages/ui/src/csv/preview.ts",
+          "line": 317
+        }
+      ],
+      "stage": "current source"
+    },
+    {
+      "id": "ERU03",
+      "owner": "ui",
+      "entry": "Browser capture -> Interfaces write-only project-key intake",
+      "guards": "Closed fields, key-to-project binding, revocation/key refusal, per-key throttle, timestamp limits; public write-only key deliberately not CSRF protected",
+      "limits": "Message4096 and stack32000 chars; server byte cap262144; report occurrence window finite",
+      "missing_control": "Truncation does not redact private raw message/stack; producer privacy policy must be qualified without inventing ban on deliberately owned reports",
+      "anchors": [
+        {
+          "path": "packages/ui/src/browser/instrumentation.ts",
+          "line": 116
+        },
+        {
+          "path": "packages/interfaces/src/instrumentation/intake.ts",
+          "line": 42
+        },
+        {
+          "path": "packages/interfaces/src/instrumentation/intake.ts",
+          "line": 262
+        },
+        {
+          "path": "packages/interfaces/src/instrumentation/intake.ts",
+          "line": 274
+        }
+      ],
+      "stage": "current source"
+    },
+    {
+      "id": "ERX01",
+      "owner": "contracts",
+      "entry": "Shared types/authority descriptor metadata -> owning package runtime",
+      "guards": "Contracts document secret exclusion and owner/receipt semantics",
+      "limits": "Types themselves enforce no hostile-input limits",
+      "missing_control": "Do not credit TypeScript interfaces as runtime authorization/admission; actual producer guards audited separately",
+      "anchors": [
+        {
+          "path": "packages/contracts/src/state.ts",
+          "line": 82
+        },
+        {
+          "path": "packages/contracts/src/state.ts",
+          "line": 321
+        }
+      ],
+      "stage": "current source"
+    },
+    {
+      "id": "ERX02",
+      "owner": "stdlib",
+      "entry": "Generated stdlib facade exports package-owned values/work/functions",
+      "guards": "Owning packages retain semantic checks; package-local installed module URL",
+      "limits": "No separate stdlib host gate",
+      "missing_control": "Re-export is not extra authority or resource admission; do not add a duplicate validation layer without actual consumer need",
+      "anchors": [
+        {
+          "path": "packages/stdlib/src/index.ts",
+          "line": 120
+        },
+        {
+          "path": "packages/stdlib/src/distribution.ts",
+          "line": 1
+        }
+      ],
+      "stage": "current source"
+    },
+    {
+      "id": "ERX03",
+      "owner": "testkit",
+      "entry": "Local developer artifact/suite loader and fixtures",
+      "guards": "Fixture/source owner explicit; test helpers do not mint production identity proofs",
+      "limits": "Test-scoped lifecycle, not public production request budget",
+      "missing_control": "Trusted executable module input only; caller provenance/import namespace must be supplied by invoking tooling; no public untrusted module loader inferred",
+      "anchors": [
+        {
+          "path": "packages/testkit/src/runner/loader.ts",
+          "line": 26
+        },
+        {
+          "path": "packages/testkit/src/runner/loader.ts",
+          "line": 39
+        }
+      ],
+      "stage": "current source"
+    }
+  ],
+  "findings": [
+    {
+      "id": "SR01",
+      "priority": "P3",
+      "title": "Native semantic budgets run after initial frame allocation",
+      "witness": "input_digest recursively builds Frame with container capacities before reading semantic budgets; arena pushes all array children before later node-budget refusal",
+      "prerequisites": "Future owner routes sufficiently large nested/flat input into validation profile",
+      "strongest_counterevidence": "Private scaffold; final arena refusal is real; outer native framing and Serde limits must remain separately qualified",
+      "anchors": [
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 97
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 457
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "line": 489
+        },
+        {
+          "path": "packages/values/semantics/src/input.rs",
+          "line": 161
+        }
+      ],
+      "original_ids": [
+        "V01.1",
+        "V01.3",
+        "V01.4",
+        "V02.2",
+        "V07.1"
+      ],
+      "required_fix_acceptance": "Specify and enforce byte/depth/count/work bounds before costly construction at actual admitted native host; preserve existing first-error/order/owner behavior; no new thresholds selected. Do not add another generic validation facade.",
+      "stage": "private unadopted validation profile",
+      "executed": false
+    },
+    {
+      "id": "SR02",
+      "priority": "P2",
+      "title": "CSV row ceiling is not parser allocation ceiling",
+      "witness": "1000-row guard runs after synchronous library constructs every record; no max_record_size is selected",
+      "prerequisites": "Actual CSV caller admits a large enough body or local direct string; upstream pinned source supports unlimited default record size",
+      "strongest_counterevidence": "Interfaces own1MiB transport guard and safe parse errors are real; deliberate parse-before-row-limit is accepted compatibility",
+      "anchors": [
+        {
+          "path": "packages/ui/src/csv/grammar.ts",
+          "line": 29
+        },
+        {
+          "path": "packages/ui/src/csv/grammar.ts",
+          "line": 39
+        },
+        {
+          "path": "packages/ui/src/csv/grammar.ts",
+          "line": 67
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 154
+        }
+      ],
+      "original_ids": [
+        "C01",
+        "C02",
+        "C03",
+        "AD-ui-csv-preview",
+        "AD-interfaces-csv"
+      ],
+      "required_fix_acceptance": "Qualify actual maximum bytes/columns/records/field work and peak-memory refusal. Keep agreed malformed-input precedence; any new thresholds need finite contract. Upstream option alone is not complete caller acceptance.",
+      "stage": "current shared TS parser; source-only",
+      "executed": false
+    },
+    {
+      "id": "SR03",
+      "priority": "P3",
+      "title": "CSV URL props need explicit trusted-route or sink policy",
+      "witness": "renewal href and commitPath emitted with HTML escaping but no unsafe-scheme/same-origin policy",
+      "prerequisites": "Adversary controls these props via a future/actual producer; no such tainted producer demonstrated in this audit",
+      "strongest_counterevidence": "Other renderers use safeHref; props may be trusted server route declarations; attribute escaping prevents markup injection",
+      "anchors": [
+        {
+          "path": "packages/ui/src/escape.ts",
+          "line": 25
+        },
+        {
+          "path": "packages/ui/src/escape.ts",
+          "line": 44
+        },
+        {
+          "path": "packages/ui/src/escape.ts",
+          "line": 65
+        },
+        {
+          "path": "packages/ui/src/csv/preview.ts",
+          "line": 297
+        },
+        {
+          "path": "packages/ui/src/csv/preview.ts",
+          "line": 317
+        }
+      ],
+      "original_ids": [
+        "C03",
+        "AD-ui-csv-preview"
+      ],
+      "required_fix_acceptance": "Prove route-prop origin in actual rendering consumer; if user-derived, enforce appropriate URL admission at owning sink. Qualify javascript href and external form destination without imposing same-origin on ordinary links.",
+      "stage": "conditional helper input trust",
+      "executed": false
+    }
+  ],
+  "limits": [
+    "Source-only, unexecuted scenarios. No product changes or new security policy.",
+    "Big-digit int64 work and telemetry redaction are qualified surfaces, not proven vulnerabilities.",
+    "No new library installed/executed; current pinned csv-parse source read online; local installed copy absent.",
+    "Serde recursion default was not established from usable primary-source excerpt; no numeric recursion-limit credit."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "status": "local source challenges reconciled; critical Astra gate pending",
+  "critical_review_accepted": false,
+  "corrections": [
+    {
+      "id": "SI03",
+      "action": "Raw packet corrected before freeze: exported team routines; mounted team-management caller not proved."
+    },
+    {
+      "id": "SI04",
+      "action": "Retain actual grant stale-session window; generic mutation commit is owner-dependent, not State bypass."
+    },
+    {
+      "id": "SI08",
+      "action": "Normalized finding now includes actual1044-1076 interim files dispatcher, which never invokes kernel even with files binding.1327 stub is not mounted file-effect evidence."
+    },
+    {
+      "id": "SR02",
+      "action": "Preserve actual authenticated capped/CSRF CSV path and deliberately parse-before-row-limit compatibility; upstream default source separated from absent installed copy."
+    },
+    {
+      "id": "SR03",
+      "action": "Unsafe-scheme route props require actual tainted producer; helper-only conditional claim."
+    },
+    {
+      "id": "SR02/SR03",
+      "action": "Replace raw root placeholder AD-ui-csv-preview with actual AD-ui-csv-client/AD-ui-csv-grammar rule IDs in normalized crosswalk; retain raw packet for audit history."
+    }
+  ],
+  "review_cases": {
+    "root_grant": 7,
+    "identity_files": 4
+  },
+  "unexecuted": true,
+  "no_new_policy": true
+}

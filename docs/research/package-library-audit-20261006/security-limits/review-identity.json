@@ -1,0 +1,650 @@
+{
+  "schema": "canlang-security-identity-supplementary-challenge-v1",
+  "freeze": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "model_record": {
+    "requested": "Sol high",
+    "retained": "Local inherited Sol high; no model override",
+    "qualification": "Supplementary independent source challenge; prior conclusions visible, not cleanroom; NOT requested Astra review or egress approval."
+  },
+  "evidence": "Source-only, unexecuted. No package code/tests/builds/network/Git/repo writes or policy mechanisms. File hashing and JSON assembly only. Four requested records only; own services findings not replayed.",
+  "reviewed_packet": "/private/tmp/canlang-security-identity-files.json",
+  "reviews": [
+    {
+      "id": "SI02",
+      "verdict": "Confirmed check-then-act single-use gap; preserve unmounted endpoint qualification.",
+      "anchors": [
+        [
+          "id",
+          70
+        ],
+        [
+          "id",
+          733
+        ],
+        [
+          "id",
+          757
+        ],
+        [
+          "id",
+          890
+        ],
+        [
+          "io",
+          229
+        ],
+        [
+          "io",
+          237
+        ],
+        [
+          "io",
+          240
+        ],
+        [
+          "ip",
+          67
+        ],
+        [
+          "iv",
+          72
+        ],
+        [
+          "iv",
+          82
+        ],
+        [
+          "iports",
+          219
+        ],
+        [
+          "d1primary",
+          154
+        ],
+        [
+          "d1primary",
+          157
+        ]
+      ],
+      "actual_D1_return": "D1 wrapper run() is Promise<unknown>; each delete/consume awaits .run() without returning/checking its result, so wrapper resolves undefined. Conditional WHERE consumed_at IS NULL protects only the row mutation, not caller winner reporting. The installed pinned Miniflare D1 primary query implementation returns success:true plus meta.changes (including0); zero matching update is not intrinsically a thrown failure. This is local primary-source corroboration, not hosted D1 execution proof.",
+      "minimal_interleaving": "Two correct exchanges read same unconsumed/live code before either consume. A conditional UPDATE changes1; B changes0. Both await void consume then separately create grants with independent IDs/hashes. Similarly two live pre-session reads -> DELETE1/DELETE0 -> both return true while expiry still future. Recovery both read live token before password hashing: each can write its password; zero-row consume cannot prevent second write because password write occurs first.",
+      "prerequisites": [
+        "Concurrent overlapping async requests with same valid token; correct OAuth client/redirect and matching S256 verifier; successful distinct grant ID/hash generation; no enclosing operation-wide serialization/fence.",
+        "Recovery uses two valid passwords and recover_account purpose; D1 detached query rows/interleaved calls, not assertion from single-threaded memory double."
+      ],
+      "strongest_counterevidence": [
+        "SQL update/delete itself atomic; conditional consumed_at and sequential read deny later replay; PKCE and exact bindings checked before consume; uniqueness constrains rows/hashes.",
+        "None makes a zero-row successful SQL terminal throw or conveys winner to feature caller. A trusted external serialized owner could supply missing exclusion, but current exposed IdentityStore methods do not."
+      ],
+      "stage": "Identity primitives/public store retained. interfaces OAuth token and auth recovery callers exist, but production assembled /auth/*501 and full OAuth mount not established. No mounted two-grant incident or race execution.",
+      "corrections": [
+        "Keep requirement exactly one effect winner, distinct from a proposed typed result or J2 mechanism. Merely returning boolean after password update would not repair recovery ordering/effect atomicity.",
+        "Pre-session uses current clock AFTER delete: witness requires both completions before expiry; no claim expired token accepted."
+      ],
+      "required_outcome": "One-use loser cannot perform second protected effect; keep PKCE/refusal/order and safety collapse. AD-identity-atomic-gap/J2 remains a known proposed join, not newly selected mechanism.",
+      "original_ids": [
+        "LI04",
+        "LI06",
+        "LI09",
+        "AD-identity-atomic-gap",
+        "FP.IDENTITY-CONTRACT"
+      ]
+    },
+    {
+      "id": "SI03",
+      "verdict": "Last-owner and partial recovery/revocation witnesses confirmed at exported routines; mounted team-management claim requires correction.",
+      "anchors": [
+        [
+          "im",
+          22
+        ],
+        [
+          "im",
+          30
+        ],
+        [
+          "im",
+          36
+        ],
+        [
+          "il",
+          55
+        ],
+        [
+          "il",
+          59
+        ],
+        [
+          "iv",
+          82
+        ],
+        [
+          "iv",
+          83
+        ],
+        [
+          "iv",
+          84
+        ],
+        [
+          "iv",
+          85
+        ],
+        [
+          "iv",
+          86
+        ],
+        [
+          "ir",
+          21
+        ],
+        [
+          "id",
+          581
+        ],
+        [
+          "id",
+          596
+        ],
+        [
+          "id",
+          602
+        ],
+        [
+          "id",
+          709
+        ],
+        [
+          "id",
+          812
+        ],
+        [
+          "iports",
+          87
+        ],
+        [
+          "ca",
+          883
+        ],
+        [
+          "registry",
+          149
+        ],
+        [
+          "registry",
+          336
+        ],
+        [
+          "ca",
+          1365
+        ],
+        [
+          "ta",
+          247
+        ],
+        [
+          "contract",
+          42
+        ],
+        [
+          "contract",
+          82
+        ]
+      ],
+      "minimal_interleaving": "Team has exactly A,B active owners. A removes A and B removes B; both actor/target/owner-list reads finish before either removeMembership. Both count2 pass; two independent unconditional status updates leave0 active owners. Demotion -owner similarly uses separate count and owner update. Recovery changes password -> consumes token -> revokes other recovery tokens -> revokeUserSessions throws: password/token effects persist, old sessions/grants remain; same recovery link no longer resumes. signOutEverywhere sessions revoke then grants revoke throws leaves grants live.",
+      "prerequisites": [
+        "No outer atomic identity writer/fence/serialization; each caller initially active owner. D1 successful earlier statements plus later injected/real store failure for partial cascade.",
+        "Recovery link valid and new password valid; signout/recovery HTTP transport need not be mounted to establish exported routine behavior."
+      ],
+      "strongest_counterevidence": [
+        "Sole-owner sequential removal/demotion rejected; remover/granter active ownership validated; individual SQL statement atomic; completed removal makes new team-grant admission fail through active membership.",
+        "Thrown cascade does not return {revoked:true} or successful recovery: this is partial persistent effects/no recovery guarantee, not false successful response. signOutEverywhere is idempotent/retryable at primitive level; if trusted owner retries to completion, it can finish grant revocation. Recovery retry using same consumed link cannot.",
+        "D1 comments expressly disclose missing J2 fence; contract says proposed mechanism/open questions. Shared database with State does not imply current identity statements participate in record fence."
+      ],
+      "stage": "No production source call to removeMember/setMemberRole found in scoped Cloudflare/interfaces/identity non-test sources. Current artifact registry returns artifact operations; list/team vocabulary is noted unreachable from compiler/loader. buildInvoker routes generated artifacts to canonical state, not these identity team routines. Treat as exported identity helper plus required future owning system invoker, NOT a demonstrated mounted team-management path. Recovery interface helper exists, assembled /auth/*501.",
+      "corrections": [
+        "Replace packet stage “used by owning team system invoker” with “exported identity routines; actual mounted team-management caller unproved”.",
+        "Recovery sequence includes revokeUserEmailTokens between consume and session revocation; earlier effects can all persist. No complete-safe success asserted on thrown branch.",
+        "Keep atomic safety outcome and recovery of required revocation; do not mandate a new transaction participant/J2 result shape before existing owner reconciliation."
+      ],
+      "required_outcome": "Last-owner invariant survives concurrent allowed changes; required credential revocations complete or expose/recover partial state honestly. Existing proposed J2 and four ownership questions retained.",
+      "original_ids": [
+        "LI04",
+        "LI05",
+        "LI12",
+        "AD-identity-atomic-gap",
+        "FP.IDENTITY-CONTRACT"
+      ]
+    },
+    {
+      "id": "SI04",
+      "verdict": "Mounted grant-mint stale-session window confirmed; pre-invoker and upload portions remain conditional owner/join qualifications, not proof of State bypass.",
+      "anchors": [
+        [
+          "cm",
+          577
+        ],
+        [
+          "cm",
+          606
+        ],
+        [
+          "cg",
+          155
+        ],
+        [
+          "cg",
+          175
+        ],
+        [
+          "cg",
+          185
+        ],
+        [
+          "ig",
+          33
+        ],
+        [
+          "ig",
+          54
+        ],
+        [
+          "ig",
+          55
+        ],
+        [
+          "id",
+          783
+        ],
+        [
+          "id",
+          812
+        ],
+        [
+          "ic",
+          87
+        ],
+        [
+          "ic",
+          117
+        ],
+        [
+          "ic",
+          135
+        ],
+        [
+          "to",
+          282
+        ],
+        [
+          "to",
+          287
+        ],
+        [
+          "to",
+          293
+        ],
+        [
+          "tm",
+          190
+        ],
+        [
+          "tm",
+          196
+        ],
+        [
+          "tm",
+          210
+        ],
+        [
+          "ir",
+          82
+        ],
+        [
+          "ir",
+          122
+        ],
+        [
+          "ca",
+          907
+        ],
+        [
+          "ca",
+          917
+        ],
+        [
+          "tu",
+          369
+        ],
+        [
+          "tu",
+          386
+        ],
+        [
+          "tu",
+          265
+        ],
+        [
+          "tp",
+          26
+        ],
+        [
+          "fu",
+          295
+        ],
+        [
+          "fu",
+          408
+        ],
+        [
+          "design",
+          291
+        ]
+      ],
+      "subclaims": [
+        {
+          "name": "grant mint",
+          "verdict": "Source-supported actual mounted route, conditional interleaving.",
+          "witness": "Valid provisioned session and active team membership resolve at155; request body stream stalls at175. Trusted writer completes signOutEverywhere revoking existing sessions and grants. Body finishes valid {client_id:\"c\"}; issueMcpGrant receives cached user/team, creates fresh30-day grant via unconditional INSERT, returns200. No parent-session liveness or revocation epoch checked at grant creation; future new grant resolves if user/team active.",
+          "preconditions": "Valid existing session/current member plus trusted revocation writer interleaving (auth signout HTTP mounting not demonstrated). Successful newly generated ID/hash; no independent mint guard or session-family tombstone. Actual root route POST /mcp/grants mounted by main606,591.",
+          "counterevidence": "Death before resolve is denied; no arbitrary actor/team input; issueMcpGrant documents caller authenticates, not independent auth. Membership removal differs: new grant subsequently fails active member resolution, so logout/session revocation is stronger witness."
+        },
+        {
+          "name": "mutation commit",
+          "verdict": "Transport live-read correctly implemented; naming it atomic commit guarantee overstates wrapper evidence.",
+          "witness": "HTTP287/MCP196 query current credential with current clock and refuse if dead, then await owning invokeMutation. Owning invoker may pause/do later writes after revocation. Wrapper does not keep liveness decision atomically joined with arbitrary effect.",
+          "preconditions": "Actual effect owner lacks its own current atomic credential guard; this review does not inspect/root-audit all canonical State commit enforcement or declare bypass.",
+          "counterevidence": "Current transport reads are real controls. Canonical bridge passes current membership reader and identity to state; membership/record guards may further constrain effects. A correctly joined effect owner can close window; pre-invoker check alone cannot prove it."
+        },
+        {
+          "name": "upload",
+          "verdict": "Held exported route/kernel liveness window, production file journey unmounted.",
+          "witness": "resolveCaller before body, then receiverFromIdentity reduces identity to app/team/owner/principal. Slow body can cross credential expiry/revocation; append checks tuple+intent expiry, not session/grant row.",
+          "preconditions": "Injected actual upload kernel/route dependencies plus identity expiry/revoke during body. No current Cloudflare upload effect: interim files dispatcher never invokes kernel.",
+          "counterevidence": "Credential before body/CSRF, exact receiver and intent TTL enforced; deny initially dead/foreign caller. Current /files path501 is a strong release gate, not successful ongoing rights check."
+        }
+      ],
+      "corrections": [
+        "Distinguish mounted grant mint from merely exported signout writer/producer. No claim ordinary remote user can invoke currently unmounted signout endpoint.",
+        "Separate credential death B4 from DESIGN291 membership admitted-operation allowance and T32b narrower comment; preserve existing live checks while reconciling released atomic decision scope.",
+        "Do not promote generic invoker wait witness to actual State fence defect; root owns that evidence."
+      ],
+      "required_outcome": "Mint cannot silently create fresh credentials from dead authorizing session under declared current-authority contract; effect owner supplies released atomic liveness guarantee where required. No new epoch/fence/cancellation mechanism selected.",
+      "original_ids": [
+        "LI10",
+        "LI14",
+        "LF09",
+        "B4",
+        "T32b",
+        "SW-007",
+        "FP.IDENTITY-CONTRACT"
+      ]
+    },
+    {
+      "id": "SI08",
+      "verdict": "Unknown-operation intent grant source-supported in helper; held unmounted product join and aggregate-quota policy qualified.",
+      "anchors": [
+        [
+          "tu",
+          200
+        ],
+        [
+          "tu",
+          218
+        ],
+        [
+          "tu",
+          369
+        ],
+        [
+          "tu",
+          386
+        ],
+        [
+          "tk",
+          193
+        ],
+        [
+          "tk",
+          197
+        ],
+        [
+          "fu",
+          56
+        ],
+        [
+          "fu",
+          195
+        ],
+        [
+          "fu",
+          309
+        ],
+        [
+          "fu",
+          323
+        ],
+        [
+          "fu",
+          337
+        ],
+        [
+          "fu",
+          351
+        ],
+        [
+          "fu",
+          354
+        ],
+        [
+          "fu",
+          389
+        ],
+        [
+          "ca",
+          1044
+        ],
+        [
+          "ca",
+          1049
+        ],
+        [
+          "ca",
+          1064
+        ],
+        [
+          "ca",
+          1073
+        ],
+        [
+          "ca",
+          1326
+        ],
+        [
+          "ca",
+          1368
+        ],
+        [
+          "design",
+          607
+        ],
+        [
+          "design",
+          608
+        ]
+      ],
+      "minimal_witness": "Authenticated receiver, usesFiles true, trusted injectable deps with URL https://app.invalid, policy maxBytes>=1, future valid TTL, fresh retryID and available intent store/ID. Request {upload_id:\"u\",operation:\"Missing.create\",field:\"/attachment\",arguments:{},name:\"x\",type:\"text/plain\",size:\"1\"}. Structural nonempty operation/absent pointer/per-transfer size checks pass; stores open intent and returns grant. No registry/file-slot/record context/current operation authority lookup exists in createUploadIntent deps; route calls injected createIntent verbatim and createFileKernel only delegates.",
+      "prerequisites": [
+        "Actual exported route/kernel bindings injected without canonical preflight guard; app/principal fields trusted and valid. Unknown operation string is structurally admitted; normative DESIGN607 requires exposed canonical mutation, so domain is an intended refusal witness.",
+        "No current assembled HTTP file effect: actual interimFilesResponse returns501 even when files binding provided, naming identity join and never calling kernel. Assembly1327 stub is corroboration but not actual /files dispatcher caller."
+      ],
+      "strongest_counterevidence": [
+        "Authentication/CSRF, app identity/receiver ownership, retry/context conflict and positive per-transfer ceiling remain real; bridge origin/filename not blob-key authority. Intent creates no business record, final canonical mutation may refuse Missing.create.",
+        "Injected binding could supply registry/policy authority outside helper; required dependency owner needs proof, not assume direct L4 is full product admission. Repeating unique uploads demonstrates no aggregate reservation in this helper, NOT itself violation of a known absent numeric principal quota."
+      ],
+      "corrections": [
+        "Use actual /files dispatch1044-1076 and1368, not unreachable op-route upload stub1327 as sole mounted evidence.",
+        "Describe resource subclaim as required quota/reservation join if effective policy declares aggregate quota; no new per-principal cap value selected.",
+        "Keep unknown canonical operation failure as held product release gap, not current deployed upload bypass or business acceptance."
+      ],
+      "required_outcome": "Before product grant, owning bridge joins exposed operation/writable slot/protected record-parent context/current permission/effective file policy/quota. Unknown or unavailable required context refuses safely; incomplete business inputs remain unevaluated, intent not business acceptance.",
+      "original_ids": [
+        "LF01",
+        "LF08",
+        "LF09",
+        "FP.FILES-DURABLE",
+        "T16",
+        "T24"
+      ]
+    }
+  ],
+  "summary": {
+    "retain": [
+      "SI02 conditional single-use result loss and recovery write-before-consume",
+      "SI03 exported last-owner race and partial credential revocation",
+      "SI04 mounted grant-mint cached-session window",
+      "SI08 helper missing canonical upload authority"
+    ],
+    "correct": [
+      "SI03 mounted team-management invoker unproved",
+      "SI04 generic mutation needs owner guard evidence, no State bypass asserted",
+      "SI08 /files actual dispatcher remains501 even with file binding; aggregate cap not invented"
+    ],
+    "stage": "P1 source packet priority means required product release outcome, not deployed incident. Current grant route distinct from unmounted auth/OAuth/team-management/upload joins. Proposed J2/atomic participant choice and admitted-operation contract scope unchanged."
+  },
+  "sources": {
+    "id": {
+      "path": "packages/identity/src/storage/d1.ts",
+      "sha256": "7d25f77228fdd17c2fe49684c8cbefd1f3c50acf621533dc349dedaa66a3f18f",
+      "lines": 897
+    },
+    "io": {
+      "path": "packages/identity/src/authentication/oauth.ts",
+      "sha256": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+      "lines": 246
+    },
+    "ip": {
+      "path": "packages/identity/src/sessions/presession.ts",
+      "sha256": "f2c4cc913ea8fc3a70c7688991dd4a0a68cb05682efa433705d1654b3dda213d",
+      "lines": 71
+    },
+    "iv": {
+      "path": "packages/identity/src/accounts/recovery.ts",
+      "sha256": "78c8589260eaea5536b2f90374d004d7664184b664b85135c7a0924da2f5e367",
+      "lines": 88
+    },
+    "im": {
+      "path": "packages/identity/src/teams/membership.ts",
+      "sha256": "8297f93d24b3062dd25bdc225fb71b8973c2c2551ba307b80becfe97161b334d",
+      "lines": 43
+    },
+    "il": {
+      "path": "packages/identity/src/teams/roles.ts",
+      "sha256": "3c7c75a62b8de6e5a61f79c38b1b0a4ee337e15d26fc3e1193d4b93d0b111d0f",
+      "lines": 77
+    },
+    "ir": {
+      "path": "packages/identity/src/authentication/revocation.ts",
+      "sha256": "3b18c1865f4f78cfda004b5d2bbb2959910c307c8a6a21c0c5928b15a2e5eb56",
+      "lines": 133
+    },
+    "ig": {
+      "path": "packages/identity/src/authentication/grants.ts",
+      "sha256": "56f26d214a51de1caa8cc28b6757d9319c582e26f744cfc9e81e4c1a70418df4",
+      "lines": 63
+    },
+    "ic": {
+      "path": "packages/identity/src/authentication/context.ts",
+      "sha256": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "lines": 166
+    },
+    "iports": {
+      "path": "packages/identity/src/ports.ts",
+      "sha256": "6145aef4de7dc0fabeed0a285a3dd8191c8c6f6c37d6554ca0659173a210a1bd",
+      "lines": 233
+    },
+    "cg": {
+      "path": "packages/cloudflare/src/runtime/grant-route.ts",
+      "sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d",
+      "lines": 206
+    },
+    "cm": {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+      "lines": 629
+    },
+    "ca": {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "lines": 1710
+    },
+    "to": {
+      "path": "packages/interfaces/src/http/operations.ts",
+      "sha256": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a",
+      "lines": 460
+    },
+    "tm": {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6",
+      "lines": 491
+    },
+    "tu": {
+      "path": "packages/interfaces/src/uploads/routes.ts",
+      "sha256": "fff8e55fe8aed9cea083b5b3dcd9f8d1ff9cb1072539a2c429176d65132a0e59",
+      "lines": 405
+    },
+    "tp": {
+      "path": "packages/interfaces/src/uploads/principals.ts",
+      "sha256": "c758c5cea0a20cba47b257865986bc93b639967d20caef9bfb1210afddcba383",
+      "lines": 53
+    },
+    "tk": {
+      "path": "packages/interfaces/src/uploads/kernel.ts",
+      "sha256": "b89cfaed78a3e62281a86323b04d2f344f319d60022a4f884b034c9419eec205",
+      "lines": 220
+    },
+    "fu": {
+      "path": "packages/files/src/upload/index.ts",
+      "sha256": "46f566043db6f6292d6a95ae125e0e51c19058cc455f9a68bd4ff56343479ca7",
+      "lines": 503
+    },
+    "ta": {
+      "path": "packages/interfaces/src/http/auth.ts",
+      "sha256": "5e373e1a88fe8ee36a27d851154e2228491fba588aed207f219ffcf73c380706",
+      "lines": 365
+    },
+    "tq": {
+      "path": "packages/interfaces/src/oauth/routes.ts",
+      "sha256": "19e9318f1dc1d3d30bd3a22f87fdf0499e4237497fd870135ae8314ba58e08ef",
+      "lines": 473
+    },
+    "design": {
+      "path": "docs/specification/DESIGN.md",
+      "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+      "lines": 1118
+    },
+    "contract": {
+      "path": "docs/ideal-filetree-plan/finished-product/FP.IDENTITY-CONTRACT.contract.md",
+      "sha256": "c24251c4ac9fde512e628fbdd2da95250469c2e384a8a010407034a66b5ad9ca",
+      "lines": 165
+    },
+    "reconcile": {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/security-reconciliation.json",
+      "sha256": "147f70d70fb072fc5fe1aff2030c8516f7a33ebc8d8ab797702fbbfb3a2f0524",
+      "lines": 153
+    },
+    "registry": {
+      "path": "packages/cloudflare/src/runtime/mcp-registry.ts",
+      "sha256": "cf8cf482728036635a1d964ab8fc94ff365eb900e3efb0a99d9f9daa69f34c14",
+      "lines": 486,
+      "origin": "workspace source at parent frozen checkpoint"
+    },
+    "d1primary": {
+      "path": "node_modules/.bun/miniflare@4.20260730.0/node_modules/miniflare/dist/src/workers/d1/database.worker.js",
+      "sha256": "09057e4126d263c38bfcde59dfaeccafdf29176a1ff4d77fb1bc762c7354a4e4",
+      "lines": 224,
+      "origin": "local installed primary dependency, not frozen Git"
+    }
+  },
+  "legend": "Anchors [sourceID,one-based line], whole-file SHA256/path in sources. d1primary installed local Miniflare source is separately hashed, not frozen Git or hosted execution."
+}

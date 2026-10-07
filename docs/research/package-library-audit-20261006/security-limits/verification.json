@@ -1,0 +1,44 @@
+{
+  "status": "pass",
+  "scope": "metadata/source pin only",
+  "pin": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "current_head_at_check": "eb5ca8d4ef8d0f924588df5ffb81807494f78732",
+  "frozen_current_equal_sources": 429,
+  "local_installed_current_sources": 13,
+  "validated_anchor_positions": 1542,
+  "enforcement_surfaces": 63,
+  "candidate_findings": 29,
+  "priorities": {
+    "P3": 5,
+    "P2": 17,
+    "P1": 7
+  },
+  "file_crosswalk": 395,
+  "duty_crosswalk": 316,
+  "owners": [
+    "cloudflare",
+    "contracts",
+    "files",
+    "identity",
+    "interfaces",
+    "services",
+    "state",
+    "stdlib",
+    "testkit",
+    "ui",
+    "values",
+    "work",
+    "work-kernel"
+  ],
+  "existing_task_rule_references": 89,
+  "local_links": 12,
+  "runtime_security_acceptance": false,
+  "Astra_review": "pending explicit egress approval",
+  "package_runtime_execution": false,
+  "scenarios_executed": 0,
+  "limits": [
+    "Position/hash/reference validation does not prove every semantic inference or vulnerability.",
+    "Online CSV tag evidence checked separately; no installed/parser acceptance.",
+    "Compiler may advance HEAD; audited source hashes must stay equal to frozen pin."
+  ]
+}

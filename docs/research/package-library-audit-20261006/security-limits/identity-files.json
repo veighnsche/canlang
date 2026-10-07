@@ -1,0 +1,1704 @@
+{
+  "schema_version": 1,
+  "kind": "finite source-only security/resource enforcement audit",
+  "frozen_git_sha": "d83d11f6c7e88ba03848fba89de8dd4354d2ae72",
+  "root": "/Users/vince/Projects/canlang",
+  "model": "Sol high (existing user-selected setting)",
+  "execution": "All witnesses source-derived/unexecuted. No product runtime/tests/builds/install/network/Git/repo writes. Standard-library file metadata/JSON assembly only. No new security policy/JEV mechanism selected.",
+  "prior_inputs": [
+    "/private/tmp/canlang-lifecycle-identity-files.json",
+    "/private/tmp/canlang-protocol-identity-privacy.json",
+    "docs/research/package-library-audit-20261006/required-behavior/security-reconciliation.json"
+  ],
+  "stage_summary": "Current production grant special route, staged MCP/HTTP operation joins, /auth/*501, full OAuth unmounted, files/ingress durable consumers unjoined are distinct. Exports/tests do not prove deployment exploits.",
+  "priority_rule": "P1 means important effect/authority/resource outcome required before applicable product release; conditional prerequisites remain explicit, not a claim incident/deployedexploitation. P2 narrow refusal/compatibility or missingqualification.",
+  "sources": {
+    "ic": {
+      "path": "packages/identity/src/authentication/context.ts",
+      "sha256": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96"
+    },
+    "ir": {
+      "path": "packages/identity/src/authentication/revocation.ts",
+      "sha256": "3b18c1865f4f78cfda004b5d2bbb2959910c307c8a6a21c0c5928b15a2e5eb56"
+    },
+    "io": {
+      "path": "packages/identity/src/authentication/oauth.ts",
+      "sha256": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be"
+    },
+    "ig": {
+      "path": "packages/identity/src/authentication/grants.ts",
+      "sha256": "56f26d214a51de1caa8cc28b6757d9319c582e26f744cfc9e81e4c1a70418df4"
+    },
+    "id": {
+      "path": "packages/identity/src/storage/d1.ts",
+      "sha256": "7d25f77228fdd17c2fe49684c8cbefd1f3c50acf621533dc349dedaa66a3f18f"
+    },
+    "ip": {
+      "path": "packages/identity/src/sessions/presession.ts",
+      "sha256": "f2c4cc913ea8fc3a70c7688991dd4a0a68cb05682efa433705d1654b3dda213d"
+    },
+    "it": {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa"
+    },
+    "is": {
+      "path": "packages/identity/src/sessions/csrf.ts",
+      "sha256": "b577b2619951a51f1aaccc62ae3db942a7d2237aec5f6d5c2d6d65a815040d60"
+    },
+    "ik": {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099"
+    },
+    "iw": {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969"
+    },
+    "ia": {
+      "path": "packages/identity/src/accounts/registration.ts",
+      "sha256": "72de65f3832a562cd8564a11063a1c14ef01e5184e8ac91c6bf22f967e7c898f"
+    },
+    "iv": {
+      "path": "packages/identity/src/accounts/recovery.ts",
+      "sha256": "78c8589260eaea5536b2f90374d004d7664184b664b85135c7a0924da2f5e367"
+    },
+    "ii": {
+      "path": "packages/identity/src/teams/invitations.ts",
+      "sha256": "88eefc9e11d639d1bc701dc72b743aa6db5987ac85abcb189dc872a2d7550c1d"
+    },
+    "im": {
+      "path": "packages/identity/src/teams/membership.ts",
+      "sha256": "8297f93d24b3062dd25bdc225fb71b8973c2c2551ba307b80becfe97161b334d"
+    },
+    "il": {
+      "path": "packages/identity/src/teams/roles.ts",
+      "sha256": "3c7c75a62b8de6e5a61f79c38b1b0a4ee337e15d26fc3e1193d4b93d0b111d0f"
+    },
+    "iy": {
+      "path": "packages/identity/src/teams/selection.ts",
+      "sha256": "e8acd7d1a8c01bc88bda3f9eefd7e2b8e52283fdc5ad5fb8f5692e9c9b3420f0"
+    },
+    "iz": {
+      "path": "packages/identity/src/authentication/audience.ts",
+      "sha256": "cd65de45aa5d251df01c39b300e7d783e415d8554ef1bfad8a9be5833c623158"
+    },
+    "iports": {
+      "path": "packages/identity/src/ports.ts",
+      "sha256": "6145aef4de7dc0fabeed0a285a3dd8191c8c6f6c37d6554ca0659173a210a1bd"
+    },
+    "fu": {
+      "path": "packages/files/src/upload/index.ts",
+      "sha256": "46f566043db6f6292d6a95ae125e0e51c19058cc455f9a68bd4ff56343479ca7"
+    },
+    "ff": {
+      "path": "packages/files/src/finalize/index.ts",
+      "sha256": "eba40a06b0bd79ebac016e4f845ed6a9b2301b5de193766ca6ed7a0e4419d74a"
+    },
+    "fp": {
+      "path": "packages/files/src/provenance/index.ts",
+      "sha256": "7441aab94f941b10823134e33b6c11ab48874c20a20bcab9d9c540c3ab164733"
+    },
+    "fr": {
+      "path": "packages/files/src/retention/index.ts",
+      "sha256": "3d953bc857123338cb0b6a999c10e296445c0700f6b4183410e48d7e8a0231bd"
+    },
+    "fs": {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "sha256": "0c112376b97e30a41ed6db8956b5e003ccc9e16ff4c0386353e04561a504108e"
+    },
+    "fb": {
+      "path": "packages/files/src/bridge.ts",
+      "sha256": "01c317ba97b23ffb768cdf174f9f8fb1e6589c7695e33c9116233665770cdf3d"
+    },
+    "fports": {
+      "path": "packages/files/src/ports.ts",
+      "sha256": "2a7cd17c0e3775e3909468eec53aa046a404dcf3d87721c083fb5158a55d7c6b"
+    },
+    "ta": {
+      "path": "packages/interfaces/src/http/auth.ts",
+      "sha256": "5e373e1a88fe8ee36a27d851154e2228491fba588aed207f219ffcf73c380706"
+    },
+    "tc": {
+      "path": "packages/interfaces/src/http/context.ts",
+      "sha256": "12d51336059dd4590fddceb5689d41e42ea1366788d10a457843befb5c1bd2aa"
+    },
+    "tl": {
+      "path": "packages/interfaces/src/http/limits.ts",
+      "sha256": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc"
+    },
+    "to": {
+      "path": "packages/interfaces/src/http/operations.ts",
+      "sha256": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a"
+    },
+    "tm": {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6"
+    },
+    "td": {
+      "path": "packages/interfaces/src/mcp/discovery.ts",
+      "sha256": "22e31235937008a445fa5cf227a4041d5761462942e0205833206be3987a2e14"
+    },
+    "tr": {
+      "path": "packages/interfaces/src/envelope/refs.ts",
+      "sha256": "7eb157fc98859eb94c2532b5f604f5c9c2d235e474b9c51b3f27d1b2361284ba"
+    },
+    "te": {
+      "path": "packages/interfaces/src/errors/envelope.ts",
+      "sha256": "5f2a6e35e023457367716512b6bd62b3dc96fa9dc2dcd09ec792ff054ebd2d1e"
+    },
+    "tg": {
+      "path": "packages/interfaces/src/errors/logging.ts",
+      "sha256": "8034446eadabb9a19efc3c28db3f4a1b384efe8311f372fb28840cd22e92f6c2"
+    },
+    "tx": {
+      "path": "packages/interfaces/src/errors/redact.ts",
+      "sha256": "d8c8be62aa982048bdbcbbac0d1760ab32d95c77f21d9b88c01838f17144d31a"
+    },
+    "tu": {
+      "path": "packages/interfaces/src/uploads/routes.ts",
+      "sha256": "fff8e55fe8aed9cea083b5b3dcd9f8d1ff9cb1072539a2c429176d65132a0e59"
+    },
+    "tp": {
+      "path": "packages/interfaces/src/uploads/principals.ts",
+      "sha256": "c758c5cea0a20cba47b257865986bc93b639967d20caef9bfb1210afddcba383"
+    },
+    "tk": {
+      "path": "packages/interfaces/src/uploads/kernel.ts",
+      "sha256": "b89cfaed78a3e62281a86323b04d2f344f319d60022a4f884b034c9419eec205"
+    },
+    "ti": {
+      "path": "packages/interfaces/src/ingress/routes.ts",
+      "sha256": "29a6b69cecf111282b96eedf2feb41baf6073dbb3aabb98d3cd19d17cb4c61bc"
+    },
+    "tn": {
+      "path": "packages/interfaces/src/ingress/mapping.ts",
+      "sha256": "21a293aaafdeac21b1994293f9b77f2daaa31d0cb7a57eed880ab220a84ac738"
+    },
+    "tports": {
+      "path": "packages/interfaces/src/ports.ts",
+      "sha256": "b326f155d580543bd83f2aa00b8c1be18a468399474cb957e220d5c32f0c3629"
+    },
+    "tq": {
+      "path": "packages/interfaces/src/oauth/routes.ts",
+      "sha256": "19e9318f1dc1d3d30bd3a22f87fdf0499e4237497fd870135ae8314ba58e08ef"
+    },
+    "cm": {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba"
+    },
+    "ce": {
+      "path": "packages/cloudflare/src/worker/entry.ts",
+      "sha256": "106bfa11b9075dca53d4f4933497e5cb382d317471278d4f90c56402bad1580f"
+    },
+    "ca": {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628"
+    },
+    "cg": {
+      "path": "packages/cloudflare/src/runtime/grant-route.ts",
+      "sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d"
+    },
+    "design": {
+      "path": "docs/specification/DESIGN.md",
+      "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9"
+    },
+    "contract": {
+      "path": "docs/ideal-filetree-plan/finished-product/FP.IDENTITY-CONTRACT.contract.md",
+      "sha256": "c24251c4ac9fde512e628fbdd2da95250469c2e384a8a010407034a66b5ad9ca"
+    },
+    "reconcile": {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/security-reconciliation.json",
+      "sha256": "147f70d70fb072fc5fe1aff2030c8516f7a33ebc8d8ab797702fbbfb3a2f0524"
+    },
+    "sdk": {
+      "path": "packages/interfaces/node_modules/@modelcontextprotocol/sdk/dist/esm/server/webStandardStreamableHttp.js",
+      "sha256": "8ac6b6a32299f840377721c55ba4b938dd90158a415c8ccf09ce3cdda131897d"
+    },
+    "sdkbody": {
+      "path": "packages/interfaces/node_modules/@modelcontextprotocol/sdk/dist/esm/server/requestBody.js",
+      "sha256": "26f505ecc3270e105d3eedfe82897a9b2e8ec2487cd8f382f6749beba71206df"
+    },
+    "sdkpkg": {
+      "path": "packages/interfaces/node_modules/@modelcontextprotocol/sdk/package.json",
+      "sha256": "e2978955f1e20cce7a22ed5daea0bed7e7d8e0a0e1b8fe170773dd15787a51b3"
+    }
+  },
+  "enforcement": [
+    {
+      "id": "SE01",
+      "owner": "identity + interfaces",
+      "surface": "Credential resolution and audience",
+      "stage": "Shared live constructor; individual consumer joins qualified below.",
+      "entry_chain": "Cookie/bearer -> SHA256 lookup -> expiry/revocation -> user/team/current membership -> audience -> invoker",
+      "trust_inputs": "Token/cookie/team are caller input; store/clock/app/audience are trusted. Body cannot appoint actor or now.",
+      "actual_guards": "Both credentials denied; expired at equality denied. Team-bound grant cannot switch team and removed membership denies. MCP ignores cookies; uploads invalid well-formed bearer never falls back.",
+      "limits": "32 random bytes; hashes stored; sessions7d, grants30d.",
+      "missing_gates": "Admission is a snapshot; later effects/disclosure need owning current checks. Account disable/delete absent.",
+      "anchors": [
+        {
+          "source": "ic",
+          "lines": [
+            65,
+            75,
+            91,
+            127,
+            137
+          ]
+        },
+        {
+          "source": "iz",
+          "lines": [
+            1
+          ]
+        },
+        {
+          "source": "tm",
+          "lines": [
+            94,
+            109
+          ]
+        },
+        {
+          "source": "tu",
+          "lines": [
+            143
+          ]
+        },
+        {
+          "source": "it",
+          "lines": [
+            1
+          ]
+        },
+        {
+          "source": "ia",
+          "lines": [
+            137,
+            140
+          ]
+        },
+        {
+          "source": "ig",
+          "lines": [
+            16,
+            37
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI01",
+        "LI05",
+        "LI07",
+        "LI10",
+        "LI14",
+        "T16",
+        "FP.IDENTITY"
+      ]
+    },
+    {
+      "id": "SE02",
+      "owner": "identity",
+      "surface": "Passwords, registration, verification, recovery",
+      "stage": "Identity primitives; auth handler unmounted.",
+      "entry_chain": "Register -> hash/user/token/mail; verify -> purpose/expiry -> verified flag/consume; login -> password/verified email -> session; recovery -> password/consume/revoke cascade",
+      "trust_inputs": "Email/password/link untrusted; stored encoding and deployment mail URL trusted.",
+      "actual_guards": "PBKDF2-SHA256 salt16/key32/600000 iterations. Unknown-user dummy password check; unverified email denied before session. Malformed encodings/derivation false; native comparison faults propagate.",
+      "limits": "New passwords8..512 chars; stored iterations1..10000000; HTTP1MiB; auth10/min, recovery5/hour via injected limiter.",
+      "missing_gates": "No active-PBKDF2 aggregate budget or atomic consume/cascade; mail failure leaves user/token. No explicit JS/WebCrypto memory erasure guarantee.",
+      "anchors": [
+        {
+          "source": "iw",
+          "lines": [
+            18,
+            25,
+            72,
+            91
+          ]
+        },
+        {
+          "source": "ia",
+          "lines": [
+            118,
+            130,
+            137
+          ]
+        },
+        {
+          "source": "iv",
+          "lines": [
+            71,
+            82,
+            83,
+            85
+          ]
+        },
+        {
+          "source": "ta",
+          "lines": [
+            152,
+            165,
+            234
+          ]
+        },
+        {
+          "source": "tl",
+          "lines": [
+            167,
+            205
+          ]
+        },
+        {
+          "source": "id",
+          "lines": [
+            17
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI01",
+        "LI02",
+        "LI03",
+        "LI04",
+        "AD-identity-atomic-gap",
+        "FP.IDENTITY-CONTRACT"
+      ]
+    },
+    {
+      "id": "SE03",
+      "owner": "interfaces + identity",
+      "surface": "Session CSRF, login presession and logout",
+      "stage": "Auth unmounted; HTTP operations staged join mounted.",
+      "entry_chain": "Descriptor throttle -> no-store presession; login throttle/capped parse -> presession delete/expiry -> password -> cookie; session mutation -> HMAC CSRF -> effect",
+      "trust_inputs": "Presession is a bearer; CSRF header/form untrusted. Cookie secure flag comes from deployment join.",
+      "actual_guards": "HttpOnly/Lax/Path=/, Secure default. CSRF header takes nullish precedence; mismatch denies. Presented expired presession deleted; invalid token burns nothing.",
+      "limits": "Presession10min; session7d row expiry; auth body/throttle as SE02.",
+      "missing_gates": "No login origin/browser binding or atomic presession winner. Logout catches resolution IO faults as successful cookie clear without revoking server row. No never-presented expired-row sweep.",
+      "anchors": [
+        {
+          "source": "ta",
+          "lines": [
+            177,
+            184,
+            210,
+            224
+          ]
+        },
+        {
+          "source": "ip",
+          "lines": [
+            60,
+            67,
+            69
+          ]
+        },
+        {
+          "source": "tc",
+          "lines": [
+            71,
+            79
+          ]
+        },
+        {
+          "source": "ik",
+          "lines": [
+            79,
+            85
+          ]
+        },
+        {
+          "source": "is",
+          "lines": [
+            18,
+            34
+          ]
+        },
+        {
+          "source": "ca",
+          "lines": [
+            1365
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI05",
+        "LI06",
+        "LI07",
+        "AD-identity-login-presession",
+        "AD-presession-origin-gap"
+      ]
+    },
+    {
+      "id": "SE04",
+      "owner": "cloudflare grant caller + identity mint owner",
+      "surface": "POST /mcp/grants",
+      "stage": "Production special path when grant/DB joins present.",
+      "entry_chain": "Main -> DB binding gate -> special POST /mcp/grants -> cookie/user/active member -> req.json -> issueMcpGrant",
+      "trust_inputs": "Cookie/client_id untrusted; actor/team from resolved session and production store.",
+      "actual_guards": "Missing/invalid cookie401, absent active team/member403, malformed JSON/client400; client trimmed/max256. Login ensures verified email; grant route trusts session. Four response keys; no raw token log.",
+      "limits": "Grant30d/32 random bytes. No route body/count/depth/time/rate limit. Platform caps not qualified.",
+      "missing_gates": "No Origin/CSRF or post-body credential/member gate; special route bypasses assembly activation check (root owns policy review).",
+      "anchors": [
+        {
+          "source": "cm",
+          "lines": [
+            495,
+            577,
+            591,
+            606,
+            608,
+            622
+          ]
+        },
+        {
+          "source": "ce",
+          "lines": [
+            22,
+            31
+          ]
+        },
+        {
+          "source": "cg",
+          "lines": [
+            149,
+            155,
+            164,
+            175,
+            185,
+            192
+          ]
+        },
+        {
+          "source": "ig",
+          "lines": [
+            32,
+            46,
+            50
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI10",
+        "FP.IDENTITY",
+        "FP.IDENTITY-CONTRACT",
+        "T04"
+      ]
+    },
+    {
+      "id": "SE05",
+      "owner": "identity + interfaces",
+      "surface": "OAuth client/consent/code exchange",
+      "stage": "Exported OAuth handler, unmounted.",
+      "entry_chain": "Register -> redirect policy; consent -> live cookie/team/CSRF/S256 -> code; token -> capped params/binding/PKCE -> consume -> grant",
+      "trust_inputs": "Client/redirect/challenge/state/code/verifier untrusted; actor/team from consent. Mint primitives do not authenticate.",
+      "actual_guards": "Exact registered redirect; HTTPS or loopback HTTP, no userinfo/fragment. Uniform invalid_grant; failed PKCE refuses before consume. Code/grant hashes only.",
+      "limits": "1..5 redirects, name100/state1024 chars; code10min/grant30d; token/register10/min; body1MiB.",
+      "missing_gates": "No verifier grammar or conditional consume winner;43..128 challenge admits impossible44-char S256 output. No client retirement/refresh tokens; handler unmounted.",
+      "anchors": [
+        {
+          "source": "io",
+          "lines": [
+            70,
+            150,
+            176,
+            207,
+            231,
+            234,
+            237,
+            240
+          ]
+        },
+        {
+          "source": "tq",
+          "lines": [
+            138,
+            183,
+            238,
+            311,
+            373,
+            397,
+            406
+          ]
+        },
+        {
+          "source": "ca",
+          "lines": [
+            1359,
+            1365,
+            1371
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI08",
+        "LI09",
+        "LI10",
+        "IP09",
+        "FP.IDENTITY",
+        "AD-identity-atomic-gap"
+      ]
+    },
+    {
+      "id": "SE06",
+      "owner": "identity",
+      "surface": "Invitation/membership/role/selection boundaries",
+      "stage": "Exported identity functions; system.team schema/registry/comments exist, actual production invocation of these routines not proved.",
+      "entry_chain": "Owner invite -> frozen grants -> addressed verified-email accept -> membership -> accepted; remove/demote -> count -> writes; selection -> membership -> session hint",
+      "trust_inputs": "IDs/roles untrusted; invoking actor/store authoritative.",
+      "actual_guards": "Active owner required; invitation expiry/revoked/accepted/address/email verification before effect; one team/user unique. Stored ceiling only; selection grants no role. Interfaces team-descriptor owner gate exists; invocation of these identity routines unproved.",
+      "limits": "Invitation7d; bound SQL and unique membership/email/hash constraints; statements atomic individually.",
+      "missing_gates": "Last-owner count and role replacement/cascade races; invitation reactivation/accepted writes partial. DESIGN291 admitted-operation scope versus strict T32b remains unresolved.",
+      "anchors": [
+        {
+          "source": "ii",
+          "lines": [
+            40,
+            51,
+            80,
+            91,
+            98,
+            122,
+            139
+          ]
+        },
+        {
+          "source": "im",
+          "lines": [
+            22,
+            30,
+            36,
+            37
+          ]
+        },
+        {
+          "source": "il",
+          "lines": [
+            40,
+            51,
+            55,
+            59,
+            64
+          ]
+        },
+        {
+          "source": "iy",
+          "lines": [
+            1
+          ]
+        },
+        {
+          "source": "id",
+          "lines": [
+            17,
+            592,
+            598,
+            604
+          ]
+        },
+        {
+          "source": "tm",
+          "lines": [
+            414,
+            422
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            291
+          ]
+        },
+        {
+          "source": "ir",
+          "lines": [
+            70,
+            78
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI11",
+        "LI12",
+        "LI13",
+        "AD-identity-atomic-gap",
+        "SW-007",
+        "FP.IDENTITY-CONTRACT"
+      ]
+    },
+    {
+      "id": "SE07",
+      "owner": "interfaces + identity + owning invoker",
+      "surface": "HTTP/MCP operation admission and live effect boundary",
+      "stage": "Mounted MCP/staged HTTP operations; State atomicity root-owned.",
+      "entry_chain": "HTTP cookie -> capped parse/CSRF/opid/schema -> live credential -> invoker; MCP bearer -> known tool/permission/owner/opid/handle/schema -> live credential -> invoker",
+      "trust_inputs": "IDs/versions/inputs/action handles untrusted; catalog and permission/invoker ports trusted.",
+      "actual_guards": "Closed refs and inputs, session CSRF and operation identity gates. Handle authenticity/business/read/record authority delegated owner. Mutation credential read uses current clock just before invoke.",
+      "limits": "Ref IDs256; HTTP1MiB; MCP4MiB/100 batch. No route depth/time/active-call budget.",
+      "missing_gates": "Pre-invoker read is not atomic with later writes. Reads/discovery use admission identity plus owner permissions; no universal per-message re-resolution within batch.",
+      "anchors": [
+        {
+          "source": "to",
+          "lines": [
+            168,
+            182,
+            249,
+            256,
+            266,
+            287,
+            293
+          ]
+        },
+        {
+          "source": "tm",
+          "lines": [
+            109,
+            196,
+            210,
+            226,
+            414,
+            422,
+            450,
+            485
+          ]
+        },
+        {
+          "source": "td",
+          "lines": [
+            14
+          ]
+        },
+        {
+          "source": "tr",
+          "lines": [
+            16
+          ]
+        },
+        {
+          "source": "ir",
+          "lines": [
+            122
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI14",
+        "B4",
+        "T32b",
+        "SW-007",
+        "FP.IDENTITY-CONTRACT",
+        "T15",
+        "T19"
+      ]
+    },
+    {
+      "id": "SE08",
+      "owner": "interfaces + installed MCP SDK1.32.0",
+      "surface": "MCP HTTP headers and resource cap",
+      "stage": "Installed local SDK source; not frozen Git/remote evidence.",
+      "entry_chain": "Can bearer before SDK -> fresh stateless transport -> headers -> capped body -> JSON ->100-message gate -> schema/dispatch",
+      "trust_inputs": "Origin/Host/headers/body untrusted; Can passes no parsedBody option.",
+      "actual_guards": "Actual bytes4MiB and declared Content-Length gate;413 over cap before parse. Batch>100400 before Zod map; fresh transport prevents retained session collisions.",
+      "limits": "SDK1.32.0 defaults4MiB/100 messages; no read deadline/depth/node bound; overcap releases lock without cancel.",
+      "missing_gates": "DNS rebinding protection default false; Can sets no allowlists. Flag alone insufficient; configured Origin list still permits absent Origin. Missing bearer401 first.",
+      "anchors": [
+        {
+          "source": "tm",
+          "lines": [
+            450,
+            480,
+            485,
+            489
+          ]
+        },
+        {
+          "source": "sdk",
+          "lines": [
+            78,
+            80,
+            83,
+            141,
+            155,
+            170,
+            470,
+            491,
+            504
+          ]
+        },
+        {
+          "source": "sdkbody",
+          "lines": [
+            1,
+            4,
+            14,
+            29,
+            46,
+            48,
+            54
+          ]
+        }
+      ],
+      "original_ids": [
+        "FP.IDENTITY",
+        "FP.INSTALLED-RELEASE"
+      ]
+    },
+    {
+      "id": "SE09",
+      "owner": "interfaces + files",
+      "surface": "Upload route, receiving identity, intent rights and byte gates",
+      "stage": "Exported handler/local kernel; production file kernel unjoined.",
+      "entry_chain": "Path/method/usesFiles -> live bearer or cookie -> session header CSRF -> receiver tuple -> capped body -> kernel",
+      "trust_inputs": "Retry/operation/field/args/name/type/size/id/digest/bytes untrusted; receiver/app/origin resolved/configured.",
+      "actual_guards": "Invalid well-formed bearer never falls back. Exact receiver/provenance and retry context; canonical safe integer size and absent pointer. Incremental declared/policy cap deletes staging; completion actual MIME; finalize digest/retry immutable.",
+      "limits": "JSON1MiB; PUT Content-Length early cap else maxBytes+1 stream cap; kernel default10MiB. PDF/PNG/JPEG magic only; text nonempty/NUL-free/strict UTF8.",
+      "missing_gates": "No post-body credential check, canonical exposed-operation/writable field/context join or aggregate reservation quota. Production file kernel unjoined.",
+      "anchors": [
+        {
+          "source": "tu",
+          "lines": [
+            91,
+            143,
+            200,
+            255,
+            265,
+            323,
+            355,
+            369,
+            377,
+            386
+          ]
+        },
+        {
+          "source": "tp",
+          "lines": [
+            26,
+            47
+          ]
+        },
+        {
+          "source": "fu",
+          "lines": [
+            134,
+            155,
+            309,
+            337,
+            347,
+            402,
+            447
+          ]
+        },
+        {
+          "source": "ca",
+          "lines": [
+            1326,
+            1368
+          ]
+        }
+      ],
+      "original_ids": [
+        "LF01",
+        "LF02",
+        "LF08",
+        "LF09",
+        "LI14",
+        "FP.FILES-DURABLE",
+        "T16",
+        "T24"
+      ]
+    },
+    {
+      "id": "SE10",
+      "owner": "files + owning attachment/read/retention consumers",
+      "surface": "Finalized read/attach/retention/path safety",
+      "stage": "Local helpers/FS; durable bytes/download join unqualified.",
+      "entry_chain": "Finalize actual bytes/digest -> ref; attach metadata/state/receiver -> link; read state/receiver -> blob; explicit retention clock -> delete/tombstone",
+      "trust_inputs": "Refs/receiver passed to helper; FS root and ID mint trusted host inputs. Request path is not blob path.",
+      "actual_guards": "Unknown/foreign/missing bytes deny; terminal metadata never resurrects. Safe flat keys reject separators/dotdot. IO failures propagate except ENOENTnull; receipt projection redacts missing blob.",
+      "limits": "No automatic sweep/aggregate budget; FS root absolute; no symlink/no-follow or transaction guarantee.",
+      "missing_gates": "Attach reads no bytes despite comment. Read no clock/record/field grant; shared-reference release not represented by one attachedRecord. Durable/authorized download join pending.",
+      "anchors": [
+        {
+          "source": "ff",
+          "lines": [
+            133,
+            278,
+            302,
+            330,
+            360
+          ]
+        },
+        {
+          "source": "fr",
+          "lines": [
+            68,
+            110,
+            141
+          ]
+        },
+        {
+          "source": "fs",
+          "lines": [
+            39,
+            44,
+            52,
+            84
+          ]
+        },
+        {
+          "source": "fports",
+          "lines": [
+            1,
+            15
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            574,
+            580,
+            607,
+            609
+          ]
+        }
+      ],
+      "original_ids": [
+        "LF03",
+        "LF05",
+        "LF06",
+        "LF07",
+        "FP.FILES-DURABLE"
+      ]
+    },
+    {
+      "id": "SE11",
+      "owner": "interfaces + provider verifier + owning sink/files",
+      "surface": "Provider ingress and event-file causation",
+      "stage": "Exported handler; production verifier/sink unjoined.",
+      "entry_chain": "Namespace binding ->256KiB raw body -> JSON object -> verifier(raw bytes/headers) -> namespace -> actor-null context -> sink",
+      "trust_inputs": "Payload/headers untrusted; binding and verifier causation trusted. Body actor/team never becomes identity.",
+      "actual_guards": "Unknown binding before body; malformed JSON before signature, no effect. Null/wrong namespace401; actor=null, team/namespace from binding. Unexpected verifier/sink public generic.",
+      "limits": "256KiB; no route time/depth/rate bound. Signature/freshness/replay belongs installed verifier and durable sink.",
+      "missing_gates": "Actual verifier/key rotation/timestamp/replay/owner outcome join absent. Strict event provenance shape does not establish authentication or occurrence dedup.",
+      "anchors": [
+        {
+          "source": "ti",
+          "lines": [
+            75,
+            135,
+            144,
+            151,
+            163,
+            177,
+            186,
+            197,
+            199
+          ]
+        },
+        {
+          "source": "tn",
+          "lines": [
+            25
+          ]
+        },
+        {
+          "source": "tports",
+          "lines": [
+            376,
+            399
+          ]
+        },
+        {
+          "source": "ff",
+          "lines": [
+            219,
+            524
+          ]
+        },
+        {
+          "source": "fp",
+          "lines": [
+            98
+          ]
+        },
+        {
+          "source": "ca",
+          "lines": [
+            1334
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            582,
+            634,
+            636
+          ]
+        }
+      ],
+      "original_ids": [
+        "LF04",
+        "AD-files-provenance",
+        "FP.SOURCE-MAPPINGS",
+        "FP.FILES-DURABLE",
+        "T24"
+      ]
+    },
+    {
+      "id": "SE12",
+      "owner": "interfaces/errors + producer adapters",
+      "surface": "Security projection and logs",
+      "stage": "Actual catches; safe-error producer contract.",
+      "entry_chain": "Thrown Error -> keyed-redacted operator log -> generic public error; trusted BusinessError -> declared safe envelope",
+      "trust_inputs": "Error/BusinessError safety is producer responsibility; inspected ingress/upload/auth normal paths do not log body/headers.",
+      "actual_guards": "Secret-key regex/depth/cycle controls and own __proto__ safe copy. Public unexpected errors generic. Tokens deliberately hashed and returned once; public OAuth client ID logged.",
+      "limits": "Redaction depth6; no total string/breadth cap; console logger adds no scrub; MCP inline errors5 but full structured error retained.",
+      "missing_gates": "Keyed redaction deliberately retains secret text embedded in message. Operator residual differs from public leak; no arbitrary provider-message safety proof.",
+      "anchors": [
+        {
+          "source": "tg",
+          "lines": [
+            17,
+            43,
+            54,
+            62,
+            66,
+            73
+          ]
+        },
+        {
+          "source": "tx",
+          "lines": [
+            26,
+            41,
+            45,
+            56,
+            62
+          ]
+        },
+        {
+          "source": "te",
+          "lines": [
+            32,
+            79,
+            111
+          ]
+        },
+        {
+          "source": "ti",
+          "lines": [
+            177,
+            179,
+            181
+          ]
+        },
+        {
+          "source": "tu",
+          "lines": [
+            395,
+            399,
+            401
+          ]
+        },
+        {
+          "source": "tm",
+          "lines": [
+            211,
+            212,
+            213
+          ]
+        }
+      ],
+      "original_ids": [
+        "IP08",
+        "LI02",
+        "FP.IDENTITY"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "SI01",
+      "priority": "P1",
+      "title": "Production grant issuance lacks CSRF/origin and bounded body admission",
+      "disposition": "confirmed missing route controls; server-request admission source derived, browser exploit unclaimed",
+      "stage": "Production special grant path with DB/identity joins; installed browser/deployment prerequisites require qualification.",
+      "minimal_unexecuted_witness": {
+        "request": "POST /mcp/grants with live selected-team session cookie, Origin:https://foreign.invalid, no CSRF, JSON {client_id:\"c\"}. Outer entry only checks DB; route resolves session/member, req.json, mints200.",
+        "size": "Add unused pad string larger than Can1MiB cap. Route req.json buffers it before ignoring pad; no route cap."
+      },
+      "prerequisites": "Valid session/active team required. Browser cross-site cookie transmission/CORS not established; Lax cookie and deployment edge limits qualify exploitability.",
+      "controls": "Canonical HTTP/OAuth session mutations already use CSRF; actor/team never body-appointed.",
+      "required_outcome": "Apply released session-mutation CSRF/origin outcome and finite body/throttle admission to this actual route; choose deployment origin profile explicitly.",
+      "anchors": [
+        {
+          "source": "cm",
+          "lines": [
+            495,
+            577,
+            591,
+            608
+          ]
+        },
+        {
+          "source": "ce",
+          "lines": [
+            22,
+            31
+          ]
+        },
+        {
+          "source": "cg",
+          "lines": [
+            149,
+            164,
+            175,
+            185
+          ]
+        },
+        {
+          "source": "tc",
+          "lines": [
+            71
+          ]
+        },
+        {
+          "source": "tq",
+          "lines": [
+            320
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI10",
+        "FP.IDENTITY",
+        "FP.IDENTITY-CONTRACT",
+        "T04"
+      ]
+    },
+    {
+      "id": "SI02",
+      "priority": "P1",
+      "title": "Lookup then void consume permits two single-use winners",
+      "disposition": "confirmed source race; known atomic-join gap",
+      "stage": "Current exported identity/D1 routines; OAuth/auth endpoint consumers unmounted.",
+      "minimal_unexecuted_witness": {
+        "oauth": "A/B both SELECT one live unconsumed code with valid43-char verifier/client/redirect. A conditional UPDATE wins then mints; B UPDATE affects0 but void result also mints.",
+        "presession": "Both read live row; DELETE1/DELETE0 each returns cached expiry=true.",
+        "recovery": "Both read live recovery token before PBKDF2 await; each updates password then void consume. Last password wins."
+      },
+      "prerequisites": "Concurrent correct token presentations and D1 interleaving. OAuth/auth unmounted; public primitives retained. Memory tests/UNIQUE hashes do not prove exclusion.",
+      "controls": "Sequential retry refuses; failed PKCE consumes nothing; expiry/purpose/binding retained.",
+      "required_outcome": "One conditional state-changing winner; loser cannot mint/update. Release winner+effect atomicity through owner-approved mechanism; J2 remains proposed.",
+      "anchors": [
+        {
+          "source": "io",
+          "lines": [
+            229,
+            231,
+            237,
+            240,
+            241
+          ]
+        },
+        {
+          "source": "id",
+          "lines": [
+            733,
+            735,
+            757,
+            759,
+            890,
+            892
+          ]
+        },
+        {
+          "source": "ip",
+          "lines": [
+            67,
+            69,
+            70
+          ]
+        },
+        {
+          "source": "iv",
+          "lines": [
+            72,
+            82,
+            83
+          ]
+        },
+        {
+          "source": "contract",
+          "lines": [
+            17,
+            42,
+            58,
+            82
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI04",
+        "LI06",
+        "LI09",
+        "AD-identity-atomic-gap",
+        "FP.IDENTITY-CONTRACT"
+      ]
+    },
+    {
+      "id": "SI03",
+      "priority": "P1",
+      "title": "Last-owner and recovery cascades are not atomic enforcement",
+      "disposition": "confirmed source safety gap; actual mounted caller unproved and transaction mechanism unresolved",
+      "stage": "Exported identity routines; no production removeMember/setMemberRole caller proved in inspected Cloudflare/Interfaces source. Recovery HTTP auth helper unmounted (501).",
+      "minimal_unexecuted_witness": {
+        "owners": "Exactly A/B owners, each concurrently removes itself: both count2 before writes; both pass and leave0 owners. Demotion equivalent.",
+        "partial": "Recovery updates password/consumes link then session revoke throws: old credentials survive; retry refuses spent link. SignOutEverywhere session revoke then grant-revoke fault also partial."
+      },
+      "prerequisites": "Concurrent authorized calls to exported owner routines, or store fault after an earlier statement. No production team-management invocation route or identity-feature fenced batch established.",
+      "controls": "Sole-owner sequential removal/demotion refuses; removed membership denies future team-grant admission even if cascade partial.",
+      "required_outcome": "Atomic guard/required writes or safe recoverable terminal outcome; retain last owner and mandatory recovery revocation. Existing transaction participant questions remain unresolved.",
+      "anchors": [
+        {
+          "source": "im",
+          "lines": [
+            22,
+            30,
+            36,
+            37
+          ]
+        },
+        {
+          "source": "il",
+          "lines": [
+            55,
+            59
+          ]
+        },
+        {
+          "source": "iv",
+          "lines": [
+            82,
+            83,
+            85,
+            86
+          ]
+        },
+        {
+          "source": "ir",
+          "lines": [
+            21,
+            25,
+            26
+          ]
+        },
+        {
+          "source": "id",
+          "lines": [
+            17,
+            598,
+            604
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            291
+          ]
+        },
+        {
+          "source": "contract",
+          "lines": [
+            61,
+            82
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI04",
+        "LI05",
+        "LI12",
+        "AD-identity-atomic-gap",
+        "FP.IDENTITY-CONTRACT"
+      ]
+    },
+    {
+      "id": "SI04",
+      "priority": "P1",
+      "title": "Live-read checks do not cover later credential/authority effects",
+      "disposition": "missing joined guard; current pre-invoker controls retained",
+      "stage": "Production grant caller; HTTP/MCP pre-invoker windows require missing owner guard. Upload production join pending; no State bypass proved.",
+      "minimal_unexecuted_witness": {
+        "grant": "Resolve live session/member; pause req.json. Complete signOutEverywhere session+grant revocation. Finish body; issueMcpGrant creates new30d grant using cached identity. Logout leaves membership active, so new grant can resolve.",
+        "mutation": "HTTP287/MCP196 live credential read then owning invoker pauses before write; revoke occurs. Wrapper read alone cannot reject later write.",
+        "upload": "Resolve caller369; pause body; revoke/expire; append266 still uses old receiver tuple."
+      },
+      "prerequisites": "Actual grant joins/store interleaving. Mutation defect needs owner missing atomic guard, not established here. Upload production join pending.",
+      "controls": "HTTP/MCP refuse death before pre-invoker check; removed team denies new grants; admission current-row checks retained.",
+      "required_outcome": "Effect owner must use released current credential/authority decision at required atomic boundary; no mint from dead session. Reconcile DESIGN291/T32b before changing in-flight policy.",
+      "anchors": [
+        {
+          "source": "cg",
+          "lines": [
+            155,
+            175,
+            185
+          ]
+        },
+        {
+          "source": "ir",
+          "lines": [
+            25,
+            26,
+            70,
+            78,
+            122
+          ]
+        },
+        {
+          "source": "to",
+          "lines": [
+            287,
+            293
+          ]
+        },
+        {
+          "source": "tm",
+          "lines": [
+            196,
+            210
+          ]
+        },
+        {
+          "source": "tu",
+          "lines": [
+            369,
+            386,
+            265
+          ]
+        },
+        {
+          "source": "fu",
+          "lines": [
+            408,
+            409
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            291
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI10",
+        "LI14",
+        "LF09",
+        "B4",
+        "T32b",
+        "SW-007",
+        "FP.IDENTITY-CONTRACT"
+      ]
+    },
+    {
+      "id": "SI05",
+      "priority": "P2",
+      "title": "Malformed or missing PKCE verifier can succeed against matching challenge",
+      "disposition": "confirmed library/endpoint refusal defect within acceptedchallenge domain",
+      "stage": "Exported OAuth/identity path; full OAuth unmounted.",
+      "minimal_unexecuted_witness": {
+        "setup": "Issue valid consented code for challenge47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU (SHA256 empty bytes/base64url,43chars).",
+        "exchange": "Correct code/client/redirect, omit code_verifier; route406 supplies empty. Hash(empty) matches, consumes code and mints grant. No verifier grammar gate.",
+        "IP09": "Separate admitted44-char challenge cannot match43-char S256 output; failed exchange leaves code unconsumed. Valid43 works."
+      },
+      "prerequisites": "Caller controls challenge and possesses correctly bound consented code. OAuth unmounted; no wrong challenge/code/client bypass.",
+      "controls": "S256-only consent; constant-time compare; mismatch uniform and before consume.",
+      "required_outcome": "Refuse missing/malformed verifier before consume under owning PKCE43..128 unreserved grammar; constrain challenge to actual43-char S256 profile. Historic invalid-client compatibility unobserved and remains a gate.",
+      "anchors": [
+        {
+          "source": "io",
+          "lines": [
+            150,
+            207,
+            210,
+            237,
+            240
+          ]
+        },
+        {
+          "source": "tq",
+          "lines": [
+            325,
+            373,
+            397,
+            406
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            905
+          ]
+        }
+      ],
+      "original_ids": [
+        "IP09",
+        "LI09",
+        "FP.IDENTITY"
+      ]
+    },
+    {
+      "id": "SI06",
+      "priority": "P2",
+      "title": "Login presession bearer is not browser/origin bound",
+      "disposition": "known unresolved admission control; no deployed login exploit asserted",
+      "stage": "Exported auth handler; current /auth/*501.",
+      "minimal_unexecuted_witness": {
+        "request": "Get own live presession; POST /auth/login with Origin:https://foreign.invalid, that token and valid verified-account credentials. No origin/browser-binding read; login succeeds and sets cookie."
+      },
+      "prerequisites": "Valid token/credentials required; handler unmounted. Browser send/cookie acceptance not qualified; bearer possession is not same-browser proof.",
+      "controls": "10min/no-store/rate/body gates and password verification; session mutations use HMAC CSRF.",
+      "required_outcome": "Release login-CSRF/browser-origin binding outcome under existing unresolved AD-presession-origin-gap. No new cookie/origin mechanism selected.",
+      "anchors": [
+        {
+          "source": "ta",
+          "lines": [
+            177,
+            184,
+            188,
+            194,
+            202
+          ]
+        },
+        {
+          "source": "ip",
+          "lines": [
+            36,
+            60
+          ]
+        },
+        {
+          "source": "ca",
+          "lines": [
+            1365
+          ]
+        },
+        {
+          "source": "reconcile",
+          "lines": [
+            55
+          ]
+        }
+      ],
+      "original_ids": [
+        "LI06",
+        "AD-identity-login-presession",
+        "AD-presession-origin-gap"
+      ]
+    },
+    {
+      "id": "SI07",
+      "priority": "P2",
+      "title": "MCP SDK origin refusal is disabled by current transport options",
+      "disposition": "confirmed missing configuration/control; auth bypass unclaimed",
+      "stage": "Current MCP join with locally installed SDK1.32.0; actual installed host unqualified.",
+      "minimal_unexecuted_witness": {
+        "request": "Valid grant POST /mcp initialize, foreign Origin, correct Accept/application-json headers. Can authenticates; SDK flag false means validateRequestHeaders returns undefined and dispatches."
+      },
+      "prerequisites": "Valid grant possession required; Authorization is not automatic browser cookie; no CORS/credential-forwarding exploit established.",
+      "controls": "Auth/expiry/revocation/member gates and actual4MiB/100 caps. SDK flag+nonempty allowlist can reject present foreign Origin; absent Origin remains permitted.",
+      "required_outcome": "Release trusted deployment origin/host profile and explicit intended origin refusal; retain legitimate nonbrowser clients under selected policy and qualify actual host.",
+      "anchors": [
+        {
+          "source": "tm",
+          "lines": [
+            450,
+            485
+          ]
+        },
+        {
+          "source": "sdk",
+          "lines": [
+            78,
+            80,
+            141,
+            155,
+            181
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            905
+          ]
+        }
+      ],
+      "original_ids": [
+        "FP.IDENTITY",
+        "FP.INSTALLED-RELEASE"
+      ]
+    },
+    {
+      "id": "SI08",
+      "priority": "P1",
+      "title": "Upload intent accepts structurally valid unavailable operation or field",
+      "disposition": "confirmed helper missingcontrol; heldproductjoin",
+      "stage": "Exported HTTP/kernel journey; production file kernel unjoined.",
+      "minimal_unexecuted_witness": {
+        "request": "Valid receiver submits {upload_id:\"u\",operation:\"Missing.create\",field:\"/attachment\",arguments:{},name:\"x\",type:\"text/plain\",size:\"1\"}. Kernel checks nonempty operation/absent pointer but no registry/field/record authority -> granted.",
+        "quota": "Many distinct retry IDs under per-transfer cap have no aggregate principal reservation gate."
+      },
+      "prerequisites": "Trusted real kernel binding needed; current production file join throws. Canonical later business mutation may still deny; no caller identity spoofing.",
+      "controls": "Auth/CSRF/receiver/retry-conflict/per-transfer caps retained; intent does not establish business success.",
+      "required_outcome": "Join exposed canonical mutation, writable slot/protected context, current record/parent permissions and effective policy/principal quota before grant; unavailable required context refuses.",
+      "anchors": [
+        {
+          "source": "tu",
+          "lines": [
+            206,
+            218,
+            369,
+            386
+          ]
+        },
+        {
+          "source": "fu",
+          "lines": [
+            309,
+            323,
+            337,
+            351,
+            389
+          ]
+        },
+        {
+          "source": "ca",
+          "lines": [
+            1326
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            607,
+            608
+          ]
+        }
+      ],
+      "original_ids": [
+        "LF01",
+        "LF08",
+        "LF09",
+        "FP.FILES-DURABLE",
+        "T16",
+        "T24"
+      ]
+    },
+    {
+      "id": "SI09",
+      "priority": "P2",
+      "title": "Durable append crash can bypass exact declared transfer count",
+      "disposition": "conditional confirmedalgorithm gap; not deployedmemory/FSincident",
+      "stage": "Conditional durable copy-returning metadata plus persisted blob/crash; production durability join pending.",
+      "minimal_unexecuted_witness": {
+        "setup": "Persistent declaredSize1/received0 intent. append A writes blobA then crashes before metadata put. Restart retains received0.",
+        "retry": "append A ->blobAA/received1. complete sees1==declared1; actualAA text passes general cap, marks complete/hashAA. Finalize metadata size1 with realAA bytes."
+      },
+      "prerequisites": "Independent persistent blob + copy-returning metadata and crash; current memory aliases not this restart profile. Durable product join pending.",
+      "controls": "Ordinary over-declared append/missing counted blob refuses; actual MIME/policy cap and finalize digest checked.",
+      "required_outcome": "Release durable/idempotent append progress; completion compares actual length to declared/counted size. Preserve uncertainty/retry without claiming R2+DB atomicity.",
+      "anchors": [
+        {
+          "source": "fu",
+          "lines": [
+            421,
+            434,
+            435,
+            436,
+            465,
+            475,
+            485,
+            498
+          ]
+        },
+        {
+          "source": "ff",
+          "lines": [
+            133
+          ]
+        },
+        {
+          "source": "fports",
+          "lines": [
+            15
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            608,
+            609
+          ]
+        }
+      ],
+      "original_ids": [
+        "LF02",
+        "LF03",
+        "FP.FILES-DURABLE"
+      ]
+    },
+    {
+      "id": "SI10",
+      "priority": "P2",
+      "title": "Attachment precheck and downloads lack full current retention/record authority join",
+      "disposition": "confirmed attachbytes mismatch + missingconsumercontrols; qualifiedpublicreadgap",
+      "stage": "Public local helpers; canonical authorized download/durable retention join pending.",
+      "minimal_unexecuted_witness": {
+        "attach": "Live owned finalized metadata with missing blob: files-only authorizeAttach returns authorized; readFinalizedBytes returns null.",
+        "expiry": "Clock beyond configured retention but sweep not run: state still finalized, read helper has no clock and returns blob."
+      },
+      "prerequisites": "Actual owned file metadata; public download needs missing canonical record/field/lifetime consumer. No foreign bytes shown.",
+      "controls": "Unknown/foreign/missing blob read denies; terminal tombstones never resurrect; exact erasure second not promised.",
+      "required_outcome": "Attach must verify retained bytes under existing contract. Download owner must check current record/field/attachment and logical expiry; release stable bounded retention/shared references/retryable deletion.",
+      "anchors": [
+        {
+          "source": "ff",
+          "lines": [
+            273,
+            278,
+            293,
+            330,
+            339,
+            345
+          ]
+        },
+        {
+          "source": "fr",
+          "lines": [
+            68,
+            110,
+            141
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            574,
+            580,
+            609
+          ]
+        }
+      ],
+      "original_ids": [
+        "LF05",
+        "LF06",
+        "FP.FILES-DURABLE",
+        "T16"
+      ]
+    },
+    {
+      "id": "SI11",
+      "priority": "P2",
+      "title": "Ingress types do not enforce verified occurrence age, replay or effect correlation",
+      "disposition": "missing owningadapter/durable join; conditionaleventhelperduplicate",
+      "stage": "Exported ingress handler; production binding/verifier/sink unjoined.",
+      "minimal_unexecuted_witness": {
+        "conditional": "Verifier returns same stable producer event twice; route forwards both to sink. Naive sink calls ingestVerifiedEventBytes twice ->new file each time; strict provenance shape is not occurrence authentication/dedup.",
+        "refusal": "Null/wrong namespace401 before sink; unknown binding404 before body; payload does not appoint actor/team."
+      },
+      "prerequisites": "Incorrect trusted verifier/sink must be installed; current joins absent. Delegating freshness/dedup to actual owner can satisfy contract; no unsigned production event exploit.",
+      "controls": "Original bytes passed to verifier, exact namespace, actor=null; provider slot finalization already retains retry/digest controls.",
+      "required_outcome": "Qualify provider signature/key/freshness/namespace/request digest plus owner stable-event replay horizon before mounting; expiry must not reopen old identity. No provider/policy selected.",
+      "anchors": [
+        {
+          "source": "ti",
+          "lines": [
+            144,
+            151,
+            177,
+            186,
+            197,
+            199
+          ]
+        },
+        {
+          "source": "tn",
+          "lines": [
+            25
+          ]
+        },
+        {
+          "source": "ff",
+          "lines": [
+            219,
+            524
+          ]
+        },
+        {
+          "source": "fp",
+          "lines": [
+            98
+          ]
+        },
+        {
+          "source": "ca",
+          "lines": [
+            1334
+          ]
+        },
+        {
+          "source": "design",
+          "lines": [
+            582,
+            634,
+            636
+          ]
+        }
+      ],
+      "original_ids": [
+        "LF04",
+        "AD-files-provenance",
+        "FP.SOURCE-MAPPINGS",
+        "T24"
+      ]
+    }
+  ],
+  "negative_findings_and_qualifications": [
+    "MCP has installed SDK4MiB actual-byte and100-message limits before dispatch; no parsedBody bypass from Can.",
+    "No unauthenticated grant mint, token-hash bypass, public-export auth bypass or caller-appointed actor/team/now demonstrated.",
+    "Login rejects unverified email before creating session; grant route relying on that constructor is not an established unverified-user bypass.",
+    "Wrong PKCE/client/redirect refuses before code consume; valid43 succeeds. IP09 remains narrow44-character challenge mismatch.",
+    "Auth client-key headers are documented best-effort throttle input, never identity. Actual Cloudflare header provenance/platform resource limits unqualified.",
+    "Byte caps do not establish wall-clock/depth/node/aggregate concurrency budgets. Capped reader awaits cancellation without deadline; SDK overcap releases lock without cancel. Host stream termination not proved.",
+    "Safe FS keys block ordinary path traversal. Symlink escape requires local control of trusted root/key; production R2 unjoined. Fixed principal/counter doubles explicitly test-only.",
+    "Magic-only file detection deliberate, no complete image/PDF validation guarantee or new malware policy selected.",
+    "Unexpected public errors generic; embedded secret operator messages retained by documented keyed redaction. Trusted BusinessError safety belongs producer; no new public provider leak shown.",
+    "Account delete/disable, OAuth client retirement/refresh tokens and automatic identity sweep absent. No invented lifecycle/policy guarantee.",
+    "Per-method awaits/read checks do not imply atomic commit, current disclosure or physical erasure proof. State/CF broad review root-owned."
+  ],
+  "coverage": {
+    "owned_families": [
+      "account/password/verify/recovery/session/presession/CSRF/grant/OAuthclient/authcode/invitation/membership/roles/teamselection",
+      "uploadintent/retry/context/content/reservationgap/finalization/provenance/attach/read/retention/blob/path/FSroot",
+      "HTTPMCPtoken/admission/CSRF/origin/resourcecaps/ingress/rawverification/errorprojection"
+    ],
+    "out_of_scope": "Root owns Values/UI/State/CF broad review, CSV/export/print/instrumentation and complete inherited file coverage. CF main/entry/grant/assembly read narrowly for outer guards and mounted stages. Leaf distribution/catalog/scenarios/testing not separately requalified."
+  },
+  "local_dependency": {
+    "package": "@modelcontextprotocol/sdk",
+    "version": "1.32.0",
+    "sources": [
+      "sdkpkg",
+      "sdk",
+      "sdkbody"
+    ],
+    "qualification": "Read installed localsource; notremotehost behavior or provenance/integrity attestation. Options/defaults directlyjoined bycurrentCan source."
+  },
+  "verification": {
+    "frozen_git_blob_hashes_verified": 49,
+    "current_source_sha256_matches": 52,
+    "line_anchors_in_range": 372,
+    "observed_head_after_parent_progress": "eb5ca8d4ef8d0f924588df5ffb81807494f78732",
+    "product_execution": false,
+    "review_status": "Parent current independent SI02/03/04/08 challenge received; SI03 mounted-caller overclaim corrected. Historical reviewers not counted as current review."
+  }
+}
