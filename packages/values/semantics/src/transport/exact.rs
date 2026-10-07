@@ -12,6 +12,7 @@
 //! transport errors and indicate a differential bug, never Can behavior.
 //! Hygiene: record entries must not repeat a key (JS objects cannot), and
 //! keys that would reorder under JS integer-index rules are avoided.
+//! Duplicate entry keys are refused before operation guards run.
 //!
 //! Response: `{"ok":true,"value":...}` on success;
 //! `{"ok":false,"code":...,"message":...}` on a Can failure;
@@ -20,6 +21,7 @@
 
 use num_bigint::BigInt;
 use serde_json::Value as Json;
+use std::collections::HashSet;
 
 use crate::codecs::numeric::{decode_value_scalar, encode_value_scalar, ScalarName, WireValue};
 use crate::failures::Failure;
@@ -153,6 +155,7 @@ pub fn decode_input(v: &Json) -> Result<Value, TransportError> {
                 .as_array()
                 .ok_or_else(|| TransportError::new("record input needs an entries payload"))?;
             let mut out = Vec::with_capacity(entries.len());
+            let mut keys = HashSet::with_capacity(entries.len());
             for entry in entries {
                 let pair = entry.as_array().ok_or_else(|| {
                     TransportError::new("record entries must be [key, value] pairs")
@@ -165,6 +168,9 @@ pub fn decode_input(v: &Json) -> Result<Value, TransportError> {
                 let key = pair[0]
                     .as_str()
                     .ok_or_else(|| TransportError::new("record keys must be strings"))?;
+                if !keys.insert(key) {
+                    return Err(TransportError::new("record keys must not repeat"));
+                }
                 out.push((key.to_string(), decode_input(&pair[1])?));
             }
             Ok(Value::Record(out))
