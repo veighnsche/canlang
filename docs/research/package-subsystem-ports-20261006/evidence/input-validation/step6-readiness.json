@@ -1,0 +1,87 @@
+{
+  "packet": "step6:R2:N05-private-validation-join",
+  "base": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "operator": "R2",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "source_lease": "Actual R1 no-overlap release and root exact eight-path ACK received",
+  "implementation": {
+    "private_whole_body_core_separation": true,
+    "genuine_success_only_factory_lineage": true,
+    "explicit_preparation_calls_nonrecursive_core": true,
+    "public_native_adoption": false,
+    "private_complete_request_capability_admission": false,
+    "identity_is_adoption": false,
+    "plan_default_ref_authority_migrated": false
+  },
+  "source_sha256": {
+    "packages/values/src/schema.ts": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+    "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "packages/values/src/internal/schema-core.ts": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+    "packages/values/src/internal/wire-core.ts": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+    "packages/values/src/prepared/validation.ts": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+    "packages/values/src/prepared/codec.ts": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+    "packages/values/test/prepared-hook.test.ts": "b9f7e31d0c22df220c98ea9c6e597a96599e031ee5b66d970d160d73064eca7c"
+  },
+  "gates": {
+    "input_matches": 20,
+    "inverse_transform_matches_pinned_whole_bodies": true,
+    "tsc_exit": 0,
+    "focused_tests": 199,
+    "focused_suites": 40,
+    "failures": 0,
+    "pinned_original_facade_trace_pairs": 35,
+    "raw_oracle": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/oracle-traces.raw.json",
+    "raw_test_log": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/tests.log"
+  },
+  "negative_controls": [
+    "manual/frozen/copied/proxy schema identities have no lineage; legacy validation still succeeds",
+    "identity query reads no candidate properties/descriptors/ownKeys/prototype",
+    "factory descriptor/failed normalization have no output lineage",
+    "factory identity alone does not register prepared plan",
+    "private core/query/manual recorder absent public schema/wire/index exports",
+    "arbitrary thrown identity propagates once with no semantic retry",
+    "canonical Decimal and array defaults, EMPTY_ARRAY, UPDATE_OMITTED and engine omission retain identity/order",
+    "trim-before-bounds and explicit nested default completeness preserved"
+  ],
+  "actual_r1_read_only_join": {
+    "receipt": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1/common-module-release.json",
+    "receipt_sha256": "0deb201ede9be621a69f18e9e044711d060de45fdd942a8e27a132af9b5675c1",
+    "hashes_verified": 11,
+    "scope": "existing V03.4/V03.5 narrow structural scaffold; read-only release, no new profile or full PH2 lifetime/default authority",
+    "new_registered_profile": false
+  },
+  "commands": [
+    {
+      "id": "R2-C1.1",
+      "command": "node /Users/vince/Projects/canlang/node_modules/typescript/bin/tsc -p /private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/staging/values/tsconfig.json --outDir /private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/dist",
+      "session_id": 77266,
+      "exit_code": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/tsc.log"
+    },
+    {
+      "id": "R2-C1.2",
+      "command": "node --test --test-concurrency=2 /private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/dist/test/prepared-hook.test.js /private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/dist/test/prepared-validation.test.js /private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/dist/test/schema.test.js /private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/dist/test/wire.test.js /private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/oracle-traces.test.mjs",
+      "session_id": 93547,
+      "exit_code": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2/tests.log"
+    }
+  ],
+  "commands_released": true,
+  "writer_released": true,
+  "residuals": [
+    "V02.6 complete owner-issued private request capability entry stays fenced until audited PH2/PH4 bridge",
+    "V03.4 N2 TS/Rust retirement accounting diverges; N3 held default refs survive retirement; disposal/resource proof unverified",
+    "PH3 prepared plan copies defaults and does not establish canonical schema DefaultRef authority or Decimal coverage",
+    "V03.5 remains narrow structural ABI1 scaffold; no new profile/public adoption acceptance",
+    "no native Rust/workerd/deployment/backend lifetime tests in this slice",
+    "root owns decisions/task/filetree bookkeeping and independent review/commit"
+  ],
+  "task_credit": {
+    "ports:V02.6": "finite private TS core/factory slice implemented; full owner request entry remains unaccepted",
+    "ports:V03.4": "actual released common source join reviewed read-only; policy residuals retained",
+    "ports:V03.5": "existing narrow structural scaffold credit unchanged",
+    "ports:V02.1": "direct credit preserved",
+    "ports:V02.2": "direct credit preserved"
+  }
+}

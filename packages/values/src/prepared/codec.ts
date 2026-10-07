@@ -4,7 +4,8 @@
  * Admission, not reimplementation: every entry point resolves a live V02.1
  * owner plan, walks the parsed type-id AST for plan coverage, then delegates
  * the actual conversion to the canonical legacy converters (`decodeValue` /
- * `encodeValue` in `wire.ts`) through their public boundary. The codec
+ * `encodeValue` in `wire.ts`) through non-dispatching private cores. These remain explicit preparation
+ * gates, not production owner/request admission. The codec
  * reorders nothing, re-derives nothing, and invents no parallel wire rule —
  * the whole-call comparator in `validation.ts` proves call-by-call that the
  * prepared path agrees with the direct legacy path.
@@ -27,7 +28,7 @@
  * for extension.
  */
 import type { CanValue, WireValue } from "@canlang/contracts/values";
-import { decodeValue, encodeValue } from "../wire.js";
+import { decodeValueTsCore, encodeValueTsCore } from "../internal/wire-core.js";
 import type { NormalizedType } from "../types.js";
 import { parseTypeId } from "../types.js";
 import type { PreparedValidationPlan } from "./plan.js";
@@ -115,7 +116,7 @@ export function decodePreparedValue(
   wire: unknown,
 ): CanValue {
   coveredPlanOrThrow(owner, id, typeId, "decodePreparedValue");
-  return decodeValue(typeId, wire);
+  return decodeValueTsCore(typeId, wire);
 }
 
 /**
@@ -131,5 +132,5 @@ export function encodePreparedValue(
   value: CanValue,
 ): WireValue {
   coveredPlanOrThrow(owner, id, typeId, "encodePreparedValue");
-  return encodeValue(typeId, value);
+  return encodeValueTsCore(typeId, value);
 }
