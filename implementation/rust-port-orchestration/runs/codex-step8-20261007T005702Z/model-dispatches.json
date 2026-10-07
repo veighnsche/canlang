@@ -1,0 +1,46 @@
+{
+  "checked_at_utc": "2026-10-07T01:04:34.424681+00:00",
+  "official_sources": [
+    "https://developers.openai.com/api/docs/pricing",
+    "https://developers.openai.com/api/docs/models/gpt-6-astra"
+  ],
+  "prices_standard_per_million": {
+    "gpt-6-luna": [
+      0.1,
+      0.01,
+      0.5
+    ],
+    "gpt-6.1-sol": [
+      2,
+      0.1,
+      10
+    ],
+    "gpt-6-astra": [
+      10,
+      1,
+      50
+    ]
+  },
+  "interpretation": "API Standard comparison, not Codex subscription usage or task benchmark. Actual dispatcher accepts Sol high; Astra medium supported by available tool metadata.",
+  "dispatches": [
+    {
+      "packet": "step8:D04-map",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Human exact selection; cross-library raw lookup, numeric and generated-map compatibility seam. Cheaper leaf-only implementation risks costly joined failure."
+    },
+    {
+      "packet": "step8:R3-D04-host",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Human exact selection; cross-file assembly/invoke/deployment and real installed Node/workerd joins with private build roots."
+    },
+    {
+      "packet": "step8:independent-critical-review",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "status": "planned_not_dispatched",
+      "reason": "Human requests short independent stronger critical diagnostic judgment, finite frozen source/evidence. High reserved for new evidenced major seam; no such decision yet."
+    }
+  ]
+}

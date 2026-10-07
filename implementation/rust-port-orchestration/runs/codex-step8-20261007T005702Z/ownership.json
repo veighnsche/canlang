@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "scope": "step8 finite D04",
+  "leases": [
+    {
+      "role": "D04-map",
+      "agent": "/root/step8_maps",
+      "packet_id": "step8:D04-map",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack_observed": true,
+      "execution_authorized": true,
+      "write_files": [
+        "packages/cloudflare/src/deploy/module-maps.ts",
+        "packages/cloudflare/test/map-composition-contract.test.ts",
+        "packages/cloudflare/test/fixtures/map-composition-contract.json"
+      ],
+      "private_root": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/maps",
+      "status": "product_helper_writing",
+      "product_lease_ack_observed": true
+    },
+    {
+      "role": "R3",
+      "agent": "/root/step8_delivery",
+      "packet_id": "step8:R3-D04-host",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack_observed": true,
+      "execution_authorized": true,
+      "write_files": [
+        "packages/cloudflare/src/runtime/modules.ts",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/test/modules.test.ts",
+        "packages/cloudflare/test/deploy-bundle.test.ts",
+        "packages/cloudflare/test/deploy-package-assets.test.ts",
+        "packages/cloudflare/test/sourcemap.test.ts",
+        "packages/cloudflare/package.json"
+      ],
+      "private_root": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery",
+      "status": "product_lease_submitted_API_frozen",
+      "product_lease_ack_observed": false
+    }
+  ],
+  "invoke_transfer": {
+    "file": "packages/cloudflare/src/runtime/invoke.ts",
+    "prior_owner": "originating Codex package integrator",
+    "recipient": "/root/step8_delivery",
+    "source_sha256": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+    "scope": "diagnostics-only derived sidecar selection and collectSources; original W06/validation/state task identities and behaviors unchanged",
+    "evidence": "No active invoke writer in current finite roster; prior step7 writers released. contracts ownership future serial sequence is not an active lease. Existing root package integration authority applies.",
+    "product_release_pending": false,
+    "recipient_product_ack_pending": true
+  },
+  "root_files": [
+    "bun.lock",
+    "implementation/rust-port-orchestration/current-run.json",
+    "implementation/rust-port-orchestration/plan.json",
+    "implementation/rust-port-orchestration/runs/codex-step8-20261007T005702Z"
+  ],
+  "preserve_foreign": [
+    "compiler/",
+    "docs/specification/DECISIONS.md",
+    "docs/ideal-filetree-plan.md",
+    "docs/ideal-filetree-plan/finished-product/tasks.md",
+    "implementation/CHALLENGE-AUDIT-PLAN.md",
+    "implementation/REMAINING-WORK.md",
+    "implementation/RUST-PORT-LANES.md"
+  ],
+  "no_merge_or_checkpoint_advance": true
+}
