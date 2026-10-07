@@ -1,0 +1,1 @@
+cargo run --offline --release --manifest-path /private/tmp/canlang-pass6-profile/bench/Cargo.toml --target-dir /private/tmp/canlang-pass6-bench-target > /private/tmp/canlang-pass6-profile/bench/metrics.json 2> /private/tmp/canlang-pass6-profile/bench/run.log

@@ -1,0 +1,26 @@
+{
+  "old": {
+    "after_sha256": "755334d67d38e0a24cf7ac1a2050c599c7dadd31f6dc3749554e9db249520183",
+    "matches_copied": true
+  },
+  "new": {
+    "after_sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+    "matches_copied": true
+  },
+  "catalog": {
+    "after_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "matches_copied": true
+  },
+  "benchmark_source": {
+    "sha256": "57193b1901fb0192b76e129d500209ad9f37a63fd945bab423a9cc5ae17c3eed"
+  },
+  "manifest": {
+    "sha256": "aaa7b51c1a0b041ac5114a534daf5ad8d3c2855026a9c4ec92f9461e6bb48ced"
+  },
+  "lock": {
+    "sha256": "50998f3006b5c6c254a15cb731abf60a90965e949141065a175dbe614c2772a8"
+  },
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "host": "Darwin arm64",
+  "noise_note": "Root native/Linux builds completed before this rerun. Other system activity not guaranteed isolated; raw rounds retained without correction."
+}

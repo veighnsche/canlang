@@ -1,0 +1,5 @@
+{
+  "change": "capture_error identity map_err replaced by inspect_err; no error/data transformation changes",
+  "functional_tested_source": "672afd2b02d557e45db097766939a466182ffcae8f41b2ddbc7c803c0aaaae02",
+  "polished_source": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244"
+}

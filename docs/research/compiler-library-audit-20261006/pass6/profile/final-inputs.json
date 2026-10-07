@@ -1,0 +1,38 @@
+{
+  "compiler/Cargo.toml": {
+    "bytes": 1159,
+    "sha256": "26d2b745474a01e782a17a223de6f4b5187c3ecd9d3618d6a048edfe3c6ed150"
+  },
+  "compiler/Cargo.lock": {
+    "bytes": 14779,
+    "sha256": "2f96e93f57ac60b9584b29f671a56934fbe22fcbdb1e3470dc4546c27f958ec8"
+  },
+  "compiler/src/json.rs": {
+    "bytes": 19074,
+    "sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244"
+  },
+  "packages/values/src/catalog.ts": {
+    "bytes": 18748,
+    "sha256": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb"
+  },
+  "packages/values/scripts/emit-catalog.mjs": {
+    "bytes": 2518,
+    "sha256": "45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d"
+  },
+  "packages/values/dist/src/catalog.js": {
+    "bytes": 18732,
+    "sha256": "1b5a52a148437ee7301cff8a68efa439448b7304b4ff85f6189ecaf75ad8925f"
+  },
+  "packages/values/dist/src/index.js": {
+    "bytes": 630,
+    "sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c"
+  },
+  "packages/values/dist/catalog.json": {
+    "bytes": 22290,
+    "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+  },
+  "examples/ExpenseFlow.can": {
+    "bytes": 8109,
+    "sha256": "f5dc2988336e9368445f92cb9ba11d4517b23de07226f504bd6dfb707f19b98b"
+  }
+}
