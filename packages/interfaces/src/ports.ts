@@ -220,6 +220,7 @@ export interface HttpDeps extends PageHttpDeps {
 
 /** Typed input field for generated MCP tool schemas (closed objects). */
 export type McpSchemaField =
+  | { readonly kind: 'nominal'; readonly name: string; readonly valueTypes: import('@canlang/contracts').CanonicalValueTypes }
   | { readonly kind: 'ref'; readonly model: string; readonly requireVersion: boolean }
   | { readonly kind: 'string' }
   | { readonly kind: 'integer' }

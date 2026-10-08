@@ -406,6 +406,7 @@ export type DerivedInputKind =
   | 'boolean'
   | 'file'
   | 'enum'
+  | 'nominal'
   | 'delivery';
 
 /**
@@ -469,6 +470,9 @@ export interface DerivedWritableInput {
   readonly model?: string;
   readonly versioned?: boolean;
   readonly enumValues?: readonly string[];
+  /** Source-defined structural input resolved through the owning artifact inventory. */
+  readonly valueType?: import('./values.js').CanTypeId;
+  readonly valueTypes?: import('./state.js').CanonicalValueTypes;
   readonly delivery?: DerivedDeliveryBinding;
   readonly file?: DerivedFileClaim;
   readonly description?: string;

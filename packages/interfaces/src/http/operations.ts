@@ -387,6 +387,9 @@ function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
   };
   const tag = field.field;
   switch (tag.kind) {
+    case 'nominal':
+      return { ...common, kind: 'nominal', valueTypes: tag.valueTypes,
+        valueType: field.valueType ?? `${tag.name}${field.array === undefined ? '' : field.array.required ? '[]!' : '[]'}${field.nullable ? '?' : ''}` };
     case 'ref':
       return { ...common, kind: 'ref', model: tag.model, versioned: tag.requireVersion };
     case 'enum':
