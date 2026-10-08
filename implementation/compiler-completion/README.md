@@ -361,3 +361,13 @@ unqualified. The canonical receipt witness covers finite enums in Memory;
 ref/identity, nullable-enum/enum-array defaults, hostile supplied-enum wire,
 D1 and full-application paths remain open. This component leaves the broader
 S9-Q02 reference open and completion at **57/67**, with **10** remaining.
+
+The next singular nonnullable `user` copy-default join passes the genuine
+[canonical Memory case](../../compiler/tests/user_default_replay.rs) **1/1**
+with the existing consumer and installed UserRef codecs. Earlier-parameter
+copies preserve closed `{id}` result/default wires, declaration-order receipts,
+override suppression, failure discard, receipt-first replay and revoked fresh
+admission. Only the direct user type is added to omission admission;
+nullable/array user, actor-context defaults and stored-model references retain
+their separate requirements. Existing user D1/wire controls are reused.
+Canonical completion remains **57/67**, with **10** remaining.
