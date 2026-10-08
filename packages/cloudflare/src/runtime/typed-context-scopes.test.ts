@@ -60,6 +60,7 @@ test('actual generated operations observe admitted actor, team, clock and operat
       assert.deepEqual(row.data, {
         who: member.user.user_id, scope: team.team_id, zone: team.timezone, origin: source,
         invocation: request.operation_id, instant: new Date(clock).toISOString(),
+        callerEmail: member.user.email, verified: true,
       });
       assert.equal(row.created, clock);
       assert.equal(row.createdBy, member.user.user_id);
@@ -72,9 +73,15 @@ test('actual generated operations observe admitted actor, team, clock and operat
     assert.equal(committed(await worker.invokeMutation(envelope('identify'), identity)).result, member.user.user_id);
     // Authenticated scope needs the verified actor; it does not require membership.
     assert.equal(committed(await worker.invokeMutation(envelope('identify'), wrongScope)).result, member.user.user_id);
+    for (const caller of [identity, wrongScope]) {
+      assert.equal(committed(await worker.invokeMutation(envelope('email'), caller)).result, member.user.email);
+      assert.equal(committed(await worker.invokeMutation(envelope('verified'), caller)).result, true);
+    }
     rejected(await worker.invokeMutation(envelope('capture'), wrongScope), 'forbidden');
     rejected(await worker.invokeMutation(envelope('capture'), anonymous), 'forbidden');
     rejected(await worker.invokeMutation(envelope('identify'), anonymous), 'forbidden');
+    rejected(await worker.invokeMutation(envelope('email'), anonymous), 'forbidden');
+    rejected(await worker.invokeMutation(envelope('verified'), anonymous), 'forbidden');
     assert.equal(committed(await mcp.invokeMutation(envelope('anonymous'), anonymous)).result, true);
     assert.equal(committed(await mcp.invokeMutation(envelope('anonymous'), identity)).result, false);
     assert.equal(committed(await mcp.invokeMutation(envelope('source'), anonymous)).result, 'mcp');
@@ -82,6 +89,7 @@ test('actual generated operations observe admitted actor, team, clock and operat
     const beforeForged = await store.query({ model: MODEL, authority: 'owner' });
     rejected(await worker.invokeMutation(envelope('capture', {
       actor: { id: 'forged' }, team: { id: otherTeam.team_id, timezone: 'UTC' },
+      email: 'forged@example.test', email_verified: false,
       now: '2000-01-01T00:00:00.000Z', operation: { id: 'forged', source: 'forged' },
     }), identity), 'validation');
     assert.deepEqual(await store.query({ model: MODEL, authority: 'owner' }), beforeForged);

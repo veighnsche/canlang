@@ -1,16 +1,20 @@
 app TypedContextScopes
 Given
- Trace { who:text, scope:text, zone:timezone, origin:text, invocation:text, instant:datetime }
+ Trace { who:text, scope:text, zone:timezone, origin:text, invocation:text, instant:datetime, callerEmail:text, verified:bool }
  policy Trace read=public
 When
  ## These facts come from the admitted invocation, not operation input fields.
  scenario capture() -> text by=members
   do
-   create Trace {who=actor.id,scope=team.id,zone=team.timezone,origin=operation.source,invocation=operation.id,instant=now} as trace
+   create Trace {who=actor.id,scope=team.id,zone=team.timezone,origin=operation.source,invocation=operation.id,instant=now,callerEmail=join([actor.email],""),verified=actor.email_verified} as trace
    require trace.instant==trace.created
    return trace.invocation
  scenario identify() -> text by=authenticated
   do return actor.id
+ scenario email() -> text by=authenticated
+  do return join([actor.email],"")
+ scenario verified() -> bool by=authenticated
+  do return actor.email_verified
  scenario anonymous() -> bool by=public
   do return actor==null
  scenario source() -> text by=public
