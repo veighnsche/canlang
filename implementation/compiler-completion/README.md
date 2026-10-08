@@ -1,6 +1,6 @@
 # Active compiler completion
 
-Current completion is **57 of 67 references**, with **10 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
@@ -469,6 +469,7 @@ Accepted mutation, input, actor/reference and replay checks were reused.
 Broader read/default forms, CRUD/private/D1/full applications and full S9-Q02
 remain separate. Canonical completion remains **57/67**, with **10** remaining.
 
+
 The [enum-result case](../../compiler/tests/enum_result_runtime.rs) passes
 **1/1** through genuine compiler output and canonical CF/State Memory. Public
 mutation/read results now publish checked ordered inline enum claims through
@@ -484,3 +485,57 @@ correction or repeat build was needed. Existing scalar/model, input/default,
 actor/reference and replay outcomes are reused. Nonempty, element-nullable,
 nested and private enum result producers, D1/full applications and full S9-Q02
 remain separate. Canonical completion remains **57/67**, with **10** remaining.
+
+The [static Judgment source](../../compiler/tests/fixtures/static_judgment.can)
+now compiles through the production CLI and installed Values catalog. Its
+single descriptor preserves ordered localized questions, exact BigInt version
+and checked owning `sourceLanguage`. One checked IR-derived `valueTypes`
+inventory supplies source/generated/standard contracts and named enums to
+both the artifact and `appDefinition`. Public nominal fields, inputs and
+results refer to that inventory, including required `[]!` arrays. Judgment
+delivery metadata preserves the exact declaration version as decimal text
+and reuses its inventory result. The checked binding and ordinary send
+retain their existing authority path.
+The same source creates an assessment, retains its frozen specification,
+associates the request and returns the model reference under an authored rule.
+Three focused source refusals qualify score-level type-only access, text state
+and unique option identities with no modules. The duplicate control's initial
+diagnostic expectation was corrected to the owning parser's E1202, then only
+that control was repeated. The affected Rust direct case builds and its
+source controls pass. Its first module import stopped because installed
+Cloudflare stdlib lacked `judgmentSpecification`. After the defining helper
+and actual State/CF outputs were released, the same case passed **1/1**
+(0.18s), including inventory/app-schema coherence, exact descriptor/binding,
+nominal field/input/result metadata, delivery and callable imports. Work owns
+the native workflow through the same source. The defining State owner
+requires no new capability ID; existing scenario/parameter requirements stay.
+Runtime options, provider normalization and
+full applications remain separate; this is no additional full-task credit.
+
+S9-Q03 is complete at its original finite row86 tab/order/factory duty.
+Accepted `c718517a`/`65199fa6` outcomes already exercise the actual public
+Card/transient Tabs factories and explicit E6008 bound-tab/structured-order
+refusals at authored spans without modules. The original duty permits such
+unsupported admission; no meaningful-node-to-empty acceptance remains in
+this scope. The coordinator accepted the existing outcomes without new
+source changes, checks or a proof packet. Preference saving/lifecycle, bound
+enum-panel coverage, actual query ordering, authenticated-row/product and
+full application work remain separate. Completion is **58/67**, with **9**
+remaining. Earlier counts and wider-work statements retain their historical
+scope.
+
+The [bounded query source](../../compiler/tests/fixtures/bounded_query_rollback.can)
+and [owning direct case](../../compiler/tests/bounded_query_rollback_runtime.rs)
+pass **1/1** (0.70s) through genuine CLI output and installed canonical CF/State
+Memory invocation. Actual CRUD-created rows are fetched once; the declared
+bound runs before writes; updates await once in returned native domain
+identity/order. An authored failing guard rolls back rows, versions and
+history. An accepted guard commits both updates once; a third row causes
+overflow refusal before any update. Rejected receipts retain the existing
+`rule_failed` policy, preserve the `limit` diagnostic for overflow and advance
+the global fence once while domain state stays intact. Two initial failures
+were incorrect new expectations about global revision and typed limit codes;
+only this affected case was corrected and repeated. No production change or
+accepted matrix rerun was needed. This qualifies the original S9-Q02 bounded
+domain/order/failure slice; async predicates, hooks, outbound lifecycle, D1
+and the broader reference remain open. Completion remains **58/67**.
