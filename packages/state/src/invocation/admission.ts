@@ -202,6 +202,8 @@ function validateGeneratedInputs(
         if (marker !== undefined && !marker.required && def.descriptor.kind !== 'update' &&
             paramDef.default === undefined &&
             !(paramDef.kind !== 'ref' && paramDef.kind !== 'delivery' &&
+              Object.hasOwn(paramDef, 'computedDefault') && paramDef.computedDefault === true) &&
+            !(paramDef.kind !== 'ref' && paramDef.kind !== 'delivery' &&
               Object.hasOwn(paramDef, 'valueType') && paramDef.valueType?.endsWith('?'))) {
           normalized[param] = [];
         }
