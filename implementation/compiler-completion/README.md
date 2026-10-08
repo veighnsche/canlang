@@ -138,3 +138,14 @@ its own recorded caller/byte/oracle scope. Production deletion and retired
 mechanisms are **0**; future replacements and API changes remain proposals.
 No checks were repeated for this index reconciliation. Completion is **54/67**,
 with **13** remaining.
+
+Source intake admission at `58209f7b` adds fallible source/line-index APIs and
+graceful CLI/LSP handling for the existing u32 identity/offset range. The
+[owning width notes](width-boundaries/README.md) preserve exact MAX behavior,
+three advisory replies and remaining limits. A real sparse MAX+1 file passes
+the focused native refusal case **1/1** across all six source-reading commands;
+ordinary fmt stdin retains exact bytes. Standalone raw lexer/parser intake at `41b587fc` is
+also guarded before processing; the affected existing lexer and parser cases
+each pass **1/1**, and the final CLI build passes. Semantic registry and generated output/map
+widths remain separate, with no full-source allocation/resource claim.
+Completion stays **54/67**, with **13** remaining.

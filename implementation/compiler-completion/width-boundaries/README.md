@@ -45,10 +45,44 @@ invocation or extreme cardinality guarantee follows from checked source.
 
 ## Remaining original obligations
 
-- SourceDb source counts, whole-source byte admission, standalone lexer/LineIndex endpoints and semantic IDs still contain unchecked usize-to-u32 conversion. The previously accepted fragment E1008 endpoint admission remains reusable at its narrower API scope; no giant allocation or whole-source guarantee follows from it.
+- Source-owner counts/whole-source bytes and standalone line-index/lexer/parser intake now have explicit representability admission as recorded below. Semantic IDs and generated/source-map widths remain separate; no giant allocation or arbitrary resource guarantee follows from finite controls.
 - The new permanent `width_boundaries` test qualifies actual loaded builtin matching through 0/16/32/64/128 nullable postfix wrappers: clean int input produces exactly one selected builtin call, and bool input produces E3005. The original loaded Catalog and owning SourceDb remain intact. This does not qualify arbitrary collection/object signature shapes or an extreme supported depth.
 - Direct inspection corrected the original field-depth lead: current `decl_type` only reads cached types, and phase1 resolves forward declarations by fixpoint rounds rather than recursive declaration traversal. The permanent valid forward-chain test passed 0/16/32/64/128 reuse links and verified each canonical field resolves to int plus an explicitly typed derive use. The original two-field cycle returned no diagnostics despite the existing E3008 contract. The checker now records canonical field dependencies in the final fixpoint round and uses deterministic iterative strongly connected components to report cyclic reference spans. The ineffective stack guard is retired. Self and mutual cycles refuse; acyclic upstream references and unrelated int fields retain their behavior.
 - The new graph, message and diagnostic width controls cover the finite cases above; extreme numeric/output growth remains a separate support obligation. Existing semantic outcomes are reused at their declared scope.
 - Generated/source map numeric widths and per-module repeated source contents/output growth remain distinct from the corrected name scan. No supported extreme count, memory bound, timing threshold or public forged-carrier guarantee is established here.
 
 Direct validation used one locked/offline jobs2 `width_boundaries` target: catalog matching passed; the added cycle control failed after the zero-link acyclic case succeeded. After separating that unrelated control, the exact acyclic test passed every finite link count; catalog matching was not repeated. After the source correction, the two affected field-reuse tests passed, including all five forward-chain depths and exact self/mutual cycle messages and spans. The existing `analysis::suffix_bang_and_default_order` test also passed. The unchanged catalog ladder was reused; no full suite was repeated. Numeric refusal or resource/support policy requires a separately selected contract; this change adds no cap or suppression.
+
+## Source intake admission
+
+`58209f7b` selects the intrinsic u32 representation boundary through additive
+`SourceDb::try_add`, `LineIndex::try_new` and `admit_source_len`. Exact MAX
+byte endpoints and the final MAX identity are representable; rejection precedes
+hashing/storage/path mutation. Existing `add`/`new` convenience APIs retain
+documented deterministic panic behavior for unrepresentable caller input.
+CLI source tools precheck opened-file length before reading and limit stream
+or growing-file reads to the first unrepresentable byte; failures use E7002.
+LSP source admission failures log through typed `window/logMessage` without
+changing the last admitted owner/document/version/queue. Live remapping relies
+on previously admitted texts and a no-larger source count.
+
+The [three saved consultations](../source-admission/jev-response-1.json) advise
+the additive fallible owner over widening all carriers or distributing checked
+preconditions. Confidence is .94/.88/.37; the weakest answer assigns .58 to
+fallible owner and .42 to checked precondition, with no rationale. Centralizing
+exact admission while retaining ordinary API behavior supports the selected
+choice; the replies do not establish universal memory or compatibility claims.
+
+The native sparse MAX+1 file case passes **1/1**, covering actual
+check/compile/lint/policy/docs/fmt refusals, empty output and unchanged inputs
+without allocating huge source text. An actual ordinary fmt stdin control
+retains exact bytes and exits 0. Standalone lexer/parser entrypoints at `41b587fc` use the
+same whole-length admission before UTF-8/scanning/layout/parsing; rejection is
+E1008 at the source start with empty lines or the existing empty File root.
+Actual MAX-sized text and billions of identities were not allocated; semantic
+registry and generated output/map growth remain unqualified. This component
+does not close the broader FAIL-R06 reference.
+
+Their existing lexer and parser error/span cases each pass **1/1** after
+these guards; the final source-matching CLI build passes. The ordinary
+source/graph/message/diagnostic controls are reused without a repeat suite.
