@@ -11,7 +11,7 @@ package work
 app Client
 use work {number as selected, finish as complete}
 Given
- Item { title:text, at:datetime=datetime("2030-01-01T00:00:00Z"), instants:datetime[]=[datetime("2030-01-01T01:00:00.125+01:00"),datetime("1969-12-31t23:59:59.1z"),datetime("2000-03-01T00:15:00+01:00"),datetime("0001-01-01T00:00:00Z"),datetime("9999-12-31T23:59:59.999000Z")] }
+ Item { title:text, optional:text?, titles:text[], maybeTitles:text[]?, flag:bool, optionalFlag:bool?, flags:bool[], maybeFlags:bool[]?, address:email, link:url, language:locale, zone:timezone, code:currency, addresses:email[], links:url[]?, secret:secret server=random_secret(), at:datetime=datetime("2030-01-01T00:00:00Z"), instants:datetime[]=[datetime("2030-01-01T01:00:00.125+01:00"),datetime("1969-12-31t23:59:59.1z"),datetime("2000-03-01T00:15:00+01:00"),datetime("0001-01-01T00:00:00Z"),datetime("9999-12-31T23:59:59.999000Z")] }
  policy Item read=members
 When
  scenario number(value:text) read=true -> text by=members
@@ -42,10 +42,20 @@ When
   do return value
  scenario optionalText(value:text?) read=true -> text? by=members
   do return value
+ scenario optionalTexts(value:text[]?) read=true -> text[]? by=members
+  do return value
  scenario boolean() read=true -> bool by=members
   do return true
+ scenario nullableBoolean(value:bool?) read=true -> bool? by=members
+  do return value
+ scenario booleans(value:bool[]) read=true -> bool[] by=members
+  do return value
+ scenario optionalBooleans(value:bool[]?) read=true -> bool[]? by=members
+  do return value
+ scenario specialized(value:email,link:url,language:locale,zone:timezone,code:currency,day:date,person:user,participant:member,secret:secret) read=true -> email by=members
+  do return value
  scenario hidden(value:int) read=true -> int by=members expose=none
   do
    return value
- crud Item by=members fields=title
+ crud Item by=members fields=title,optional,titles,maybeTitles,flag,optionalFlag,flags,maybeFlags
 Then

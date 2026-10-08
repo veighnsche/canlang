@@ -1,10 +1,10 @@
 # Bounded checked operation result producer
 
 The shared `operations_json` serializer publishes optional `result: {type}`.
-Selected checked Scenario declarations publish the closed `int`/`datetime`
+Selected checked Scenario declarations publish the closed `int`/`datetime`/`text`/`bool`
 scalar profile, one optional array suffix followed by one nullable suffix, or
 explicit `void` for declaration-established no-result signatures. Other result
-shapes, including text, text arrays, nullable text and bool, remain absent.
+shapes, including specialized string types, money and records, remain absent.
 Policy reads and generated CRUD
 keep absent results. Input schemas, canonical identity, and exclusions retain
 their existing selection rules. Metadata does not activate conversion or defaults.
@@ -20,7 +20,7 @@ homonym; int, no-result, nullable int, and text; publication exclusion; generate
 operations; exact input preservation; and artifact/canApp descriptor equality.
 A wrong int result body must fail compilation without operations publication.
 
-Formatting and `git diff --check` passed. Root ran the single focused Cargo check:
+The initial bounded producer qualification ran the single focused Cargo check:
 13 passed, zero failed across operation_results, mcp_p1, typed_artifact and typed_descriptors.
 Actual command:
 
@@ -58,3 +58,26 @@ pre-epoch fractions, supported minimum/maximum instants, invalid calendar input,
 and computed-default refusal. Runtime omission/null/default execution remains
 the consumer owner's qualification. This bounded follow-up leaves the canonical
 completion count at **48/67**.
+
+Text/bool follow-up: checked Scenario results now include `text`, `text?`,
+`text[]`, `text[]?`, `bool`, `bool?`, `bool[]` and `bool[]?`. Scenario inputs,
+stored/derived model fields and flattened CRUD fields publish optional own
+`valueType` only for checked actual text, including its array/nullability suffixes.
+Synthetic record/parent inputs and unknown fields have no claim. Update copies
+retain the claim while preserving partial/default-free semantics. Bool retains
+its unique boolean wire kind without an added claim. Email/url/locale/timezone/
+currency/date/user/member/secret and specialized arrays never acquire a text
+claim from their collapsed string wire kind. The shared serializers keep actual
+artifact and canApp operation descriptors aligned.
+
+The State owner adds the two optional artifact contract properties. Compiler
+work adds the corresponding `McpNamedField` type mirror in interfaces ports;
+that additive type declaration does not activate consumer admission on its own.
+Direct qualification: **2/2** operation_results, **2/2** typed_artifact and **6/6**
+typed_descriptors pass, along with strict library Clippy and interfaces TypeScript
+checking. The affected codegen run passed 116 checks; its older ExpenseFlow sum
+expectation was updated for the now-required money tag and the single corrected
+golden passes. Two handcrafted datetime witnesses now use valid constructor
+strings and expect canonical wire metadata. The other passing checks were reused.
+Runtime text/bool admission/execution qualification belongs to its consumer owner;
+broader canonical references remain open, leaving completion at **48/67**.

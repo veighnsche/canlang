@@ -1028,7 +1028,7 @@ fn golden_expenseflow_structure() {
     // G12: `count`/`sum` await; the value-domain query lowers
     // through `.map` with its alias-scoped projection.
     assert!(
-        entry.contains("return {count:await count($can$l$31303a73656c6563746564),total:await sum($can$l$31303a73656c6563746564.map(($can$l$31313a657870656e7365)=>$can$l$31313a657870656e7365.amount),$can$l$373a63757272656e6379)};"),
+        entry.contains("return {count:await count($can$l$31303a73656c6563746564),total:await sum($can$l$31303a73656c6563746564.map(($can$l$31313a657870656e7365)=>$can$l$31313a657870656e7365.amount),\"money\",$can$l$373a63757272656e6379)};"),
         "summarize return"
     );
     assert!(
