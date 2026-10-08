@@ -321,6 +321,42 @@ describe('association: source-owned static Judgment receipt gate', () => {
     assert.equal(reads, 0);
   });
 
+  it('binds runtime choice aliases to the original frozen candidate union and complete distribution', () => {
+    const alias = { name: 'inbox.Triage.route.choice', type: 'text' as const, min: 1, max: 80, format: 'name' as const };
+    const runtimeTypes: CanonicalValueTypes = { ...valueTypes,
+      enums: valueTypes.enums!.filter(declaration => declaration.name !== alias.name), aliases: [alias] };
+    const runtimeSpec: JudgmentSpec = { ...specification, choice: [{ ...specification.choice[0]!, options: [
+      { id: 'billing', description: 'Invoices' }, { id: 'candidate_42', description: 'Original authorized candidate' },
+    ] }] };
+    const runtime = createJudgmentReceiptContext(delivery, runtimeSpec, runtimeTypes);
+    const runtimeWire = { ...wire, route: { ...wire.route, choice: 'candidate_42', probabilities: [
+      { option: 'billing', probability: '0.2' }, { option: 'candidate_42', probability: '0.8' },
+    ] } };
+    assert.equal(isJudgmentReceiptContext(runtime), true);
+    assert.equal(readJudgmentResult(runtimeWire, runtime)?.input_tokens, 9007199254740993n);
+    assert.equal(isStoredReceiptPayload('succeeded', runtimeWire, null, runtime), true);
+    for (const route of [
+      { ...runtimeWire.route, choice: 'forged_candidate' },
+      { ...runtimeWire.route, probabilities: [{ option: 'billing', probability: '0.2' }] },
+      { ...runtimeWire.route, probabilities: [...runtimeWire.route.probabilities, { option: 'forged_candidate', probability: '0' }] },
+      { ...runtimeWire.route, probabilities: [{ option: 'billing', probability: '0.2' }, { option: 'billing', probability: '0.8' }] },
+      { ...runtimeWire.route, probabilities: [{ option: 'billing', probability: '0.2' }, { option: 'forged_candidate', probability: '0.8' }] },
+    ]) assert.equal(isStoredReceiptPayload('succeeded', { ...runtimeWire, route }, null, runtime), false);
+    for (const invalid of [{ ...alias, min: 0 }, { ...alias, max: 81 }, { ...alias, format: undefined }]) {
+      assert.equal(isJudgmentReceiptContext({ ...context, judgment: { specification: runtimeSpec,
+        valueTypes: { ...runtimeTypes, aliases: [invalid] } } } as unknown as ReceiptResultContext), false);
+    }
+    const genericText = { ...runtimeTypes, contracts: runtimeTypes.contracts.map(declaration => ({ ...declaration,
+      fields: declaration.fields.map(field => field.type === alias.name ? { ...field, type: 'text' } : field) })) };
+    assert.equal(isJudgmentReceiptContext({ ...context, judgment: { specification: runtimeSpec, valueTypes: genericText } }), false);
+    assert.equal(isStoredReceiptPayload('succeeded', { ...runtimeWire, route: { ...runtimeWire.route,
+      probabilities: [{ option: 'billing', probability: 0.2 }, { option: 'candidate_42', probability: '0.8' }] } }, null, runtime), false);
+    const oversized = { ...runtimeSpec, choice: [{ ...runtimeSpec.choice[0]!, options: [
+      { id: 'a'.repeat(81), description: 'Too long' }, { id: 'billing', description: 'Invoices' },
+    ] }] };
+    assert.equal(isJudgmentReceiptContext({ ...context, judgment: { specification: oversized, valueTypes: runtimeTypes } }), false);
+  });
+
   it('rejects malformed explicit provenance and preserves null failure/unknown/static lifecycle rules', () => {
     const malformed: ReceiptResultContext[] = [
       { ...context, judgment: undefined } as unknown as ReceiptResultContext,
