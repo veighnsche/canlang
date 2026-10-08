@@ -1,0 +1,13 @@
+app BoundedQueryRollback
+Given
+ Entry {count:int=0}
+ policy Entry read=members fields=count
+When
+ crud Entry by=members fields=count
+ scenario sweep(accept:bool) -> bool by=members
+  do
+   for item in Entry limit=2
+    set item {count=item.count+1}
+   require accept
+   return true
+Then
