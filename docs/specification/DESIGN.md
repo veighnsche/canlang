@@ -339,6 +339,18 @@ Omitted deletion mode means archive: delete archives the row and its contained s
 
 A scenario declares every parameter's type. `p:T` is required; `p:T?` defaults to null; `p:T=expr` has a default. `Model.field` inherits value constraints, not its storage default/server ownership. There is no inference from parameter spelling or later prose. Parameter defaults are pure and evaluated at invocation. A mutation's record parameters carry expected versions; read parameters need only IDs.
 
+A computed default on a singular nonnullable enum parameter preserves its
+checked finite cases and uses the existing `computedDefault:true` omission
+marker, with no invented literal wire default or scalar `valueType`.
+Installed State preserves that omission; the emitted scenario evaluates the
+default once in declaration order after its permission guard. A supplied
+value suppresses its default. The [direct source/State/native check](../../compiler/tests/enum_default_runtime.rs)
+qualifies those joins and rejects null or foreign-domain source defaults.
+The current generated State enum profile validates presence and input shape;
+runtime enum membership/null validation and resolved-default receipt/replay
+remain separate qualifications. Nullable enum, enum-array and reference
+computed-default support is not extended by this slice.
+
 Optional operation-owned input assistance is authored on the parameter, for example `assignee:user choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]}` or `region:Region choices={read=region_choices(country=country),labels=["name"]}`. The compiler derives the canonical owning read, checked input paths, candidate value and labels from declarations, and publishes version 1 metadata on the existing input descriptor. A checked read returning a nonnullable one-dimensional stored-model collection publishes its canonical model-array result, such as `approve.Employee[]`; each value keeps the existing model-reference wire representation. Choices grant no authority, execute no read themselves and change no final input, default or server guard. Artifacts carrying choices require `interfaces.input-choices@1`; a consumer must support that feature before admitting the artifact. Viewer-authorized read execution, current draft binding, cancellation, stale-response fencing and form controls retain their owning consumer scopes. Labels preserve declared reference identities; they introduce no directory or file enrichment.
 
 External mutation admission authenticates the caller/resolves the authorized team and checks `by` before the body. Record inputs resolve their declared type, owner/team, lifetime and expected version within that boundary. The operation’s authored guards govern permission to mutate that record; an ordinary viewer read grant is not an extra universal write prerequisite. This retains §4’s separate read/write permissions rather than silently granting reads to make a write possible. An unreadable record supplied by opaque ID confers no authority: the same owning guards still run and may reject with the generic `rule_failed` without exposing confidential values. Missing, expired or foreign-owner references remain `not_found`; ordinary read/look-up interfaces hide unreadable rows, and page pickers remain viewer-filtered. Return values and changed-record projections still obey their existing disclosure rules, and file attachment authority is checked independently. A caller with only broad operation membership cannot bypass a missing per-record business guard; such a missing guard is an application defect, not inferred permission from an ID. Trusted handlers retain their verified source authority and local calls retain their unchanged caller.

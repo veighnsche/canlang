@@ -8076,6 +8076,9 @@ fn scenario_default_omission_supported(ty: &IrType) -> bool {
     let IrType::Known(base) = ty else {
         return false;
     };
+    if matches!(base, ResolvedType::Enum { .. }) {
+        return true;
+    }
     let mut base = base;
     if let ResolvedType::Nullable(inner) = base {
         base = inner.as_ref();
