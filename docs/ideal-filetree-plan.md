@@ -414,3 +414,6 @@ Public CRUD caller residuals now have bounded corrections: canonical owner user 
 
 
 The existing synchronous Judgment source freezer now uses pinned @noble/hashes2.4.0 SHA-256 and exposes only its exported specification leaf to Worker callers. Canonical UTF-8 JSON/revision bytes, source order and validation remain unchanged; independent Node SHA-256 plain/Unicode/lone-surrogate oracle passes1/1, Services and CF owning emission0. This removes the Node-only hash dependency without adding a hash algorithm, wrapper or asynchronous semantic change. Installed deployment closure/page gates remain separately required; full Judgment and held22 remain open.
+
+
+The installed Worker bundle stages the exact bound-judgment runtime and exported Services specification leaf with pinned Noble SHA-256 siblings, excluding the provider graph. Existing link/host refusal stays unchanged and a missing hash dependency refuses. Owning closure1/1 (817ms) and three formerly blocked page cases3/3 (24.072s) pass, CF emission0. A stale existing Work expected-file-list failure was corrected and retained. No generic vendor traversal or policy/asset expansion; full Judgment/receipt/product acceptance stays open.
