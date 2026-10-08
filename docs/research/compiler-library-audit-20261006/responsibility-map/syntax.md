@@ -48,7 +48,7 @@ gaps. A source reference is navigation; the row's limits determine its acceptanc
 | OWNERS, CONTEXT, IMPORT | App/package/composition/context identity and import/export/deployment binding; resolved module imports reach IR module construction and package/artifact consumers |
 | TYPES, FIELDS, RECORDS | Type atoms/unions/array/nullability, schemas/signatures/defaults/modifiers and model/contract/event/preference carriers; checked type/effect facts feed IR and descriptor/model consumers |
 | METADATA, MESSAGES | Attached prose/references, inline/legacy descriptions, labels/source/variants and ICU slots; lexer decoding, metadata/type/example admission and typed IR/JS/reference consumers are distinct |
-| EXPR, QUERY, DERIVE | Contextual primaries/operators/calls/member access/containers, query clauses and derived forms; checked facts reach expression/query IR; unsupported decimal and selected query paths fail emission explicitly |
+| EXPR, QUERY, DERIVE | Contextual primaries/operators/calls/member access/containers, query clauses and derived forms; checked facts reach expression/query IR; the frozen audit found Decimal emission gaps, and selected query paths remain bounded |
 | GIVEN, RULES, FIXTURES, CAPABILITY | Roles, policies/invariants/unique/locks/retains, fixture recipes, capability operations and versions; semantic tables reach rules, defaults, descriptor and BDD consumers at their stated scope |
 | OPERATIONS, STATEMENTS | CRUD/user/trusted operations, guards/do/effects/if/for/return/send/call/schedule and bindings; resolve/type/effect checks, handler IR and JS owners |
 | TABLE_BDD, SEQUENCE_BDD | Example tables/imports/observations and sequence steps; examples checking, suite IR/BDD emission and actual testkit loader/table/sequence APIs; production of tests is distinct from platform execution |
@@ -63,6 +63,35 @@ no production even though downstream IR contains a corresponding branch.
 Prototype deferral prose and DESIGN's original “unimplemented” status do not
 describe current Rust admission; the independent Python prototype has its own
 bounded role.
+
+### SYN-R08 maintenance update — 2026-10-08
+
+The Decimal emission statement above and the Step 7 observations below describe
+the pinned audit snapshot, not current behavior. Rust now lowers native Decimal
+literals and contextual integral values through `parseDecimal`, and arithmetic
+and value comparisons through the owning `Values` helpers. The permanent
+[`decimal_runtime.rs`](../../../../compiler/tests/decimal_runtime.rs) test and
+[`decimal-runtime` fixture](../../../../compiler/tests/fixtures/decimal-runtime/source.can)
+cover those paths. Other permanent native-facade witnesses cover value equality
+and membership, nullable and mixed numeric equality, text scalar ordering and
+mixed numeric relations (including values above 2^53 and astral codepoints),
+selected calls and binding/default/order paths, finite BDD fixture callbacks,
+and string payloads. See
+[`flat_expression_runtime.rs`](../../../../compiler/tests/flat_expression_runtime.rs),
+[`selected_calls.rs`](../../../../compiler/tests/selected_calls.rs),
+[`bdd_binding_runtime.rs`](../../../../compiler/tests/bdd_binding_runtime.rs), and
+[`string_payload_runtime.rs`](../../../../compiler/tests/string_payload_runtime.rs).
+These witnesses qualify named native callable/recorded profiles; they do not
+establish full backend, transport, UI, host or all-source behavior. The Python
+parser remains a separate syntax prototype with known corpus drift; its
+historical 44-source count does not establish current syntax parity.
+
+Broader hook/context and query-dependent profiles remain open, along with
+protected forms and occurrence-specific error rerendering, BDD returned
+payload/`as`/live behavior (BDD3), Task11 model-rule architecture, TECH-V05
+timezone policy, and DEL-D05 native application/release profiles. The original
+finding and execution receipts below are retained as historical evidence for
+their pinned source and runtime.
 
 ## Executed witnesses
 
@@ -131,7 +160,7 @@ These successes do not cover the residual per-pass gates below.
 | SYN-R05 / high boundary | Corpus attributes, including unknown `Missing` model, are not checked/indexed/lowered; CLI check/compile exit0 with no corpus. Judgment checks clean but compile refuses E6006. | Corpus must have checked ownership and retained meaning or explicit unsupported admission; no clean silent disappearance. Release corpus/judgment support separately with exact resolver/type/effect/IR/artifact owners and language acceptance. Sol medium; consequential new support alternatives require verified-context JEV. Judgment is fail-closed, not silently shipping. |
 | SYN-R06 / gated recovery | `syntax/layout.rs` joins an unclosed schema/call/list through EOF; an unterminated string inside an open schema has the same effect. Valid derive lines and even a later top-level module are swallowed while coverage passes. | Decide synchronization witnesses against legitimate multiline delimiters and nested layout before changing joining. Sol medium; high only for unresolved policy. Verified-context JEV for consequential alternatives; no ad hoc authority parser or unconditional indentation split. |
 | SYN-R07 / next admission packet | Generic UI accepts arbitrary words/attributes; mystery component checks clean then emits E6008. Only 20/68 catalog words directly match the JS factory whitelist after spelling adaptation; this is availability, not complete profiles. | Qualify finite component/option/header/child profiles with actual owners. Known unavailable forms must report clearly; adding factory words alone cannot complete semantics. Sol medium; parser/types/IR/JS writers and producer profile release coordinated. Preserve fail-closed emission. |
-| SYN-R08 / maintenance and witnesses | Decimal expressions are checked but emit E6008; other partial families/consumer joins and prototype prose have explicit gaps. Green source goldens do not prove execution. | Keep supported/unsupported guarantees accurate, reconcile prototype-specific prose, and promote these independently specified outcomes into owning permanent tests as each repair lands. Luna medium for receipts/prose; Sol medium for substantive stage/consumer review. This starts no decimal/backend architecture project. |
+| SYN-R08 / maintenance and witnesses (historical finding at pinned audit source) | At the pinned Step 7 source, Decimal expressions were checked but emitted E6008; other partial families/consumer joins and prototype prose had explicit gaps. Green source goldens did not prove execution. | Maintenance update above reconciles the landed Decimal and named runtime witnesses with current prose. Remaining partial families and consumer joins retain their stated gaps; this historical row does not claim their completion. |
 
 SYN-R01 and R02 are independent of delimiter policy and new language features.
 R03/R04 share the IR writer and must serialize. R05/R07 require released owner

@@ -1,9 +1,9 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T03:50:19.769596+00:00",
+  "updated_utc": "2026-10-08T06:13:53.668774+00:00",
   "total": 67,
-  "finished_at_recorded_scope": 48,
-  "remaining_including_partial": 19,
+  "finished_at_recorded_scope": 49,
+  "remaining_including_partial": 18,
   "finished_references": [
     "COST-01",
     "DEP-01",
@@ -43,6 +43,7 @@
     "SYN-R02",
     "SYN-R05",
     "SYN-R06",
+    "SYN-R08",
     "integration:bdd-quote-consolidation",
     "integration:default-json-string-bridge",
     "integration:docs-legacy-views",
@@ -72,8 +73,7 @@
     "SEM-R08",
     "SYN-R03",
     "SYN-R04",
-    "SYN-R07",
-    "SYN-R08"
+    "SYN-R07"
   ],
   "bounded_components_with_broader_reference_still_open": [
     "ARCH-01",
@@ -101,18 +101,19 @@
     }
   },
   "latest_component": {
-    "commit": "693c7611",
-    "previous_component": "e33dbe00",
-    "outcome": "Checked Date/Duration result/input/model identity and literal Date defaults published; unsupported computed Money model defaults refuse E6008. Broader canonical references and Money constructor folding remain open."
+    "commit": "38f261f1",
+    "previous_component": "1dcd4639",
+    "outcome": "Native text relations use Values scalar ordering; mixed Int/Decimal relations use exact Values numeric ordering in both directions. The affected permanent runtime case and strict library Clippy pass; Cloudflare consumer qualification remains with its owner."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
     "map-attribution/outcome.md",
     "editor-project-scope/outcome.md",
     "native-scalar-presentation/README.md",
-    "operation-result-producer/facts.md"
+    "operation-result-producer/facts.md",
+    "../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md"
   ],
-  "current_source_work": "Checked primitive producer and Duration TypeScript mirrors qualified with focused compiler/adapter checks. Actual calendar/duration execution is with its State/Cloudflare consumer owner. BDD consultation and wider presentation/outbound/host workflows remain open; no broad reference is closed by these producer slices.",
+  "current_source_work": "SYN-R08 original maintenance/witness duty is complete: current compiler and Python prototype guarantees are reconciled with existing permanent execution tests. Broader syntax/semantic/backend/application references remain open. Actual browser/form consumers are with their package and roadmap owners; BDD3, Task11, timezone policy and native application/release holds remain explicit.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
