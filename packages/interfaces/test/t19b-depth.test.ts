@@ -1163,6 +1163,38 @@ test('Checked input claims retain finite owning types and reject inconsistent me
   assert.equal(Object.hasOwn(checkArtifactOperation({ ...op({}), inputs: { fields: [inherited] } }).fields[0]!, 'valueType'), false);
 });
 
+test('File input claims derive through the catalog and reject inconsistent profiles', () => {
+  const operation = (patch: Record<string, unknown> = {}) => ({
+    name: 'Claims.attach', kind: 'read', description: '',
+    inputs: { fields: [{ name: 'document', field: { kind: 'file' }, required: false, valueType: 'file', ...patch }] },
+  });
+  for (const array of [false, true]) for (const nullable of [false, true]) {
+    const valueType = `file${array ? '[]' : ''}${nullable ? '?' : ''}`;
+    const markers = {
+      ...(array ? { array: { required: false } } : {}),
+      ...(nullable ? { nullable: true } : {}),
+    };
+    const op = operation({ valueType, ...markers });
+    const checked = checkArtifactOperation(op).fields[0]!;
+    assert.equal('field' in checked && checked.valueType, valueType);
+    const catalog = catalogFromArtifactOperations({ artifact_version: 1, operations: [op] });
+    assert.deepEqual(catalog.derivedFor('Claims.attach')?.inputs, [{
+      name: 'document', kind: 'file', required: false, ...markers,
+      file: { valueShape: 'opaque-file-id', format: 'can-file' },
+    }]);
+  }
+  for (const patch of [
+    { valueType: undefined }, { valueType: 'file[][]' }, { valueType: 'file[]!' },
+    { valueType: 'text' }, { valueType: 'file[]' }, { valueType: 'file?' },
+    { nullable: 'yes' }, { nullable: true }, { array: { required: false } },
+    { field: { kind: 'string' } },
+  ]) {
+    assert.equal(rejectionReason(() => catalogFromArtifactOperations({
+      artifact_version: 1, operations: [operation(patch)],
+    })), 'malformed_descriptor');
+  }
+});
+
 test('User interface mirrors use exact owning wire profiles for schemas, inputs, and defaults', () => {
   const wire = { id: 'user-a' };
   const native = decodeValue('user', wire);
