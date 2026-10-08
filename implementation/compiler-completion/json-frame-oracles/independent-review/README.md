@@ -1,0 +1,27 @@
+# Independent OR-05 review
+
+Accept the original finite OR-05 retention scope. No distinct missing original outcome or concrete production defect was identified. This conclusion follows source assertions and controls, not suite names or pass counts. The original row chooses “Retain current tests; defer generic framework.” No test rerun or production/shared-document/Git edit was needed.
+
+## Evidence checked
+
+`receipt.json` independently recomputes all 12 current declaration/dependency/test/helper hashes against both immutable native manifests, checks the full raw native log hash, compares each retained suite section byte-for-byte with that log, enumerates its successful bodies, and verifies all five actual PROFILE prerequisites by current size and hash. The optional producer body actually ran rather than taking its early-return SKIP path. Those profiles support loading the existing emitted catalog and required IDs through the real loader/CLI; they do not prove a fresh package rebuild.
+
+The JSON contract constructs a literal ordered tree for decoded duplicates and private marker objects and checks first-member lookup. Catalog loader/CLI deliberately provide later malformed/wrong duplicates and verify the first decoded member wins. LSP reserved duplicates instead reject before initialization, retaining unique legal correlation only. These distinct contracts survive; a blanket serde Value oracle would lose them.
+
+Number tests assert exact authored lexemes for root/array/object entries, whitespace and EOF, signed zero, fractions, exponent spelling and huge values. The lexical `as_i64` contract differs explicitly from exact integral RPC ID admission. Real response prefix assertions prevent input/output normalization from disguising spelling loss. Rejection fixtures cover malformed numbers, extra documents, commas and invalid whitespace; heterogeneous values have a manually constructed expected tree rather than only a round trip.
+
+Unicode expectations include explicit ordinary/pair-decoded strings and real raw reply prefixes. Lone/reversed/badly paired surrogates, invalid escapes, raw controls and unknown keys/values reject before projection. Six raw malformed UTF-8 process classes cannot initialize and leave a following valid initialize usable. Reader tests preserve incomplete UTF-8 body boundaries independently of subsequent frames. Catalog invalid bytes preserve E6003 and the source-primary anchor.
+
+Literal native JSON error reasons and UTF-8 byte offsets cover EOF, root/array/object/key failures and container cleanup. The depth reader test observes cursor66/error65 while a 20,001-byte tail remains unread. Direct depth outcomes freeze 63/64/65 for scalar and empty-container terminals under arrays and objects; catalog and shipped stdio assertions account explicitly for envelope depth and unknown values. Narrow independent source-inclusion controls distinguish deferred RawValue syntax/Unicode/depth precedence from the current first error. Their diagnostic-writer stub is limited harness evidence; real consumer execution is the matching native suite.
+
+Framing expectations use independently authored wires, Unicode byte counts, partial reads/writes, LF/extension compatibility, equal versus conflicting lengths, exact 65,536 header boundary and forbidden excess consumption. The 67,108,864 declaration reaches body acquisition, while 67,108,865 refuses. Prefix and complete 65,537-body assertions qualify incremental storage and exact pipelined consumption. Allocation refusal and Interrupted retries have direct witnesses. The separate independent reader harness propagates PermissionDenied at five header/body positions without consuming or retrying the error; its reader implementation fragment matches current source exactly. Its old whole-server pin is excluded from current process credit.
+
+Current `run_stdio` and process assertions agree: complete invalid UTF-8/JSON produces one null-ID parse error and preserves frame/lifecycle usability; malformed/refused headers close held-open stdin with exit1 without dispatching appended valid bytes, including before initialization and after shutdown. Clean/torn EOF keeps the retained lifecycle disposition. Full JSON recovery is also checked through successful initialize/shutdown/exit. This does not promise malformed-header resynchronization.
+
+The docs compatibility `reference_json` caller serializes a closed typed value then invokes the same parser; its source pin matches. Its generated output is outside this bounded input/framing scope.
+
+## Limits and reopening
+
+No exhaustive grammar enumeration, every mixed-error precedence or arbitrary interleaving claim follows. No full 64 MiB payload, arbitrary resource ceiling, RSS, whole-session budget, slow-peer deadline, additional OS or editor-launch qualification follows. These unselected outcomes do not reopen the original finite task. A distinct legal outcome, valid producer failure or concrete defect would warrant a focused permanent regression.
+
+Public caller-created `Json::Num` and ordered object carriers remain unchecked owner contracts: this review does not make arbitrary construction valid JSON, redefine multiplicity or lexical integers, normalize errors, redesign serialization, or authorize deletion. Exact serde_json 1.0.151 std/raw_value coupling remains a separate dependency-upgrade gate requiring renewed origin/lookahead and real-consumer evidence.
