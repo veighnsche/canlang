@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T23:33:36.335224+00:00",
+  "updated_utc": "2026-10-08T23:34:52.148223+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3048,6 +3048,11 @@
       "state": "Released shared default/optional type join accepted at affected consumer scope",
       "verification": "Owning selected Contracts/UI collections emits0; installed public list/table21queries within one affected case passed across locale/fallback/controlled/authoredblank/no-match behavior; no repeated check",
       "limits": "No splitselection/formidentity/full52/count or complete checkpoint advance"
+    },
+    "bdd_imported_helper_link": {
+      "state": "Released checked production helper linkage captured",
+      "verification": "Owning actualCLI/testkit selected1/1(.90s), focused no-run0 reused; no repeat",
+      "limits": "Checked canonical registry helpers only; no cloned bodies/new API, BDD3/fullS9/count/checkpoint remain open"
     }
   },
   "live_finite_packets": [
