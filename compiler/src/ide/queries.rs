@@ -21,6 +21,7 @@ use crate::analysis::resolve::{
     Binding, ModuleId, ResolveTables, ScopeId, SymbolId, SymbolKind, TypeRef, builtin_type_names,
     resolve_program,
 };
+use crate::analysis::types::ResolvedType;
 use crate::analysis::{CheckedProgram, NodeKey, check_program};
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceDb, SourceId, Span};
@@ -396,6 +397,9 @@ impl<'a> Snapshot<'a> {
     /// keywords for the GRAMMAR position. Sorted by label; never fails.
     pub fn completions_at(&self, offset: u32) -> Vec<Completion> {
         let text = self.text();
+        if let Some(cases) = self.match_case_completions(offset) {
+            return cases;
+        }
         let mut out: Vec<Completion> = Vec::new();
         let mut seen: HashSet<String> = HashSet::new();
         let mut push = |label: &str, kind: &'static str, detail: Option<String>| {
@@ -459,6 +463,57 @@ impl<'a> Snapshot<'a> {
         }
         out.sort_by(|a, b| a.label.cmp(&b.label));
         out
+    }
+
+    /// A case header names the checked subject domain, not lexical bindings.
+    fn match_case_completions(&self, offset: u32) -> Option<Vec<Completion>> {
+        let chain = chain_at(&self.tree, offset);
+        let arm = chain
+            .iter()
+            .rev()
+            .find(|node| node.kind == SyntaxKind::MatchArm)?;
+        let parts = kids(arm);
+        let (head, label) = (parts.first()?, parts.get(1)?);
+        if head.span.start <= offset && offset < head.span.end {
+            return Some(vec![Completion {
+                label: "case".to_string(),
+                kind: "Keyword",
+                detail: None,
+            }]);
+        }
+        if offset < head.span.end || offset > label.span.end {
+            return None;
+        }
+        let subject_match = chain
+            .iter()
+            .rev()
+            .find(|node| node.kind == SyntaxKind::Match)?;
+        let subject = *kids(subject_match).get(1)?;
+        let Some(ResolvedType::Enum { cases, .. }) =
+            self.program.types.node_types.get(&NodeKey::of(subject))
+        else {
+            return Some(Vec::new());
+        };
+        let occupied: HashSet<_> = kids(subject_match)
+            .into_iter()
+            .filter(|other| other.kind == SyntaxKind::MatchArm && other.span != arm.span)
+            .filter_map(|other| {
+                kids(other)
+                    .get(1)
+                    .and_then(|label| name_text(label, self.text()))
+            })
+            .collect();
+        let mut result: Vec<_> = cases
+            .iter()
+            .filter(|case| !occupied.contains(case.as_str()))
+            .map(|case| Completion {
+                label: case.clone(),
+                kind: "EnumMember",
+                detail: Some("case of the checked match subject".to_string()),
+            })
+            .collect();
+        result.sort_by(|a, b| a.label.cmp(&b.label));
+        Some(result)
     }
 
     /// Document outline: one node per module with its top-level symbols
@@ -1400,13 +1455,16 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
                 | SyntaxKind::Require
                 | SyntaxKind::If
                 | SyntaxKind::For
-                | SyntaxKind::Match
         )
     }) {
         return vec![
             "and", "or", "not", "in", "is", "true", "false", "null", "as", "where", "select",
             "order", "archived", "include",
         ];
+    }
+    // A statement slot inside a do body takes precedence over its section.
+    if chain.iter().any(|node| node.kind == SyntaxKind::DoBlock) {
+        return effect_keywords();
     }
     // Section body: declaration introducers for the enclosing section.
     if let Some(marker) = enclosing_section_marker(tree, text, offset) {
@@ -1435,10 +1493,14 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
     // Effect body or unknown position: effect introducers plus the
     // expression keywords (a superset is honest here: every listed word
     // is a real GRAMMAR word for some nearby slot).
+    effect_keywords()
+}
+
+fn effect_keywords() -> Vec<&'static str> {
     vec![
-        "let", "do", "require", "if", "else", "for", "match", "case", "create", "set", "delete",
-        "call", "emit", "send", "schedule", "cancel", "return", "in", "limit", "and", "or", "not",
-        "is", "true", "false", "null",
+        "let", "do", "require", "if", "else", "for", "match", "create", "set", "delete", "call",
+        "emit", "send", "schedule", "cancel", "return", "in", "limit", "and", "or", "not", "is",
+        "true", "false", "null",
     ]
 }
 
