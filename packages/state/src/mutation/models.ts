@@ -321,13 +321,14 @@ function checkModelValueType(field: InterimFieldDef, name: string, model: string
       const scalar = /^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(field.valueType);
       const nominal = schema !== undefined && parsed.base.kind === 'nominal' &&
         (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path));
-      valid = (scalar || nominal) && printTypeId(parsed) === field.valueType &&
+      const enumeration = parsed.base.kind === 'enum' && !parsed.requiredArray;
+      valid = (scalar || nominal || enumeration) && printTypeId(parsed) === field.valueType &&
         parsed.array === (field.array !== undefined) &&
         (!nominal || parsed.requiredArray === (field.array?.required === true)) &&
         (!Object.hasOwn(field, 'nullable') || typeof field.nullable === 'boolean' && parsed.nullable === field.nullable);
     } catch { /* The single descriptive error below owns malformed claims. */ }
   }
-  if (!valid) throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: checked scalar/nominal profile must agree with array/nullable markers.`);
+  if (!valid) throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: checked scalar/nominal/enum profile must agree with array/nullable markers.`);
 }
 
 /**

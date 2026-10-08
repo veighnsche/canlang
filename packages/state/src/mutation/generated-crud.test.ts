@@ -26,6 +26,8 @@ import type { CommittedReceiptOutcome } from '../invocation/invoke.js';
 import type { Receipt } from '@canlang/contracts';
 import { FenceConflictError } from '../storage/port.js';
 import { runMutationWrites } from './pipeline.js';
+import { StateError } from '../errors.js';
+import { decodeValue, encodeValue } from '@canlang/values';
 import { buildContext } from '../invocation/context.js';
 import { createTestMemoryStorage, type MemoryStoreProbe } from '../storage/memory.js';
 import { buildPolicyTable } from '../policy/grants.js';
@@ -304,6 +306,59 @@ describe('T16a generated CRUD: creates', () => {
     });
     // Parent-defaulted optional field reads as missing on parentless creates.
     assert.ok(!Object.hasOwn(row.data, 'lineage'));
+  });
+
+  it('validates owning enum cases without transport metadata and rolls back invalid writes', async () => {
+    const setup = await setupCrud();
+    const slice = crudSlice();
+    Object.assign(slice.models![0]!.fields.find(field => field.name === 'kind')!, {
+      field: { kind: 'enum', values: ['low', 'high'] }, nullable: true,
+    });
+    for (const operation of slice.operations!) {
+      const field = operation.inputs.fields.find(field => field.name === 'kind');
+      if (field !== undefined) Object.assign(field, { field: { kind: 'enum', values: ['low', 'high'] }, nullable: true });
+    }
+    const loaded = loadArtifactDescriptors(slice, { by: 'members' });
+    const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs, nullableFields: loaded.nullableFields });
+    const execute = generatedCrudExecute({ table, store: setup.store, encodeField: (type, value) => {
+      try { return encodeValue(type, decodeValue(type, value)); }
+      catch (error) { throw new StateError('validation', error instanceof Error ? error.message : String(error)); }
+    } });
+    const args = { ...callArgs(setup, execute), registry: loaded.registry };
+    const invalidId = uuidv7(FIXED_NOW, (crudSeq += 1));
+    const failure = await captureStateError(invoke({ ...args,
+      envelope: makeEnvelope(`${GADGET}.create`, invalidId, { ...baseGadgetInputs('E-1'), kind: 'urgent' }),
+    }));
+    assert.equal(failure.code, 'validation');
+    assert.deepEqual(await snapshotRows(setup.store, GADGET), []);
+    assert.deepEqual(await setup.store.historyFor(asModel(GADGET), asId(invalidId)), []);
+
+    const acceptedId = uuidv7(FIXED_NOW, (crudSeq += 1));
+    const accepted = await invoke({ ...args,
+      envelope: makeEnvelope(`${GADGET}.create`, acceptedId, { ...baseGadgetInputs('E-1'), kind: 'high' }),
+    });
+    assert.equal(accepted.status, 'committed');
+    const saved = await snapshotRows(setup.store, GADGET);
+    assert.equal(saved[0]!.version, 1);
+    assert.equal(saved[0]!.data['kind'], 'high');
+    assert.equal(saved[0]!.data['stock'], '0');
+    const rejectedUpdate = await captureStateError(invoke({ ...args,
+      envelope: makeEnvelope(`${GADGET}.update`, uuidv7(FIXED_NOW, (crudSeq += 1)), {
+        record: { id: acceptedId, version: '1' }, kind: 'urgent',
+      }),
+    }));
+    assert.equal(rejectedUpdate.code, 'validation');
+    assert.deepEqual(await snapshotRows(setup.store, GADGET), saved);
+    assert.equal((await setup.store.historyFor(asModel(GADGET), asId(acceptedId))).length, 1);
+    for (const [code, input] of [['E-2', { kind: null }], ['E-3', {}]] as const) {
+      const result = await invoke({ ...args,
+        envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, (crudSeq += 1)), {
+          ...baseGadgetInputs(code), ...input,
+        }),
+      });
+      assert.equal(result.status, 'committed');
+      assert.equal((result.result as StoredRow).data['kind'], null);
+    }
   });
 
   it('rejects missing required, unknown members, and required arrays', async () => {
