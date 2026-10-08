@@ -100,16 +100,25 @@ export function deployBindingMap(wasmBytes, { textModules } = {}) {
     { [WASM_NAME]: wasmBytes },
   );
   const dir = mkdtempSync(join(tmpdir(), 'c04-smoke-map-'));
-  const written = writeDeployBundleMixed(bundle, dir);
-  const staged = new Uint8Array(readFileSync(join(dir, WASM_NAME)));
-  const manifest = JSON.parse(readFileSync(join(dir, 'bundle.mixed.json'), 'utf8'));
-  return {
-    dir,
-    files: written.files,
-    wasmBytes: staged,
-    manifest,
-    cleanup: () => rmSync(dir, { recursive: true, force: true }),
-  };
+  try {
+    const written = writeDeployBundleMixed(bundle, dir);
+    const staged = new Uint8Array(readFileSync(join(dir, WASM_NAME)));
+    const manifest = JSON.parse(readFileSync(join(dir, 'bundle.mixed.json'), 'utf8'));
+    return {
+      dir,
+      files: written.files,
+      wasmBytes: staged,
+      manifest,
+      cleanup: () => rmSync(dir, { recursive: true, force: true }),
+    };
+  } catch (thrown) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // Preserve the staging failure even if cleanup also fails.
+    }
+    throw thrown;
+  }
 }
 
 function check(name, actual, expected) {

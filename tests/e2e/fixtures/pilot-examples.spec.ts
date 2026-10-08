@@ -6,7 +6,7 @@
  * against doubles. Needs built dists (`@canlang/testkit`); the genuine
  * live run rides the pilot go-ahead with the T02 blockers cleared.
  */
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -175,32 +175,36 @@ function makeDoubles(): Doubles {
 
 test("provisions fixtures live with baseline matching and establishment", async () => {
   const dir = await mkdtemp(join(tmpdir(), "pilot-examples-spec-"));
-  const file = join(dir, "suite.mjs");
-  await writeFile(file, SUITE_MODULE);
-  const { invoker, store, calls } = makeDoubles();
-  let op = 0;
-  const runner = new PilotExamples({
-    artifact: ARTIFACT,
-    invoker,
-    store,
-    caller: { actor: { user_id: "u-member" } } as unknown as ResolvedIdentity,
-    userId: "u-member",
-    now: () => 0,
-    operationId: () => `op-${++op}` as OperationId,
-  });
-  const report = await runner.runSuite(pathToFileURL(file).href, "todo.complete");
-  expect(report.rows.map((row) => row.outcome)).toEqual(["passed", "passed"]);
-  expect(report.rows[1]?.rejection).toEqual({ error: "rule_failed", sideEffectsAbsent: true });
+  try {
+    const file = join(dir, "suite.mjs");
+    await writeFile(file, SUITE_MODULE);
+    const { invoker, store, calls } = makeDoubles();
+    let op = 0;
+    const runner = new PilotExamples({
+      artifact: ARTIFACT,
+      invoker,
+      store,
+      caller: { actor: { user_id: "u-member" } } as unknown as ResolvedIdentity,
+      userId: "u-member",
+      now: () => 0,
+      operationId: () => `op-${++op}` as OperationId,
+    });
+    const report = await runner.runSuite(pathToFileURL(file).href, "todo.complete");
+    expect(report.rows.map((row) => row.outcome)).toEqual(["passed", "passed"]);
+    expect(report.rows[1]?.rejection).toEqual({ error: "rule_failed", sideEffectsAbsent: true });
 
-  const creates = calls.filter((call) => call.operation === "todo.Task.create");
-  const completes = calls.filter((call) => call.operation === "todo.complete");
-  expect(creates).toHaveLength(2);
-  // Tagged user refs pass through verbatim (canonical stored form);
-  // server-owned `done` never reaches the create.
-  expect(creates[0]?.inputs).toEqual({
-    title: "Opening checks",
-    assignee: { kind: "user", id: "u-member" },
-  });
-  expect(completes[0]?.inputs).toEqual({ task: { id: "t1", version: "2" } });
-  expect(completes[1]?.inputs).toEqual({ task: { id: "t2", version: "2" } });
+    const creates = calls.filter((call) => call.operation === "todo.Task.create");
+    const completes = calls.filter((call) => call.operation === "todo.complete");
+    expect(creates).toHaveLength(2);
+    // Tagged user refs pass through verbatim (canonical stored form);
+    // server-owned `done` never reaches the create.
+    expect(creates[0]?.inputs).toEqual({
+      title: "Opening checks",
+      assignee: { kind: "user", id: "u-member" },
+    });
+    expect(completes[0]?.inputs).toEqual({ task: { id: "t1", version: "2" } });
+    expect(completes[1]?.inputs).toEqual({ task: { id: "t2", version: "2" } });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

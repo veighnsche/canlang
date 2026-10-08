@@ -1222,7 +1222,7 @@
     },
     "DEL-E02": {
       "planning_status": "blocked",
-      "state": "independently accepted finite table disposal; committed24b1d92a",
+      "state": "Partial: accepted table disposal, DO audit reset and current caller scratch lifecycle cleanup",
       "files": [
         "packages/testkit/src/runner/table.ts",
         "packages/testkit/src/assertions/equal.ts",
@@ -1235,11 +1235,8 @@
       "agent": "/root/row_scope_cleanup",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "active_files": [
-        "packages/testkit/src/runner/table.ts",
-        "packages/testkit/test/table-disposal.test.ts"
-      ],
-      "parent_limit": "Other source-loader/durable isolation/resource/nativeheld/evidence cleanup duties remain open",
+      "active_files": [],
+      "parent_limit": "Selected cleanup is accepted; conditional corpus consolidation and native-held/installed qualification remain separate. No original challenge or port parent is closed.",
       "review": "table-disposal-independent-review.json",
       "source_pins": {
         "packages/testkit/src/runner/table.ts": "05bd6cdf4d063f71aea65d543b02e450c5ffe621f3d65e2ea6f1de6697dc8de3",
@@ -1255,6 +1252,19 @@
         "root_review": "do-reset-independent-review.json",
         "parent_closed": false,
         "commit": "2819e8add2675360e25fe323d6aff52f04b9ef7f"
+      },
+      "scratch_cleanup": {
+        "status": "Accepted bounded source-owned cleanup; writers and commands released",
+        "files": [
+          "tests/e2e/fixtures/artifact-loader.ts",
+          "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+          "tests/e2e/fixtures/pilot-examples.spec.ts",
+          "tests/e2e/fixtures/vendor-walk.spec.ts"
+        ],
+        "result": "Loader failure/success ownership8/8; direct testkit staging success/write/read/error controls passed; existing page-less pilot/vendor specs5/5. Peer failures doubled; no compiler/native/workerd/installed claim.",
+        "reused": "Table disposal24b1d92a and TEST-ONLY DO migration_failures reset2819e8ad",
+        "disposition": "Runner loader/dispatch own no temp or child. EC01/06/07/10 retain actual evidence/assets/oracles; EC02-05 conditional; EC09 retains truthful stage distinctions without retired proof chains.",
+        "model": "gpt-6.1-sol medium for finite scratch owner changes; root owns e2e loader and Git"
       }
     },
     "REPLAY-IP07": {
@@ -1518,7 +1528,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T01:49:51.597124+00:00",
+  "updated_utc": "2026-10-08",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
