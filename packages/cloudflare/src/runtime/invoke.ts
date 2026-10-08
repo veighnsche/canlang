@@ -8894,6 +8894,9 @@ export type FanoutSchedulerTurnResult =
       readonly progress: FanoutProgress | null;
     };
 
+class FanoutClaimChanged extends Error {}
+class FanoutCommitAuthorityChanged extends Error {}
+
 /**
  * T34-F7: drive one child row within a turn (F5-driver order with the
  * F3 claim seam: terminal -> replay; running -> hold; lifecycle
@@ -9007,6 +9010,7 @@ async function driveFanoutTurnChild(input: {
     return { childId: data.childId, recordId: data.recordId, status: "retry", detail: "lifecycle-race" };
   }
   const snapshotFailure: { lifecycle: FanoutChildLifecycle | null } = { lifecycle: null };
+  const claimFence = input.fenceFor(child);
   let claim: FanoutChildClaimOutcome;
   try {
     claim = await claimFanoutChild({
@@ -9035,7 +9039,7 @@ async function driveFanoutTurnChild(input: {
         return input.readSnapshot(child, current);
       },
       evaluateGuard: input.evaluateGuard,
-      fence: input.fenceFor(child),
+      fence: claimFence,
       policy,
       meta,
       producers,
@@ -9072,9 +9076,37 @@ async function driveFanoutTurnChild(input: {
     throw new Error("t34-f7: turn needs a non-empty attempt operationId per executed child.");
   }
   const claimedRow = claim.row;
-  void claimedRow;
+  const claimChangedResult = (): FanoutTurnDrivenChild => ({ childId: data.childId,
+    recordId: data.recordId, status: 'retry', detail: 'claim-changed' });
+  const requireWinningClaim = async (): Promise<StoredRow> => {
+    const current = await store.load(T34F7_FANOUT_CHILD_MODEL, claimedRow.id);
+    if (current === null || current.version !== claimedRow.version ||
+        producers.tables.readFanoutChildRow(current).state !== 'running') {
+      throw new FanoutClaimChanged('The child claim was released or replaced.');
+    }
+    return current;
+  };
+  let commitGuards: ReadonlyArray<CanonicalGuardRevalidation> = [];
+  const claimedStore: StoragePort = { ...store, commit: async batch => {
+    await requireWinningClaim();
+    if (await claimFence.revalidateAuthority() !== true) {
+      throw new FanoutCommitAuthorityChanged('The child authority no longer holds.');
+    }
+    // State already checks user guards. Verified private calls retain their
+    // owning source/file guards here because trusted admission skips that loop.
+    if (input.invoke.kind === 'trusted') {
+      for (const guard of commitGuards) {
+        if (await guard.evaluate() !== true) {
+          throw new FanoutCommitAuthorityChanged(`Guard ${JSON.stringify(guard.name)} no longer holds.`);
+        }
+      }
+    }
+    return store.commit(batch);
+  } };
   const occurrenceIds: string[] = [];
   const execute = async (call: FanoutAdmittedCall): Promise<CanonicalExecutionEffects> => {
+    await requireWinningClaim();
+    commitGuards = [];
     if (!isUnknownRecord(call) || !Array.isArray(call.recordRefs)) {
       throw new Error("t34-f7: turn: execution needs admitted record refs.");
     }
@@ -9085,10 +9117,11 @@ async function driveFanoutTurnChild(input: {
       throw new Error("t34-f7: turn: execution needs exactly one admitted child record ref.");
     }
     const effects = await input.body(child, refs[0]!.row, { operationId, call, occurrenceIds });
+    commitGuards = effects.guards ?? [];
     checkFanoutAttemptResult(effects.result);
-    // Fresh fanout rows per execution (invoke retries re-execute, so
-    // versions re-read — never carried across attempts).
-    const childNow = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+    // Retries may refresh other dependencies, but cannot borrow a rival's
+    // released/reclaimed child generation to acknowledge this attempt.
+    const childNow = await requireWinningClaim();
     const checkpointNow = await store.load(
       T34F7_FANOUT_CHECKPOINT_MODEL,
       data.fanoutId as RecordId,
@@ -9146,7 +9179,7 @@ async function driveFanoutTurnChild(input: {
       ? await store.load(cohort.model as ModelName, data.recordId as RecordId) : null;
     await producers.invoke.invokeFanoutChild({
       registry: input.invoke.registry,
-      store,
+      store: claimedStore,
       memberships: input.invoke.memberships,
       clock: input.invoke.clock,
       childOperation: input.invoke.childOperation,
@@ -9163,7 +9196,8 @@ async function driveFanoutTurnChild(input: {
       assertJoin: producers.join.assertFanoutChildJoin,
     });
   } catch (error) {
-    const code = fanoutStateErrorCode(error);
+    if (error instanceof FanoutClaimChanged) return claimChangedResult();
+    const code = error instanceof FanoutCommitAuthorityChanged ? 'forbidden' : fanoutStateErrorCode(error);
     if (code === "busy" || code === "conflict") {
       // Contention: the claim stays held and ages out through the
       // stale-claim path; the child re-drives next sweep.
@@ -9178,6 +9212,7 @@ async function driveFanoutTurnChild(input: {
       if (refused === null) {
         throw new Error("t34-f7: turn: child row vanished after a refusal.");
       }
+      if (refused.version !== claimedRow.version) return claimChangedResult();
       const refusedData = producers.tables.readFanoutChildRow(refused);
       const already = fanoutChildOutcomeFromData(refusedData);
       if (already !== null) {
@@ -9237,6 +9272,7 @@ async function driveFanoutTurnChild(input: {
       if (rejected === null) {
         throw new Error("t34-f7: turn: child row vanished after a rejection.");
       }
+      if (rejected.version !== claimedRow.version) return claimChangedResult();
       const rejectedData = producers.tables.readFanoutChildRow(rejected);
       const already = fanoutChildOutcomeFromData(rejectedData);
       if (already !== null) {

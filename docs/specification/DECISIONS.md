@@ -2979,3 +2979,9 @@ Compiler's existing genuine-source canonical Memory case passed 1/1 after Cloudf
 Accepted finite computed-default extension: a singular nonnullable User parameter copied from an earlier typed parameter preserves omission and its native UserRef through the existing generated observer and owning Values codec. Supplied overrides suppress defaults; declaration-order receipt values use the closed `{id}` wire. Rejected attempts discard provisional defaults, and matching raw-input replay retains the existing receipt-first authority policy. New revoked admission remains denied.
 
 The owning genuine-source canonical CF/State Memory case passed 1/1 in 5.16s with existing output/codecs reused; root reviewed the released source without another check. No actor-context, nullable/array User, stored-model-reference, D1 or whole S9/package task completion is implied. This adds a selected supported capability; it has no replacement-only production reduction credit.
+
+## 2026-10-08: fence fanout execution to its winning claim
+
+Accepted a finite driver correction: body execution and final owner commit retain the actual winning running child row/version. An older attempt cannot borrow a rival released/reclaimed generation or mutate it during refusal cleanup. The existing claim authority and the owning trusted host's offered guards are checked again before commit; State row/revision fences remain the final transaction controls.
+
+The owner genuine private native D1 case passed 1/1 in 10.14s, the affected ordinary native case passed 1/1 in 4.20s, and Cloudflare noEmit passed. Root reviewed the released source and reused these outcomes. The tests cover a real rival claim and actual Identity revocation without a State revision change. Durable tick navigation, independent handler routing, default installed Worker and whole package-task acceptance remain open. No second engine, new schema or replacement reduction is claimed.

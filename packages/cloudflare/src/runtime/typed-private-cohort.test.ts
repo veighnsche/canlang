@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact } from '@canlang/contracts';
+import type { CompileArtifact, ReceiptIdentity, StoragePort, StoredRow } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { createSystemRegistry } from '@canlang/state/ports/system';
 import { asId, asModel, FIXED_NOW, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
@@ -16,8 +16,8 @@ import { assembleModules } from './modules.js';
 import { buildInvoker } from '../worker/assembly.js';
 import { createCanonicalDueCohortBody, invokeDueScheduleCanonical, loadFanoutStateProducers,
   runFanoutSchedulerTurn, T34F7_FANOUT_INTENT_MODEL, T34F7_FANOUT_CHECKPOINT_MODEL,
-  T34F7_FANOUT_CHILD_MODEL } from './invoke.js';
-import type { CanonicalDueScheduleOpts } from './invoke.js';
+  T34F7_FANOUT_CHILD_MODEL, releaseStaleFanoutClaims, claimFanoutChild } from './invoke.js';
+import type { CanonicalDueScheduleOpts, FanoutSchedulerBodyPort, FanoutSchedulerTurnResult } from './invoke.js';
 
 const APP = 'CohortJourney';
 const ENTRY = asModel(`${APP}.Entry`);
@@ -124,7 +124,13 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     assert.deepEqual(readScheduleRow((await storage.state.load(WORK_SCHEDULE_MODEL, asId(sweepDue.occurrenceId)))!).payload,
       { marker: 'captured sweep marker' });
     const producers = await loadFanoutStateProducers();
-    const run = async (handler: string, due = sweepDue, trustedSourceOverride?: string) => {
+    const run = async (handler: string, due = sweepDue, trustedSourceOverride?: string, control?: {
+      store?: StoragePort;
+      body?: (body: FanoutSchedulerBodyPort) => FanoutSchedulerBodyPort;
+      oneTurn?: boolean;
+      maxClaimAgeMs?: number;
+      observe?: (result: FanoutSchedulerTurnResult) => void;
+    }) => {
       const generated = await createCanonicalDueCohortBody(opts(handler, due));
       assert.deepEqual(generated.bounds, { pageLimit: 2, chunkSize: 2 });
       assert.equal(generated.identity.actor, null);
@@ -132,9 +138,9 @@ test('declared private cohorts freeze sibling handlers and retain checked events
       let cursor: string | null = null;
       let turns = 0;
       for (;;) {
-        const result = await runFanoutSchedulerTurn({ store: storage.state, fanoutId: generated.fanoutId, cursor,
-          bounds: { pageLimit: 2, maxDrives: 2 }, policy: { maxAttempts: 3, horizonMs: 60_000 },
-          meta: { actor: generated.trustedSource, nowMs: now }, maxClaimAgeMs: 60_000,
+        const result = await runFanoutSchedulerTurn({ store: control?.store ?? storage.state, fanoutId: generated.fanoutId, cursor,
+          bounds: { pageLimit: 2, maxDrives: control?.oneTurn ? 1 : 2 }, policy: { maxAttempts: 3, horizonMs: 60_000 },
+          meta: { actor: generated.trustedSource, nowMs: now }, maxClaimAgeMs: control?.maxClaimAgeMs ?? 60_000,
           cohort: { model: generated.cohort.model, ...(generated.cohort.kind === 'anchored-collection'
             ? { anchor: generated.cohort.parent } : {}) },
           freeze: { cutoff: { sourceOccurrence: due.occurrenceId, handler: `${APP}.${handler}` },
@@ -143,15 +149,17 @@ test('declared private cohorts freeze sibling handlers and retain checked events
           readSnapshot: (_child, row) => row,
           fenceFor: () => ({ owner: team.team_id, revalidateAuthority: async () =>
             (await storage.identity.findTeamById(team.team_id)) !== null }),
-          body: generated.body, producers,
+          body: control?.body === undefined ? generated.body : control.body(generated.body), producers,
           invoke: { registry: generated.registry, memberships: storage.identity, clock, identity: generated.identity,
             app: APP, source: 'schedule', childOperation: `${APP}.${handler}`, refInput: generated.refInput,
             inputs: generated.inputs, kind: 'trusted', trustedSource: trustedSourceOverride ?? generated.trustedSource, operationIdFor: nextId },
         });
+        control?.observe?.(result);
         assert.equal(result.status, 'turn');
         if (result.status !== 'turn') throw new Error('Private cohort turn refused.');
         assert.ok(result.driven.length <= 2);
         if (trustedSourceOverride !== undefined) assert.ok(result.driven.every(child => child.status === 'refused'));
+        if (control?.oneTurn) break;
         assert.ok(++turns <= 4, 'Finite original cohort did not settle.');
         if (result.done) { assert.equal(result.progress.terminal, true); break; }
         cursor = result.cursor;
@@ -199,5 +207,80 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     await run('sweep', wrongPrincipalDue, 'schedule:another-event');
     assert.deepEqual(await storage.state.query({ model: ENTRY, authority: 'owner', order: [{ field: 'id', direction: 'asc' }] }), currentRows);
     assert.deepEqual(await Promise.all(currentRows.map(row => storage.state.historyFor(ENTRY, row.id))), currentHistory);
+
+    // A stale winner must not acknowledge the generation acquired by another
+    // worker before this old winner opens its next fresh unit checkpoint.
+    const racedDue = await schedule('Scoped', { container: { id: firstParent.id, version: '2' }, marker: 'raced claim' });
+    assert.equal(outcomeStatus(await invokeDueScheduleCanonical(opts('scoped', racedDue))), 'completed');
+    let racedReceipt: ReceiptIdentity | undefined;
+    let rival: StoredRow | undefined;
+    let racedDomain: StoredRow | undefined;
+    let racedHistory: Awaited<ReturnType<StoragePort['historyFor']>> | undefined;
+    const raceIntents = await storage.state.query({ model: T34F7_FANOUT_INTENT_MODEL, authority: 'owner',
+      where: { op: 'eq', field: 'sourceOccurrence', value: racedDue.occurrenceId }, limit: 2 });
+    assert.equal(raceIntents.length, 1);
+    const racePage = await storage.state.query(producers.tables.fanoutChildPageQuery(raceIntents[0]!.id,
+      { cursor: null, limit: 1 }));
+    assert.equal(racePage.length, 1);
+    const racingStore: StoragePort = { ...storage.state, readReceipt: async identity => {
+      racedReceipt = identity;
+      return storage.state.readReceipt(identity);
+    }, readRevision: async () => {
+      const original = await storage.state.load(T34F7_FANOUT_CHILD_MODEL, racePage[0]!.id); assert.ok(original);
+      if (rival === undefined && producers.tables.readFanoutChildRow(original).state === 'running') {
+        const originalClaim = producers.tables.readFanoutChildRow(original);
+        racedDomain = (await storage.state.load(ENTRY, asId(originalClaim.recordId)))!;
+        racedHistory = await storage.state.historyFor(ENTRY, racedDomain.id);
+        const later = now + 1000;
+        const released = await releaseStaleFanoutClaims({ store: storage.state, fanoutId: originalClaim.fanoutId,
+          cursor: null, limit: 2, nowMs: later, maxClaimAgeMs: 1000,
+          meta: { actor: `schedule:${racedDue.event}`, nowMs: later }, producers });
+        assert.ok(released.released.includes(originalClaim.childId));
+        const pending = await storage.state.load(T34F7_FANOUT_CHILD_MODEL, original.id); assert.ok(pending);
+        const reclaimed = await claimFanoutChild({ store: storage.state,
+          child: { parentOccurrence: racedDue.occurrenceId, handler: `${APP}.scoped`, recordId: originalClaim.recordId },
+          snapshotVersion: pending.version, guard: { predicate: null }, frozenInputs: null,
+          readCurrentSnapshot: () => storage.state.load(ENTRY, asId(originalClaim.recordId)), evaluateGuard: () => true,
+          fence: { owner: team.team_id, revalidateAuthority: async () => (await storage.identity.findTeamById(team.team_id)) !== null },
+          policy: { maxAttempts: 3, horizonMs: 60_000 }, meta: { actor: `schedule:${racedDue.event}`, nowMs: later }, producers });
+        assert.equal(reclaimed.status, 'claimed');
+        assert.ok('row' in reclaimed); rival = reclaimed.row;
+      }
+      return storage.state.readRevision();
+    } };
+    await run('scoped', racedDue, undefined, { store: racingStore, oneTurn: true, maxClaimAgeMs: 1000, observe: result => {
+      assert.equal(result.status, 'turn');
+      if (result.status === 'turn') assert.deepEqual(result.driven.map(child => [child.status, child.detail]), [['retry', 'claim-changed']]);
+    } });
+    assert.ok(rival); assert.ok(racedDomain); assert.ok(racedReceipt);
+    assert.deepEqual(await storage.state.load(T34F7_FANOUT_CHILD_MODEL, rival.id), rival);
+    assert.deepEqual(await storage.state.load(ENTRY, racedDomain.id), racedDomain);
+    assert.deepEqual(await storage.state.historyFor(ENTRY, racedDomain.id), racedHistory);
+    assert.equal(await storage.state.readReceipt(racedReceipt), null);
+
+    // The owning host's offered guard uses actual current Identity state,
+    // whose revocation does not advance the State revision fence.
+    const guardedDue = await schedule('Scoped', { container: { id: firstParent.id, version: '2' }, marker: 'guard must refuse' });
+    assert.equal(outcomeStatus(await invokeDueScheduleCanonical(opts('scoped', guardedDue))), 'completed');
+    const currentMember = await storage.identity.findMembership(team.team_id, user.user_id); assert.ok(currentMember);
+    let guardedDomain: StoredRow | undefined;
+    let guardedHistory: Awaited<ReturnType<StoragePort['historyFor']>> | undefined;
+    await run('scoped', guardedDue, undefined, { oneTurn: true,
+      body: body => async (child, row, attempt) => {
+        guardedDomain = row; guardedHistory = await storage.state.historyFor(ENTRY, row.id);
+        const effects = await body(child, row, attempt);
+        const revisionBeforeRevocation = await storage.state.readRevision();
+        await storage.identity.removeMembership(currentMember.membership_id);
+        assert.equal(await storage.state.readRevision(), revisionBeforeRevocation);
+        return { ...effects, guards: [...effects.guards ?? [], { name: 'current.host.membership',
+          evaluate: async () => (await storage.identity.findMembership(team.team_id, user.user_id))?.status === 'active' }] };
+      }, observe: result => {
+        assert.equal(result.status, 'turn');
+        if (result.status === 'turn') assert.deepEqual(result.driven.map(child => [child.status, child.detail]),
+          [['refused', 'failed/inaccessible-record']]);
+      } });
+    assert.ok(guardedDomain);
+    assert.deepEqual(await storage.state.load(ENTRY, guardedDomain.id), guardedDomain);
+    assert.deepEqual(await storage.state.historyFor(ENTRY, guardedDomain.id), guardedHistory);
   } finally { await mf?.dispose(); await rm(dir, { recursive: true, force: true }); }
 });
