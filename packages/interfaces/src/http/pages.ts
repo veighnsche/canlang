@@ -149,7 +149,7 @@ function matchPattern(pattern: string, pathname: string): Record<string, unknown
 }
 
 /** Exact path first, then `{Token}` patterns, both in registry order. */
-function matchDescriptor(
+export function matchDescriptor(
   descriptors: readonly PageDescriptor[],
   pathname: string,
 ): RouteMatch | null {

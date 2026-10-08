@@ -60,12 +60,13 @@
  * same bound rules.
  */
 
-import type { ActivationVerdict, CompileArtifact, StoragePort } from "@canlang/contracts";
+import type { ActivationVerdict, CompileArtifact, PageDescriptor, StoragePort } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
 import type { BakedDerivedInputs } from "../runtime/mcp-registry.js";
 import type {
   AssembledWorker,
   AssemblyDeps,
+  BrowserAssetsHandler,
   HttpOperationHandlerFactory,
   McpHandlerFactory,
   McpPermissions,
@@ -107,6 +108,20 @@ export interface StagedDeployment {
   readonly artifact: CompileArtifact;
   readonly modules: AssembledModules;
   readonly verdict: ActivationVerdict;
+  /** Producer-verified finite resources; absent means no static mount. */
+  readonly browserAssets?: BrowserAssetsManifest;
+}
+
+interface BrowserAssetsManifest {
+  readonly version: 1;
+  readonly module: "./http-assets.js";
+  readonly resourcesSha256: string;
+  readonly resources: readonly {
+    readonly key: string;
+    readonly contentType: string;
+    readonly bytes: number;
+    readonly sha256: string;
+  }[];
 }
 
 /** P-C `buildProductionDeps(env)` result: `{ store, identityStore }`. */
@@ -241,6 +256,7 @@ const ASSEMBLY_SPECIFIER: string = "./assembly.js";
 const STAGED_SPECIFIER: string = "./artifact.js";
 const MCP_HANDLER_SPECIFIER: string = "./mcp-handler.js";
 const HTTP_OPERATIONS_SPECIFIER: string = "./http-operations.js";
+const HTTP_ASSETS_SPECIFIER: string = "./http-assets.js";
 const ENV_ASSEMBLY_SPECIFIER: string = "../runtime/env-assembly.js";
 const GRANT_ROUTE_SPECIFIER: string = "../runtime/grant-route.js";
 const MCP_PERMISSIONS_SPECIFIER: string = "../runtime/mcp-permissions.js";
@@ -293,6 +309,7 @@ async function defaultLoadStagedDeployment(): Promise<StagedDeployment> {
     artifact: mod["artifact"] as CompileArtifact,
     modules: mod["modules"] as AssembledModules,
     verdict: mod["verdict"] as ActivationVerdict,
+    ...(Object.hasOwn(mod, "browserAssets") ? { browserAssets: mod["browserAssets"] as BrowserAssetsManifest } : {}),
   };
 }
 
@@ -303,6 +320,29 @@ async function defaultLoadProductionDeps(env: Record<string, unknown>): Promise<
     "buildProductionDeps",
   );
   return build(env);
+}
+
+async function loadBrowserAssetsHandler(
+  manifest: BrowserAssetsManifest,
+  pages: readonly PageDescriptor[],
+): Promise<BrowserAssetsHandler> {
+  let mod: unknown;
+  try {
+    mod = await import(HTTP_ASSETS_SPECIFIER);
+  } catch {
+    throw new Error("deploy main: selected browser assets module is missing or failed to import");
+  }
+  if (!isRecord(mod) || typeof mod["createHandler"] !== "function") {
+    throw new Error("deploy main: selected browser assets module has no createHandler function");
+  }
+  const handler: unknown = await (mod["createHandler"] as (
+    pages: readonly PageDescriptor[], manifest: BrowserAssetsManifest,
+  ) => Promise<BrowserAssetsHandler>)(pages, manifest);
+  if (!isRecord(handler) || typeof handler["fetch"] !== "function" || !Array.isArray(handler["paths"]) ||
+      JSON.stringify(handler["paths"]) !== JSON.stringify(manifest.resources.map((row) => `/assets/${row.key}`))) {
+    throw new Error("deploy main: selected browser assets handler has invalid canonical paths or fetch");
+  }
+  return handler as unknown as BrowserAssetsHandler;
 }
 
 async function defaultLoadMcpHandlerFactory(): Promise<McpHandlerFactory | undefined> {
@@ -448,6 +488,23 @@ function validateStagedDeployment(staged: StagedDeployment): void {
       'deploy main: staged deployment (./artifact.js) export "verdict" is not an ActivationVerdict (needs boolean "active")',
     );
   }
+  if (Object.hasOwn(staged, "browserAssets")) {
+    const marker: unknown = staged.browserAssets;
+    const keys = ["browser/bootstrap.js", "browser/can-style.css", "browser/polling.js"];
+    const digest = (value: unknown): boolean => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+    if (!isRecord(marker) || Object.keys(marker).sort().join(",") !== "module,resources,resourcesSha256,version" ||
+        marker["version"] !== 1 || marker["module"] !== HTTP_ASSETS_SPECIFIER ||
+        !digest(marker["resourcesSha256"]) || !Array.isArray(marker["resources"]) || marker["resources"].length !== 3) {
+      throw new AssemblyFailedError("deploy main: invalid selected browser assets marker");
+    }
+    for (const [index, row] of marker["resources"].entries()) {
+      if (!isRecord(row) || Object.keys(row).sort().join(",") !== "bytes,contentType,key,sha256" ||
+          row["key"] !== keys[index] || row["contentType"] !== (keys[index]?.endsWith(".css") ? "text/css" : "application/javascript") ||
+          !Number.isSafeInteger(row["bytes"]) || (row["bytes"] as number) < 0 || !digest(row["sha256"])) {
+        throw new AssemblyFailedError("deploy main: invalid selected browser resource entry");
+      }
+    }
+  }
 }
 
 /**
@@ -538,6 +595,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
     const derivedInputs =
       factory === undefined && httpFactory === undefined ? undefined : await getDerivedInputs();
     const assembleWorker = await getAssemble();
+    const browserAssets = staged.browserAssets;
     const assemblyDeps: AssemblyDeps = {
       store: deps.store,
       identityStore: deps.identityStore,
@@ -552,12 +610,15 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
               ...(derivedInputs === undefined ? null : { derivedInputs }),
             },
           }),
-      ...(httpFactory === undefined
+      ...(httpFactory === undefined && browserAssets === undefined
         ? null
         : {
             http: {
-              createOperationHandler: httpFactory,
+              ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),
               ...(derivedInputs === undefined ? null : { derivedInputs }),
+              ...(browserAssets === undefined ? {} : {
+                loadBrowserAssets: (pages: readonly PageDescriptor[]) => loadBrowserAssetsHandler(browserAssets, pages),
+              }),
             },
           }),
     };
