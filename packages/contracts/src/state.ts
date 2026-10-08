@@ -722,6 +722,7 @@ export type CanonicalScalarKind =
   | 'money'
   | 'datetime'
   | 'duration'
+  | 'user'
   | 'boolean'
   | 'file'
   | 'enum';
@@ -765,7 +766,7 @@ export type CanonicalInputDef =
   | {
       readonly name: string;
       readonly kind: CanonicalScalarKind;
-      /** Checked int/datetime/text/bool/decimal/money/date/duration association; absence carries no type claim. */
+      /** Checked int/datetime/text/bool/decimal/money/date/duration/user association; absence carries no type claim. */
       readonly valueType?: CanTypeId;
       readonly required: boolean;
       readonly enumValues?: ReadonlyArray<string>;
@@ -816,7 +817,7 @@ export interface FieldMachine {
 }
 
 export interface CanonicalFieldDef {
-  /** Checked int/datetime/text/bool/decimal/money/date/duration association, with optional array and nullable container suffixes. */
+  /** Checked int/datetime/text/bool/decimal/money/date/duration/user association, with optional array and nullable container suffixes. */
   readonly valueType?: CanTypeId;
   /** Type-association metadata; engine-local nullableFields still owns omission fills. */
   readonly nullable?: boolean;

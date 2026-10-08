@@ -87,7 +87,7 @@ test('canonical loading checks its own finite scalar profile without inferring d
 });
 
 test('declared typed and void results are copied and frozen in both loading paths', () => {
-  for (const type of ['int', 'int?', 'int[]', 'int[]?', 'datetime', 'datetime?', 'datetime[]', 'datetime[]?', 'text', 'text?', 'text[]', 'text[]?', 'bool', 'bool?', 'bool[]', 'bool[]?', 'decimal', 'decimal?', 'decimal[]', 'decimal[]?', 'money', 'money?', 'money[]', 'money[]?', 'date', 'date?', 'date[]', 'date[]?', 'duration', 'duration?', 'duration[]', 'duration[]?', 'void']) {
+  for (const type of ['int', 'int?', 'int[]', 'int[]?', 'datetime', 'datetime?', 'datetime[]', 'datetime[]?', 'text', 'text?', 'text[]', 'text[]?', 'bool', 'bool?', 'bool[]', 'bool[]?', 'decimal', 'decimal?', 'decimal[]', 'decimal[]?', 'money', 'money?', 'money[]', 'money[]?', 'date', 'date?', 'date[]', 'date[]?', 'duration', 'duration?', 'duration[]', 'duration[]?', 'user', 'user?', 'user[]', 'user[]?', 'void']) {
     const result = { type };
     const raw = artifact();
     raw.operations![0]!.result = result;
@@ -111,7 +111,7 @@ test('missing and inherited result claims stay unknown; explicit malformed claim
   assert.equal(Object.hasOwn(descriptor(loadArtifactDescriptors(artifact(), opts)), 'result'), false);
   assert.equal(Object.hasOwn(descriptor(loadExecutionDescriptorSet(intake(), opts)), 'result'), false);
   for (const result of [undefined, null, [], {}, { type: 'string' }, { type: 'integer' },
-    { type: 'void?' }, { type: 'void[]' }, { type: 'int?[]' }, { type: 'datetime[][]' }, { type: 'decimal?[]' }, { type: 'money[][]' }, { type: 'date?[]' }, { type: 'duration[][]' },
+    { type: 'void?' }, { type: 'void[]' }, { type: 'int?[]' }, { type: 'datetime[][]' }, { type: 'decimal?[]' }, { type: 'money[][]' }, { type: 'date?[]' }, { type: 'duration[][]' }, { type: 'user?[]' }, { type: 'user[][]' },
     { type: 1 }, Object.create({ type: 'int' })]) {
     const raw = artifact();
     const changed = { ...raw, operations: [{ ...raw.operations![0]!, result }] } as unknown as ArtifactDescriptorSlice;
@@ -324,8 +324,8 @@ test('own artifact associations require an exact owning supported tag for models
 });
 
 
-test('checked text, bool, decimal and money associations preserve scalar, array and nullable profiles', () => {
-  for (const kind of ['string', 'boolean', 'decimal', 'money'] as const) {
+test('checked text, bool, decimal, money and user associations preserve scalar, array and nullable profiles', () => {
+  for (const kind of ['string', 'boolean', 'decimal', 'money', 'user'] as const) {
     const base = kind === 'string' ? 'text' : kind === 'boolean' ? 'bool' : kind;
     for (const array of [undefined, { required: false }, { required: true }]) {
       for (const nullable of [false, true]) {
@@ -519,4 +519,44 @@ test('date and duration claims reject mismatched owners and malformed container 
       required: false, default: { kind: 'literal', value: '2026-01-02' } }),
   ] } }] };
   assert.equal(Object.hasOwn(descriptor(loadArtifactDescriptors(legacy, opts)).inputs[0]!, 'valueType'), false);
+});
+
+
+test('user metadata requires an exact own user kind and never infers id-shaped carriers', () => {
+  const raw = artifact();
+  for (const claim of [undefined, 'text', 'user[][]', 'user?[]', 'user[]', 'user?']) {
+    const modelField = { name: 'count', field: { kind: 'user' }, required: false, serverOnly: false,
+      valueType: claim };
+    const inputField = { name: 'value', field: { kind: 'user' }, required: false, valueType: claim };
+    for (const changed of [
+      { ...raw, models: [{ ...raw.models![0]!, fields: [modelField] }] },
+      { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [inputField] } }] },
+    ]) incompatible(() => loadArtifactDescriptors(changed as unknown as ArtifactDescriptorSlice, opts));
+  }
+  for (const field of [{ kind: 'string' }, { kind: 'ref', model, requireVersion: false },
+    Object.create({ kind: 'user' }), undefined]) {
+    for (const changed of [
+      { ...raw, models: [{ ...raw.models![0]!, fields: [{ name: 'count', field,
+        required: false, serverOnly: false, valueType: 'user' }] }] },
+      { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [{ name: 'value', field,
+        required: false, valueType: 'user' }] } }] },
+    ]) incompatible(() => loadArtifactDescriptors(changed as unknown as ArtifactDescriptorSlice, opts));
+  }
+  for (const value of ['user-id', { id: 'user-id' }]) {
+    const legacy = { ...raw, models: [{ ...raw.models![0]!, fields: [{ name: 'count',
+      required: false, serverOnly: false, default: { kind: 'literal' as const, value },
+    }] }] } as unknown as ArtifactDescriptorSlice;
+    assert.equal(Object.hasOwn(loadArtifactDescriptors(legacy, opts).models[0]!.fields.count!, 'valueType'), false);
+  }
+  for (const extra of [{ array: { required: false } }, { nullable: true }]) {
+    const direct = intake();
+    const changed = { ...direct, models: [{ ...direct.models[0]!, fields: {
+      count: { required: false, serverOnly: false, valueType: 'user', ...extra },
+    } }] };
+    incompatible(() => loadExecutionDescriptorSet(changed, opts));
+    assert.throws(() => buildModelTableFromCanonical(changed.models), /Invalid valueType/);
+  }
+  const direct = intake();
+  incompatible(() => loadExecutionDescriptorSet({ ...direct, operations: [{ ...direct.operations[0]!,
+    inputs: [{ name: 'value', kind: 'user', required: false, valueType: 'text' }] }] }, opts));
 });
