@@ -1,0 +1,21 @@
+{
+  "verdict": "accept_bounded_explicit_unsupported_admission",
+  "blocking_findings": [],
+  "original_finding_joins": ["SYN-R05", "S9-Q04"],
+  "closed_outcome": "Corpus no longer silently ships without owning meaning; Judgment retains E6006 refusal",
+  "supported_corpus_or_judgment_implementation_released": false,
+  "new_jev_consultation_prerequisite_for_this_refusal": false,
+  "reason": "Verified catalog/contracts defer the generated Corpus interface and current compiler/runtime owners do not implement it. E6008 enforces that unsupported emission boundary without selecting interface/backend/provider/permission or attribute-checking semantics.",
+  "reviewed_ir_sha256": "2a8df2950eb2bf10ec2c81e7af556a2802791961e6a87693eafb1d5709c590f7",
+  "reviewed_cli_sha256": "a793809ff67fd5dfd55b822fbbe586dadc41fbc9024f57dc266f6b6329353700",
+  "current_42_rust_source_pins_match_packet_after": true,
+  "existing_focused_tests_inspected_not_repeated": 28,
+  "independent_library_build": "locked/offline current source, Cargo-reported rlib",
+  "independent_public_probe_exit": 0,
+  "independent_cli_calls": 8,
+  "independent_cli_controls": ["duplicate occurrence", "strings/comments", "prohibited Corpus body", "missing required attributes"],
+  "independent_public_controls": ["exact occurrence spans and canonical module names", "selected nonzero source", "unselected Corpus", "immutable append Corpus", "artifact-plus-diagnostics contract"],
+  "remaining_work": "Checked supported Corpus/Judgment owner/carrier/interface/runtime implementation remains proposed/unimplemented and requires consequential-support consultation before release.",
+  "review": "REVIEW.md",
+  "evidence": ["pins.json", "library-build.jsonl", "library-build.stderr", "public-probe.json", "cli-probes.json", "probe.rs"]
+}

@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/Users/vince/Projects/canlang/compiler/tests/fixtures/corpus-admission/missing.can\",\"sha256\":\"4f2e1f5280c40f8a53702e1ea71670a7583ddadd1d167cc020e71a0e8d405439\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+  "stderr": ""
+}

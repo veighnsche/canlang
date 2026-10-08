@@ -1,0 +1,19 @@
+{
+  "pins": {
+    "compiler/src/codegen/ir.rs": "2a8df2950eb2bf10ec2c81e7af556a2802791961e6a87693eafb1d5709c590f7",
+    "compiler/target/debug/can": "a793809ff67fd5dfd55b822fbbe586dadc41fbc9024f57dc266f6b6329353700",
+    "compiler/target/debug/libcanlang_compiler.rlib": "3a8a09b7348ed889a138a719ec799554354171011f6f69a2312b66839e0b62bd",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "implementation/compiler-completion/corpus-admission/independent-review/probe.rs": "8e90488530e784854c78cd37c27045aab12d46f3ee37d2b3509c9b24b0759517",
+    "compiler/tests/corpus_admission.rs": "f3e84176cd52bdb5985002f3885e1b1e1dd3bca1461d5fce4eb91fa16e66a408",
+    "docs/specification/DESIGN.md": "1d36f88fe206299b383e0b7eb76182d559486c99670a2ecc87b5420e28cf7f82",
+    "design/complex-apps/knowledge.md": "657f15de292ff1d4d875f1ea0908440a90a58c2a288e2b2b21abebd6240a8c0c",
+    "packages/contracts/src/services.ts": "91b1580b0b1c884af6ef0c2f162aad0f75cd76d41a369a087ec5310367ee4ebf",
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65"
+  },
+  "current_source_pins_match_packet_after": true,
+  "current_cli_matches_packet_after": true,
+  "library_artifact": "/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+  "source_count": 42,
+  "library_build_exit": 0
+}

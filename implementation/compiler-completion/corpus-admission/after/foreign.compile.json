@@ -1,0 +1,5 @@
+{
+  "exit": 10,
+  "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/Users/vince/Projects/canlang/compiler/tests/fixtures/corpus-admission/foreign.can\",\"sha256\":\"317d97fa8fc8b6edd001007d2026f7aadadd63e3698e0c9e5d10963489405643\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E6008\",\"severity\":\"error\",\"message\":\"corpus Knowledge.Handbook: corpus declarations have no supported emission; generated interfaces and runtime ownership are not implemented\",\"primary\":{\"file\":0,\"start\":123,\"end\":228},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+  "stderr": ""
+}

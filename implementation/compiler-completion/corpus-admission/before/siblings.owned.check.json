@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"compiler/tests/fixtures/corpus-admission/siblings.can\",\"sha256\":\"eee04864915e7ff1387eedd0b742bdc2262f2007b29032ac86db07330993f8ae\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+  "stderr": ""
+}

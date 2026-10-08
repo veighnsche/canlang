@@ -1,0 +1,5 @@
+{
+  "exit": 10,
+  "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"compiler/tests/fixtures/corpus-admission/bare.can\",\"sha256\":\"b161ce8d0c31a428773d7a775fab29aa2a2e9b8045acf3f1aced3e200521f2cc\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E1204\",\"severity\":\"error\",\"message\":\"missing required attribute `model`\",\"primary\":{\"file\":0,\"start\":28,\"end\":28},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+  "stderr": ""
+}

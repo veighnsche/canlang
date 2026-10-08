@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"compiler/tests/fixtures/corpus-admission/judgment.can\",\"sha256\":\"802dcfd105712b8d06b66c25a36a18981731d0efeac7e01dff28727d871a5834\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+  "stderr": ""
+}

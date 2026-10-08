@@ -1,0 +1,13 @@
+package Library
+ Given
+  export Item { title:text }
+ When
+  scenario echo(value:text) read=true -> text by=members
+   do
+    return value
+   examples value=""
+    value -> result
+    "hello" -> "hello"
+ Then
+app Product uses=[Library]
+migration Product from="v1"
