@@ -417,3 +417,6 @@ The existing synchronous Judgment source freezer now uses pinned @noble/hashes2.
 
 
 The installed Worker bundle stages the exact bound-judgment runtime and exported Services specification leaf with pinned Noble SHA-256 siblings, excluding the provider graph. Existing link/host refusal stays unchanged and a missing hash dependency refuses. Owning closure1/1 (817ms) and three formerly blocked page cases3/3 (24.072s) pass, CF emission0. A stale existing Work expected-file-list failure was corrected and retained. No generic vendor traversal or policy/asset expansion; full Judgment/receipt/product acceptance stays open.
+
+
+Redundant synchronous guard export verification scaffolding is retired:112 historical scripts/artifacts/logs/hash chains/review trees removed. Eight existing files retain the concise accepted outcome and precise handler/admission replay boundary, plus the original three JEV requests/responses and uncertainty assessment. Maintained production guard and selected-call tests remain outside this directory; no runtime change or test rerun. Owning pointers now link the retained report. Cleanup does not qualify current source or advance the complete filetree checkpoint.

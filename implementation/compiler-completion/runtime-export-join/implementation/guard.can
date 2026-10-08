@@ -1,7 +1,0 @@
-app Guard
-Given
-When
- scenario echo(value:text) read=true -> text by=members
-  do
-   return lower(value)
-Then
