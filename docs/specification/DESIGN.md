@@ -427,6 +427,19 @@ they do not create resolved-default receipts. The existing `int[]` result
 profile is retained; enum result carriers, broader reference/default forms,
 D1 and full applications remain separate.
 
+Public scenario and read enum results publish the same checked ordered inline
+type identity as their inputs, such as `enum(a,b)` or `enum(a,b)[]?`, on the
+existing result descriptor. The [enum-result check](../../compiler/tests/enum_result_runtime.rs)
+qualifies singular, outer-nullable, ordinary-array and nullable-array results
+through genuine compiler output and canonical CF/State Memory. State admits
+the canonical type claim; Cloudflare checks defining read cases and wrappers
+and uses the existing Values result encoder. Null, empty and ordered arrays
+preserve their wire values; reads preserve revision/history, and nonmember
+admission refuses before authored execution. Scalar/model results and input
+claim derivation retain their existing paths. Nonempty, element-nullable and
+nested enum result shapes and private result producers remain outside this
+slice; D1 and full applications remain separate.
+
 Optional operation-owned input assistance is authored on the parameter, for example `assignee:user choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]}` or `region:Region choices={read=region_choices(country=country),labels=["name"]}`. The compiler derives the canonical owning read, checked input paths, candidate value and labels from declarations, and publishes version 1 metadata on the existing input descriptor. A checked read returning a nonnullable one-dimensional stored-model collection publishes its canonical model-array result, such as `approve.Employee[]`; each value keeps the existing model-reference wire representation. Choices grant no authority, execute no read themselves and change no final input, default or server guard. Artifacts carrying choices require `interfaces.input-choices@1`; a consumer must support that feature before admitting the artifact. Viewer-authorized read execution, current draft binding, cancellation, stale-response fencing and form controls retain their owning consumer scopes. Labels preserve declared reference identities; they introduce no directory or file enrichment.
 
 External mutation admission authenticates the caller/resolves the authorized team and checks `by` before the body. Record inputs resolve their declared type, owner/team, lifetime and expected version within that boundary. The operation’s authored guards govern permission to mutate that record; an ordinary viewer read grant is not an extra universal write prerequisite. This retains §4’s separate read/write permissions rather than silently granting reads to make a write possible. An unreadable record supplied by opaque ID confers no authority: the same owning guards still run and may reject with the generic `rule_failed` without exposing confidential values. Missing, expired or foreign-owner references remain `not_found`; ordinary read/look-up interfaces hide unreadable rows, and page pickers remain viewer-filtered. Return values and changed-record projections still obey their existing disclosure rules, and file attachment authority is checked independently. A caller with only broad operation membership cannot bypass a missing per-record business guard; such a missing guard is an application defect, not inferred permission from an ID. Trusted handlers retain their verified source authority and local calls retain their unchanged caller.
