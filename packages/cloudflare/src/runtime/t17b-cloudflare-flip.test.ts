@@ -535,6 +535,43 @@ export function canApp() {
 }
 
 describe("T17b read-policy transcription (PolicyTable grants)", () => {
+  it("uses owning actor-only grants and refuses invalid predicate provenance", () => {
+    const fields = ["title", "done"];
+    const policy = { read: ["Todo.read.1", "Todo.read.2"] };
+    const provenance = {
+      secretFields: [],
+      declaration: { fields: { title: {}, done: {} }, readGrants: [
+        { rule: "Todo.read.1", by: ["owner"] },
+        { rule: "Todo.read.2", by: ["acme.auditor"], fields: ["title"] },
+      ] },
+      readRules: { "Todo.read.1": () => true, "Todo.read.2": () => true },
+    };
+    assert.deepEqual(mapReadRulesToPolicy("acme.Todo", policy, fields, provenance), {
+      ruled: false, input: { model: "acme.Todo", secretFields: [], grants: [
+        { by: "owner", fields },
+        { by: { role: "acme.auditor" }, fields: ["title"] },
+      ] },
+    });
+    assert.throws(() => mapReadRulesToPolicy("acme.Todo", {
+      ...policy, public: ["Todo.read.1"],
+    }, fields, provenance), /public mark disagrees/);
+    for (const by of [[], [undefined, "owner"], ["owner", "owner"], ["owner", "members"]]) {
+      assert.throws(() => mapReadRulesToPolicy("acme.Todo", policy, fields, {
+        ...provenance, declaration: { ...provenance.declaration, readGrants: [
+          { rule: "Todo.read.1", by }, provenance.declaration.readGrants[1],
+        ] },
+      }), /malformed.*read predicate/);
+    }
+    let evaluated = false;
+    const accessor = { rule: "Todo.read.1", get by() { evaluated = true; return ["public"]; } };
+    assert.throws(() => mapReadRulesToPolicy("acme.Todo", policy, fields, {
+      ...provenance, declaration: { ...provenance.declaration, readGrants: [
+        accessor, provenance.declaration.readGrants[1],
+      ] },
+    }), /accessor metadata/);
+    assert.equal(evaluated, false);
+  });
+
   it("transcribes absent/empty read content to ZERO grants; rules mark ruled; malformed throws", () => {
     // B7 fail-closed (joint decision overturns the interim-exact
     // public-grant default): no read content is deny-with-empty —
