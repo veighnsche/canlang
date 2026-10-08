@@ -1726,7 +1726,7 @@
   "foreign_runtime_pure_integration": "implementation/package-maintenance-repair/runs/codex-go-20261007/runtime-pure-helpers-root-integration.json",
   "current_goal_turn_actions": {
     "classification": "progress",
-    "evidence": "State one-query selection committed256a1796 with17focused passes; nested verification cleanup committed2266088b. Released page source uses defining Interfaces renderer and State executor, private owning builds and34checks pass. Preserved actual bare-list Images fails422 due missing required empty caption; compiler adds source refusal and supported authored variant qualification proceeds. Required shared-default design remains open. Full48 centrally tracked; no worker goal or timer. Page source committed1c1fcc9f. Ordered typed-write State checkpoint qualifies native row/default wire conversion at its existing late boundary with81focused passes; broad typed consumer remains in progress. Explicit authored empty-caption Images compiler and real Node/workerd+D1 gate pass; original workflow default stays open. State typed checkpoint committed841f56a8. Finite checked locale reader is now implementing. Checked locale reader private emit and11focused assembly boundary tests pass; the existing owning assembly/main caller fixtures are now being reconciled and tested for their concrete old-interim setup risk. Original owning caller fixtures reconciled with authored app entry and real Interfaces factory; private assembly21/21/main14/14 pass with original journeys retained. Typed runtime consumer extends context/stdlib by exact ACK and is checking actual D1 after one owning build22/22. Typed runtime actual D1, legacy missing-result and explicit-ID/binding profiles are released and accepted by direct source review; no broader parent completion. Original t16b/t17b synthetic fixtures are being reconciled separately without weakening production. Bound-ref metadata correction released after actual D1 profile1/1 passed: preserve admitted v, staged fields, stored v+1."
+    "evidence": "State one-query selection committed256a1796 with17focused passes; nested verification cleanup committed2266088b. Released page source uses defining Interfaces renderer and State executor, private owning builds and34checks pass. Preserved actual bare-list Images fails422 due missing required empty caption; compiler adds source refusal and supported authored variant qualification proceeds. Required shared-default design remains open. Full48 centrally tracked; no worker goal or timer. Page source committed1c1fcc9f. Ordered typed-write State checkpoint qualifies native row/default wire conversion at its existing late boundary with81focused passes; broad typed consumer remains in progress. Explicit authored empty-caption Images compiler and real Node/workerd+D1 gate pass; original workflow default stays open. State typed checkpoint committed841f56a8. Finite checked locale reader is now implementing. Checked locale reader private emit and11focused assembly boundary tests pass; the existing owning assembly/main caller fixtures are now being reconciled and tested for their concrete old-interim setup risk. Original owning caller fixtures reconciled with authored app entry and real Interfaces factory; private assembly21/21/main14/14 pass with original journeys retained. Typed runtime consumer extends context/stdlib by exact ACK and is checking actual D1 after one owning build22/22. Typed runtime actual D1, legacy missing-result and explicit-ID/binding profiles are released and accepted by direct source review; no broader parent completion. Original t16b/t17b synthetic fixtures are being reconciled separately without weakening production. Bound-ref metadata correction released after actual D1 profile1/1 passed: preserve admitted v, staged fields, stored v+1. Trusted app locale formatting scope released and directly checked1/1, compiler adapter can consume exact optional readonly c.formatting.appDefault."
   },
   "live_finite_packets": [
     {
@@ -1853,8 +1853,18 @@
       "agent": "/root/trusted_locale_scope",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "status": "Finite read-only caller/shape preparation pending typed source Git release",
-      "commands_live": false
+      "status": "Writer/readers/commands released; root direct reviewed; private owning CF emit and actual canonical bridge1/1 pass; scoped commit pending",
+      "commands_live": false,
+      "files": [
+        "packages/cloudflare/src/runtime/context.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/src/runtime/handler-formatting.test.ts"
+      ],
+      "outputs": "/private/tmp/can-handler-formatting-emit.mgt0fA/dist",
+      "validation": "One private owning emit and direct Node canonical scenario1/1. Prior11metadata reader checks reused unchanged.",
+      "scope": "Frozen copied c.formatting.appDefault from existing checked AppInfo passed by host HTTP/MCP factory; team zone separate. Explicit low-level appId preserves absent scope.",
+      "limits": "Handwritten observing body over actual artifact/admission/context; compiler formatting lowering, sourceLang, installed/durable/whole locale outcomes separate."
     },
     {
       "task": "H1 original t16b/t17b fixture contract maintenance",
