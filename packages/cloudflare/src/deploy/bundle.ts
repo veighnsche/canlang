@@ -620,10 +620,30 @@ function stageArtifactModules(artifact: CompileArtifact): { modules: Record<stri
       );
     }
   }
+  // Artifact modules share the output tree with platform modules and writer
+  // manifests. Check ownership before staging any bytes, including aliases.
+  const platformDirectories = new Set(["worker", "runtime", "vendor"]);
+  const writerManifests = new Set([...RESERVED_MIXED_OUTPUTS, "bundle.resources.json"]);
+  const seen = new Map<string, string>();
+  for (const mod of modules) {
+    assertSafeRelativePath(mod.path, "to stage module");
+    const normalized = posix.normalize(mod.path);
+    const root = normalized.split("/")[0]!;
+    if (platformDirectories.has(root)) {
+      throw new Error(`deploy bundle: artifact module ${JSON.stringify(mod.path)} reserves platform directory ${JSON.stringify(root)}`);
+    }
+    if (writerManifests.has(root)) {
+      throw new Error(`deploy bundle: artifact module ${JSON.stringify(mod.path)} reserves writer manifest path ${JSON.stringify(root)}`);
+    }
+    const prior = seen.get(normalized);
+    if (prior !== undefined) {
+      throw new Error(`deploy bundle: artifact module ${JSON.stringify(mod.path)} aliases ${JSON.stringify(prior)} after normalization`);
+    }
+    seen.set(normalized, mod.path);
+  }
   const staged: Record<string, string> = {};
   const sourceMaps: Record<string, SourceMap> = {};
   for (const mod of modules) {
-    assertSafeRelativePath(mod.path, "to stage module");
     const rewritten = rewriteArtifactImports(mod.js, mod.path);
     const view = composeModuleMap(mod.map, rewritten.map === undefined ? [] : [rewritten.map], mod.js);
     if (view.map !== undefined) sourceMaps[mod.path] = view.map;
