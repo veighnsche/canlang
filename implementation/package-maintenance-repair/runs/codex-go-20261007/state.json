@@ -1579,7 +1579,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T14:37:21.087460Z",
+  "updated_utc": "2026-10-08T14:49:58.040857Z",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1609,7 +1609,8 @@
     "index_observed": "integrator reports empty; root maintains hold until explicit handback",
     "handback": "7f92c05f77841fe724bd804c2d7b83666c775b1f",
     "foreign_scope": "Human-authorized state-machine/refresh feature; its verification retained as external source-current input, not root package acceptance",
-    "checkpoint": "824934 unchanged; foreign integrator explicitly leaves accumulated allocation review open"
+    "checkpoint": "824934 unchanged; foreign integrator explicitly leaves accumulated allocation review open",
+    "current_index_owner": "Root after Compiler explicit empty-index handback; HEAD7126ef6f. Compiler source b40a5390 and own bookkeeping7126ef6f remain preserved; no concurrent staging until root handoff."
   },
   "shared_doc_handoff": {
     "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
@@ -2024,14 +2025,25 @@
       "commit": "ded8103fb90756f6be9f3eb07743ba9a8f050009",
       "latest_source_release": "Renewed full owning35/36 source frozen after actual user-prefill/blank omission fixes and original debounce/cancel/loading/empty/focus controls; source-ready for scoped commit. No CF fanout bridge changes yet; invoke.ts released only after this commit.",
       "consumer_component": {
-        "status": "Root accepted released finite dependent-input consumer production component; coherent source commit ready",
+        "status": "Root directly reviewed and committed5c34a2e0 finite dependent-input consumer",
         "contract": "Version1 owner declaration/checking/HTTP session+CSRF+protected binding -> actual current canonical read and native model identity/wire -> advisory existing form controls; final operation remains canonical. No raw-object reference grants, hidden-field hydration or new permission policy.",
         "verification": "Compiler genuine source/descriptor and State4208caf7 results reused. Recipient sole changed-source State emit0, CF emit0, UI emit0/browserassets0, only changed existing user form cases2/2 plus actual native D1/happy-dom input-choice case1/1 (~13sec). No extra checks/proof layers.",
         "ui_corrections": "Actual150ms debounce, AbortSignal supersession/unbind, context/sequence fences for cancellation-ignoring transports, accessible loading/absent/empty/error feedback, unchanged prerequisite focus and two independent native form selects. Singular user literal{id} prefill, blank optional omission/default, required blank and explicit null/array profiles corrected.",
         "source_limits": "Full real-browser/installed/wider37/Task11/TECH-S02/root48 gates remain open. Scenario returned refs use private actual admitted/created-view binding; mutation-view same() comparison is preexisting unsupported, not expanded. Typed source sort whitelist excludes unsupported duration/date/datetime/refs. No native-default/adoption/TS retirement or replacement reduction.",
         "sources_outputs_handles_released": true,
         "counts_unchanged": true,
-        "next_source_owner": "Roadmap returns to existing CF invoke.ts fanout bridge after exact commit handoff; State already exposes full canonical ExecuteHandler effects, no new State producer wait"
+        "next_source_owner": "Roadmap explicitly received invoke.ts source-clear handoff after5c34a2e0 for existing CF fanout bridge. State full ExecuteHandler/guards/readings/unique/default effects already support canonical child unit; source unchanged. Root Git lease retained; index empty.",
+        "commit": "5c34a2e03b99ce3cc39ad4796aa97919e087344c",
+        "installed_delivery_followup": {
+          "status": "Root directly reviewed released two-path installed bundle/browser correction; focused capture prepared",
+          "files": [
+            "packages/cloudflare/src/deploy/bundle.ts",
+            "packages/cloudflare/test/page-query-serving.test.ts"
+          ],
+          "change": "Pin native-records/input-choices runtime; map Interfaces http/operations and full checker/catalog/bound-argument exports. Existing readonly native case uses real Chrome visibility and polling pause/resume.",
+          "verification": "Owner actual changed CF emit0 and same focused native Worker/browser case1/1 (~11s); prior unchanged cases reused. Dedicated Chrome process/profile cleaned by owner.",
+          "limits": "Actual installed staged bundle and Mac native Chrome case only; no all-host/native-preparation/full DEL-D04/DEL-R01/root48 acceptance. No production reduction claim."
+        }
       }
     },
     "source_progress_occurrence_producer": {
@@ -2169,6 +2181,52 @@
       "counts_unchanged": true,
       "commit": "a93c3af72f63b7f2d6dc8eebdf8fde77bd98630a",
       "git_handoff": "Exactly ten owned paths inspected/committed under coordinator exclusive index ACK; index returned empty. CF invoke and active UI/form sources remain other writer leases."
+    },
+    "fanout_generated_body_followup": {
+      "status": "Owner ordinary compiled-child release reopened on two paths for actual-call identity/source pin; root holds capture until renewed release",
+      "contract": "Existing State invokeFanoutChild/ExecuteHandler already carries full admitted call, guards/readings/unique/default effects. CF owning mirror/body bridge now passes them and real generated result through existing child unit; actual registry and fresh row select refversion, no second engine.",
+      "outcome": "Original ordinary native D1 case1/1 and unchanged legacy4/4 accepted as owner results; actual factory identity versus admitted call context risk reopened by owner. Private each/trigger source admission still open.",
+      "held_sources": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/typed-cohort-journey.test.ts"
+      ],
+      "owner": "Roadmap01a117b5-8358-7e31-9de3-03d0302cdd3c, no Git staging",
+      "root_limit": "No duplicate tests/emit/review agents or staging live files; root exclusive Git index retained. Scope counts unchanged.",
+      "released_sources": [
+        "packages/cloudflare/test/fixtures/typed-cohort-journey.can",
+        "packages/cloudflare/test/fixtures/typed-cohort-journey.json",
+        "packages/cloudflare/test/fanout-fresh-facts.test.ts"
+      ]
+    },
+    "retained_membership_resume": {
+      "status": "Root directly reviewed and accepted finite source/memory repair; ready for focused capture",
+      "owner": "/root/fix_retained_membership_resume",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Existing retained-freeze contract and recovery path fix on one production file; least expensive reliable finite technical choice",
+      "files": [
+        "packages/state/src/fanout/membership.ts",
+        "packages/state/src/fanout/t34-f5-admission.test.ts"
+      ],
+      "contract": "Re-freeze same deterministic saved intent resumes frozen membership without querying current domain; preserve fresh fences and owner/cutoff/model/bounds admission; unreadable retained intent diagnoses, never fallback to new membership.",
+      "verification": "Private State TypeScript emission0; one existing-source memory regression1/1 passed. Frozen [a,b] interrupted after a, live late insertion and failed domain query; b resumes with zero live domain queries, cursor clears only after admission. Unchanged checks reused.",
+      "limit": "TECH-W02 retained admission-resume correction only; original durable/compiled/installed/T26 gates remain open.",
+      "sources_outputs_handles_released": true,
+      "private_cleanup": "Removed exact /private/tmp/canlang-retained-membership.ySXQXo including symlink itself after command release; shared outputs/dependency targets preserved."
+    },
+    "enum_computed_default_intake": {
+      "status": "Root directly reviewed finite omission-marker intake; source released for Compiler original actual consumer and focused capture",
+      "sources": [
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/test/invocation/owned-admission.test.ts"
+      ],
+      "contract": "Own computedDefault:true on optional singular nonnullable scenario/read enum input with copied checked cases and no wire/scalar default. Both canonical/artifact enum branches retain marker. Required/array/nullable/malformed/default/incompatible-kind claims refuse; original scalar rules and presence-only admission unchanged.",
+      "verification": "Private State TypeScript emission0 and one extended existing loader/admission case1/1, no repeated source/Compiler consumer check. Root exact direct diff review.",
+      "model": "gpt-6.1-sol medium, frozen bounded marker preservation rather than new semantic policy",
+      "shared_output_owner": "Compiler sole State emission for its pending original enum-default native case; root does not emit shared outputs.",
+      "private_cleanup": "Removed exact /private/tmp/canlang-enum-computed-marker.qEUQwe after terminal command handles; symlink target/shared outputs preserved.",
+      "limits": "No runtime enum membership/null validation guarantee or whole task/parent acceptance; state-generated/v1 remains presence-only for scalars. Compiler source controls do not substitute for runtime hostile-input checks. Native preparation HOLD and counts unchanged.",
+      "sources_outputs_handles_released": true
     }
   },
   "live_finite_packets": [
