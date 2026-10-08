@@ -1,0 +1,23 @@
+app TypedOperationForms
+Given
+ Entry { label:text label="Entry label", count:int=1 label="Count", owner:user server=actor }
+ policy Entry read=members
+When
+ crud Entry by=members fields=label,count label={create="Create entry"}
+ ## The bound entry keeps its admitted version; only label and delta are editable.
+ scenario rename(entry:Entry label="Entry",newLabel:text label="New label",delta:int=1 label="Increment") -> int by=members label="Rename entry"
+  do
+   set entry {label=newLabel,count=entry.count+delta}
+   return entry.count
+Then
+ page / title="Canonical forms"
+  require members
+  ## Required writable inputs appear once, and the managed owner has no widget.
+  form Entry.create display=inline submit="Add entry"
+   input label
+   input count
+  list Entry empty="No entries"
+   text row.label
+   form rename arguments={entry=row} fields=newLabel,delta display=inline submit="Save changes"
+    input newLabel
+    input delta
