@@ -3628,20 +3628,91 @@ async function runScenarioSeam(
         if (typeof model !== "string" || model === "") {
           throw new Error(`t17b: readModel needs a non-empty string model (wiring bug).`);
         }
-        assertServableReadQuery(StateError, query);
+        const native = callable?.inputStyle === 'parameters';
+        if (!native) assertServableReadQuery(StateError, query);
         if (loaded.ruledModels.has(model)) {
           throw ruledReadRefusal(StateError, model);
         }
-        const served = await loaded.producers.invoke.invokeRead({
+        const dependencies: ProjectedRecord[] = [];
+        let selection: CanonicalReadSelection | undefined;
+        const sourcePredicate = native && typeof query.where === 'function';
+        if (native) {
+          if (Object.keys(query).some(key => !['where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+              (query.authority !== undefined && query.authority !== 'viewer') ||
+              (query.archived !== undefined && query.archived !== 'exclude')) {
+            throw new StateError('validation', 'Mutation queries require viewer reads over current records without containment filters.');
+          }
+          const where = query.where;
+          let order: OrderTerm[] | undefined;
+          if (query.order !== undefined) {
+            if (!Array.isArray(query.order) || !query.order.every(term => typeof term === 'string' && term !== '' && term !== '-')) {
+              throw new StateError('validation', 'Mutation query order requires compiler field spellings.');
+            }
+            order = query.order.map((term: string) => ({ field: term.startsWith('-') ? term.slice(1) : term,
+              direction: term.startsWith('-') ? 'desc' : 'asc' }));
+            const metadataOrder = new Set(['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt']);
+            const fields = loaded.models.find(candidate => candidate.name === model)?.fields;
+            for (const term of order) {
+              const type = fields?.[term.field]?.valueType?.replace(/\?$/, '');
+              if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money'].includes(type ?? '')) {
+                throw new StateError('validation', 'Mutation query order currently supports metadata, text, bool, int, decimal, and money fields.');
+              }
+            }
+          }
+          const nativeLimit: unknown = query.limit;
+          const limit = typeof nativeLimit === 'bigint' && nativeLimit >= 0n && nativeLimit <= BigInt(Number.MAX_SAFE_INTEGER)
+            ? Number(nativeLimit) : nativeLimit;
+          if (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
+            throw new StateError('validation', 'Mutation query limit requires a non-negative safe integer.');
+          }
+          selection = {
+            ...(typeof where === 'function' ? { predicate: async (row: Readonly<ProjectedRecord>) => {
+              // False candidates are observations too. Source sees only the
+              // viewer's projection, even when it runs inside a mutation.
+              dependencies.push(structuredClone(row));
+              const matched = await where(projectedRecordView(model, row));
+              if (typeof matched !== 'boolean') throw new StateError('validation', 'Mutation query predicates must return bool.');
+              return matched;
+            } } : where === undefined ? {} : { where: structuredClone(where) as QueryPredicate }),
+            ...(order === undefined ? {} : { order }),
+            ...(limit === undefined ? {} : { limit: limit as number }),
+          };
+        }
+        // Staged rows are immutable snapshots. Preserve this query's overlay
+        // so a later own write cannot invalidate an earlier observation.
+        const queryStore = native ? withStagedOverlay(opts.store, new Map(staged)) : overlay;
+        const read = (selected: CanonicalReadSelection | undefined) => loaded.producers.invoke.invokeRead({
           registry: loaded.registry,
           envelope: { operation: `${model}.read`, inputs: {} },
           identity: opts.identity,
+          ...(selected === undefined ? {} : { selection: selected }),
           policy: loaded.policy,
-          store: overlay,
+          store: queryStore,
           memberships: opts.memberships,
         });
+        const served = await read(selection);
         if (!Array.isArray(served.records)) {
           throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
+        }
+        if (native) {
+          const assertRevision = async (reading: CanonicalReadServed): Promise<void> => {
+            if (seamTrigger !== undefined && (reading.revision !== seamTrigger.revision ||
+                await opts.store.readRevision() !== seamTrigger.revision)) {
+              throw new StateError('conflict', 'State changed during the mutation query.');
+            }
+          };
+          await assertRevision(served);
+          const projection = (records: readonly ProjectedRecord[]): string => JSON.stringify(
+            sourcePredicate ? [...records].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0) : records,
+          );
+          const observed = projection(sourcePredicate ? dependencies : served.records);
+          seamGuards.push({ name: `${model}.read`, evaluate: async () => {
+            // Re-admit the complete observed domain with current grants. Never
+            // replay source callbacks or apply their post-filter limit/order.
+            const fresh = await read(sourcePredicate ? undefined : selection);
+            await assertRevision(fresh);
+            return projection(fresh.records) === observed;
+          } });
         }
         // T32b: offer the REAL served object as authorization evidence
         // (an eventual marker would survive to the commit bar).
