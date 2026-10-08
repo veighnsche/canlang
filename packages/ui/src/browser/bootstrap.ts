@@ -191,6 +191,7 @@ interface DomNode {
   readonly nodeType: number;
   nodeValue: string | null;
   readonly childNodes: ArrayLike<DomNode>;
+  readonly parentNode?: DomNode | null;
   readonly tagName?: string;
   readonly attributes?: Iterable<{ readonly name: string; readonly value: string }>;
   getAttribute?(name: string): string | null;
@@ -218,7 +219,10 @@ function formIdentity(node: DomNode): string {
   const refs = fields.filter((input) => input.getAttribute?.('name') !== 'operation_id' && /(?:\[id\]|_id)$/.test(input.getAttribute?.('name') ?? ''))
     .map((input) => [input.getAttribute?.('name'), input.getAttribute?.('value')]).sort();
   const handle = refs.length === 0 && id === '' ? field('action_handle') : '';
-  return JSON.stringify([id, node.getAttribute?.('action'), field('operation'), refs, handle]);
+  const generated = node.getAttribute?.('data-can-generated-form') ?? null;
+  const controls = generated === null ? [] : [...node.querySelectorAll?.('input[id], textarea[id], select[id], button[id]') ?? []]
+    .map((control) => [control.getAttribute?.('id'), control.getAttribute?.('name'), control.getAttribute?.('type')]);
+  return JSON.stringify([id, node.getAttribute?.('action'), field('operation'), refs, handle, generated, controls]);
 }
 
 function compatibleNode(current: DomNode, next: DomNode): boolean {
@@ -231,9 +235,13 @@ function compatibleNode(current: DomNode, next: DomNode): boolean {
   return true;
 }
 
-function morphNode(current: DomNode, next: DomNode, document: DocumentLike): void {
+function morphNode(current: DomNode, next: DomNode, document: DocumentLike, generatedForm = false): void {
   if (current.nodeType !== 1) { current.nodeValue = next.nodeValue; return; }
   const tag = current.tagName?.toLowerCase();
+  // Exact metadata includes the comparison-only binding identity. Keeping the
+  // occurrence retains its nonce/token/CSRF/version set and submit lifecycle.
+  const keepForm = generatedForm || (tag === 'form' && current.getAttribute?.('data-can-generated-form') != null);
+  if (keepForm && current.getAttribute?.('data-can-form-feedback') != null) return;
   const editable = (tag === 'input' && current.getAttribute?.('type') !== 'hidden') || tag === 'textarea' || tag === 'select';
   const keepInput = editable && (document.activeElement === current as unknown as ElementLike ||
     (current.files?.length ?? 0) > 0 ||
@@ -245,6 +253,14 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike): voi
   const selected = tag === 'select'
     ? [...(keepInput ? current : next).querySelectorAll?.('option') ?? []].filter((option) => option.selected).map((option) => option.value) : null;
   const attributes = new Map([...next.attributes ?? []].map((attribute) => [attribute.name, attribute.value]));
+  if (keepForm) {
+    for (const name of tag === 'form' ? ['aria-busy', 'data-can-submit-state'] :
+      tag === 'input' && current.getAttribute?.('type') === 'hidden' ? ['value'] : []) {
+      const retained = current.getAttribute?.(name);
+      if (retained != null) attributes.set(name, retained);
+      else attributes.delete(name);
+    }
+  }
   for (const attribute of [...current.attributes ?? []]) {
     if (!attributes.has(attribute.name)) current.removeAttribute?.(attribute.name);
   }
@@ -260,7 +276,7 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike): voi
     if (matched === null) current.insertBefore(child.cloneNode(true), anchor);
     else {
       if (matched !== anchor) current.insertBefore(matched, anchor);
-      morphNode(matched, child, document);
+      morphNode(matched, child, document, keepForm);
     }
   }
   while (current.childNodes.length > desired.length) {
@@ -268,7 +284,8 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike): voi
     if (last !== undefined) current.removeChild(last);
   }
   if (tag === 'input' || tag === 'textarea' || tag === 'select') {
-    if (tag !== 'select' && current.getAttribute?.('type') !== 'file' && value !== undefined) current.value = keepInput ? value : next.value ?? '';
+    if (tag !== 'select' && current.getAttribute?.('type') !== 'file' && value !== undefined) current.value =
+      keepInput || (keepForm && current.getAttribute?.('type') === 'hidden') ? value : next.value ?? '';
     if (checked !== undefined) current.checked = keepInput ? checked : next.checked ?? false;
     if (selected !== null) {
       for (const option of current.querySelectorAll?.('option') ?? []) option.selected = selected.includes(option.value);
@@ -278,6 +295,16 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike): voi
 
 /** Accept one same-context main partial; never paint login/full-document/error HTML. */
 export function applyPollResponse(document: DocumentLike, region: ElementLike, body: string, status: number): boolean {
+  if (status === 403) {
+    // The admitted denial withdraws old actions; its body supplies no markup or
+    // authority. Removing forms also detaches pending submission callbacks.
+    const root = region as unknown as DomNode;
+    for (const control of root.querySelectorAll?.('form, input, button, select, textarea, [data-can-once], [hx-post], [hx-put], [hx-patch], [hx-delete]') ?? []) {
+      control.parentNode?.removeChild(control);
+    }
+    region.removeAttribute('data-can-poll');
+    return false;
+  }
   if (status < 200 || status >= 300 || /<!doctype|<\/?(?:html|head|body)(?:\s|>)/i.test(body) || document.createElement === undefined) return false;
   const template = document.createElement('template') as { innerHTML: string; readonly content: DomNode };
   template.innerHTML = body;
@@ -315,10 +342,10 @@ function bindPollRegion(
     },
     isLoggedOut: () => region.getAttribute("data-can-logged-out") === "true" || internals.document.body?.getAttribute("data-can-logged-out") === "true",
     onResponse: (body, status) => {
-      const applied = internals.deliver === undefined
+      const applied = status === 403 || internals.deliver === undefined
         ? applyPollResponse(internals.document, region, body, status)
         : internals.deliver(region, body, status);
-      if (applied !== false) client.rescan();
+      if (status === 403 || applied !== false) client.rescan();
       return applied;
     },
   });

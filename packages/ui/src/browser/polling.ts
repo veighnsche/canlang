@@ -73,7 +73,7 @@ export interface PollRegionOptions {
   readonly context: PollContext;
   /** True once the principal is logged out (polling must terminate, never resume). */
   readonly isLoggedOut: () => boolean;
-  /** Deliver an admitted (current-sequence, current-context) response body. */
+  /** Deliver an admitted success body, or a current-context 403 with an empty body to withdraw stale controls. */
   readonly onResponse: (body: string, status: number) => boolean | void;
   /** Optional stop notification (hidden/context/logout/owner/gone). */
   readonly onStop?: (reason: PollStopReason) => void;
@@ -218,6 +218,12 @@ export class PollRegion {
     }
     if (this.options.context.key() !== this.options.contextKey) {
       this.stop("context-changed");
+      return;
+    }
+    if (response.status === 403) {
+      if (this.options.visibility.visibilityState === 'hidden') { this.stop('hidden'); return; }
+      this.options.onResponse('', response.status);
+      this.stop('response-refused');
       return;
     }
     let body: string;

@@ -340,3 +340,144 @@ describe('prepared source form browser submission', () => {
     } finally { client.stop(); await window.happyDOM.close(); }
   });
 });
+
+async function pollingFormHtml(state: string, partial = false, bindingIdentity = 'same-binding') {
+  const window = new Window();
+  try {
+    window.document.body.innerHTML = await sourceForm();
+    const target = window.document.querySelector('form')!;
+    const metadata = JSON.parse(target.getAttribute('data-can-generated-form')!);
+    target.setAttribute('data-can-generated-form', JSON.stringify({ ...metadata, bindingIdentity }));
+    target.querySelector('input[name="inputs[owner__version]"]')!.setAttribute('type', 'hidden');
+    target.insertAdjacentHTML('beforeend', '<input type="hidden" name="form_binding" value="original-sealed-token">');
+    return renderPage({ ...context, isPartial: partial }, descriptor,
+      [`<p id="job-state">${state}</p>`, target.outerHTML], shell);
+  } finally { await window.happyDOM.close(); }
+}
+
+async function pollingFormPage(fetchImpl: SubmitFetch) {
+  const window = new Window({ url: 'https://can.test/jobs' });
+  window.document.write(await pollingFormHtml('running'));
+  Object.defineProperty(window.document, 'visibilityState', { configurable: true, value: 'visible' });
+  const clock = new Clock();
+  Object.defineProperty(window, 'setTimeout', { configurable: true, value: clock.setTimeout });
+  Object.defineProperty(window, 'clearTimeout', { configurable: true, value: clock.clearTimeout });
+  const results: GeneratedSubmitResult[] = [];
+  const client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'], fetchImpl,
+    onGeneratedFormResult: (_form, result) => results.push(result) });
+  const submit = () => window.document.querySelector('form')!.dispatchEvent(
+    new window.SubmitEvent('submit', { bubbles: true, cancelable: true }));
+  return { window, clock, client, results, submit,
+    close: async () => { client.stop(); await window.happyDOM.close(); } };
+}
+
+describe('source form polling occurrence lifecycle', () => {
+  it('retains the occurrence nonce, sealed binding, CSRF/version and feedback with edited input and focus', async () => {
+    const fresh = (await pollingFormHtml('completed', true))
+      .replace('rendered-operation-id', 'fresh-operation-id').replace('original-sealed-token', 'fresh-sealed-token')
+      .replace('value="csrf"', 'value="fresh-csrf"').replace('value="7"', 'value="8"');
+    const calls: SubmitFetchInit[] = [];
+    const page = await pollingFormPage(async (_url, init) => {
+      if (init.method === 'GET') return response(async () => fresh);
+      calls.push(init);
+      return { status: 422, headers: { get: () => 'application/json' },
+        text: async () => JSON.stringify({ code: 'validation', message: 'Keep this feedback.' }) };
+    });
+    try {
+      const target = page.window.document.querySelector('form')!;
+      const title = target.querySelectorAll<typeof page.window.HTMLInputElement.prototype>('input[name="inputs[title]"]')[1]!;
+      title.value = 'Draft for this occurrence'; title.focus();
+      page.submit(); await settle();
+      const feedback = target.querySelector('[data-can-form-feedback]')!;
+      const original = ['operation_id', 'form_binding', '_csrf', 'inputs[owner__version]']
+        .map(name => target.querySelector<typeof page.window.HTMLInputElement.prototype>(`input[name="${name}"]`)!);
+      await page.clock.tick();
+      assert.equal(page.window.document.getElementById('job-state')?.textContent, 'completed');
+      assert.equal(page.window.document.querySelector('form'), target);
+      assert.deepEqual(original.map(control => control.value), ['rendered-operation-id', 'original-sealed-token', 'csrf', '7']);
+      assert.equal(target.querySelector('[data-can-form-feedback]'), feedback);
+      assert.equal(feedback.textContent, 'Keep this feedback.');
+      assert.equal(feedback.getAttribute('data-can-form-feedback-code'), 'validation');
+      assert.equal(target.getAttribute('data-can-submit-state'), 'denied');
+      assert.equal(title.value, 'Draft for this occurrence'); assert.equal(page.window.document.activeElement, title);
+      page.submit(); await settle();
+      assert.equal(calls.length, 2);
+      assert.equal(JSON.parse(calls[1]!.body as string).operation_id, 'rendered-operation-id');
+      assert.equal(calls[1]!.headers['x-csrf-token'], 'csrf');
+    } finally { await page.close(); }
+  });
+
+  it('keeps an in-flight occurrence bound once through a poll and delivers its eventual result', async () => {
+    const fresh = (await pollingFormHtml('completed', true)).replace('rendered-operation-id', 'fresh-operation-id')
+      .replace('original-sealed-token', 'fresh-sealed-token');
+    let finish!: (value: SubmitFetchResponse) => void;
+    let submissions = 0;
+    const page = await pollingFormPage(async (_url, init) => init.method === 'GET'
+      ? response(async () => fresh) : (submissions++, new Promise(resolve => { finish = resolve; })));
+    try {
+      const target = page.window.document.querySelector('form')!;
+      page.submit(); await page.clock.tick();
+      assert.equal(target.getAttribute('aria-busy'), 'true');
+      assert.equal(target.getAttribute('data-can-submit-state'), 'pending');
+      page.submit(); assert.equal(submissions, 1);
+      finish(committed()); await settle();
+      assert.equal(page.results.length, 1); assert.equal(target.getAttribute('data-can-submit-state'), 'committed');
+      assert.equal(target.hasAttribute('aria-busy'), false);
+    } finally { await page.close(); }
+  });
+
+  it('replaces changed binding or schema with fresh authority and suppresses the detached pending outcome', async () => {
+    for (const changed of ['binding', 'schema']) {
+      let fresh = (await pollingFormHtml('completed', true, changed === 'binding' ? 'different-binding' : 'same-binding'))
+        .replace('rendered-operation-id', 'fresh-operation-id').replace('original-sealed-token', 'fresh-sealed-token');
+      if (changed === 'schema') fresh = fresh.replace('artifactVersion&quot;:1', 'artifactVersion&quot;:2');
+      let finish!: (value: SubmitFetchResponse) => void;
+      const page = await pollingFormPage(async (_url, init) => init.method === 'GET'
+        ? response(async () => fresh) : new Promise(resolve => { finish = resolve; }));
+      try {
+        const old = page.window.document.querySelector('form')!;
+        const title = old.querySelectorAll<typeof page.window.HTMLInputElement.prototype>('input[name="inputs[title]"]')[1]!;
+        title.value = 'Old draft'; title.focus(); page.submit();
+        old.querySelector('[data-can-form-feedback]')!.textContent = 'Old feedback';
+        await page.clock.tick();
+        const current = page.window.document.querySelector('form')!;
+        assert.notEqual(current, old);
+        assert.equal(current.querySelector<typeof page.window.HTMLInputElement.prototype>('input[name="operation_id"]')!.value, 'fresh-operation-id');
+        assert.equal(current.querySelector<typeof page.window.HTMLInputElement.prototype>('input[name="form_binding"]')!.value, 'fresh-sealed-token');
+        assert.equal(current.hasAttribute('aria-busy'), false); assert.equal(current.hasAttribute('data-can-submit-state'), false);
+        assert.equal(current.querySelector('[data-can-form-feedback]')!.textContent, '');
+        finish(committed()); await settle(); assert.deepEqual(page.results, []);
+      } finally { await page.close(); }
+    }
+  });
+
+  it('withdraws writable controls on the actual current-context forbidden poll without reading or painting its body', async () => {
+    let finish!: (value: SubmitFetchResponse) => void;
+    const page = await pollingFormPage(async (_url, init) => init.method === 'GET'
+      ? { status: 403, headers: { get: () => 'text/html' }, text: async () => { throw new Error('Forbidden body must not be read'); } }
+      : new Promise(resolve => { finish = resolve; }));
+    try {
+      const old = page.window.document.querySelector('form')!;
+      page.submit(); await page.clock.tick();
+      const region = page.window.document.getElementById('can-main')!;
+      assert.equal(region.querySelectorAll('form, input, button, select, textarea').length, 0);
+      assert.equal(page.window.document.getElementById('job-state')?.textContent, 'running');
+      assert.equal(page.clock.tasks.size, 0); assert.equal(page.window.document.querySelector('[data-can-poll]'), null);
+      assert.equal(old.isConnected, false);
+      finish(committed()); await settle(); assert.deepEqual(page.results, []);
+      page.client.rescan(true); assert.equal(page.clock.tasks.size, 0);
+    } finally { await page.close(); }
+  });
+
+  it('does not withdraw the new context from a delayed forbidden response for an obsolete context', async () => {
+    let finish!: (value: SubmitFetchResponse) => void;
+    const page = await pollingFormPage(async () => new Promise(resolve => { finish = resolve; }));
+    try {
+      await page.clock.tick();
+      const target = page.window.document.querySelector('form')!;
+      page.window.document.body.setAttribute('data-can-context', 'different-actor/team');
+      finish({ status: 403, headers: { get: () => 'text/html' }, text: async () => '<form>untrusted</form>' }); await settle();
+      assert.equal(page.window.document.querySelector('form'), target); assert.equal(page.clock.tasks.size, 0);
+    } finally { await page.close(); }
+  });
+});
