@@ -684,5 +684,224 @@
       "handoff": "Compiler owns parser/checker/IR/producer implementation and its proportionate check. Root app/UI owner migrates both genuine CanBook uses only after release and qualifies affected actual generated/native consumer once. Package owns DECISIONS/coverage/capture; Coordinator accepts scope/count.",
       "withdrawal_gate": "Retain inline source if correct host/control/projection semantics require enough new authoring or machinery to erase the measured benefit. No full original52 or whole CanBook credit until the actual two-use action-bearing pilot qualifies."
     }
+  },
+  "split_selection_pilot": {
+    "task": "SEQ-052",
+    "stage": "selected defining carrier, not implemented or accepted consumer",
+    "shared_verified_context": {
+      "verified_facts": [
+        "Finite original52 split presentation choice, architecture facts only: no source excerpts, secrets or user data. Existing design requires exactly selected authorized row detail beside a list/table, mobile drawer; absent/unreadable selection is empty. Selection cannot create authority or business operations.",
+        "Current list renders all children per row; table has columns only and no row callback. Contracts lacks display/selection state. No split browser handler exists. Page presentation already carries request pathname+query poll URL/context.",
+        "Current page row runner ignores renderer identity and uses resolved request identity; canonical read applies current membership/model grants/field masks and captures read checkpoint row/version. Selected details must use returned projected RowView, not raw store access or cached prior rows.",
+        "Real CanBook uses split Appointment future/past tables with all four canonical actions and nested recovery/notice rows, plus Calendar split booking/configuration. Replacing split with inline content or rendering hidden details for all rows changes behavior.",
+        "Existing bounded query results support a current page of rows. Parent/cursor and function predicates are explicitly unsupported at current canonical page query seam; search/order/filter transport is incomplete. Those real workflow gaps remain separate required work, not permission to claim full CanBook.",
+        "Stable compiler collection occurrence + enclosing authorized row identity can namespace presentation selection. URL selected id is a locator only; no fields/versions/grants may be trusted from it. Forms recheck current canonical grants and seal named refs separately.",
+        "Design does not settle whether selection persists when filtered/paginated out of the current query page. No selection means empty; no automatic first row is authorized. Current GET/partial refresh/poll can carry query state, but multiple/nested occurrences and current context withdrawal must remain coherent.",
+        "Compare equal required authority/refusal/action outcomes. This choice releases only a bounded first carrier; any missing parent/cursor or pagination-independent read requires its own producer/consumer qualification. More machinery must justify genuine workflow benefit."
+      ]
+    },
+    "consultations": [
+      {
+        "request": {
+          "model": "jev-latest",
+          "questions": {
+            "direction": {
+              "type": "choice",
+              "instructions": "Which bounded first split-selection carrier best serves these real action-bearing workflows with the current supported read seam and minimal maintenance?",
+              "criteria": {
+                "current_query_url": "Use URL id keyed by stable collection occurrence. Match only fresh authorized rows returned for exact current collection/model/where/parent/page; render one projected detail or empty. No extra record read/capability/token. Selection empties if row leaves query page, filters change or access is revoked. Full GET/history/poll naturally carry locator. Pagination-independent retention stays explicit unfinished scope.",
+                "independent_authorized_read": "Add defining selected-record read that independently revalidates exact parent/predicate membership, current grants/masks and checkpoint; retain selection across pagination. No raw load/bypass. Improves continuity but needs new read carrier and bounded admission/host work absent today, alongside existing parent/cursor prerequisites.",
+                "client_roundtrip": "Keep selected id in client state and transport it with current page/partial/poll requests; always resolve against fresh authorized rows, never cached row data. Avoids visible query selection but requires new state synchronization/history/full-GET behavior and no independent-paging advantage."
+              }
+            }
+          }
+        },
+        "response": {
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "verified_facts": [
+                "Finite original52 split presentation choice, architecture facts only: no source excerpts, secrets or user data. Existing design requires exactly selected authorized row detail beside a list/table, mobile drawer; absent/unreadable selection is empty. Selection cannot create authority or business operations.",
+                "Current list renders all children per row; table has columns only and no row callback. Contracts lacks display/selection state. No split browser handler exists. Page presentation already carries request pathname+query poll URL/context.",
+                "Current page row runner ignores renderer identity and uses resolved request identity; canonical read applies current membership/model grants/field masks and captures read checkpoint row/version. Selected details must use returned projected RowView, not raw store access or cached prior rows.",
+                "Real CanBook uses split Appointment future/past tables with all four canonical actions and nested recovery/notice rows, plus Calendar split booking/configuration. Replacing split with inline content or rendering hidden details for all rows changes behavior.",
+                "Existing bounded query results support a current page of rows. Parent/cursor and function predicates are explicitly unsupported at current canonical page query seam; search/order/filter transport is incomplete. Those real workflow gaps remain separate required work, not permission to claim full CanBook.",
+                "Stable compiler collection occurrence + enclosing authorized row identity can namespace presentation selection. URL selected id is a locator only; no fields/versions/grants may be trusted from it. Forms recheck current canonical grants and seal named refs separately.",
+                "Design does not settle whether selection persists when filtered/paginated out of the current query page. No selection means empty; no automatic first row is authorized. Current GET/partial refresh/poll can carry query state, but multiple/nested occurrences and current context withdrawal must remain coherent.",
+                "Compare equal required authority/refusal/action outcomes. This choice releases only a bounded first carrier; any missing parent/cursor or pagination-independent read requires its own producer/consumer qualification. More machinery must justify genuine workflow benefit."
+              ]
+            },
+            "questions": {
+              "direction": {
+                "type": "choice",
+                "instructions": "Which bounded first split-selection carrier best serves these real action-bearing workflows with the current supported read seam and minimal maintenance?",
+                "criteria": {
+                  "current_query_url": "Use URL id keyed by stable collection occurrence. Match only fresh authorized rows returned for exact current collection/model/where/parent/page; render one projected detail or empty. No extra record read/capability/token. Selection empties if row leaves query page, filters change or access is revoked. Full GET/history/poll naturally carry locator. Pagination-independent retention stays explicit unfinished scope.",
+                  "independent_authorized_read": "Add defining selected-record read that independently revalidates exact parent/predicate membership, current grants/masks and checkpoint; retain selection across pagination. No raw load/bypass. Improves continuity but needs new read carrier and bounded admission/host work absent today, alongside existing parent/cursor prerequisites.",
+                  "client_roundtrip": "Keep selected id in client state and transport it with current page/partial/poll requests; always resolve against fresh authorized rows, never cached row data. Avoids visible query selection but requires new state synchronization/history/full-GET behavior and no independent-paging advantage."
+                }
+              }
+            }
+          },
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "direction": {
+                "type": "choice",
+                "choice": "current_query_url",
+                "confidence": 1.0,
+                "probabilities": {
+                  "current_query_url": 1.0,
+                  "independent_authorized_read": 0.0,
+                  "client_roundtrip": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 967,
+              "output_tokens": 53
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "model": "jev-latest",
+          "questions": {
+            "direction": {
+              "type": "choice",
+              "instructions": "Choose the next defining selection contract, comparing continuity benefits against new read/state ownership and identical current authorization requirements.",
+              "criteria": {
+                "current_query_url": "Use URL id keyed by stable collection occurrence. Match only fresh authorized rows returned for exact current collection/model/where/parent/page; render one projected detail or empty. No extra record read/capability/token. Selection empties if row leaves query page, filters change or access is revoked. Full GET/history/poll naturally carry locator. Pagination-independent retention stays explicit unfinished scope.",
+                "independent_authorized_read": "Add defining selected-record read that independently revalidates exact parent/predicate membership, current grants/masks and checkpoint; retain selection across pagination. No raw load/bypass. Improves continuity but needs new read carrier and bounded admission/host work absent today, alongside existing parent/cursor prerequisites.",
+                "client_roundtrip": "Keep selected id in client state and transport it with current page/partial/poll requests; always resolve against fresh authorized rows, never cached row data. Avoids visible query selection but requires new state synchronization/history/full-GET behavior and no independent-paging advantage."
+              }
+            }
+          }
+        },
+        "response": {
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "verified_facts": [
+                "Finite original52 split presentation choice, architecture facts only: no source excerpts, secrets or user data. Existing design requires exactly selected authorized row detail beside a list/table, mobile drawer; absent/unreadable selection is empty. Selection cannot create authority or business operations.",
+                "Current list renders all children per row; table has columns only and no row callback. Contracts lacks display/selection state. No split browser handler exists. Page presentation already carries request pathname+query poll URL/context.",
+                "Current page row runner ignores renderer identity and uses resolved request identity; canonical read applies current membership/model grants/field masks and captures read checkpoint row/version. Selected details must use returned projected RowView, not raw store access or cached prior rows.",
+                "Real CanBook uses split Appointment future/past tables with all four canonical actions and nested recovery/notice rows, plus Calendar split booking/configuration. Replacing split with inline content or rendering hidden details for all rows changes behavior.",
+                "Existing bounded query results support a current page of rows. Parent/cursor and function predicates are explicitly unsupported at current canonical page query seam; search/order/filter transport is incomplete. Those real workflow gaps remain separate required work, not permission to claim full CanBook.",
+                "Stable compiler collection occurrence + enclosing authorized row identity can namespace presentation selection. URL selected id is a locator only; no fields/versions/grants may be trusted from it. Forms recheck current canonical grants and seal named refs separately.",
+                "Design does not settle whether selection persists when filtered/paginated out of the current query page. No selection means empty; no automatic first row is authorized. Current GET/partial refresh/poll can carry query state, but multiple/nested occurrences and current context withdrawal must remain coherent.",
+                "Compare equal required authority/refusal/action outcomes. This choice releases only a bounded first carrier; any missing parent/cursor or pagination-independent read requires its own producer/consumer qualification. More machinery must justify genuine workflow benefit."
+              ]
+            },
+            "questions": {
+              "direction": {
+                "type": "choice",
+                "instructions": "Choose the next defining selection contract, comparing continuity benefits against new read/state ownership and identical current authorization requirements.",
+                "criteria": {
+                  "current_query_url": "Use URL id keyed by stable collection occurrence. Match only fresh authorized rows returned for exact current collection/model/where/parent/page; render one projected detail or empty. No extra record read/capability/token. Selection empties if row leaves query page, filters change or access is revoked. Full GET/history/poll naturally carry locator. Pagination-independent retention stays explicit unfinished scope.",
+                  "independent_authorized_read": "Add defining selected-record read that independently revalidates exact parent/predicate membership, current grants/masks and checkpoint; retain selection across pagination. No raw load/bypass. Improves continuity but needs new read carrier and bounded admission/host work absent today, alongside existing parent/cursor prerequisites.",
+                  "client_roundtrip": "Keep selected id in client state and transport it with current page/partial/poll requests; always resolve against fresh authorized rows, never cached row data. Avoids visible query selection but requires new state synchronization/history/full-GET behavior and no independent-paging advantage."
+                }
+              }
+            }
+          },
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "direction": {
+                "type": "choice",
+                "choice": "current_query_url",
+                "confidence": 0.94,
+                "probabilities": {
+                  "current_query_url": 0.96,
+                  "independent_authorized_read": 0.04,
+                  "client_roundtrip": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 965,
+              "output_tokens": 53
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "model": "jev-latest",
+          "questions": {
+            "direction": {
+              "type": "choice",
+              "instructions": "For this verified split-view gap, which first carrier is justified without replacing the source workflow or overstating unfinished pagination and parent admission?",
+              "criteria": {
+                "current_query_url": "Use URL id keyed by stable collection occurrence. Match only fresh authorized rows returned for exact current collection/model/where/parent/page; render one projected detail or empty. No extra record read/capability/token. Selection empties if row leaves query page, filters change or access is revoked. Full GET/history/poll naturally carry locator. Pagination-independent retention stays explicit unfinished scope.",
+                "independent_authorized_read": "Add defining selected-record read that independently revalidates exact parent/predicate membership, current grants/masks and checkpoint; retain selection across pagination. No raw load/bypass. Improves continuity but needs new read carrier and bounded admission/host work absent today, alongside existing parent/cursor prerequisites.",
+                "client_roundtrip": "Keep selected id in client state and transport it with current page/partial/poll requests; always resolve against fresh authorized rows, never cached row data. Avoids visible query selection but requires new state synchronization/history/full-GET behavior and no independent-paging advantage."
+              }
+            }
+          }
+        },
+        "response": {
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "verified_facts": [
+                "Finite original52 split presentation choice, architecture facts only: no source excerpts, secrets or user data. Existing design requires exactly selected authorized row detail beside a list/table, mobile drawer; absent/unreadable selection is empty. Selection cannot create authority or business operations.",
+                "Current list renders all children per row; table has columns only and no row callback. Contracts lacks display/selection state. No split browser handler exists. Page presentation already carries request pathname+query poll URL/context.",
+                "Current page row runner ignores renderer identity and uses resolved request identity; canonical read applies current membership/model grants/field masks and captures read checkpoint row/version. Selected details must use returned projected RowView, not raw store access or cached prior rows.",
+                "Real CanBook uses split Appointment future/past tables with all four canonical actions and nested recovery/notice rows, plus Calendar split booking/configuration. Replacing split with inline content or rendering hidden details for all rows changes behavior.",
+                "Existing bounded query results support a current page of rows. Parent/cursor and function predicates are explicitly unsupported at current canonical page query seam; search/order/filter transport is incomplete. Those real workflow gaps remain separate required work, not permission to claim full CanBook.",
+                "Stable compiler collection occurrence + enclosing authorized row identity can namespace presentation selection. URL selected id is a locator only; no fields/versions/grants may be trusted from it. Forms recheck current canonical grants and seal named refs separately.",
+                "Design does not settle whether selection persists when filtered/paginated out of the current query page. No selection means empty; no automatic first row is authorized. Current GET/partial refresh/poll can carry query state, but multiple/nested occurrences and current context withdrawal must remain coherent.",
+                "Compare equal required authority/refusal/action outcomes. This choice releases only a bounded first carrier; any missing parent/cursor or pagination-independent read requires its own producer/consumer qualification. More machinery must justify genuine workflow benefit."
+              ]
+            },
+            "questions": {
+              "direction": {
+                "type": "choice",
+                "instructions": "For this verified split-view gap, which first carrier is justified without replacing the source workflow or overstating unfinished pagination and parent admission?",
+                "criteria": {
+                  "current_query_url": "Use URL id keyed by stable collection occurrence. Match only fresh authorized rows returned for exact current collection/model/where/parent/page; render one projected detail or empty. No extra record read/capability/token. Selection empties if row leaves query page, filters change or access is revoked. Full GET/history/poll naturally carry locator. Pagination-independent retention stays explicit unfinished scope.",
+                  "independent_authorized_read": "Add defining selected-record read that independently revalidates exact parent/predicate membership, current grants/masks and checkpoint; retain selection across pagination. No raw load/bypass. Improves continuity but needs new read carrier and bounded admission/host work absent today, alongside existing parent/cursor prerequisites.",
+                  "client_roundtrip": "Keep selected id in client state and transport it with current page/partial/poll requests; always resolve against fresh authorized rows, never cached row data. Avoids visible query selection but requires new state synchronization/history/full-GET behavior and no independent-paging advantage."
+                }
+              }
+            }
+          },
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "direction": {
+                "type": "choice",
+                "choice": "current_query_url",
+                "confidence": 1.0,
+                "probabilities": {
+                  "current_query_url": 1.0,
+                  "independent_authorized_read": 0.0,
+                  "client_roundtrip": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 970,
+              "output_tokens": 53
+            }
+          }
+        }
+      }
+    ],
+    "selection": "current_query_url",
+    "rationale": "Reuse existing fresh authorized collection query and page GET/poll state; locator selects only a returned projected row. Avoid an extra read capability, signed selection tokens or parallel client state for the bounded first carrier.",
+    "uncertainty": "Same-model advice agrees1/.94/1 confidence, no rationale returned. Actual scoped selection, host/poll/identity/field-mask behavior remains unqualified. Selection outside current query page requires separately justified authorized read; parent/cursor/control gaps remain open.",
+    "contract": {
+      "collection": "Add existing collection display split and stable occurrence plus optional table renderRow through current factories, preserving normal list/table behavior.",
+      "locator": "URL presentation parameter namespace keyed by compiler-owned collection occurrence; value is selected opaque row id only, never row fields/versions/grants. Multiple and nested occurrences remain distinct.",
+      "admission": "Match selected id only among current exact authorized query result rows/model/where/parent/page; render callback once with returned projected row and same current context. Missing/unreadable/not-current id leaves detail empty; no automatic first row or raw store/read bypass.",
+      "host": "Full GET and partial/poll carry locator; current context withdrawal/grant loss removes detail forms and prevents stale paints. Mobile drawer uses same selected authorized row.",
+      "limits": "No selection persistence outside query page claim, no parent/cursor/control support inferred, no wholeCanBook/full52 acceptance."
+    },
+    "implementation_accepted": false,
+    "full_task_accepted": false
   }
 }
