@@ -198,8 +198,10 @@ pub enum IrItemKind {
     Scenario {
         params: Vec<SymbolId>,
         trusted: bool,
+        /// Checked declared event identity for the ordinary trusted handler.
+        event_source: Option<String>,
         /// Pre-commit hook trigger, when `on=Model.create/update/delete`
-        /// (T31 Rule A); other handler triggers keep the `E6008`.
+        /// (T31 Rule A); declared events use the ordinary trusted handler.
         hook: Option<IrHook>,
         /// Checked `each=` fanout cohort (T34-F6): `Some` exactly when
         /// analysis accepted the cohort; absent/invalid cohorts carry no
@@ -1322,14 +1324,21 @@ pub enum IrStmt {
     },
     /// `schedule key at=... event=... {...}`.
     Schedule {
+        /// Checked declaring package; schedule keys are independent of the
+        /// operation that originally admitted the shared runtime context.
+        owner_package: String,
         key: TypedExpr,
         at: TypedExpr,
         event: String,
         payload: TypedExpr,
         span: Span,
     },
-    /// `cancel key` → `cancel(c, key)`.
-    Cancel { key: TypedExpr, span: Span },
+    /// `cancel key` addresses the declaring package's scoped key.
+    Cancel {
+        owner_package: String,
+        key: TypedExpr,
+        span: Span,
+    },
     /// `return value?`.
     Return {
         value: Option<TypedExpr>,
@@ -1906,11 +1915,22 @@ impl<'a> Cx<'a> {
                     result_node.is_some(),
                     &mut self.diags,
                 );
-                let (read, by, label, description, expose_excluded, guards, effects, hook, cohort) =
-                    self.decode_scenario(symbol);
+                let (
+                    read,
+                    by,
+                    label,
+                    description,
+                    expose_excluded,
+                    guards,
+                    effects,
+                    hook,
+                    cohort,
+                    event_source,
+                ) = self.decode_scenario(symbol);
                 IrItemKind::Scenario {
                     params: params.clone(),
                     trusted: *trusted,
+                    event_source,
                     hook,
                     cohort,
                     result,
@@ -4035,6 +4055,14 @@ impl<'a> Cx<'a> {
             }
             EffectVerb::Send => self.decode_send(scope, effect, what, span),
             EffectVerb::Schedule => {
+                let Some(owner) = self.program.modules.get(scope.module.0 as usize) else {
+                    return unsupported_stmt(
+                        "schedule statement",
+                        "checked declaring package is unavailable",
+                        span,
+                    );
+                };
+                let owner_package = owner.name.clone();
                 let (Some(key), Some(at)) = (effect.key.as_ref(), effect.at.as_ref()) else {
                     return unsupported_stmt(
                         "schedule statement",
@@ -4057,6 +4085,7 @@ impl<'a> Cx<'a> {
                 // value slot was never published for schedules, so every
                 // schedule read as unlowered before this).
                 IrStmt::Schedule {
+                    owner_package,
                     key: self.decode_anchored(scope, key, &format!("{what} schedule key")),
                     at: self.decode_anchored(scope, at, &format!("{what} schedule instant")),
                     event,
@@ -4064,12 +4093,21 @@ impl<'a> Cx<'a> {
                     span,
                 }
             }
-            EffectVerb::Cancel => match effect.value.as_ref() {
-                Some(key) => IrStmt::Cancel {
+            EffectVerb::Cancel => match (
+                self.program.modules.get(scope.module.0 as usize),
+                effect.value.as_ref(),
+            ) {
+                (Some(owner), Some(key)) => IrStmt::Cancel {
+                    owner_package: owner.name.clone(),
                     key: self.decode_anchored(scope, key, &format!("{what} cancel key")),
                     span,
                 },
-                None => unsupported_stmt("cancel statement", "no key is published", span),
+                (None, _) => unsupported_stmt(
+                    "cancel statement",
+                    "checked declaring package is unavailable",
+                    span,
+                ),
+                (_, None) => unsupported_stmt("cancel statement", "no key is published", span),
             },
             EffectVerb::Return => IrStmt::Return {
                 value: effect
@@ -4707,6 +4745,7 @@ impl<'a> Cx<'a> {
         Vec<IrStmt>,
         Option<IrHook>,
         Option<IrCohort>,
+        Option<String>,
     ) {
         let empty = (
             false,
@@ -4716,6 +4755,7 @@ impl<'a> Cx<'a> {
             false,
             Vec::new(),
             Vec::new(),
+            None,
             None,
             None,
         );
@@ -4752,13 +4792,22 @@ impl<'a> Cx<'a> {
                 symbol.span,
             ));
         }
-        // T31 Rule A: pre-commit hooks lower to engine run functions;
-        // every other handler trigger keeps its `E6008`.
+        // Pre-commit hooks use the engine context. Ordinary declared events
+        // retain their checked identity and existing `{event}` handler ABI.
+        let event_source = match &data.on {
+            Some(crate::analysis::effects::HandlerSource::Event(event))
+                if data.cohort.is_none() =>
+            {
+                Some(self.canonical(*event))
+            }
+            _ => None,
+        };
         let hook = match &data.on {
             Some(crate::analysis::effects::HandlerSource::Hook { model, op }) => Some(IrHook {
                 model: *model,
                 op: *op,
             }),
+            Some(_) if event_source.is_some() => None,
             Some(_) => {
                 self.diags.push(Diagnostic::error(
                     "E6008",
@@ -4812,6 +4861,7 @@ impl<'a> Cx<'a> {
             effects,
             hook,
             cohort,
+            event_source,
         )
     }
 

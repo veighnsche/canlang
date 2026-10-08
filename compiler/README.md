@@ -53,6 +53,9 @@ Implemented modules:
   the catalog/LSP callers that require them.
 - `src/analysis/`: producer-catalog consumer (`--catalog`, `CAN_CATALOG`),
   name resolution, type checking, and effects over the CST.
+  Recurring scope analysis follows executed create-field server initializers
+  and omitted ordinary defaults through their checked declarations. An explicit
+  ordinary-default override and unused model defaults add no dependencies.
 - `src/syntax/`: lossless recoverable CST parser for the full GRAMMAR.md
   (lexer, layout/descriptions, CST, parser, E1xxx diagnostics). Parses the
   whole `examples/` + `draft/` corpus cleanly; see `tests/syntax.rs`.
@@ -84,6 +87,18 @@ Implemented modules:
   omitted-array defaults and unknown-input refusal, along with alias selection,
   request schemas, context identity, input reads and lazy guard order. Canonical
   Work staging and dispatch are qualified by their owning runtime consumers.
+- Ordinary checked schedules emit
+  `schedule(c,key,at,event,payload,{ownerPackage})`; cancellation emits
+  `cancel(c,key,{ownerPackage})`. The compiler supplies the declaring package
+  name and canonical event identity, preserving authored argument order and
+  native datetime/record values. Verified app/owner/occurrence identity,
+  payload encoding, atomic replacement/cancellation and current due-time
+  eligibility remain runtime duties. Declared events publish closed canonical
+  Values input descriptors at `appDefinition.events[event].inputs`. Ordinary
+  declared-event handlers without `each` publish their checked event identity
+  at `appDefinition.operations[handler].event`, using the existing trusted
+  callable and `c,{event}` signature. Other triggers retain their explicit
+  refusal. The pre-commit hook ABI is unchanged.
 - Decimal literals and contextual integral values lower through the existing
   `parseDecimal` path. Decimal arithmetic and value comparisons use the owning
   `Values` helpers. Permanent native runtime witnesses cover these supported

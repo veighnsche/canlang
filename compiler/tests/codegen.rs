@@ -2437,6 +2437,7 @@ fn construct_effects() {
             span: sp(0, 1),
         },
         IrStmt::Schedule {
+            owner_package: "demo".to_string(),
             key: int_lit(1),
             at: typed(
                 IrExpr::Name("due".to_string()),
@@ -2447,6 +2448,7 @@ fn construct_effects() {
             span: sp(0, 1),
         },
         IrStmt::Cancel {
+            owner_package: "demo".to_string(),
             key: int_lit(1),
             span: sp(0, 1),
         },
@@ -2473,8 +2475,11 @@ fn construct_effects() {
         text[4],
         "  const $can$l$313a617474656d7074 = await send(c,\"demo.Svc.ping\", {},{when:()=>true});"
     );
-    assert_eq!(text[5], "  await schedule(c,1n,due,\"demo.Due\",{});");
-    assert_eq!(text[6], "  await cancel(c,1n);");
+    assert_eq!(
+        text[5],
+        "  await schedule(c,1n,due,\"demo.Due\",{},{ownerPackage:\"demo\"});"
+    );
+    assert_eq!(text[6], "  await cancel(c,1n,{ownerPackage:\"demo\"});");
     assert_eq!(text[7], "  await emit(c,\"demo.Due\",{});");
     // Guard/effect order is source order.
     let modes: Vec<&str> = text.iter().take(2).copied().collect();
@@ -6347,7 +6352,9 @@ fn t31_plain_schedule_lowers() {
     assert!(diags.is_empty(), "{diags:?}");
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("await schedule(c,\"k-1\",$can$l$303a6e.due,\"T.Due\",{s:\"x\"});"),
+        js.contains(
+            "await schedule(c,\"k-1\",$can$l$303a6e.due,\"T.Due\",{s:\"x\"},{ownerPackage:\"T\"});"
+        ),
         "schedule lowering:\n{js}"
     );
     t31_assert_parses(js, "plain-schedule");
