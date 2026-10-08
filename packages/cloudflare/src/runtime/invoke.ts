@@ -47,6 +47,10 @@ import type {
   ArtifactCohortDescriptor,
   ClaimId,
   CompileArtifact,
+  ColumnMeta,
+  ListQueryArgs,
+  ListQueryResult,
+  QueryPredicate,
   DispatchClaim,
   DomainWrite,
   FanoutChildId,
@@ -86,6 +90,7 @@ import type {
   UniqueClaim,
   UniqueRelease,
 } from "@canlang/contracts";
+import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT } from "@canlang/contracts";
 import type {
   CanonicalEffectsScope,
   CanonicalReadQuery,
@@ -1112,6 +1117,12 @@ export function seamTriggerPoint(
   return { revision: revision as Revision, owner };
 }
 
+/** Internal selection mirrors the defining State viewer-query handoff. */
+export interface CanonicalReadSelection {
+  readonly where?: QueryPredicate;
+  readonly limit?: number;
+}
+
 /** T17b: structural view of one `invokeRead` served record set. */
 export interface CanonicalReadServed {
   readonly records: ProjectedRecord[];
@@ -1150,6 +1161,7 @@ interface StateInvokeProducer {
       readonly inputs: Record<string, unknown>;
     };
     readonly identity: ResolvedIdentity;
+    readonly selection?: CanonicalReadSelection;
     readonly policy: unknown;
     readonly store: StoragePort;
     readonly memberships: CanonicalMembershipReader;
@@ -1206,6 +1218,7 @@ interface StateTransactProducer {
       readonly inputs: Record<string, unknown>;
     };
     readonly identity: ResolvedIdentity;
+    readonly selection?: CanonicalReadSelection;
   }) => Promise<CanonicalReadServed>;
 }
 
@@ -1751,6 +1764,7 @@ export interface LoadedCanonicalDescriptors {
   readonly table: unknown;
   readonly policy: unknown;
   readonly ruledModels: ReadonlySet<string>;
+  readonly collectionColumns: ReadonlyMap<string, readonly ColumnMeta[]>;
   /** C3/B3: loader-built delivery-field schema, carried for the T25 receipt join (D3 consumes). */
   readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   readonly producers: CanonicalStateProducers;
@@ -1781,8 +1795,8 @@ const canonicalCache = new WeakMap<CompileArtifact, LoadedCanonicalDescriptors>(
 async function collectModelPolicyManifests(
   asm: AssembledModules,
   modelFields: ReadonlyMap<string, ReadonlyArray<string>>,
-): Promise<Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined }>> {
-  const merged = new Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined }>();
+): Promise<Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>> {
+  const merged = new Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>();
   for (const module of Object.keys(asm.moduleUrls)) {
     const url: unknown = (asm.moduleUrls as Record<string, unknown>)[module];
     if (typeof url !== "string" || url.length === 0) continue;
@@ -1846,10 +1860,19 @@ async function collectModelPolicyManifests(
         throw new Error(`${where}: public selector names no loaded model.`);
       }
       const selectors = readSelectorFacts(facts, fields ?? [], { secretFields: [], declaration, readRules }, where);
+      const declaredFields = isUnknownRecord(declaration) ? declaration["fields"] : undefined;
+      const fieldTypes = new Map<string, string>();
+      if (isUnknownRecord(declaredFields)) {
+        for (const field of fields ?? []) {
+          const fieldDeclaration = readMetadataMember(declaredFields, field, where)?.value;
+          const type = isUnknownRecord(fieldDeclaration) ? readMetadataMember(fieldDeclaration, "type", where)?.value : undefined;
+          if (typeof type === "string" && type !== "") fieldTypes.set(field, type);
+        }
+      }
       const previous = merged.get(model);
       if (previous === undefined) {
-        merged.set(model, { policy: facts, selectors });
-      } else if (!sameReadPolicies(previous.policy, facts) || !sameReadSelectors(previous.selectors, selectors)) {
+        merged.set(model, { policy: facts, selectors, fieldTypes });
+      } else if (!sameReadPolicies(previous.policy, facts) || !sameReadSelectors(previous.selectors, selectors) || JSON.stringify([...previous.fieldTypes]) !== JSON.stringify([...fieldTypes])) {
         throw new Error(`${where} carries contradictory read policy across assembled modules (refusing an incoherent set)`);
       }
     }
@@ -2268,11 +2291,22 @@ export async function loadCanonicalDescriptors(
     }
   }
   const policy = producers.grants.buildPolicyTable(policyInputs);
+  const collectionColumns = new Map<string, readonly ColumnMeta[]>();
+  for (const [index, model] of loaded.models.entries()) {
+    const name = canonicalModelName(model, index);
+    const fields = (model as Record<string, unknown>)["fields"] as Record<string, unknown>;
+    const secrets = loaded.secretFields.get(name)!;
+    collectionColumns.set(name, Object.keys(fields).filter(field => !secrets.has(field)).flatMap(field => {
+      const type = manifests.get(name)?.fieldTypes.get(field);
+      return type === undefined ? [] : [{ field, label: field, type }];
+    }));
+  }
   const canonical: LoadedCanonicalDescriptors = {
     registry: loaded.registry,
     table,
     policy,
     ruledModels,
+    collectionColumns,
     producers,
     conflictServerOnly: buildConflictServerOnly(loaded.models),
     deliveryFields: loaded.deliveryFields,
@@ -3630,6 +3664,7 @@ export interface CanonicalReadOpts {
   readonly artifact: CompileArtifact;
   readonly operation: string;
   readonly inputs: Record<string, unknown>;
+  readonly selection?: CanonicalReadSelection;
   /** Transport-verified identity (resolved from the credential per request). */
   readonly identity: ResolvedIdentity;
   readonly store: StoragePort;
@@ -3668,11 +3703,46 @@ export async function invokeReadCanonical(
   const served = await reader({
     envelope: { operation: opts.operation, inputs: opts.inputs },
     identity: opts.identity,
+    ...(opts.selection === undefined ? {} : { selection: opts.selection }),
   });
   if (!Array.isArray(served.records)) {
     throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
   }
   return served;
+}
+
+/** Page collections retain generated read admission and the defining viewer executor. */
+export async function queryPageRowsCanonical(
+  opts: Omit<CanonicalReadOpts, "operation" | "inputs"> & { readonly model: string; readonly args: ListQueryArgs },
+): Promise<ListQueryResult> {
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const StateError = loaded.producers.errors;
+  // The outer selection is a plain stable value. State reads these two fields
+  // only after generated read admission, live membership and closed inputs.
+  const selection: CanonicalReadSelection = {
+    get where() {
+      if (opts.args.parent !== undefined || opts.args.cursor !== undefined || typeof opts.args.where === "function") {
+        throw new StateError("validation", "Page queries do not support parent, cursor or function predicates.");
+      }
+      return opts.args.where as QueryPredicate;
+    },
+    get limit() {
+      const limit = opts.args.limit ?? COLLECTION_DEFAULT_LIMIT;
+      if (!Number.isInteger(limit) || limit < 1 || limit > COLLECTION_MAX_LIMIT) {
+        throw new StateError("validation", "Invalid collection limit.");
+      }
+      return limit;
+    },
+  };
+  const served = await invokeReadCanonical({ ...opts, operation: `${opts.model}.read`, inputs: {}, selection });
+  if (!("records" in served)) throw new Error("page query: canonical model read returned no records");
+  // Only authorized projected field names can make a declared column visible.
+  // Empty collections expose no field schema; private stored values are never read.
+  const visible = new Set(served.records.flatMap(record => Object.keys(record.data)));
+  return {
+    rows: served.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
+    columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
+  };
 }
 
 /* ------------------------------------------------------------------ */

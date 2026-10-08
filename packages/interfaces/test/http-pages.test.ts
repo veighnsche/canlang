@@ -494,37 +494,29 @@ const TODO_LIST_RESULT = {
   columns: [{ field: 'title', label: 'Title', type: 'text' }],
 };
 
-test('in-render row queries flow through the read invoker', async () => {
-  const seen: Array<{ operation: string; inputs: unknown }> = [];
-  const { deps } = await createTestDeps({
-    descriptors: [queryingPage()],
-    reads: {
-      'TestApp.Todo.list': (envelope) => {
-        seen.push({ operation: envelope.operation, inputs: envelope.inputs });
-        return { result: TODO_LIST_RESULT };
-      },
-    },
-  });
-  const handler = createHttpHandler(deps, spySub());
-  const res = await handler(testRequest('/todos', { method: 'GET' }));
+test('in-render row queries use the resolved identity and defining runner', async () => {
+  const seen: Array<{ identity: unknown; model: string; args: unknown }> = [];
+  const { deps } = await createTestDeps({ descriptors: [queryingPage()] });
+  const res = await handlePageRequest({ ...deps, query: async (identity, model, args) => {
+    seen.push({ identity, model, args });
+    return TODO_LIST_RESULT;
+  } }, testRequest('/todos'));
   assert.equal(res.status, 200);
-  assert.ok((await res.text()).includes('Write tests'));
-  assert.deepEqual(seen, [
-    { operation: 'TestApp.Todo.list', inputs: { limit: 10 } },
-  ]);
+  const html = await res.text();
+  assert.ok(html.includes('Write tests'));
+  assert.ok(html.includes('href="/assets/browser/can-style.css"'));
+  assert.ok(html.includes('src="/assets/browser/bootstrap.js"'));
+  assert.equal(seen.length, 1);
+  assert.equal((seen[0]?.identity as ResolvedIdentity).actor, null);
+  assert.equal(seen[0]?.model, 'TestApp.Todo');
+  assert.deepEqual(seen[0]?.args, { limit: 10 });
 });
 
 test('in-render read denials keep their safe meaning (not generic)', async () => {
-  const { deps } = await createTestDeps({
-    descriptors: [queryingPage()],
-    reads: {
-      'TestApp.Todo.list': () => ({
-        error: { code: 'forbidden', message: 'No entry.', retryable: false },
-      }),
-    },
-  });
-  const handler = createHttpHandler(deps, spySub());
-  const res = await handler(testRequest('/todos', { method: 'GET' }));
+  const { deps } = await createTestDeps({ descriptors: [queryingPage()] });
+  const res = await handlePageRequest({ ...deps, query: async () => {
+    throw buildBusinessError('forbidden', 'No entry.');
+  } }, testRequest('/todos'));
   assert.equal(res.status, 403);
   assert.deepEqual(await res.json(), { code: 'forbidden', message: 'No entry.', retryable: false });
 });

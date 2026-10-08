@@ -697,7 +697,8 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
   try {
     writeFileSync(
       entryFile,
-      `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n`,
+      `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
+      `export { handlePageRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n`,
       "utf8",
     );
     entryWritten = true;

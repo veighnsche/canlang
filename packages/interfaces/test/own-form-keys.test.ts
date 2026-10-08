@@ -60,7 +60,7 @@ test('mounted operation preserves declared keys in JSON/form and top-level proto
     return mounted(testRequest(`/api/operations/${op}`, {
       method: 'POST', ...(authed ? { cookie: t.identity.cookie } : {}),
       headers: { 'content-type': form ? 'application/x-www-form-urlencoded' : 'application/json', 'x-csrf-token': csrf },
-      body: form ? new URLSearchParams(Object.entries(body).map(([key, val]) => [key, JSON.stringify(val)])).toString() : JSON.stringify(body),
+      body: form ? new URLSearchParams(Object.entries(body).map(([key, val]): [string, string] => [key, JSON.stringify(val)])).toString() : JSON.stringify(body),
     }));
   }
   for (const form of [false, true]) {

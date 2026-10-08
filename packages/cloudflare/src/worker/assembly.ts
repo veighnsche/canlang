@@ -78,7 +78,6 @@
 
 import type {
   ActivationVerdict,
-  AdmittedBindings,
   ArtifactPage,
   BusinessError,
   BusinessErrorCode,
@@ -90,13 +89,11 @@ import type {
   MutationEnvelope,
   MutationResult,
   PageDescriptor,
-  PresentationContext,
   ReadEnvelope,
   ReadResult,
   ResolvedIdentity,
   RowQueryRunner,
   StoragePort,
-  ThemeTokens,
   UploadIntentGrant,
   UploadIntentRequest,
   VerifiedIngressEnvelope,
@@ -376,7 +373,19 @@ export type HttpOperationHandlerFactory = (
  * MCP path consumes, so browser/MCP bound rules agree by
  * construction.
  */
+/** Narrow defining page-handler dependencies (Interfaces PageHttpDeps). */
+export interface PageHttpDeps {
+  readonly app: AppInfo;
+  readonly pages: PageRegistry;
+  readonly logger: Logger;
+  readonly clock: InterfacesClock;
+  readonly identity: { readonly store: unknown };
+  readonly query: RowQueryRunner;
+}
+export type HttpPageHandlerFactory = (deps: PageHttpDeps) => (request: Request) => Promise<Response>;
+
 export interface HttpJoin {
+  readonly createPageHandler?: HttpPageHandlerFactory;
   readonly createOperationHandler?: HttpOperationHandlerFactory;
   /** C1 deploy-baked E1 channel, shared verbatim with the MCP path. */
   readonly derivedInputs?: BakedDerivedInputs;
@@ -862,6 +871,7 @@ export interface CanonicalInvokerOpts {
   readonly source?: string;
   /** Admission clock; defaults to `Date.now`. */
   readonly now?: () => number;
+  readonly appId?: string;
 }
 
 /**
@@ -927,7 +937,7 @@ export function buildInvoker(
           operationId: envelope.operation_id,
           inputs: envelope.inputs,
           identity,
-          app: interimAppInfo(artifact).appId,
+          app: opts.appId ?? (await loadAppInfo(artifact, asm)).appId,
           source: opts.source ?? "worker",
           store,
           memberships: opts.memberships as CanonicalMembershipReader,
@@ -987,9 +997,6 @@ export function buildInvoker(
 /* is never touched and no bytes are ever fabricated.                  */
 /* ------------------------------------------------------------------ */
 
-/** Structural `DEFAULT_THEME` value (`contracts/src/presentation.ts:107`). */
-const INTERIM_THEME: ThemeTokens = { mode: "system", accent: "blue", density: "comfortable" };
-
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -1006,11 +1013,6 @@ function notFoundResponse(): Response {
 /** Interim 501: explicitly NOT a BusinessError; names the unmet join. */
 function interimUnavailable(message: string): Response {
   return jsonResponse({ code: "assembly-interim", message }, 501);
-}
-
-/** Interim mirror of `isPartialRequest` (`interfaces/src/http/fragments.ts`); the join deletes it. */
-function isInterimPartialRequest(req: Request): boolean {
-  return req.headers.has("HX-Request");
 }
 
 const INTERIM_INTENTS_PATH = "/files/intents";
@@ -1092,43 +1094,17 @@ function interimFilesResponse(
   );
 }
 
-/** Tiny Accept-Language parse, mirroring pages.ts (split, strip params). */
-function parseAcceptLanguage(header: string | null): readonly string[] {
-  if (header === null) return [];
-  return header
-    .split(",", 10)
-    .map((part) => {
-      const semi = part.indexOf(";");
-      return (semi === -1 ? part : part.slice(0, semi)).trim();
-    })
-    .filter((tag) => tag.length > 0);
-}
-
-const interimQuery: RowQueryRunner = async () => {
-  throw new Error(
-    "assembly interim: in-render reads need the interfaces join (bound RowQueryRunner); rows are supplied, never queried",
-  );
-};
-
-function anonymousIdentity(nowMs: number): ResolvedIdentity {
-  return {
-    actor: null,
-    team: null,
-    membership: null,
-    binding: { kind: "none" },
-    admitted_at: new Date(nowMs).toISOString(),
-  };
-}
-
-/** Interim app facts: L1 binds the real `AppInfo` from appDefinition. */
-function interimAppInfo(artifact: CompileArtifact): AppInfo {
-  const first = artifact.sources[0];
-  const path = first?.path ?? "";
-  const base = path.split("/").pop() ?? "";
-  const dot = base.lastIndexOf(".");
-  const stem = dot === -1 ? base : base.slice(0, dot);
-  const appId = stem === "" ? "app" : stem;
-  return { appId, brand: appId, appDefaultLocale: "en", ownerLabels: new Map() };
+/** The CompileArtifact first program entry owns app identity, never a filename. */
+async function loadAppInfo(artifact: CompileArtifact, asm: AssembledModules): Promise<AppInfo> {
+  const first = artifact.modules[0];
+  const url = first === undefined ? undefined : asm.moduleUrls[first.path];
+  if (url === undefined) throw new Error("assembly: selected app entry module is missing");
+  const mod: unknown = await import(url);
+  const definition = isRecord(mod) ? mod["appDefinition"] : undefined;
+  if (!isRecord(definition) || typeof definition["id"] !== "string" || definition["id"] === "") {
+    throw new Error("assembly: selected app entry has no defining appDefinition.id");
+  }
+  return { appId: definition["id"], brand: definition["id"], appDefaultLocale: "en", ownerLabels: new Map() };
 }
 
 /**
@@ -1148,6 +1124,7 @@ interface InterimDispatchContext {
   readonly mcp: McpJoin | undefined;
   readonly http: HttpJoin | undefined;
   readonly browserAssets?: BrowserAssetsHandler;
+  readonly pageHandler?: (request: Request) => Promise<Response>;
 }
 
 /** Same-origin upload-intents path advertised in the MCP `_meta` block. */
@@ -1254,6 +1231,14 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
 }
 
 /** C3 `/api/operations/` prefix (mirrors `OPERATIONS_PREFIX` in interfaces routing). */
+/** Shared HTTP sink; Interfaces owns redaction before journal delivery. */
+const httpLogger: Logger = {
+  log: (level, message, fields): void => {
+    if (fields === undefined) console.log(`[http] ${level} ${message}`);
+    else console.log(`[http] ${level} ${message}`, fields);
+  },
+};
+
 const HTTP_OPERATIONS_PREFIX = "/api/operations/";
 
 /**
@@ -1310,12 +1295,7 @@ async function handleHttpOperationRequest(
     limiter: {
       check: async (): Promise<RateLimitDecision> => unjoined("rate limiter"),
     },
-    logger: {
-      log: (level: LogLevel, message: string, fields?: Record<string, unknown>): void => {
-        if (fields === undefined) console.log(`[http] ${level} ${message}`);
-        else console.log(`[http] ${level} ${message}`, fields);
-      },
-    },
+    logger: httpLogger,
     clock: { nowMs: () => now() },
     identity: {
       store: ctx.identityStore,
@@ -1365,7 +1345,6 @@ async function handleHttpOperationRequest(
 }
 
 function buildInterimFetch(
-  descriptors: readonly PageDescriptor[],
   ctx: InterimDispatchContext,
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
@@ -1389,77 +1368,8 @@ function buildInterimFetch(
     if (pathname.startsWith("/files/")) {
       return interimFilesResponse(pathname, method, ctx.files);
     }
-    if (method !== "GET" && method !== "HEAD") return notFoundResponse();
-    if (pathname.length > 1 && pathname.endsWith("/")) {
-      const stripped = pathname.replace(/\/+$/, "");
-      const target = `${stripped.length === 0 ? "/" : stripped}${url.search}`;
-      return new Response(null, { status: 308, headers: { location: target } });
-    }
-
-    let match: PageDescriptor | null = null;
-    for (const descriptor of descriptors) {
-      if (descriptor.path === pathname) {
-        match = descriptor;
-        break;
-      }
-    }
-    if (match === null) return notFoundResponse();
-
-    const identity = anonymousIdentity(ctx.now());
-    let bindings: AdmittedBindings;
-    try {
-      bindings = await match.admit(identity, {});
-    } catch (err) {
-      if (isBusinessErrorLike(err)) {
-        return jsonResponse(err, INTERIM_STATUS_FOR_CODE[err.code]);
-      }
-      return jsonResponse(
-        { code: "rule_failed", message: INTERIM_REJECTION_MESSAGE, retryable: false },
-        INTERIM_STATUS_FOR_CODE["rule_failed"],
-      );
-    }
-
-    // Interim mirror of `buildPresentationContext`
-    // (`interfaces/src/http/presentation.ts`): same field semantics —
-    // locales from Accept-Language, app default locale, default theme,
-    // exact path, partial from the HX-Request header (as pages.ts
-    // derives it via `isPartialRequest`), empty CSRF while anonymous,
-    // identity as principal+invocation, throwing query runner (the join
-    // binds the real RowQueryRunner). The join deletes it.
-    const context: PresentationContext = {
-      preferredLocales: parseAcceptLanguage(req.headers.get("accept-language")),
-      appDefaultLocale: ctx.app.appDefaultLocale,
-      theme: INTERIM_THEME,
-      path: pathname,
-      isPartial: isInterimPartialRequest(req),
-      csrfToken: "",
-      principal: identity,
-      invocation: identity,
-      query: interimQuery,
-    };
-    let html: unknown;
-    try {
-      html = (await match.render(context, bindings)) as unknown;
-    } catch (err) {
-      if (isBusinessErrorLike(err)) {
-        return jsonResponse(err, INTERIM_STATUS_FOR_CODE[err.code]);
-      }
-      return jsonResponse(
-        { code: "rule_failed", message: INTERIM_REJECTION_MESSAGE, retryable: false },
-        INTERIM_STATUS_FOR_CODE["rule_failed"],
-      );
-    }
-    if (typeof html !== "string") {
-      return jsonResponse(
-        { code: "rule_failed", message: INTERIM_REJECTION_MESSAGE, retryable: false },
-        INTERIM_STATUS_FOR_CODE["rule_failed"],
-      );
-    }
-    // No shell until the ui join: descriptor HTML is served directly.
-    return new Response(method === "HEAD" ? null : html, {
-      status: 200,
-      headers: { "content-type": "text/html;charset=utf-8" },
-    });
+    if (ctx.pageHandler === undefined) return notFoundResponse();
+    return ctx.pageHandler(req);
   };
 }
 
@@ -1702,10 +1612,29 @@ export async function assembleWorker(
   const { descriptors } = await loadPageRegistry(artifact, asm);
 
   const browserAssets = await deps.http?.loadBrowserAssets?.(descriptors);
+  if (descriptors.length > 0 && deps.http?.createPageHandler === undefined) {
+    throw new Error("assembly: selected pages require the defining handlePageRequest join");
+  }
 
   const now = deps.now ?? Date.now;
-  const innerFetch = buildInterimFetch(descriptors, {
-    app: interimAppInfo(artifact),
+  const appInfo = await loadAppInfo(artifact, asm);
+  let pageHandler: ((request: Request) => Promise<Response>) | undefined;
+  if (deps.http?.createPageHandler !== undefined) {
+    const queryRows = await loadSiblingFn<
+      typeof import("../runtime/invoke.js").queryPageRowsCanonical
+    >("../runtime/invoke.js", "runtime/invoke.ts", "queryPageRowsCanonical");
+    pageHandler = deps.http.createPageHandler({
+      app: appInfo, pages: { descriptors: () => descriptors },
+      logger: httpLogger,
+      clock: { nowMs: now }, identity: { store: deps.identityStore },
+      query: async (invocation, model, args) => {
+        return queryRows({ asm, artifact, model, args, identity: invocation as ResolvedIdentity,
+          store: deps.store, memberships: deps.identityStore as CanonicalMembershipReader });
+      },
+    });
+  }
+  const innerFetch = buildInterimFetch({
+    app: appInfo,
     now,
     files: deps.files,
     artifact,
@@ -1715,6 +1644,7 @@ export async function assembleWorker(
     mcp: deps.mcp,
     http: deps.http,
     ...(browserAssets === undefined ? {} : { browserAssets }),
+    ...(pageHandler === undefined ? {} : { pageHandler }),
   });
 
   // Real entry wiring (mirrors entry.ts; not a fork): dynamic import keeps

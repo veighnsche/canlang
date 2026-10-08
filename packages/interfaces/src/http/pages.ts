@@ -25,7 +25,6 @@ import type {
   AdmittedBindings,
   AdmissionOutcome,
   ListQueryArgs,
-  ListQueryResult,
   NavigationResult,
   PageDescriptor,
   ResolvedIdentity,
@@ -35,7 +34,7 @@ import type {
 } from '@canlang/contracts';
 import { deriveCsrfToken, parseSessionCookie } from '@canlang/identity';
 import { buildNavigation, renderPage, selectDiscoveryCandidates } from '@canlang/ui';
-import type { HttpDeps } from '../ports.js';
+import type { PageHttpDeps } from '../ports.js';
 import {
   caughtToBusinessError,
   isBusinessThrow,
@@ -55,14 +54,14 @@ function notFoundResponse(): Response {
 }
 
 /** Generic internal response after journaling the redacted detail. */
-function internalResponse(deps: HttpDeps, err: unknown, path: string): Response {
+function internalResponse(deps: PageHttpDeps, err: unknown, path: string): Response {
   logInternalError(deps.logger, err, { path });
   const error = fromUnknown(err);
   return jsonErrorResponse(error, httpStatusFor(error.code));
 }
 
 /** Render-path throw mapping: business denials keep meaning, else internal. */
-function renderThrowResponse(deps: HttpDeps, err: unknown, path: string): Response {
+function renderThrowResponse(deps: PageHttpDeps, err: unknown, path: string): Response {
   if (isBusinessThrow(err)) {
     const error = caughtToBusinessError(err);
     return jsonErrorResponse(error, httpStatusFor(error.code));
@@ -70,45 +69,17 @@ function renderThrowResponse(deps: HttpDeps, err: unknown, path: string): Respon
   return internalResponse(deps, err, path);
 }
 
-/**
- * Bind the row-query runner to canonical reads. `invocation` carries the
- * resolved identity (opaque to presentation); the runner maps
- * (model, args) to the `<model>.list` read operation per the DESIGN
- * section-10 tool-name convention, enforces collection bounds, and throws
- * business denials (mapped by the render path) instead of hiding them.
- * The args→inputs mapping (where→filters passthrough) is lane-06 authored,
- * pending L3 acknowledgment.
- */
-function bindRowQueryRunner(deps: HttpDeps, identity: ResolvedIdentity): RowQueryRunner {
-  return async (_invocation: unknown, model: string, args: ListQueryArgs): Promise<ListQueryResult> => {
+/** Keep the resolved request identity authoritative over renderer-supplied values. */
+function bindRowQueryRunner(deps: PageHttpDeps, identity: ResolvedIdentity): RowQueryRunner {
+  return async (_invocation: unknown, model: string, args: ListQueryArgs) => {
     const limit = args.limit ?? COLLECTION_DEFAULT_LIMIT;
     if (!Number.isInteger(limit) || limit < 1 || limit > COLLECTION_MAX_LIMIT) {
       throw buildBusinessError('validation', 'Invalid collection limit.');
     }
-    const outcome = await deps.invoker.invokeRead(
-      {
-        operation: `${model}.list`,
-        inputs: {
-          ...(args.parent === undefined ? {} : { parent: args.parent }),
-          ...(args.where === undefined ? {} : { filters: args.where }),
-          limit,
-          ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-        },
-      },
-      identity,
-    );
-    if ('error' in outcome) throw outcome.error;
-    const result = outcome.result as Partial<ListQueryResult> | null | undefined;
-    if (
-      typeof result !== 'object' ||
-      result === null ||
-      !Array.isArray(result.rows) ||
-      !Array.isArray(result.columns) ||
-      (result.nextCursor !== undefined && typeof result.nextCursor !== 'string')
-    ) {
-      throw new Error(`read ${model}.list returned a malformed collection result.`);
+    if (deps.query === undefined) {
+      throw buildBusinessError('validation', 'Authorized page queries are not configured.');
     }
-    return { rows: result.rows, columns: result.columns, ...(result.nextCursor === undefined ? {} : { nextCursor: result.nextCursor }) };
+    return deps.query(identity, model, { ...args, limit });
   };
 }
 
@@ -164,7 +135,7 @@ export function matchDescriptor(
 }
 
 /** Switcher options: active memberships with a live team, id-prefix labels. */
-async function teamOptions(deps: HttpDeps, identity: ResolvedIdentity): Promise<TeamOption[]> {
+async function teamOptions(deps: PageHttpDeps, identity: ResolvedIdentity): Promise<TeamOption[]> {
   if (identity.actor === null) return [];
   const memberships = await deps.identity.store.listUserMemberships(identity.actor.user_id);
   const options: TeamOption[] = [];
@@ -184,7 +155,7 @@ async function teamOptions(deps: HttpDeps, identity: ResolvedIdentity): Promise<
  * incomplete after an incident-logged journal entry.
  */
 async function admitDiscovery(
-  deps: HttpDeps,
+  deps: PageHttpDeps,
   candidates: readonly PageDescriptor[],
   identity: ResolvedIdentity,
 ): Promise<ReadonlyMap<PageDescriptor, AdmissionOutcome>> {
@@ -211,7 +182,7 @@ async function admitDiscovery(
  * empty body.
  */
 function cappedHtmlResponse(
-  deps: HttpDeps,
+  deps: PageHttpDeps,
   html: string,
   opts: { method: string; path: string },
 ): Response {
@@ -234,7 +205,7 @@ function cappedHtmlResponse(
  * Render one page request. GET/HEAD only; see the module doc for the
  * full dispatch/admission/discovery/render flow and error mapping.
  */
-export async function handlePageRequest(deps: HttpDeps, request: Request): Promise<Response> {
+export async function handlePageRequest(deps: PageHttpDeps, request: Request): Promise<Response> {
   const url = new URL(request.url);
   const method = request.method.toUpperCase();
   if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
