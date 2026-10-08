@@ -2930,3 +2930,9 @@ The owner changed-source emission and the same focused native D1/browser case pa
 Accepted a bounded TECH-W02 correction in State membership freezing. Each attempt first checks its deterministic retained intent; existing frozen membership resumes through the established missing-child admission path. A failed retained lookup refuses admission rather than replacing membership. Fresh freezes retain the existing owner, cutoff, model, bounds and revision fences, including collision replay.
 
 Private State emission and one regression using the actual memory StoragePort passed: interrupted [a,b] admission resumes b with zero current-domain queries, excludes a late member, and clears the cursor only after admission. Root reviewed the source directly and removed the released private output. This is source/memory evidence, not compiled, durable, installed or whole TECH-W02 acceptance, and earns no replacement reduction credit.
+
+## 2026-10-08: retain computed enum default omission metadata
+
+Accepted a finite State loader correction for genuine optional singular nonnullable enum defaults on scenario/read inputs. Artifact and canonical intake preserve the own computedDefault marker and copied enum cases without fabricating a scalar valueType or wire default. Array, nullable, required, malformed and incompatible default/kind metadata remain refused; existing scalar rules are unchanged.
+
+Private State emission and the one extended existing loader/admission case passed. Both validators preserve omission and explicit overrides; this proves marker intake, not runtime enum membership or null validation. The existing state-generated/v1 scalar profile remains presence-only. Compiler owns the sole shared State emission and its pending original generated-default consumer check; root does not duplicate them. Broader task gates remain open.
