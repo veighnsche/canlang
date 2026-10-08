@@ -1471,10 +1471,11 @@ impl<'a> Emitter<'a> {
                         }
                         crate::codegen::ir::IrQueryDomain::Model(_) => "row",
                     };
-                    for value in [&query.parent, &query.limit, &query.archived] {
-                        if let Some(value) = value {
-                            pending.push(Visit(value));
-                        }
+                    for value in [&query.parent, &query.limit, &query.archived]
+                        .into_iter()
+                        .flatten()
+                    {
+                        pending.push(Visit(value));
                     }
                     if let Some(value) = &query.where_pred {
                         pending.push(Restore(alias));
@@ -1509,11 +1510,10 @@ impl<'a> Emitter<'a> {
                             .map(Visit),
                     );
                 }
-                IrExpr::HasRole { person, .. } => {
-                    if let Some(person) = person {
-                        pending.push(Visit(person));
-                    }
-                }
+                IrExpr::HasRole {
+                    person: Some(person),
+                    ..
+                } => pending.push(Visit(person)),
                 IrExpr::Lambda { param, body } => {
                     pending.push(Restore(param));
                     pending.push(Visit(body));
@@ -1905,15 +1905,15 @@ impl<'a> Emitter<'a> {
             IrExpr::Message(_) | IrExpr::MessageCall { .. } => Some("formatted message parameter"),
             _ => None,
         };
-        if let Some(sink) = forbidden {
-            if self.expr_formatted(expr) {
-                return self.formatted_refusal(sink, span);
-            }
+        if let Some(sink) = forbidden
+            && self.expr_formatted(expr)
+        {
+            return self.formatted_refusal(sink, span);
         }
-        if let IrExpr::Format { args, .. } = &expr.expr {
-            if args.iter().any(|arg| self.expr_formatted(arg)) {
-                return self.formatted_refusal("formatted formatting argument", span);
-            }
+        if let IrExpr::Format { args, .. } = &expr.expr
+            && args.iter().any(|arg| self.expr_formatted(arg))
+        {
+            return self.formatted_refusal("formatted formatting argument", span);
         }
         match &expr.expr {
             IrExpr::Int(value) if scalar_family(&expr.ty) == Some(ScalarFamily::Decimal) => {
