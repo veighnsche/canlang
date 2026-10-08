@@ -583,10 +583,18 @@ type AssertRequiresFulfilled = (
  * the join is `IdentityStore` (`packages/identity/src/ports.ts:95`), bound
  * as `HttpDeps.identity.store`.
  */
+/** Actual installed cohort scheduler; v1 is fulfilled only by this bound consumer. */
+export interface CohortTickBinding {
+  readonly version: 1;
+  tick(): Promise<unknown>;
+}
+
 export interface AssemblyDeps {
   store: StoragePort;
   identityStore: unknown;
   now?: () => number;
+  cohorts?: CohortTickBinding;
+  ownerStorage?: TeamOwnerStorageBoundary;
   /** Installed owning Work observer for generated selected delivery reads. */
   selectedReceiptObserver?: SelectedReceiptObserverBinding;
   /**
@@ -616,6 +624,7 @@ export interface AssembledWorker {
   fetch: (req: Request) => Promise<Response>;
   pageCount: number;
   opCount: number;
+  tick?: () => Promise<unknown>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1269,6 +1278,7 @@ interface InterimDispatchContext {
   readonly asm: AssembledModules;
   readonly store: StoragePort;
   readonly identityStore: unknown;
+  readonly ownerStorage?: TeamOwnerStorageBoundary;
   readonly selectedReceiptObserver?: SelectedReceiptObserverBinding;
   readonly mcp: McpJoin | undefined;
   readonly http: HttpJoin | undefined;
@@ -1340,6 +1350,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
       source: "mcp",
       appInfo: ctx.app,
       now,
+      ...(ctx.ownerStorage === undefined ? {} : { ownerStorage: ctx.ownerStorage }),
       ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
       ...(ctx.files?.canonical === undefined ? {} : { files: ctx.files.canonical }),
     }),
@@ -1441,7 +1452,8 @@ async function handleHttpOperationRequest(
       const lookup = await loadSiblingFn<typeof import('../runtime/input-choices.js').lookupInputChoicesCanonical>(
         '../runtime/input-choices.js', 'runtime/input-choices.ts', 'lookupInputChoicesCanonical',
       );
-      return lookup({ ...draft, identity, artifact: ctx.artifact, asm: ctx.asm, store: ctx.store,
+      const store = ctx.ownerStorage === undefined ? ctx.store : await ctx.ownerStorage.forIdentity(identity);
+      return lookup({ ...draft, identity, artifact: ctx.artifact, asm: ctx.asm, store,
         memberships: ctx.identityStore as CanonicalMembershipReader, source: 'http', now,
         formatting: { appDefault: ctx.app.appDefaultLocale } });
     },
@@ -1452,6 +1464,7 @@ async function handleHttpOperationRequest(
       source: "http",
       appInfo: ctx.app,
       now,
+      ...(ctx.ownerStorage === undefined ? {} : { ownerStorage: ctx.ownerStorage }),
       ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
       ...(ctx.files?.canonical === undefined ? {} : { files: ctx.files.canonical }),
     }),
@@ -1677,7 +1690,7 @@ export function assembleFanoutServingSurface<TSegments extends FanoutServingSegm
  * artifact-universal); fixtures with empty `requires[]` pass
  * trivially.
  */
-async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin): Promise<void> {
+async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin, cohorts?: CohortTickBinding): Promise<void> {
   const loadVersions = await loadSiblingFn<LoadContractVersions>(
     "../runtime/invoke.js",
     "runtime/invoke.ts",
@@ -1696,6 +1709,7 @@ async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin
   const versions = await loadVersions();
   assertPins(versions);
   assertRequires(artifact.requires, { state: versions.state, values: versions.values,
+    ...(cohorts?.version === 1 && typeof cohorts.tick === 'function' ? { cohorts: 1 } : {}),
     ...(http?.createOperationHandler?.inputChoicesVersion === undefined ? {} :
       { inputChoices: http.createOperationHandler.inputChoicesVersion }) });
 }
@@ -1718,6 +1732,7 @@ function buildRefusalFetch(verdict: Extract<ActivationVerdict, { active: false }
       : { code: "activation-refused", reason: first.code, detail: first.detail };
   return {
     fetch: async (): Promise<Response> => jsonResponse(body, 500),
+    tick: async () => { throw Object.assign(new Error('activation-refused'), body); },
     pageCount: 0,
     opCount: 0,
   };
@@ -1758,7 +1773,11 @@ export async function assembleWorker(
     return buildRefusalFetch(verdict);
   }
   assertArtifactCompatible(artifact);
-  await assertServingContracts(artifact, deps.http);
+  const cohorts = deps.cohorts;
+  if (cohorts !== undefined && (cohorts.version !== 1 || typeof cohorts.tick !== 'function')) {
+    throw new Error('assembly: cohort tick needs its actual v1 binding.');
+  }
+  await assertServingContracts(artifact, deps.http, cohorts);
   const generatedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
     "../runtime/invoke.js",
     "runtime/invoke.ts",
@@ -1777,6 +1796,9 @@ export async function assembleWorker(
   }
 
   const { descriptors } = await loadPageRegistry(artifact, asm);
+  if (deps.ownerStorage !== undefined && descriptors.length !== 0) {
+    throw new Error('assembly: selected team owner storage has no qualified page routing boundary.');
+  }
 
   const browserAssets = await deps.http?.loadBrowserAssets?.(descriptors);
   if (descriptors.length > 0 && deps.http?.createPageHandler === undefined) {
@@ -1785,6 +1807,9 @@ export async function assembleWorker(
 
   const now = deps.now ?? Date.now;
   const appInfo = await loadAppInfo(artifact, asm);
+  if (deps.ownerStorage !== undefined && deps.ownerStorage.app !== appInfo.appId) {
+    throw new Error('assembly: selected owner storage disagrees with its declared app.');
+  }
   let pageHandler: ((request: Request) => Promise<Response>) | undefined;
   if (deps.http?.createPageHandler !== undefined) {
     const createArtifactCatalog = await loadSiblingFn<CreateArtifactCatalog>(
@@ -1821,6 +1846,7 @@ export async function assembleWorker(
     asm,
     store: deps.store,
     identityStore: deps.identityStore,
+    ...(deps.ownerStorage === undefined ? {} : { ownerStorage: deps.ownerStorage }),
     ...(deps.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: deps.selectedReceiptObserver }),
     mcp: deps.mcp,
     http: deps.http,
@@ -1841,5 +1867,6 @@ export async function assembleWorker(
     fetch: async (req: Request): Promise<Response> => app.fetch(req, {}),
     pageCount: descriptors.length,
     opCount,
+    ...(cohorts === undefined ? {} : { tick: () => cohorts.tick() }),
   };
 }

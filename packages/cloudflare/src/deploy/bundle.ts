@@ -139,6 +139,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "sourcemap.js",
   "mcp-registry.js",
   "env-assembly.js",
+  "cohort-tick.js",
   "grant-route.js",
   "mcp-permissions.js",
 ];
@@ -354,7 +355,8 @@ function stageWorkerDist(workerDistDir: string): Record<string, string> {
     if (!entry.endsWith(".js")) continue;
     const full = join(workerDistDir, entry);
     if (!statSync(full).isFile()) continue;
-    staged[`worker/${entry}`] = readFileSync(full, "utf8");
+    const key = `worker/${entry}`;
+    staged[key] = rewriteRuntimeImports(readFileSync(full, "utf8"), key);
   }
   return staged;
 }
@@ -478,7 +480,7 @@ const VALUES_SOURCE_SPECIFIER = "@canlang/values";
 /** Contracts version constants (`loadContractVersions` in pinned `invoke.js`). */
 const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
 
-/** Rewrite pinned-runtime producer imports to module-relative `vendor/` keys. */
+/** Rewrite worker/runtime producer imports to module-relative `vendor/` keys. */
 function rewriteRuntimeImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
     if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
@@ -492,9 +494,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     }
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
-    if (spec === WORK_DISPATCH_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_VENDOR_ENTRY);
-    if (spec === WORK_SCHEDULE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_SCHEDULE_VENDOR_ENTRY);
-    if (spec === WORK_OCCURRENCE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_OCCURRENCE_VENDOR_ENTRY);
+    if (spec.startsWith("@canlang/work/kernel/")) return relativeSpecifier(moduleKey, `vendor/work/kernel/${spec.slice("@canlang/work/kernel/".length)}.js`);
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
     if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations") {
@@ -524,13 +524,15 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     out = out.split(source).join(relativeSpecifier(moduleKey, entry));
   }
   out = out.replace(/[\'"](@canlang\/state\/([^\'"]+))[\'"]/g, (_full, _spec, sub) => JSON.stringify(relativeSpecifier(moduleKey, `vendor/state/${sub}.js`)));
+  out = out.replace(/[\'"](@canlang\/work\/kernel\/([^\'"]+))[\'"]/g, (_full, _spec, sub) => JSON.stringify(relativeSpecifier(moduleKey, `vendor/work/kernel/${sub}.js`)));
   return out;
 }
 
 /** Stage the public portable Work producers and deduplicate their relative closures. */
 function stageWorkStagingProducers(): Record<string, string> {
   const entries = [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_OCCURRENCE_SOURCE_SPECIFIER,
-    WORK_RECEIPT_SOURCE_SPECIFIER, WORK_ASSOCIATION_SOURCE_SPECIFIER]
+    WORK_RECEIPT_SOURCE_SPECIFIER, WORK_ASSOCIATION_SOURCE_SPECIFIER,
+    "@canlang/work/kernel/tables", "@canlang/work/kernel/handler-occurrence"]
     .map(specifier => resolveProducerFile(specifier, "bun run --filter @canlang/work build"));
   const base = dirname(dirname(entries[0]!));
   const modules: Record<string, string> = {};
