@@ -987,7 +987,7 @@ function loadCheckedDescriptorSet(
     }
     // T04b-preview input array markers (engine-local channel): entries must
     // name loaded operations/inputs with boolean markers, else fail loud.
-    const arrayMarkers: Record<string, { readonly required: boolean }> = {};
+    const arrayMarkers: Record<string, { readonly required: boolean }> = Object.create(null) as Record<string, { readonly required: boolean }>;
     const opArrays = opts.inputArrays?.[opName];
     if (opArrays !== undefined) {
       if (!isRecord(opArrays)) {
