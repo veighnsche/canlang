@@ -20,6 +20,7 @@ import { systemInterfacesClock } from '../ports.js';
 import type { InterfacesClock, SchemaCatalog, SourceFormBindings } from '../ports.js';
 import type {
   PageSourceContext,
+  PageDeliveryObserver,
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
@@ -48,6 +49,7 @@ export interface BuildPresentationContextInput {
   readonly sessionToken?: string | null;
   /** Row-query runner bound before the call. */
   readonly query: RowQueryRunner;
+  readonly observeDelivery?: PageDeliveryObserver;
 }
 
 /** Project verified identity facts into the generated page callable contract. */
@@ -91,8 +93,12 @@ function parseAcceptLanguage(header: string | null): readonly string[] {
 export function buildPresentationContext(
   input: BuildPresentationContextInput,
 ): PresentationContext {
+  const source = input.source ?? buildPageSourceContext(input.principal);
   const context: PresentationContext = {
-    ...(input.source ?? buildPageSourceContext(input.principal)),
+    ...source,
+    canonical: input.observeDelivery === undefined ? source.canonical : Object.freeze({
+      ...source.canonical, observeDelivery: input.observeDelivery,
+    }),
     preferredLocales: parseAcceptLanguage(input.request.headers.get('accept-language')),
     appDefaultLocale: input.appDefaultLocale,
     theme: DEFAULT_THEME,

@@ -67,6 +67,7 @@ import type {
   MutationEnvelope,
   MutationResult,
   PageDescriptor,
+  PageReadScope,
   ReadEnvelope,
   ReadResult,
   ResolvedIdentity,
@@ -162,6 +163,8 @@ export interface PageHttpDeps {
   readonly identity: Pick<IdentityDeps, 'store'>;
   /** Absent joins refuse queries; non-query pages need no collection backend. */
   readonly query?: RowQueryRunner;
+  /** Construct once after verified page admission; the owner binds current read authority. */
+  readonly createReadScope?: (identity: ResolvedIdentity) => PageReadScope | Promise<PageReadScope>;
   /** The same checked operation catalog used by canonical HTTP submission. */
   readonly catalog?: SchemaCatalog;
   /** Explicit stable host-private protection; absent leaves bound forms unavailable. */
