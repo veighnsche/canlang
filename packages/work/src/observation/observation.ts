@@ -63,7 +63,7 @@ import type {
   ReceiptStatus,
   SelectedReceiptProjection,
 } from '@canlang/contracts';
-import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
+import { isCanonicalTextRunDeclaration, readTextRunResult, TEXT_RUN_RECEIPT_PROPERTIES } from '@canlang/state/receipt/tables';
 import type {
   ContentPolicyPort,
   GrantPort,
@@ -100,29 +100,21 @@ export interface ObserveReceiptInput {
 }
 
 const KNOWN_PROPERTIES: ReadonlySet<string> = new Set(['id', 'status', 'result', 'error']);
-const SELECTED_PROPERTIES: ReadonlySet<string> = new Set([...KNOWN_PROPERTIES, 'result.content']);
+const RESULT_PROPERTIES: ReadonlySet<string> = new Set(TEXT_RUN_RECEIPT_PROPERTIES);
+const SELECTED_PROPERTIES: ReadonlySet<string> = new Set([...KNOWN_PROPERTIES, ...RESULT_PROPERTIES]);
 
-/** Only the checked TextRun declaration admits the finite content selector. */
+/** Only the complete checked TextRun declaration admits the seven scalar selectors. */
 function assertSelectedResultDeclaration(declaredResult: CanonicalNominalResult | undefined): void {
-  const expected = DELIVERY_RESULT_LEAVES['TextRun'].find((leaf) => leaf.name === 'content');
-  if (declaredResult?.name !== 'TextRun' || !Array.isArray(declaredResult.fields) ||
-      declaredResult.fields.filter((leaf) => leaf?.name === 'content').length !== 1 ||
-      declaredResult.fields.find((leaf) => leaf?.name === 'content')?.type !== expected?.type) {
-    throw new RangeError('result.content requires the canonical TextRun result declaration');
+  if (!isCanonicalTextRunDeclaration(declaredResult)) {
+    throw new RangeError('result scalar leaves require the canonical TextRun result declaration');
   }
 }
 
-function selectedResultContent(result: unknown): string | null {
+function selectedResultScalar(result: unknown, property: ReceiptProperty, declaration: CanonicalNominalResult | undefined): string | null {
   if (result === null) return null;
-  if (typeof result !== 'object' || Array.isArray(result) ||
-      (Object.getPrototypeOf(result) !== Object.prototype && Object.getPrototypeOf(result) !== null)) {
-    throw new RangeError('result.content requires a stored TextRun object');
-  }
-  const content = Object.getOwnPropertyDescriptor(result, 'content');
-  if (content === undefined || !Object.hasOwn(content, 'value') || typeof content.value !== 'string') {
-    throw new RangeError('result.content must be an own declared text value');
-  }
-  return content.value;
+  const run = readTextRunResult(result, declaration);
+  if (run === null) throw new RangeError('result scalar leaves require a stored TextRun object with own declared scalar values');
+  return run.fields[property.slice('result.'.length) as keyof typeof run.fields];
 }
 
 function assertStoredReceipt(receipt: StoredReceipt): void {
@@ -275,9 +267,10 @@ export function projectSelectedLeaves(
       projection.status = observation.status;
     } else if (property === 'result') {
       projection.result = observation.result;
-    } else if (property === 'result.content') {
+    } else if (RESULT_PROPERTIES.has(property)) {
       assertSelectedResultDeclaration(declaredResult);
-      projection['result.content'] = selectedResultContent(observation.result);
+      projection[property as keyof Pick<SelectedReceiptProjection, typeof TEXT_RUN_RECEIPT_PROPERTIES[number]>] =
+        selectedResultScalar(observation.result, property, declaredResult);
     } else {
       projection.error = observation.error;
     }
@@ -298,7 +291,7 @@ export function selectedRequiresFence(selected: readonly ReceiptProperty[]): boo
     if (!SELECTED_PROPERTIES.has(property)) {
       throw new RangeError(`selectedRequiresFence: unknown selected property ${String(property)}`);
     }
-    if (property === 'status' || property === 'result' || property === 'error' || property === 'result.content') {
+    if (property === 'status' || property === 'result' || property === 'error' || RESULT_PROPERTIES.has(property)) {
       return true;
     }
   }
@@ -366,7 +359,7 @@ const PRE_AUTHORIZED_GRANTS: GrantPort = {
 export function observeSelectedReceipt(input: SelectedReceiptInput): SelectedReceiptOutcome {
   const resolved = resolveAssociationLocator(input.locator);
   const leaves = assertSelectedLeaves(input.selected);
-  if (leaves.includes('result.content')) assertSelectedResultDeclaration(input.declaredResult);
+  if (leaves.some(leaf => RESULT_PROPERTIES.has(leaf))) assertSelectedResultDeclaration(input.declaredResult);
   const { association, receipt } = input;
   const context: SelectedGrantContext = {
     field: resolved.field,
@@ -404,7 +397,7 @@ export function observeSelectedReceipt(input: SelectedReceiptInput): SelectedRec
   }
   const observed = observeReceipt({
     receipt,
-    requested: leaves.map((leaf) => leaf === 'result.content' ? 'result' : leaf),
+    requested: leaves.map((leaf) => RESULT_PROPERTIES.has(leaf) ? 'result' : leaf),
     grants: PRE_AUTHORIZED_GRANTS,
     content: input.content,
     nowMs: input.nowMs,
