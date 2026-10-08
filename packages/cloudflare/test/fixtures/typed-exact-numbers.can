@@ -1,0 +1,45 @@
+app TypedExactNumbers
+Given
+ ## Money constructor defaults remain outside this fixture; callers supply canonical money values.
+ Ledger { amount:decimal=1.50, cash:money, amounts:decimal[], coins:money[], seedAmounts:decimal[]=[0.10,0.20], seedCoins:money[], maybeAmount:decimal?, maybeCash:money?, maybeAmounts:decimal[]?, maybeCoins:money[]? }
+ policy Ledger read=public
+When
+ crud Ledger by=members fields=amount,cash,amounts,coins,seedAmounts,seedCoins,maybeAmount,maybeCash,maybeAmounts,maybeCoins
+ ## Decimal sums are exact; money uses matching currencies and an explicit empty-sum currency.
+ scenario add(ledger:Ledger,delta:decimal,cash:money,amounts:decimal[],coins:money[],accept:bool) -> decimal by=members
+  do
+   set ledger {amount=ledger.amount+delta+sum(amounts)+sum(ledger.seedAmounts),cash=ledger.cash+cash+sum(coins,"EUR")+sum(ledger.seedCoins,"EUR"),amounts=amounts,coins=coins}
+   require accept
+   return ledger.amount
+ scenario cash(ledger:Ledger) -> money by=members
+  do return ledger.cash
+ scenario amounts(ledger:Ledger) -> decimal[] by=members
+  do return [sum(ledger.amounts),ledger.amount]
+ scenario coins(ledger:Ledger) -> money[] by=members
+  do
+   require sum(ledger.coins,"EUR")<ledger.cash
+   return ledger.coins
+ scenario maybeAmount(ledger:Ledger) -> decimal? by=members
+  do return ledger.maybeAmount
+ scenario maybeCash(ledger:Ledger) -> money? by=members
+  do return ledger.maybeCash
+ scenario maybeAmounts(ledger:Ledger) -> decimal[]? by=members
+  do return ledger.maybeAmounts
+ scenario maybeCoins(ledger:Ledger) -> money[]? by=members
+  do return ledger.maybeCoins
+ ## Nullable inputs accept values or omission; omission clears the corresponding nullable field.
+ scenario optional(ledger:Ledger,amount:decimal?,cash:money?,amounts:decimal[]?,coins:money[]?) -> decimal? by=members
+  do
+   set ledger {maybeAmount=amount,maybeCash=cash,maybeAmounts=amounts,maybeCoins=coins}
+   return ledger.maybeAmount
+ ## Original parameter literals retain their wire values in replay receipts.
+ scenario defaults(delta:decimal=0.10,cash:money,amounts:decimal[]=[0.10,0.20],coins:money[]) -> money by=members
+  do
+   require delta+sum(amounts)==0.40
+   return cash+sum(coins,"EUR")
+ ## Checked construction converts major units and rounds ties to the even minor unit.
+ scenario construct(value:decimal) -> money by=members
+  do return money(value,"EUR")
+ scenario empty(values:money[]) -> money by=members
+  do return sum(values,"EUR")
+Then
