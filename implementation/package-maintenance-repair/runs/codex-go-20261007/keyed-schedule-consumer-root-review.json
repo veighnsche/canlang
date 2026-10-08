@@ -1,0 +1,37 @@
+{
+  "scope": "SEQ019 actual compiled keyed put/replace/cancel only",
+  "root": "originating Codex",
+  "review": "Direct released eight-path source/caller/test review; reuse owning actual consumer checks, no second proof chain",
+  "source_sha256": {
+    "packages/cloudflare/src/runtime/context.ts": "0745f05c01e173dad55e73c32c4cb824db071c1cf0aaecedcbda85edf2789ae9",
+    "packages/cloudflare/src/runtime/invoke.ts": "fdc4f1625199406725b6db7b9d4ecee868d51a7683f13f79c3dbf47979d9b9c8",
+    "packages/cloudflare/src/runtime/stdlib.ts": "a7a34ac3b91ef67fca432f20f22d1a66a5eabf1653e332a4d66a49602c4f6bdd",
+    "packages/cloudflare/src/runtime/typed-durable-admission.test.ts": "1c85b27c470f165086169f561b303e48b709e62b306a816829089d08497a1b80",
+    "packages/cloudflare/test/fixtures/typed-keyed-schedule.can": "12b37f48248c3f3bb342ffba095c1cd093c8139225d706d9d8af3a6a1f735767",
+    "packages/cloudflare/test/fixtures/typed-keyed-schedule.json": "0ec97ebb3fd6ab444ca76a0717c37aa01b5de270f6243cce496f7558ee34e59d",
+    "packages/cloudflare/src/deploy/bundle.ts": "c2fdf79e2dfc452b1c4aec55845084c075e9463770f4d7d081012d53a8fff12c",
+    "packages/cloudflare/test/deploy-bundle.test.ts": "e63eff686123697aefe984194f881c46687e49368b897399677a8404e6e41bff"
+  },
+  "owning_release": {
+    "thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+    "receipt": "Exact native release ACK8addb074; eight source paths frozen, source/output release for commit",
+    "outcomes": {
+      "cloudflare_emit": 0,
+      "compiled_native_D1": "1/1",
+      "changed_portable_six_module_bundle_map": "1/1"
+    }
+  },
+  "invariants": [
+    "Authored set and keyed put/cancel join existing canonical owner fence; later require refusal drops all changes",
+    "Canonical key uses verified app/owner and checked lexical ownerPackage; event payload uses owning Values schemas/codecs",
+    "Proven record view preserves observed/reserved version without storing its view or inferring enqueue authority",
+    "Native original occurrence ID memo is invocation local outside fence retry, actual ordinal only, replay skips allocation",
+    "Work-specific query bridge merges whole-model overlay and applies existing State public predicate matcher; limits refuse; ordinary public queries unchanged",
+    "Actual D1 replacement/cancel lineage, success/rejected receipts and same-directory reopening preserve exact history/revision/schedules"
+  ],
+  "limits": [
+    "Selected membership is a memory fixture; actual effects and receipts use native D1",
+    "No trusted due-handler/current eligibility/revocation/terminal occurrence receipt qualification",
+    "No installed scheduler/consent/default backend/native preparation/release or full parent completion"
+  ]
+}

@@ -292,16 +292,31 @@ export function emit(c: HandlerContext, ..._args: unknown[]): never {
   return unsupported('emit', 'domain-event emission needs the L3 effects pipeline.');
 }
 
-/** Not in B1: scheduled work needs the L3 schedule store + dispatcher. */
-export function schedule(c: HandlerContext, ..._args: unknown[]): never {
-  void c;
-  return unsupported('schedule', 'scheduled work needs the L3 schedule store + dispatcher.');
+/** Keyed schedules join the admitted scenario's canonical commit. */
+export async function schedule(
+  c: HandlerContext, key: string, at: import('@canlang/contracts').DatetimeValue,
+  event: string, payload: unknown, options: { readonly ownerPackage?: string } = {},
+): Promise<void> {
+  if (c.canonical === undefined || c.scheduleDeferred === undefined) {
+    return unsupported('schedule', 'keyed schedule staging requires canonical execution.');
+  }
+  if (typeof key !== 'string' || key === '' || typeof options.ownerPackage !== 'string' || options.ownerPackage === '') {
+    throw new Error('schedule requires its text key and checked lexical owner package.');
+  }
+  await c.scheduleDeferred(key, at, event, payload, options.ownerPackage);
 }
 
-/** Not in B1: schedule cancellation needs the L3 schedule store. */
-export function cancel(c: HandlerContext, ..._args: unknown[]): never {
-  void c;
-  return unsupported('cancel', 'schedule cancellation needs the L3 schedule store.');
+/** Cancellation uses the same checked package and admitted owner scope. */
+export async function cancel(
+  c: HandlerContext, key: string, options: { readonly ownerPackage?: string } = {},
+): Promise<void> {
+  if (c.canonical === undefined || c.cancelDeferred === undefined) {
+    return unsupported('cancel', 'keyed cancellation staging requires canonical execution.');
+  }
+  if (typeof key !== 'string' || key === '' || typeof options.ownerPackage !== 'string' || options.ownerPackage === '') {
+    throw new Error('cancel requires its text key and checked lexical owner package.');
+  }
+  await c.cancelDeferred(key, options.ownerPackage);
 }
 
 /** Not in B1: receipt/idempotency checks need the L3 invocation context. */
