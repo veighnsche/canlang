@@ -1,0 +1,364 @@
+{
+  "root": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969",
+  "foundation": "/private/tmp/canlang-nullable-ref-after-db57c379",
+  "overlays": {
+    "packages/cloudflare/src/runtime/context.ts": {
+      "source_sha256": "6c79953696b9b5a2332d4291bfc70aee45d09b959bfa98dac609ee8f9b496450",
+      "copied_sha256": "6c79953696b9b5a2332d4291bfc70aee45d09b959bfa98dac609ee8f9b496450"
+    },
+    "packages/cloudflare/src/runtime/invoke.ts": {
+      "source_sha256": "48f4c79ab213f0fe95b4e8e3b01dd643793ed1a345d075f27aef214101d0bbe5",
+      "copied_sha256": "48f4c79ab213f0fe95b4e8e3b01dd643793ed1a345d075f27aef214101d0bbe5"
+    },
+    "packages/cloudflare/src/runtime/verified-context.test.ts": {
+      "source_sha256": "65cf5be12155008a41ec091d0057a01288c3e9eed7935a15972e7cd60f51fb11",
+      "copied_sha256": "65cf5be12155008a41ec091d0057a01288c3e9eed7935a15972e7cd60f51fb11"
+    },
+    "packages/cloudflare/src/runtime/stdlib.ts": {
+      "source_sha256": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+      "copied_sha256": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207"
+    }
+  },
+  "links": [
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/cloudflare",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/cloudflare",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/contracts",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/contracts",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/contracts"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/files",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/files",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/files"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/identity",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/identity",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/interfaces",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/interfaces",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/interfaces"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/services",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/services",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/services"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/state",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/state",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/stdlib",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/stdlib",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/testkit",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/testkit",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/testkit"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/ui",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/ui",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/values",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/values",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/work",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/@canlang/work-kernel",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work-kernel",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work-kernel"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/cloudflare",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/cloudflare",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/contracts",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/contracts",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/contracts"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/files",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/files",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/files"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/identity",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/identity",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/interfaces",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/interfaces",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/interfaces"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/services",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/services",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/services"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/state",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/state",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/stdlib",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/stdlib",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/testkit",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/testkit",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/testkit"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/ui",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/ui",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/values",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/values",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/work",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/node_modules/@canlang/work-kernel",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work-kernel",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work-kernel"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/cloudflare",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/cloudflare",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/contracts",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/contracts",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/contracts"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/files",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/files",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/files"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/identity",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/identity",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/interfaces",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/interfaces",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/interfaces"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/services",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/services",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/services"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/state",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/state",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/stdlib",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/stdlib",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/testkit",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/testkit",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/testkit"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/ui",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/ui",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/values",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/values",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/work",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/node_modules/@canlang/work-kernel",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work-kernel",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work-kernel"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/cloudflare",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/cloudflare",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/contracts",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/contracts",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/contracts"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/files",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/files",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/files"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/identity",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/identity",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/interfaces",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/interfaces",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/interfaces"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/services",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/services",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/services"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/state",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/state",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/stdlib",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/stdlib",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/testkit",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/testkit",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/testkit"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/ui",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/ui",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/values",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/values",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/work",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib/node_modules/@canlang/work-kernel",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work-kernel",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work-kernel"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/cloudflare",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/cloudflare",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/contracts",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/contracts",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/contracts"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/files",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/files",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/files"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/identity",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/identity",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/interfaces",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/interfaces",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/interfaces"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/services",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/services",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/services"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/state",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/state",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/stdlib",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/stdlib",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/stdlib"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/testkit",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/testkit",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/testkit"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/ui",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/ui",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/values",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/values",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/work",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work"
+    },
+    {
+      "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/node_modules/@canlang/work-kernel",
+      "before": "/private/tmp/canlang-nullable-ref-after-db57c379/packages/work-kernel",
+      "after": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/work-kernel"
+    }
+  ],
+  "node": {
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/prepare.mjs"
+    ],
+    "version": "v24.21.0",
+    "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+    "sha256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b"
+  },
+  "typescript": {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/typescript/bin/tsc",
+    "realpath": "/Users/vince/Projects/canlang/node_modules/.bun/typescript@5.9.3/node_modules/typescript/bin/tsc",
+    "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0"
+  },
+  "qualification": "Only copied frozen nullable-after support graph plus exact current context/invoke/new test and accepted pure stdlib source overlay. Other snapshot source/output is not relabeled current."
+}

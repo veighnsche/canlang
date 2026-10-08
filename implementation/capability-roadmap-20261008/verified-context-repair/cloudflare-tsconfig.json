@@ -1,0 +1,17 @@
+{
+  "extends": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/tsconfig.json",
+  "compilerOptions": {
+    "noEmitOnError": true,
+    "tsBuildInfoFile": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/context.tsbuildinfo",
+    "composite": false
+  },
+  "include": [
+    "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/context.ts",
+    "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/invoke.ts",
+    "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/stdlib.ts",
+    "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/modules.ts",
+    "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/worker/assembly.ts",
+    "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/verified-context.test.ts"
+  ],
+  "exclude": []
+}
