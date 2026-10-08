@@ -1217,6 +1217,7 @@ interface StateInvokeProducer {
   /** T17b: canonical generated-read entry (scenario `records()` calls it per read). */
   invokeRead(input: {
     readonly registry: ReadonlyMap<string, unknown>;
+    readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
     readonly envelope: {
       readonly operation: string;
       readonly inputs: Record<string, unknown>;
@@ -3683,6 +3684,7 @@ async function runScenarioSeam(
         const queryStore = native ? withStagedOverlay(opts.store, new Map(staged)) : overlay;
         const read = (selected: CanonicalReadSelection | undefined) => loaded.producers.invoke.invokeRead({
           registry: loaded.registry,
+          models: loaded.models,
           envelope: { operation: `${model}.read`, inputs: {} },
           identity: opts.identity,
           ...(selected === undefined ? {} : { selection: selected }),

@@ -38,4 +38,8 @@ When
    let selected=Entry as entry where entry.count>=minimum
    create Entry {count=5} as marker
    return count(selected)
+ scenario ascending() -> int[] by=public
+  do return Entry as entry order=entry.count select entry.count
+ scenario descending() -> int[] by=public
+  do return Entry as entry order=-entry.count select entry.count
 Then
