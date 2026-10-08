@@ -13,10 +13,12 @@ import { FANOUT_NAVIGATION_MODEL, FANOUT_OWNER_SCAN_MODEL, fanoutNavigationRowId
   readFanoutNavigationRow, readFanoutOwnerScanRow } from '@canlang/state/fanout/navigation';
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
 import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
+import { WORK_HANDLER_OCCURRENCE_MODEL, readHandlerOccurrenceRow } from '@canlang/work/kernel/handler-occurrence';
 import { WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, readScheduleRow, readOccurrenceRow } from '@canlang/work/kernel/tables';
 import { assembleModules } from './modules.js';
 import { buildInvoker } from '../worker/assembly.js';
-import { createCanonicalDueCohortBody, invokeDueScheduleCanonical, loadFanoutStateProducers,
+import { createCanonicalDueCohortBody, invokeDueScheduleCanonical, invokeDueSourceRoutingCanonical,
+  invokeRetainedHandlerOccurrenceCanonical, loadFanoutStateProducers,
   runFanoutSchedulerTurn, T34F7_FANOUT_INTENT_MODEL, T34F7_FANOUT_CHECKPOINT_MODEL,
   T34F7_FANOUT_CHILD_MODEL, releaseStaleFanoutClaims, claimFanoutChild, runRetainedFanoutSchedulerTurn } from './invoke.js';
 import type { CanonicalDueScheduleOpts, FanoutSchedulerBodyPort, FanoutSchedulerTurnResult } from './invoke.js';
@@ -347,6 +349,117 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     assert.deepEqual(await storage.state.load(ENTRY, firstAfterLoss.id), firstAfterLoss);
     assert.deepEqual(await storage.state.historyFor(ENTRY, firstAfterLoss.id), firstHistoryAfterLoss);
     assert.deepEqual(await storage.state.load(asModel(FANOUT_OWNER_SCAN_MODEL), scanAfterLoss.id), scanAfterLoss);
+
+    // Intake fixes every route before independently executing any ordinary
+    // body. Retained references hydrate CURRENT rows without recapturing input.
+    for (const [event, handlerNames] of [
+      ['Mixed', ['mixedOrdinary']], ['OrdinaryPair', ['ordinaryFirst', 'ordinarySecond']],
+    ] as const) {
+      const target = await storage.state.load(ENTRY, asId(foreign.id)); assert.ok(target);
+      assert.equal(target.data.consent, true);
+      const payload = { entry: { id: target.id, version: String(target.version) }, marker: `${event} independent body` };
+      const due = await schedule(event, payload);
+      const beforeRows = await storage.state.query({ model: ENTRY, authority: 'owner' });
+      const beforeHistory = await storage.state.historyFor(ENTRY, target.id);
+      const beforeCut = await storage.state.readRevision();
+      let cutCommits = 0;
+      const actualStore = storage.state;
+      const intakeStore: StoragePort = { ...actualStore, commit: async batch => {
+        cutCommits += 1;
+        assert.ok(batch.writes.some(write => write.model === WORK_HANDLER_OCCURRENCE_MODEL));
+        assert.ok(batch.writes.some(write => write.model === WORK_SCHEDULE_MODEL));
+        assert.ok(batch.writes.some(write => write.model === WORK_OCCURRENCE_MODEL));
+        assert.ok(batch.writes.every(write => write.model !== ENTRY));
+        assert.equal(batch.history.length, 0);
+        if (event === 'Mixed') assert.ok(batch.writes.some(write => write.model === T34F7_FANOUT_INTENT_MODEL));
+        return actualStore.commit(batch);
+      } };
+      assert.equal(outcomeStatus(await invokeDueSourceRoutingCanonical({ ...opts(handlerNames[0], due), store: intakeStore })),
+        'completed');
+      assert.equal(cutCommits, 1);
+      assert.equal(await storage.state.readRevision(), beforeCut + 1);
+      assert.deepEqual(await storage.state.query({ model: ENTRY, authority: 'owner' }), beforeRows);
+      assert.deepEqual(await storage.state.historyFor(ENTRY, target.id), beforeHistory);
+      const parentReceipt = readOccurrenceRow((await storage.state.load(WORK_OCCURRENCE_MODEL, asId(due.occurrenceId)))!);
+      assert.equal(parentReceipt.status, 'completed');
+      const routeRows = await storage.state.query({ model: WORK_HANDLER_OCCURRENCE_MODEL, authority: 'owner',
+        where: { op: 'eq', field: 'sourceOccurrence', value: due.occurrenceId }, order: [{ field: 'id', direction: 'asc' }], limit: 10 });
+      assert.deepEqual(routeRows.map(row => readHandlerOccurrenceRow(row).handler).sort(),
+        handlerNames.map(name => `${APP}.${name}`).sort());
+      const routedCohorts = await storage.state.query({ model: T34F7_FANOUT_INTENT_MODEL, authority: 'owner',
+        where: { op: 'eq', field: 'sourceOccurrence', value: due.occurrenceId }, limit: 10 });
+      assert.equal(routedCohorts.length, event === 'Mixed' ? 1 : 0);
+      assert.ok(typeof parentReceipt.result === 'object' && parentReceipt.result !== null &&
+        'handlers' in parentReceipt.result && 'fanouts' in parentReceipt.result);
+      assert.deepEqual(parentReceipt.result.handlers, routeRows.map(row => {
+        const data = readHandlerOccurrenceRow(row); return { handler: data.handler, occurrenceId: data.occurrenceId };
+      }));
+      assert.deepEqual(parentReceipt.result.fanouts, routedCohorts.map(row => ({
+        handler: producers.tables.readFanoutIntentRow(row).handler, fanoutId: row.id,
+      })));
+      // Reopening discards source/call caches; only Work's captured routes remain.
+      await mf!.dispose(); mf = undefined;
+      storage = await open();
+      invoker = buildInvoker(artifact, asm, storage.state, { memberships: storage.identity, now: clock.nowMs });
+      for (const row of routeRows) {
+        const route = readHandlerOccurrenceRow(row);
+        assert.equal(route.state, 'pending'); assert.deepEqual(route.payload, payload);
+        const selector = { sourceOccurrence: route.sourceOccurrence, handler: route.handler, event: route.event,
+          scope: { app: route.scopeApp, owner: route.scopeOwner, ownerPackage: route.scopeOwnerPackage } };
+        const invocation = { artifact, asm, app: APP, selector, store: storage.state, identities: storage.identity, now: clock.nowMs };
+        const beforeWrongOwner = await storage.state.readRevision();
+        assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical({ ...invocation,
+          selector: { ...selector, scope: { ...selector.scope, owner: otherTeam.team_id } } })), 'refused');
+        assert.equal(await storage.state.readRevision(), beforeWrongOwner);
+        assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical(invocation)), 'completed');
+        const terminalRow = await storage.state.load(WORK_HANDLER_OCCURRENCE_MODEL, row.id); assert.ok(terminalRow);
+        assert.equal(readHandlerOccurrenceRow(terminalRow).state, 'completed');
+        assert.deepEqual(readHandlerOccurrenceRow(terminalRow).payload, payload);
+        assert.equal(readOccurrenceRow((await storage.state.load(WORK_OCCURRENCE_MODEL, row.id))!).status, 'completed');
+        const afterBody = await storage.state.readRevision();
+        assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical(invocation)), 'replayed');
+        assert.equal(await storage.state.readRevision(), afterBody);
+        assert.deepEqual(readOccurrenceRow((await storage.state.load(WORK_OCCURRENCE_MODEL, asId(due.occurrenceId)))!), parentReceipt);
+      }
+      const afterBodies = await storage.state.load(ENTRY, target.id); assert.ok(afterBodies);
+      assert.equal(afterBodies.data.label, payload.marker);
+      assert.equal(afterBodies.version, target.version + handlerNames.length);
+      assert.equal(afterBodies.data.count, String(BigInt(String(target.data.count)) + (event === 'OrdinaryPair' ? 1n : 0n)));
+      assert.equal((await storage.state.historyFor(ENTRY, target.id)).length, beforeHistory.length + handlerNames.length);
+      const afterRoutes = await storage.state.readRevision();
+      assert.equal(outcomeStatus(await invokeDueSourceRoutingCanonical(opts(handlerNames[0], due))), 'replayed');
+      assert.equal(await storage.state.readRevision(), afterRoutes);
+    }
+
+    const rejectedTarget = await storage.state.load(ENTRY, asId(refused.id)); assert.ok(rejectedTarget);
+    assert.equal(rejectedTarget.data.consent, false);
+    const rejectedHistory = await storage.state.historyFor(ENTRY, rejectedTarget.id);
+    const rejectedDue = await schedule('Mixed', { entry: { id: rejectedTarget.id, version: String(rejectedTarget.version) },
+      marker: 'provisional ordinary change must roll back' });
+    assert.equal(outcomeStatus(await invokeDueSourceRoutingCanonical(opts('mixedOrdinary', rejectedDue))), 'completed');
+    const rejectedRoutes = await storage.state.query({ model: WORK_HANDLER_OCCURRENCE_MODEL, authority: 'owner',
+      where: { op: 'eq', field: 'sourceOccurrence', value: rejectedDue.occurrenceId }, limit: 2 });
+    assert.equal(rejectedRoutes.length, 1);
+    const rejectedRoute = readHandlerOccurrenceRow(rejectedRoutes[0]!);
+    const rejectedSelector = { sourceOccurrence: rejectedRoute.sourceOccurrence, handler: rejectedRoute.handler,
+      event: rejectedRoute.event, scope: rejectedDue.scope };
+    const rejectedInvocation = { artifact, asm, app: APP, selector: rejectedSelector,
+      store: storage.state, identities: storage.identity, now: clock.nowMs };
+    assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical(rejectedInvocation)), 'failed');
+    assert.deepEqual(await storage.state.load(ENTRY, rejectedTarget.id), rejectedTarget);
+    assert.deepEqual(await storage.state.historyFor(ENTRY, rejectedTarget.id), rejectedHistory);
+    const rejectedTerminal = readOccurrenceRow((await storage.state.load(WORK_OCCURRENCE_MODEL, asId(rejectedRoute.occurrenceId)))!);
+    assert.equal(rejectedTerminal.status, 'failed');
+    assert.equal(readHandlerOccurrenceRow((await storage.state.load(WORK_HANDLER_OCCURRENCE_MODEL,
+      asId(rejectedRoute.occurrenceId)))!).state, 'failed');
+    assert.equal(readOccurrenceRow((await storage.state.load(WORK_OCCURRENCE_MODEL, asId(rejectedDue.occurrenceId)))!).status, 'completed');
+    const survivingCohorts = await storage.state.query({ model: T34F7_FANOUT_INTENT_MODEL, authority: 'owner',
+      where: { op: 'eq', field: 'sourceOccurrence', value: rejectedDue.occurrenceId }, limit: 2 });
+    assert.equal(survivingCohorts.length, 1);
+    assert.equal(survivingCohorts[0]!.data.handler, `${APP}.mixedCohort`);
+    const rejectedSettled = await storage.state.readRevision();
+    assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical(rejectedInvocation)), 'replayed');
+    assert.equal(await storage.state.readRevision(), rejectedSettled);
 
     // A real trusted admission under another source principal cannot borrow
     // this retained event or commit any of its provisional business changes.

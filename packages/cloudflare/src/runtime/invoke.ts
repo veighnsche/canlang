@@ -4039,12 +4039,17 @@ function assertDeclaredCohortVersion(artifact: CompileArtifact): void {
 }
 
 async function resolveDueOwner(opts: CanonicalDueScheduleOpts, now: number): Promise<ResolvedIdentity> {
+  return resolvePrivateSourceOwner(opts.identities, opts.due.scope, now);
+}
+
+async function resolvePrivateSourceOwner(identities: IdentityStore, scope: import('@canlang/contracts').WorkScope,
+  now: number): Promise<ResolvedIdentity> {
   const producer = await loadProducerModule('@canlang/identity', 'private source identity');
   const resolve = requireProducerFn(producer, 'resolveIdentity', 'private source identity') as
     typeof import('@canlang/identity').resolveIdentity;
-  const identity = await resolve(opts.identities,
-    opts.due.scope.owner === 'app' ? {} : { team_id: opts.due.scope.owner }, { clock: { nowMs: () => now } });
-  if (identity.actor !== null || (identity.team?.team_id ?? 'app') !== opts.due.scope.owner) {
+  const identity = await resolve(identities,
+    scope.owner === 'app' ? {} : { team_id: scope.owner }, { clock: { nowMs: () => now } });
+  if (identity.actor !== null || (identity.team?.team_id ?? 'app') !== scope.owner) {
     throw new Error('Private source has no current verified owner.');
   }
   return identity;
@@ -4071,6 +4076,21 @@ function emittedPrivateCohort(definition: unknown, handler: string, event: strin
   const cohort = resolveEmittedFanoutCohort({ cohorts, handler, owner, event: captured,
     models: privateSourceMember(definition, 'models'), eventInputs: inputs });
   return { invocation, cohort, bind: descriptor.bind as string | null, refInput: descriptor.bind ?? '$cohort' };
+}
+
+async function stagePrivateSourceCohort(opts: CanonicalDueScheduleOpts, loaded: LoadedCanonicalDescriptors,
+  definition: unknown, handler: string, captured: unknown, inputs: unknown,
+  bounds: FanoutTriggerJoinBounds, producers: FanoutStateProducers, meta: FanoutRowMeta) {
+  const declared = emittedPrivateCohort(definition, handler, opts.due.event, opts.due.scope.owner, captured, inputs);
+  loaded.producers.registry.loadArtifactDescriptors({ ...opts.artifact, operations: [declared.invocation] }, { by: () => 'owner' });
+  if (!loaded.models.some(model => model.name === declared.cohort.model)) throw new Error('Cohort names an unknown owning model.');
+  if (declared.cohort.kind === 'anchored-collection' && !(await classifyFanoutAnchor(opts.store, declared.cohort.parent)).known) {
+    return { status: 'refused' as const, reason: 'unknown-cohort-anchor' };
+  }
+  const members = producers.staging.stageFanoutMembership(
+    await drainFanoutCohortIdentities(opts.store, declared.cohort, bounds.pageLimit), 'work.fanout_intent.members');
+  return { status: 'ready' as const, staged: fanoutAdmissionWrites(producers,
+    { sourceOccurrence: opts.due.occurrenceId, handler }, declared.cohort.kind, members, bounds.chunkSize, meta) };
 }
 
 /** Consume one exact source head and freeze every cohort handler of that event together. */
@@ -4106,17 +4126,10 @@ async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded:
     }
     // Mixed ordinary/cohort routes require a common source transaction too;
     // this bounded consumer refuses them rather than consuming only one route.
-    const declared = emittedPrivateCohort(definition, handler, opts.due.event, opts.due.scope.owner, captured, inputs);
-    loaded.producers.registry.loadArtifactDescriptors({ ...opts.artifact, operations: [declared.invocation] }, { by: () => 'owner' });
-    if (!loaded.models.some(model => model.name === declared.cohort.model)) throw new Error('Cohort names an unknown owning model.');
-    if (declared.cohort.kind === 'anchored-collection' && !(await classifyFanoutAnchor(opts.store, declared.cohort.parent)).known) {
-      return { status: 'refused' as const, reason: 'unknown-cohort-anchor' };
-    }
-    const members = producers.staging.stageFanoutMembership(
-      await drainFanoutCohortIdentities(opts.store, declared.cohort, bounds.pageLimit), 'work.fanout_intent.members');
-    const cutoff = { sourceOccurrence: opts.due.occurrenceId, handler };
-    const staged = fanoutAdmissionWrites(producers, cutoff, declared.cohort.kind, members, bounds.chunkSize,
-      { actor: trustedSource, nowMs: now });
+    const route = await stagePrivateSourceCohort(opts, loaded, definition, handler, captured, inputs,
+      bounds, producers, { actor: trustedSource, nowMs: now });
+    if (route.status !== 'ready') return route;
+    const staged = route.staged;
     writes.push(...staged.writes);
     fanouts.push({ handler, fanoutId: staged.fanoutId });
   }
@@ -4136,6 +4149,116 @@ async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded:
     uniqueClaims: [...due.effects.uniqueClaims ?? [], ...terminal.uniqueClaims ?? []],
     uniqueReleases: [...due.effects.uniqueReleases ?? [], ...terminal.uniqueReleases ?? []] };
   producers.join.assertFanoutChildJoin(batch);
+  await resolveDueOwner(opts, now);
+  await opts.store.commit(batch);
+  return { status: 'completed' as const, occurrenceId: opts.due.occurrenceId, result };
+}
+
+async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, 'artifact' | 'asm' | 'app'>,
+  loaded: LoadedCanonicalDescriptors, event: string, scope: import('@canlang/contracts').WorkScope) {
+  if (scope.app !== opts.app) throw new Error('Private source scope disagrees with its deployment.');
+  const definitions = new Map<string, unknown>();
+  const routes: Array<{ handler: string; definition: unknown; invocation: Record<string, unknown>; cohort: boolean }> = [];
+  let eventInputs: string | undefined;
+  for (const callable of opts.artifact.callables) {
+    if (callable.kind !== 'handler') continue;
+    if (!definitions.has(callable.module)) {
+      const url = opts.asm.moduleUrls[callable.module];
+      if (url === undefined) throw new Error('Private source handler has no owning assembled module.');
+      definitions.set(callable.module, privateSourceMember(await import(url), 'appDefinition'));
+    }
+    const definition = definitions.get(callable.module);
+    const handler = privateSourceMember(privateSourceMember(definition, 'operations'), callable.id);
+    if (privateSourceMember(handler, 'event') !== event) continue;
+    const invocation = privateSourceMember(handler, 'invocation');
+    const inputs = privateSourceMember(privateSourceMember(privateSourceMember(definition, 'events'), event), 'inputs');
+    if (privateSourceMember(privateSourceMember(definition, 'packages'), scope.ownerPackage) === undefined ||
+        !isUnknownRecord(invocation) || invocation.name !== callable.id || invocation.kind !== 'scenario' ||
+        !isUnknownRecord(inputs)) {
+      throw new Error('Private source handler lacks its exact event/package/invocation declaration.');
+    }
+    const inputShape = JSON.stringify(inputs);
+    if (eventInputs !== undefined && eventInputs !== inputShape) {
+      throw new Error('Private source handlers disagree on their owning declared event inputs.');
+    }
+    eventInputs = inputShape;
+    loaded.producers.registry.loadArtifactDescriptors({ ...opts.artifact, operations: [invocation] }, { by: () => 'owner' });
+    const registry = await importPolicyRegistry(opts.asm, callable.module, callable.id);
+    if (typeof privateSourceMember(registry, callable.id) !== 'function') {
+      throw new Error('Private source handler has no genuine assembled callable.');
+    }
+    const cohorts = privateSourceMember(definition, 'cohorts');
+    routes.push({ handler: callable.id, definition, invocation,
+      cohort: isUnknownRecord(cohorts) && Object.hasOwn(cohorts, callable.id) });
+  }
+  if (routes.length === 0) throw new Error('Private source event has no checked assembled handlers.');
+  return routes.sort((left, right) => left.handler.localeCompare(right.handler));
+}
+
+/** Freeze every declared route at one source cut; ordinary bodies run later. */
+export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueScheduleOpts) {
+  assertCanonicalStore(opts.store, opts.handler);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const routes = await checkedPrivateSourceRoutes(opts, loaded, opts.due.event, opts.due.scope);
+  if (!routes.some(route => route.handler === opts.handler)) throw new Error('Source selected no matching checked handler.');
+  if (routes.some(route => route.cohort)) assertDeclaredCohortVersion(opts.artifact);
+  const bounds = opts.cohortBounds ?? { pageLimit: 100, chunkSize: 100 };
+  if (!Number.isSafeInteger(bounds.pageLimit) || bounds.pageLimit < 1 ||
+      !Number.isSafeInteger(bounds.chunkSize) || bounds.chunkSize < 1) {
+    throw new Error('Source routing transport bounds must be positive integers.');
+  }
+  const now = opts.now();
+  const trustedSource = `schedule:${opts.due.event}`;
+  const context = workStageContext(opts.store, { actor: trustedSource, operation: opts.handler, now });
+  const schedule = await loadProducerModule('@canlang/work/kernel/schedule-staging', 'private source head');
+  const stageDue = requireProducerFn(schedule, 'stageDueSchedule', 'private source head') as
+    typeof import('@canlang/work/kernel/schedule-staging').stageDueSchedule;
+  const handlerModule = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'private handler routes');
+  const stageHandler = requireProducerFn(handlerModule, 'stageHandlerOccurrence', 'private handler routes') as
+    typeof import('@canlang/work/kernel/handler-occurrence').stageHandlerOccurrence;
+  const occurrence = await loadProducerModule('@canlang/work/kernel/occurrence-staging', 'private source receipt');
+  const receiptCommand = occurrence['workOccurrencePutReceiptCommand'];
+  if (!isUnknownRecord(receiptCommand)) throw new Error('Private source receipt command is unavailable.');
+  const stageReceipt = requireProducerFn(receiptCommand, 'stage', 'private source receipt') as
+    typeof import('@canlang/work/kernel/occurrence-staging').workOccurrencePutReceiptCommand.stage;
+  const producers = routes.some(route => route.cohort) ? await loadFanoutStateProducers() : undefined;
+  const revision = await opts.store.readRevision();
+  const due = await stageDue(opts.due, context);
+  if (due.status !== 'ready') return due;
+  await resolveDueOwner(opts, now);
+  const writes: DomainWrite[] = [...due.effects.writes ?? []];
+  const fanouts: Array<{ handler: string; fanoutId: string }> = [];
+  const handlers: Array<{ handler: string; occurrenceId: string }> = [];
+  for (const route of routes) {
+    const { captured, inputs } = checkedSourceEvent(route.definition, opts.due.event, due.occurrence.payload);
+    if (route.cohort) {
+      if (producers === undefined) throw new Error('Private source cohort producer is unavailable.');
+      const staged = await stagePrivateSourceCohort(opts, loaded, route.definition, route.handler,
+        captured, inputs, bounds, producers, { actor: trustedSource, nowMs: now });
+      if (staged.status !== 'ready') return staged;
+      writes.push(...staged.staged.writes);
+      fanouts.push({ handler: route.handler, fanoutId: staged.staged.fanoutId });
+    } else {
+      const staged = await stageHandler({ source: { occurrenceId: due.occurrence.occurrenceId,
+        event: opts.due.event, payload: due.occurrence.payload, scope: opts.due.scope }, handler: route.handler }, context);
+      if (staged.status === 'refused') return staged;
+      // A ready parent cannot already own a retained sibling from an earlier
+      // partial intake; refuse disagreement instead of completing that split.
+      if (staged.status !== 'ready') return { status: 'refused' as const, reason: 'preexisting-handler-route' };
+      writes.push(...staged.effects.writes ?? []);
+      handlers.push({ handler: route.handler, occurrenceId: staged.occurrence.occurrenceId });
+    }
+  }
+  const result = { fanouts, bounds: { ...bounds }, handlers };
+  const terminal = await stageReceipt({ occurrenceId: opts.due.occurrenceId, status: 'completed', result }, context);
+  if ((terminal.outboxAck?.length ?? 0) !== 0) throw new Error('Private source cannot acknowledge provider work.');
+  const batch: CommitBatch = { expectedRevision: revision,
+    writes: [...writes, ...terminal.writes ?? []], history: [...due.effects.history ?? [], ...terminal.history ?? []],
+    receipt: null, outbox: [...due.effects.outbox ?? [], ...terminal.outbox ?? []],
+    schedules: [...due.effects.schedules ?? [], ...terminal.schedules ?? []],
+    uniqueClaims: [...due.effects.uniqueClaims ?? [], ...terminal.uniqueClaims ?? []],
+    uniqueReleases: [...due.effects.uniqueReleases ?? [], ...terminal.uniqueReleases ?? []] };
+  producers?.join.assertFanoutChildJoin(batch);
   await resolveDueOwner(opts, now);
   await opts.store.commit(batch);
   return { status: 'completed' as const, occurrenceId: opts.due.occurrenceId, result };
@@ -4415,6 +4538,139 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
     return outcome.result;
   } catch (error) {
     if (error instanceof DueScheduleChanged) return error.outcome;
+    throw error;
+  }
+}
+
+export interface CanonicalRetainedHandlerOccurrenceOpts {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  readonly app: string;
+  readonly selector: import('@canlang/work/kernel/handler-occurrence').HandlerOccurrenceSelector;
+  readonly store: StoragePort;
+  readonly identities: IdentityStore;
+  readonly now: () => number;
+}
+
+class RetainedHandlerOccurrenceChanged extends Error {
+  constructor(readonly outcome: Exclude<import('@canlang/work/kernel/handler-occurrence').RetainedHandlerOccurrenceResult,
+    { status: 'ready' }>) {
+    super('Retained handler occurrence changed before execution.');
+  }
+}
+
+/** Run one retained ordinary route through canonical State admission/effects. */
+export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRetainedHandlerOccurrenceOpts) {
+  const { selector } = opts;
+  assertCanonicalStore(opts.store, selector.handler);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const routes = await checkedPrivateSourceRoutes(opts, loaded, selector.event, selector.scope);
+  const route = routes.find(candidate => candidate.handler === selector.handler);
+  if (route === undefined || route.cohort) throw new Error('Retained handler needs its exact ordinary private declaration.');
+  const descriptors = loaded.producers.registry.loadArtifactDescriptors(
+    { ...opts.artifact, operations: [route.invocation] }, { by: () => 'owner' });
+  const privateDef = descriptors.registry.get(selector.handler) as GeneratedOperationDef | undefined;
+  if (privateDef === undefined) throw new Error('Retained ordinary handler descriptor was not checked.');
+  const privateLoaded = { ...loaded, registry: descriptors.registry };
+  const handlerModule = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'retained private handler');
+  const stageRetained = requireProducerFn(handlerModule, 'stageRetainedHandlerOccurrence', 'retained private handler') as
+    typeof import('@canlang/work/kernel/handler-occurrence').stageRetainedHandlerOccurrence;
+  const stageTerminal = requireProducerFn(handlerModule, 'stageHandlerOccurrenceTerminal', 'retained private handler') as
+    typeof import('@canlang/work/kernel/handler-occurrence').stageHandlerOccurrenceTerminal;
+  const guards = await loadProducerModule('@canlang/state/effects/guards', 'retained handler require producer');
+  const isRequireFailure = requireProducerFn(guards, 'isAuthoredRequireFailure', 'retained handler require producer') as
+    typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure;
+  const ui = await loadProducerModule('@canlang/ui', 'retained handler operation identity');
+  const mintOperationId = requireProducerFn(ui, 'mintOperationId', 'retained handler operation identity') as
+    typeof import('@canlang/ui').mintOperationId;
+  const now = opts.now();
+  const trustedSource = `schedule:${selector.event}`;
+  const context = workStageContext(opts.store, { actor: trustedSource, now, operation: selector.handler });
+  const identity = await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
+  const retained = await stageRetained(selector, context);
+  if (retained.status !== 'ready') return retained;
+  const { inputs: fields, captured } = checkedSourceEvent(route.definition, selector.event, retained.occurrence.payload);
+  const admittedInputs: Record<string, unknown> = Object.create(null);
+  for (const [name, value] of Object.entries(captured)) {
+    const field = privateSourceMember(fields, name) as FieldDescriptor;
+    admittedInputs[name] = encodeValue(field.type, value);
+  }
+  for (const field of privateDef.descriptor.inputs) {
+    if (field.kind !== 'ref' || admittedInputs[field.name] === null || admittedInputs[field.name] === undefined) continue;
+    if (Object.hasOwn(privateDef.inputArrays, field.name)) {
+      throw new Error('Retained handler admission does not support array reference hydration.');
+    }
+    const ref = decodeValue(field.model, admittedInputs[field.name]) as import('@canlang/contracts').RecordRef;
+    admittedInputs[field.name] = encodeValue(field.model, makeRecordRef(field.model, ref.id));
+  }
+  const operationId = mintOperationId(() => now);
+  const occurrenceIds: string[] = [];
+  let commitGuards: ReadonlyArray<CanonicalGuardRevalidation> = [];
+  const guardedStore: StoragePort = { ...opts.store, commit: async batch => {
+    await resolvePrivateSourceOwner(opts.identities, selector.scope, now);
+    for (const guard of commitGuards) {
+      if (await guard.evaluate() !== true) {
+        throw new Error(`Retained private handler guard ${JSON.stringify(guard.name)} no longer holds.`);
+      }
+    }
+    return opts.store.commit(batch);
+  } };
+  const mutationOpts: CanonicalMutationOpts = { ...opts, operation: selector.handler, operationId,
+    identity, inputs: admittedInputs, source: 'schedule', memberships: opts.identities, now: () => now };
+  try {
+    const outcome = await loaded.producers.invoke.invoke({ registry: descriptors.registry,
+      envelope: { operation: selector.handler, operation_id: operationId, inputs: admittedInputs },
+      identity, app: opts.app, source: 'schedule', kind: 'trusted', trustedSource,
+      store: guardedStore, memberships: opts.identities, clock: { nowMs: () => now },
+      conflictServerOnly: loaded.conflictServerOnly,
+      execute: async call => {
+        commitGuards = [];
+        const currentContext = workStageContext(opts.store,
+          { actor: trustedSource, now: call.context.now, operation: selector.handler });
+        const current = await stageRetained(selector, currentContext);
+        if (current.status !== 'ready') throw new RetainedHandlerOccurrenceChanged(current);
+        if (current.row.version !== retained.row.version ||
+            JSON.stringify(current.occurrence.payload) !== JSON.stringify(retained.occurrence.payload) ||
+            call.context.actor !== null || call.context.app !== opts.app || call.context.source !== 'schedule' ||
+            call.context.trustedSource !== trustedSource || (call.context.team?.teamId ?? 'app') !== selector.scope.owner) {
+          throw new Error('Retained private handler changed its captured source or admitted owner.');
+        }
+        await resolvePrivateSourceOwner(opts.identities, selector.scope, call.context.now);
+        let business: CanonicalExecutionEffects;
+        let refusal: { code: string; message: string } | undefined;
+        try {
+          // This existing seam slot supplies origin effects/identity, not a
+          // Work due gate: the derived retained handler occurrence is origin.
+          business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
+            { effects: {}, occurrenceId: current.occurrence.occurrenceId as OccurrenceId });
+        } catch (error) {
+          if (!isRequireFailure(error)) throw new Error('Retained handler execution failed.', { cause: error });
+          refusal = closedDispatchErrorForCause({ kind: 'handler-require-false', require: error.message });
+          business = { writes: [], history: [], outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [],
+            resolvedDefaults: {}, result: null };
+        }
+        const files = await stageFileReferences({ artifact: opts.artifact, effects: business, store: opts.store,
+          identity, app: opts.app, refuse: text => { throw new Error(text); } });
+        commitGuards = [...business.guards ?? [], ...files.guards];
+        const status = refusal === undefined ? 'completed' : 'failed';
+        const terminal = await stageTerminal({ ...selector, expectedVersion: current.row.version,
+          receipt: { status, result: business.result ?? null, code: refusal?.code ?? null,
+            message: refusal?.message ?? null, recordedAtMs: call.context.now } }, currentContext);
+        if (terminal.status !== 'ready') {
+          throw new Error('Retained handler terminal join lost its exact current occurrence.');
+        }
+        if ((terminal.effects.outboxAck?.length ?? 0) !== 0) throw new Error('Retained handler cannot acknowledge provider work.');
+        const effects = terminal.effects;
+        return { ...business, guards: commitGuards,
+          writes: [...business.writes, ...effects.writes ?? []], history: [...business.history, ...effects.history ?? []],
+          outbox: [...business.outbox, ...effects.outbox ?? []], schedules: [...business.schedules, ...effects.schedules ?? []],
+          uniqueClaims: [...business.uniqueClaims, ...effects.uniqueClaims ?? []],
+          uniqueReleases: [...business.uniqueReleases, ...effects.uniqueReleases ?? []],
+          result: { status, occurrenceId: current.occurrence.occurrenceId, result: business.result ?? null } };
+      } });
+    return outcome.result;
+  } catch (error) {
+    if (error instanceof RetainedHandlerOccurrenceChanged) return error.outcome;
     throw error;
   }
 }
