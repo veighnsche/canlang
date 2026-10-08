@@ -331,6 +331,19 @@ fn enum_claims_and_membership_execute_with_binding_and_order_controls() {
     let mut source = String::from(
         "app Joins\nGiven\n contract Row { s:enum(a,b),a:int,b:int,items:int[],ordinary:enum(draft,approved) }\n derive identity(value:int):int = value\n derive itemsIdentity(value:int[]):int[] = value\n derive enumIdentity(value:Row.s):Row.s = value\n derive shadow(a:Row.s,b:Row.s,row:Row):bool = a==row.s and row.s in [a,b]\n derive ordinary(row:Row):bool = draft==row.ordinary and row.ordinary in [draft,approved]\n derive expected(row:Row):bool = enumIdentity(a)==row.s\n",
     );
+    source.push_str(" contract ValuePair {value:int,label:text}\n");
+    for (family, ty) in [
+        ("user", "user"),
+        ("decimal", "decimal"),
+        ("date", "date"),
+        ("datetime", "datetime"),
+        ("contract", "ValuePair"),
+    ] {
+        source.push_str(&format!(
+            " derive {family}Equal(a:{ty},b:{ty}):bool = a==b\n derive {family}Member(a:{ty},values:{ty}[]):bool = a in values\n"
+        ));
+    }
+    source.push_str(" derive intInDecimal(a:int,values:decimal[]):bool = a in values\n derive decimalInInt(a:decimal,values:int[]):bool = a in values\n");
     source.push_str(&format!(" derive shadowLong(a:Row.s,b:Row.s,row:Row):bool = {prefix} and a==row.s and row.s in [a,b]\n"));
     for (name, expression) in [
         ("cases", "a==row.s and row.s in [a,b]".to_string()),
@@ -366,7 +379,38 @@ fn enum_claims_and_membership_execute_with_binding_and_order_controls() {
         scratch.0.path(),
         &[("joins", artifact)],
         r#"
+import {decodeValue,parseDecimal,equalValue,same} from '@canlang/stdlib';
 const call=await load('joins');
+// Direct native callable inputs exercise the owning Values facade, including
+// separate references and value objects; no persistence/admission seam is used.
+const user=decodeValue('user',{id:'u1'}),userCopy=decodeValue('user',{id:'u1'});
+assert.notEqual(user,userCopy);assert.equal(same(user,userCopy),true);
+const nativeCases=[
+ ['user','user',user,userCopy,decodeValue('user',{id:'u2'})],
+ ['decimal','decimal',parseDecimal('1.50'),parseDecimal('1.500'),parseDecimal('1.51')],
+ ['date','date',decodeValue('date','2026-10-04'),decodeValue('date','2026-10-04'),decodeValue('date','2026-10-05')],
+ ['datetime','datetime',decodeValue('datetime','2026-10-04T12:34:56.789Z'),decodeValue('datetime','2026-10-04T12:34:56.789Z'),decodeValue('datetime','2026-10-04T12:34:56.790Z')],
+ ['contract','Joins.ValuePair',{value:7n,label:'pair'},{label:'pair',value:7n},{value:8n,label:'pair'}],
+];
+for(const [family,type,left,equal,unequal]of nativeCases){
+ assert.notEqual(left,equal,family+' separate values');
+ assert.equal(equalValue(type,left,equal),true,family+' owning equality');
+ assert.equal(equalValue(type,left,unequal),false,family+' owning inequality');
+ for(const right of [equal,unequal])assert.equal(await call(family+'Equal')(context,left,right),equalValue(type,left,right),family+' equality');
+ for(const values of [[equal],[unequal],[]])assert.equal(await call(family+'Member')(context,left,values),values.some(item=>equalValue(type,left,item)),family+' membership');
+ const scan=[];const values=new Array(3);
+ Object.defineProperty(values,0,{get(){scan.push(0);return unequal;}});
+ Object.defineProperty(values,1,{get(){scan.push(1);return equal;}});
+ Object.defineProperty(values,2,{get(){throw Error('membership scanned after match');}});
+ assert.equal(await call(family+'Member')(context,left,values),true,family+' matching scan');assert.deepEqual(scan,[0,1]);
+}
+assert.equal(await call('decimalEqual')(context,parseDecimal('1.50'),parseDecimal('1.50')),true,'equal-scale decimal copies');
+for(const [name,type,left,equal,unequal]of [
+ ['intInDecimal','decimal',2n,parseDecimal('2.00'),parseDecimal('2.01')],
+ ['decimalInInt','int',parseDecimal('2.00'),2n,3n],
+]){
+ for(const values of [[equal],[unequal],[]])assert.equal(await call(name)(context,left,values),values.some(item=>equalValue(type,left,item)),name);
+}
 for(const name of ['cases','casesLong','expected']){
  assert.equal(await call(name)(context,{s:'a'}),true);
  assert.equal(await call(name)(context,{s:'b'}),false);
