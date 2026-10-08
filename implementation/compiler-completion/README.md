@@ -264,3 +264,18 @@ unsupported text addition; it was corrected to integer arithmetic, and
 only the failed lint and pending LSP cases ran afterward. Existing enum
 execution outcomes are reused. Pattern expansion and later-failure rollback
 retain their separate gates; canonical completion remains **57/67**.
+
+`041cb95a` lowers checked stored-child navigation through the existing
+awaited owning query, including its parent constraint and query clauses.
+The changed source/native input-choice case passes **1/1**: it evaluates
+the supplied parent once, avoids unloaded child properties, preserves query
+failure identity, and rejects failed admission before querying. Declared
+array fields remain value fields. The genuine updated artifact and current
+CLI are released to the composed State/D1/browser consumer; this bounded
+records host does not qualify that consumer's complete workflow.
+
+Original SEQ032's exact approval/hiring contexts expose an existing source
+conflict: the exported `can_work` derive calls the state-reading
+`active_member`, which the established pure-derive rule rejects with
+E3010. Original guards remain intact. Three-handler qualification awaits
+a helper/source design resolution; canonical completion remains **57/67**.

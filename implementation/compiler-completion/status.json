@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T13:26:55Z",
+  "updated_utc": "2026-10-08T13:56:24Z",
   "total": 67,
   "finished_at_recorded_scope": 57,
   "remaining_including_partial": 10,
@@ -98,9 +98,9 @@
     }
   },
   "latest_component": {
-    "commit": "eed80627118ae1499eb4d417e4508fda737d3be3",
-    "previous_component": "829f1510d5f771c495bb5bd43c741862c0d56034",
-    "outcome": "Original SEQ031 enum tooling changed direct cases4/4 pass: formatter nested scopes/comments/guards/leaf stability/idempotence; checked subject-domain remaining-case completion, lexical collision exclusion, arm scope and tokens; arm-local unreachable/unused/shadow lint; actual stdio LSP completion/token/versioned E3001 coverage/E1126 description/W1001 exact range. Existing formatter production needed no rewrite. Initial lint fixture text+text was unsupported; corrected to int arithmetic, repeated only failed lint and pending LSP. Existing enum execution29/30 outcomes reused; pattern expansion and later-failure rollback remain separate. Source-matching CLI released. Canonical57/67,10remaining."
+    "commit": "041cb95a1c300981e1effef86bf067ddb5b6a75c",
+    "previous_component": "eed80627118ae1499eb4d417e4508fda737d3be3",
+    "outcome": "Checked stored child navigation lowers to the existing awaited model query with owning parent, including query clauses; declared array fields remain values. Changed input_choices source/native case1/1 passes for one parent evaluation, no unloaded property access, exact query failure and admission-before-query. Current CLI and genuine artifact released to the composed State/D1/browser owner; no complete workflow credit. Original32 exact approval/hiring contexts retain guards and expose E3010 because actual can_work derive calls StateRead active_member under the established pure-derive rule. Helper/source design resolution remains open. Canonical57/67,10remaining."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
