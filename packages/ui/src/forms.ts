@@ -678,10 +678,10 @@ function needsMultipart(fields: readonly FormFieldDef[] | undefined): boolean {
   return fields.some((field) => field.control === "file_input");
 }
 
-function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperationInputs, renderedInputs?: readonly string[], bindingIdentity?: string): string {
+function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperationInputs, renderedInputs?: readonly string[], bindingIdentity?: string, draftIdentity?: string): string {
   const encoding = multipart ? ` enctype="multipart/form-data"` : "";
   const projection = derived === undefined ? ""
-    : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind, renderedInputs, bindingIdentity }))}"`;
+    : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind, renderedInputs, bindingIdentity, draftIdentity }))}"`;
   return `<form action="${escapeAttr(safeHref(action))}" method="post"${encoding}${projection}>`;
 }
 
@@ -923,7 +923,7 @@ export async function form(props: FormProps): Promise<string> {
   const fieldsHtml = rendered.join("");
   const submitLabel = escapeHtml(resolveCaption(props.submit, props.context));
   const renderedForm = (
-    formOpenTag(props.action, needsMultipart(props.fields), props.derived, props.fields.map(field => field.path), props.sourceBindingIdentity) +
+    formOpenTag(props.action, needsMultipart(props.fields), props.derived, props.fields.map(field => field.path), props.sourceBindingIdentity, props.sourceBindingDraftIdentity) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +

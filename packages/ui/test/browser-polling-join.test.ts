@@ -341,13 +341,13 @@ describe('prepared source form browser submission', () => {
   });
 });
 
-async function pollingFormHtml(state: string, partial = false, bindingIdentity = 'same-binding') {
+async function pollingFormHtml(state: string, partial = false, bindingIdentity = 'same-binding', draftIdentity = bindingIdentity) {
   const window = new Window();
   try {
     window.document.body.innerHTML = await sourceForm();
     const target = window.document.querySelector('form')!;
     const metadata = JSON.parse(target.getAttribute('data-can-generated-form')!);
-    target.setAttribute('data-can-generated-form', JSON.stringify({ ...metadata, bindingIdentity }));
+    target.setAttribute('data-can-generated-form', JSON.stringify({ ...metadata, bindingIdentity, draftIdentity }));
     target.querySelector('input[name="inputs[owner__version]"]')!.setAttribute('type', 'hidden');
     target.insertAdjacentHTML('beforeend', '<input type="hidden" name="form_binding" value="original-sealed-token">');
     return renderPage({ ...context, isPartial: partial }, descriptor,
@@ -426,6 +426,49 @@ describe('source form polling occurrence lifecycle', () => {
     } finally { await page.close(); }
   });
 
+  it('refreshes a record version with fresh authority and only compatible editable drafts and focus', async () => {
+    const extraControls = '<select id="draft-select"><option value="first" selected>First</option><option value="second">Second</option></select>' +
+      '<input id="draft-file" type="file">';
+    const fresh = (await pollingFormHtml('completed', true, 'version-two-binding', 'same-binding'))
+      .replace('rendered-operation-id', 'fresh-operation-id').replace('original-sealed-token', 'fresh-sealed-token')
+      .replace('value="csrf"', 'value="fresh-csrf"').replace('value="7"', 'value="8"')
+      .replace('</form>', extraControls + '</form>');
+    let finish!: (value: SubmitFetchResponse) => void;
+    const page = await pollingFormPage(async (_url, init) => init.method === 'GET'
+      ? response(async () => fresh) : new Promise(resolve => { finish = resolve; }));
+    try {
+      const old = page.window.document.querySelector('form')!;
+      old.insertAdjacentHTML('beforeend', extraControls);
+      const title = old.querySelectorAll<typeof page.window.HTMLInputElement.prototype>('input[name="inputs[title]"]')[1]!;
+      const checkbox = old.querySelector<typeof page.window.HTMLInputElement.prototype>('input[type="checkbox"][name="inputs[active]"]')!;
+      const tags = old.querySelector<typeof page.window.HTMLTextAreaElement.prototype>('textarea')!;
+      const selection = old.querySelector<typeof page.window.HTMLSelectElement.prototype>('select')!;
+      title.value = 'Recovered draft'; checkbox.checked = false; tags.value = '["draft"]'; selection.value = 'second';
+      title.focus(); page.submit();
+      const picker = old.querySelector<typeof page.window.HTMLInputElement.prototype>('input[type="file"]')!;
+      Object.defineProperty(picker, 'files', { value: [new page.window.File(['private bytes'], 'draft.txt')] });
+      const feedback = old.querySelector('[data-can-form-feedback]')!;
+      feedback.textContent = 'Old stale feedback'; feedback.removeAttribute('hidden');
+      feedback.setAttribute('data-can-form-feedback-code', 'stale');
+      await page.clock.tick();
+      const current = page.window.document.querySelector('form')!;
+      assert.notEqual(current, old); assert.equal(old.isConnected, false);
+      const refreshedTitle = current.querySelectorAll<typeof page.window.HTMLInputElement.prototype>('input[name="inputs[title]"]')[1]!;
+      assert.equal(refreshedTitle.value, 'Recovered draft'); assert.equal(page.window.document.activeElement, refreshedTitle);
+      assert.equal(current.querySelector<typeof page.window.HTMLInputElement.prototype>('input[type="checkbox"][name="inputs[active]"]')!.checked, false);
+      assert.equal(current.querySelector<typeof page.window.HTMLTextAreaElement.prototype>('textarea')!.value, '["draft"]');
+      assert.equal(current.querySelector<typeof page.window.HTMLSelectElement.prototype>('select')!.value, 'second');
+      assert.equal(current.querySelector<typeof page.window.HTMLInputElement.prototype>('input[type="file"]')!.files?.length, 0);
+      assert.deepEqual(['operation_id', 'form_binding', '_csrf', 'inputs[owner__version]']
+        .map(name => current.querySelector<typeof page.window.HTMLInputElement.prototype>(`input[name="${name}"]`)!.value),
+        ['fresh-operation-id', 'fresh-sealed-token', 'fresh-csrf', '8']);
+      assert.equal(current.hasAttribute('aria-busy'), false); assert.equal(current.hasAttribute('data-can-submit-state'), false);
+      assert.equal(current.querySelector('[data-can-form-feedback]')!.textContent, '');
+      assert.equal(current.querySelector('[data-can-form-feedback]')!.hasAttribute('hidden'), true);
+      finish(committed()); await settle(); assert.deepEqual(page.results, []);
+    } finally { await page.close(); }
+  });
+
   it('replaces changed binding or schema with fresh authority and suppresses the detached pending outcome', async () => {
     for (const changed of ['binding', 'schema']) {
       let fresh = (await pollingFormHtml('completed', true, changed === 'binding' ? 'different-binding' : 'same-binding'))
@@ -446,6 +489,7 @@ describe('source form polling occurrence lifecycle', () => {
         assert.equal(current.querySelector<typeof page.window.HTMLInputElement.prototype>('input[name="form_binding"]')!.value, 'fresh-sealed-token');
         assert.equal(current.hasAttribute('aria-busy'), false); assert.equal(current.hasAttribute('data-can-submit-state'), false);
         assert.equal(current.querySelector('[data-can-form-feedback]')!.textContent, '');
+        assert.equal(current.querySelectorAll<typeof page.window.HTMLInputElement.prototype>('input[name="inputs[title]"]')[1]!.value, 'last');
         finish(committed()); await settle(); assert.deepEqual(page.results, []);
       } finally { await page.close(); }
     }
