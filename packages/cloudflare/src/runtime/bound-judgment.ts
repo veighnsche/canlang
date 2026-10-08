@@ -2,7 +2,7 @@
 import type { Bcp47Tag, CanonicalValueTypes, CanValue, OutboxIntent, ReceiptResultContext } from '@canlang/contracts';
 import { encodeValue, normalizeValueTypes, scalarLength, validateValue } from '@canlang/values';
 import type { NormalizedSchema } from '@canlang/values';
-import { freezeJudgmentSource } from '@canlang/services';
+import { freezeJudgmentSource } from '@canlang/services/judgments/specification';
 import type { InstalledJudgment, ResolveInstalledJudgment, StaticJudgmentDescriptor } from '@canlang/services';
 import { createJudgmentReceiptContext } from '@canlang/state/receipt/tables';
 import type { DispatchProviderOutcome, DispatchReconcileEvidence } from './invoke.js';

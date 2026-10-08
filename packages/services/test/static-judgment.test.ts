@@ -1,6 +1,7 @@
 import { it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import { createHash } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { JudgmentChoiceAnswer, JudgmentNoulAnswer, JudgmentScoreAnswer } from '@canlang/contracts';
 import { parseDecimal } from '@canlang/values';
@@ -228,4 +229,20 @@ it('freezes runtime choices through the shared inventory and validates the actua
     assert.equal(rejected.result, null);
     assert.equal(rejected.error?.code, 'invalid_response');
   } finally { await server.close(); }
+});
+
+
+it('portable judgment revisions retain the Node SHA-256 UTF-8 protocol', () => {
+  for (const instructions of ['plain', 'Français مرحبا {literal}', 'lone\ud800']) {
+    const frozen = freezeJudgmentSource('sample.Portable', { version: 7n, questions: [
+      { name: 'human', kind: 'noul', instructions, yes: 'Oui', no: 'Non' },
+      { name: 'route', kind: 'choice', instructions: 'Queue?', options: [
+        { id: 'first', description: 'Première' }, { id: 'second', description: 'ثانية' },
+      ] },
+    ] }, 'fr');
+    const protocol = JSON.stringify(['can-static-judgment-v1', 'sample.Portable', '7', 'fr', [
+      ['noul', frozen.specification.noul[0]], ['choice', frozen.specification.choice[0]],
+    ]]);
+    assert.equal(frozen.specification.revision, `sha256:${createHash('sha256').update(protocol, 'utf8').digest('hex')}`);
+  }
 });
