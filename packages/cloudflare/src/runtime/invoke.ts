@@ -1894,17 +1894,33 @@ async function assertReadScenarioPair(
   }
   const declaredResult = own(declaration, 'result');
   const declaredType = own(declaredResult, 'type');
+  const declaredCases = own(declaredResult, 'cases');
   const array = own(declaredResult, 'array');
   const nullable = own(declaredResult, 'nullable');
   if (declaredResult !== undefined && (!isUnknownRecord(declaredResult) || typeof declaredType !== 'string' ||
       (array !== undefined && typeof array !== 'boolean') || (nullable !== undefined && typeof nullable !== 'boolean'))) {
     throw new Error(`${where}: malformed checked result declaration.`);
   }
-  const resultType = declaredResult === undefined ? 'void' : normalizeSchema({
+  let resultType: string;
+  if (declaredType === 'enum') {
+    const publicType = descriptor.result?.type;
+    if (typeof publicType !== 'string' || !Array.isArray(declaredCases)) {
+      throw new Error(`${where}: malformed checked enum result declaration.`);
+    }
+    const parsed = parseTypeId(publicType);
+    if (parsed.base.kind !== 'enum' || parsed.requiredArray || parsed.array !== (array === true) ||
+        parsed.nullable !== (nullable === true) || parsed.base.cases.length !== declaredCases.length ||
+        parsed.base.cases.some((value, index) => declaredCases[index] !== value)) {
+      throw new Error(`${where}: checked enum result cases or wrappers disagree.`);
+    }
+    resultType = printTypeId(parsed);
+  } else {
+    resultType = declaredResult === undefined ? 'void' : normalizeSchema({
     operations: { result: { inputs: { value: {
       type: `${declaredType}${array === true ? '[]' : ''}${nullable === true ? '?' : ''}`,
     } } } },
-  }).operations['result']!.inputs['value']!.typeId;
+    }).operations['result']!.inputs['value']!.typeId;
+  }
   if (descriptor.result?.type !== resultType) {
     throw new Error(`${where}: checked result declaration/descriptor disagreement.`);
   }
