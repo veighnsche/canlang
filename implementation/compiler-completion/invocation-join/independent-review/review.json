@@ -1,0 +1,18 @@
+{
+  "reviewer": "review_invocation_owner_join",
+  "verdict": "accept_bounded_existing_producer_join",
+  "scope": ["compiler/src/codegen/js.rs invocation canonical ids and field schemas", "packages/stdlib/src/index.ts verbatim Values invocation export", "packages/stdlib/test/assembly.test.ts exact list/count", "compiler/tests/invocation_references.rs and fixtures"],
+  "qualified_precondition": "checked static action/invocation target IR correction is separately reviewed by review_checked_action_targets",
+  "substantive_defects": [],
+  "blocking_missing_tests": [],
+  "independent_checks": ["unmodified fixture replay on pinned actual emitted artifact", "actual emitted fields owner schema/omission/codec controls", "existing binary rejects illegal bare/empty/nullable-required source shapes", "source and build SHA-256 pins before/after"],
+  "reused_focused_evidence": ["tests-final.log: 2 passed", "checker-invocation.log: 3 passed", "stdlib-assembly-final.log: 4 passed", "stdlib-build-final.log: completed build"],
+  "pin_drift": {"compiler/src/codegen/ir.rs": "concurrent rustfmt whitespace only; separately reviewed precondition; join source/build/test/owner/artifact/binary pins stable"},
+  "native_value_semantics": "Decimal carrier value survives shallow structural cloning; pointer and class prototype identity do not survive",
+  "defaults_boundary": "explicit emitted default data supplied to trusted direct handler; omitted scalars remain undefined; platform admission not tested",
+  "evaluation_boundary": "handler input getter extraction once; inspected unchanged named-argument scheduling; authored argument property order; no broad effectful-call proof",
+  "legal_source_boundary": "empty Invocation target vector not constructible from checked source; forged public IR is outside this acceptance",
+  "draft_boundary": "DESIGN 13.4 proposed operations descriptor/contextful constructor differs from current Values API and is not qualified",
+  "remaining_gaps": ["CRUD helper exports/emission", "record row hydration", "platform owner-schema completeness/version admission", "State/Cloudflare execution and authorization", "rollback/replay", "generic contract/union Invocation argument wire encoding"],
+  "write_scope": "implementation/compiler-completion/invocation-join/independent-review/ only"
+}

@@ -1,0 +1,11 @@
+app T
+Given
+When
+ scenario mutate() by=members
+  do
+   let x = 1
+ scenario descriptor() read=true -> text by=members
+  do
+   let reference = invocation(choose(1 / 0 == 0.0,mutate,mutate),{})
+   return "constructed"
+Then

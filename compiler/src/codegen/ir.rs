@@ -37,7 +37,7 @@
 //! `modules[i]` to `CheckedProgram.modules[i]`, so [`SymbolId`] and
 //! [`ModuleId`] index both tables.
 
-use crate::analysis::catalog::{Availability, Catalog, Effects, std_capability};
+use crate::analysis::catalog::{Availability, Catalog, Effects, SigType, std_capability};
 use crate::analysis::effects::{EffectVerb, PolicyRule};
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
@@ -2593,6 +2593,23 @@ fn is_enum_ty(ty: &ResolvedType) -> bool {
     }
 }
 
+/// Only static identifier paths may become constructor target data.
+/// Operation-typed composites retain ordinary lowering so value computation
+/// (including throwing predicates and object members) is never discarded.
+fn static_operation_reference(node: &SyntaxNode) -> bool {
+    match node.kind {
+        SyntaxKind::NameRef => true,
+        SyntaxKind::Member => {
+            let expressions: Vec<_> = kids(node)
+                .into_iter()
+                .filter(|child| is_expression(child.kind))
+                .collect();
+            expressions.len() == 1 && static_operation_reference(expressions[0])
+        }
+        _ => false,
+    }
+}
+
 /// Whether `kind` can appear as an expression child.
 fn is_expression(kind: SyntaxKind) -> bool {
     matches!(
@@ -2866,7 +2883,34 @@ impl<'a> Cx<'a> {
                 let args = selected
                     .arguments
                     .iter()
-                    .map(|key| self.decode_anchored(scope, key, "call argument"))
+                    .enumerate()
+                    .map(|(source, key)| {
+                        // Operation identities are constructor data only at the
+                        // checked action/invocation target formal. Keep source
+                        // order and the checker's named-argument slot mapping;
+                        // other positions retain ordinary value lowering.
+                        let target =
+                            matches!(id.as_str(), "action" | "invocation")
+                                && signature.params.iter().zip(&selected.slots).any(
+                                    |(param, slot)| {
+                                        matches!(param.ty, SigType::ActionTarget)
+                                            && *slot == Some(source)
+                                    },
+                                );
+                        if target
+                            && let Some(ResolvedType::Operation(operation)) =
+                                self.program.types.node_types.get(key)
+                            && self.node(key).is_some_and(static_operation_reference)
+                            && let Some(symbol) = self.program.symbols.get(operation.0 as usize)
+                        {
+                            return TypedExpr::new(
+                                IrExpr::Text(symbol.canonical.clone()),
+                                ResolvedType::Scalar(Scalar::Text),
+                                Span::new(key.file, key.start, key.end),
+                            );
+                        }
+                        self.decode_anchored(scope, key, "call argument")
+                    })
                     .collect();
                 Self::selected_call_expr(
                     IrCallTarget::Builtin { id, awaited },

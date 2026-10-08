@@ -1,0 +1,19 @@
+app Targets
+Given
+ Item { title:text }
+ policy Item read=members
+ contract References { local:action(mutate) }
+When
+ scenario mutate(record:Item, amount:decimal=1.50) by=members
+  do
+   let amountCopy = amount
+ scenario descriptors(record:Item) read=true -> References by=members
+  do
+   return {local=action(bindings={record=record},target=mutate)}
+ scenario empty() by=members
+  do
+   let value = 1
+ scenario defaults() read=true -> action(empty) by=members
+  do
+   return action(empty,{})
+Then

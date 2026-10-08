@@ -1,0 +1,13 @@
+app T
+Given
+When
+ scenario mutate() by=members
+  do
+   let x = 1
+ scenario predicate() read=true -> bool by=members
+  do
+   return 1 / 0 == 0.0
+ scenario descriptors() read=true -> action(mutate) by=members
+  do
+   return action(choose(1 / 0 == 0.0,mutate,mutate),{})
+Then

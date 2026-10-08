@@ -1,0 +1,56 @@
+{
+  "bare": {
+    "exit": 10,
+    "stderr": "",
+    "diagnostics": [
+      {
+        "code": "E2001",
+        "severity": "error",
+        "message": "unresolved name 'invocation'",
+        "primary": {
+          "file": 0,
+          "start": 36,
+          "end": 46
+        },
+        "related": [],
+        "tags": []
+      }
+    ]
+  },
+  "empty": {
+    "exit": 10,
+    "stderr": "",
+    "diagnostics": [
+      {
+        "code": "E1213",
+        "severity": "error",
+        "message": "invocation requires at least one entry",
+        "primary": {
+          "file": 0,
+          "start": 47,
+          "end": 48
+        },
+        "related": [],
+        "tags": []
+      }
+    ]
+  },
+  "nullable_required": {
+    "exit": 10,
+    "stderr": "",
+    "diagnostics": [
+      {
+        "code": "E1213",
+        "severity": "error",
+        "message": "`!` is required-array field metadata, not a scalar/parameter suffix",
+        "primary": {
+          "file": 0,
+          "start": 57,
+          "end": 58
+        },
+        "related": [],
+        "tags": []
+      }
+    ]
+  }
+}
