@@ -21,6 +21,7 @@ import type {
 import type { DeliveryStatus } from "./services.js";
 import type { HistoryEntry } from "./state.js";
 import type { UserRef } from "./values.js";
+import type { ReceiptProperty } from "./work.js";
 
 /** Reused producer types, re-exported so lane-05 members import one contract file. */
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
@@ -163,7 +164,10 @@ export interface PageSourceContext {
   readonly actorFacts: { readonly email: string; readonly email_verified: boolean } | null;
   readonly team: { readonly id: string; readonly timezone: string } | null;
   readonly memberships: readonly string[];
-  readonly canonical: { readonly builtinRoles: readonly string[] };
+  readonly canonical: {
+    readonly builtinRoles: readonly string[];
+    readonly observeDelivery?: PageDeliveryObserver;
+  };
 }
 
 /** Dispatcher-owned presentation view; raw principal stays opaque to UI. */
@@ -426,6 +430,18 @@ export type RowQueryRunner = (
   model: string,
   args: ListQueryArgs,
 ) => Promise<ListQueryResult>;
+
+/** Readonly selected delivery observation; the implementing owner enforces current grants. */
+export type PageDeliveryObserver = (
+  locator: { readonly record: unknown; readonly field: string },
+  selected: readonly ReceiptProperty[],
+) => Promise<Readonly<Partial<Record<ReceiptProperty, unknown>>> | null>;
+
+/** One request's authorized readers; this scope itself grants no authority. */
+export interface PageReadScope {
+  readonly query: RowQueryRunner;
+  readonly observeDelivery?: PageDeliveryObserver;
+}
 
 /**
  * One `text` value. Raw strings are verbatim text; raw numbers must be safe

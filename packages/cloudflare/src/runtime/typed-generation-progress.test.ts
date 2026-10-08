@@ -9,7 +9,9 @@ import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, MutationEnvelope, OutboxIntent, ProviderBinding } from '@canlang/contracts';
 import { createMemoryIdentityStore } from '@canlang/identity/testing';
-import { resolveIdentity } from '@canlang/identity';
+import { buildSessionCookie, resolveIdentity } from '@canlang/identity';
+import { handlePageRequest } from '@canlang/interfaces';
+import type { PageHttpDeps } from '@canlang/interfaces';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { associationRowId, readAssociationRow, readReceiptRow, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { FIXED_NOW, asId, asModel, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
@@ -21,7 +23,7 @@ import { classifyFailure } from '@canlang/work/receipt';
 import { planRecoveryScan } from '@canlang/work/recovery';
 import { WORK_DISPATCH_MODEL } from '@canlang/work/kernel/tables';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
-import { buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
+import { assembleWorker, buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 import { OllamaChatAdapter } from '@canlang/services/models/ollama';
 import { createBoundTextGenerationAdapter } from '@canlang/cloudflare/runtime/bound-text-generation';
 import { createBoundTextGenerationDispatcher } from '@canlang/cloudflare/runtime/bound-dispatch';
@@ -36,7 +38,8 @@ function localChatTokens(messages: readonly { role: string; content: string }[])
 
 async function localModelServer() {
   const requests: { model: string; messages: { role: string; content: string }[] }[] = [];
-  let mode: 'complete' | 'incomplete' | 'malformed' | 'interrupted' = 'complete';
+  const requestWaiters: (() => void)[] = [];
+  let mode: 'complete' | 'incomplete' | 'malformed' | 'interrupted' | 'held' = 'complete';
   const server = createServer(async (request, response) => {
     try {
       assert.equal(request.method, 'POST');
@@ -49,6 +52,7 @@ async function localModelServer() {
       assert.equal(body.options.num_predict, 128);
       assert.ok(Array.isArray(body.messages));
       requests.push({ model: body.model, messages: body.messages });
+      for (const resolve of requestWaiters.splice(0)) resolve();
       response.writeHead(200, { 'content-type': 'application/x-ndjson' });
       const line = (content: string, done: boolean, extra = {}) => JSON.stringify({
         model: LOCAL_MODEL, message: { role: 'assistant', content, thinking: 'PRIVATE_LOCAL_THINKING' },
@@ -58,6 +62,7 @@ async function localModelServer() {
       const first = line('Local ', false);
       response.write(first.slice(0, 19));
       response.write(first.slice(19));
+      if (mode === 'held') { response.flushHeaders(); return; }
       if (mode === 'interrupted') {
         response.flushHeaders();
         // A socket loss is uncertainty, unlike a clean incomplete NDJSON body.
@@ -77,6 +82,7 @@ async function localModelServer() {
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   return { requests, baseUrl: `http://127.0.0.1:${address.port}`,
+    nextRequest: () => new Promise<void>(resolve => requestWaiters.push(resolve)),
     setMode: (next: typeof mode) => { mode = next; },
     close: () => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())),
   };
@@ -128,6 +134,28 @@ test('compiled generation streams controlled provider bytes into granted native 
       selectedReceiptObserver: { observeSelectedReceipt: (input: unknown) =>
         observeSelectedReceipt(input as Parameters<typeof observeSelectedReceipt>[0]) } });
     let invoker = invokerFor();
+    const cookie = buildSessionCookie(token, { maxAgeSeconds: 3600, secure: false }).split(';')[0]!;
+    const outsiderCookie = buildSessionCookie(outsiderToken, { maxAgeSeconds: 3600, secure: false }).split(';')[0]!;
+    let pageHost: Awaited<ReturnType<typeof assembleWorker>> | undefined;
+    let pageStore: typeof store | undefined;
+    const pageResponse = async (sessionCookie = cookie) => {
+      if (pageHost === undefined || pageStore !== store) {
+        pageHost = await assembleWorker(artifact, asm, { store, identityStore: identities, now: () => FIXED_NOW,
+          selectedReceiptObserver: { observeSelectedReceipt: (input: unknown) =>
+            observeSelectedReceipt(input as Parameters<typeof observeSelectedReceipt>[0]) },
+          http: { createPageHandler: deps => request => handlePageRequest(deps as unknown as PageHttpDeps, request) },
+        }, { active: true });
+        pageStore = store;
+      }
+      return pageHost.fetch(new Request('https://test.invalid/', { headers: { cookie: sessionCookie, 'hx-request': 'true' } }));
+    };
+    const pageHtml = async () => {
+      const response = await pageResponse();
+      assert.equal(response.status, 200, await response.clone().text());
+      const html = await response.text();
+      assert.equal(html.includes('PRIVATE_LOCAL_THINKING'), false);
+      return html;
+    };
     let sequence = 0;
     const envelope = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
       operation: `${APP}.${operation}`, operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)), inputs,
@@ -144,6 +172,7 @@ test('compiled generation streams controlled provider bytes into granted native 
       return response.result as Record<string, unknown>;
     };
     assert.equal(committed(await visible(1)).result, null);
+    assert.ok((await pageHtml()).includes('Awaiting generation'));
     const unassociated = await readReceipt(['result.content']);
     assert.equal(readBody(unassociated)['outcome'], 'null-association');
     const original = envelope('generate', { job: { id: created.id, version: String(created.version) },
@@ -266,6 +295,11 @@ test('compiled generation streams controlled provider bytes into granted native 
             const run = retained.result as Record<string, unknown>;
             snapshots.push(run);
             assert.deepEqual(readBody(await readReceipt(['result.content']))['projection'], { 'result.content': run['content'] });
+            const html = await pageHtml();
+            assert.equal(html.includes('Awaiting generation'), false);
+            const caption = { queued: 'Queued', running: 'Running', succeeded: 'Succeeded' }[String(run['state']) as 'queued' | 'running' | 'succeeded'];
+            assert.ok(caption && html.includes(caption), html);
+            assert.ok(html.includes(String(run['content'])), html);
           }
         }
         return committedSet;
@@ -303,6 +337,7 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.equal(final['content'], 'Local answer.');
     assert.equal(final['used_tokens'], String(localChatTokens(provider.requests[0]!.messages).length + new TextEncoder().encode('Local answer.').length));
     assert.equal(committed(await visible(2)).result, 'Local answer.');
+    assert.ok((await pageHtml()).includes('Succeeded'));
     // Source expressions receive native integer values; transports keep wire decimals.
     const observedInteger = (operation: string) => invoker.invokeMutation(envelope(operation, {
       job: { id: created.id, version: '2' },
@@ -382,6 +417,7 @@ test('compiled generation streams controlled provider bytes into granted native 
       } else assert.ok(receipt.status === 'failed' || receipt.status === 'unknown', JSON.stringify(receipt));
       assert.equal(JSON.stringify(receipt).includes('PRIVATE_LOCAL_THINKING'), false);
       assert.equal(JSON.stringify(await readReceipt(['result.content'])).includes('PRIVATE_LOCAL_THINKING'), false);
+      assert.ok((await pageHtml()).includes(receipt.status === 'unknown' ? 'Unknown' : 'Failed'));
     }
 
     // Replacement detaches the original attempt without deleting its receipt.
@@ -398,6 +434,9 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.equal((oldReceipt.result as Record<string, unknown>)['state'], 'succeeded');
     assert.equal((oldReceipt.result as Record<string, unknown>)['source'], old.mutation.operation_id);
     assert.deepEqual(readBody(await readReceipt(['result.content']))['projection'], { 'result.content': null });
+    const replacementHtml = await pageHtml();
+    assert.ok(replacementHtml.includes('Awaiting generation'));
+    assert.equal(replacementHtml.includes('Local answer.'), false);
     assert.equal((await drive(latestIntent.intentId)).status, 'recorded');
     assert.deepEqual(readBody(await readReceipt(['result.content']))['projection'], { 'result.content': 'Local answer.' });
     const finalOwner = await store.load(MODEL, asId(created.id)); assert.ok(finalOwner);
@@ -407,6 +446,24 @@ test('compiled generation streams controlled provider bytes into granted native 
       assert.equal(readBody(denied)['outcome'], 'denied');
       assert.equal(JSON.stringify(denied).includes(latestIntent.intentId), false);
     }
+
+    // Cancel the actual installed live handle while its HTTP stream is open.
+    provider.setMode('held');
+    const cancelled = await generate('Actual cancelled transport'); committed(cancelled.answer);
+    const cancelledIntent = (await store.outboxPending()).find(row => row.operationId === cancelled.mutation.operation_id); assert.ok(cancelledIntent);
+    const waitingRequest = provider.nextRequest();
+    const cancellingDrive = drive(cancelledIntent.intentId);
+    await Promise.race([waitingRequest, cancellingDrive.then(() => {
+      throw new Error('Held generation finished before the actual provider request.');
+    })]);
+    const cancellation = await adapter.cancel(cancelledIntent);
+    assert.equal(cancellation?.kind, 'delivered');
+    assert.equal((await cancellingDrive).status, 'recorded');
+    const cancelledRow = await store.load(asModel(RECEIPT_MODEL), asId(cancelledIntent.intentId)); assert.ok(cancelledRow);
+    const cancelledContext = adapter.resultContext(cancelledIntent); assert.ok(cancelledContext);
+    assert.equal((readReceiptRow(cancelledRow, cancelledContext).receipt.result as Record<string, unknown>)['state'], 'cancelled');
+    assert.ok((await pageHtml()).includes('Cancelled'));
+    provider.setMode('complete');
 
     // The terminal receipt commits, then its native commit response is lost.
     // Fresh recovery must acknowledge durable evidence without replaying HTTP.
@@ -519,6 +576,7 @@ test('compiled generation streams controlled provider bytes into granted native 
       assert.deepEqual(readBody(await readReceipt(['result.state', 'result.content']))['projection'], {
         'result.state': chosenRun['state'], 'result.content': chosenRun['content'],
       });
+      assert.ok((await pageHtml()).includes(mode === 'complete' ? 'Succeeded' : 'Unknown'));
       if (mode === 'complete') assert.equal((await store.outboxPending()).some(row => row.intentId === chosen.intentId), false);
       else {
         claimedUnknownIntents.push(chosen);
@@ -586,10 +644,19 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.deepEqual(readBody(await readReceipt(['result.state', 'result.content']))['projection'], {
       'result.state': 'unknown', 'result.content': unknownRun['content'],
     });
+    assert.ok((await pageHtml()).includes('Unknown'));
+    const outsiderPage = await pageResponse(outsiderCookie);
+    assert.equal(outsiderPage.status, 403);
+    const outsiderHtml = await outsiderPage.text();
+    assert.equal(outsiderHtml.includes('Local '), false);
+    assert.equal(outsiderHtml.includes(interruptedIntent.intentId), false);
     const hiddenRecovery = await readReceipt(['result.content'], outsiderIdentity);
     assert.ok('error' in hiddenRecovery || readBody(hiddenRecovery)['outcome'] === 'denied', JSON.stringify(hiddenRecovery));
 
     await identities.removeMembership(membership.membership_id);
+    const revokedPage = await pageResponse();
+    assert.equal(revokedPage.status, 403);
+    assert.equal((await revokedPage.text()).includes('Local answer.'), false);
     const revokedRead = await readReceipt(['result.content']);
     assert.ok('error' in revokedRead || readBody(revokedRead)['outcome'] === 'denied', JSON.stringify(revokedRead));
     assert.ok('error' in await visible(recoveryOwner.version));
