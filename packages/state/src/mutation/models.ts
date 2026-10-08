@@ -8,6 +8,7 @@
  * caller input raises `StateError` validation at write time instead.
  */
 
+import { parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
 import { deepFreeze } from '../internal/own-data.js';
 import type {
   CanTypeId,
@@ -306,6 +307,29 @@ function checkDotPath(path: string, what: string): void {
   }
 }
 
+/** The checked loader schema is the authority for source nominal names. */
+export interface ModelTableOptions {
+  readonly valueSchema?: NormalizedSchema;
+}
+
+function checkModelValueType(field: InterimFieldDef, name: string, model: string, schema?: NormalizedSchema): void {
+  if (!Object.hasOwn(field, 'valueType')) return;
+  let valid = false;
+  if (typeof field.valueType === 'string') {
+    try {
+      const parsed = parseTypeId(field.valueType);
+      const scalar = /^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(field.valueType);
+      const nominal = schema !== undefined && parsed.base.kind === 'nominal' &&
+        (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path));
+      valid = (scalar || nominal) && printTypeId(parsed) === field.valueType &&
+        parsed.array === (field.array !== undefined) &&
+        (!nominal || parsed.requiredArray === (field.array?.required === true)) &&
+        (!Object.hasOwn(field, 'nullable') || typeof field.nullable === 'boolean' && parsed.nullable === field.nullable);
+    } catch { /* The single descriptive error below owns malformed claims. */ }
+  }
+  if (!valid) throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: checked scalar/nominal profile must agree with array/nullable markers.`);
+}
+
 /**
  * Validate and freeze interim model defs into a lookup table.
  *
@@ -321,7 +345,9 @@ function checkDotPath(path: string, what: string): void {
  * `run`/`check`, malformed lock `when` shapes), or non-serializable
  * descriptor data.
  */
-export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTable {
+export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: ModelTableOptions = {}): ModelTable {
+  // Reuse the values validator's normalized-schema shape gate.
+  if (opts.valueSchema !== undefined) validateValue(opts.valueSchema, 'text', '', 'create');
   const table = new Map<ModelName, InterimModelDef>();
   for (const def of models) {
     if (typeof def.model !== 'string' || def.model === '') {
@@ -353,12 +379,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
             'required and serverOnly must be booleans.',
         );
       }
-      if (Object.hasOwn(field, 'valueType') &&
-          (typeof field.valueType !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(field.valueType) ||
-           field.valueType.includes('[]') !== (field.array !== undefined) ||
-           Object.hasOwn(field, 'nullable') && field.valueType.endsWith('?') !== field.nullable)) {
-        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: int/datetime/text/bool/decimal/money/date/duration/user/file profile must agree with array/nullable markers.`);
-      }
+      checkModelValueType(field, name, model, opts.valueSchema);
       if (field.array !== undefined) {
         const marker = field.array;
         if (
@@ -681,7 +702,7 @@ function checkContainmentAcyclic(table: Map<ModelName, InterimModelDef>): void {
 }
 
 /** Engine-local attachments for canonical-derived model tables (T04b owns the rest). */
-export interface CanonicalModelTableOptions {
+export interface CanonicalModelTableOptions extends ModelTableOptions {
   /**
    * Reference paths per model, derived by the descriptor loader from the
    * artifact's singular top-level `ref` field tags. Models without an entry
@@ -743,13 +764,7 @@ export function buildModelTableFromCanonical(
   for (const model of models) {
     const fields: Record<string, InterimFieldDef> = {};
     for (const [name, field] of Object.entries(model.fields)) {
-      if (Object.hasOwn(field, 'valueType') &&
-          (typeof field.valueType !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(field.valueType) ||
-           field.valueType.includes('[]') !== (field.array !== undefined) ||
-           Object.hasOwn(field, 'nullable') &&
-             (typeof field.nullable !== 'boolean' || field.valueType.endsWith('?') !== field.nullable))) {
-        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model.name)}: int/datetime/text/bool/decimal/money/date/duration/user/file profile must agree with array/nullable markers.`);
-      }
+      checkModelValueType(field, name, model.name, opts.valueSchema);
 
       let fallback: unknown;
       let hasFallback = false;
@@ -782,7 +797,9 @@ export function buildModelTableFromCanonical(
         ...(field.machine !== undefined ? { machine: checkFieldMachine(field.machine) } : {}),
         ...(field.array !== undefined ? { array: { required: field.array.required } } : {}),
         ...(serverInit !== undefined ? { server: serverInit } : {}),
-        ...(knownNullable ? { nullable: true } : {}),
+        ...(Object.hasOwn(field, 'nullable') && opts.valueSchema !== undefined &&
+          field.valueType !== undefined && parseTypeId(field.valueType).base.kind === 'nominal'
+          ? { nullable: field.nullable! } : knownNullable ? { nullable: true } : {}),
       };
     }
     const uniqueKeys = model.uniqueKeys ?? [];
@@ -808,5 +825,5 @@ export function buildModelTableFromCanonical(
       ...(containment !== undefined ? { containment: { ...containment } } : {}),
     });
   }
-  return buildModelTable(defs);
+  return buildModelTable(defs, opts);
 }

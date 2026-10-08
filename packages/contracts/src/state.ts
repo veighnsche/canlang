@@ -778,8 +778,17 @@ export type CanonicalInputDef =
     }
   | {
       readonly name: string;
+      readonly kind: 'nominal';
+      /** Resolves only against this set's checked valueTypes, never a stored model by spelling. */
+      readonly valueType: CanTypeId;
+      readonly computedDefault?: true;
+      readonly required: boolean;
+      readonly default?: CanonicalFieldDefault;
+    }
+  | {
+      readonly name: string;
       readonly kind: 'delivery';
-      readonly delivery: CanonicalDeliveryDescriptor;
+      readonly delivery: CanonicalDeliveryDescriptor | CanonicalJudgmentDeliveryDescriptor;
       readonly required: boolean;
       readonly default?: CanonicalFieldDefault;
     };
@@ -830,7 +839,7 @@ export interface CanonicalFieldDef {
   readonly serverOnly: boolean;
   readonly array?: { readonly required: boolean };
   readonly default?: CanonicalFieldDefault;
-  readonly delivery?: CanonicalDeliveryDescriptor;
+  readonly delivery?: CanonicalDeliveryDescriptor | CanonicalJudgmentDeliveryDescriptor;
 }
 
 /**
@@ -855,6 +864,8 @@ export interface ExecutionDescriptorSet {
   readonly contractVersion: typeof EXECUTION_CONTRACT_VERSION;
   readonly operations: ReadonlyArray<CanonicalOperationDescriptor>;
   readonly models: ReadonlyArray<CanonicalModelDescriptor>;
+  /** Source-owned structural values, separate from stored record identities. */
+  readonly valueTypes?: CanonicalValueTypes;
 }
 
 /**
@@ -915,6 +926,12 @@ export interface CanonicalNominalResult {
   readonly fields: ReadonlyArray<CanonicalNominalLeaf>;
 }
 
+/** The one checked nominal schema inventory carried by an artifact. */
+export interface CanonicalValueTypes {
+  readonly contracts: ReadonlyArray<CanonicalNominalResult>;
+  readonly enums?: ReadonlyArray<{ readonly name: string; readonly cases: ReadonlyArray<string> }>;
+}
+
 /**
  * T04b-p canonical provider delivery descriptor. Mirrors L1
  * `ArtifactDeliveryDescriptor` (emitted by T15b `delivery_descriptor`
@@ -934,6 +951,16 @@ export interface CanonicalDeliveryDescriptor {
   readonly capability: string;
   readonly operation: string;
   readonly version: number;
+  readonly result: CanonicalNominalResult;
+}
+
+/** A source-defined Judgment version is exact int64 text in the JSON artifact. */
+export interface CanonicalJudgmentDeliveryDescriptor {
+  readonly kind: 'delivery';
+  readonly judgment: true;
+  readonly capability: string;
+  readonly operation: 'evaluate';
+  readonly version: string;
   readonly result: CanonicalNominalResult;
 }
 

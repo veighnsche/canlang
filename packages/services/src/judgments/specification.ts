@@ -62,6 +62,7 @@ export function freezeJudgmentSource(
   const ordered: unknown[] = [];
   for (const entry of descriptor.questions) {
     if (typeof entry?.name !== 'string' || !IDENTIFIER.test(entry.name) || RESERVED.has(entry.name) || order.includes(entry.name)) fail();
+    if (Object.hasOwn(entry, 'runtime') && (entry as unknown as Record<string, unknown>)['runtime'] !== false) fail();
     const id = entry.name, instructions = caption(entry.instructions);
     order.push(id);
     switch (entry.kind) {

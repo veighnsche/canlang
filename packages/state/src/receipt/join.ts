@@ -22,6 +22,7 @@
  */
 import type {
   CanonicalNominalResult,
+  ReceiptResultContext,
   ReceiptAssociation,
   ReceiptError,
   ReceiptProperty,
@@ -45,6 +46,7 @@ import {
   associationRowId,
   readAssociationRow,
   readReceiptRow,
+  isJudgmentReceiptContext,
   TEXT_RUN_RECEIPT_PROPERTIES,
 } from './tables.js';
 import {
@@ -210,6 +212,8 @@ export interface SelectedReceiptJoinInput {
   readonly declaredSource: string;
   /** Required for result subfields; supplied from the same checked owning field. */
   readonly declaredResult?: CanonicalNominalResult;
+  /** Checked current declaration/specification for typed receipt reads. */
+  readonly declaredContext?: ReceiptResultContext;
   /** Grant source: the declared per-model policy table. */
   readonly policy: PolicyTable;
   readonly caller: JoinCaller;
@@ -308,6 +312,19 @@ export async function observeSelectedReceiptJoin(
   if (typeof input.declaredSource !== 'string' || input.declaredSource.length === 0) {
     throw new Error('receipt join: missing declared delivery source');
   }
+  const declaredContext = input.declaredContext;
+  if (declaredContext !== undefined) {
+    if (typeof declaredContext !== 'object' || declaredContext === null ||
+        ('judgment' in declaredContext && !isJudgmentReceiptContext(declaredContext))) {
+      throw new Error('receipt join: malformed declared Judgment context');
+    }
+    const result = input.declaredResult, checked = declaredContext.declaredResult;
+    if (declaredContext.source !== input.declaredSource || result === undefined ||
+        checked.name !== result.name || checked.fields.length !== result.fields.length ||
+        !checked.fields.every((leaf, index) => leaf.name === result.fields[index]?.name && leaf.type === result.fields[index]?.type)) {
+      throw new Error('receipt join: declared context disagrees with delivery source or result');
+    }
+  }
   const current: unknown = (owner.data as Record<string, unknown>)[field];
   let delivery: { id: string; operation: string } | null = null;
   if (current !== null && current !== undefined) {
@@ -353,9 +370,9 @@ export async function observeSelectedReceiptJoin(
     if (row === null) {
       throw new Error('receipt join: missing receipt row for the stored association');
     }
-    const retained = readReceiptRow(row, input.declaredResult === undefined ? undefined : {
+    const retained = readReceiptRow(row, declaredContext ?? (input.declaredResult === undefined ? undefined : {
       source: input.declaredSource, declaredResult: input.declaredResult,
-    });
+    }));
     association = stored;
     receipt = { ...retained.receipt, contentRef: retained.contentRef };
     receiptRow = row;

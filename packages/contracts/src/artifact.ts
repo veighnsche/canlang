@@ -1,4 +1,4 @@
-import type { FieldMachine } from "./state.js";
+import type { CanonicalValueTypes, FieldMachine } from "./state.js";
 import type { CanTypeId } from "./values.js";
 import type { InputChoiceBinding } from "./wire.js";
 
@@ -139,6 +139,16 @@ export interface ArtifactDeliveryDescriptor {
   result: ArtifactNominalResult;
 }
 
+/** Static source-defined Judgment delivery; no narrowing to a JS number. */
+export interface ArtifactJudgmentDeliveryDescriptor {
+  kind: 'delivery';
+  judgment: true;
+  capability: string;
+  operation: 'evaluate';
+  version: string;
+  result: ArtifactNominalResult;
+}
+
 /**
  * One closed typed input field of an operation descriptor (MCP P1).
  *
@@ -163,7 +173,9 @@ export type ArtifactOperationField =
   | { kind: 'boolean' }
   | { kind: 'file' }
   | { kind: 'enum'; values: string[] }
-  | ArtifactDeliveryDescriptor;
+  | { kind: 'nominal'; name: string }
+  | ArtifactDeliveryDescriptor
+  | ArtifactJudgmentDeliveryDescriptor;
 
 /** One named operation input (JSON shape of `McpNamedField`). */
 export interface ArtifactOperationInput {
@@ -281,7 +293,9 @@ export type ArtifactModelFieldType =
   | { kind: 'member' }
   | { kind: 'json' }
   | { kind: 'bytes' }
+  | { kind: 'nominal'; name: string }
   | ArtifactDeliveryDescriptor
+  | ArtifactJudgmentDeliveryDescriptor
   | { kind: 'other'; type: string };
 
 /**
@@ -458,6 +472,8 @@ export interface CompileArtifact {
    * folds each model's `fields` array into a record by `name`.
    */
   models?: ArtifactModel[];
+  /** Checked source nominal definitions used by field/input/result claims. */
+  valueTypes?: CanonicalValueTypes;
   /** Page descriptors in source order. */
   pages: ArtifactPage[];
   /** Linked library/runtime requirements checked at build/activation. */

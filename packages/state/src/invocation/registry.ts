@@ -1,5 +1,5 @@
 import { checkFieldMachine } from '../internal/machine.js';
-import { parseTypeId, printTypeId } from '@canlang/values';
+import { normalizeValueTypes, ValueTypesError, parseTypeId, printTypeId, type NormalizedSchema } from '@canlang/values';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -42,6 +42,7 @@ import {
   type CanonicalOperationDescriptor,
   type CanonicalOperationKind,
   type CanonicalScalarKind,
+  type CanonicalValueTypes,
   type DeleteMode,
   type ExecutionDescriptorSet,
   type ModelName,
@@ -197,13 +198,16 @@ export interface LoadDescriptorSetOptions {
 export interface LoadedDescriptorSet {
   readonly registry: OperationRegistry;
   readonly models: ReadonlyArray<CanonicalModelDescriptor>;
+  /** Normalized once from the checked source inventory; absent for legacy sets. */
+  readonly valueSchema?: NormalizedSchema;
+  readonly valueTypes?: CanonicalValueTypes;
 }
 
 /** The artifact slice the join consumes (L7 owns `requires` fulfillment). */
 export type ArtifactDescriptorSlice = Pick<
   CompileArtifact,
   'artifact_version' | 'operations' | 'models'
-> & Partial<Pick<CompileArtifact, 'sources'>>;
+> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes'>>;
 
 /**
  * T18 engine-resolvable server initializer (closed subset of L1
@@ -229,6 +233,7 @@ export type ServerInitKind = 'actor' | 'now' | 'random_secret';
 export interface ConvertedArtifactDescriptors {
   readonly sources?: ReadonlyArray<Readonly<ArtifactSource>>;
   readonly set: ExecutionDescriptorSet;
+  readonly valueSchema?: NormalizedSchema;
   readonly refs: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
   readonly inputArrays: Readonly<
     Record<string, Readonly<Record<string, { readonly required: boolean }>>>
@@ -275,6 +280,7 @@ const KNOWN_INPUT_KINDS: ReadonlySet<string> = new Set([
   'boolean',
   'file',
   'enum',
+  'nominal',
 ]);
 
 const KNOWN_DEFAULT_KINDS: ReadonlySet<string> = new Set([
@@ -293,12 +299,53 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** Own-only intake claims use the defining Values inventory normalizer. */
+function checkValueTypes(holder: Record<string, unknown>): {
+  valueTypes?: CanonicalValueTypes; valueSchema?: NormalizedSchema;
+} {
+  if (!Object.hasOwn(holder, 'valueTypes')) return {};
+  try { return normalizeValueTypes(holder['valueTypes']); }
+  catch (error) {
+    const reason = error instanceof ValueTypesError
+      ? error.code === 'duplicate' ? 'duplicate_name' : error.code === 'dangling' ? 'dangling_reference' : 'malformed_descriptor'
+      : 'malformed_descriptor';
+    fail(reason, `Invalid valueTypes inventory: ${String(error)}`);
+  }
+}
+
+function checkedNominal(type: unknown, schema?: NormalizedSchema): boolean {
+  if (typeof type !== 'string' || schema === undefined) return false;
+  try {
+    const parsed = parseTypeId(type);
+    return printTypeId(parsed) === type && parsed.base.kind === 'nominal' &&
+      (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path));
+  } catch { return false; }
+}
+
+function checkNominalValueType(holder: Record<string, unknown>, what: string, schema?: NormalizedSchema): CanTypeId {
+  const type = Object.hasOwn(holder, 'valueType') ? holder['valueType'] : undefined;
+  if (!checkedNominal(type, schema)) fail('dangling_reference', `Invalid ${what}: nominal valueType must resolve in checked valueTypes.`);
+  if (Object.hasOwn(holder, 'nullable') && (typeof holder['nullable'] !== 'boolean' || (type as string).endsWith('?') !== holder['nullable'])) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with nullable marker.`);
+  }
+  return type as CanTypeId;
+}
+
+/** Required-array spellings are accepted only for checked nominal declarations. */
+function checkNominalArray(type: CanTypeId | undefined, marker: { readonly required: boolean } | undefined, what: string, schema?: NormalizedSchema): void {
+  checkTypeArray(type, marker !== undefined, what);
+  if (checkedNominal(type, schema) && parseTypeId(type!).requiredArray !== (marker?.required === true)) {
+    fail('malformed_descriptor', `Invalid ${what}: nominal valueType disagrees with array.required marker.`);
+  }
+}
+
 /** Additive claims are own-only; nullable suffix applies to the container. */
 function checkResult(
   holder: Record<string, unknown>,
   what: string,
   kind: string,
   modelNames: ReadonlySet<string>,
+  valueSchema?: NormalizedSchema,
 ): CanonicalOperationDescriptor['result'] {
   if (!Object.hasOwn(holder, 'result')) return undefined;
   const result = holder['result'];
@@ -317,21 +364,22 @@ function checkResult(
       const parsed = parseTypeId(type);
       inlineEnumResult = parsed.base.kind === 'enum' && !parsed.requiredArray && printTypeId(parsed) === type;
       knownModelResult = (kind === 'scenario' || kind === 'read') && parsed.base.kind === 'nominal' && parsed.base.path.includes('.') &&
-        modelNames.has(parsed.base.path) && !parsed.nullable && !parsed.requiredArray &&
+        modelNames.has(parsed.base.path) && printTypeId(parsed) === type && !parsed.nullable && !parsed.requiredArray &&
         (!parsed.array || kind === 'read');
     } catch {
       // The shared artifact error below covers malformed canonical spellings.
     }
   }
-  if (!scalarOrVoid && !inlineEnumResult && !knownModelResult) {
+  if (!scalarOrVoid && !inlineEnumResult && !knownModelResult && !checkedNominal(type, valueSchema)) {
     fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile, canonical inline enum profile or bare void; scenarios and reads may also declare a known qualified model, and reads a model[].`);
   }
   return Object.freeze({ type: type as CanTypeId });
 }
 
-function checkValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
+function checkValueType(field: Record<string, unknown>, what: string, valueSchema?: NormalizedSchema): CanTypeId | undefined {
   if (!Object.hasOwn(field, 'valueType')) return undefined;
   const type = field['valueType'];
+  if (checkedNominal(type, valueSchema)) return checkNominalValueType(field, what, valueSchema);
   if (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type)) {
     fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile.`);
   }
@@ -344,7 +392,7 @@ function checkValueType(field: Record<string, unknown>, what: string): CanTypeId
 
 /** Explicit enum claims belong to the ordered declaration; absent claims stay legacy. */
 function checkEnumValueType(
-  holder: Record<string, unknown>, values: unknown, what: string,
+  holder: Record<string, unknown>, values: unknown, what: string, valueSchema?: NormalizedSchema,
 ): CanTypeId | undefined {
   if (!Object.hasOwn(holder, 'valueType')) return undefined;
   const type = holder['valueType'];
@@ -352,9 +400,12 @@ function checkEnumValueType(
   if (typeof type === 'string' && Array.isArray(values)) {
     try {
       const parsed = parseTypeId(type);
-      valid = parsed.base.kind === 'enum' && !parsed.requiredArray &&
-        printTypeId(parsed) === type && parsed.base.cases.length === values.length &&
-        parsed.base.cases.every((entry, index) => entry === values[index]) &&
+      const cases = parsed.base.kind === 'enum' ? parsed.base.cases :
+        parsed.base.kind === 'nominal' && valueSchema !== undefined && Object.hasOwn(valueSchema.enums, parsed.base.path)
+          ? valueSchema.enums[parsed.base.path]!.cases : undefined;
+      valid = cases !== undefined && (parsed.base.kind === 'nominal' || !parsed.requiredArray) &&
+        printTypeId(parsed) === type && cases.length === values.length &&
+        cases.every((entry, index) => entry === values[index]) &&
         (!Object.hasOwn(holder, 'nullable') ||
           typeof holder['nullable'] === 'boolean' && parsed.nullable === holder['nullable']);
     } catch {
@@ -391,15 +442,32 @@ function scalarTypeForKind(kind: unknown): string | undefined {
 }
 
 /** Collapsed string tags require own claims; operation inputs also collapse checked date source. */
-function artifactValueType(field: Record<string, unknown>, what: string, operationInput = false): CanTypeId | undefined {
+function artifactValueType(field: Record<string, unknown>, what: string, operationInput = false, valueSchema?: NormalizedSchema): CanTypeId | undefined {
+  const nominalTag = field['field'];
+  if (Object.hasOwn(field, 'field') && isRecord(nominalTag) && Object.hasOwn(nominalTag, 'kind') && nominalTag['kind'] === 'nominal') {
+    if (!Object.hasOwn(nominalTag, 'name') || !checkedNominal(nominalTag['name'], valueSchema)) {
+      fail('dangling_reference', `Invalid ${what}: own nominal tag name must resolve in checked valueTypes.`);
+    }
+    const parsedTag = parseTypeId(nominalTag['name'] as string);
+    if (parsedTag.array || parsedTag.nullable) fail('malformed_descriptor', `Invalid ${what}: nominal tag name must be bare.`);
+    const marker = field['array'];
+    if (marker !== undefined && (!isRecord(marker) || typeof marker['required'] !== 'boolean')) fail('malformed_descriptor', `Invalid ${what}: array markers carry a boolean required.`);
+    const expected = `${nominalTag['name']}${marker !== undefined ? (isRecord(marker) && marker['required'] === true ? '[]!' : '[]') : ''}${field['nullable'] === true ? '?' : ''}`;
+    const type = checkNominalValueType(Object.hasOwn(field, 'valueType') ? field : { ...field, valueType: expected }, what, valueSchema);
+    if (type !== expected) fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with nominal compiler tag.`);
+    checkNominalArray(type, marker as { required: boolean } | undefined, what, valueSchema);
+    return type;
+  }
   if (operationInput && Object.hasOwn(field, 'field') && isRecord(field['field']) &&
       Object.hasOwn(field['field'], 'kind') && field['field']['kind'] === 'enum') {
-    const type = checkEnumValueType(field, field['field']['values'], what);
-    checkTypeArray(type, field['array'] !== undefined, what);
+    const type = checkEnumValueType(field, field['field']['values'], what, valueSchema);
+    const marker = field['array'];
+    if (checkedNominal(type, valueSchema) && marker !== undefined && (!isRecord(marker) || typeof marker['required'] !== 'boolean')) fail('malformed_descriptor', `Invalid ${what}: array markers carry a boolean required.`);
+    checkNominalArray(type, marker as { required: boolean } | undefined, what, valueSchema);
     return type;
   }
   if (Object.hasOwn(field, 'valueType')) {
-    checkTypeArray(checkValueType(field, what), field['array'] !== undefined, what);
+    checkTypeArray(checkValueType(field, what, valueSchema), field['array'] !== undefined, what);
   }
   const tag = field['field'];
   if (!Object.hasOwn(field, 'field') || !isRecord(tag) || !Object.hasOwn(tag, 'kind') ||
@@ -518,7 +586,7 @@ function checkComputedDefault(
 ): true | undefined {
   if (!Object.hasOwn(input, 'computedDefault')) return undefined;
   if (input['computedDefault'] !== true || (operationKind !== 'scenario' && operationKind !== 'read') || required ||
-      (inputKind !== 'enum' && inputKind !== 'ref' && (scalarTypeForKind(inputKind) === undefined || valueType === undefined)) ||
+      (inputKind !== 'nominal' && inputKind !== 'enum' && inputKind !== 'ref' && (scalarTypeForKind(inputKind) === undefined || valueType === undefined)) ||
       ((inputKind === 'ref' || (inputKind === 'enum' && valueType === undefined)) && (Object.hasOwn(input, 'array') || input['array'] !== undefined ||
         (Object.hasOwn(input, 'nullable') && input['nullable'] !== false) || valueType?.endsWith('?'))) ||
       Object.hasOwn(input, 'default') || input['default'] !== undefined) {
@@ -533,6 +601,7 @@ function checkCanonicalInput(
   opName: string,
   modelNames: ReadonlySet<string>,
   operationKind: unknown,
+  valueSchema?: NormalizedSchema,
 ): CanonicalInputDef {
   if (!isRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
     fail(
@@ -556,11 +625,20 @@ function checkCanonicalInput(
   const required = value['required'] as boolean;
   const fallback = checkDefault(value['default'], what);
   const valueType = kind === 'enum'
-    ? checkEnumValueType(value, value['enumValues'], what) : checkValueType(value, what);
+    ? checkEnumValueType(value, value['enumValues'], what, valueSchema) :
+      kind === 'nominal' ? checkNominalValueType(value, what, valueSchema) : checkValueType(value, what);
   const inputBase = valueType?.replace(/\[\]|\?/g, '');
-  if (kind !== 'enum' && valueType !== undefined && inputBase !== scalarTypeForKind(kind) &&
+  if (kind !== 'enum' && kind !== 'nominal' && valueType !== undefined && inputBase !== scalarTypeForKind(kind) &&
       !(kind === 'string' && inputBase === 'date')) {
     fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
+  }
+  if (kind === 'nominal') {
+    if (Object.hasOwn(value, 'enumValues')) fail('malformed_descriptor', `Invalid ${what}: enumValues is present exactly for enum.`);
+    const computedDefault = checkComputedDefault(value, operationKind, kind, valueType, required, what);
+    return { name, kind: 'nominal', valueType: valueType!, required,
+      ...(computedDefault !== undefined ? { computedDefault } : {}),
+      ...(fallback !== undefined ? { default: fallback } : {}),
+      ...(Object.hasOwn(value, 'nullable') ? { nullable: value['nullable'] } : {}) };
   }
   const computedDefault = checkComputedDefault(value, operationKind, kind, valueType, required, what);
   if (kind === 'ref') {
@@ -622,7 +700,7 @@ function checkCanonicalInput(
 }
 
 /** Validate one canonical model descriptor; returns the model name. */
-function checkCanonicalModel(value: unknown): CanonicalModelDescriptor {
+function checkCanonicalModel(value: unknown, valueSchema?: NormalizedSchema): CanonicalModelDescriptor {
   if (!isRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
     fail('malformed_descriptor', 'Invalid model descriptor: models need non-empty names.');
   }
@@ -666,8 +744,8 @@ function checkCanonicalModel(value: unknown): CanonicalModelDescriptor {
         fail('malformed_descriptor', `Invalid ${what}: machine requires a singular omitted-only literal initial default.`);
       }
     }
-    const valueType = checkValueType(fieldValue, what);
-    checkTypeArray(valueType, array !== undefined, what);
+    const valueType = checkValueType(fieldValue, what, valueSchema);
+    checkNominalArray(valueType, array, what, valueSchema);
     fields[fieldName] = {
       ...(valueType !== undefined ? { valueType } : {}),
       ...(valueType !== undefined && Object.hasOwn(fieldValue, 'nullable') ? { nullable: fieldValue['nullable'] as boolean } : {}),
@@ -780,6 +858,12 @@ export function loadExecutionDescriptorSet(
   set: ExecutionDescriptorSet,
   opts: LoadDescriptorSetOptions,
 ): LoadedDescriptorSet {
+  return loadCheckedDescriptorSet(set, opts);
+}
+
+function loadCheckedDescriptorSet(
+  set: ExecutionDescriptorSet, opts: LoadDescriptorSetOptions, checked?: { set: ExecutionDescriptorSet; valueSchema?: NormalizedSchema },
+): LoadedDescriptorSet {
   if (!isRecord(set)) {
     fail('malformed_descriptor', 'Invalid descriptor set: the set must be an object.');
   }
@@ -805,10 +889,12 @@ export function loadExecutionDescriptorSet(
   if (!Array.isArray(set['operations']) || !Array.isArray(set['models'])) {
     fail('malformed_descriptor', 'Invalid descriptor set: operations and models must be arrays.');
   }
+  const { valueSchema, valueTypes } = checked === undefined ? checkValueTypes(set) :
+    { valueSchema: checked.valueSchema, valueTypes: checked.set.valueTypes };
   const models: CanonicalModelDescriptor[] = [];
   const modelNames = new Set<string>();
   for (const model of set['models'] as unknown[]) {
-    const checked = checkCanonicalModel(model);
+    const checked = checkCanonicalModel(model, valueSchema);
     const name = checked.name as string;
     if (modelNames.has(name)) {
       fail('duplicate_name', `Duplicate model descriptor: ${JSON.stringify(name)}.`);
@@ -844,7 +930,7 @@ export function loadExecutionDescriptorSet(
     const inputs: CanonicalInputDef[] = [];
     const seenInputs = new Set<string>();
     for (const input of operation['inputs'] as unknown[]) {
-      const checked = checkCanonicalInput(input, opName, modelNames, kind);
+      const checked = checkCanonicalInput(input, opName, modelNames, kind, valueSchema);
       if (seenInputs.has(checked.name)) {
         fail(
           'duplicate_name',
@@ -854,7 +940,7 @@ export function loadExecutionDescriptorSet(
       seenInputs.add(checked.name);
       inputs.push(checked);
     }
-    const result = checkResult(operation, `operation ${JSON.stringify(opName)}`, kind, modelNames);
+    const result = checkResult(operation, `operation ${JSON.stringify(opName)}`, kind, modelNames, valueSchema);
     const descriptor: CanonicalOperationDescriptor = {
       name: opName as OperationName,
       kind: kind as CanonicalOperationDescriptor['kind'],
@@ -932,7 +1018,7 @@ export function loadExecutionDescriptorSet(
         fail('malformed_descriptor', `Invalid input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}: computedDefault ref requires a singular input.`);
       }
       if (input.kind !== 'ref' && input.kind !== 'delivery') {
-        checkTypeArray(input.valueType, Object.hasOwn(arrayMarkers, input.name), `input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}`);
+        checkNominalArray(input.valueType, arrayMarkers[input.name], `input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}`, valueSchema);
         if (input.kind === 'enum' && input.computedDefault === true && input.valueType === undefined && Object.hasOwn(arrayMarkers, input.name)) {
           fail('malformed_descriptor', `Invalid input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}: computedDefault enum requires a singular input.`);
         }
@@ -996,7 +1082,9 @@ export function loadExecutionDescriptorSet(
       }
     }
   }
-  return { registry, models: deepFreezeLoaded(models) };
+  return { registry, models: deepFreezeLoaded(models),
+    ...(valueSchema !== undefined ? { valueSchema } : {}),
+    ...(valueTypes !== undefined ? { valueTypes } : {}) };
 }
 
 /**
@@ -1023,6 +1111,7 @@ export function artifactToDescriptorSet(
     );
   }
   const sources = checkSources(artifact);
+  const { valueTypes, valueSchema } = checkValueTypes(artifact);
   const rawOperations: unknown[] =
     artifact['operations'] === undefined ? [] : (artifact['operations'] as unknown[]);
   const rawModels: unknown[] =
@@ -1111,7 +1200,7 @@ export function artifactToDescriptorSet(
         }
       }
       const tag: unknown = field.field;
-      const valueType = artifactValueType(field as unknown as Record<string, unknown>, what);
+      const valueType = artifactValueType(field as unknown as Record<string, unknown>, what, false, valueSchema);
       fields[field.name] = {
         ...(valueType !== undefined ? { valueType } : {}),
         ...(valueType !== undefined && Object.hasOwn(field, 'nullable') ? { nullable: field.nullable! } : {}),
@@ -1193,25 +1282,29 @@ export function artifactToDescriptorSet(
         const capability: unknown = tag['capability'];
         const operation: unknown = tag['operation'];
         const version: unknown = tag['version'];
-        if (
-          typeof capability !== 'string' ||
-          capability === '' ||
-          typeof operation !== 'string' ||
-          operation === '' ||
-          typeof version !== 'number' ||
-          !Number.isFinite(version)
-        ) {
-          fail(
-            'malformed_descriptor',
-            `Invalid ${what}: delivery descriptors carry a non-empty capability, operation, and finite version.`,
-          );
+        const judgment = Object.hasOwn(tag, 'judgment');
+        if (typeof capability !== 'string' || capability === '' || typeof operation !== 'string' || operation === '' ||
+            (judgment ? !['capability', 'operation', 'version', 'result'].every((key) => Object.hasOwn(tag, key)) || tag['judgment'] !== true || !/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(capability) ||
+              operation !== 'evaluate' || typeof version !== 'string' || version.length > 19 || !/^(0|[1-9][0-9]*)$/.test(version) || BigInt(version) > 9223372036854775807n
+              : typeof version !== 'number' || !Number.isFinite(version))) {
+          fail('malformed_descriptor', `Invalid ${what}: delivery identity/version must match its standard or source Judgment profile.`);
         }
         const result: unknown = tag['result'];
         if (!isRecord(result) || typeof result['name'] !== 'string' || !Array.isArray(result['fields'])) {
-          fail(
-            'malformed_descriptor',
-            `Invalid ${what}: delivery descriptors carry a result with a name and leaf fields.`,
-          );
+          fail('malformed_descriptor', `Invalid ${what}: delivery descriptors carry a result with a name and leaf fields.`);
+        }
+        if (judgment) {
+          if (result['name'] !== capability) fail('malformed_descriptor', `Invalid ${what}: Judgment result name must match its owning capability.`);
+          if (!Object.hasOwn(result, 'name') || !Object.hasOwn(result, 'fields') || valueTypes === undefined) {
+            fail('dangling_reference', `Invalid ${what}: Judgment result must resolve in checked valueTypes.`);
+          }
+          const declared = valueTypes.contracts.find((entry) => entry.name === result['name']);
+          if (declared === undefined) fail('dangling_reference', `Invalid ${what}: Judgment result has no checked nominal contract.`);
+          if (result['fields'].length !== declared.fields.length || result['fields'].some((leaf: unknown, index: number) =>
+              !isRecord(leaf) || !Object.hasOwn(leaf, 'name') || !Object.hasOwn(leaf, 'type') ||
+              leaf['name'] !== declared.fields[index]!.name || leaf['type'] !== declared.fields[index]!.type)) {
+            fail('malformed_descriptor', `Invalid ${what}: Judgment result leaves disagree with checked valueTypes.`);
+          }
         }
         modelDelivery.push(field.name);
       }
@@ -1330,7 +1423,7 @@ export function artifactToDescriptorSet(
         fail('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
       }
       const fallback = checkDefault(input.default, what);
-      const valueType = artifactValueType(input as unknown as Record<string, unknown>, what, true);
+      const valueType = artifactValueType(input as unknown as Record<string, unknown>, what, true, valueSchema);
       const computedDefault = checkComputedDefault(input as unknown as Record<string, unknown>,
         operation.kind, inputKind, valueType, input.required, what);
       if (computedDefault === true && input.array?.required === true) {
@@ -1360,6 +1453,10 @@ export function artifactToDescriptorSet(
           ...(computedDefault !== undefined ? { computedDefault } : {}),
           ...(fallback !== undefined ? { default: fallback } : {}),
         });
+      } else if (inputKind === 'nominal') {
+        inputs.push({ name: input.name, kind: 'nominal', valueType: valueType!, required: input.required,
+          ...(computedDefault !== undefined ? { computedDefault } : {}),
+          ...(fallback !== undefined ? { default: fallback } : {}) });
       } else if (inputKind === 'enum') {
         const enumTag = input.field as { values?: unknown };
         if (
@@ -1404,7 +1501,7 @@ export function artifactToDescriptorSet(
         opArrays[input.name] = { required: input.array.required };
       }
     }
-    const result = checkResult(operation as unknown as Record<string, unknown>, `operation ${JSON.stringify(operation.name)}`, operation.kind, modelNames);
+    const result = checkResult(operation as unknown as Record<string, unknown>, `operation ${JSON.stringify(operation.name)}`, operation.kind, modelNames, valueSchema);
     operations.push({
       name: operation.name as OperationName,
       kind: operation.kind as CanonicalOperationDescriptor['kind'],
@@ -1423,6 +1520,7 @@ export function artifactToDescriptorSet(
   // set so the rules live in exactly one place.
   const set: ExecutionDescriptorSet = {
     contractVersion: EXECUTION_CONTRACT_VERSION,
+    ...(valueTypes !== undefined ? { valueTypes } : {}),
     operations,
     models,
   };
@@ -1432,6 +1530,7 @@ export function artifactToDescriptorSet(
   // validation doubles as this conversion's whole-set guard.
   const deliveryFields = createDeliverySchema(deliveryEntries);
   return {
+    ...(valueSchema !== undefined ? { valueSchema } : {}),
     set, refs, inputArrays, inputNullableRefs, serverInits, nullableFields, secretFields, containment, deliveryFields,
     ...(sources !== undefined ? { sources } : {}),
   };
@@ -1448,12 +1547,12 @@ export function loadArtifactDescriptors(
   opts: Omit<LoadDescriptorSetOptions, 'inputArrays' | 'inputNullableRefs'>,
 ): LoadedArtifactDescriptors {
   const converted = artifactToDescriptorSet(artifact);
-  const loaded = loadExecutionDescriptorSet(converted.set, {
+  const loaded = loadCheckedDescriptorSet(converted.set, {
     by: opts.by,
     ...(opts.when !== undefined ? { when: opts.when } : {}),
     inputArrays: converted.inputArrays,
     inputNullableRefs: converted.inputNullableRefs,
-  });
+  }, converted);
   const refs: Map<ModelName, ReadonlyArray<InterimRefDef>> = new Map();
   for (const [model, modelRefs] of converted.refs) {
     refs.set(model, deepFreezeLoaded([...modelRefs]));
@@ -1478,6 +1577,8 @@ export function loadArtifactDescriptors(
   return {
     registry: loaded.registry,
     models: loaded.models,
+    ...(loaded.valueSchema !== undefined ? { valueSchema: loaded.valueSchema } : {}),
+    ...(loaded.valueTypes !== undefined ? { valueTypes: loaded.valueTypes } : {}),
     ...(converted.sources !== undefined ? { sources: converted.sources } : {}),
     refs,
     serverInits,
