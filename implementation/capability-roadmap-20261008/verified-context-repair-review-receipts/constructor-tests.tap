@@ -1,0 +1,16 @@
+▶ qualified source facts on the handler context
+  ✔ preserves the exact unqualified shape and supplied clock evaluation (0.530542ms)
+  ✔ keeps the default clock lazy outside qualified execution (0.172833ms)
+  ✔ projects owning exact values and admitted source identity rather than caller labels (0.118166ms)
+  ✔ copies and freezes compound facts without freezing or exposing the admitted carrier (0.184042ms)
+  ✔ preserves null actor and team without attribution or caller fallback (0.060375ms)
+  ✔ retains owning constructor failures and never samples the clock for conversion (0.085417ms)
+✔ qualified source facts on the handler context (1.604292ms)
+ℹ tests 6
+ℹ suites 1
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49.030042

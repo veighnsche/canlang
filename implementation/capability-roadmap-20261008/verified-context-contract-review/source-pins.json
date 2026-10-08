@@ -1,0 +1,28 @@
+{
+  "status": "source-contract review only; proposed handoff; SEQ-010 open",
+  "observed_commit": "bc2b7d053cc729734c6a3d86ae330240e6851ba3",
+  "inherited_pins": "../verified-context-inventory/map.json",
+  "inherited_pin_note": "Existing 13-path current a590a1e/frozen db57 source pins reused, not broadly rehashed. Focused committed diff found analysis/types newer; context/runtime paths reviewed unchanged since inventory.",
+  "new_worktree_pins": {
+    "packages/contracts/src/values.ts": { "sha256": "162869eb5a7e317238390ad8ab552804afe5e9e712d3beccb6781d31b4dd5c39", "locators": ["53 DatetimeValue", "57 UserRef"], "clean": true },
+    "packages/values/src/kinds.ts": { "sha256": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad", "locators": ["141 makeDatetime", "156 makeUserRef"], "clean": true },
+    "packages/values/src/equality.ts": { "sha256": "3903807b4dc38bc5777e7a2758bc351041820d20bd500bb0100dfe411943fafb", "locators": ["127 same"], "clean": true },
+    "packages/values/src/temporal.ts": { "sha256": "51d8ab0f6bf7aeed7cd06420e660111bbf6b82997d76fedeab5c0602728481dc", "locators": ["118 requireDatetime", "193 datetime", "513 compareInstant"], "clean": true },
+    "compiler/src/analysis/resolve.rs": { "sha256": "55844929ce0032d3ad1a46e7c250bf44b318d138651364d67551ce172afca899", "locators": ["2435 with_facts", "3950 trusted actor null", "3983 scenario team fact"], "clean": true },
+    "compiler/src/analysis/types.rs": { "sha256": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c", "locators": ["10384 context_type", "10585 user members and actor-only email facts", "10616 Team members", "10627 OperationContext members"], "clean": true },
+    "packages/state/src/storage/d1.ts": { "sha256": "077cce4d61901d165615240414bbb4255d24cd027e0811c495dd82998215b7a8", "locators": ["288/311 JSON row data", "389/390 JSON receipt defaults/outcome"], "clean": true },
+    "packages/cloudflare/src/runtime/stdlib.ts": { "sha256": "12505068df2bbe3b6cdf74d52d1e7f2533283c3649bb22333bd77516d437e272", "locators": ["whole finite export surface lacks datetime/compareInstant"], "clean": true },
+    "packages/cloudflare/src/worker/assembly.ts": { "sha256": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11", "locators": ["891 buildInvoker", "924 source worker fallback / injected now"], "clean": true }
+  },
+  "normative_locators": [
+    "docs/specification/DESIGN.md:173 source context types, stable actor id, occurrence-derived trusted scope, fixed retries",
+    "docs/specification/DESIGN.md:297 authenticated actor email/email_verified exception",
+    "docs/specification/DESIGN.md:464 deterministic test account auth facts",
+    "docs/specification/DECISIONS.md:1911 accepted executable HandlerContext formatter inputs, implementation pending",
+    "implementation/CONTRACTS.md: producer-owned exact value/identity/commit/assembly boundary; no guessed imports or provenance"
+  ],
+  "acceptance": false,
+  "executed_tests": 0,
+  "product_writes": false,
+  "jev_calls": 0
+}

@@ -98,7 +98,7 @@
     "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/candidate/result.json": "67981c7585de0fabab2b0276936d5d8e4033efc32d9159c05b3de0ae859af283",
     "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/candidate/check.mjs": "128c78ecd5e9d1790cf3961cdb81bcae2ebf094ea8f49fe47d6e7a8740747621"
   },
-  "commit_pending": true,
+  "commit_pending": false,
   "whitespace": {
     "product_root_docs_exit": 0,
     "retained_raw_evidence_exit": 2,
@@ -107,5 +107,6 @@
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/candidate.diff"
     ],
     "disposition": "Preserve exact raw failure logs and patchcontext; do not rewrite evidence whitespace."
-  }
+  },
+  "commit": "2819e8add2675360e25fe323d6aff52f04b9ef7f"
 }

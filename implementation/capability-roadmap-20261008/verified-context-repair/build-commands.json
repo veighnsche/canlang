@@ -1,0 +1,47 @@
+[
+  {
+    "name": "selected-build",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/typescript/bin/tsc",
+      "-p",
+      "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/cloudflare-tsconfig.json"
+    ],
+    "cwd": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969",
+    "timeout_ms": 60000,
+    "elapsed_ms": 1429,
+    "exit_code": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "name": "selected-typecheck",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/node_modules/typescript/bin/tsc",
+      "-p",
+      "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/cloudflare-tsconfig.json",
+      "--noEmit"
+    ],
+    "cwd": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969",
+    "timeout_ms": 60000,
+    "elapsed_ms": 633,
+    "exit_code": 0,
+    "signal": null,
+    "error": null
+  },
+  {
+    "name": "constructor-tests",
+    "argv": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "--test",
+      "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/verified-context.test.js"
+    ],
+    "cwd": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969",
+    "timeout_ms": 60000,
+    "elapsed_ms": 75,
+    "exit_code": 0,
+    "signal": null,
+    "error": null
+  }
+]

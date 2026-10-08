@@ -1,0 +1,25 @@
+## Separate complete before-repair witness; each ambient fact has its own admitted operation.
+app VerifiedContext
+Given
+ Probe { flag:bool=false }
+ policy Probe read=public
+When
+ scenario actorId() by=members -> text
+  do return actor.id
+ scenario teamId() by=members -> text
+  do return team.id
+ scenario teamTimezone() by=members -> timezone
+  do return team.timezone
+ scenario operationId() by=members -> text
+  do return operation.id
+ scenario operationSource() by=members -> text
+  do return operation.source
+ scenario nowEquals(stamp:text) by=members -> bool
+  do return now==datetime(stamp)
+ scenario datetimeBaseline(stamp:text) by=members -> bool
+  do return datetime(stamp)==datetime("2026-10-08T10:20:30.123Z")
+ scenario anonymousNull() by=public -> bool
+  do return actor==null
+Then
+ page / title="Verified context before repair"
+  text "Separate admitted context reads"

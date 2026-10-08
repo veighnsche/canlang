@@ -1,0 +1,95 @@
+{
+  "scope": "Selected consumed State/Identity/value type-constructor source entries only; no arbitrary whole-current graph claim",
+  "pins": [
+    {
+      "path": "packages/state/src/invocation/context.ts",
+      "current": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f",
+      "foundation": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f",
+      "matches": true
+    },
+    {
+      "path": "packages/state/src/invocation/invoke.ts",
+      "current": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "foundation": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "matches": true
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "current": "a94cca5818076a8418c8b7c19d6a39511560c04c577a47a1449b1d42b09b2efe",
+      "foundation": "a94cca5818076a8418c8b7c19d6a39511560c04c577a47a1449b1d42b09b2efe",
+      "matches": true
+    },
+    {
+      "path": "packages/state/src/invocation/registry.ts",
+      "current": "c8557fa35ea588779dbd307cf61183f1d1bae6733a763d7761fa7ccaa9ca8e85",
+      "foundation": "c8557fa35ea588779dbd307cf61183f1d1bae6733a763d7761fa7ccaa9ca8e85",
+      "matches": true
+    },
+    {
+      "path": "packages/state/src/invocation/prepared-inputs.ts",
+      "current": "08a82756f557e136c48fd7da062a68f7c5e97365568e01d688601a00bea0e4b7",
+      "foundation": "08a82756f557e136c48fd7da062a68f7c5e97365568e01d688601a00bea0e4b7",
+      "matches": true
+    },
+    {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "current": "2946e626501bf5eab778164bea90f7aa09f2b1ba40e7893abc3f84eda3bfaa7d",
+      "foundation": "2946e626501bf5eab778164bea90f7aa09f2b1ba40e7893abc3f84eda3bfaa7d",
+      "matches": true
+    },
+    {
+      "path": "packages/state/src/storage/memory.ts",
+      "current": "89ba826037d7162e8f642a4bb97de3d07eca04b2ae00c14969746567643b94f8",
+      "foundation": "89ba826037d7162e8f642a4bb97de3d07eca04b2ae00c14969746567643b94f8",
+      "matches": true
+    },
+    {
+      "path": "packages/state/src/storage/port.ts",
+      "current": "4b82b567fee3816ce96630475a70f654d89200eed888acb53d3a76a242ea807b",
+      "foundation": "4b82b567fee3816ce96630475a70f654d89200eed888acb53d3a76a242ea807b",
+      "matches": true
+    },
+    {
+      "path": "packages/identity/src/authentication/context.ts",
+      "current": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "foundation": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "matches": true
+    },
+    {
+      "path": "packages/identity/src/testing.ts",
+      "current": "68f002eedf77ad5b612f5d9b0c3a097c37f554b44bc7b74b5e495769ebac5ca7",
+      "foundation": "68f002eedf77ad5b612f5d9b0c3a097c37f554b44bc7b74b5e495769ebac5ca7",
+      "matches": true
+    },
+    {
+      "path": "packages/contracts/src/values.ts",
+      "current": "162869eb5a7e317238390ad8ab552804afe5e9e712d3beccb6781d31b4dd5c39",
+      "foundation": "162869eb5a7e317238390ad8ab552804afe5e9e712d3beccb6781d31b4dd5c39",
+      "matches": true
+    },
+    {
+      "path": "packages/contracts/src/state.ts",
+      "current": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+      "foundation": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+      "matches": true
+    },
+    {
+      "path": "packages/values/src/kinds.ts",
+      "current": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+      "foundation": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+      "matches": true
+    },
+    {
+      "path": "packages/values/src/temporal.ts",
+      "current": "51d8ab0f6bf7aeed7cd06420e660111bbf6b82997d76fedeab5c0602728481dc",
+      "foundation": "51d8ab0f6bf7aeed7cd06420e660111bbf6b82997d76fedeab5c0602728481dc",
+      "matches": true
+    },
+    {
+      "path": "packages/values/src/index.ts",
+      "current": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "foundation": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "matches": true
+    }
+  ]
+}
