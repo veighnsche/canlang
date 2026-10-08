@@ -823,7 +823,7 @@ describe("T16b canonical scenario (handler as the execute seam)", () => {
     assert.equal(snapshot.id, id);
     assert.equal(snapshot.version, 1n);
     assert.equal(snapshot.created_by, seed.memberId);
-    assert.equal(snapshot.created, new Date(seed.now).toISOString());
+    assert.deepEqual(snapshot.created, { kind: "datetime", ms: BigInt(seed.now) });
     assert.ok(Object.isFrozen(snapshot));
     assert.throws(() => { snapshot.title = "bypass"; }, TypeError);
     assert.equal(((await todoRows(store))[0]!.data as Record<string, unknown>).title, "second provisional");
@@ -1355,7 +1355,6 @@ describe("T16b assembly gates (pins + requires + preload)", () => {
     assert.match(error.message, /Unknown operation kind "teleport"/);
   });
 });
-
 
 
 
