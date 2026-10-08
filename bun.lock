@@ -35,6 +35,7 @@
         "@canlang/contracts": "workspace:*",
         "@canlang/identity": "workspace:*",
         "@canlang/interfaces": "workspace:*",
+        "@canlang/services": "workspace:*",
         "@canlang/state": "workspace:*",
         "@canlang/stdlib": "workspace:*",
         "@canlang/ui": "workspace:*",

@@ -72,6 +72,14 @@
     "./runtime/invoke": {
       "types": "./dist/runtime/invoke.d.ts",
       "default": "./dist/runtime/invoke.js"
+    },
+    "./runtime/bound-mail": {
+      "types": "./dist/runtime/bound-mail.d.ts",
+      "default": "./dist/runtime/bound-mail.js"
+    },
+    "./runtime/bound-dispatch": {
+      "types": "./dist/runtime/bound-dispatch.d.ts",
+      "default": "./dist/runtime/bound-dispatch.js"
     }
   },
   "scripts": {
@@ -92,6 +100,7 @@
     "@canlang/ui": "workspace:*",
     "@canlang/stdlib": "workspace:*",
     "@canlang/values": "workspace:*",
+    "@canlang/services": "workspace:*",
     "es-module-lexer": "3.0.3",
     "magic-string": "1.4.3",
     "@jridgewell/sourcemap-codec": "1.6.0",
