@@ -6,7 +6,8 @@
 //! back so tests can prove each segment resolves to a real span.
 
 use crate::codegen::js::JsLine;
-use crate::source::{LineIndex, SourceDb};
+use crate::diagnostic::Diagnostic;
+use crate::source::{LineIndex, SourceDb, SourceId, Span};
 use serde::{Deserialize, Serialize, Serializer};
 
 /// Minimal V3 source map (the `SourceMap` shape of `artifact.ts`).
@@ -29,7 +30,41 @@ pub struct SourceMap {
 /// Every entry of `lines` becomes one mappings line with a single segment
 /// at generated column 0. Source indexes are [`SourceDb`] ids; names
 /// deduplicate in first-appearance order.
+///
+/// # Panics
+/// Panics deterministically on numeric source-map capacity exhaustion. Use
+/// [`try_build`] to receive an `E6012` diagnostic instead.
 pub fn build(module_path: &str, db: &SourceDb, lines: &[JsLine]) -> SourceMap {
+    try_build(module_path, db, lines)
+        .unwrap_or_else(|diagnostic| panic!("cannot build source map: {}", diagnostic.message))
+}
+
+/// Build a source map, rejecting unrepresentable numeric fields with `E6012`.
+///
+/// The pinned library reserves `u32::MAX` as its absent source/name id, so
+/// their tables admit at most `u32::MAX` entries. Zero-based coordinates admit
+/// `u32::MAX` itself. Row/name diagnostics retain the supplied line span,
+/// including intentionally unmapped spans; source-count errors use the first
+/// source id that the library cannot represent.
+pub fn try_build(
+    module_path: &str,
+    db: &SourceDb,
+    lines: &[JsLine],
+) -> Result<SourceMap, Diagnostic> {
+    if db.len() > u32::MAX as usize {
+        return Err(capacity_error(
+            "source table exceeds the source-map library id range",
+            Span::new(SourceId(u32::MAX), 0, 0),
+        ));
+    }
+    if let Some(last_row) = lines.len().checked_sub(1)
+        && u32::try_from(last_row).is_err()
+    {
+        return Err(capacity_error(
+            "generated row exceeds the source-map coordinate range",
+            lines[last_row].span,
+        ));
+    }
     let mut builder = sourcemap::SourceMapBuilder::new(Some(module_path));
     let mut indexes = Vec::new();
     let mut sources = Vec::new();
@@ -48,32 +83,68 @@ pub fn build(module_path: &str, db: &SourceDb, lines: &[JsLine]) -> SourceMap {
     }
     let mut names: Vec<String> = Vec::new();
     for (i, line) in lines.iter().enumerate() {
-        // Always use IDs returned by the library, including empty/repeated names.
-        let name_id = line.name.as_ref().map(|name| {
-            let id = builder.add_name(name);
-            // The builder interns names in first-appearance order. A new ID
-            // extends our matching wire table; existing IDs need no scan.
-            if id as usize == names.len() {
-                names.push(name.clone());
-            }
-            id
-        });
+        // Admit coordinates before interning names or mutating mappings.
+        let generated_row = u32::try_from(i).map_err(|_| {
+            capacity_error(
+                "generated row exceeds the source-map coordinate range",
+                line.span,
+            )
+        })?;
         let (source_id, src_line, src_col) = match db.get(line.span.file) {
             Some(source) => {
                 // Can's consumer profile uses source byte columns; LineIndex
                 // owns CRLF and byte-offset interpretation.
                 let (l, c) =
                     indexes[line.span.file.0 as usize].line_col(&source.text, line.span.start);
-                (Some(source_ids[line.span.file.0 as usize]), l - 1, c - 1)
+                let src_line = u32::try_from(l - 1).map_err(|_| {
+                    capacity_error(
+                        "source row exceeds the source-map coordinate range",
+                        line.span,
+                    )
+                })?;
+                let src_col = u32::try_from(c - 1).map_err(|_| {
+                    capacity_error(
+                        "source byte column exceeds the source-map coordinate range",
+                        line.span,
+                    )
+                })?;
+                (
+                    Some(source_ids[line.span.file.0 as usize]),
+                    src_line,
+                    src_col,
+                )
             }
             None => (None, 0, 0),
         };
+        // Ordinary interning stays in the library. Only at its sentinel boundary
+        // scan our existing wire table, admitting reuse without adding a new id.
+        let name_id = if let Some(name) = &line.name {
+            let id = if names.len() == u32::MAX as usize {
+                match names.iter().position(|existing| existing == name) {
+                    Some(id) => u32::try_from(id).expect("existing name id is below the sentinel"),
+                    None => {
+                        return Err(capacity_error(
+                            "name table exceeds the source-map library id range",
+                            line.span,
+                        ));
+                    }
+                }
+            } else {
+                builder.add_name(name)
+            };
+            if id as usize == names.len() {
+                names.push(name.clone());
+            }
+            Some(id)
+        } else {
+            None
+        };
         // A missing SourceId is an explicit unmapped generated segment.
         builder.add_raw(
-            i as u32,
+            generated_row,
             0,
-            src_line as u32,
-            src_col as u32,
+            src_line,
+            src_col,
             source_id,
             name_id,
             false,
@@ -95,13 +166,17 @@ pub fn build(module_path: &str, db: &SourceDb, lines: &[JsLine]) -> SourceMap {
     let mappings = serde_json::from_slice::<EncodedMappings>(&encoded)
         .expect("library source-map output contains encoded mappings")
         .mappings;
-    SourceMap {
+    Ok(SourceMap {
         file: module_path.to_string(),
         sources,
         sources_content,
         names,
         mappings,
-    }
+    })
+}
+
+fn capacity_error(message: &str, span: Span) -> Diagnostic {
+    Diagnostic::error("E6012", message.to_string(), span)
 }
 
 impl Serialize for SourceMap {

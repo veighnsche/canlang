@@ -219,7 +219,8 @@ pub struct CompileArtifact {
 ///
 /// `test_builtins` are the catalog builtins referenced from test-module
 /// callbacks. Returns the artifact plus `E6007` diagnostics for
-/// unavailable capabilities and unpinned catalog requirements.
+/// unavailable capabilities and unpinned catalog requirements. Numeric
+/// source-map capacity errors return an empty artifact plus `E6012`.
 pub fn assemble(
     ir: &IrProgram,
     js: &JsOutput,
@@ -228,6 +229,13 @@ pub fn assemble(
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> (CompileArtifact, Vec<Diagnostic>) {
+    if let Some(diagnostic) = js
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "E6012")
+    {
+        return (super::empty_artifact(db), vec![diagnostic.clone()]);
+    }
     let mut diags = Vec::new();
     let sources = db
         .iter()
@@ -237,16 +245,24 @@ pub fn assemble(
         })
         .collect();
     let mut modules = Vec::with_capacity(1 + js.packages.len());
+    let entry_map = match sourcemap::try_build(&js.entry.path, db, &js.entry.lines) {
+        Ok(map) => map,
+        Err(diagnostic) => return (super::empty_artifact(db), vec![diagnostic]),
+    };
     modules.push(ArtifactModule {
         path: js.entry.path.clone(),
         js: js.entry.js.clone(),
-        map: sourcemap::build(&js.entry.path, db, &js.entry.lines),
+        map: entry_map,
     });
     for package in &js.packages {
+        let map = match sourcemap::try_build(&package.path, db, &package.lines) {
+            Ok(map) => map,
+            Err(diagnostic) => return (super::empty_artifact(db), vec![diagnostic]),
+        };
         modules.push(ArtifactModule {
             path: package.path.clone(),
             js: package.js.clone(),
-            map: sourcemap::build(&package.path, db, &package.lines),
+            map,
         });
     }
     let callables: Vec<ArtifactCallable> = js
@@ -299,18 +315,25 @@ pub fn assemble(
     referenced.extend(js.referenced_builtins.iter().cloned());
     referenced.extend(test_builtins.iter().cloned());
     diags.extend(check_builtin_availability(&referenced, catalog));
-    let tests = test_modules
-        .iter()
-        .map(|t| ArtifactTestModule {
-            scope: t.scope.clone(),
+    let mut tests = Vec::with_capacity(test_modules.len());
+    for test in test_modules {
+        let map = match sourcemap::try_build(&test.module.path, db, &test.module.lines) {
+            Ok(map) => map,
+            Err(diagnostic) => {
+                diags.push(diagnostic);
+                return (super::empty_artifact(db), diags);
+            }
+        };
+        tests.push(ArtifactTestModule {
+            scope: test.scope.clone(),
             module: ArtifactModule {
-                path: t.module.path.clone(),
-                js: t.module.js.clone(),
-                map: sourcemap::build(&t.module.path, db, &t.module.lines),
+                path: test.module.path.clone(),
+                js: test.module.js.clone(),
+                map,
             },
-            fixtures: t.fixtures.clone(),
-        })
-        .collect();
+            fixtures: test.fixtures.clone(),
+        });
+    }
     let migrations = ir
         .migrations
         .iter()

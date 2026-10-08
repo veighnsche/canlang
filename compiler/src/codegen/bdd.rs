@@ -139,9 +139,20 @@ pub fn emit_suite(
         out.push(suite.span, None, &line);
     }
     out.append(&body);
-    let (diags, builtins, _, _) = emitter.finish();
+    let (mut diags, builtins, _, _) = emitter.finish();
     let fixtures = suite.fixtures.iter().map(|f| f.canonical.clone()).collect();
-    let module = out.finish(format!("tests/{}.mjs", binding_ident("t", &suite.scope)));
+    let path = format!("tests/{}.mjs", binding_ident("t", &suite.scope));
+    let module = match out.try_finish(path.clone()) {
+        Ok(module) => module,
+        Err(diagnostic) => {
+            diags.push(diagnostic);
+            JsModule {
+                path,
+                js: String::new(),
+                lines: Vec::new(),
+            }
+        }
+    };
     (
         BddModule {
             scope: suite.scope.clone(),
@@ -155,7 +166,17 @@ pub fn emit_suite(
 
 /// Emit one failing recipe shell for a fixture while PR5 example tables
 /// are missing. The shell keeps the recipe kind shape but throws loudly.
+///
+/// # Panics
+/// Requires a fixture item and representable output. Use
+/// [`try_emit_fixture_shell`] to handle numeric output exhaustion.
 pub fn emit_fixture_shell(ir: &IrProgram, item: &IrItem) -> BddModule {
+    try_emit_fixture_shell(ir, item)
+        .unwrap_or_else(|error| panic!("cannot emit fixture shell: {}", error.message))
+}
+
+/// Emit a fixture shell, refusing unrepresentable generated line numbers.
+pub fn try_emit_fixture_shell(ir: &IrProgram, item: &IrItem) -> Result<BddModule, Diagnostic> {
     let target = match &item.kind {
         IrItemKind::Fixture { target, .. } => *target,
         _ => panic!("fixture shell needs a fixture item"),
@@ -230,11 +251,11 @@ pub fn emit_fixture_shell(ir: &IrProgram, item: &IrItem) -> BddModule {
         ),
     );
     out.push(item.span, Some(item.canonical.clone()), "}");
-    BddModule {
+    Ok(BddModule {
         scope: item.canonical.clone(),
         fixtures: vec![item.canonical.clone()],
-        module: out.finish(format!("tests/{}.mjs", binding_ident("t", &item.canonical))),
-    }
+        module: out.try_finish(format!("tests/{}.mjs", binding_ident("t", &item.canonical)))?,
+    })
 }
 
 /// Lower one fixture recipe. Kinds are mutually exclusive; a recipe is
