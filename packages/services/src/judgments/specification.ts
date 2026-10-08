@@ -91,8 +91,8 @@ export function freezeJudgmentSource(
         const description = element?.fields.find(field => field.name === 'description');
         if (!field || field.type !== `${declaration}.${question.name}.option[]!` ||
             field.min !== Math.max(0, 2 - fixed.length) || field.max !== 26 - fixed.length ||
-            field.distinctBy !== 'id' || !field.excludedIds || field.excludedIds.length !== fixed.length ||
-            !field.excludedIds.every((id, index) => id === fixed[index]?.id) ||
+            field.distinctBy !== 'id' || (field.excludedIds ?? []).length !== fixed.length ||
+            !(field.excludedIds ?? []).every((id, index) => id === fixed[index]?.id) ||
             !alias || alias.type !== 'text' || alias.min !== 1 || alias.max !== 80 || alias.format !== 'name' ||
             !element || element.fields.length !== 2 || id?.type !== aliasName ||
             description?.type !== 'text' || description.min !== 1 || description.max !== 2000) fail();

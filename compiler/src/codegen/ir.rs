@@ -43,8 +43,8 @@ use crate::analysis::catalog::{Availability, Catalog, Effects, SigType, std_capa
 use crate::analysis::effects::{EffectVerb, PolicyRule};
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
-    CheckedJudgmentKind, CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId,
-    SymbolKind,
+    CheckedJudgmentKind, CheckedValueConstraints, CrudOp, FixtureTarget, ModelOwner, ModuleId,
+    ModuleKind, SymbolId, SymbolKind,
 };
 use crate::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
 use crate::analysis::{CheckedProgram, NodeKey};
@@ -532,6 +532,8 @@ pub struct IrProgram {
     pub modules: Vec<IrModule>,
     /// Items in declaration order (parity with analysis symbols).
     pub items: Vec<IrItem>,
+    /// Checked declaration and field-reuse constraints, keyed by owning symbol.
+    pub value_constraints: HashMap<SymbolId, CheckedValueConstraints>,
     /// `catalog_version` consulted by analysis, or empty when none was.
     pub catalog_version: String,
     /// Builtin references observed while decoding checked call positions
@@ -603,6 +605,7 @@ fn empty_program(catalog_version: &str) -> IrProgram {
     IrProgram {
         modules: Vec::new(),
         items: Vec::new(),
+        value_constraints: HashMap::new(),
         catalog_version: catalog_version.to_string(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
@@ -993,7 +996,10 @@ impl TypedExpr {
 #[derive(Debug, Clone)]
 pub enum IrExpr {
     /// Checked static specification asset, resolved by owning declaration.
-    JudgmentSpecification { judgment: String },
+    JudgmentSpecification {
+        judgment: String,
+        options: Option<Box<TypedExpr>>,
+    },
     /// Exact integer literal → BigInt (`5n`).
     Int(i128),
     /// Exact decimal literal, canonical source spelling (`"1.50"`).
@@ -1453,6 +1459,7 @@ pub struct IrMessage {
 pub struct IrJudgmentQuestion {
     pub name: String,
     pub kind: IrJudgmentKind,
+    pub runtime: bool,
     pub instructions: IrMessage,
     pub yes: Option<IrMessage>,
     pub no: Option<IrMessage>,
@@ -1485,6 +1492,10 @@ pub enum IrJudgmentGenerated {
         required_array: bool,
     },
     CapabilityOp {
+        params: Vec<SymbolId>,
+        result: IrType,
+    },
+    Specification {
         params: Vec<SymbolId>,
         result: IrType,
     },
@@ -1741,6 +1752,7 @@ impl<'a> Cx<'a> {
         let program = IrProgram {
             modules,
             items,
+            value_constraints: self.program.types.value_constraints.clone(),
             catalog_version: self.program.catalog_version.clone(),
             referenced_builtins,
             read_rules,
@@ -1917,6 +1929,16 @@ impl<'a> Cx<'a> {
                     result,
                 }
             }
+            SymbolKind::DeriveFn { params, .. } => IrJudgmentGenerated::Specification {
+                params: params.clone(),
+                result: self
+                    .program
+                    .types
+                    .symbol_results
+                    .get(&symbol.id)
+                    .and_then(|result| result.as_ref())
+                    .map_or(IrType::Unknown, |ty| IrType::Known(ty.clone())),
+            },
             SymbolKind::Param { owner, index, .. } => IrJudgmentGenerated::Param {
                 owner: *owner,
                 index: *index,
@@ -2009,6 +2031,7 @@ impl<'a> Cx<'a> {
                 let levels = decode_options(question.levels);
                 questions.push(IrJudgmentQuestion {
                     name: question.name,
+                    runtime: question.runtime,
                     kind: match question.kind {
                         CheckedJudgmentKind::Noul => IrJudgmentKind::Noul,
                         CheckedJudgmentKind::Choice => IrJudgmentKind::Choice,
@@ -2583,6 +2606,24 @@ impl<'a> Cx<'a> {
     fn decode_expr(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
         let span = node.span;
         let mut ty = self.node_type(node);
+        if let Some(call) = self
+            .program
+            .types
+            .judgment_specification_calls
+            .get(&NodeKey::of(node))
+            .cloned()
+        {
+            let options =
+                self.decode_anchored(scope, &call.options, "judgment specification options");
+            return TypedExpr::new(
+                IrExpr::JudgmentSpecification {
+                    judgment: self.canonical(call.judgment),
+                    options: Some(Box::new(options)),
+                },
+                ty,
+                span,
+            );
+        }
         if let Some(judgment) = self
             .program
             .types
@@ -2592,6 +2633,7 @@ impl<'a> Cx<'a> {
             return TypedExpr::new(
                 IrExpr::JudgmentSpecification {
                     judgment: self.canonical(*judgment),
+                    options: None,
                 },
                 ty,
                 span,
@@ -4202,6 +4244,7 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
             IrExpr::Format { args, .. } => work.extend(args),
             IrExpr::HasRole { person, .. } => work.extend(person.iter().map(|v| v.as_ref())),
             IrExpr::Lambda { body, .. } => work.push(body),
+            IrExpr::JudgmentSpecification { options, .. } => work.extend(options.as_deref()),
             IrExpr::Int(_)
             | IrExpr::Decimal(_)
             | IrExpr::Text(_)
@@ -4212,7 +4255,6 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
             | IrExpr::Date(_)
             | IrExpr::Datetime(_)
             | IrExpr::Name(_)
-            | IrExpr::JudgmentSpecification { .. }
             | IrExpr::Unsupported { .. } => {}
         }
     }
@@ -10070,6 +10112,11 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
             }
         }
         IrExpr::Lambda { body, .. } => collect_s_refs(&body.expr, out),
+        IrExpr::JudgmentSpecification { options, .. } => {
+            if let Some(options) = options {
+                collect_s_refs(&options.expr, out);
+            }
+        }
         IrExpr::Int(_)
         | IrExpr::Decimal(_)
         | IrExpr::Text(_)
@@ -10080,7 +10127,6 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
         | IrExpr::Date(_)
         | IrExpr::Datetime(_)
         | IrExpr::Name(_)
-        | IrExpr::JudgmentSpecification { .. }
         | IrExpr::Unsupported { .. } => {}
     }
 }

@@ -1,5 +1,4 @@
-//! Static judgment descriptor/import through genuine CLI output and installed
-//! module assembly; specification execution awaits its canonical resolver.
+//! Static/runtime judgment descriptors through genuine CLI and installed owners.
 #![cfg(unix)]
 
 use std::{path::Path, process::Command};
@@ -24,6 +23,37 @@ fn static_judgment_source_emits_one_canonical_descriptor_and_bound_interface() {
     );
     std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
     let authored = std::fs::read_to_string(&source).unwrap();
+    let authored_options = "{none=\"Keep the current process\",need_more_info=\"Obtain missing evidence before selecting a change\"}";
+    for (name, source) in [
+        (
+            "runtime-question-name",
+            authored
+                .replace("route choice", "runtime choice")
+                .replace("Triage.route", "Triage.runtime")
+                .replace("result.route", "result.runtime"),
+        ),
+        (
+            "runtime-map-omitted",
+            authored.replace(authored_options, ""),
+        ),
+    ] {
+        let input = scratch.path().join(format!("{name}.can"));
+        std::fs::write(&input, source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{name}: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        std::fs::write(scratch.path().join(format!("{name}.json")), output.stdout).unwrap();
+    }
     for (name, invalid, code) in [
         (
             "score-level-is-only-a-type-path",
@@ -45,6 +75,35 @@ fn static_judgment_source_emits_one_canonical_descriptor_and_bound_interface() {
                 "purchasing=\"Problems with an existing service",
             ),
             "E1202",
+        ),
+        (
+            "runtime-send-needs-options",
+            authored.replace(
+                "send RuntimeJudge.evaluate {state,options}",
+                "send RuntimeJudge.evaluate {state}",
+            ),
+            "E3010",
+        ),
+        (
+            "runtime-specification-needs-options",
+            authored.replace(
+                "ChangeReview.specification(options)",
+                "ChangeReview.specification()",
+            ),
+            "E3005",
+        ),
+        (
+            "runtime-authored-id-is-bounded",
+            authored.replace(
+                "{none=\"Keep the current process\"",
+                &format!("{{{}=\"Keep the current process\"", "n".repeat(81)),
+            ),
+            "E3001",
+        ),
+        (
+            "runtime-explicit-map-is-nonempty",
+            authored.replace(authored_options, "{}"),
+            "E1204",
         ),
     ] {
         let invalid_source = scratch.path().join(format!("{name}.can"));
@@ -88,7 +147,7 @@ const assembled=await assembleModules({artifact,sourcePath:resolve(root,'compile
 const entry=await import(assembled.entryUrl);
 assert.equal(typeof entry.canApp,'function');assert.equal(typeof entry.appDefinition,'object');
 const definition=entry.appDefinition;
-assert.deepEqual(Object.keys(definition.judgments),['StaticJudgment.Triage']);
+assert.deepEqual(Object.keys(definition.judgments),['StaticJudgment.Triage','StaticJudgment.ChangeReview']);
 function message(source,nl){return {source,variants:{nl}};}
 assert.deepEqual(definition.judgments['StaticJudgment.Triage'],{
  sourceLanguage:'en',
@@ -118,6 +177,9 @@ assert.deepEqual(definition.judgments['StaticJudgment.Triage'],{
 assert.deepEqual(definition.bindings['StaticJudgment.Judge'],{
  judgment:'StaticJudgment.Triage',from:'deployment.judgment',
 });
+assert.deepEqual(definition.bindings['StaticJudgment.RuntimeJudge'],{
+ judgment:'StaticJudgment.ChangeReview',from:'deployment.judgment',
+});
 assert.deepEqual(definition.contracts['StaticJudgment.Queue'].fields.kind,{type:'StaticJudgment.Triage.route.choice'});
 assert.deepEqual(definition.contracts['StaticJudgment.Review'].fields.urgency,{type:'StaticJudgment.Triage.urgency.level'});
 assert.deepEqual(definition.models['StaticJudgment.Assessment'].fields,{
@@ -132,10 +194,13 @@ for(const name of [
  'StaticJudgment.Triage.reply','StaticJudgment.Triage.route','StaticJudgment.Triage.route.probabilities.item',
  'StaticJudgment.Triage.urgency','StaticJudgment.Triage.urgency.levels.item',
  'std.JudgmentOption','std.NoulQuestion','std.ChoiceQuestion','std.ScoreQuestion','std.JudgmentSpec',
+ 'StaticJudgment.RuntimeCandidates','StaticJudgment.ChangeReview',
+ 'StaticJudgment.ChangeReview.options','StaticJudgment.ChangeReview.pick.option',
+ 'StaticJudgment.ChangeReview.pick','StaticJudgment.ChangeReview.pick.probabilities.item',
 ]){
  const contract=contracts.get(name);assert(contract,name);
  assert.deepEqual(definition.contracts[name].fields,
-  Object.fromEntries(contract.fields.map(field=>[field.name,{type:field.type}])),name);
+  Object.fromEntries(contract.fields.map(({name,...schema})=>[name,schema])),name);
 }
 assert.deepEqual(contracts.get('std.JudgmentSpec').fields,[
  {name:'declaration',type:'text'},{name:'version',type:'int'},{name:'revision',type:'text'},
@@ -171,6 +236,26 @@ assert.equal(enums.size,artifact.valueTypes.enums.length,'each checked enum is p
 assert.deepEqual(enums.get('StaticJudgment.Triage.route.choice'),['purchasing','support','sales','general']);
 assert.deepEqual(enums.get('StaticJudgment.Triage.urgency.level'),['routine','today','immediate']);
 for(const [name,cases] of enums)assert.deepEqual(definition.enums[name],{cases});
+const choice='StaticJudgment.ChangeReview.pick.choice';
+assert.equal(enums.has(choice),false,'runtime IDs are bounded text, not a fabricated enum');
+assert.deepEqual(artifact.valueTypes.aliases,[{name:choice,type:'text',min:1,max:80,format:'name'}]);
+assert.deepEqual(definition.aliases[choice],{type:'text',min:1,max:80,format:'name'});
+assert.deepEqual(contracts.get('StaticJudgment.ChangeReview.pick.option').fields,[
+ {name:'id',type:choice,min:1,max:80,format:'name'},
+ {name:'description',type:'text',min:1,max:2000},
+]);
+const runtimeArray={type:'StaticJudgment.ChangeReview.pick.option[]!',min:0,max:24,
+ distinctBy:'id',excludedIds:['none','need_more_info']};
+assert.deepEqual(contracts.get('StaticJudgment.ChangeReview.options').fields,[{name:'pick',...runtimeArray}]);
+assert.deepEqual(contracts.get('StaticJudgment.RuntimeCandidates').fields,[{name:'choices',...runtimeArray,max:8}]);
+assert.deepEqual(contracts.get('StaticJudgment.ChangeReview.pick').fields[0],
+ {name:'choice',type:choice,min:1,max:80,format:'name'});
+assert.deepEqual(contracts.get('StaticJudgment.ChangeReview.pick.probabilities.item').fields[0],
+ {name:'option',type:choice,min:1,max:80,format:'name'});
+const runtimeQuestions=definition.judgments['StaticJudgment.ChangeReview'].questions;
+assert.deepEqual(runtimeQuestions.map(question=>[question.name,question.kind,question.runtime]),
+ [['evidence','noul',undefined],['readiness','score',undefined],['pick','choice',true]]);
+assert.deepEqual(runtimeQuestions[2].options.map(option=>option.id),['none','need_more_info']);
 const fields=new Map(artifact.models.find(model=>model.name==='StaticJudgment.Assessment').fields.map(field=>[field.name,field]));
 assert.deepEqual(fields.get('specification').field,{kind:'nominal',name:'std.JudgmentSpec'});
 assert.equal(fields.get('specification').valueType,'std.JudgmentSpec');
@@ -192,14 +277,34 @@ assert.deepEqual(snapshot.result,{type:'StaticJudgment.Triage.urgency.level'});
 assert.deepEqual(artifact.operations.find(operation=>operation.name==='StaticJudgment.specification_snapshot').result,{type:'std.JudgmentSpec'});
 assert.equal(Object.hasOwn(definition.capabilities,'StaticJudgment.Judge'),false,'the bound judgment is not a copied capability schema');
 const app=entry.canApp();
-for(const id of ['StaticJudgment.specification_snapshot','StaticJudgment.snapshot','StaticJudgment.evaluate']){
+for(const id of ['StaticJudgment.specification_snapshot','StaticJudgment.snapshot','StaticJudgment.evaluate',
+ 'StaticJudgment.runtime_specification_snapshot','StaticJudgment.runtime_candidate_snapshot','StaticJudgment.runtime_evaluate']){
  const reference=artifact.callables.find(callable=>callable.id===id);assert(reference,id);
  let callable=app;for(const part of reference.member)callable=callable[part];
  assert.equal(typeof callable,'function',id);
 }
 // Deliberately do not call specification_snapshot here. Its pure canonical
 // resolver contract/output is owned by the in-flight Services/stdlib release.
-console.log('static judgment: production descriptor, localized values, bound import and emitted callables loaded');
+assert.match(artifact.modules.map(module=>module.js).join('\n'),/judgmentSpecification\(c,"StaticJudgment\.ChangeReview",/);
+async function variant(name){
+ const artifact=JSON.parse(readFileSync(resolve(base,name+'.json'),'utf8'));
+ const assembled=await assembleModules({artifact,sourcePath:resolve(base,name+'.can')},{
+  workDir:resolve(base,'modules-'+name),
+  stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,
+  uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href,
+ });
+ return {artifact,definition:(await import(assembled.entryUrl)).appDefinition};
+}
+const namedRuntime=await variant('runtime-question-name');
+assert.equal(namedRuntime.definition.judgments['StaticJudgment.Triage'].questions.find(question=>question.name==='runtime').runtime,undefined);
+assert.deepEqual(namedRuntime.artifact.valueTypes.enums.find(entry=>entry.name==='StaticJudgment.Triage.runtime.choice').cases,
+ ['purchasing','support','sales','general']);
+const omitted=await variant('runtime-map-omitted');
+const omittedQuestion=omitted.definition.judgments['StaticJudgment.ChangeReview'].questions.find(question=>question.name==='pick');
+assert.equal(omittedQuestion.runtime,true);assert.equal(Object.hasOwn(omittedQuestion,'options'),false);
+assert.deepEqual(omitted.artifact.valueTypes.contracts.find(entry=>entry.name==='StaticJudgment.ChangeReview.options').fields,
+ [{name:'pick',type:'StaticJudgment.ChangeReview.pick.option[]!',min:2,max:26,distinctBy:'id'}]);
+console.log('judgment: unchanged static descriptor and runtime bounded aliases/options from one inventory loaded');
 "#,
     )
     .unwrap();

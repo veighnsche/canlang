@@ -216,19 +216,57 @@ pub enum JsMcpField {
 /// `file[]`, `enum(a,b)`, nominal refs — catalog.rs mapping rules),
 /// never a re-interpretation: T04b ratifies any structured leaf
 /// vocabulary, and verbatim leaves derive it without loss.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct JsNominalLeaf {
     /// Leaf field name in producer order.
     pub name: String,
     /// Verbatim T13c declared kind spelling.
     #[serde(rename = "type")]
     pub declared: String,
+    #[serde(flatten)]
+    pub constraints: JsValueConstraints,
+}
+
+/// Finite constraints from a checked owning declaration or its reused field.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct JsValueConstraints {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
+    #[serde(rename = "distinctBy", skip_serializing_if = "Option::is_none")]
+    pub distinct_by: Option<String>,
+    #[serde(rename = "excludedIds", skip_serializing_if = "Vec::is_empty")]
+    pub excluded_ids: Vec<String>,
+}
+
+impl From<&crate::analysis::resolve::CheckedValueConstraints> for JsValueConstraints {
+    fn from(value: &crate::analysis::resolve::CheckedValueConstraints) -> Self {
+        Self {
+            min: value.min,
+            max: value.max,
+            format: value.format.clone(),
+            distinct_by: value.distinct_by.clone(),
+            excluded_ids: value.excluded_ids.clone(),
+        }
+    }
 }
 
 impl JsNominalLeaf {
     /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
         descriptor_json(self)
+    }
+
+    fn schema_json(&self) -> String {
+        let mut schema = serde_json::to_value(self).expect("checked schema serializes");
+        schema
+            .as_object_mut()
+            .expect("leaf is an object")
+            .remove("name");
+        schema.to_string()
     }
 }
 
@@ -249,6 +287,17 @@ pub struct JsValueTypes {
     pub contracts: Vec<JsNominalResult>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub enums: Vec<JsNamedEnum>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<JsValueAlias>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JsValueAlias {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub declared: String,
+    #[serde(flatten)]
+    pub constraints: JsValueConstraints,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -329,6 +378,7 @@ pub fn delivery_descriptor(capability: &str, op: &StdOperation) -> Option<JsDeli
                 .map(|(name, declared)| JsNominalLeaf {
                     name: (*name).to_string(),
                     declared: (*declared).to_string(),
+                    constraints: JsValueConstraints::default(),
                 })
                 .collect(),
         },
@@ -1766,6 +1816,15 @@ impl<'a> Emitter<'a> {
         let mut inventory = JsValueTypes::default();
         let mut enums = BTreeMap::new();
         for item in &self.ir.items.clone() {
+            if let Some(constraints) = self.ir.value_constraints.get(&item.id)
+                && constraints.alias == Some(item.id)
+            {
+                inventory.aliases.push(JsValueAlias {
+                    name: item.canonical.clone(),
+                    declared: "text".to_string(),
+                    constraints: JsValueConstraints::from(constraints),
+                });
+            }
             let fields = match &item.kind {
                 IrItemKind::Judgment { result_fields, .. } => result_fields,
                 IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Contract { fields })
@@ -1808,13 +1867,18 @@ impl<'a> Emitter<'a> {
                     );
                     continue;
                 };
-                let mut declared = self.canonical_type_id(ty, field.span);
+                let mut declared = self.symbol_value_type_id(field.id, ty, field.span);
                 if required_array {
                     declared.push('!');
                 }
                 leaves.push(JsNominalLeaf {
                     name: field.name.clone(),
                     declared,
+                    constraints: self
+                        .ir
+                        .value_constraints
+                        .get(&field.id)
+                        .map_or_else(JsValueConstraints::default, JsValueConstraints::from),
                 });
                 let mut base = ty;
                 while let ResolvedType::Nullable(inner)
@@ -2210,6 +2274,26 @@ impl<'a> Emitter<'a> {
         )]
     }
 
+    /// Preserve a checked bounded alias while keeping the ordinary wrappers.
+    fn symbol_value_type_id(&mut self, symbol: SymbolId, ty: &ResolvedType, span: Span) -> String {
+        fn alias_type(ty: &ResolvedType, alias: &str) -> String {
+            match ty {
+                ResolvedType::Nullable(inner) => format!("{}?", alias_type(inner, alias)),
+                ResolvedType::Array { element, .. } => format!("{}[]", alias_type(element, alias)),
+                _ => alias.to_string(),
+            }
+        }
+        if let Some(alias) = self
+            .ir
+            .value_constraints
+            .get(&symbol)
+            .and_then(|constraints| constraints.alias)
+        {
+            return alias_type(ty, &self.ir.items[alias.0 as usize].canonical);
+        }
+        self.canonical_type_id(ty, span)
+    }
+
     /// Canonical type id for a resolved type (`int`, `user?`, `text[]`,
     /// `expense.Expense.status`, ...). A scalar field resolves to its scalar
     /// type, never a field-specific nominal; nullable/array shape is kept.
@@ -2532,7 +2616,7 @@ impl<'a> Emitter<'a> {
                 format!("datetime({})", js_string(value))
             }
             IrExpr::Name(name) => self.reference(name),
-            IrExpr::JudgmentSpecification { judgment } => {
+            IrExpr::JudgmentSpecification { judgment, options } => {
                 if self.in_hook() {
                     return self.hook_gap(
                         "judgment specification",
@@ -2541,7 +2625,10 @@ impl<'a> Emitter<'a> {
                     );
                 }
                 self.stdlib.insert("judgmentSpecification".to_string());
-                format!("judgmentSpecification(c,{})", js_string(judgment))
+                let options = options.as_ref().map_or_else(String::new, |options| {
+                    format!(",{}", self.lower_expr(options))
+                });
+                format!("judgmentSpecification(c,{}{options})", js_string(judgment))
             }
             IrExpr::Member { base, field } => {
                 // IR context reads synthesize an unknown-typed `c` base.
@@ -5060,6 +5147,9 @@ fn page_uses_preferences(page: &IrPage) -> bool {
             IrExpr::Format { args, .. } => args.iter().any(expr_uses),
             IrExpr::HasRole { person, .. } => person.as_ref().is_some_and(|p| expr_uses(p)),
             IrExpr::Lambda { body, .. } => expr_uses(body),
+            IrExpr::JudgmentSpecification { options, .. } => {
+                options.as_deref().is_some_and(expr_uses)
+            }
             IrExpr::Int(_)
             | IrExpr::Decimal(_)
             | IrExpr::Text(_)
@@ -5069,7 +5159,6 @@ fn page_uses_preferences(page: &IrPage) -> bool {
             | IrExpr::DurationMs(_)
             | IrExpr::Date(_)
             | IrExpr::Datetime(_)
-            | IrExpr::JudgmentSpecification { .. }
             | IrExpr::Unsupported { .. } => false,
         }
     }
@@ -5316,6 +5405,22 @@ impl<'a> Emitter<'a> {
                 })
                 .collect::<Vec<_>>();
             members.push(format!("enums:{{{}}}", enums.join(",")));
+            if !inventory.aliases.is_empty() {
+                let aliases = inventory
+                    .aliases
+                    .iter()
+                    .map(|alias| {
+                        let leaf = JsNominalLeaf {
+                            name: alias.name.clone(),
+                            declared: alias.declared.clone(),
+                            constraints: alias.constraints.clone(),
+                        };
+                        format!("{}:{}", js_string(&alias.name), leaf.schema_json())
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                members.push(format!("aliases:{{{aliases}}}"));
+            }
         }
         members.push(self.emit_records_member("events", &["Event"]));
         members.push(self.emit_capabilities_member());
@@ -5454,6 +5559,9 @@ impl<'a> Emitter<'a> {
                         self.lower_message(&question.instructions)
                     ),
                 ];
+                if question.runtime {
+                    fields.push("runtime:true".to_string());
+                }
                 if let Some(yes) = question.yes {
                     fields.push(format!("yes:{}", self.lower_message(&yes)));
                 }
@@ -5571,13 +5679,7 @@ impl<'a> Emitter<'a> {
                     let fields = record
                         .fields
                         .iter()
-                        .map(|field| {
-                            format!(
-                                "{}:{{type:{}}}",
-                                object_key(&field.name),
-                                js_string(&field.declared)
-                            )
-                        })
+                        .map(|field| format!("{}:{}", object_key(&field.name), field.schema_json()))
                         .collect::<Vec<_>>()
                         .join(",");
                     records.push(format!(
@@ -6223,7 +6325,7 @@ impl<'a> Emitter<'a> {
             ),
             _ => (None, false, None, None, None, None),
         };
-        let inventory_type = match &field.kind {
+        let inventory_leaf = match &field.kind {
             IrItemKind::Field { owner, .. } => self.value_types.as_ref().and_then(|inventory| {
                 let owner = self.ir.items.get(owner.0 as usize)?;
                 inventory
@@ -6233,12 +6335,28 @@ impl<'a> Emitter<'a> {
                     .fields
                     .iter()
                     .find(|leaf| leaf.name == field.name)
-                    .map(|leaf| leaf.declared.clone())
+                    .cloned()
             }),
             _ => None,
         };
-        let mut members = if let Some(type_id) = inventory_type {
-            format!("type:{}", js_string(&type_id))
+        let checked_constraints = self.ir.value_constraints.get(&field.id).cloned();
+        let mut members = if let Some(leaf) = inventory_leaf {
+            let json = leaf.schema_json();
+            json[1..json.len() - 1].to_string()
+        } else if let (Some(constraints), Some(IrType::Known(resolved))) =
+            (&checked_constraints, &ty)
+        {
+            let mut declared = self.symbol_value_type_id(field.id, resolved, field.span);
+            if required_array {
+                declared.push('!');
+            }
+            let leaf = JsNominalLeaf {
+                name: field.name.clone(),
+                declared,
+                constraints: JsValueConstraints::from(constraints),
+            };
+            let json = leaf.schema_json();
+            json[1..json.len() - 1].to_string()
         } else {
             match ty {
                 Some(IrType::Known(resolved)) => {
@@ -6259,13 +6377,17 @@ impl<'a> Emitter<'a> {
             if modifiers.unique {
                 members.push_str(",unique:true");
             }
-            if let Some(min) = &modifiers.min {
+            if let Some(min) = &modifiers.min
+                && checked_constraints.is_none()
+            {
                 members.push_str(&format!(
                     ",min:{}",
                     self.lower_business_expr(min, "formatted field bound")
                 ));
             }
-            if let Some(max) = &modifiers.max {
+            if let Some(max) = &modifiers.max
+                && checked_constraints.is_none()
+            {
                 members.push_str(&format!(
                     ",max:{}",
                     self.lower_business_expr(max, "formatted field bound")

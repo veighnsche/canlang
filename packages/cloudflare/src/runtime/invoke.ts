@@ -5429,12 +5429,14 @@ async function runReadScenarioSeam(
   const reader = loaded.producers.transact.createReadInvoker({
     registry: loaded.registry, models: loaded.models, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
   });
-  const readings: Array<{ model: string; query: CanonicalReadQuery; projection: string }> = [];
+  const readings: Array<{ model: string; query: CanonicalReadQuery; projection: string; sourcePredicate: boolean }> = [];
+  const dependencyProjection = (records: readonly ProjectedRecord[]): string => JSON.stringify(
+    [...records].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+  );
   const views = new WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>();
   const decodedRefs = new WeakSet<object>();
   let activeViews = views;
   let activeDecodedRefs = decodedRefs;
-  let rechecking = false;
   const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> => {
     const view = nativeProjectedRecord(loaded, model, row);
     activeViews.set(view, { model, id: row.id, version: row.version });
@@ -5455,7 +5457,7 @@ async function runReadScenarioSeam(
     }
     return view;
   };
-  const readModel = async (model: string, query: CanonicalReadQuery): Promise<CanonicalReadServed> => {
+  const readModel = async (model: string, query: CanonicalReadQuery, dependencies?: ProjectedRecord[]): Promise<CanonicalReadServed> => {
     if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
     if (Object.keys(query).some(key => !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
         (query.authority !== undefined && query.authority !== 'viewer') ||
@@ -5498,6 +5500,9 @@ async function runReadScenarioSeam(
       ...(typeof where === 'function' || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>) => {
         if (parentBinding !== undefined && (row.parent?.model !== parentBinding.model || row.parent.id !== parentBinding.id)) return false;
         if (typeof where !== 'function') return true;
+        // Retain every granted observation before source runs, including false
+        // candidates. Nested source reads retain their own domains below.
+        dependencies?.push(structuredClone(row));
         const matched = await where(recordView(model, row));
         if (typeof matched !== 'boolean') throw new StateError('validation', 'Read scenario predicates must return bool.');
         return matched;
@@ -5527,8 +5532,11 @@ async function runReadScenarioSeam(
         ...(query.where === undefined || typeof query.where === 'function' ? {} : { where: structuredClone(query.where) }),
         ...(query.order === undefined ? {} : { order: structuredClone(query.order) }),
       };
-      const served = await readModel(model, selected);
-      if (!rechecking) readings.push({ model, query: selected, projection: JSON.stringify(served.records) });
+      const sourcePredicate = typeof selected.where === 'function';
+      const dependencies: ProjectedRecord[] | undefined = sourcePredicate ? [] : undefined;
+      const served = await readModel(model, selected, dependencies);
+      readings.push({ model, query: selected, sourcePredicate,
+        projection: dependencies === undefined ? JSON.stringify(served.records) : dependencyProjection(dependencies) });
       return served.records;
     },
     readRecords: async (model, query) =>
@@ -5566,19 +5574,28 @@ async function runReadScenarioSeam(
     }
     return makeRecordRef(reference.model, row.id, BigInt(row.version));
   });
-  // Rechecks use fresh native provenance and a fixed evidence list. Nested
-  // source queries remain readonly and cannot append another recheck round.
+  // Re-admit each original domain with current grants and the same state fence.
+  // Source callbacks never run again: their complete observed domain includes
+  // false candidates and each independently retained nested or empty read.
   const capturedReadings = [...readings];
-  rechecking = true;
   try {
     for (const reading of capturedReadings) {
       activeViews = new WeakMap(); activeDecodedRefs = new WeakSet();
-      if (JSON.stringify((await readModel(reading.model, reading.query)).records) !== reading.projection) {
+      let query = reading.query;
+      if (reading.sourcePredicate) {
+        // The authored limit applies after its predicate. Applying that limit
+        // or order to the unfiltered dependency domain changes its meaning.
+        const { where: _where, limit: _limit, order: _order, ...domain } = query;
+        query = domain;
+      }
+      const fresh = (await readModel(reading.model, query)).records;
+      const projection = reading.sourcePredicate ? dependencyProjection(fresh) : JSON.stringify(fresh);
+      if (projection !== reading.projection) {
         throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
       }
     }
   } finally {
-    rechecking = false; activeViews = views; activeDecodedRefs = decodedRefs;
+    activeViews = views; activeDecodedRefs = decodedRefs;
   }
   return result;
 }

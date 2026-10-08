@@ -186,8 +186,10 @@ it('freezes runtime choices through the shared inventory and validates the actua
   }
   const withFixedCount = (count: number) => ({ ...inventory, contracts: inventory.contracts.map(contract =>
     contract.name === `${declaration}.options` ? { ...contract, fields: [{ ...contract.fields[0],
-      min: Math.max(0, 2 - count), max: 26 - count, excludedIds: count === 0 ? [] : ['none', 'later'] }] } : contract) });
-  const noFixed = { ...descriptor, valueTypes: withFixedCount(0), questions: [{
+      min: Math.max(0, 2 - count), max: 26 - count, ...(count === 0 ? {} : { excludedIds: ['none', 'later'] }) }] } : contract) });
+  const noFixedInventory = withFixedCount(0);
+  delete (noFixedInventory.contracts[1].fields[0] as { excludedIds?: string[] }).excludedIds;
+  const noFixed = { ...descriptor, valueTypes: noFixedInventory, questions: [{
     name: 'pick', kind: 'choice' as const, runtime: true as const, instructions: 'Choose',
   }] };
   assert.equal(freezeJudgmentSource(declaration, noFixed, 'en', { pick: [
