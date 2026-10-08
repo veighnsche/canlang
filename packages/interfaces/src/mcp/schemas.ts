@@ -94,6 +94,7 @@ function fieldSchema(field: McpSchemaField): Record<string, unknown> {
     case 'duration':
       return { type: 'string' };
     case 'user':
+    case 'file':
       return {
         type: 'object',
         properties: { id: { type: 'string', minLength: 1 } },
@@ -107,8 +108,6 @@ function fieldSchema(field: McpSchemaField): Record<string, unknown> {
       return { type: 'string' };
     case 'datetime':
       return { type: 'string', format: 'date-time' };
-    case 'file':
-      return { type: 'string', format: 'can-file' };
     case 'enum':
       return { type: 'string', enum: [...field.values] };
     case 'money':
@@ -1103,15 +1102,6 @@ function checkBoundElement(
       }
       return null;
     }
-    case 'file':
-      if (typeof value !== 'string' || value === '') {
-        return bindingError(
-          path,
-          `Invalid value for input ${JSON.stringify(input.name)}: ` +
-            `file values are opaque finalized file id strings (got ${JSON.stringify(value) ?? 'undefined'}).`,
-        );
-      }
-      return null;
     case 'integer':
     case 'decimal':
     case 'money': {
@@ -1126,8 +1116,9 @@ function checkBoundElement(
         : bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${detail}.`);
     }
     case 'user':
+    case 'file':
     case 'duration': {
-      // Values owns the scalar wire shape; full User wrappers are checked at entry.
+      // Values owns these wire shapes; full wrappers are checked at entry.
       try {
         decodeValue(input.kind, value);
       } catch (err) {

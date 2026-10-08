@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:19:54.112542+00:00",
+  "updated_utc": "2026-10-08T10:21:08.418082+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1855,6 +1855,19 @@
       "validation": "Owning Node24 Contracts and State TypeScript emits exit0; existing loader-driven owned-admission case1/1. Root reviewed exact6-file diff and reused unchanged results.",
       "consumer_limits": "Compiler producer and appDefinition/artifact pairing plus nullable scenarioParameters fill suppression remain owning Compiler/Roadmap consumer work. Whole H1, read/ref/replay/durable/installed and parent acceptance are not implied.",
       "model": "gpt-6.1-sol medium: frozen finite checked omission metadata consumer",
+      "sources_dist_handles_released": true,
+      "counts_unchanged": true
+    },
+    "file_mcp_transport": {
+      "status": "Defining Interfaces source directly reviewed; commit ready, actual Files MCP consumer rerun pending",
+      "source_paths": [
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/test/t19b-depth.test.ts"
+      ],
+      "contract": "MCP File JSON schema is closed {id}; bound checker delegates existing Values decodeValue(file). String ID, empty/nonstring ID and extra keys reject; no parallel codec, null or array policy change.",
+      "validation": "Owning Interfaces TypeScript emit0; existing selected two cases2/2. Root exact diff review reuses unchanged results.",
+      "limits": "Roadmap Files23 owns actual authenticated upload/finalization/attachment/download workflow; helper acceptance does not close File/durable/host/parent scope.",
+      "model": "gpt-6.1-sol low: fixed source contract mismatch",
       "sources_dist_handles_released": true,
       "counts_unchanged": true
     }
