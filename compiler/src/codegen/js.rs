@@ -2217,13 +2217,9 @@ impl<'a> Emitter<'a> {
                 }
                 self.stdlib.insert("delivery".to_string());
                 let record_text = self.lower_expr(record);
-                let props_text = props
-                    .iter()
-                    .map(|p| js_string(p))
-                    .collect::<Vec<_>>()
-                    .join(",");
+                let selected = js_string(&props.join("."));
                 format!(
-                    "await delivery(c,{{record:{record_text},field:{}}},[{props_text}])",
+                    "(await delivery(c,{{record:{record_text},field:{}}},[{selected}]))[{selected}]",
                     js_string(field)
                 )
             }

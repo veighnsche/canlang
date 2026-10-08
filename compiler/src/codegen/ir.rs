@@ -2863,59 +2863,28 @@ impl<'a> Cx<'a> {
                 if crate::analysis::types::delivery_progress_alias(&inner_ty)
                     && fields.last().is_some_and(|field| field == "progress")
                 {
-                    fields.reverse();
-                    let ResolvedType::StdDelivery { op, .. } =
-                        inner_ty.nullable_inner().unwrap_or(&inner_ty)
-                    else {
-                        unreachable!("checked std delivery alias");
-                    };
-                    let mut observed = TypedExpr::new(
-                        self.decode_delivery_read(
-                            scope,
-                            base,
-                            vec!["result".to_string()],
-                            node.span,
-                        ),
-                        crate::analysis::types::std_delivery_result_type(op),
+                    let observed = TypedExpr::new(
+                        self.decode_delivery_read(scope, base, fields, node.span),
+                        ty.clone(),
                         node.span,
                     );
-                    let children = &fields[1..];
-                    for (index, field) in children.iter().enumerate() {
-                        let inferred = self.member_ty(&observed.ty, field);
-                        let field_ty = if index + 1 == children.len() {
-                            ty.clone()
-                        } else if observed.ty.nullable_inner().is_some()
-                            && inferred.nullable_inner().is_none()
-                        {
-                            ResolvedType::Nullable(Box::new(inferred))
-                        } else {
-                            inferred
-                        };
-                        observed = TypedExpr::new(
-                            IrExpr::Member {
-                                base: Box::new(observed),
-                                field: field.clone(),
+                    let observed = if ty.nullable_inner().is_some() {
+                        TypedExpr::new(
+                            IrExpr::Binary {
+                                op: IrBinOp::Coalesce,
+                                left: Box::new(observed),
+                                right: Box::new(TypedExpr::new(
+                                    IrExpr::Null,
+                                    ResolvedType::Null,
+                                    node.span,
+                                )),
                             },
-                            field_ty,
+                            ty.clone(),
                             node.span,
-                        );
-                        if observed.ty.nullable_inner().is_some() {
-                            let nullable_ty = observed.ty.clone();
-                            observed = TypedExpr::new(
-                                IrExpr::Binary {
-                                    op: IrBinOp::Coalesce,
-                                    left: Box::new(observed),
-                                    right: Box::new(TypedExpr::new(
-                                        IrExpr::Null,
-                                        ResolvedType::Null,
-                                        node.span,
-                                    )),
-                                },
-                                nullable_ty,
-                                node.span,
-                            );
-                        }
-                    }
+                        )
+                    } else {
+                        observed
+                    };
                     return observed;
                 }
                 return TypedExpr::new(

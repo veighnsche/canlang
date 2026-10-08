@@ -11,7 +11,7 @@ fn declared_progress_alias_observes_the_existing_result_once() {
     let source = std::fs::read_to_string(root.join("packages/cloudflare/test/fixtures/typed-generation-progress.can"))
         .unwrap()
         .replace("request.status,request.result", "request.status,request.progress")
-        .replace("When\n", " policy Job read=members fields=request.progress.content\n contract Counter {progress:text}\n derive content(job:Job):text = job.request?.progress?.content ?? \"\"\n derive isRunning(job:Job):bool = job.request?.progress?.state == running\n derive detail(job:Job):text = job.request?.progress?.detail ?? \"\"\n derive ordinary(value:Counter):text = value.progress\nWhen\n");
+        .replace("When\n", " policy Job read=members fields=request.progress.content\n contract Counter {progress:text}\n derive content(job:Job):text = job.request?.progress?.content ?? \"\"\n derive resultContent(job:Job):text = job.request?.result?.content ?? \"\"\n derive isRunning(job:Job):bool = job.request?.progress?.state == running\n derive detail(job:Job):text = job.request?.progress?.detail ?? \"\"\n derive ordinary(value:Counter):text = value.progress\nWhen\n");
     let input = scratch.path().join("progress.can");
     std::fs::write(&input, source).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_can"))
@@ -41,10 +41,10 @@ export function hasRole(context,role){return context.memberships.includes(role);
 export function require(condition){if(!condition)throw Error('require');}
 export function equalValue(...args){return globalThis.probe.equalValue(...args);}
 export async function delivery(context,locator,selected){
- const probe=globalThis.probe;assert.equal(context,probe.context);assert.equal(locator.record,probe.record);assert.equal(locator.field,'request');assert.deepEqual(selected,['result']);
- probe.trace.push(['delivery','result']);
- if(!context.memberships.includes('members')||!probe.grants.mayObserve('result',{field:'request'}))throw Error('denied');
- return probe.result;
+ const probe=globalThis.probe;assert.equal(context,probe.context);assert.equal(locator.record,probe.record);assert.equal(locator.field,'request');assert.deepEqual(selected,[probe.expectedKey]);
+ const key=selected[0];probe.trace.push(['delivery',key]);
+ if(!context.memberships.includes('members')||!(probe.grants.mayObserve('result',{field:'request'})||probe.paths.has(`request.${key}`)))throw Error('denied');
+ return {[key]:probe.result===null?null:key==='result'?probe.result:probe.result[key.slice('result.'.length)]};
 }
 export async function send(){throw Error('unused send');}
 export async function set(){throw Error('unused set');}
@@ -77,16 +77,17 @@ const {equalValue}=await import(pathToFileURL(resolve(root,'packages/values/dist
 const context={memberships:['members']},record={id:'job'},trace=[];
 const result={source:'source',revision:1n,sequence:1n,used_tokens:null};
 for(const [field,value]of [['state','running'],['content','Draft'],['detail','Preparing']])Object.defineProperty(result,field,{get(){trace.push(['read',field]);return value;}});
-globalThis.probe={context,record,trace,result,grants:whole,equalValue};
+globalThis.probe={context,record,trace,result,grants:whole,paths:new Set(grants[0].fields),expectedKey:null,equalValue};
 function callable(name){const descriptor=artifact.callables.find(callable=>callable.id===`TypedGenerationProgress.${name}`);assert(descriptor,name);let fn=registry;for(const part of descriptor.member)fn=fn[part];return fn;}
-for(const [name,expected,field]of [['content','Draft','content'],['isRunning',true,'state'],['detail','Preparing','detail']]){
- trace.length=0;assert.equal(await callable(name)(context,record),expected);assert.deepEqual(trace,[['delivery','result'],['read',field]]);
+for(const [name,expected,field]of [['content','Draft','content'],['resultContent','Draft','content'],['isRunning',true,'state'],['detail','Preparing','detail']]){
+ globalThis.probe.expectedKey=`result.${field}`;trace.length=0;assert.equal(await callable(name)(context,record),expected);assert.deepEqual(trace,[['delivery',`result.${field}`],['read',field]]);
 }
-globalThis.probe.result=null;trace.length=0;assert.equal(await callable('content')(context,record),'');assert.deepEqual(trace,[['delivery','result']]);
-assert.equal(await callable('isRunning')(context,record),false);assert.equal(await callable('detail')(context,record),'');
+globalThis.probe.result=null;globalThis.probe.expectedKey='result.content';trace.length=0;assert.equal(await callable('content')(context,record),'');assert.deepEqual(trace,[['delivery','result.content']]);
+globalThis.probe.expectedKey='result.state';assert.equal(await callable('isRunning')(context,record),false);globalThis.probe.expectedKey='result.detail';assert.equal(await callable('detail')(context,record),'');
 trace.length=0;assert.equal(await callable('ordinary')(context,{progress:'ordinary'}),'ordinary');assert.deepEqual(trace,[]);
-globalThis.probe.grants=child;await assert.rejects(callable('content')(context,record),{message:'denied'});
-globalThis.probe.grants=whole;context.memberships=[];await assert.rejects(callable('content')(context,record),{message:'denied'});
+globalThis.probe.result=result;globalThis.probe.grants=child;globalThis.probe.paths=new Set(grants[1].fields);globalThis.probe.expectedKey='result.content';assert.equal(await callable('content')(context,record),'Draft');assert.equal(await callable('resultContent')(context,record),'Draft');
+const {delivery}=await import('@canlang/stdlib');globalThis.probe.expectedKey='result';await assert.rejects(delivery(context,{record,field:'request'},['result']),{message:'denied'});
+globalThis.probe.grants=whole;globalThis.probe.paths=new Set(grants[0].fields);globalThis.probe.expectedKey='result.content';context.memberships=[];await assert.rejects(callable('content')(context,record),{message:'denied'});
 console.log('declared progress alias: canonical grants, existing result selection, typed children/null/order and unrelated field passed');
 "#).unwrap();
     let executed = Command::new("node").arg(runner).arg(root).output().unwrap();
