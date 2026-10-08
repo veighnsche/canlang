@@ -417,7 +417,7 @@ describe("generated form rendering", () => {
       submit: "Create",
       idPrefix: "store-create",
     });
-    assert.ok(html.includes('<form action="/api/operations/Store.Gadget.create" method="post">'));
+    assert.ok(html.includes('<form action="/api/operations/Store.Gadget.create" method="post" data-can-generated-form="'));
     assert.ok(html.includes('name="operation" value="Store.Gadget.create"'));
     assert.ok(html.includes('name="operation_id" value="op-1"'));
     assert.ok(html.includes(`name="${CSRF_FIELD}" value="csrf-123"`));
@@ -545,6 +545,26 @@ describe("submission projection", () => {
       projectGeneratedInputs(STORE_UPDATE, "update", { "inputs[record][id]": "g1" }),
       { record: { id: "g1" } },
     );
+  });
+
+  it("limits optional rendered-name projection while preserving record, delivery exclusion and legacy behavior", () => {
+    const derived: DerivedOperationInputs = { ...STORE_UPDATE, inputs: [...STORE_UPDATE.inputs,
+      { name: "flag", kind: "boolean", required: false },
+      { name: "when", kind: "datetime", required: false },
+      { name: "receipt", kind: "delivery", required: false }] };
+    const flat = { "inputs[record][id]": "g1", "inputs[record][version]": "3",
+      "inputs[changes][title]": "edited", "inputs[changes][when]": "malformed",
+      "inputs[changes][receipt]": "tampered", "inputs[changes][unknown]": "extra" };
+    assert.deepEqual(projectGeneratedInputs(derived, "update", flat, ["title", "receipt", "unknown"]),
+      { record: { id: "g1", version: "3" }, title: "edited" });
+    assert.deepEqual(projectGeneratedInputs(derived, "update", flat, ["flag"]),
+      { record: { id: "g1", version: "3" }, flag: false });
+    assert.deepEqual(projectGeneratedInputs(derived, "update", flat, []),
+      { record: { id: "g1", version: "3" } });
+    assert.deepEqual(projectGeneratedInputs(derived, "update", {}, ["title"]), {});
+    const { "inputs[changes][when]": _unrendered, ...legacy } = flat;
+    assert.deepEqual(projectGeneratedInputs(derived, "update", legacy),
+      { record: { id: "g1", version: "3" }, title: "edited", flag: false });
   });
 
   it("coerces bools and fails closed on malformed values", () => {

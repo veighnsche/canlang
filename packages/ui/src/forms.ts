@@ -677,10 +677,10 @@ function needsMultipart(fields: readonly FormFieldDef[] | undefined): boolean {
   return fields.some((field) => field.control === "file_input");
 }
 
-function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperationInputs): string {
+function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperationInputs, renderedInputs?: readonly string[]): string {
   const encoding = multipart ? ` enctype="multipart/form-data"` : "";
   const projection = derived === undefined ? ""
-    : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind }))}"`;
+    : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind, renderedInputs }))}"`;
   return `<form action="${escapeAttr(safeHref(action))}" method="post"${encoding}${projection}>`;
 }
 
@@ -922,7 +922,7 @@ export async function form(props: FormProps): Promise<string> {
   const fieldsHtml = rendered.join("");
   const submitLabel = escapeHtml(resolveCaption(props.submit, props.context));
   const renderedForm = (
-    formOpenTag(props.action, needsMultipart(props.fields), props.derived) +
+    formOpenTag(props.action, needsMultipart(props.fields), props.derived, props.fields.map(field => field.path)) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
@@ -1688,6 +1688,7 @@ function resolveProjectionZone(
   mode: FormMode,
   form: Record<string, string>,
   root: (name: string) => string,
+  renderedInputs?: ReadonlySet<string>,
 ): string {
   const zone = form["timezone"];
   if (zone !== undefined && (typeof zone !== "string" || zone === "")) {
@@ -1697,7 +1698,8 @@ function resolveProjectionZone(
     return zone;
   }
   for (const input of derived.inputs) {
-    if (isBoundRecord(input, mode) || input.kind !== "datetime") {
+    if (isBoundRecord(input, mode) || input.kind !== "datetime" ||
+        (renderedInputs !== undefined && !renderedInputs.has(input.name))) {
       continue;
     }
     const raw = form[root(input.name)];
@@ -1730,17 +1732,22 @@ function resolveProjectionZone(
  * tampering. Present-but-unprojectable values (malformed array JSON,
  * non-bool text, gap/ambiguous datetimes, mistyped folds) throw
  * precisely — the projection never guesses a typed value. Business
- * validity always stays with the dispatcher/engine.
+ * validity always stays with the dispatcher/engine. Optional rendered-input
+ * names limit projection to those exact field paths; explicitly supplied
+ * update record hiddens still project. Omission keeps the legacy full-input
+ * projection, including unchecked booleans.
  */
 export function projectGeneratedInputs(
   derived: DerivedOperationInputs,
   mode: FormMode,
   form: Record<string, string>,
+  renderedInputs?: readonly string[],
 ): ClosedInputs {
   assertGeneratedMode(derived, mode);
   const root = (name: string): string =>
     mode === "update" ? `inputs[changes][${name}]` : `inputs[${name}]`;
-  const timeZone = resolveProjectionZone(derived, mode, form, root);
+  const rendered = renderedInputs === undefined ? undefined : new Set(renderedInputs);
+  const timeZone = resolveProjectionZone(derived, mode, form, root, rendered);
   const out: Record<string, unknown> = {};
   for (const input of derived.inputs) {
     if (isBoundRecord(input, mode)) {
@@ -1755,9 +1762,9 @@ export function projectGeneratedInputs(
       };
       continue;
     }
-    if (input.kind === "delivery") {
-      // Engine-resolved: never submitted, even when the flat map
-      // carries a tampered member for it.
+    if (input.kind === "delivery" || (rendered !== undefined && !rendered.has(input.name))) {
+      // Engine-resolved or unrendered: never submitted, even when the
+      // flat map carries a tampered member for it.
       continue;
     }
     if (
