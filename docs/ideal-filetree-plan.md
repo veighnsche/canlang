@@ -411,3 +411,6 @@ Accepted human priority: Given owns facts and stored business configuration, The
 
 
 Public CRUD caller residuals now have bounded corrections: canonical owner user inputs use their defined {id} wire shape, with26 previously failing cases passing; t16 immutable creator provenance asserts its actual canonical user reference, same case1/1. The relocated private selected config explicitly preserves owning CF type roots and typechecks0; its earlier mixed Node24/Node26 Undici textStream failures remain recorded, not blamed on Workers or hidden by casts. Fixture/policies remain unchanged. Remaining provider/cohort/staging and full parent gates stay open.
+
+
+The existing synchronous Judgment source freezer now uses pinned @noble/hashes2.4.0 SHA-256 and exposes only its exported specification leaf to Worker callers. Canonical UTF-8 JSON/revision bytes, source order and validation remain unchanged; independent Node SHA-256 plain/Unicode/lone-surrogate oracle passes1/1, Services and CF owning emission0. This removes the Node-only hash dependency without adding a hash algorithm, wrapper or asynchronous semantic change. Installed deployment closure/page gates remain separately required; full Judgment and held22 remain open.

@@ -1,5 +1,6 @@
 /** One source-owned descriptor feeds both the retained specification and provider request. */
-import { createHash } from 'node:crypto';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { normalizeValueTypes, scalarLength, validateValue } from '@canlang/values';
 import type {
   Bcp47Tag, CanonicalValueTypes, ChoiceQuestion, JudgmentOption, JudgmentSpec, MessageValue, NoulQuestion, ScoreQuestion,
@@ -151,9 +152,9 @@ export function freezeJudgmentSource(
       default: fail();
     }
   }
-  const revision = `sha256:${createHash('sha256').update(JSON.stringify([
+  const revision = `sha256:${bytesToHex(sha256(new TextEncoder().encode(JSON.stringify([
     'can-static-judgment-v1', declaration, descriptor.version.toString(), language, ordered,
-  ]), 'utf8').digest('hex')}`;
+  ]))))}`;
   const specification = Object.freeze({ declaration, version: descriptor.version, revision, language,
     noul: Object.freeze(noul), choice: Object.freeze(choice), score: Object.freeze(score) });
   return Object.freeze({ specification, order: Object.freeze(order) });

@@ -125,7 +125,7 @@ import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
 import { freezeBoundJudgmentRequest } from './bound-judgment.js';
-import { freezeJudgmentSource } from '@canlang/services';
+import { freezeJudgmentSource } from '@canlang/services/judgments/specification';
 import type { StaticJudgmentDescriptor } from '@canlang/services';
 
 export type { AssembledModules } from "./modules.js";
