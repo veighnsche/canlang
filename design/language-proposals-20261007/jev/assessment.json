@@ -532,5 +532,157 @@
       "choices_disagree": true,
       "roadmap": "measure polling; platform invalidation conditional"
     }
-  ]
+  ],
+  "typed_row_reuse_pilot": {
+    "task": "SEQ-052",
+    "stage": "design_selection_released_to_compiler",
+    "source": "draft/CanBook.can:409,425",
+    "consultations": [
+      {
+        "index": 1,
+        "request": {
+          "model": "jev-latest",
+          "questions": {
+            "direction": {
+              "type": "choice",
+              "instructions": "For this measured CanBook duplication, which next source-authoring direction best balances maintenance, complete behavior and the new producer cost?",
+              "criteria": {
+                "inline": "Keep both existing inline13line row bodies. Preserve every action, nested row, identity and authorized projection. Introduce no reuse syntax; accept duplicated coordination maintenance until larger measured repetition justifies it.",
+                "caption_only": "Use existing named-message composition for the repeated localized collapse caption while retaining both complete inline row bodies. This centralizes one asset with no new source construct, but does not share row behavior and has the measured extra source cost.",
+                "app_local_row_view": "Release only the proposed app-local explicit typed-row view/show contract and checked expansion for these two real uses, with all scope/action/projection/identity checks required. Save the measured10lines and centralize coordination maintenance; no generic/cross-package/runtime API expansion and no acceptance before the actual pilot passes."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "direction": {
+              "type": "choice",
+              "choice": "app_local_row_view",
+              "confidence": 0.89,
+              "probabilities": {
+                "inline": 0.06,
+                "caption_only": 0.01,
+                "app_local_row_view": 0.93
+              }
+            }
+          },
+          "usage": {
+            "input_tokens": 1400,
+            "output_tokens": 45
+          }
+        },
+        "error": null
+      },
+      {
+        "index": 2,
+        "request": {
+          "model": "jev-latest",
+          "questions": {
+            "direction": {
+              "type": "choice",
+              "instructions": "Choose the smallest worthwhile next change for these two actual appointment displays, judging each route on identical permissions, actions, state and per-use controls.",
+              "criteria": {
+                "inline": "Leave the two complete row suites where they are. Existing code has explicit independent scope and no added compiler construct, while coordination changes must still be made twice. Defer reusable row authoring on this modest measurement.",
+                "caption_only": "Factor only the translated heading into the already implemented named-message feature. Keep the duplicated actions/status/recovery/notice suites unchanged, paying the stated1extra line/58bytes to centralize the caption alone.",
+                "app_local_row_view": "Implement the narrowly proposed same-package nonexported one-model-row view declaration and show use, lowering checked per-use expansion through current factories. Preserve each table and all13body behaviors; enforce nested row/action binding, projection and distinct-control requirements before pilot acceptance. Add no generic or imported view facility."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "direction": {
+              "type": "choice",
+              "choice": "app_local_row_view",
+              "confidence": 0.61,
+              "probabilities": {
+                "inline": 0.18,
+                "caption_only": 0.08,
+                "app_local_row_view": 0.74
+              }
+            }
+          },
+          "usage": {
+            "input_tokens": 1399,
+            "output_tokens": 45
+          }
+        },
+        "error": null
+      },
+      {
+        "index": 3,
+        "request": {
+          "model": "jev-latest",
+          "questions": {
+            "direction": {
+              "type": "choice",
+              "instructions": "Under the verified source and implementation boundaries, which bounded pilot choice has enough authoring or maintenance benefit to proceed?",
+              "criteria": {
+                "inline": "Retain current duplicated row presentation and defer source reuse. Both tables keep all business actions and nested recovery with their independent identity paths; no new parser/checker/expansion work, but duplicated behavior remains.",
+                "caption_only": "Apply the existing source-owned message declaration to the duplicate localized caption only. The full row structure and its separate scopes remain inline; this shares one asset and increases the measured fragment size slightly without a new language feature.",
+                "app_local_row_view": "Adopt only this concrete explicit Appointment-row view/show shape as a producer pilot. The proposed16lines replace26 and make one shared behavior body; required compatible row, lexical isolation, preserved canonical actions/grants and per-use control identity remain mandatory. Compile through current factories and leave cross-package/generic reuse and full-app acceptance open."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "direction": {
+              "type": "choice",
+              "choice": "app_local_row_view",
+              "confidence": 0.91,
+              "probabilities": {
+                "inline": 0.06,
+                "caption_only": 0.0,
+                "app_local_row_view": 0.94
+              }
+            }
+          },
+          "usage": {
+            "input_tokens": 1400,
+            "output_tokens": 45
+          }
+        },
+        "error": null
+      }
+    ],
+    "same_model_advice_is_not_independent_experiment": true,
+    "measurements": {
+      "inline_lines": 26,
+      "proposed_lines": 16,
+      "line_savings": 10,
+      "inline_bytes": 1208,
+      "proposed_bytes": 695,
+      "byte_savings": 513,
+      "caption_only_lines": 27,
+      "caption_only_bytes": 1266
+    },
+    "implementation_accepted": false,
+    "full_task_accepted": false,
+    "shared_verified_context": "Design-stage decision for original task52 only; no runtime acceptance, no new authority, no broader task count credit. User priorities: adoption, simplicity, token economy, complete behavior, one proportionate check; no nested proof tree. Verified CanBook source409/425: two Appointment tables in Upcoming/Past tabs, predicates visit.from>=now and visit.from<now. Their14child lines are identical. Collection pagination must remain outside reuse. Remaining13line row body below includes state/status, all4canonical actions, provider references, nested Attempt recovery and Notice rows. Past must retain recovery/actions, not become read-only. Localized captions, filters/preferences/defaults/order/columns/query/time predicates and pagination stay per-use. No navigation occurs in this subtree.\nExisting source grammar has no typed reusable presentation declaration. parser.rs5982 top-level Then admits pages/preferences/owning validation; presentation exports currently excluded. Existing named messages share caption text and existing derives share data; neither expresses the whole typed action-bearing subtree. No equivalent library composition exists in the current .can source boundary. A new raw JS helper/callback API or modified persisted preference semantics is not an equivalent option.\nMinimal new candidate, explicitly a proposal: same-package nonexported Then `view appointment_coordination(row:Appointment)` with unchanged normal13line presentation suite, and `show appointment_coordination {row=row}` inside each table. One explicit nominal stored-model row parameter for first pilot; no generic parameters, slots, route mounting, new tools, inferred captures, exports/imports of view symbols or implicit data lookup. Definition owns its captions/dependencies. Param establishes explicit presentation host row for the4implicit actions. Nested collections shadow row normally: recover_attempt targets current Attempt, never outer Appointment. Closed call has one required compatible row argument, evaluated once; wrong/missing/extra argument, unresolved view, cycles/recursion fail checking. Rendering consumes existing authorized projection; it cannot read withheld fields/refetch hidden values or confer mutation authority. Each expanded use inherits its use-site/page/row identity prefix so controls and pending edits never collide. Preferred initial implementation is checked per-use expansion through existing factories; no new UI/public API, endpoint registry or direct JS invocation. All canonical business/action guards and source dependency derivation stay ordinary.\nExact affected-source metric with current indentation: inline26lines1208UTF8bytes; proposed one definition(header+13body) plus2call lines16lines695bytes:10lines/513bytes saved. This is proposed authoring count, not implemented compiler tokens or runtime performance. Caption-only existing alternative is27lines1266bytes, costs1line/58bytes but centralizes translated caption; full coordination structure remains duplicated. Keeping inline costs no producer changes and retains independently scoped uses. Typed reuse reduces duplicate maintenance but adds checked scope/action-target binding and identity work; must justify that cost on a modest witness. CanDesk staff bubbles repeat11lines, customer author disclosure differs: this is supporting context, not a second proven equivalent whole workflow.\nAll options still need actual generated/native UI behavior for current canonical forms/projections/action execution. Original11 model-rule qualification remains held; full CanBook and full52 cannot be claimed by an unruled replacement fixture. Distinct-control/pending edit and localized nested-row behavior must qualify the actual selected source before widening. No future cross-package/generic view feature is granted by this choice.\nWhich implementation direction is worth releasing as this bounded source-contract pilot, given equal complete output/permission outcomes and actual source costs?\nActual identical13line body:\nbadge row.state\nstatus row.host_ok\nstatus row.room_ok\nactions cancel,reschedule,discard_reschedule,retry_cleanup\ncollapse \"Appointment coordination\"@{nl=\"Afspraakafstemming\"}\n text row.host_ok,row.room_ok,row.host_delivery,row.room_delivery\n list row.Attempt columns=kind,from,until,state,host_ok,room_ok,host_unknown,room_unknown,host_released,room_released\n  pagination\n  badge row.state\n  button action=recover_attempt arguments={attempt=row}\n list row.Notice columns=kind,state\n  pagination\n  badge row.state",
+    "request_reconstruction": "Use shared_verified_context as the state of each recorded request; preserve its own model/questions unchanged.",
+    "selection": "conditional_app_local_row_view",
+    "rationale": "One explicit typed host row centralizes the identical coordination behavior while preserving the current action syntax and nested row shadowing. The measured10line/513byte saving is modest; its maintenance benefit supports only this bounded producer pilot, not generic/exported views or full task acceptance. Existing inline bodies remain the complete alternative if actual producer cost or behavior qualification defeats that benefit.",
+    "uncertainty": "Three independently worded requests agree on app_local_row_view; confidence .89/.61/.91 and selected probabilities .93/.74/.94 differ materially. No rationale was returned, so the weaker reply is not explained away. Nested action host scope, per-use pending controls, projection/import ownership and actual native behavior remain unqualified; advice does not establish these. No further consultation or experiment was added.",
+    "source_contract": {
+      "stage": "selected pilot contract; not implemented source syntax or accepted runtime API",
+      "definition": "view appointment_coordination(row:Appointment)",
+      "use": "show appointment_coordination {row=row}",
+      "proposed_definition_source": "  view appointment_coordination(row:Appointment)\n   badge row.state\n   status row.host_ok\n   status row.room_ok\n   actions cancel,reschedule,discard_reschedule,retry_cleanup\n   collapse \"Appointment coordination\"@{nl=\"Afspraakafstemming\"}\n    text row.host_ok,row.room_ok,row.host_delivery,row.room_delivery\n    list row.Attempt columns=kind,from,until,state,host_ok,room_ok,host_unknown,room_unknown,host_released,room_released\n     pagination\n     badge row.state\n     button action=recover_attempt arguments={attempt=row}\n    list row.Notice columns=kind,state\n     pagination\n     badge row.state",
+      "owner": "Then in the same owning book package; nonexported and app-local. Exactly one required nonnullable nominal stored-model parameter named row for this pilot.",
+      "lexical_scope": "Explicit row parameter establishes the view host. No implicit caller source-variable capture. Nested collections bind their own row normally and restore the outer host afterward. Owning named captions and operations remain statically resolved dependencies.",
+      "binding": "Evaluate supplied row once through ordinary typed presentation binding. Rendering consumes its authorized projection without implicit privileged lookup; absent/foreign/incompatible/nullable arguments cannot supply host authority.",
+      "actions": "The existing four implicit actions bind to the supplied Appointment. Nested recover_attempt arguments bind to the current Attempt row. Canonical guards, expected versions, action availability and ordinary disclosure are unchanged; reuse creates no alternate operations.",
+      "per_use": "Keep each tab/query/caption/columns/order/filter/defaults/time predicate and collection pagination outside the view. Derive control/form/draft identities from use-site/page/row paths including nested rows; reuse may not share pending edits or IDs.",
+      "lowering": "Use checked per-use expansion through existing presentation IR/factories. Preserve parameter and nested binding evaluation order, source locations/language ownership and operation dependency derivation. No new public UI helper API or endpoint/tool/route registry.",
+      "checking": "Resolve local view names separately as presentation targets. Require the closed row argument and compatible declared model; refuse missing/extra/unknown arguments, incompatible or nullable rows, cycles/recursion, exported/imported view symbols and invocation from execution expressions/effects. Definitions do not independently mount pages or publish tools.",
+      "limits": "No arbitrary type/action parameters, slots, defaults, generic or cross-package view facility. Ordinary presentation content only; no pages, route mounts, effects or new authority.",
+      "handoff": "Compiler owns parser/checker/IR/producer implementation and its proportionate check. Root app/UI owner migrates both genuine CanBook uses only after release and qualifies affected actual generated/native consumer once. Package owns DECISIONS/coverage/capture; Coordinator accepts scope/count.",
+      "withdrawal_gate": "Retain inline source if correct host/control/projection semantics require enough new authoring or machinery to erase the measured benefit. No full original52 or whole CanBook credit until the actual two-use action-bearing pilot qualifies."
+    }
+  }
 }
