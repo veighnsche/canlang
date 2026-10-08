@@ -1,0 +1,36 @@
+{
+  "reference": "integration:policy-layout-engine",
+  "acceptable_as": "current support disposition complete: RETAIN existing byte/helper contract",
+  "not_acceptable_as": [
+    "conditional 120 net production line cleanup achieved",
+    "new public/layout architecture selected",
+    "full current profile or future IR/JS qualification",
+    "external GUI/user/deployed policy workflow qualification"
+  ],
+  "decision_kind": "existing support boundary unchanged",
+  "jev_needed_for_this_packet": false,
+  "production_changes": false,
+  "test_or_oracle_changes": false,
+  "deleted_production_lines": 0,
+  "deleted_mechanisms": 0,
+  "conditional_target": {
+    "net_lines": 120,
+    "state": "proposed, unimplemented, unaccepted",
+    "prerequisites": [
+      "explicit owning byte/readability/layout revision if changing bytes",
+      "same outcome public/helper and actual consumer qualification",
+      "whole replacement/import/shared-helper net closure measurement",
+      "verified balanced JEV consultation before consequential API/layout selection"
+    ]
+  },
+  "evidence": [
+    "disposition.md",
+    "inventory.json",
+    "source-pins.json",
+    "declaration-spans.json",
+    "formatter-callbacks.json",
+    "historical-evidence.json",
+    "standard-public-serializer.json",
+    "raw/"
+  ]
+}

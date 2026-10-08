@@ -1,0 +1,62 @@
+/**
+ * Map a policy dump to page sections. Pure: headings and every
+ * `ReviewPolicyView` slot derive from dump members only. Models first,
+ * then operations, then roles, each in dump order.
+ */
+export function policyDumpSections(dump: PolicyDump): PolicyPageSection[] {
+  assertDump(dump);
+  const sections: PolicyPageSection[] = [];
+  for (const model of dump.models) {
+    sections.push({
+      heading: assertText(model.canonical, "model.canonical"),
+      policies: modelPolicies(model),
+    });
+  }
+  for (const operation of dump.operations) {
+    sections.push({
+      heading: assertText(operation.canonical, "operation.canonical"),
+      policies: operationPolicies(operation),
+    });
+  }
+  for (const role of dump.roles) {
+    sections.push({
+      heading: assertText(role.canonical, "role.canonical"),
+      policies: [rolePolicy(role)],
+    });
+  }
+  return sections;
+}
+
+export interface PolicyPageProps {
+  readonly context: PresentationContext;
+  readonly dump: PolicyDump;
+  /** Page caption; UI chrome, never policy content. Defaults to "Policy". */
+  readonly caption?: MessageValue;
+}
+
+/**
+ * Render the policy dump as labelled sections of `review()` entries.
+ * Section headings are dump canonical names; every entry renders through
+ * `review()` so slot wording stays verbatim-or-unavailable.
+ */
+export async function policyPage(props: PolicyPageProps): Promise<string> {
+  const sections = policyDumpSections(props.dump);
+  const name = props.caption === undefined ? "Policy" : props.caption;
+  const rendered: string[] = [];
+  for (const section of sections) {
+    const entries: string[] = [];
+    for (const policy of section.policies) {
+      entries.push(await review({ context: props.context, policy }));
+    }
+    rendered.push(
+      `<section aria-label="${escapeAttr(section.heading)}">` +
+        `<h2>${escapeHtml(section.heading)}</h2>${entries.join("")}</section>`,
+    );
+  }
+  const label = resolveCaption(name, props.context);
+  if (label === "") {
+    throw new Error("policyPage caption must not be empty");
+  }
+  return `<section aria-label="${escapeAttr(label)}">${rendered.join("")}</section>`;
+}
+

@@ -1,0 +1,142 @@
+// Preserve the policy page's existing mixed inline/multiline layout. Values
+// and string escaping remain entirely owned by Serde and the shared adapter.
+#[derive(Default)]
+struct PolicyFormatter {
+    containers: Vec<Layout>,
+    reading_key: bool,
+    key: String,
+}
+
+enum Layout {
+    Object {
+        root: bool,
+    },
+    Array {
+        item_indent: usize,
+        end_indent: usize,
+        populated: bool,
+    },
+}
+
+fn indent<W: ?Sized + Write>(writer: &mut W, spaces: usize) -> io::Result<()> {
+    writer.write_all(b"\n")?;
+    for _ in 0..spaces {
+        writer.write_all(b" ")?;
+    }
+    Ok(())
+}
+
+impl Formatter for PolicyFormatter {
+    fn write_char_escape<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        escape: serde_json::ser::CharEscape,
+    ) -> io::Result<()> {
+        crate::json::write_compatible_escape(writer, escape)
+    }
+
+    fn write_string_fragment<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        fragment: &str,
+    ) -> io::Result<()> {
+        if self.reading_key {
+            self.key.push_str(fragment);
+        }
+        CompactFormatter.write_string_fragment(writer, fragment)
+    }
+
+    fn begin_object<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        self.containers.push(Layout::Object {
+            root: self.containers.is_empty(),
+        });
+        CompactFormatter.begin_object(writer)
+    }
+
+    fn end_object<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        if matches!(self.containers.pop(), Some(Layout::Object { root: true })) {
+            writer.write_all(b"\n")?;
+        }
+        CompactFormatter.end_object(writer)
+    }
+
+    fn begin_object_key<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> io::Result<()> {
+        if !first {
+            writer.write_all(b",")?;
+        }
+        if matches!(self.containers.last(), Some(Layout::Object { root: true })) {
+            indent(writer, 2)?;
+        } else if !first {
+            writer.write_all(b" ")?;
+        }
+        self.key.clear();
+        self.reading_key = true;
+        Ok(())
+    }
+
+    fn end_object_key<W: ?Sized + Write>(&mut self, _: &mut W) -> io::Result<()> {
+        self.reading_key = false;
+        Ok(())
+    }
+
+    fn begin_object_value<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        writer.write_all(b": ")
+    }
+
+    fn begin_array<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        let (item_indent, end_indent) = match self.key.as_str() {
+            "roles" | "models" | "operations" => (4, 2),
+            "policies" | "invariants" => (6, 6),
+            _ => (0, 0),
+        };
+        self.containers.push(Layout::Array {
+            item_indent,
+            end_indent,
+            populated: false,
+        });
+        CompactFormatter.begin_array(writer)
+    }
+
+    fn begin_array_value<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> io::Result<()> {
+        if !first {
+            writer.write_all(b",")?;
+        }
+        match self.containers.last() {
+            Some(Layout::Array { item_indent, .. }) if *item_indent > 0 => {
+                indent(writer, *item_indent)
+            }
+            _ if !first => writer.write_all(b" "),
+            _ => Ok(()),
+        }
+    }
+
+    fn end_array<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        // Whether an array contained values is tracked by end_array_value.
+        if let Some(Layout::Array {
+            end_indent,
+            populated,
+            ..
+        }) = self.containers.pop()
+            && populated
+            && end_indent > 0
+        {
+            indent(writer, end_indent)?;
+        }
+        CompactFormatter.end_array(writer)
+    }
+
+    fn end_array_value<W: ?Sized + Write>(&mut self, _: &mut W) -> io::Result<()> {
+        if let Some(Layout::Array { populated, .. }) = self.containers.last_mut() {
+            *populated = true;
+        }
+        Ok(())
+    }
+}

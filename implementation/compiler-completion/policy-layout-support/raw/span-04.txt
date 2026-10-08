@@ -1,0 +1,7 @@
+#[derive(Default)]
+struct PolicyFormatter {
+    containers: Vec<Layout>,
+    reading_key: bool,
+    key: String,
+}
+

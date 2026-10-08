@@ -1,0 +1,72 @@
+[
+  {
+    "path": "implementation/compiler-completion/integration-after-bindings/after-decimal-materialization/full-suite.log",
+    "sha256": "f4a8c2d6a2bdf0019f7476599ba078c4d5f206ab56fd8b358c23495182a8f5d3",
+    "span": [
+      1734,
+      1753
+    ],
+    "inclusive_physical_lines": 20,
+    "raw": "raw/historical-policy-results.txt"
+  },
+  {
+    "path": "implementation/compiler-completion/integration-after-bindings/after-decimal-materialization/profile-accounting/final-run.json",
+    "sha256": "748fca942b3988ceef4c9cabe6fe99ca0dd72f344e9dc5906a2c2b93270d5fb3",
+    "span": [
+      1,
+      78
+    ],
+    "inclusive_physical_lines": 78,
+    "raw": "raw/historical-profile-receipt.json"
+  },
+  {
+    "path": "docs/research/compiler-library-audit-20261006/pass5/families/policy.md",
+    "sha256": "209dfd7e67cf850cb815e123a072c7cf3effc51b3ea9aab7e5ff3ba877785c74",
+    "span": [
+      1,
+      13
+    ],
+    "inclusive_physical_lines": 13,
+    "raw": "raw/historical-policy-contract.md"
+  },
+  {
+    "path": "docs/research/compiler-library-audit-20261006/pass5/families/reference-policy-consumers.log",
+    "sha256": "a5c273e1fd95477484fd7df9e3bf28963f3f4ea2726205f62f517799ba262f15",
+    "span": [
+      1,
+      11
+    ],
+    "inclusive_physical_lines": 11,
+    "raw": "raw/historical-actual-consumers.log"
+  },
+  {
+    "path": "docs/research/compiler-library-audit-20261006/pass5/family-review.md",
+    "sha256": "545018877ba1dfd595fbf6e6a533704f24e0fd10a1e48d74efcbc2f6725e4535",
+    "span": [
+      1,
+      27
+    ],
+    "inclusive_physical_lines": 27,
+    "raw": "raw/historical-family-review.md"
+  },
+  {
+    "path": "docs/research/compiler-library-audit-20261006/pass5/fmt-comparison.json",
+    "sha256": "fbd958a229dc47d4bb21846349b0bfeb4aab19aae1a9aeaaba0b8f3bef1fbe41",
+    "span": [
+      1,
+      28
+    ],
+    "inclusive_physical_lines": 28,
+    "raw": "raw/historical-rustfmt-comparison.json"
+  },
+  {
+    "path": "docs/research/compiler-library-audit-20261006/responsibility-map/integrations.md",
+    "sha256": "a52037c3b7bd762809f137190fd7e7644da428b45f5b527ff8592758d6a70d59",
+    "span": [
+      47,
+      47
+    ],
+    "inclusive_physical_lines": 1,
+    "raw": "raw/original-requirement-row.txt"
+  }
+]

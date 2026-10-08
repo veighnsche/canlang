@@ -1,0 +1,92 @@
+/// Dump schema version emitted by [`policy_dump_json`].
+pub const POLICY_DUMP_VERSION: u32 = 1;
+
+/// One declared role.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RoleEntry {
+    /// Declaring package.
+    pub package: String,
+    /// Local role name.
+    pub name: String,
+    /// Canonical identity (`Package.role`).
+    pub canonical: String,
+    /// Verbatim `label=` source slice, when one is authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+}
+
+/// One `policy Model kind=grantee [where=...]` declaration.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PolicyEntry {
+    /// Grant kind spelling (`read`).
+    pub kind: String,
+    /// Grantee spelling (`members`, a role name, ...).
+    pub grantee: String,
+    /// Verbatim `where=` predicate slice, when one is authored.
+    #[serde(rename = "where", skip_serializing_if = "Option::is_none")]
+    pub where_predicate: Option<String>,
+    /// Verbatim declaration line.
+    pub source: String,
+}
+
+/// One `invariant Model: predicate` declaration.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct InvariantEntry {
+    /// Verbatim predicate slice.
+    pub predicate: String,
+    /// Verbatim declaration line.
+    pub source: String,
+}
+
+/// One model's declared policy surface.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ModelEntry {
+    /// Canonical model identity.
+    pub canonical: String,
+    /// `policy` declarations in source order.
+    pub policies: Vec<PolicyEntry>,
+    /// `invariant` declarations in source order.
+    pub invariants: Vec<InvariantEntry>,
+}
+
+/// One scenario parameter with its declared type.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ParamEntry {
+    /// Parameter name.
+    pub name: String,
+    /// Declared type display (`{unknown}` when untypable).
+    #[serde(rename = "type")]
+    pub typ: String,
+}
+
+/// One operation's admission surface.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct OperationEntry {
+    /// Canonical operation identity.
+    pub canonical: String,
+    /// `scenario`, `create`, `update` or `delete`.
+    pub kind: String,
+    /// Verbatim `by=` gate slice, when one is authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub by: Option<String>,
+    /// Verbatim crud `when=` predicate slice, when one is authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub when: Option<String>,
+    /// Verbatim `require` predicate slices in source order.
+    pub requires: Vec<String>,
+    /// Scenario parameters (empty for crud operations).
+    pub params: Vec<ParamEntry>,
+    /// Verbatim declaration header line.
+    pub source: String,
+}
+
+/// The full introspected policy surface.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PolicyDump {
+    /// Declared roles in source order.
+    pub roles: Vec<RoleEntry>,
+    /// Models carrying policy/invariants, in first-seen order.
+    pub models: Vec<ModelEntry>,
+    /// Operations in source order.
+    pub operations: Vec<OperationEntry>,
+}

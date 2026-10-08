@@ -1,0 +1,98 @@
+{
+  "path": "compiler/src/policy.rs",
+  "formatter_impl_span": [
+    193,
+    306
+  ],
+  "callbacks": [
+    {
+      "name": "write_char_escape",
+      "span": [
+        194,
+        200
+      ],
+      "inclusive_physical_lines": 7
+    },
+    {
+      "name": "write_string_fragment",
+      "span": [
+        202,
+        211
+      ],
+      "inclusive_physical_lines": 10
+    },
+    {
+      "name": "begin_object",
+      "span": [
+        213,
+        218
+      ],
+      "inclusive_physical_lines": 6
+    },
+    {
+      "name": "end_object",
+      "span": [
+        220,
+        225
+      ],
+      "inclusive_physical_lines": 6
+    },
+    {
+      "name": "begin_object_key",
+      "span": [
+        227,
+        243
+      ],
+      "inclusive_physical_lines": 17
+    },
+    {
+      "name": "end_object_key",
+      "span": [
+        245,
+        248
+      ],
+      "inclusive_physical_lines": 4
+    },
+    {
+      "name": "begin_object_value",
+      "span": [
+        250,
+        252
+      ],
+      "inclusive_physical_lines": 3
+    },
+    {
+      "name": "begin_array",
+      "span": [
+        254,
+        266
+      ],
+      "inclusive_physical_lines": 13
+    },
+    {
+      "name": "begin_array_value",
+      "span": [
+        268,
+        283
+      ],
+      "inclusive_physical_lines": 16
+    },
+    {
+      "name": "end_array",
+      "span": [
+        285,
+        298
+      ],
+      "inclusive_physical_lines": 14
+    },
+    {
+      "name": "end_array_value",
+      "span": [
+        300,
+        305
+      ],
+      "inclusive_physical_lines": 6
+    }
+  ],
+  "count_policy": "All lines in 165\u2013306, including comments/blanks/derive and declarations; callback subtotals are informational, never added to the containing 142-line region."
+}

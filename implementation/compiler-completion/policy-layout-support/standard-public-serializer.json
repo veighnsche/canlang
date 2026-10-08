@@ -1,0 +1,32 @@
+[
+  {
+    "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/ser.rs",
+    "sha256": "f2b8cc0b97e30c49dbc58698fa22c14a7d56ea616cdb57b067835a59af49a75f",
+    "span": [
+      1763,
+      1798
+    ],
+    "inclusive_physical_lines": 36,
+    "raw": "raw/serde-default-escape.txt"
+  },
+  {
+    "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/ser.rs",
+    "sha256": "f2b8cc0b97e30c49dbc58698fa22c14a7d56ea616cdb57b067835a59af49a75f",
+    "span": [
+      1937,
+      2067
+    ],
+    "inclusive_physical_lines": 131,
+    "raw": "raw/serde-compact-pretty.txt"
+  },
+  {
+    "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/ser.rs",
+    "sha256": "f2b8cc0b97e30c49dbc58698fa22c14a7d56ea616cdb57b067835a59af49a75f",
+    "span": [
+      2228,
+      2274
+    ],
+    "inclusive_physical_lines": 47,
+    "raw": "raw/serde-public-string-adapters.txt"
+  }
+]

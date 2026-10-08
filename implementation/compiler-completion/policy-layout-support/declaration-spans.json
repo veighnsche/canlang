@@ -1,0 +1,145 @@
+[
+  {
+    "path": "compiler/src/policy.rs",
+    "sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "span": [
+      29,
+      120
+    ],
+    "inclusive_physical_lines": 92,
+    "raw": "raw/span-00.txt",
+    "owner": "policy DTOs"
+  },
+  {
+    "path": "compiler/src/policy.rs",
+    "sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "span": [
+      128,
+      142
+    ],
+    "inclusive_physical_lines": 15,
+    "raw": "raw/span-01.txt",
+    "owner": "public extractor"
+  },
+  {
+    "path": "compiler/src/policy.rs",
+    "sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "span": [
+      144,
+      163
+    ],
+    "inclusive_physical_lines": 20,
+    "raw": "raw/span-02.txt",
+    "owner": "public serializer and private Envelope"
+  },
+  {
+    "path": "compiler/src/policy.rs",
+    "sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "span": [
+      165,
+      306
+    ],
+    "inclusive_physical_lines": 142,
+    "raw": "raw/span-03.txt",
+    "owner": "entire retirement region incl owning comments"
+  },
+  {
+    "path": "compiler/src/policy.rs",
+    "sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "span": [
+      167,
+      173
+    ],
+    "inclusive_physical_lines": 7,
+    "raw": "raw/span-04.txt",
+    "owner": "PolicyFormatter derive and declaration"
+  },
+  {
+    "path": "compiler/src/policy.rs",
+    "sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "span": [
+      175,
+      183
+    ],
+    "inclusive_physical_lines": 9,
+    "raw": "raw/span-05.txt",
+    "owner": "Layout declaration"
+  },
+  {
+    "path": "compiler/src/policy.rs",
+    "sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "span": [
+      185,
+      191
+    ],
+    "inclusive_physical_lines": 7,
+    "raw": "raw/span-06.txt",
+    "owner": "indent"
+  },
+  {
+    "path": "compiler/src/policy.rs",
+    "sha256": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "span": [
+      193,
+      306
+    ],
+    "inclusive_physical_lines": 114,
+    "raw": "raw/span-07.txt",
+    "owner": "Formatter implementation"
+  },
+  {
+    "path": "compiler/src/json.rs",
+    "sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+    "span": [
+      11,
+      35
+    ],
+    "inclusive_physical_lines": 25,
+    "raw": "raw/span-08.txt",
+    "owner": "shared compact public adapter and layout adapter"
+  },
+  {
+    "path": "compiler/src/json.rs",
+    "sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+    "span": [
+      37,
+      60
+    ],
+    "inclusive_physical_lines": 24,
+    "raw": "raw/span-09.txt",
+    "owner": "shared compatible escape owner and compact formatter"
+  },
+  {
+    "path": "compiler/src/cli.rs",
+    "sha256": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "span": [
+      787,
+      866
+    ],
+    "inclusive_physical_lines": 80,
+    "raw": "raw/span-10.txt",
+    "owner": "CLI owned policy path"
+  },
+  {
+    "path": "compiler/src/lib.rs",
+    "sha256": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "span": [
+      19,
+      19
+    ],
+    "inclusive_physical_lines": 1,
+    "raw": "raw/span-11.txt",
+    "owner": "public module export"
+  },
+  {
+    "path": "packages/ui/src/policyPage.ts",
+    "sha256": "1cc2f7ee2fe273154cb2fc637ac841e23e6e63053b258f67b822cd2b1c10e1e7",
+    "span": [
+      153,
+      214
+    ],
+    "inclusive_physical_lines": 62,
+    "raw": "raw/span-12.txt",
+    "owner": "actual UI sections and page"
+  }
+]
