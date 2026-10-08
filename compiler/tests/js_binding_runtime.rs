@@ -100,7 +100,7 @@ fn legal_bindings_execute_through_artifact_callables() {
     let imports = scratch.0.join("imports.can");
     let mut source = String::new();
     for owner in ["alpha", "ALPHA"] {
-        source.push_str(&format!("package {owner}\n Given\n  export capability Svc version=1\n   ping(class:text) -> text\n When\n Then\n"));
+        source.push_str(&format!("package {owner}\n Given\n  export capability Svc version=1\n   ping(class:text,count:int=17) -> text\n When\n Then\n"));
     }
     source.push_str("app Consumer\nuse alpha {Svc as A}\nuse ALPHA {Svc as B}\nuse std {EmailV1 as Left} from=deployment.left\nuse std {EmailV1 as Right} from=deployment.right\nGiven\nWhen\n scenario dispatch(to:email,subject:text,body:text) by=members\n  do\n   send Left.send {to,subject,body} as first\n   send Right.send {to,subject,body} as second\n   send Left.send {to,subject,body} when=false as skipped\n scenario left(class:text) read=true -> text by=members\n  do return class\n scenario right(class:text) read=true -> text by=members\n  do return class\nThen\n");
     std::fs::write(&imports, source).unwrap();
@@ -219,12 +219,22 @@ for(const [owner,index]of [['alpha',1],['ALPHA',2]]){
 const importsEntry=await import(pathToFileURL(resolve(dirname(new URL(import.meta.url).pathname),'imports',imports.modules[0].path)));
 const definition=importsEntry.appDefinition;
 for(const owner of ['alpha','ALPHA']){
- assert.deepEqual(definition.capabilities[`${owner}.Svc`].operations.ping,{inputs:{class:{type:'text'}},result:{type:'text'}});
+ assert.deepEqual(definition.capabilities[`${owner}.Svc`].operations.ping,{inputs:{class:{type:'text'},count:{type:'int',default:'17'}},result:{type:'text'}});
 }
 assert.equal(definition.capabilities['std.EmailV1'].version,1n);
 assert.deepEqual(definition.capabilities['std.EmailV1'].operations.send,{
- inputs:{to:{type:'email'},subject:{type:'text'},body:{type:'text'},attachments:{type:'file',array:true}},result:{type:'EmailAccepted'},
+ inputs:{to:{type:'email'},subject:{type:'text'},body:{type:'text'},attachments:{type:'file[]'}},result:{type:'EmailAccepted'},
 });
+// Actual owning Values validation consumes the generated descriptors directly.
+const values=await import(pathToFileURL(resolve(process.argv[2],'packages/values/dist/src/index.js')));
+const operation='std.EmailV1.send';
+const schema=values.normalizeSchema({operations:{[operation]:{inputs:definition.capabilities['std.EmailV1'].operations.send.inputs}}});
+const admitted=values.validateOperationInput(schema,operation,{to:'a@b.test',subject:'Authored',body:'Body'});
+assert.equal(admitted.to,'a@b.test');
+assert.deepEqual(values.encodeValue('file[]',admitted.attachments),[],'omitted ordinary array uses owning empty-array default');
+assert.throws(()=>values.validateOperationInput(schema,operation,{to:'a@b.test',subject:'Authored',body:'Body',unknown:'x'}));
+const localSchema=values.normalizeSchema({operations:{ping:{inputs:definition.capabilities['alpha.Svc'].operations.ping.inputs}}});
+assert.equal(values.validateOperationInput(localSchema,'ping',{class:'Local'}).count,17n,'declared default is wire-valued in the owning descriptor');
 assert.equal(Object.keys(definition.capabilities).filter(key=>key==='std.EmailV1').length,1);
 assert.deepEqual(definition.bindings['Consumer.Left'],{capability:'std.EmailV1',from:'deployment.left'});
 assert.deepEqual(definition.bindings['Consumer.Right'],{capability:'std.EmailV1',from:'deployment.right'});

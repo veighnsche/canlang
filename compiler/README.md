@@ -78,7 +78,10 @@ Implemented modules:
 - Checked sends retain the exact selected deployment binding alongside their
   canonical operation. Capability input/result metadata derives from owning
   declarations and the standard catalog, with named standard types retained as
-  references. The existing native binding witness checks alias selection,
+  references. Request fields use canonical Values type IDs and wire-valued
+  literal defaults; captions remain separate from validation descriptors. The
+  existing native binding witness checks actual Values request validation,
+  omitted-array defaults and unknown-input refusal, along with alias selection,
   request schemas, context identity, input reads and lazy guard order. Canonical
   Work staging and dispatch are qualified by their owning runtime consumers.
 - Decimal literals and contextual integral values lower through the existing
