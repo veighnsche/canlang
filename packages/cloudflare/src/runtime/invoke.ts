@@ -1800,6 +1800,34 @@ async function importPolicyRegistry(
   }
 }
 
+/** Computed defaults are source omission claims in both defining channels. */
+async function assertComputedDefaultsPair(
+  artifact: CompileArtifact, asm: AssembledModules, operation: PreloadOperation, callable: PreloadCallable,
+): Promise<void> {
+  const url = asm.moduleUrls[callable.module];
+  if (url === undefined) throw new Error('Computed default has no owning assembled module.');
+  const module: unknown = await import(url);
+  const where = `Computed defaults for ${JSON.stringify(operation.name)}`;
+  const own = (value: unknown, key: string) =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+  const inputs = own(own(own(module, 'appDefinition'), 'operations'), operation.name);
+  const declared = own(inputs, 'inputs');
+  const fields = artifact.operations?.find(candidate => candidate.name === operation.name)?.inputs.fields ?? [];
+  const names = new Set([...fields.map(field => field.name), ...(isUnknownRecord(declared) ? Object.keys(declared) : [])]);
+  for (const name of names) {
+    const field = fields.find(candidate => candidate.name === name);
+    const declaration = own(declared, name);
+    const source = own(declaration, 'computedDefault');
+    const claimed = own(field, 'computedDefault');
+    if (source === undefined && claimed === undefined) continue;
+    const parameterStyle = artifact.callables.find(candidate => candidate.id === operation.name)?.inputStyle === 'parameters';
+    if (source !== true || claimed !== true || operation.kind !== 'scenario' || !parameterStyle ||
+        (isUnknownRecord(declaration) && Object.hasOwn(declaration, 'default'))) {
+      throw new Error(`${where}: ${JSON.stringify(name)} has contradictory computedDefault metadata.`);
+    }
+  }
+}
+
 /**
  * Loaded canonical set: admission-ready registry plus the model table.
  * T17b: plus the transcribed read policy (`policy`, built by the REAL
@@ -2286,6 +2314,7 @@ export async function loadCanonicalDescriptors(
       // B7: scenarios join admission transcription (absent -> deny;
       // their leading require guards stay handler-enforced inside).
       const callable = resolvePreloadCallable(artifact, op);
+      await assertComputedDefaultsPair(artifact, asm, op, callable);
       const registry = await importPolicyRegistry(asm, callable.module, op.name);
       crudBy.set(op.name, mapScenarioPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
     }
@@ -2902,7 +2931,7 @@ function scenarioParameters(call: CanonicalSeamCall, loaded: LoadedCanonicalDesc
           const value = decodeValue(field.valueType, field.default.value);
           parameters[field.name] = value;
           resolvedDefaults[field.name] = encodeValue(field.valueType, value);
-        } else if (!Object.hasOwn(parameters, field.name) && field.valueType.endsWith("?")) {
+        } else if (!Object.hasOwn(parameters, field.name) && field.computedDefault !== true && field.valueType.endsWith("?")) {
           parameters[field.name] = null;
           resolvedDefaults[field.name] = null;
         } else if (parameters[field.name] !== undefined) {
