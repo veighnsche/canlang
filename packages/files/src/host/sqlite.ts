@@ -9,8 +9,8 @@ import { freezeFinalized } from '../provenance/index.js';
 import type { ReceivingContext } from '../provenance/index.js';
 import { DEFAULT_FILE_POLICY, createUploadIntent, appendUploadContent, completeUploadContent } from '../upload/index.js';
 import type { CreateIntentInput, UploadDeps } from '../upload/index.js';
-import { finalizeUpload, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes } from '../finalize/index.js';
-import type { FinalizeDeps, FinalizeInput } from '../finalize/index.js';
+import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes } from '../finalize/index.js';
+import type { FinalizeDeps, FinalizeInput, ProviderOutputInput } from '../finalize/index.js';
 
 export interface SqliteFileStore {
   readonly intents: IntentStorePort;
@@ -184,6 +184,8 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     complete: (intentId: string, caller: ReceivingContext) =>
       store.transaction(() => completeUploadContent(upload, intentId, caller)),
     finalize: (input: FinalizeInput) => store.transaction(() => finalizeUpload(finalize, input)),
+    finalizeProviderOutput: (input: ProviderOutputInput) =>
+      store.transaction(() => finalizeProviderOutput(upload, finalize, input)),
     readProvenance: (ref: string, caller: ReceivingContext) => readFinalizedFile(finalize, ref, caller),
     authorizeAttach: (ref: string, caller: ReceivingContext) => authorizeAttach(finalize, ref, caller),
     recordAttachment: (ref: string, recordRef: string, caller: ReceivingContext) =>

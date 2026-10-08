@@ -1,14 +1,18 @@
-/** Installed Email dispatch over the existing Work lifecycle and State join. */
-import type { OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId } from '@canlang/contracts';
+/** Installed provider dispatch over the existing Work lifecycle and State join. */
+import type { OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, AssociatedReceipt } from '@canlang/contracts';
 import { createReceiptJoinPort } from '@canlang/state/receipt/tables';
+import { decodeValue, equalValue } from '@canlang/values';
+import type { SystemCommandContext } from '@canlang/state';
 import type { SystemCommandDef } from '@canlang/state/ports/system';
 import { dispatchByStateQuery, WORK_DISPATCH_MODEL } from '@canlang/work/kernel/tables';
 import { assembleDispatchCommands } from '../worker/assembly.js';
 import type { BoundMailAdapter } from './bound-mail.js';
 import { stageReceiptProgress } from './receipt-progress.js';
 import type { BoundTextGenerationAdapter, TextRunWire } from './bound-text-generation.js';
+import type { BoundImagesAdapter, ImageRunWire } from './bound-images.js';
 import { readRetainedTextGenerationEvidence, readRetainedTextGenerationReceipt,
-  stageTextGenerationProgress } from './text-generation-progress.js';
+  readRetainedImageGenerationEvidence, readRetainedImageGenerationReceipt,
+  stageTextGenerationProgress, stageImageGenerationProgress } from './text-generation-progress.js';
 import {
   driveDispatchIntent,
   loadDispatchSystemProducers,
@@ -66,9 +70,24 @@ export interface BoundTextGenerationDispatcherOptions extends Omit<BoundMailDisp
   readonly progressed?: CheckedDeliveryProgressProducer;
 }
 
-/** Both installations use the same defining claim, record, recovery and fence. */
+export interface BoundImagesDispatcherOptions extends Omit<BoundMailDispatcherOptions, 'adapter'> {
+  readonly adapter: BoundImagesAdapter;
+  readonly progressed?: CheckedDeliveryProgressProducer;
+}
+
+type InstalledDispatcherOptions =
+  | (BoundMailDispatcherOptions & { readonly profile: 'mail' })
+  | (BoundTextGenerationDispatcherOptions & { readonly profile: 'text' })
+  | (BoundImagesDispatcherOptions & { readonly profile: 'images' });
+type RichRunWire = TextRunWire | ImageRunWire;
+
+/** All installations use the same defining claim, record, recovery and fence. */
 export function createBoundTextGenerationDispatcher(options: BoundTextGenerationDispatcherOptions): Promise<BoundMailDispatcher> {
-  return createInstalledDispatcher({ ...options, textAdapter: options.adapter });
+  return createInstalledDispatcher({ ...options, profile: 'text' });
+}
+
+export function createBoundImagesDispatcher(options: BoundImagesDispatcherOptions): Promise<BoundMailDispatcher> {
+  return createInstalledDispatcher({ ...options, profile: 'images' });
 }
 
 /**
@@ -78,23 +97,42 @@ export function createBoundTextGenerationDispatcher(options: BoundTextGeneration
 export async function createBoundMailDispatcher(
   options: BoundMailDispatcherOptions,
 ): Promise<BoundMailDispatcher> {
-  return createInstalledDispatcher(options);
+  return createInstalledDispatcher({ ...options, profile: 'mail' });
 }
 
-function sameRetainedTextEvidence(expected: DispatchReconcileEvidence,
-  actual: DispatchReconcileEvidence | null, context: ReceiptResultContext): boolean {
+function sameRetainedEvidence(expected: DispatchReconcileEvidence,
+  actual: DispatchReconcileEvidence | null, context: ReceiptResultContext, profile: 'text' | 'images'): boolean {
   return expected.kind === 'failed' && actual?.kind === 'failed'
     ? expected.code === actual.code && expected.message === actual.message
     : expected.kind === 'delivered' && actual?.kind === 'delivered' &&
-      context.declaredResult!.fields.every(leaf =>
-        (expected.result as TextRunWire)[leaf.name as keyof TextRunWire] ===
-        (actual.result as TextRunWire)[leaf.name as keyof TextRunWire]);
+      context.declaredResult!.fields.every(leaf => {
+        const before = (expected.result as unknown as Record<string, unknown>)[leaf.name];
+        const after = (actual.result as unknown as Record<string, unknown>)[leaf.name];
+        // Image outputs are ordered, nested File wire values. Compare their
+        // owning declared codecs, including every leaf, rather than identity.
+        return profile === 'text' ? before === after
+          : equalValue(leaf.type, decodeValue(leaf.type, before), decodeValue(leaf.type, after));
+      });
 }
 
 async function createInstalledDispatcher(
-  options: BoundMailDispatcherOptions & { readonly textAdapter?: BoundTextGenerationAdapter;
-    readonly progressed?: CheckedDeliveryProgressProducer },
+  options: InstalledDispatcherOptions,
 ): Promise<BoundMailDispatcher> {
+  const rich = options.profile !== 'mail';
+  const progressed = options.profile === 'mail' ? undefined : options.progressed;
+  const readRetainedReceipt = options.profile === 'images'
+    ? readRetainedImageGenerationReceipt : readRetainedTextGenerationReceipt;
+  const readRetainedEvidence = options.profile === 'images'
+    ? readRetainedImageGenerationEvidence : readRetainedTextGenerationEvidence;
+  const stageRichProgress = (input: { intent: OutboxIntent; context: ReceiptResultContext; revision: number;
+    progressed?: { producer: CheckedDeliveryProgressProducer; owner: string } } & (
+      { progress: RichRunWire; outcome?: never } |
+      { outcome: { kind: 'failed'; error: { code: string; message: string } }; progress?: never }),
+    ctx: SystemCommandContext) => options.profile === 'images'
+      ? stageImageGenerationProgress({ ...input,
+          ...(input.progress === undefined ? {} : { progress: input.progress as ImageRunWire }) } as Parameters<typeof stageImageGenerationProgress>[0], ctx)
+      : stageTextGenerationProgress({ ...input,
+          ...(input.progress === undefined ? {} : { progress: input.progress as TextRunWire }) } as Parameters<typeof stageTextGenerationProgress>[0], ctx);
   const producers = await loadDispatchSystemProducers();
   const pending = new Map<string, OutboxIntent>();
   const resultContexts = new Map<string, ReceiptResultContext>();
@@ -126,9 +164,9 @@ async function createInstalledDispatcher(
           !staged.outboxAck?.includes(completion.intent.intentId)) return staged;
       if (completion.retainedEvidence !== undefined) {
         const context = requireResultContext(completion.intent.intentId);
-        const current = await readRetainedTextGenerationEvidence({ intent: completion.intent, context }, ctx);
-        if (!sameRetainedTextEvidence(completion.retainedEvidence, current, context)) {
-          throw new Error('Retained text outcome changed before acknowledgement.');
+        const current = await readRetainedEvidence({ intent: completion.intent, context }, ctx);
+        if (!sameRetainedEvidence(completion.retainedEvidence, current, context, options.profile === 'images' ? 'images' : 'text')) {
+          throw new Error('Retained generation outcome changed before acknowledgement.');
         }
       }
       // The installed stream awaited this exact final observation's fenced
@@ -145,46 +183,46 @@ async function createInstalledDispatcher(
         : null;
       if (selected === null) return staged;
       const revision = (await options.store.readRevision()) + 1;
-      const receipt = options.textAdapter === undefined
+      const receipt = !rich
         ? await stageReceiptProgress({ intent: completion.intent, outcome: selected, revision }, ctx)
-        : await stageTextGenerationProgress({ intent: completion.intent,
+        : await stageRichProgress({ intent: completion.intent,
           context: requireResultContext(completion.intent.intentId), revision,
-          ...(options.progressed === undefined ? {} : { progressed: { producer: options.progressed, owner: completion.owner } }),
-          ...(selected.kind === 'delivered' ? { progress: selected.result as TextRunWire } : { outcome: selected }) }, ctx);
+          ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner: completion.owner } }),
+          ...(selected.kind === 'delivered' ? { progress: selected.result as RichRunWire } : { outcome: selected }) }, ctx);
       return { ...staged, writes: [...(staged.writes ?? []), ...(receipt.writes ?? [])],
         schedules: [...staged.schedules ?? [], ...receipt.schedules ?? []] };
     },
   };
   const requireResultContext = (id: string): ReceiptResultContext => {
     const context = resultContexts.get(id);
-    if (context === undefined) throw new Error('Text progress lost its verified original request.');
+    if (context === undefined) throw new Error('Generation progress lost its verified original request.');
     return context;
   };
   const progressCommand: SystemCommandDef = {
-    name: 'work.text.progress',
+    name: options.profile === 'images' ? 'work.image.progress' : 'work.text.progress',
     async stage(args, ctx) {
       const intent = pending.get(String(args['intentId']));
-      if (intent === undefined || options.textAdapter === undefined) throw new Error('Text progress needs its original pending intent.');
+      if (intent === undefined || !rich) throw new Error('Generation progress needs its original pending intent.');
       const claimRow = await ctx.load(WORK_DISPATCH_MODEL, intent.intentId as RecordId);
-      if (claimRow === null) throw new Error('Text progress lost its held claim.');
+      if (claimRow === null) throw new Error('Generation progress lost its held claim.');
       const held = readDispatchExecutionRow(claimRow);
-      if (held.state !== 'claimed' || held.claimId !== args['claimId']) throw new Error('Text progress needs its current held claim.');
+      if (held.state !== 'claimed' || held.claimId !== args['claimId']) throw new Error('Generation progress needs its current held claim.');
       const owner = progressOwners.get(`${intent.intentId}\0${held.claimId}`);
-      if (owner === undefined) throw new Error('Text progress lost its admitted owner fence.');
-      return stageTextGenerationProgress({ intent, context: requireResultContext(intent.intentId),
-        ...(options.progressed === undefined ? {} : { progressed: { producer: options.progressed, owner } }),
-        progress: args['progress'] as TextRunWire, revision: (await options.store.readRevision()) + 1 }, ctx);
+      if (owner === undefined) throw new Error('Generation progress lost its admitted owner fence.');
+      return stageRichProgress({ intent, context: requireResultContext(intent.intentId),
+        ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner } }),
+        progress: args['progress'] as RichRunWire, revision: (await options.store.readRevision()) + 1 }, ctx);
     },
   };
   const progressOwners = new Map<string, string>();
   const registry = producers.createSystemRegistry(assembleDispatchCommands({
     l3Commands: producers.l3Commands,
     workCommands: [...options.workCommands.map(command => command.name === claim.name ? claim
-      : command.name === record.name ? record : command), ...(options.textAdapter === undefined ? [] : [progressCommand])],
+      : command.name === record.name ? record : command), ...(!rich ? [] : [progressCommand])],
     stageCommands: options.stageCommands,
   }));
   const receiptStore = withDispatchJoinPort(options.store, createReceiptJoinPort({ store: options.store,
-    ...(options.textAdapter === undefined ? {} : { resultContexts: () => resultContexts }) }));
+    ...(!rich ? {} : { resultContexts: () => resultContexts }) }));
   const joinPort = producers.createDispatchJoinPort({ store: receiptStore });
   const store = withDispatchJoinPort(options.store, joinPort);
   const refreshPending = async (): Promise<void> => {
@@ -193,11 +231,11 @@ async function createInstalledDispatcher(
     pending.clear();
     for (const intent of rows) {
       pending.set(intent.intentId, intent);
-      const context = options.textAdapter?.resultContext(intent);
+      const context = options.profile === 'mail' ? null : options.adapter.resultContext(intent);
       if (context !== undefined && context !== null) resultContexts.set(intent.intentId, context);
     }
     for (const intent of previous) {
-      if (!pending.has(intent.intentId)) options.textAdapter?.releaseAcknowledged(intent);
+      if (!pending.has(intent.intentId) && options.profile === 'text') options.adapter.releaseAcknowledged(intent);
     }
     for (const id of resultContexts.keys()) {
       if (!pending.has(id)) resultContexts.delete(id);
@@ -229,36 +267,49 @@ async function createInstalledDispatcher(
             const heldKey = `${selected.intentId}\0${held.claimId}`;
             progressOwners.set(heldKey, input.fence.owner);
             heldKeys.push(heldKey);
-            let committedProgress: TextRunWire | undefined;
+            let committedProgress: RichRunWire | undefined;
             let retainedCommitted = false;
             let retainedEvidence: DispatchReconcileEvidence | undefined;
             let answer: DispatchProviderOutcome;
-            const context = options.textAdapter === undefined ? null : requireResultContext(selected.intentId);
+            const context = !rich ? null : requireResultContext(selected.intentId);
             const scope = { actor: input.actor, now: input.nowMs(), operation: input.operation,
               load: store.load.bind(store), query: store.query.bind(store) };
             const retained = context === null ? null
-              : await readRetainedTextGenerationReceipt({ intent: selected, context }, scope);
+              : await readRetainedReceipt({ intent: selected, context }, scope);
             if (context !== null && retained === null) {
-              throw new Error('Text generation needs its original durable receipt before transport.');
+              throw new Error('Generation needs its original durable receipt before transport.');
             }
             if (context !== null && retained !== null && (retained.result !== null || retained.status !== 'pending')) {
               // A reclaimed claim never restarts a run which already crossed
               // the durable pre-transport queue boundary. Only confirmed
               // original terminal evidence can settle that uncertain attempt.
-              const definitive = await readRetainedTextGenerationEvidence({ intent: selected, context }, scope);
+              const definitive = await readRetainedEvidence({ intent: selected, context }, scope);
               retainedCommitted = definitive !== null;
               retainedEvidence = definitive ?? undefined;
               answer = definitive?.kind === 'delivered' ? definitive
                 : definitive?.kind === 'failed' ? { kind: 'failed', cause: { kind: 'permanent',
                     code: definitive.code, message: definitive.message } }
                 : { kind: 'uncertain' };
-            } else answer = options.textAdapter === undefined ? await options.adapter.callProvider(selected)
-              : await options.textAdapter.callProvider(selected, { onProgress: async progress => {
+            } else {
+              const commitProgress = async (progress: RichRunWire): Promise<void> => {
                 await registry.run(progressCommand.name, { intentId: selected.intentId, claimId: held.claimId, progress },
                   { actor: input.actor, now: input.nowMs(), operation: input.operation,
                     operationId: `${held.claimId}:progress:${progress.sequence}` }, { store });
                 committedProgress = progress;
-              } });
+              };
+              if (options.profile === 'mail') answer = await options.adapter.callProvider(selected);
+              else if (options.profile === 'text') answer = await options.adapter.callProvider(selected, { onProgress: commitProgress });
+              else {
+                const original = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
+                if (original === null) throw new Error('Images transport lost its original staged attempt.');
+                const execution = readDispatchExecutionRow(original);
+                if (execution.state !== 'claimed' || execution.claimId !== held.claimId) {
+                  throw new Error('Images transport needs its current held claim.');
+                }
+                answer = await options.adapter.callProvider(selected, { stagedAtMs: original.created,
+                  onQueued: commitProgress, onProgress: commitProgress });
+              }
+            }
             const key = `${selected.intentId}\0${held.claimId}`;
             completions.set(key, { intent: selected, outcome: answer, owner: input.fence.owner,
               ...(retainedEvidence === undefined ? {} : { retainedEvidence }),
@@ -283,6 +334,7 @@ async function createInstalledDispatcher(
       await refreshPending();
       const evidence = new Map<string, DispatchReconcileEvidence>();
       const retainedEvidence = new Set<string>();
+      const imageObservations = new Map<string, { receipt: AssociatedReceipt; progress: ImageRunWire }>();
       const retainedContext = { actor: input.actor, now: input.nowMs(), operation: input.operation,
         load: store.load.bind(store), query: store.query.bind(store) };
       // The existing recovery planner selects its bounded page by intent ID.
@@ -294,10 +346,37 @@ async function createInstalledDispatcher(
         if (dispatch.state !== 'uncertain') continue;
         const intent = pending.get(dispatch.intentId);
         if (intent === undefined || !options.adapter.available(intent)) continue;
-        const retained = options.textAdapter === undefined ? null
-          : await readRetainedTextGenerationEvidence({ intent,
+        const retained = !rich ? null
+          : await readRetainedEvidence({ intent,
             context: requireResultContext(intent.intentId) }, retainedContext);
-        const answer = retained ?? await options.adapter.reconcile(intent);
+        let answer = retained;
+        if (answer === null) {
+          if (options.profile !== 'images') answer = await options.adapter.reconcile(intent);
+          else {
+            const receipt = await readRetainedReceipt({ intent,
+              context: requireResultContext(intent.intentId) }, retainedContext);
+            if (receipt === null) throw new Error('Images recovery lost its original durable receipt.');
+            const sequence = receipt.result === null ? undefined
+              : (receipt.result as unknown as ImageRunWire).sequence;
+            let observed: ImageRunWire | undefined;
+            answer = await options.adapter.reconcile(intent, {
+              stagedAtMs: row.created, ...(sequence === undefined ? {} : { sequence }),
+              onQueued: async () => { throw new Error('Images recovery cannot submit a new job.'); },
+              // Reconciliation only observes the original installed job. Its
+              // confirmed terminal evidence is staged in the existing recovery
+              // batch below; nonterminal observations never authorize ack.
+              onProgress: async progress => { observed = progress; },
+            });
+            if (answer?.kind === 'delivered') {
+              const checkedContext = requireResultContext(intent.intentId);
+              if (observed === undefined || !['succeeded', 'failed', 'cancelled'].includes(observed.state) ||
+                  !sameRetainedEvidence(answer, { kind: 'delivered', result: observed }, checkedContext, 'images')) {
+                throw new Error('Images recovery needs its actual confirmed terminal observation.');
+              }
+              imageObservations.set(intent.intentId, { receipt, progress: observed });
+            }
+          }
+        }
         if (retained !== null) retainedEvidence.add(intent.intentId);
         if (answer !== null) evidence.set(intent.intentId, answer);
       }
@@ -313,22 +392,39 @@ async function createInstalledDispatcher(
             // scope. Its progress was already committed: only acknowledge the
             // intent, without giving that same sequence a new checkpoint.
             const checkedContext = requireResultContext(intentId);
-            const retained = await readRetainedTextGenerationEvidence({ intent, context: checkedContext }, context);
-            if (!sameRetainedTextEvidence(answer, retained, checkedContext)) {
-              throw new Error('Retained text outcome changed before acknowledgement.');
+            const retained = await readRetainedEvidence({ intent, context: checkedContext }, context);
+            if (!sameRetainedEvidence(answer, retained, checkedContext, options.profile === 'images' ? 'images' : 'text')) {
+              throw new Error('Retained generation outcome changed before acknowledgement.');
             }
             return [];
+          }
+          const observation = imageObservations.get(intentId);
+          if (observation !== undefined) {
+            const checkedContext = requireResultContext(intentId);
+            const current = await readRetainedReceipt({ intent, context: checkedContext }, context);
+            const previous = observation.receipt;
+            // The actual provider observation was based on this original
+            // sequence. A concurrent receipt change must not be overwritten or
+            // silently acknowledged by the terminal-only recovery batch.
+            if (current === null || current.status !== previous.status ||
+                current.error?.code !== previous.error?.code || current.error?.message !== previous.error?.message ||
+                (current.result === null ? previous.result !== null : previous.result === null ||
+                  !sameRetainedEvidence({ kind: 'delivered', result: previous.result },
+                    { kind: 'delivered', result: current.result }, checkedContext, 'images')) ||
+                !sameRetainedEvidence(answer, { kind: 'delivered', result: observation.progress }, checkedContext, 'images')) {
+              throw new Error('Images receipt changed before recovery acknowledgement.');
+            }
           }
           const outcome = answer.kind === 'delivered'
             ? { kind: 'delivered' as const, result: answer.result }
             : { kind: 'failed' as const, error: { code: answer.code, message: answer.message } };
-          if (options.progressed !== undefined) {
+          if (progressed !== undefined) {
             throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
           }
-          return (options.textAdapter === undefined
+          return (!rich
             ? await stageReceiptProgress({ intent, outcome, revision }, context)
-            : await stageTextGenerationProgress({ intent, context: requireResultContext(intent.intentId), revision,
-              ...(outcome.kind === 'delivered' ? { progress: outcome.result as TextRunWire } : { outcome }) }, context)).writes ?? [];
+            : await stageRichProgress({ intent, context: requireResultContext(intent.intentId), revision,
+              ...(outcome.kind === 'delivered' ? { progress: outcome.result as RichRunWire } : { outcome }) }, context)).writes ?? [];
         } });
       await refreshPending();
       return outcome;
