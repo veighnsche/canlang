@@ -103,6 +103,9 @@ import type {
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
 import type { InputChoiceLookup } from '@canlang/interfaces';
+import type { IdentityStore } from '@canlang/identity';
+import type { WorkScope } from '@canlang/contracts';
+import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import type { HandlerContext } from "../runtime/context.js";
 import type { CanonicalFileBinding } from '../runtime/file-staging.js';
 import type {
@@ -900,6 +903,75 @@ async function loadSiblingFn<T>(specifier: string, file: string, binding: string
  * direct path is retired, so every artifact either routes canonical
  * or refuses — there is no third path).
  */
+export interface TeamOwnerStorageBoundary {
+  readonly app: string;
+  readonly forIdentity: (identity: ResolvedIdentity) => Promise<StoragePort>;
+  /** Trusted host only; a Work scope is not a public identity credential. */
+  readonly forTrustedScope: (scope: WorkScope, now: number) => Promise<{
+    readonly identity: ResolvedIdentity;
+    readonly store: StoragePort;
+  }>;
+}
+
+/** Selected team-only fixture boundary; no app/global storage fallback. */
+export async function createTeamOwnerStorageBoundary(input: {
+  readonly artifact: CompileArtifact;
+  readonly asm: AssembledModules;
+  readonly app: string;
+  readonly identities: IdentityStore;
+  readonly router: ReturnType<typeof createD1OwnerRouter>;
+}): Promise<TeamOwnerStorageBoundary> {
+  const { app, identities, router } = input;
+  const models = input.artifact.models;
+  if (models === undefined || models.length === 0) throw new Error('assembly: owner routing requires declared team models');
+  const byName = new Map(models.map(model => [model.name, model]));
+  if (byName.size !== models.length) throw new Error('assembly: owner routing requires unique declared models');
+  const complete = new Set<string>();
+  const visiting = new Set<string>();
+  const teamRoot = (name: string): void => {
+    if (complete.has(name)) return;
+    const model = byName.get(name);
+    if (model === undefined || visiting.has(name)) throw new Error('assembly: missing or cyclic model owner root');
+    if (model.scope !== undefined) throw new Error('assembly: owner routing supports team roots only');
+    visiting.add(name);
+    if (model.parent !== undefined) teamRoot(model.parent);
+    visiting.delete(name);
+    complete.add(name);
+  };
+  for (const model of models) teamRoot(model.name);
+  const first = input.artifact.modules[0];
+  const url = first === undefined ? undefined : input.asm.moduleUrls[first.path];
+  if (url === undefined) throw new Error('assembly: owner routing entry module is missing');
+  const module: unknown = await import(url);
+  const definition = isRecord(module) ? module['appDefinition'] : undefined;
+  if (!isRecord(definition) || definition['id'] !== app || !isRecord(definition['packages'])) {
+    throw new Error('assembly: owner routing requires the exact declared app and packages');
+  }
+  const packages = new Set(Object.keys(definition['packages']));
+  const forIdentity = async (identity: ResolvedIdentity): Promise<StoragePort> => {
+    const team = identity.team;
+    if (team === null || typeof team?.team_id !== 'string' || team.team_id === '' ||
+        await identities.findTeamById(team.team_id) === null) {
+      throw new Error('assembly: owner routing requires a current concrete Identity team');
+    }
+    return router.ownerScopedStoragePort({ app, owner: team.team_id });
+  };
+  return Object.freeze({ app, forIdentity,
+    async forTrustedScope(scope: WorkScope, now: number) {
+      if (scope.app !== app || !packages.has(scope.ownerPackage) || scope.owner === 'app' ||
+          typeof scope.owner !== 'string' || scope.owner === '' || !Number.isFinite(now)) {
+        throw new Error('assembly: trusted owner routing requires the exact declared team Work scope');
+      }
+      const { resolveIdentity } = await import('@canlang/identity');
+      const identity = await resolveIdentity(identities, { team_id: scope.owner }, { clock: { nowMs: () => now } });
+      if (identity.actor !== null || identity.team?.team_id !== scope.owner) {
+        throw new Error('assembly: trusted owner routing identity disagrees with Work scope');
+      }
+      return { identity, store: await forIdentity(identity) };
+    },
+  });
+}
+
 export interface CanonicalInvokerOpts {
   /**
    * Membership reader for canonical admission (the IdentityStore,
@@ -916,6 +988,8 @@ export interface CanonicalInvokerOpts {
   readonly appInfo?: AppInfo;
   readonly selectedReceiptObserver?: SelectedReceiptObserverBinding;
   readonly files?: CanonicalFileBinding;
+  /** Host-injected selected team boundary, shared with trusted Work admission. */
+  readonly ownerStorage?: TeamOwnerStorageBoundary;
 }
 
 /**
@@ -975,6 +1049,9 @@ export function buildInvoker(
           "invokeMutationCanonical",
         );
         const selectedApp = opts.appInfo ?? (opts.appId === undefined ? await loadAppInfo(artifact, asm) : undefined);
+        const app = selectedApp?.appId ?? opts.appId!;
+        if (opts.ownerStorage !== undefined && opts.ownerStorage.app !== app) throw new Error('assembly: owner storage app disagrees');
+        const selectedStore = opts.ownerStorage === undefined ? store : await opts.ownerStorage.forIdentity(identity);
         const result = await invokeCanonical({
           asm,
           artifact,
@@ -982,10 +1059,10 @@ export function buildInvoker(
           operationId: envelope.operation_id,
           inputs: envelope.inputs,
           identity,
-          app: selectedApp?.appId ?? opts.appId!,
+          app,
           ...(selectedApp === undefined ? {} : { formatting: { appDefault: selectedApp.appDefaultLocale } }),
           source: opts.source ?? "worker",
-          store,
+          store: selectedStore,
           memberships: opts.memberships as CanonicalMembershipReader,
           now: opts.now ?? Date.now,
           ...(opts.selectedReceiptObserver === undefined ? {} : { observer: opts.selectedReceiptObserver }),
@@ -1013,14 +1090,18 @@ export function buildInvoker(
         );
         const isReadScenario = artifact.operations?.some(op => op.name === envelope.operation && op.kind === 'read') &&
           artifact.callables.some(callable => callable.id === envelope.operation);
-        const selectedApp = opts.appInfo ?? (isReadScenario && opts.appId === undefined ? await loadAppInfo(artifact, asm) : undefined);
+        const selectedApp = opts.appInfo ?? ((isReadScenario || opts.ownerStorage !== undefined) && opts.appId === undefined ? await loadAppInfo(artifact, asm) : undefined);
+        if (opts.ownerStorage !== undefined && (selectedApp?.appId ?? opts.appId) !== opts.ownerStorage.app) {
+          throw new Error('assembly: owner storage app disagrees');
+        }
+        const selectedStore = opts.ownerStorage === undefined ? store : await opts.ownerStorage.forIdentity(identity);
         const result = await invokeCanonical({
           asm,
           artifact,
           operation: envelope.operation,
           inputs: envelope.inputs,
           identity,
-          store,
+          store: selectedStore,
           source: opts.source ?? 'worker',
           now: opts.now ?? Date.now,
           ...(selectedApp === undefined ? {} : { formatting: { appDefault: selectedApp.appDefaultLocale } }),
