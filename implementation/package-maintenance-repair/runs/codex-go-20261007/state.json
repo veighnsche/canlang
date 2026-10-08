@@ -2100,7 +2100,7 @@
     }
   },
   "source_form_binding_release": {
-    "status": "source API, default-Worker and installed Chrome submission accepted narrowly; source feedback accepted; two-occurrence real-browser feedback consumer pending",
+    "status": "source API and actual default-Worker/installed Chrome form submission, validation feedback and correction accepted narrowly",
     "scope": "request-local typed field preparation and authored UI body; verified page source role context",
     "verification": {
       "normal_emits": [
@@ -2120,11 +2120,12 @@
       "actual_installed_chrome": "1/1 owner current compiled-source Worker HTTP consumer in5.37s; commit a7785248",
       "legacy_html_denial_compatibility": "2/2 directly affected existing client checks",
       "feedback_ui_emit": 0,
-      "feedback_browser_asset_build": 0
+      "feedback_browser_asset_build": 0,
+      "actual_two_occurrence_feedback": "1/1 owner current genuine-source Chrome/Worker/D1 case in5.50s on66d694f7; root frozen source/test review",
+      "readonly_state_polling": "separate genuine-source Chrome/Worker/D1 case1/1 about4s; anonymous readonly GET, real2s HX polling and authenticated transitions; precise Task15 acceptance remains coordinator-owned"
     },
     "advice": "/private/tmp/canlang-repair-go-20261007/form-binding-contract",
     "remaining": [
-      "actual two-occurrence browser validation feedback/correction",
       "protected bound/update forms",
       "authored companion controls",
       "file-upload intents join",

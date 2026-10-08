@@ -56,7 +56,7 @@ describe("authored operation forms through defining default Worker", () => {
     const html = await page.text();
     const forms = (html.match(/<form\b[^>]*>[\s\S]*?<\/form>/g) ?? [])
       .filter(form => form.includes('action="/api/operations/'));
-    expect(forms).toHaveLength(1);
+    expect(forms).toHaveLength(2);
     const form = forms[0]!;
     // Inspect actual emitted controls; no handwritten field definitions or HTML.
     const attributes = (tag: string) => Object.fromEntries(
@@ -69,12 +69,25 @@ describe("authored operation forms through defining default Worker", () => {
     expect(controls.find(control => control["name"] === "inputs[label]")?.["aria-required"]).toBe("true");
     expect(form).toContain("Entry label"); expect(form).toContain("Count"); expect(form).toContain("Add entry");
     expect(html).not.toContain('name="inputs[owner]"');
+    expect(forms[1]).toContain("Add another entry");
+    const occurrenceControls = forms.map(form => [...form.matchAll(/<input\b[^>]*>/g)].map(match => attributes(match[0])));
+    for (const controls of occurrenceControls) {
+      expect(controls.filter(control => control["name"] === "inputs[label]")).toHaveLength(1);
+      expect(controls.filter(control => control["name"] === "inputs[count]")).toHaveLength(1);
+    }
+    const occurrenceIds = occurrenceControls.flatMap(controls => controls.map(control => control["id"]).filter(id => id !== undefined));
+    expect(occurrenceIds).toHaveLength(4);
+    expect(new Set(occurrenceIds).size).toBe(4);
+    const occurrenceNonces = occurrenceControls.map(controls => controls.find(control => control["name"] === "operation_id")?.["value"]);
+    expect(new Set(occurrenceNonces).size).toBe(2);
+    for (const nonce of occurrenceNonces) expect(nonce).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     const ids = controls.map(control => control["id"]).filter(id => id !== undefined);
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(form).toContain(`for="${id}"`);
     const action = attributes(form.slice(0, form.indexOf(">") + 1))["action"]!;
     expect(action).toBe("/api/operations/TypedOperationForms.Entry.create");
+    expect(attributes(forms[1]!.slice(0, forms[1]!.indexOf(">") + 1))["action"]).toBe(action);
     const flat = Object.fromEntries(controls.filter(control => control["name"] !== undefined)
       .map(control => [control["name"]!, control["value"] ?? ""]));
     expect(flat[CSRF_FIELD]).toBe(csrf);
@@ -122,7 +135,7 @@ describe("authored operation forms through defining default Worker", () => {
     const afterHtml = await after.text();
     expect(afterHtml).toContain("Bound forms are not available yet.");
     expect((afterHtml.match(/<form\b[^>]*>[\s\S]*?<\/form>/g) ?? [])
-      .filter(form => form.includes('action="/api/operations/'))).toHaveLength(1);
+      .filter(form => form.includes('action="/api/operations/'))).toHaveLength(2);
     expect(afterHtml).not.toContain('name="inputs[entry]');
     expect(afterHtml).not.toContain('name="inputs[newLabel]"');
     expect(afterHtml).not.toContain('name="inputs[delta]"');
@@ -142,15 +155,53 @@ describe("authored operation forms through defining default Worker", () => {
         const browserPage = await context.newPage();
         const response = await browserPage.goto(`${origin}/`);
         expect(response?.status()).toBe(200);
-        const browserForm = browserPage.locator("form[data-can-generated-form]");
-        await browserExpect(browserForm).toHaveCount(1);
+        const browserForms = browserPage.locator("form[data-can-generated-form]");
+        await browserExpect(browserForms).toHaveCount(2);
+        const browserForm = browserForms.nth(0);
+        const neighbor = browserForms.nth(1);
+        await neighbor.getByLabel("Entry label").fill("Neighbor draft");
+        await neighbor.getByLabel("Count", { exact: true }).fill("12");
+        const neighborNonce = await neighbor.locator('input[name="operation_id"]').inputValue();
+        const neighborFeedback = neighbor.locator("[data-can-form-feedback]");
+        await browserExpect(neighborFeedback).toBeHidden();
+        expect(await neighbor.getAttribute("data-can-submit-state")).toBeNull();
         await browserForm.getByLabel("Entry label").fill("Browser created entry");
-        await browserForm.getByLabel("Count", { exact: true }).fill("");
+        await browserForm.getByLabel("Count", { exact: true }).fill("1.5");
         const nonce = await browserForm.locator('input[name="operation_id"]').inputValue();
         expect(nonce).not.toBe(flat["operation_id"]);
+        expect(nonce).not.toBe(neighborNonce);
         const button = browserForm.getByRole("button", { name: "Add entry", exact: true });
         const isCreatePost = (response: import("@playwright/test").Response) =>
           new URL(response.url()).pathname === action && response.request().method() === "POST";
+        // Integer projection keeps the draft verbatim; the owning HTTP bound
+        // checker rejects fractional wire before State admission pins a receipt.
+        const invalidPost = browserPage.waitForResponse(isCreatePost);
+        await button.click();
+        expect((await invalidPost).status()).toBe(400);
+        await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "denied");
+        const feedback = browserForm.locator("[data-can-form-feedback]");
+        await browserExpect(feedback).toBeVisible();
+        await browserExpect(feedback).toHaveAttribute("data-can-form-feedback-code", "validation");
+        await browserExpect(feedback).toContainText("count");
+        expect(await feedback.locator("*").count()).toBe(0);
+        await browserExpect(browserForm.getByLabel("Entry label")).toHaveValue("Browser created entry");
+        await browserExpect(browserForm.getByLabel("Count", { exact: true })).toHaveValue("1.5");
+        expect(await browserForm.locator('input[name="operation_id"]').inputValue()).toBe(nonce);
+        await browserExpect(neighbor.getByLabel("Entry label")).toHaveValue("Neighbor draft");
+        await browserExpect(neighbor.getByLabel("Count", { exact: true })).toHaveValue("12");
+        expect(await neighbor.locator('input[name="operation_id"]').inputValue()).toBe(neighborNonce);
+        expect(await neighbor.getAttribute("data-can-submit-state")).toBeNull();
+        await browserExpect(neighborFeedback).toBeHidden();
+        expect(await neighborFeedback.textContent()).toBe("");
+        expect(await neighborFeedback.getAttribute("data-can-form-feedback-code")).toBeNull();
+        expect(await deps.store.readRevision()).toBe(revision);
+        expect(await deps.store.query({ model, authority: "owner" })).toEqual(rows);
+        expect(await deps.store.historyFor(model, row.id)).toEqual(history);
+        expect(await deps.store.readReceipt({ app: "TypedOperationForms", owner: team.team_id,
+          principal: user.user_id, operation: operation.name, operationId: nonce })).toBeNull();
+
+        // Correct this same occurrence without minting a replacement nonce.
+        await browserForm.getByLabel("Count", { exact: true }).fill("");
         const browserPost = browserPage.waitForResponse(isCreatePost);
         await button.click();
         const createdResponse = await browserPost;
@@ -163,6 +214,7 @@ describe("authored operation forms through defining default Worker", () => {
         const createdResult = await createdResponse.json();
         expect(createdResult.status).toBe("committed");
         await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "committed");
+        await browserExpect(feedback).toBeHidden();
         const browserRows = await deps.store.query({ model, authority: "owner" });
         expect(browserRows).toHaveLength(2);
         const browserRow = browserRows.find((entry: { data: Record<string, unknown> }) => entry.data["label"] === "Browser created entry");
@@ -268,5 +320,96 @@ describe.skipIf(producer === undefined)("authored Images page through defining d
     await DB.prepare("INSERT INTO records(model,id,version,created,updated,created_by,updated_by,data) VALUES (?,?,?,?,?,?,?,?)")
       .bind("Images.Job", "job-2", 1, 2, 2, "fixture", "fixture", JSON.stringify({ title: "Overflow", status: "ready" })).run();
     await expect(queryPageRowsCanonical({ ...options, args: { limit: 1 } })).rejects.toMatchObject({ code: "validation" });
+  }, 60_000);
+});
+
+describe("authored readonly state page through native Worker polling", () => {
+  it("refreshes Generating to Image ready after an authenticated canonical transition", async () => {
+    const artifact = JSON.parse(readFileSync(resolve("packages/cloudflare/test/fixtures/typed-state-page.json"), "utf8")) as CompileArtifact;
+    const bundle = buildDeployBundleWithAssets(artifact, { verdict: { active: true }, assets: { browser: true } });
+    const dir = mkdtempSync(join(realpathSync(tmpdir()), "can-state-page-")); dirs.push(dir);
+    writeDeployBundleWithAssets(bundle, dir);
+    const worker = new Miniflare({ compatibilityDate: "2026-07-15", modulesRoot: "/",
+      modules: [DEPLOY_MAIN_MODULE, ...Object.keys(bundle.modules).filter(path => path !== DEPLOY_MAIN_MODULE)].map(path => ({
+        type: "ESModule" as const, path: `/${path}`, contents: bundle.modules[path]!,
+      })), d1Databases: { DB: "actual-state-page" } }); workers.push(worker);
+    const DB = await worker.getD1Database("DB");
+    const { buildProductionDeps } = await loadStagedModule(pathToFileURL(join(dir, "runtime/env-assembly.js")).href);
+    const deps = await buildProductionDeps({ DB });
+    const password = "state-page-owner-password";
+    const user = await deps.identityStore.createUser({ email: "state-page-owner@example.test",
+      password_hash: await hashPassword(password), email_verified: true });
+    const team = await deps.identityStore.createTeam({ timezone: "Europe/Brussels" });
+    await deps.identityStore.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const { token } = await loginWithPassword(deps.identityStore, { email: user.email, password });
+    const session = await deps.identityStore.findSessionByTokenHash(await sha256HexText(token));
+    expect(session).not.toBeNull();
+    await deps.identityStore.setSessionTeam(session.session_id, team.team_id);
+    const cookie = buildSessionCookie(token, { maxAgeSeconds: 3600, secure: false });
+    const csrf = await deriveCsrfToken(token);
+    const { mintOperationId, isolate } = await import("@canlang/ui");
+    const post = async (operation: string, inputs: Record<string, unknown>, authenticated = true) => {
+      const response = await worker.dispatchFetch(`https://example.test/api/operations/${operation}`, {
+        method: "POST", headers: { "content-type": "application/json", "x-csrf-token": csrf,
+          ...(authenticated ? { cookie } : {}) },
+        body: JSON.stringify({ operation, operation_id: mintOperationId(), inputs }),
+      });
+      const body = await response.json() as { status?: string; result?: { id: string; version: number } };
+      return { response, body };
+    };
+    const created = await post("Images.Job.create", {});
+    expect(created.response.status, JSON.stringify(created.body)).toBe(200);
+    expect(created.body.status).toBe("committed");
+    const job = created.body.result!;
+    expect(job.version).toBe(1);
+    const advanced = await post("Images.advance", { job: { id: job.id, version: "1" } });
+    expect(advanced.response.status, JSON.stringify(advanced.body)).toBe(200);
+    expect(advanced.body.status).toBe("committed");
+    const generating = await deps.store.load("Images.Job", job.id);
+    expect(generating.version).toBe(2);
+    expect(generating.data).toEqual({ title: "test", status: "generating" });
+    const beforeHistory = await deps.store.historyFor("Images.Job", job.id);
+    const denied = await post("Images.finish", { job: { id: job.id, version: "2" } }, false);
+    expect(denied.response.status).toBe(403);
+    expect(await deps.store.load("Images.Job", job.id)).toEqual(generating);
+    expect(await deps.store.historyFor("Images.Job", job.id)).toEqual(beforeHistory);
+
+    const origin = (await worker.ready).origin;
+    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    try {
+      // The readonly browser is anonymous; only backend mutations use the issued session.
+      const context = await browser.newContext();
+      try {
+        const page = await context.newPage();
+        const bootstrap = page.waitForResponse(response => new URL(response.url()).pathname === "/assets/browser/bootstrap.js");
+        const initialPage = await page.goto(`${origin}/`);
+        expect(initialPage?.status()).toBe(200);
+        const initialHtml = await initialPage!.text();
+        expect(initialHtml).toContain("Generating");
+        expect((await bootstrap).status()).toBe(200);
+        await browserExpect(page.getByText(isolate("Generating"), { exact: true })).toBeVisible();
+        await browserExpect(page.locator("form[data-can-generated-form]")).toHaveCount(0);
+        await browserExpect(page.locator('form[action^="/api/operations/"]')).toHaveCount(0);
+        const readyPoll = page.waitForResponse(async response =>
+          new URL(response.url()).pathname === "/" &&
+          response.request().headers()["hx-request"] === "true" &&
+          response.status() === 200 && (await response.text()).includes("Image ready"), { timeout: 15_000 });
+        const finished = await post("Images.finish", { job: { id: job.id, version: "2" } });
+        expect(finished.response.status, JSON.stringify(finished.body)).toBe(200);
+        expect(finished.body.status).toBe("committed");
+        await readyPoll;
+        await browserExpect(page.getByText(isolate("Image ready"), { exact: true })).toBeVisible();
+        await browserExpect(page.getByText(isolate("Generating"), { exact: true })).toHaveCount(0);
+        await browserExpect(page.locator("form[data-can-generated-form]")).toHaveCount(0);
+        const persisted = await deps.store.load("Images.Job", job.id);
+        expect(persisted.version).toBe(3);
+        expect(persisted.data).toEqual({ title: "test", status: "ready" });
+        const history = await deps.store.historyFor("Images.Job", job.id);
+        expect(history.map((entry: { after: Record<string, unknown> }) => entry.after["status"])).toEqual([
+          "idle", "queued", "generating", "ready",
+        ]);
+        expect(history.map((entry: { version: number }) => entry.version)).toEqual([1, 2, 2, 3]);
+      } finally { await context.close(); }
+    } finally { await browser.close(); }
   }, 60_000);
 });
