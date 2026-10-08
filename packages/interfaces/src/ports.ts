@@ -87,6 +87,8 @@ export interface SourceFormBindingContext {
   readonly derived: DerivedOperationInputs;
   readonly operationId: string;
   readonly nowMs: number;
+  /** Presentation comparison only; excluded from sealed submission authority. */
+  readonly occurrence?: string;
 }
 
 /** Protects source bindings; canonical admission still decides permission. */

@@ -334,11 +334,13 @@ test('source form preparation scopes typed controls and refuses unavailable bind
   const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: PILOT_OPS });
   const { deps, identity } = await createTestDeps();
   const { identity: principal } = await resolveRequestIdentity(deps.identity.store, testRequest('/forms', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
-  const context = buildPresentationContext({
+  const csrfToken = await deriveCsrfToken(identity.sessionToken);
+  const makeContext = () => buildPresentationContext({
     request: testRequest('/forms', { cookie: identity.cookie }), pathname: '/forms', isPartial: false,
-    appDefaultLocale: 'en', csrfToken: await deriveCsrfToken(identity.sessionToken), principal,
+    appDefaultLocale: 'en', csrfToken, principal,
     query: async () => ({ rows: [], columns: [] }), catalog, clock: deps.clock,
   });
+  const context = makeContext();
   const prepare = context.prepareForm!;
   const first = await prepare({ operation: STORE_CREATE_OP.name, fields: ['title'], authoredFields: ['title'], labels: { title: 'Gadget title' }, submit: 'Publish', display: 'inline' });
   assert.equal(first.status, 'ready');
@@ -359,6 +361,24 @@ test('source form preparation scopes typed controls and refuses unavailable bind
   assert.notEqual(second.props.idPrefix, first.props.idPrefix);
   assert.notEqual(second.props.operationId, first.props.operationId);
   assert.equal(second.props.display, 'drawer');
+  assert.equal(first.props.idPrefix, 'operation-form-1');
+  assert.equal(second.props.idPrefix, 'operation-form-2');
+  const source = { operation: STORE_CREATE_OP.name, occurrence: 'page:/forms/view:1/row:é😀' };
+  const stable = await prepare(source);
+  const reordered = makeContext();
+  await reordered.prepareForm!({ operation: STORE_CREATE_OP.name });
+  const repeated = await reordered.prepareForm!(source);
+  const sibling = await prepare({ ...source, occurrence: 'page:/forms/view:2/row:é😀' });
+  assert.equal(stable.status, 'ready'); assert.equal(repeated.status, 'ready'); assert.equal(sibling.status, 'ready');
+  if (stable.status !== 'ready' || repeated.status !== 'ready' || sibling.status !== 'ready') throw new Error('expected stable source forms');
+  assert.equal(stable.props.idPrefix, repeated.props.idPrefix, 'source occurrence survives fresh request-local preparation');
+  assert.match(stable.props.idPrefix, /^operation-form-source-[a-f0-9]+$/);
+  assert.notEqual(stable.props.idPrefix, sibling.props.idPrefix);
+  assert.equal(stable.field('title').idPrefix, stable.props.idPrefix);
+  assert.notEqual(stable.props.operationId, repeated.props.operationId);
+  for (const occurrence of ['', undefined, null, 1, '\uD800', '\uDC00']) {
+    assert.throws(() => prepare({ ...source, occurrence } as Parameters<typeof prepare>[0]), TypeError);
+  }
   assert.throws(() => first.field('other'), /outside/);
   assert.throws(() => prepare({ operation: STORE_CREATE_OP.name, fields: ['title', 'title'] }), /unique/);
   assert.throws(() => prepare({ operation: STORE_CREATE_OP.name, authoredFields: ['title', 'title'] }), /unique/);
@@ -393,10 +413,22 @@ test('protected source update submits only editable values and restores its exac
     query: async () => ({ rows: [], columns: [] }), catalog, clock: deps.clock,
     formBindings, appId: deps.app.appId, sessionToken: identity.sessionToken,
   });
-  const prepared = await context.prepareForm!({ operation: STORE_UPDATE_OP.name, fields: ['title'],
-    arguments: { record: { id: 'g1', version: 7n, title: 'Original', privateField: 'Never serialized' } } });
+  const sourceRequest = { operation: STORE_UPDATE_OP.name, fields: ['title'], occurrence: 'page:/forms/form:1/row:g1',
+    arguments: { record: { id: 'g1', version: 7n, title: 'Original', privateField: 'Never serialized' } } };
+  const prepared = await context.prepareForm!(sourceRequest);
   assert.equal(prepared.status, 'ready');
   if (prepared.status !== 'ready') throw new Error('expected protected update');
+  const repeated = await context.prepareForm!(sourceRequest);
+  const sibling = await context.prepareForm!({ ...sourceRequest, occurrence: 'page:/forms/form:2/row:g1' });
+  assert.equal(repeated.status, 'ready'); assert.equal(sibling.status, 'ready');
+  if (repeated.status !== 'ready' || sibling.status !== 'ready') throw new Error('expected protected occurrences');
+  assert.equal(repeated.props.idPrefix, prepared.props.idPrefix);
+  assert.equal(repeated.props.sourceBindingIdentity, prepared.props.sourceBindingIdentity);
+  assert.equal(repeated.props.sourceBindingDraftIdentity, prepared.props.sourceBindingDraftIdentity);
+  assert.notEqual(repeated.props.sourceBinding, prepared.props.sourceBinding, 'each preparation still seals its fresh operation nonce');
+  assert.notEqual(sibling.props.idPrefix, prepared.props.idPrefix);
+  assert.notEqual(sibling.props.sourceBindingIdentity, prepared.props.sourceBindingIdentity);
+  assert.notEqual(sibling.props.sourceBindingDraftIdentity, prepared.props.sourceBindingDraftIdentity);
   assert.equal(prepared.field('title').field.value, 'Original');
   assert.throws(() => prepared.field('record'), /outside/);
   const html = await form(prepared.props);

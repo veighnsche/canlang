@@ -841,6 +841,8 @@ export interface FormProps {
 /** Checked source form props, evaluated once before its child controls. */
 export interface OperationFormRequest {
   readonly operation: string;
+  /** Stable source presentation occurrence; comparison identity only, never submission authority. */
+  readonly occurrence?: string;
   readonly fields?: readonly string[];
   readonly arguments?: Readonly<Record<string, unknown>>;
   readonly submit?: MessageValue;
