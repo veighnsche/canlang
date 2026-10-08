@@ -46,6 +46,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { deriveCsrfToken } from '@canlang/identity';
 import { ARTIFACT_VERSION } from '@canlang/contracts';
+import { SchemaError, decodeValue, encodeValue } from '@canlang/values';
 import type { ArtifactOperation } from '@canlang/contracts';
 import type { DerivedOperationInputs, DerivedWritableInput } from '@canlang/contracts';
 import { checkExpectedVersion } from '../src/envelope/versions.js';
@@ -1119,4 +1120,68 @@ test('HTTP/MCP parity across every T19b operation', () => {
     assert.deepEqual(catalog.shapeFor(op.name), deriveOperationShape(op), op.name);
     assert.deepEqual(catalog.derivedFor(op.name), deriveOperationInputs(op), op.name);
   }
+});
+
+
+test('User interface mirrors use exact owning wire profiles for schemas, inputs, and defaults', () => {
+  const wire = { id: 'user-a' };
+  const native = decodeValue('user', wire);
+  assert.deepEqual(native, { kind: 'user', id: 'user-a' });
+  assert.equal(Object.isFrozen(native), true);
+  assert.deepEqual(encodeValue('user', native), wire);
+  const op: ArtifactOperation = {
+    name: 'People.choose', kind: 'read', description: '',
+    inputs: { fields: [
+      { name: 'actor', field: { kind: 'user' }, required: true },
+      { name: 'maybe', field: { kind: 'user' }, required: false, nullable: true, default: { kind: 'literal', value: null } },
+      { name: 'actors', field: { kind: 'user' }, required: false, array: { required: false }, default: { kind: 'literal', value: [wire] } },
+      { name: 'maybeActors', field: { kind: 'user' }, required: false, nullable: true, array: { required: false }, default: { kind: 'literal', value: null } },
+    ] },
+  };
+  const objectSchema = {
+    type: 'object', properties: { id: { type: 'string', minLength: 1 } },
+    required: ['id'], additionalProperties: false,
+  };
+  assert.deepEqual(propertiesOf(toToolInputSchemaFromArtifact(op)), {
+    actor: objectSchema,
+    maybe: { anyOf: [objectSchema, { type: 'null' }] },
+    actors: { type: 'array', items: objectSchema },
+    maybeActors: { anyOf: [{ type: 'array', items: objectSchema }, { type: 'null' }] },
+  });
+  assert.deepEqual(toMcpInputSchema(op).fields.map((field) => field.field), Array(4).fill({ kind: 'user' }));
+  assert.deepEqual(deriveOperationShape(op), { allowed: ['actor', 'maybe', 'actors', 'maybeActors'], required: ['actor'] });
+  const derived = deriveOperationInputs(op);
+  assert.deepEqual(derived.inputs, op.inputs.fields.map(({ name, required, nullable, array, default: fallback }) => ({
+    name, kind: 'user', required,
+    ...(nullable === undefined ? {} : { nullable }),
+    ...(array === undefined ? {} : { array }),
+    ...(fallback === undefined ? {} : { default: fallback }),
+  })));
+  for (const [name, type, valid] of [
+    ['actor', 'user', [wire]], ['maybe', 'user?', [wire, null]],
+    ['actors', 'user[]', [[], [wire]]], ['maybeActors', 'user[]?', [[], [wire], null]],
+  ] as const) {
+    const input = derivedInput(derived, name);
+    for (const value of valid) {
+      assert.deepEqual(encodeValue(type, decodeValue(type, value)), value);
+      assert.equal(checkBoundArgument(input, value), null);
+      assert.deepEqual(derivedInput(deriveOperationInputs(withLiteral(op, name, value)), name).default,
+        { kind: 'literal', value });
+    }
+  }
+  const malformed = [{ id: '' }, { id: 1 }, {}, { id: 'a', version: '1' }, { id: 'a', extra: true }, native,
+    { id: 'member-a', user: wire, team: 'team-a' }, 'a', 1, false, null];
+  for (const bad of malformed) {
+    assert.throws(() => decodeValue('user', bad), SchemaError);
+    assert.ok(checkBoundArgument(derivedInput(derived, 'actor'), bad));
+    assert.equal(rejectionReason(() => deriveOperationInputs(withLiteral(op, 'actor', bad))), 'malformed_descriptor');
+    assert.equal(rejectionReason(() => toToolInputSchemaFromArtifact(withLiteral(op, 'actors', [bad]))), 'malformed_descriptor');
+    assert.ok(checkBoundArgument(derivedInput(derived, 'actors'), [bad]));
+    assert.ok(checkBoundArgument(derivedInput(derived, 'maybeActors'), [bad]));
+  }
+  assert.ok(checkBoundArgument(derivedInput(derived, 'actors'), null));
+  assert.ok(checkBoundArgument(derivedInput(derived, 'actors'), wire));
+  const invalid = { ...op, inputs: { fields: [{ ...op.inputs.fields[0], array: { required: 'bad' },
+    default: { kind: 'literal', value: [{ id: 'a', version: '1' }] } }] } };
+  assert.match(rejectionMessage(() => checkArtifactOperation(invalid)), /^Invalid literal default/);
 });

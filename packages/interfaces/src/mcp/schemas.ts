@@ -93,6 +93,13 @@ function fieldSchema(field: McpSchemaField): Record<string, unknown> {
       return { type: 'string' };
     case 'duration':
       return { type: 'string' };
+    case 'user':
+      return {
+        type: 'object',
+        properties: { id: { type: 'string', minLength: 1 } },
+        required: ['id'],
+        additionalProperties: false,
+      };
     case 'boolean':
       return { type: 'boolean' };
     case 'decimal':
@@ -348,6 +355,7 @@ const CHECKED_INPUT_KINDS: ReadonlySet<string> = new Set([
   'money',
   'datetime',
   'duration',
+  'user',
   'boolean',
   'file',
   'enum',
@@ -612,7 +620,7 @@ function checkDescriptorDotPath(path: string, what: string): void {
  * never derivable as input); unknown kinds reject precisely. Extra
  * members are ignored (additive tolerance — only kinds reject).
  *
- * T19b exactness: `literal` defaults on `integer`/`decimal`/`money`/`duration`
+ * T19b exactness: `literal` defaults on `integer`/`decimal`/`money`/`duration`/`user`
  * inputs validate against the canonical wire shapes (int64 digit
  * strings, T11 exact decimals, exact-keys money) — JSON numbers,
  * malformed spellings, and out-of-range values reject the descriptor
@@ -622,7 +630,7 @@ function checkArtifactDefault(
   value: unknown,
   what: string,
   fieldKind: string,
-  durationType: string = 'duration',
+  valueType: string = fieldKind,
 ): DerivedInputDefault | undefined {
   if (value === undefined) return undefined;
   if (!isDescriptorRecord(value) || typeof value['kind'] !== 'string') {
@@ -631,9 +639,9 @@ function checkArtifactDefault(
   const kind = value['kind'];
   if (kind === 'literal') {
     const literal = value['value'];
-    if (fieldKind === 'duration') {
+    if (fieldKind === 'duration' || fieldKind === 'user') {
       try {
-        decodeValue(durationType, literal);
+        decodeValue(valueType, literal);
       } catch (err) {
         if (!(err instanceof SchemaError)) throw err;
         failDescriptor('malformed_descriptor', `Invalid literal default for ${what}: ${err.message}.`);
@@ -682,7 +690,7 @@ function checkArtifactFieldTag(value: unknown, what: string): McpSchemaField {
     failDescriptor(
       'unknown_input_kind',
       `Unknown input kind ${JSON.stringify(kind)} for ${what}; ` +
-        'supported: ref, string, integer, decimal, money, datetime, duration, boolean, file, enum, delivery.',
+        'supported: ref, string, integer, decimal, money, datetime, duration, user, boolean, file, enum, delivery.',
     );
   }
   if (kind === 'ref') {
@@ -717,12 +725,14 @@ function checkArtifactFieldTag(value: unknown, what: string): McpSchemaField {
       return { kind: 'datetime' };
     case 'duration':
       return { kind: 'duration' };
+    case 'user':
+      return { kind: 'user' };
     case 'boolean':
       return { kind: 'boolean' };
     case 'file':
       return { kind: 'file' };
     default:
-      // Unreachable: the closed-kind screen above admits only these eight
+      // Unreachable: the closed-kind screen above admits only the scalar tags
       // past the `ref`/`enum` arms. Fail loud if that ever drifts.
       failDescriptor('unknown_input_kind', `Unknown input kind ${JSON.stringify(kind)} for ${what}.`);
   }
@@ -746,8 +756,8 @@ function checkArtifactInputChannels(
   if (typeof value['required'] !== 'boolean') {
     failDescriptor('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
   }
-  const durationType = `duration${value['array'] === undefined ? '' : '[]'}${value['nullable'] === true ? '?' : ''}`;
-  const fallback = checkArtifactDefault(value['default'], what, fieldKind, durationType);
+  const valueType = `${fieldKind}${value['array'] === undefined ? '' : '[]'}${value['nullable'] === true ? '?' : ''}`;
+  const fallback = checkArtifactDefault(value['default'], what, fieldKind, valueType);
   let array: { readonly required: boolean } | undefined;
   if (value['array'] !== undefined) {
     if (!isDescriptorRecord(value['array']) || typeof value['array']['required'] !== 'boolean') {
@@ -922,12 +932,13 @@ export function toMcpInputSchema(op: ArtifactOperation): McpInputSchema {
  */
 function checkedPropertySchema(checked: CheckedArtifactField): Record<string, unknown> {
   const element = fieldSchema(checked.field);
-  if (checked.array === undefined) {
-    return checked.description === undefined ? element : { ...element, description: checked.description };
-  }
-  const arraySchema: Record<string, unknown> = { type: 'array', items: element };
-  if (checked.description !== undefined) arraySchema['description'] = checked.description;
-  return arraySchema;
+  const shape: Record<string, unknown> = checked.array === undefined
+    ? element
+    : { type: 'array', items: element };
+  const schema = checked.field.kind === 'user' && checked.nullable === true
+    ? { anyOf: [shape, { type: 'null' }] }
+    : shape;
+  return checked.description === undefined ? schema : { ...schema, description: checked.description };
 }
 
 /**
@@ -1077,10 +1088,11 @@ function checkBoundElement(
         ? null
         : bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${detail}.`);
     }
+    case 'user':
     case 'duration': {
-      // The values codec owns canonical millisecond spelling and int64 bounds.
+      // Values owns the scalar wire shape; full User wrappers are checked at entry.
       try {
-        decodeValue('duration', value);
+        decodeValue(input.kind, value);
       } catch (err) {
         if (!(err instanceof SchemaError)) throw err;
         return bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${err.message}.`);
@@ -1122,6 +1134,22 @@ function checkBoundElement(
  */
 export function checkBoundArgument(input: DerivedWritableInput, value: unknown): BusinessError | null {
   const path = `/${input.name}`;
+  if (input.kind === 'user') {
+    // The owning codec validates the complete profile, including array element nulls.
+    const type = `user${input.array === undefined ? '' : '[]'}${input.nullable === true ? '?' : ''}`;
+    try {
+      decodeValue(type, value);
+    } catch (err) {
+      if (!(err instanceof SchemaError)) throw err;
+      const violation = err.violations[0];
+      const suffix = violation?.path.map((part) => String(part).replace(/~/g, '~0').replace(/\//g, '~1')).join('/');
+      return bindingError(
+        suffix ? `${path}/${suffix}` : path,
+        `Invalid value for input ${JSON.stringify(input.name)}: ${violation?.message ?? err.message}.`,
+      );
+    }
+    return null;
+  }
   if (value === null) {
     return input.nullable === true
       ? null

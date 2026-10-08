@@ -402,6 +402,7 @@ export type DerivedInputKind =
   | 'money'
   | 'datetime'
   | 'duration'
+  | 'user'
   | 'boolean'
   | 'file'
   | 'enum'
