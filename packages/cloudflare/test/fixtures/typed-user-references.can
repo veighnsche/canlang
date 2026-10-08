@@ -1,0 +1,39 @@
+app TypedUserReferences
+Given
+ Entry { owner:user server=actor, assignee:user?, users:user[], maybeUsers:user[]? }
+ policy Entry read=public
+When
+ crud Entry by=members fields=assignee,users,maybeUsers
+ ## Actor equality uses native UserRefs; managed owner remains wire {id} in storage.
+ scenario born() -> user by=members
+  do
+   create Entry {users=[actor]} as entry
+   require actor==entry.owner and actor==entry.created_by
+   require entry.created_by.id==actor.id
+   return entry.owner
+ scenario echo(who:user) -> user by=members
+  do return who
+ scenario echoUsers(value:user[]) -> user[] by=members
+  do return value
+ scenario echoMaybe(who:user?) -> user? by=members
+  do return who
+ scenario echoMaybeUsers(value:user[]?) -> user[]? by=members
+  do return value
+ ## A partial native set preserves user arrays and stamps admitted actor attribution.
+ scenario setUser(entry:Entry,who:user) -> user by=members
+  do
+   require actor==entry.owner
+   set entry {assignee=who}
+   require entry.assignee==who and entry.updated_by==actor
+   require entry.updated_by.id==actor.id
+   return entry.updated_by
+ scenario users(entry:Entry) -> user[] by=members
+  do return entry.users
+ scenario maybeUsers(entry:Entry) -> user[]? by=members
+  do return entry.maybeUsers
+ scenario attribution(entry:Entry) -> user[] by=members
+  do
+   require entry.created_by==actor and entry.updated_by==actor
+   require entry.created_by.id==actor.id and entry.updated_by.id==actor.id
+   return [entry.created_by,entry.updated_by]
+Then
