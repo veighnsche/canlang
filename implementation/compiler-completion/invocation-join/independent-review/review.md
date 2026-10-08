@@ -4,7 +4,7 @@ Verdict: **ACCEPT the bounded existing producer join**, conditional on the separ
 
 ## Source and owner facts
 
-The review read root AGENTS, actual source, the production diff, current package export maps/build output, focused raw logs, and the actual generated artifact. `source-pins.json`, `source-snapshot/`, `source.diff` and `head.txt` identify the examined state. The reviewed join source/build/test pins equal the worker's final receipt. `after-pins.json` and `pin-verification.json` record one concurrent change: IR target-expression formatting only. The snapshot-to-current IR diff is whitespace alone; the join files, owner files, artifact and existing binary did not drift. Static target IR correctness is separately owned by `review_checked_action_targets` and is a qualified precondition here.
+The direct check imports the actual generated artifact through public package exports. `execute.mjs`, `artifact.json`, generated modules, focused raw logs, and illegal-shape fixtures remain the bounded behavior evidence. Static target IR correctness is separately owned by `review_checked_action_targets` and remains a precondition here.
 
 `packages/values/src/stdlib-pure.ts:364` implements `invocation(target, args)` as a pure packaging constructor. It validates constructor shape, preserves argument property order, and returns the existing `makeInvocation` value. `kinds.ts:281` preserves nested versions as-present and shallowly freezes copied carrier objects. It does not consult an operation schema, authorize, hydrate records, dispatch targets, supply missing business arguments or enforce mutation expected versions. The facade exports that exact binding; there is no wrapper, rename, context parameter, coercion or test-only import remap.
 
