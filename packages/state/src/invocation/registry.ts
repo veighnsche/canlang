@@ -308,20 +308,21 @@ function checkResult(
   const type = result['type'];
   const scalarOrVoid = type === 'void' || (typeof type === 'string' &&
     /^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type));
-  let knownModelArray = false;
-  // Generated reads alone may declare a nonnullable ordinary array of a
-  // model in this set. Nominal spelling never establishes model identity.
-  if (!scalarOrVoid && kind === 'read' && typeof type === 'string') {
+  let knownModelResult = false;
+  // Ordinary operations may return a nonnullable singular loaded model;
+  // reads alone may return an ordinary array. Spelling alone proves no model.
+  if (!scalarOrVoid && (kind === 'scenario' || kind === 'read') && typeof type === 'string') {
     try {
       const parsed = parseTypeId(type);
-      knownModelArray = parsed.base.kind === 'nominal' && parsed.base.path.includes('.') &&
-        modelNames.has(parsed.base.path) && parsed.array && !parsed.nullable && !parsed.requiredArray;
+      knownModelResult = parsed.base.kind === 'nominal' && parsed.base.path.includes('.') &&
+        modelNames.has(parsed.base.path) && !parsed.nullable && !parsed.requiredArray &&
+        (!parsed.array || kind === 'read');
     } catch {
       // The shared artifact error below covers malformed canonical spellings.
     }
   }
-  if (!scalarOrVoid && !knownModelArray) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile or bare void; reads may also declare a known qualified model[].`);
+  if (!scalarOrVoid && !knownModelResult) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile or bare void; scenarios and reads may also declare a known qualified model, and reads a model[].`);
   }
   return Object.freeze({ type: type as CanTypeId });
 }
