@@ -110,16 +110,16 @@ test('FP.CSV: review preserves invalid, duplicate, and malformed rows; pure (no 
   const body = await reviewOk(t, csv);
   assert.equal(body.operation, OPERATION);
   assert.equal(body.rows.length, 7);
-  assert.deepEqual(body.counts, { total: 7, valid: 1, invalid: 5, duplicate: 1 });
+  assert.deepEqual(body.counts, { total: 7, valid: 2, invalid: 4, duplicate: 1 });
   assert.deepEqual(body.rows.map((row) => row.status), [
-    'valid', 'invalid', 'duplicate', 'invalid', 'invalid', 'invalid', 'invalid',
+    'valid', 'invalid', 'duplicate', 'invalid', 'valid', 'invalid', 'invalid',
   ]);
   /* Duplicate points at the first identical valid row. */
   assert.equal(body.rows[2]!.duplicate_of, 0);
-  /* Invalid rows keep their verdicts: binding mismatch, malformed shape, missing required. */
+  /* Invalid rows keep their verdicts; mapped required wire-string blanks are text. */
   assert.match(body.rows[1]!.error!.message, /"state"/);
   assert.match(body.rows[3]!.error!.message, /fields; header has/);
-  assert.match(body.rows[4]!.error!.message, /Missing required input 'customer'/);
+  assert.equal(body.rows[4]!.inputs['customer'], '');
   assert.match(body.rows[5]!.error!.message, /"urgent"/);
   assert.match(body.rows[6]!.error!.message, /"count"/);
   /* Canonical identity: deterministic review id + digest over valid candidates. */
@@ -127,7 +127,7 @@ test('FP.CSV: review preserves invalid, duplicate, and malformed rows; pure (no 
   assert.equal(body.consent.review_id, body.review_id);
   assert.equal(body.consent.operation, OPERATION);
   assert.equal(body.consent.principal, t.identity.userId);
-  assert.equal(body.consent.candidate_count, 1);
+  assert.equal(body.consent.candidate_count, 2);
   const again = await reviewOk(t, csv);
   assert.equal(again.review_id, body.review_id);
   assert.equal(again.consent.candidates_digest, body.consent.candidates_digest);

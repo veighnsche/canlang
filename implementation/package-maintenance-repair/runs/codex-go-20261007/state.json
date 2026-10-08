@@ -920,13 +920,13 @@
     },
     "DEL-C01": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Partial: accepted finite closed scalar CSV mapping and decoded duplicate identity; source-constraint/resource/installed/durable joins open",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/ui/src/csv/parse.ts",
         "packages/ui/src/csv/grammar.ts"
       ],
-      "residual_evidence": "Own-key loss independently corrected at finite actual CSV caller/consent scope; parent grammar/resource admission remains open",
+      "residual_evidence": "Current declared prototype-like flat own keys remain supported. Finite closed scalar mapping preserves raw candidates/consent/calls; full source string constraints, SR02 pre-parser allocation profile, installed browser delivery and DEL-C02 current-context/durable acceptance remain open.",
       "finite_own_data_slice": {
         "state": "independently accepted finite correction; committed4d103fbe",
         "files": [
@@ -944,6 +944,33 @@
         "review_read_released": true,
         "commit_pending": false,
         "commit": "4d103fbe"
+      },
+      "finite_scalar_mapping": {
+        "state": "root reviewed and accepted finite correction; commit pending",
+        "files": [
+          "packages/interfaces/src/http/csv.ts",
+          "packages/ui/src/csv/parse.ts",
+          "packages/ui/src/index.ts",
+          "packages/interfaces/test/csv-own-data.test.ts",
+          "packages/interfaces/test/csv-review.test.ts",
+          "packages/interfaces/test/csv-selected-order.test.ts"
+        ],
+        "contract": "Shared exact writable-root header admission and blank/boolean mapping. Nullable mapped blank=null; required singular generic wire-string blank=empty text; optional nonnullable blank and unmapped defaults stay absent. Separate Values-decoded int/duration duplicate identity; decimal coefficient/authored scale retained. Raw wire candidates/consent/invocations and original boolean/header error precedence preserved.",
+        "advice": {
+          "requests_root": "/private/tmp/canlang-repair-go-20261007/csv-candidate-contract",
+          "choice": "normalized_duplicate_key_raw_calls",
+          "confidence": [
+            0.95,
+            0.91,
+            0.91
+          ],
+          "uncertainty": "Three equivalent JEV responses agreed but returned no rationale; advice only. Two distinct identities require explicit caller checks and documentation."
+        },
+        "validation": "UI/Interfaces private source typecheck/emits passed; focused CSV actual mounted/advisory suite68/68. Concrete header review defects repaired using same output root: affected scalar/header case1/1 and mixed-error header case1/1; unchanged results reused.",
+        "log": "/private/tmp/canlang-repair-go-20261007/csv-candidate-contract/check/checks.log",
+        "model_choice": "Existing Sol6.1 high for cross-file semantic contract and implementation; Sol6.1 low for specified header precedence leaf. Root direct review; no extra review/proof trees.",
+        "maintenance": "Required correctness growth: net+71 production text lines (includes comments/declarations),+71 test text lines;2 shared exports,no new dependencies/modules/lifecycle. Not a library-replacement reduction claim.",
+        "release": "Both exact source/test writers and commands released; no installed browser/native/durable consumer claim."
       }
     },
     "DEL-C02": {
@@ -1541,7 +1568,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T03:16:33.111229+00:00",
+  "updated_utc": "2026-10-08T04:46:34.739489+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1582,7 +1609,7 @@
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "heading": "2026-10-07 — Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   },
@@ -1900,7 +1927,7 @@
         "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
         "packages/cloudflare/src/runtime/t17b-durable.test.ts"
       ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
+      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2→1 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
       "commands_live": false,
       "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
     }

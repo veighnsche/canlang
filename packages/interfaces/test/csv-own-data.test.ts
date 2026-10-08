@@ -8,6 +8,7 @@ import type { CsvCommitOutcome, CsvReview } from '../src/http/csv.js';
 import { mintOperationId } from '../src/http/context.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import { createTestDeps, testRequest } from '../src/testing.js';
+import { checkCsvHeader, mapCsvCells, parseCsvText as advisoryParse } from '@canlang/ui';
 
 const operation = 'Data.Row.put';
 function catalog(names: string[], kind: 'string' | 'boolean' = 'string') {
@@ -97,4 +98,69 @@ test('mounted changed __proto__ candidate voids consent before any invocation', 
   assert.equal(changed.status, 409);
   assert.equal((await changed.json() as { message: string }).message, 'Candidates changed since review; renewed consent required.');
   assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('mounted scalar CSV keeps raw consent/calls while decoded duplicates and advisory agree', async () => {
+  const owner = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [{
+    name: operation, kind: 'create', description: '', inputs: { fields: [
+      { name: 'label', field: { kind: 'string' }, required: true },
+      { name: 'nullable', field: { kind: 'string' }, required: false, nullable: true },
+      { name: 'integer', field: { kind: 'integer' }, required: true },
+      { name: 'duration', field: { kind: 'duration' }, required: false },
+      { name: 'decimal', field: { kind: 'decimal' }, required: false },
+      { name: 'flag', field: { kind: 'boolean' }, required: false },
+      { name: '__proto__', field: { kind: 'string' }, required: false },
+      { name: 'optional', field: { kind: 'string' }, required: false, default: { kind: 'literal', value: 'default' } },
+      { name: 'unmapped', field: { kind: 'string' }, required: false, default: { kind: 'literal', value: 'default' } },
+      { name: 'label.part', field: { kind: 'string' }, required: false },
+    ] } }] });
+  const t = await createTestDeps({ mutations: { [operation]: (envelope) => ({
+    result: { status: 'committed', operation_id: envelope.operation_id },
+  }) } });
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const deps = { ...t.deps, catalog: owner };
+  const unexpected = async () => new Response('unexpected', { status: 500 });
+  const handler = createHttpHandler(deps, { csv: (request) => handleCsvRequest(deps, request),
+    operations: unexpected, auth: unexpected, uploads: unexpected, ingress: unexpected, oauth: unexpected });
+  const post = (path: string, body: unknown) => handler(testRequest(path, { method: 'POST', cookie: t.identity.cookie,
+    headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify(body) }));
+  const csv = [
+    'label,nullable,integer,duration,decimal,flag,__proto__,optional',
+    ',,-0,000,1.00,true,own,',
+    ',,00,0,1.00,true,own,',
+    ',,0,0,1.0,true,own,',
+    ',,9007199254740992,0,1.00,true,large,',
+    ',,9007199254740993,0,1.00,true,large,',
+    ',,9223372036854775808,0,1.00,true,large,',
+    ',,,0,1.00,yes,own,',
+  ].join('\n');
+  const response = await post('/api/csv/review', { operation, csv });
+  assert.equal(response.status, 200);
+  const reviewed = await response.json() as CsvReview;
+  assert.deepEqual(reviewed.rows.map((row) => row.status), ['valid', 'duplicate', 'valid', 'valid', 'valid', 'invalid', 'invalid']);
+  assert.equal(reviewed.rows[1]?.duplicate_of, 0);
+  assert.deepEqual(reviewed.rows[0]?.inputs, JSON.parse('{"label":"","nullable":null,"integer":"-0","duration":"000","decimal":"1.00","flag":true,"__proto__":"own"}'));
+  assert.match(reviewed.rows[6]?.error?.message ?? '', /boolean columns take true\/false/);
+  const parsed = advisoryParse(csv);
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) throw new Error('unexpected parse failure');
+  const derived = owner.derivedFor(operation)!;
+  assert.equal(checkCsvHeader(parsed.header, derived, owner.shapeFor(operation)!.allowed), null);
+  parsed.rows.forEach((row, index) => assert.deepEqual(mapCsvCells(parsed.header, row.cells, derived).inputs, reviewed.rows[index]?.inputs));
+  for (const header of ['unknown', 'operation_id', 'label,label.part', 'label,label', ',label']) {
+    assert.notEqual(checkCsvHeader(header.split(','), derived, owner.shapeFor(operation)!.allowed), null);
+    const refused = await post('/api/csv/review', { operation, csv: `${header}\n` });
+    assert.equal(refused.status, 400, header);
+  }
+  // A change to the first emitted candidate must renew consent even when its duplicate group is unchanged.
+  const changed = await post('/api/csv/commit', { operation, csv: csv.replace(',,-0,', ',,0,'), consent: reviewed.consent,
+    rows: [{ index: 0, operation_id: mintOperationId() }] });
+  assert.equal(changed.status, 409);
+  assert.equal(t.invoker.mutations.length, 0);
+  const committed = await post('/api/csv/commit', { operation, csv, consent: reviewed.consent,
+    rows: [4, 3, 2, 1, 0].map((index) => ({ index, operation_id: mintOperationId() })) });
+  assert.equal(committed.status, 200);
+  assert.deepEqual((await committed.json() as CsvCommitOutcome).rows.map((row) => row.status), ['committed', 'duplicate', 'committed', 'committed', 'committed']);
+  assert.deepEqual(t.invoker.mutations.map((call) => call.envelope.inputs), [0, 2, 3, 4].map((index) => reviewed.rows[index]!.inputs));
+  ownData(t.invoker.mutations[0]!.envelope.inputs, '__proto__', 'own');
 });

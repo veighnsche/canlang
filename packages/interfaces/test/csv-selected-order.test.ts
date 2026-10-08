@@ -140,7 +140,12 @@ test('header errors retain first refusal without invocation', async () => {
   const t = await fixture();
   const csv = 'customer\nfirst\n';
   const review = await t.review(csv);
-  for (const [invalid, message] of [['customer,customer\na,b\n', 'CSV header repeats column "customer".'], [',customer\na,b\n', 'CSV header has an empty column name.']]) {
+  for (const [invalid, message] of [
+    ['customer,customer\na,b\n', 'CSV header repeats column "customer".'],
+    [',customer\na,b\n', 'CSV header has an empty column name.'],
+    ['customer,customer,\na,b,c\n', 'CSV header has an empty column name.'],
+    ['unknown,customer,customer\na,b,c\n', 'CSV header repeats column "customer".'],
+  ]) {
     const response = await t.post('/api/csv/commit', body(review, invalid!, [0]));
     assert.equal(response.status, 400);
     assert.equal((await response.json() as { message: string }).message, message);

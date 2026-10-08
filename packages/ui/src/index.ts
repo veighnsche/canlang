@@ -383,8 +383,10 @@ export {
 export {
   CSV_CSRF_HEADER,
   CSV_UI_MAX_ROWS,
+  checkCsvHeader,
   csvReviewForm,
   digestBusinessError,
+  mapCsvCells,
   parseCsvText,
 } from "./csv/parse.js";
 export type {

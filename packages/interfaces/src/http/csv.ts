@@ -11,9 +11,9 @@
  * commit-time identity.
  *
  * Cell mapping (the only CSV-owned rules; everything else delegates):
- * an empty cell means the member is ABSENT (optional members omit,
- * required members fail framing — preserved as invalid rows, never
- * dropped); `boolean` columns decode from `true`/`false` text (any
+ * mapped nullable blanks are null; required singular wire strings
+ * retain empty text; other nonnullable blanks omit (defaults stay
+ * absent). `boolean` columns decode from `true`/`false` text (any
  * other text is a row-level binding mismatch); every other kind binds
  * its cell string verbatim because integers/decimals/datetimes/enums/
  * file ids already travel as strings on the wire, while ref/money/
@@ -21,7 +21,7 @@
  *
  * Review verdicts: `valid` (binds), `invalid` (framing/binding
  * failure or a malformed field count — all preserved with their
- * errors), `duplicate` (byte-identical canonical inputs to an
+ * errors), `duplicate` (same owner-decoded numeric identity and other inputs as an
  * earlier VALID row, pointing at it via `duplicate_of`; a repeat of
  * an invalid row keeps its own invalid verdict instead).
  *
@@ -62,6 +62,8 @@ import { parseObjectBody } from '../internal/input-admission.js';
 import { IdentityError, assertAuthorityLive, sha256HexText } from '@canlang/identity';
 import { canonicalJson } from './canonical-json.js';
 import { CsvGrammarError, parseCsvGrammar } from '@canlang/ui/csv/grammar';
+import { checkCsvHeader, mapCsvCells } from '@canlang/ui';
+import { decodeValue, encodeValue, isDecimal, SchemaError } from '@canlang/values';
 import type { HttpDeps, OperationInputShape } from '../ports.js';
 import { validateOperationId } from '../envelope/validate.js';
 import { prepareHttpPlan, runPreparedHttpPlan } from '../envelope/prepared.js';
@@ -163,49 +165,47 @@ export function parseCsvText(text: string): { header: string[]; rows: CsvDataRow
 }
 
 /**
- * Map one data row's cells to business inputs: empty cells omit the
- * member (absent, never null); `boolean` columns decode `true`/
- * `false` text. Returns the mapped inputs plus, for a non-boolean
- * cell, a row-level binding error of its own.
+ * Owner scalar admission runs after the existing framing/binding checks.
+ * Only this duplicate key normalizes integers/durations; row inputs, consent
+ * candidates and invoked wire envelopes retain their mapped spelling. Decimal
+ * coefficient AND authored scale remain identity (encoding would erase scale).
+ * Enum/file and compound domains remain with their existing binding contracts.
  */
-function mapRowCells(
-  header: readonly string[],
-  cells: readonly string[],
+function duplicateKey(
+  inputs: ClosedInputs,
   derived: DerivedOperationInputs,
-): { inputs: ClosedInputs; error: BusinessError | null } {
-  const inputs: Record<string, unknown> = {};
-  const byName = new Map(derived.inputs.map((input) => [input.name, input]));
-  for (let i = 0; i < header.length; i += 1) {
-    const name = header[i]!;
-    const cell = cells[i] ?? '';
-    if (cell === '') continue;
-    const declared = byName.get(name);
-    let value: string | boolean = cell;
-    if (declared?.kind === 'boolean') {
-      if (cell === 'true') value = true;
-      else if (cell === 'false') value = false;
-      else {
-        const message =
-          `Invalid value for input ${JSON.stringify(name)}: boolean columns take true/false text ` +
-          `(got ${JSON.stringify(cell)}).`;
-        return {
-          inputs,
-          error: buildBusinessError('validation', message, {
-            fields: [{ path: `/${name}`, code: 'binding_mismatch', message }],
-          }),
-        };
+): { key: string; error: BusinessError | null } {
+  const identity: ClosedInputs = { ...inputs };
+  for (const input of derived.inputs) {
+    if (!Object.hasOwn(inputs, input.name) || inputs[input.name] === null || input.array !== undefined) continue;
+    const type = input.kind === 'integer' ? 'int'
+      : input.kind === 'string' ? 'text'
+      : input.kind === 'boolean' ? 'bool'
+      : input.kind === 'decimal' || input.kind === 'duration' || input.kind === 'datetime' ? input.kind
+      : null;
+    if (type === null) continue;
+    try {
+      const value = decodeValue(type, inputs[input.name]);
+      if (type === 'int' || type === 'duration') identity[input.name] = encodeValue(type, value);
+      else if (type === 'decimal' && isDecimal(value)) {
+        identity[input.name] = { coefficient: value.coef.toString(), scale: value.scale };
       }
+    } catch (error) {
+      if (!(error instanceof SchemaError)) throw error;
+      const message = `Invalid value for input ${JSON.stringify(input.name)}: ${error.message}.`;
+      return { key: '', error: buildBusinessError('validation', message, {
+        fields: [{ path: `/${input.name}`, code: 'binding_mismatch', message }],
+      }) };
     }
-    Object.defineProperty(inputs, name, { value, enumerable: true, writable: true, configurable: true });
   }
-  return { inputs, error: null };
+  return { key: canonicalJson(identity), error: null };
 }
 
 /**
  * Review CSV candidates (pure except the digest hash): parse, map each
  * row's cells, and run the real V02.3 framing+binding evaluation per
- * row — first error wins per row, exactly dispatch order. Duplicate
- * detection runs over canonical input JSON: a repeat of an earlier
+ * row — the existing boolean mapping error still precedes framing. Duplicate
+ * detection runs over a separate decoded numeric key: a repeat of an earlier
  * VALID row becomes `duplicate` (pointing at it); a repeat of an
  * invalid row keeps its own invalid verdict. The consent digest
  * covers the operation plus the valid candidates in index order.
@@ -218,6 +218,8 @@ export async function reviewCsvCandidates(input: {
   header: readonly string[];
   rows: readonly CsvDataRow[];
 }): Promise<CsvReview> {
+  const headerError = checkCsvHeader(input.header, input.derived, input.shape.allowed);
+  if (headerError !== null) throw new CsvParseError(headerError.message);
   const plan = prepareHttpPlan(input.operation, input.shape, input.derived);
   const firstValid = new Map<string, number>();
   const rows: CsvRowReview[] = [];
@@ -239,10 +241,11 @@ export async function reviewCsvCandidates(input: {
         }),
       };
     } else {
-      const mapped = mapRowCells(input.header, data.cells, input.derived);
-      const key = canonicalJson(mapped.inputs);
+      const mapped = mapCsvCells(input.header, data.cells, input.derived);
       const bound = mapped.error === null ? runPreparedHttpPlan(plan, mapped.inputs) : null;
-      const rowError = mapped.error ?? (bound !== null && bound.ok === false ? bound.error : null);
+      const normalized = bound?.ok === true ? duplicateKey(mapped.inputs, input.derived) : null;
+      const key = normalized?.key ?? '';
+      const rowError = mapped.error ?? (bound !== null && bound.ok === false ? bound.error : null) ?? normalized?.error ?? null;
       if (rowError === null && firstValid.has(key)) {
         const first = firstValid.get(key)!;
         row = { index, status: 'duplicate', inputs: mapped.inputs, duplicate_of: first };
@@ -297,22 +300,6 @@ function requestPath(url: string): string {
   }
 }
 
-
-function checkHeader(header: readonly string[]): BusinessError | null {
-  for (const name of header) {
-    if (name === '') {
-      return buildBusinessError('validation', 'CSV header has an empty column name.');
-    }
-  }
-  const seen = new Set<string>();
-  for (const name of header) {
-    if (seen.has(name)) {
-      return buildBusinessError('validation', `CSV header repeats column ${JSON.stringify(name)}.`);
-    }
-    seen.add(name);
-  }
-  return null;
-}
 
 function isCsvConsent(value: unknown): value is CsvConsent {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
@@ -425,7 +412,7 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
       }
       throw err;
     }
-    const headerError = checkHeader(parsed.header);
+    const headerError = checkCsvHeader(parsed.header, derived, shape.allowed);
     if (headerError !== null) {
       return deny(deps, headerError, operation);
     }
