@@ -468,3 +468,19 @@ no replacement helper or compiler source change was needed. The existing
 Accepted mutation, input, actor/reference and replay checks were reused.
 Broader read/default forms, CRUD/private/D1/full applications and full S9-Q02
 remain separate. Canonical completion remains **57/67**, with **10** remaining.
+
+The [enum-result case](../../compiler/tests/enum_result_runtime.rs) passes
+**1/1** through genuine compiler output and canonical CF/State Memory. Public
+mutation/read results now publish checked ordered inline enum claims through
+the existing descriptor and Values codec. Eighteen positive calls cover
+singular, nullable, ordinary-array and nullable-array results, including null,
+empty and ordered arrays; a nonmember call denies before authored execution.
+Reads preserve revision/history. The first run failed because Cloudflare's
+whole-artifact loader forwarded defining read cases into a Values schema field
+that rejects them, before the initial mutation could admit. Work corrected that
+read-coherence branch with the existing type parser/printer and published its
+actual output; only the same failed case ran again and passed. No compiler/test
+correction or repeat build was needed. Existing scalar/model, input/default,
+actor/reference and replay outcomes are reused. Nonempty, element-nullable,
+nested and private enum result producers, D1/full applications and full S9-Q02
+remain separate. Canonical completion remains **57/67**, with **10** remaining.
