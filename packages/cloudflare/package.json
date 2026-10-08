@@ -116,12 +116,16 @@
     "es-module-lexer": "3.0.3",
     "magic-string": "1.4.3",
     "@jridgewell/sourcemap-codec": "1.6.0",
-    "@jridgewell/remapping": "2.3.5"
+    "@jridgewell/remapping": "2.3.5",
+    "acorn": "8.18.0",
+    "eslint-scope": "8.4.0",
+    "estree-walker": "3.0.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261004.1",
     "@types/node": "24.19.1",
     "@canlang/files": "workspace:*",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@types/eslint-scope": "3.7.7"
   }
 }
