@@ -1039,10 +1039,17 @@ pub enum IrExpr {
         args: Vec<TypedExpr>,
         params: Vec<IrMessageCallParam>,
     },
-    /// `format(c, descriptor, {locale})`.
+    /// Localized formatting through the checked descriptor/runtime adapter.
     Format {
-        descriptor: Box<TypedExpr>,
-        locale: Option<String>,
+        /// Explicit arguments in written evaluation order, each visited once.
+        args: Vec<TypedExpr>,
+        /// Checked formal-to-source bindings, never reconstructed from names.
+        descriptor_index: usize,
+        locale_index: usize,
+        /// Source language of the descriptor's owning declaration/module.
+        source_lang: String,
+        /// (parameter name, canonical checked type, Values presentation tag).
+        param_types: Vec<(String, String, String)>,
     },
     /// Role gate in expression position (subject predicate or bare gate
     /// over the caller) → `hasRole(c, role)` / `hasRole(c, role, person)`.
@@ -2846,7 +2853,7 @@ impl<'a> Cx<'a> {
 
     /// Consume the checker-selected target and slots. CST supplies content,
     /// never a second overload choice or argument-name binding.
-    fn decode_call(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
+    fn decode_call(&mut self, scope: &Scope, node: &SyntaxNode, _ty: &ResolvedType) -> IrExpr {
         let Some(selected) = self
             .program
             .types
@@ -2893,32 +2900,25 @@ impl<'a> Cx<'a> {
                 {
                     return bad_binding();
                 }
-                // Localized format remains the separately gated context/facade
-                // seam. Keep its existing behavior until those owners join.
                 if id == "format"
                     && signature
                         .params
                         .first()
                         .is_some_and(|p| p.name == "descriptor")
                 {
-                    let args: Vec<_> = kids(node)
-                        .iter()
-                        .filter(|arg| arg.kind == SyntaxKind::Argument)
-                        .filter_map(|arg| {
-                            let parts = kids(arg);
-                            let named = parts.len() >= 3
-                                && parts[0].kind == SyntaxKind::Name
-                                && self.text(parts[1].span) == "=";
-                            let name = named.then(|| name_text(self.db, parts[0])).flatten();
-                            let value = parts
-                                .iter()
-                                .skip(if named { 2 } else { 0 })
-                                .find(|n| is_expression(n.kind))
-                                .copied()?;
-                            Some((name, value))
-                        })
-                        .collect();
-                    return self.decode_format_call(scope, &args, ty, node.span);
+                    if signature.params.len() != 2 || signature.params[1].name != "locale" {
+                        return IrExpr::Unsupported {
+                            what: "localized format call".to_string(),
+                            why: "checked signature must supply descriptor and locale".to_string(),
+                        };
+                    }
+                    return self.decode_format_call(
+                        scope,
+                        &selected.arguments,
+                        selected.slots[0].expect("checked supplied descriptor"),
+                        selected.slots[1].expect("checked supplied locale"),
+                        node.span,
+                    );
                 }
                 let awaited = entry.effects == Some(Effects::StateRead);
                 self.builtins_seen.push(ReferencedBuiltin {
@@ -3095,12 +3095,13 @@ impl<'a> Cx<'a> {
         }
     }
 
-    /// Decode a `format(descriptor, locale?)` call.
+    /// Consume the localized overload's checked slots and descriptor owner.
     fn decode_format_call(
         &mut self,
         scope: &Scope,
-        args: &[(Option<String>, &SyntaxNode)],
-        ty: &ResolvedType,
+        arguments: &[NodeKey],
+        descriptor_index: usize,
+        locale_index: usize,
         span: Span,
     ) -> IrExpr {
         self.builtins_seen.push(ReferencedBuiltin {
@@ -3108,28 +3109,102 @@ impl<'a> Cx<'a> {
             span,
         });
         self.g13_seen.insert("format".to_string());
-        let descriptor = args
-            .iter()
-            .find(|(name, _)| name.is_none())
-            .map(|(_, value)| Box::new(self.decode_expr(scope, value)));
-        let locale = args
-            .iter()
-            .find(|(name, _)| name.as_deref() == Some("locale"))
-            .and_then(|(_, value)| {
-                if value.kind == SyntaxKind::Literal {
-                    literal_string(self.db, value)
-                } else {
-                    None
-                }
-            });
-        let Some(descriptor) = descriptor else {
-            return IrExpr::Unsupported {
-                what: "format call".to_string(),
-                why: "no descriptor argument".to_string(),
-            };
+        let unsupported = |why: &str| IrExpr::Unsupported {
+            what: "localized format call".to_string(),
+            why: why.to_string(),
         };
-        let _ = ty;
-        IrExpr::Format { descriptor, locale }
+        let Some(mut descriptor_node) = self.node(&arguments[descriptor_index]).cloned() else {
+            return unsupported("checked descriptor anchor is unavailable");
+        };
+        while descriptor_node.kind == SyntaxKind::Group {
+            let Some(inner) = kids(&descriptor_node)
+                .iter()
+                .find(|n| is_expression(n.kind))
+                .map(|n| (**n).clone())
+            else {
+                return unsupported("checked descriptor group has no value");
+            };
+            descriptor_node = inner;
+        }
+        // Inline descriptors have no declared parameters. Their syntax supplies
+        // text only; the owning checked module supplies source language.
+        let inline = descriptor_node.kind == SyntaxKind::MessageValue;
+        let args: Vec<_> = arguments
+            .iter()
+            .enumerate()
+            .map(|(index, key)| {
+                if index == descriptor_index && inline {
+                    let expr = self
+                        .decode_message_node(scope.module, &descriptor_node)
+                        .map(IrExpr::Message)
+                        .unwrap_or_else(|| unsupported("inline descriptor text is unavailable"));
+                    TypedExpr::new(expr, self.node_type(&descriptor_node), descriptor_node.span)
+                } else {
+                    self.decode_anchored(scope, key, "format argument")
+                }
+            })
+            .collect();
+        let (source_lang, param_types) = match &args[descriptor_index].ty {
+            ResolvedType::Message(id) => {
+                let Some(data) = self.program.effects.messages.get(id) else {
+                    return unsupported("checked message owner is unavailable");
+                };
+                let mut params = Vec::new();
+                for param in &data.params {
+                    let Some(ty) = self.program.types.symbol_types.get(&param.param) else {
+                        return unsupported("checked message parameter type is unavailable");
+                    };
+                    let Some(tag) = Self::format_param_tag(ty) else {
+                        return unsupported(
+                            "checked message parameter type has no Values presentation tag",
+                        );
+                    };
+                    params.push((
+                        self.local_name(param.param),
+                        self.type_id(ty),
+                        tag.to_string(),
+                    ));
+                }
+                (data.source_lang.clone(), params)
+            }
+            ResolvedType::Scalar(Scalar::Text) if inline => {
+                let Some(module) = self.program.effects.modules.get(&scope.module) else {
+                    return unsupported("checked inline descriptor module is unavailable");
+                };
+                (module.source_lang.clone(), Vec::new())
+            }
+            _ => return unsupported("descriptor has no checked message owner or inline schema"),
+        };
+        IrExpr::Format {
+            args,
+            descriptor_index,
+            locale_index,
+            source_lang,
+            param_types,
+        }
+    }
+
+    /// Mechanical presentation mapping from checked types; nullable and
+    /// structural shapes remain unsupported rather than guessing a tag.
+    fn format_param_tag(ty: &ResolvedType) -> Option<&'static str> {
+        match ty {
+            ResolvedType::Scalar(
+                Scalar::Text
+                | Scalar::Email
+                | Scalar::Url
+                | Scalar::Locale
+                | Scalar::Timezone
+                | Scalar::Currency,
+            ) => Some("text"),
+            ResolvedType::Scalar(Scalar::Bool) => Some("bool"),
+            ResolvedType::Enum { owner: Some(_), .. } => Some("enum"),
+            ResolvedType::Scalar(Scalar::Int) => Some("int"),
+            ResolvedType::Scalar(Scalar::Decimal) => Some("decimal"),
+            ResolvedType::Scalar(Scalar::Money) => Some("money"),
+            ResolvedType::Scalar(Scalar::Date) => Some("date"),
+            ResolvedType::Scalar(Scalar::Datetime) => Some("datetime"),
+            _ => None,
+        }
     }
 
     /// Canonical type id for a resolved type (best-effort, total: unknown
@@ -3575,7 +3650,7 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
                 work.extend(args);
                 work.extend(params.iter().filter_map(|param| param.default.as_ref()));
             }
-            IrExpr::Format { descriptor, .. } => work.push(descriptor),
+            IrExpr::Format { args, .. } => work.extend(args),
             IrExpr::HasRole { person, .. } => work.extend(person.iter().map(|v| v.as_ref())),
             IrExpr::Lambda { body, .. } => work.push(body),
             IrExpr::Int(_)
@@ -9055,7 +9130,11 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
                 collect_s_refs(&param.value.expr, out);
             }
         }
-        IrExpr::Format { descriptor, .. } => collect_s_refs(&descriptor.expr, out),
+        IrExpr::Format { args, .. } => {
+            for arg in args {
+                collect_s_refs(&arg.expr, out);
+            }
+        }
         IrExpr::HasRole { person, .. } => {
             if let Some(person) = person {
                 collect_s_refs(&person.expr, out);

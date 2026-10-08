@@ -131,10 +131,11 @@ for(const [id,expression]of [['builtin-exact-arity','lower()'],['user-required-s
 const sourceError=compile('unbound-source','app T\nGiven\n derive g():text = lower(value=missing)\nWhen\nThen\n',catalog,false);
 assert.deepEqual(sourceError.diagnostics.map(d=>d.code),['E2001']);
 const localized=compile('localized','app T\nGiven\n message m="Hi"@{}\n derive g():text = format(m,locale=null)\nWhen\nThen\n');
-assert.match(localized.modules[0].js,/format\(c,/);
+assert.match(localized.modules[0].js,/message formatting requires checked selected-app scope/);
 const lf=await entry('localized',localized);await assert.rejects(lf['T.g']({}),error=>error.code==='invalid-construction');
-const localizedNamed=compile('localized-named','app T\nGiven\n message m="Hi"@{}\n derive g():text = format(descriptor=m,locale=null)\nWhen\nThen\n',catalog,false);
-assert.deepEqual(localizedNamed.diagnostics.map(d=>d.code),['E6008']);
-receipts.push({id:'localized-seam',gap:'Existing emitted context/facade mismatch and named outer-format E6008 retained, not qualified as repaired.'});
+const localizedNamed=compile('localized-named','app T\nGiven\n message m="Hi"@{}\n derive g():text = format(descriptor=m,locale=null)\nWhen\nThen\n');
+const localizedNamedFns=await entry('localized-named',localizedNamed);
+assert.deepEqual(await localizedNamedFns['T.g']({formatting:{appDefault:'en'},team:null}),{text:'Hi',locale:'en'});
+receipts.push({id:'localized-seam',scope:'Explicit qualified formatting scope and named outer arguments reach actual two-argument formatter; absent scope refuses.'});
 writeFileSync(resolve(scratch,'observations.json'),JSON.stringify(receipts,null,2)+'\n');
 console.log(JSON.stringify({scope:'Actual public production compile, unmodified installed stdlib/UI imports, finite direct-callable execution; canonical scenario/localized serving gaps retained.',cases:receipts.length,receipts}));
