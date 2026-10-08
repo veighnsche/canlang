@@ -55,3 +55,28 @@ S9-Q01 remains open for public presentation source-language carriage, exact
 human sink admission, outbound freezing, capability and wider serving profiles.
 Deployment/browser/application qualification and the historical full suite are
 separately scoped.
+
+The contextual `label` parameter profile is separately qualified by
+`compiler/tests/localized_format.rs::localized_format_preserves_contextual_label_parameter_and_caption`,
+using the same consumer's `--label-parameter` mode. One genuine en package/app
+source reaches production CLI/catalog, actual artifact loading/module assembly
+and the unchanged generated derives with the installed formatter. The native
+expression host `{formatting:{appDefault:"en"},team:null}` renders the dependent
+`label=seed` default as `{text:"Ready|Ready|T",locale:"en"}` and explicit
+`label="Bound"` as `{text:"S|Bound|T",locale:"en"}`. A true tail-parameter
+`label=caption` attribute remains checked: making that caption message
+parameterized refuses exact E3016
+`label cannot reference 'caption'; parameterized messages need call syntax`,
+with no modules.
+
+The first affected run failed **0/1 (0.58s)** with two E3016 diagnostics at valid
+`label` parameter text types. The owning resolver now recognizes metadata only
+when `label` is followed by `=`, preserving earlier-parameter default binding;
+the typer uses the existing `field_parts.label` instead of scanning the declared
+parameter name as metadata. Only this affected case repeated and passed
+**1/1 (0.68s)**. Earlier selected-call/localized-format/branch matrices remain
+reused unchanged. The earlier branch case's renamed `word` remains unchanged;
+its prior contextual-name gap is qualified here. No parser or formatter facade
+change, full S9-Q01, carrier/public human sink, State/authority or task-count
+claim follows. Source/test/own notes are ready for scoped capture; coordinator
+and Package own DECISIONS/index joins.
