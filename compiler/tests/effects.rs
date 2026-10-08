@@ -1796,3 +1796,32 @@ fn every_scope_follows_only_bound_reachable_derives() {
         "cycle has no app query: {diags:?}"
     );
 }
+
+#[test]
+fn every_scope_follows_executed_creation_initializers() {
+    let catalog = fixture();
+    for (initializer, input, mixed) in [
+        ("=team_count()", "{}", true),
+        (" server=team_count()", "{}", true),
+        ("=team_count()", "{n=1}", false),
+        ("=count([1])", "{}", false),
+        ("=app_count()", "{}", false),
+    ] {
+        let src = format!(
+            "app Scope\nGiven\n Todo {{title:text}}\n AppConfig in app {{n:int{initializer}}}\n policy AppConfig read=members\n derive team_count():int = count(Todo)\n derive app_count():int = count(AppConfig)\nWhen\n scenario tick on=every(5m)\n  do create AppConfig {input} as created\nThen\n"
+        );
+        let mut db = SourceDb::new();
+        let file = db.add("initializer.can".into(), src.clone());
+        let (_, diags) = analysis::check_program(&db, &[file], Some(&catalog));
+        if mixed {
+            assert_findings(&src, &diags, &[("E4051", "every(5m)", 1)]);
+        } else {
+            assert!(diags.is_empty(), "{src}\n{diags:?}");
+        }
+    }
+    let unused = "app Scope\nGiven\n Todo {title:text}\n Unused in app {n:int=team_count()}\n AppConfig in app {n:int=1}\n policy Unused read=members\n policy AppConfig read=members\n derive team_count():int = count(Todo)\nWhen\n scenario tick on=every(5m)\n  do create AppConfig {} as created\nThen\n";
+    let mut db = SourceDb::new();
+    let file = db.add("unused-initializer.can".into(), unused.into());
+    let (_, diags) = analysis::check_program(&db, &[file], Some(&catalog));
+    assert!(diags.is_empty(), "{diags:?}");
+}
