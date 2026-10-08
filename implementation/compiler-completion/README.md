@@ -169,8 +169,9 @@ package, BDD/shell and map assembly paths report E6012 with no executable
 compile artifact. The six existing map producer cases and two existing BDD
 cases pass. The actual map consumer case failed when Node strip-only mode
 encountered the package's new TypeScript parameter-property constructor;
-that production-owner prerequisite is routed, with no passing overall case
-claimed. Three advisory replies favor writer status (.76/.76/.82 confidence);
+after the owner released the explicit-field correction, that same case passes
+**1/1**. The prior failure is retained, and no other producer check is repeated.
+Three advisory replies favor writer status (.76/.76/.82 confidence);
 no resource or giant-allocation guarantee follows.
 
 The same producer release enables parameter-style callable metadata and
