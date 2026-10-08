@@ -1,0 +1,145 @@
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 14d7e06f..544f022f 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -16,8 +16,10 @@ jobs:
+         include:
+           - runner: ubuntu-latest
+             name: can-linux-x86_64
++            target: x86_64-unknown-linux-gnu
+           - runner: macos-latest
+             name: can-macos-aarch64
++            target: aarch64-apple-darwin
+     runs-on: ${{ matrix.runner }}
+     steps:
+       - uses: actions/checkout@v4
+@@ -25,6 +27,9 @@ jobs:
+       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+         with:
+           toolchain: "1.99.0"
++      - name: Verify release host
++        run: |
++          test "$(rustc -Vv | sed -n 's/^host: //p')" = "${{ matrix.target }}"
+       - name: Build can (release, locked)
+         run: cargo build --release --locked
+         working-directory: compiler
+@@ -33,10 +38,12 @@ jobs:
+           ls -l target/release/can
+           printf 'bytes=%s\n' "$(wc -c < target/release/can | tr -d ' ')"
+         working-directory: compiler
++      - name: Prepare verified dependency notices
++        run: python3 scripts/check-compiler-release-notices.py --target "${{ matrix.target }}" --output-dir compiler/target/release
+       - name: Checksums (sha256)
+         run: |
+           cd compiler/target/release
+-          shasum -a 256 can > "SHA256SUMS-${{ matrix.name }}.txt"
++          shasum -a 256 can THIRD-PARTY-NOTICES.txt > "SHA256SUMS-${{ matrix.name }}.txt"
+           cat "SHA256SUMS-${{ matrix.name }}.txt"
+           shasum -a 256 -c "SHA256SUMS-${{ matrix.name }}.txt"
+       - uses: actions/upload-artifact@v4
+@@ -44,6 +51,7 @@ jobs:
+           name: ${{ matrix.name }}
+           path: |
+             compiler/target/release/can
++            compiler/target/release/THIRD-PARTY-NOTICES.txt
+             compiler/target/release/SHA256SUMS-${{ matrix.name }}.txt
+ 
+   node-libraries:
+diff --git a/scripts/check-compiler-release-notices.py b/scripts/check-compiler-release-notices.py
+new file mode 100644
+index 00000000..4bbe990a
+--- /dev/null
++++ b/scripts/check-compiler-release-notices.py
+@@ -0,0 +1,63 @@
++#!/usr/bin/env python3
++"""Verify the frozen compiler notice inputs and copy the selected release text."""
++import argparse
++import hashlib
++import json
++from pathlib import Path
++import sys
++
++TARGETS = ("aarch64-apple-darwin", "x86_64-unknown-linux-gnu")
++ROOT = Path(__file__).resolve().parents[1]
++
++
++def digest(path):
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def prepare(target, output):
++    notices = ROOT / "compiler/third-party-notices"
++    manifest = json.loads((notices / "manifest.json").read_text())
++    if (not isinstance(manifest, dict)
++            or type(manifest.get("schema")) is not int
++            or manifest["schema"] != 1
++            or not isinstance(manifest.get("targets"), dict)
++            or set(manifest["targets"]) != set(TARGETS)):
++        raise ValueError("unsupported notice manifest schema or targets")
++    inputs = manifest["inputs"]
++    if not isinstance(inputs, dict) or set(inputs) != {"compiler/Cargo.toml", "compiler/Cargo.lock"}:
++        raise ValueError("notice manifest must pin compiler manifest and lock")
++    for path, expected in inputs.items():
++        if digest(ROOT / path) != expected:
++            raise ValueError(f"stale notice inputs: {path}")
++    # Check both frozen bundles so a partial or stale manifest fails closed.
++    contents = {}
++    for triple in TARGETS:
++        entry = manifest["targets"][triple]
++        name = f"THIRD-PARTY-NOTICES-{triple}.txt"
++        if not isinstance(entry, dict) or entry["file"] != name:
++            raise ValueError(f"invalid notice entry: {triple}")
++        contents[triple] = (notices / name).read_bytes()
++        if hashlib.sha256(contents[triple]).hexdigest() != entry["sha256"]:
++            raise ValueError(f"changed notice content: {triple}")
++    data = contents[target]
++    output.mkdir(parents=True, exist_ok=True)
++    destination = output / "THIRD-PARTY-NOTICES.txt"
++    destination.write_bytes(data)
++    print(f"{target}: {hashlib.sha256(data).hexdigest()}  {destination}")
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--target", choices=TARGETS, required=True)
++    parser.add_argument("--output-dir", type=Path, required=True)
++    args = parser.parse_args()
++    try:
++        prepare(args.target, args.output_dir)
++    except (OSError, ValueError, KeyError, TypeError) as error:
++        print(f"compiler release notices rejected: {error}", file=sys.stderr)
++        return 1
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/compiler/third-party-notices/manifest.json b/compiler/third-party-notices/manifest.json
+new file mode 100644
+index 00000000..08035830
+--- /dev/null
++++ b/compiler/third-party-notices/manifest.json
+@@ -0,0 +1,23 @@
++{
++  "schema": 1,
++  "scope": "Existing compiler binary release targets; retain supplied license alternatives without a new licensing choice or lower-MSRV claim.",
++  "inputs": {
++    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
++    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64"
++  },
++  "targets": {
++    "aarch64-apple-darwin": {
++      "file": "THIRD-PARTY-NOTICES-aarch64-apple-darwin.txt",
++      "sha256": "0a564c52d731ea3d89e63dc3be0ff85392575782c8b76643e30d8b08a8ef2ba6"
++    },
++    "x86_64-unknown-linux-gnu": {
++      "file": "THIRD-PARTY-NOTICES-x86_64-unknown-linux-gnu.txt",
++      "sha256": "a6967ea3370acea393101ebff90faa640491e9e82973b3b2192f44517e026f91"
++    }
++  },
++  "provenance": {
++    "implementation/compiler-completion/release-prerequisites/archives.json": "5b5498124cd98cf6ad8c6379f299e59fb882409eae5b1bb4282d5bc79ced1c05",
++    "implementation/compiler-completion/release-prerequisites/target-closures.json": "139dd858215ff6dd6916059cfc3a65ff32f786d2f5fd8d4ed14e9696b7fa209f",
++    "implementation/compiler-completion/release-prerequisites/supplemental-notices.json": "f94c48fd913868ba307842a400a33e97f09efe763af1fb60dbc39241a594f1d4"
++  }
++}

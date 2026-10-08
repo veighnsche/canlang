@@ -1,0 +1,49 @@
+rustc 1.99.0 (b940084d7 2026-09-28)
+binary: rustc
+commit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4
+commit-date: 2026-09-28
+host: x86_64-unknown-linux-gnu
+release: 1.99.0
+LLVM version: 23.1.1
+cargo 1.99.0 (5f94df478 2026-08-27)
+build_exit=0
+f03b40fec041e0ce412913aeaa0d7634dfdfed2a36727474cdfca3209b832ef4  /tmp/canlang-dep03-release-20261008/target/release/can
+3192192 /tmp/canlang-dep03-release-20261008/target/release/can
+can 0.1.0 (commit unknown; language 1.0; schema 1)
+can 0.1.0 — CanLang compiler and authoring tools
+
+Usage: can <COMMAND> [OPTIONS] [ARGS...]
+       can --help
+       can --version
+
+Commands:
+  compile   Analyze sources and emit the compile artifact
+  check     Analyze sources and report diagnostics
+  lint      Run lint rules over sources (warnings only, never blocks)
+  fmt       Format sources in place (or check with --check)
+  explain   Print a diagnostic catalog entry: can explain E1001
+  lsp       Run the language server over stdio (Content-Length JSON-RPC)
+  policy    Dump the declared policy surface (roles, policies, operation gates)
+  docs      Generate the localized internal declaration reference (Markdown)
+  run       Thin lane-7 entry: exec can-platform run (passthrough)
+  test      Thin lane-7 entry: exec can-platform test (passthrough)
+  build     Thin lane-7 entry: exec can-platform build (passthrough)
+  deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)
+  activate  Thin lane-7 entry: exec can-platform activate (passthrough)
+  completions  Print a shell completion script: can completions bash|zsh|fish
+  help      Show help (global or `can help <COMMAND>`)
+
+Options:
+  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)
+  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,
+                       ./can-catalog.json, ./packages/values/dist/catalog.json)
+  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)
+  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)
+  -h, --help           Show help (global or `can <COMMAND> --help`)
+  -V, --version        Show version
+
+Environment:
+  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)
+  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)
+
+Exit codes: 0 clean, 10 errors reported, 2 tool failure.

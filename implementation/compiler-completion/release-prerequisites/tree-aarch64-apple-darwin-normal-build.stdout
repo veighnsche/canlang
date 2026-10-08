@@ -1,0 +1,146 @@
+canlang-compiler v0.1.0 (/private/tmp/canlang-dep03-release-20261008/source/compiler) 
+lsp-types v0.97.0 
+bitflags v1.3.2 default
+fluent-uri v0.1.4 default,std
+bitflags v1.3.2 default
+serde v1.0.229 default,derive,serde_derive,std
+serde_core v1.0.229 result,std
+serde_derive v1.0.229 (proc-macro) default
+proc-macro2 v1.0.107 default,proc-macro
+unicode-ident v1.0.26 
+quote v1.0.47 default,proc-macro
+proc-macro2 v1.0.107 default,proc-macro (*)
+syn v3.0.6 clone-impls,default,derive,extra-traits,fold,parsing,printing,proc-macro,visit
+proc-macro2 v1.0.107 default,proc-macro (*)
+quote v1.0.47 default,proc-macro (*)
+unicode-ident v1.0.26 
+serde_json v1.0.151 default,raw_value,std
+itoa v1.0.18 
+memchr v2.8.3 alloc,std
+serde_core v1.0.229 result,std
+zmij v1.0.23 
+serde_repr v0.1.21 (proc-macro) 
+proc-macro2 v1.0.107 default,proc-macro (*)
+quote v1.0.47 default,proc-macro (*)
+syn v3.0.6 clone-impls,default,derive,extra-traits,fold,parsing,printing,proc-macro,visit (*)
+serde v1.0.229 default,derive,serde_derive,std (*)
+serde_json v1.0.151 default,raw_value,std (*)
+sha2 v0.10.9 
+cfg-if v1.0.5 
+cpufeatures v0.2.17 
+libc v0.2.190 std
+digest v0.10.7 block-buffer,core-api,default
+block-buffer v0.10.4 
+generic-array v0.14.7 more_lengths
+typenum v1.20.1 
+version_check v0.9.5 
+crypto-common v0.1.7 
+generic-array v0.14.7 more_lengths (*)
+typenum v1.20.1 
+sourcemap v9.3.2 
+base64-simd v0.8.0 alloc,default,detect,std
+outref v0.5.2 
+vsimd v0.8.0 alloc,detect,std
+bitvec v1.1.1 alloc,atomic,default,std
+funty v2.0.0 
+radium v0.7.0 
+tap v1.0.1 
+wyz v0.5.1 
+tap v1.0.1 
+data-encoding v2.11.1 alloc,default,std
+debugid v0.8.0 serde
+serde v1.0.229 default,derive,serde_derive,std (*)
+uuid v1.27.0 default,std
+if_chain v1.0.3 
+rustc-hash v2.1.3 default,std
+serde v1.0.229 default,derive,serde_derive,std (*)
+serde_json v1.0.151 default,raw_value,std (*)
+unicode-id-start v1.5.0 
+url v2.5.8 default,std
+form_urlencoded v1.2.2 alloc,std
+percent-encoding v2.3.2 alloc,std
+idna v1.1.0 alloc,compiled_data,std
+idna_adapter v1.2.2 compiled_data
+icu_normalizer v2.3.0 compiled_data
+icu_collections v2.3.0 
+displaydoc v0.2.7 (proc-macro) 
+proc-macro2 v1.0.107 default,proc-macro (*)
+quote v1.0.47 default,proc-macro (*)
+syn v3.0.6 clone-impls,default,derive,extra-traits,fold,parsing,printing,proc-macro,visit (*)
+potential_utf v0.1.6 zerovec
+zerovec v0.11.8 derive,yoke
+yoke v0.8.3 derive,zerofrom
+stable_deref_trait v1.2.1 
+yoke-derive v0.8.2 (proc-macro) 
+proc-macro2 v1.0.107 default,proc-macro (*)
+quote v1.0.47 default,proc-macro (*)
+syn v2.0.119 clone-impls,default,derive,extra-traits,fold,parsing,printing,proc-macro,visit
+proc-macro2 v1.0.107 default,proc-macro (*)
+quote v1.0.47 default,proc-macro (*)
+unicode-ident v1.0.26 
+synstructure v0.13.2 default,proc-macro
+proc-macro2 v1.0.107 default,proc-macro (*)
+quote v1.0.47 default,proc-macro (*)
+syn v2.0.119 clone-impls,default,derive,extra-traits,fold,parsing,printing,proc-macro,visit (*)
+zerofrom v0.1.8 derive
+zerofrom-derive v0.1.8 (proc-macro) 
+proc-macro2 v1.0.107 default,proc-macro (*)
+quote v1.0.47 default,proc-macro (*)
+syn v3.0.6 clone-impls,default,derive,extra-traits,fold,parsing,printing,proc-macro,visit (*)
+synstructure v0.14.0 default,proc-macro
+proc-macro2 v1.0.107 default,proc-macro (*)
+quote v1.0.47 default,proc-macro (*)
+syn v3.0.6 clone-impls,default,derive,extra-traits,fold,parsing,printing,proc-macro,visit (*)
+zerofrom v0.1.8 derive (*)
+zerovec-derive v0.11.6 (proc-macro) 
+proc-macro2 v1.0.107 default,proc-macro (*)
+quote v1.0.47 default,proc-macro (*)
+syn v3.0.6 clone-impls,default,derive,extra-traits,fold,parsing,printing,proc-macro,visit (*)
+utf8_iter v1.0.4 
+yoke v0.8.3 derive,zerofrom (*)
+zerofrom v0.1.8 derive (*)
+zerovec v0.11.8 derive,yoke (*)
+icu_normalizer_data v2.3.0 
+icu_provider v2.3.1 baked
+displaydoc v0.2.7 (proc-macro)  (*)
+icu_locale_core v2.3.0 zerovec
+displaydoc v0.2.7 (proc-macro)  (*)
+litemap v0.8.3 
+tinystr v0.8.4 zerovec
+displaydoc v0.2.7 (proc-macro)  (*)
+zerovec v0.11.8 derive,yoke (*)
+writeable v0.6.4 
+zerovec v0.11.8 derive,yoke (*)
+writeable v0.6.4 
+yoke v0.8.3 derive,zerofrom (*)
+zerofrom v0.1.8 derive (*)
+zerotrie v0.2.5 yoke,zerofrom
+displaydoc v0.2.7 (proc-macro)  (*)
+yoke v0.8.3 derive,zerofrom (*)
+zerofrom v0.1.8 derive (*)
+zerovec v0.11.8 derive,yoke (*)
+smallvec v1.16.2 const_generics
+zerovec v0.11.8 derive,yoke (*)
+icu_properties v2.3.0 compiled_data
+displaydoc v0.2.7 (proc-macro)  (*)
+icu_collections v2.3.0  (*)
+icu_locale_core v2.3.0 zerovec (*)
+icu_properties_data v2.3.0 
+icu_provider v2.3.1 baked (*)
+zerotrie v0.2.5 yoke,zerofrom (*)
+zerovec v0.11.8 derive,yoke (*)
+smallvec v1.16.2 const_generics
+utf8_iter v1.0.4 
+percent-encoding v2.3.2 alloc,std
+tempfile v3.27.0 getrandom
+fastrand v2.5.0 alloc,default,std
+getrandom v0.4.3 
+cfg-if v1.0.5 
+libc v0.2.190 std
+once_cell v1.21.4 alloc,race,std
+rustix v1.1.5 alloc,default,fs,std
+bitflags v2.13.2 std
+errno v0.3.14 std
+libc v0.2.190 std
+libc v0.2.190 std
+url v2.5.8 default,std (*)

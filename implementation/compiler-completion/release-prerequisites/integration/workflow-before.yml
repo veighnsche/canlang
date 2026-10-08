@@ -16,10 +16,8 @@ jobs:
         include:
           - runner: ubuntu-latest
             name: can-linux-x86_64
-            target: x86_64-unknown-linux-gnu
           - runner: macos-latest
             name: can-macos-aarch64
-            target: aarch64-apple-darwin
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -27,9 +25,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
           toolchain: "1.99.0"
-      - name: Verify release host
-        run: |
-          test "$(rustc -Vv | sed -n 's/^host: //p')" = "${{ matrix.target }}"
       - name: Build can (release, locked)
         run: cargo build --release --locked
         working-directory: compiler
@@ -38,12 +33,10 @@ jobs:
           ls -l target/release/can
           printf 'bytes=%s\n' "$(wc -c < target/release/can | tr -d ' ')"
         working-directory: compiler
-      - name: Prepare verified dependency notices
-        run: python3 scripts/check-compiler-release-notices.py --target "${{ matrix.target }}" --output-dir compiler/target/release
       - name: Checksums (sha256)
         run: |
           cd compiler/target/release
-          shasum -a 256 can THIRD-PARTY-NOTICES.txt > "SHA256SUMS-${{ matrix.name }}.txt"
+          shasum -a 256 can > "SHA256SUMS-${{ matrix.name }}.txt"
           cat "SHA256SUMS-${{ matrix.name }}.txt"
           shasum -a 256 -c "SHA256SUMS-${{ matrix.name }}.txt"
       - uses: actions/upload-artifact@v4
@@ -51,7 +44,6 @@ jobs:
           name: ${{ matrix.name }}
           path: |
             compiler/target/release/can
-            compiler/target/release/THIRD-PARTY-NOTICES.txt
             compiler/target/release/SHA256SUMS-${{ matrix.name }}.txt
 
   node-libraries:
