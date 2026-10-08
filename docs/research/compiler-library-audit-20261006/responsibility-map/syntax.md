@@ -129,8 +129,21 @@ and emits tab items for the actual public UI consumer in
 a standalone tab factory. The accepted consumer profile covers translated,
 duplicate and dynamic captions, ordered/gated descendants, default surviving
 selection, and distinct tab identities. Bound preference tabs and their save
-lifecycle remain open under S9-Q03; structured order remains open under
-SYN-R04. This does not qualify wider UI, backend or application profiles.
+lifecycle remain open under S9-Q03; implementing structured ordering also
+remains open. This does not qualify wider UI, backend or application profiles.
+
+### SYN-R04 maintenance update — 2026-10-08
+
+The original retirement outcome permits supported authored meaning or explicit
+refusal. In `65199fa6`, `decode_collection` stopped sending `order=` to the
+empty-selector fallback and now reports E6008 at its authored value. The
+accepted permanent [UI adapter controls](../../../../compiler/tests/ui_adapter.rs)
+cover both simple ordering and structured `by`/`default`/`cases`: compilation
+fails with the precise source span and publishes no modules. This closes the
+original silent semantic-loss finding by explicit refusal. Real structured
+ordering, the S9-Q03 preference workflow and any future owning runtime ordering
+policy remain unfinished. This maintenance join reuses accepted checks; no
+tests were repeated or new evidence packets created.
 
 ## Executed witnesses
 
@@ -195,7 +208,7 @@ These successes do not cover the residual per-pass gates below.
 | SYN-R01 / high | `analysis/effects.rs`: recursive owner gate drops E4011 in an intact scenario; recursive File gate drops E4020 even in a second valid module. Dropped model policy tables also invent E4004 despite a valid policy. | Analyze independent valid declarations/positions and keep local dependent suppression. Retire owner/File-wide vetoes at these boundaries; preserve false/missing finding controls, tables and CLI/IDE reporting. Sol medium, one effects writer; focused analysis/effect/process regressions. |
 | SYN-R02 / high | `analysis/types.rs::collect_module_sources`: unrelated malformed policy drops valid `source="fr"`; real fr-variant E3016 disappears and valid en variant gains false source-en E3016. | Valid owner header metadata stays authoritative while siblings recover. Retire the recursive body veto for valid source metadata; preserve malformed-header local suppression. Sol low after this exact contract release; independent Sol medium review. Locale-parser/alias policy stays separate. |
 | SYN-R03 / high (historical pinned-source finding) | At the pinned Step 7 source, `codegen/ir.rs::decode_ui` fallback emitted `tab({context:c})`; authored caption and nested text vanished. CLI check/compile both exited 0. | Retire the empty fallback by preserving supported Tab caption/child ownership through IR and actual UI factory/consumer; see the dated maintenance update above. |
-| SYN-R04 / high | `codegen/ir.rs::decode_collection` sends PreferenceOrder to `selector_strings` fallback; nonempty by/default/cases becomes `order:[]`; CLI exits0. | Preserve the authored structured policy through the owning UI/runtime profile. Retire the unsupported-node-to-empty shortcut at this boundary. Sol medium; serialized with R03 on IR; no new ordering policy chosen here. |
+| SYN-R04 / high (historical pinned-source finding) | At the pinned source, `codegen/ir.rs::decode_collection` sent PreferenceOrder to the empty-selector fallback; nonempty by/default/cases became `order:[]`; CLI exited 0. | Original supported-meaning-or-explicit-refusal duty is complete by precise E6008 with no published module; see the dated maintenance update. Real structured ordering and future runtime policy remain unfinished. |
 | SYN-R05 / high boundary | Corpus attributes, including unknown `Missing` model, are not checked/indexed/lowered; CLI check/compile exit0 with no corpus. Judgment checks clean but compile refuses E6006. | Corpus must have checked ownership and retained meaning or explicit unsupported admission; no clean silent disappearance. Release corpus/judgment support separately with exact resolver/type/effect/IR/artifact owners and language acceptance. Sol medium; consequential new support alternatives require verified-context JEV. Judgment is fail-closed, not silently shipping. |
 | SYN-R06 / gated recovery | `syntax/layout.rs` joins an unclosed schema/call/list through EOF; an unterminated string inside an open schema has the same effect. Valid derive lines and even a later top-level module are swallowed while coverage passes. | Decide synchronization witnesses against legitimate multiline delimiters and nested layout before changing joining. Sol medium; high only for unresolved policy. Verified-context JEV for consequential alternatives; no ad hoc authority parser or unconditional indentation split. |
 | SYN-R07 / next admission packet | Generic UI accepts arbitrary words/attributes; mystery component checks clean then emits E6008. Only 20/68 catalog words directly match the JS factory whitelist after spelling adaptation; this is availability, not complete profiles. | Qualify finite component/option/header/child profiles with actual owners. Known unavailable forms must report clearly; adding factory words alone cannot complete semantics. Sol medium; parser/types/IR/JS writers and producer profile release coordinated. Preserve fail-closed emission. |
