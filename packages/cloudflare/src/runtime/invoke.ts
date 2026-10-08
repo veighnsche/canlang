@@ -3742,7 +3742,7 @@ async function runScenarioSeam(
           throw new StateError('validation', 'Computed reference default requires an earlier admitted singular nonnullable input of the same model.');
         }
         wire = encodeValue(field.model, makeRecordRef(field.model, admitted.ref.row.id, BigInt(admitted.ref.row.version)));
-      } else if (field.kind === 'enum') {
+      } else if (field.kind === 'enum' && field.valueType === undefined) {
         if (typeof value !== 'string' || !field.enumValues?.includes(value)) {
           throw new StateError('validation', 'Computed enum default is outside its declared cases.');
         }
