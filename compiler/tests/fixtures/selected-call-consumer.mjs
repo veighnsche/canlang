@@ -24,8 +24,17 @@ async function entry(id,artifact){return (await import(pathToFileURL(resolve(scr
 const source=`app T
 Given
  contract Box {left:text,right:text}
+ contract Returned {values:int[],text:text}
+ contract CollectionBox {left:Returned,right:Returned}
  derive a(v:Box):text = v.left
  derive b(v:Box):text = v.right
+ derive return_values(a:Returned,b:Returned):int[] = a.values
+ derive return_record(a:Returned,b:Returned):Returned = a
+ derive return_text(a:Returned,b:Returned):text = a.text
+ derive returned_filter(v:CollectionBox):int[] = return_values(b=v.right,a=v.left) as item where item>0
+ derive returned_select(v:CollectionBox):int[] = return_values(b=v.right,a=v.left) as item select item+1
+ derive returned_member(v:CollectionBox):text = return_record(b=v.right,a=v.left).text
+ derive returned_trim(v:CollectionBox):text = trim(return_text(b=v.right,a=v.left))
  derive positional():text = format("Hi {n}",{n="Bo"})
  derive named():text = format(template="Hi {n}",values={n="Bo"})
  derive reversed():text = format(values={n="Bo"},template="Hi {n}")
@@ -75,6 +84,23 @@ for(const name of ['positional','named','reversed'])assert.equal(await call(name
 for(const [name,expected]of [['defaults','D|D'],['partial','A|A'],['hole','D|B'],['explicit','A|B'],['reserved_call','C|C|C'],['omitted_nullable','D'],['explicit_null',null]])assert.equal(await call(name),expected,name);
 function box(trace,fail){return {get left(){trace.push('left');if(fail)throw new Error('first');return 'A'},get right(){trace.push('right');if(fail)throw new Error('second');return 'AB'}}}
 for(const name of ['ordered','nested']){const trace=[];assert.equal(await call(name,box(trace)),true);assert.deepEqual(trace,['left','right'],name)}
+function collectionBox(trace,fail){
+ const values=[-1n,2n,3n];
+ for(const method of ['filter','map'])Object.defineProperty(values,method,{get(){trace.push(method);return Array.prototype[method]}});
+ const returned={get values(){trace.push('values');return values},get text(){trace.push('text');return ' padded '}};
+ return {get right(){trace.push('right');if(fail==='right')throw new Error('first');return returned},get left(){trace.push('left');if(fail==='left')throw new Error('second');return returned}};
+}
+for(const [name,expected,receiverTrace]of [
+ ['returned_filter',[2n,3n],['values','filter']],
+ ['returned_select',[0n,3n,4n],['values','map']],
+ ['returned_member',' padded ',['text']],
+ ['returned_trim','padded',['text']],
+]){
+ const trace=[];assert.deepEqual(await call(name,collectionBox(trace)),expected,name);assert.deepEqual(trace,['right','left',...receiverTrace],name);
+ for(const [fail,message,expectedTrace]of [['right','first',['right']],['left','second',['right','left']]]){
+  const failedTrace=[];await assert.rejects(call(name,collectionBox(failedTrace,fail)),{message});assert.deepEqual(failedTrace,expectedTrace,name+' '+message);
+ }
+}
 {const trace=[];await assert.rejects(call('ordered',box(trace,true)),{message:'first'});assert.deepEqual(trace,['left'])}
 {const trace=[];assert.equal(await call('lazy',box(trace)),false);assert.deepEqual(trace,[])}
 {const trace=[];assert.equal(await call('mixed',box(trace)),true);assert.deepEqual(trace,['right','left'])}

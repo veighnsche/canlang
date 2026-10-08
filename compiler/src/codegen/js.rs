@@ -4210,7 +4210,8 @@ fn parenthesize_operand(text: &str, expr: &IrExpr) -> String {
         IrExpr::Binary { .. }
         | IrExpr::Unary { .. }
         | IrExpr::DeliveryRead { .. }
-        | IrExpr::Call { .. } => format!("({text})"),
+        | IrExpr::Call { .. }
+        | IrExpr::BoundCall { .. } => format!("({text})"),
         _ => text.to_string(),
     }
 }
