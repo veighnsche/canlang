@@ -62,6 +62,10 @@
       "types": "./dist/src/fanout/membership.d.ts",
       "default": "./dist/src/fanout/membership.js"
     },
+    "./fanout/navigation": {
+      "types": "./dist/src/fanout/navigation.d.ts",
+      "default": "./dist/src/fanout/navigation.js"
+    },
     "./fanout/outcome": {
       "types": "./dist/src/fanout/outcome.d.ts",
       "default": "./dist/src/fanout/outcome.js"
