@@ -249,3 +249,6 @@ Root bounded runtime peer integration: Cloudflare stdlib directly reexports the 
 
 
 Root finite Interfaces producer reconciliation: owning asset-byte regression retains its defining test placement and exact detachment check, with actual original strict build plus separate Node24/26 outside consumers accepted at frozen source. Producer-runtime metadata is explicitly limited; current pages/index matcher reuse and real generated/default Worker/browser/installed mount remain separate active work. The finite collision/zero-freshness contract preserves one defining matcher and the original publicroot, with no parallel parser/framework. Correctness/capability growth is separately budgeted; no merge, inherited allocation review or complete checkpoint advancement is claimed. See interfaces-owner-build-root-review.json and asset-mount-contract.json.
+
+
+Root finite DEL-E02 reconciliation: State TEST-ONLY DOreset and owning storage/do.test.ts retain one fixture owner; migrationfailure audits now reset between reused lifecycles while productiondiscard remains unchanged. Independently authored actualworkerd twoaudit/reuse controls accept this gate, with zero productiondelta. Loader/DOwholeconformance/installed/evidence-retention duties remain open; no new responsibility, merge or complete checkpoint advance. See do-reset-independent-review.json.

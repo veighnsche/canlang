@@ -1,0 +1,28 @@
+[
+  {
+    "label": "baseline",
+    "command": [
+      "/opt/homebrew/Cellar/node/26.10.0_1/bin/node",
+      "/private/tmp/canlang-repair-go-20261007/do-reset-independent/baseline/check.mjs"
+    ],
+    "cwd": "/private/tmp/canlang-repair-go-20261007/do-reset-independent/baseline",
+    "pid": 99108,
+    "exit": 1,
+    "deadline_seconds": 30,
+    "deadline_hit": false,
+    "elapsed_seconds": 0.627823000002536
+  },
+  {
+    "label": "candidate",
+    "command": [
+      "/opt/homebrew/Cellar/node/26.10.0_1/bin/node",
+      "/private/tmp/canlang-repair-go-20261007/do-reset-independent/candidate/check.mjs"
+    ],
+    "cwd": "/private/tmp/canlang-repair-go-20261007/do-reset-independent/candidate",
+    "pid": 99114,
+    "exit": 0,
+    "deadline_seconds": 30,
+    "deadline_hit": false,
+    "elapsed_seconds": 0.29602712499763584
+  }
+]

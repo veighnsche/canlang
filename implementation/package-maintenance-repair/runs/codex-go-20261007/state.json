@@ -165,10 +165,10 @@
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
-    "DEL-R01/DEL-B02 ownerbuild independent review",
-    "DEL-B02/DEL-R01 actual static mount",
-    "TECH-V03/V04 defining typed carrier owner prerequisite",
-    "TECH-V05 exact timezone source-payload human approval pending"
+    "DEL-B02/DEL-R01 actualstaticmount",
+    "TECH-V03/V04 realcheckedfield contract/H1",
+    "DEL-E02 DOtestreset migrationfailure isolation",
+    "TECH-V05 exactexternal timezone payload approvalpending"
   ],
   "packet_state": {
     "TECH-V01-values": {
@@ -1235,7 +1235,12 @@
       "review_read_released": true,
       "root_read_released": true,
       "commit_pending": false,
-      "commit": "24b1d92a"
+      "commit": "24b1d92a",
+      "do_reset_gate": {
+        "status": "Root independent two-audit actualworkerd acceptance; narrowtwo-testfile correction readycommit",
+        "root_review": "do-reset-independent-review.json",
+        "parent_closed": false
+      }
     },
     "REPLAY-IP07": {
       "planning_status": "ready",
@@ -1497,7 +1502,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-08T00:12:22.833599+00:00",
+  "updated_utc": "2026-10-08T00:27:53.888158+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1685,32 +1690,36 @@
   "foreign_runtime_pure_integration": "implementation/package-maintenance-repair/runs/codex-go-20261007/runtime-pure-helpers-root-integration.json",
   "current_goal_turn_actions": {
     "classification": "progress",
-    "evidence": "Actual UI owner recipe completed with immutable outputs, exact asset START_ACK and defining matcher/public-root preservation lease resolved, different-author original owner build/test accepted with runtime metadata defect explicitly retained; typed-owner prerequisite tracing actual scalar loss. No parent count change."
+    "evidence": "Committed finite original ownerbuild test/proof9f63a132, actual UIowner completed, root source matcher/publicroot minimallease START_ACK received, actual workerd DO reset defect witnessed and exact2testfile repair ACK delivered, actual checkedfield/codec handoff ready and refreshednumeric producer requested; no parentcounts advanced.; root independent actualDO twoaudit before/candidate confirms2\u21920reset audit while productiondiscardretainsboth"
   },
   "live_finite_packets": [
     {
-      "task": "DEL-R01/DEL-B02 ownerbuild independent review",
-      "agent": "/root/interfaces_owner_build_review",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "repo_writes": false,
-      "actual": "Review released:15tests and Node24/26 actualconsumers pass; earlier producer-runtime metadata corrected/limited, frozen owner snapshot excludes later pages/index"
-    },
-    {
-      "task": "DEL-B02/DEL-R01 actual static mount",
+      "task": "DEL-B02/DEL-R01 actualstaticmount",
       "agent": "/root/asset_consumer_join",
       "model": "gpt-6.1-sol",
       "effort": "high",
-      "writer_lease": "asset-mount-writer-lease.json",
-      "actual": "Actual UI owner recipe passed; exact sourceSTART/index preservation ACKs; defining matcher export only+public root preserved; implementation active"
+      "status": "actualsourcewrites and newsourceactualownerproducer build/host identity correction active",
+      "lease": "asset-mount-writer-lease.json"
     },
     {
-      "task": "TECH-V03/V04 defining typed carrier owner prerequisite",
+      "task": "TECH-V03/V04 realcheckedfield contract/H1",
       "agent": "/root/typed_owner_handoff",
       "model": "gpt-6.1-sol",
       "effort": "high",
-      "repo_writes": false,
-      "actual": "Defining State scalar tag loss/wiredefault and existing public Values decoder traced; no private owner hooks/coercion"
+      "status": "actual20currentValues observations and defininggap proven; nextminimalcontract review active; numericproducer H2 sent toexistingforeignowner",
+      "handoff_sha256": "0bb6d4b5918ffcf983cf2fde16a92f8155842eee88eeef08f86d5a55d91d7ef0"
+    },
+    {
+      "task": "DEL-E02 DOtestreset migrationfailure isolation",
+      "agent": "/root/interfaces_owner_build_review",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "status": "actualworkerd baseline fails retainedaudit afterfixture reset; exact2testfilewriterACKdelivered",
+      "owned_files": {
+        "packages/state/test/storage/do-test-worker.js": "922910c5e7e3692137827d0db5510c5d94300690c98eef1147442a49ea378b7a",
+        "packages/state/test/storage/do.test.ts": "f33298178a554975dbab95449bc421d11aae855fa989d4ffb55a3a5940fb0093"
+      },
+      "limits": "Test-onlyreset, productiondiscardauditsemantics unchanged; nowholeDEL-E02"
     }
   ],
   "foreign_runtime_pure_integration_commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
@@ -1718,6 +1727,7 @@
     "root_record": "interfaces-owner-build-root-review.json",
     "scope": "One test-only assertion +frozenactual owneroutputs/Node24,26consumers",
     "producer_metadata_defect": "Afterrecipeprocessidentityunproven; original standaloneNode26claimnotaccepted",
-    "broader_parent_closed": false
+    "broader_parent_closed": false,
+    "commit": "9f63a132bdffd8d850fdf3c54205fea416ddd232"
   }
 }

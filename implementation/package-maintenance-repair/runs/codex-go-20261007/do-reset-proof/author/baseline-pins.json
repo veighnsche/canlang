@@ -1,0 +1,10 @@
+{
+  "packages/state/test/storage/do-test-worker.js": "922910c5e7e3692137827d0db5510c5d94300690c98eef1147442a49ea378b7a",
+  "packages/state/test/storage/do.test.ts": "f33298178a554975dbab95449bc421d11aae855fa989d4ffb55a3a5940fb0093",
+  "packages/state/test/storage/conformance.ts": "b3a9416567deb1ae7f1fb833ea1cd2d5f1b64f5bf39c29b7a026530b298c800a",
+  "packages/state/src/storage/durable-object.ts": "d4df52bb725d437a5c8f3f26e3212f83d74038ae3173d92bf5ecf0ce5b5ed185",
+  "packages/state/src/storage/schema.ts": "2a64ec108ea971c72be75c7c7bc1c8a16566bdcb81cf75178fb564a490468520",
+  "packages/state/src/storage/port.ts": "4b82b567fee3816ce96630475a70f654d89200eed888acb53d3a76a242ea807b",
+  "packages/state/src/storage/sqlite-codecs.ts": "8a9070fc7fd365a7a1c8b099e8df49a7110b3b56973d07d5e7ed35d8d4ef5b3e",
+  "packages/state/test/migration/adapters.test.ts": "a8959cfd7532da2206bbc15a370bdeb256393ca0ccf9a25c7b4777dc706dbd7c"
+}

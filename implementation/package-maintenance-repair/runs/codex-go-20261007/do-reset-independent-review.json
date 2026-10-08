@@ -1,0 +1,111 @@
+{
+  "status": "root_independently_accepted_test_fixture_reset_migrationfailure_isolation",
+  "captured_utc": "2026-10-08T00:27:53.888158+00:00",
+  "task_ids": [
+    "DEL-E02"
+  ],
+  "gate": "Existing testfixture reset of reused actual DO identity, not production audit retirement",
+  "product_pins": {
+    "packages/state/test/storage/do-test-worker.js": "d45c3f3e4ec4845fe48d376c2000f8c98f51531c3edaba47726d8dd9786438f5",
+    "packages/state/test/storage/do.test.ts": "3545a6018aeb1677576ece5ddd0cbe68c3d4e56ee8689a29e5e7df0bfb03af21"
+  },
+  "production_source_unchanged": true,
+  "actual_source_scope": "Original strict State options/noEmitOnError narrowed actual4storage source+owningtest closure; no wholepackagebuild claim",
+  "author_pair": {
+    "maintained_tests": 1,
+    "baseline_exit": 1,
+    "candidate_exit": 0,
+    "typecheck_exit": 0
+  },
+  "root_independent_pair": {
+    "own_two_failure_audits": 2,
+    "production_discard_keeps_both": true,
+    "baseline_reset_audit_count": 2,
+    "candidate_reset_audit_count": 0,
+    "reused_same_ID_revision_payload": true,
+    "both_Minflaredispose_returned": true,
+    "baseline_exit": 1,
+    "candidate_exit": 0,
+    "configured_seconds": 30,
+    "deadline_hit": false
+  },
+  "root_runtime": {
+    "node": {
+      "path": "/opt/homebrew/Cellar/node/26.10.0_1/bin/node",
+      "version": "v26.10.0",
+      "sha256": "d4cd917f05a5730ffda8a203e32fb8f9b70f79213fff1fafb045e438db8a6c06"
+    },
+    "typescript": {
+      "version": "5.9.3",
+      "cli": "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+      "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0"
+    },
+    "miniflare": "4.20260730.0",
+    "workerd": "1.20260730.1",
+    "host": "darwin-arm64"
+  },
+  "limits": [
+    "No new production policy/storage/schema/code",
+    "Existing discard must retain failure audit; only test-onlyreset clears all tables",
+    "No wholeDEL-E02/testkit/isolationloader/installed/originalparent closure",
+    "One actual workerd DO fixture host, not D1/provider/restart/allconformance",
+    "Historical nearby reset omission comments remain known cleanup lead; no reader corpus deletion",
+    "No timeoutfault/process-tree cleanup guarantee claimed from fast dispose/exits"
+  ],
+  "maintenance": {
+    "production_delta": 0,
+    "test_only_deltas": {
+      "packages/state/test/storage/do-test-worker.js": {
+        "bytes": 24,
+        "lines": 1,
+        "before_sha256": "922910c5e7e3692137827d0db5510c5d94300690c98eef1147442a49ea378b7a",
+        "after_sha256": "d45c3f3e4ec4845fe48d376c2000f8c98f51531c3edaba47726d8dd9786438f5"
+      },
+      "packages/state/test/storage/do.test.ts": {
+        "bytes": 1656,
+        "lines": 31,
+        "before_sha256": "f33298178a554975dbab95449bc421d11aae855fa989d4ffb55a3a5940fb0093",
+        "after_sha256": "3545a6018aeb1677576ece5ddd0cbe68c3d4e56ee8689a29e5e7df0bfb03af21"
+      }
+    },
+    "reduction_credit": 0
+  },
+  "author_reader_writer_and_all_commands_released": true,
+  "root_pair_command_handles_terminal": true,
+  "private_roots": [
+    "/private/tmp/canlang-repair-go-20261007/do-reset-isolation",
+    "/private/tmp/canlang-repair-go-20261007/do-reset-independent"
+  ],
+  "evidence_pins": {
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/result.json": "d181342db41639d95f11297ef0fda4bc3ee246b6c895e76678d6bffc264cc386",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/candidate.diff": "67e03cf225c9face445be63887ba9e0afd35b6240126e4f467577c1272052853",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/compile-receipt.json": "9f04248778404d16129aab10c068fcd3fb1d56af3e213f7aba7c48043841c8f1",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/maintained-runs.json": "e672f51148fdee26c39d5e84834cf40bd4bdc2829d858337a7bc7204bad09f11",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/baseline-maintained.log": "ee8fb38a9d75a4235977b34fa7fd40c4a74080932c25fe0e0d53cf4e3880f95f",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/candidate-maintained.log": "4d033c464725eb653f48e035fb7d7026d0426107869dd8a7cc41e11cfa105489",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/tool-identities.json": "894c1cec44547c41882d92d50475f9b5f59aa1fd742ed7214fba039b1fc93269",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/pins.json": "fc69e50c6f6fa5e9456aad4179b0bfc78d9a57848ea6f014cd94d764efa67482",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/baseline-pins.json": "c5a18283d0d33b1c66cf7ca54f58b2254b01075d2bc002ac0abfd805a5720519",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/source-equality-release.json": "3737abbef15f4051fbc26a58cafb0029e6c4054bbb8c13098c43e97747fd32fa",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/findings.txt": "8be44dfefac4fd9c0a667769eef2c2773c14f68c9b982e09c5ff7dede7f09308",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/initial-invalid-leg-witness.json": "87987fca41bf53c47a1f4944670dfa863656e200462aa1102ebc1e4c3e885fd8",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/initial-invalid-leg-witness.log": "a37489837f381940d340dd14c766ab5943294905515b379c5c123fa94e5a5805",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/inputs.json": "70d9dd95799a549c0bd54ef649ffd001711bbe5d49791bb8bd0c08c59615e991",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/runs.json": "45acb947443043d51f60191b2cdc0a01d131f05cf0f06aa0c52a1d9a06f44b4c",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/baseline.log": "c983bde54dd30d7810ac5bdd2e07ef10788dda079de201b2e572a98295da8573",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/candidate.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/baseline/result.json": "d7b738bfcc7ec6c4c6a7e71444e52cb7d54f6a7043294ebf643826e3ee04f34b",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/candidate/result.json": "67981c7585de0fabab2b0276936d5d8e4033efc32d9159c05b3de0ae859af283",
+    "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/candidate/check.mjs": "128c78ecd5e9d1790cf3961cdb81bcae2ebf094ea8f49fe47d6e7a8740747621"
+  },
+  "commit_pending": true,
+  "whitespace": {
+    "product_root_docs_exit": 0,
+    "retained_raw_evidence_exit": 2,
+    "paths": [
+      "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/baseline-maintained.log",
+      "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/candidate.diff"
+    ],
+    "disposition": "Preserve exact raw failure logs and patchcontext; do not rewrite evidence whitespace."
+  }
+}
