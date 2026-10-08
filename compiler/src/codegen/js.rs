@@ -537,6 +537,8 @@ pub struct JsOperationField {
     pub name: String,
     /// Closed typed schema (element kind for array inputs).
     pub field: JsMcpField,
+    /// Checked source value identity when the wire kind alone is ambiguous.
+    pub value_type: Option<&'static str>,
     /// Whether the caller must supply the member.
     pub required: bool,
     /// Whether the input accepts explicit null (T15a additive).
@@ -657,6 +659,8 @@ pub struct JsModelField {
     pub name: String,
     /// Element type tag (arrays add the `array` marker).
     pub field: JsModelFieldType,
+    /// Checked source value identity when the wire kind alone is ambiguous.
+    pub value_type: Option<&'static str>,
     /// Whether omission rejects at creation.
     pub required: bool,
     /// Whether the field accepts explicit null.
@@ -871,12 +875,16 @@ impl Serialize for JsOperationField {
         let mut state = serializer.serialize_struct(
             "OperationField",
             3 + usize::from(self.nullable)
+                + usize::from(self.value_type.is_some())
                 + usize::from(self.array_required.is_some())
                 + usize::from(self.default.is_some())
                 + usize::from(self.description.is_some()),
         )?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("field", &self.field)?;
+        if let Some(value_type) = self.value_type {
+            state.serialize_field("valueType", value_type)?;
+        }
         state.serialize_field("required", &self.required)?;
         if self.nullable {
             state.serialize_field("nullable", &true)?;
@@ -899,6 +907,7 @@ impl Serialize for JsModelField {
         let mut state = serializer.serialize_struct(
             "ModelField",
             4 + usize::from(self.nullable)
+                + usize::from(self.value_type.is_some())
                 + usize::from(self.array_required.is_some())
                 + usize::from(self.default.is_some())
                 + usize::from(self.description.is_some())
@@ -906,6 +915,9 @@ impl Serialize for JsModelField {
         )?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("field", &self.field)?;
+        if let Some(value_type) = self.value_type {
+            state.serialize_field("valueType", value_type)?;
+        }
         state.serialize_field("required", &self.required)?;
         state.serialize_field("serverOnly", &self.server_only)?;
         if let Some(machine) = &self.machine {
@@ -5361,6 +5373,7 @@ impl<'a> Emitter<'a> {
                             Some((field, is_array)) => inputs.push(JsOperationField {
                                 name: param.name.clone(),
                                 field,
+                                value_type: checked_text_value_type(ty),
                                 required: default.is_none() && !nullable && !is_array,
                                 nullable,
                                 array_required: is_array.then_some(false),
@@ -5490,6 +5503,7 @@ impl<'a> Emitter<'a> {
                                 flat.push(JsOperationField {
                                     name: field_item.name.clone(),
                                     field,
+                                    value_type: checked_text_value_type(ty),
                                     required,
                                     nullable,
                                     array_required,
@@ -5508,6 +5522,7 @@ impl<'a> Emitter<'a> {
                     }
                     let record = || JsOperationField {
                         name: "record".to_string(),
+                        value_type: None,
                         field: JsMcpField::Ref {
                             model: model_item.canonical.clone(),
                             require_version: true,
@@ -5534,6 +5549,7 @@ impl<'a> Emitter<'a> {
                             {
                                 inputs.push(JsOperationField {
                                     name: "parent".to_string(),
+                                    value_type: None,
                                     field: JsMcpField::Ref {
                                         model: parent_item.canonical.clone(),
                                         require_version: false,
@@ -5787,6 +5803,7 @@ impl<'a> Emitter<'a> {
             return JsModelField {
                 name: field_item.name.clone(),
                 field,
+                value_type: checked_text_value_type(ty),
                 required: false,
                 nullable,
                 server_only: true,
@@ -5808,6 +5825,7 @@ impl<'a> Emitter<'a> {
             _ => {
                 return JsModelField {
                     name: field_item.name.clone(),
+                    value_type: None,
                     field: JsModelFieldType::Other {
                         type_id: "unknown".to_string(),
                     },
@@ -5836,6 +5854,7 @@ impl<'a> Emitter<'a> {
         JsModelField {
             name: field_item.name.clone(),
             field,
+            value_type: checked_text_value_type(ty),
             required,
             nullable,
             server_only: server.is_some(),
@@ -6705,12 +6724,24 @@ impl<'a> Emitter<'a> {
     }
 }
 
-/// Closed checked int/datetime result profile; other shapes stay unknown.
+/// Closed checked scalar result profile; other shapes stay unknown.
 fn checked_scenario_result(result: Option<&ResolvedType>) -> Option<&'static str> {
     // Only successful checked Scenario signatures establish no result.
     let Some(result) = result else {
         return Some("void");
     };
+    checked_value_profile(result)
+}
+
+fn checked_text_value_type(ty: &IrType) -> Option<&'static str> {
+    let IrType::Known(ty) = ty else {
+        return None;
+    };
+    checked_value_profile(ty)
+        .filter(|value| matches!(*value, "text" | "text?" | "text[]" | "text[]?"))
+}
+
+fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
     let (value, nullable) = match result {
         ResolvedType::Nullable(value) => (value.as_ref(), true),
         value => (value, false),
@@ -6728,6 +6759,14 @@ fn checked_scenario_result(result: Option<&ResolvedType>) -> Option<&'static str
         (ResolvedType::Scalar(Scalar::Datetime), true, false) => Some("datetime[]"),
         (ResolvedType::Scalar(Scalar::Int), true, true) => Some("int[]?"),
         (ResolvedType::Scalar(Scalar::Datetime), true, true) => Some("datetime[]?"),
+        (ResolvedType::Scalar(Scalar::Text), false, false) => Some("text"),
+        (ResolvedType::Scalar(Scalar::Text), false, true) => Some("text?"),
+        (ResolvedType::Scalar(Scalar::Text), true, false) => Some("text[]"),
+        (ResolvedType::Scalar(Scalar::Text), true, true) => Some("text[]?"),
+        (ResolvedType::Scalar(Scalar::Bool), false, false) => Some("bool"),
+        (ResolvedType::Scalar(Scalar::Bool), false, true) => Some("bool?"),
+        (ResolvedType::Scalar(Scalar::Bool), true, false) => Some("bool[]"),
+        (ResolvedType::Scalar(Scalar::Bool), true, true) => Some("bool[]?"),
         _ => None,
     }
 }

@@ -38,6 +38,7 @@ fn nested_delivery_and_nominal_order() {
 fn operation_order_omissions_and_present_empty_metadata() {
     let mut input = JsOperationField {
         name: "id".into(),
+        value_type: None,
         field: JsMcpField::Ref {
             model: "P.Row".into(),
             require_version: false,
@@ -161,6 +162,7 @@ fn model_order_optional_members_and_array_false() {
     let mut model = JsModel {
         name: "P.Row".into(),
         fields: vec![JsModelField {
+            value_type: None,
             name: "value".into(),
             field: JsModelFieldType::Integer,
             required: false,
@@ -224,7 +226,10 @@ fn exact_literal_scalars_nested_order_and_controls() {
         (IrExpr::Int(i128::MAX), format!("\"{}\"", i128::MAX)),
         (IrExpr::Int(i128::MIN), format!("\"{}\"", i128::MIN)),
         (IrExpr::Bool(false), "false".into()),
-        (IrExpr::Datetime("stamp".into()), "\"stamp\"".into()),
+        (
+            IrExpr::Datetime("2030-01-01T00:00:00Z".into()),
+            "\"2030-01-01T00:00:00.000Z\"".into(),
+        ),
     ] {
         assert_eq!(literal_json(&expr(value)).unwrap(), expected);
     }
@@ -263,10 +268,17 @@ fn unary_overflow_and_nonliteral_rejection_and_constructor_calls() {
         )),
         Some(r#"{"minor":"7","currency":"EUR"}"#.into())
     );
-    for id in ["date", "datetime"] {
+    for (id, source, expected) in [
+        ("date", "2026-10-07", "\"2026-10-07\""),
+        (
+            "datetime",
+            "2030-01-01T01:00:00+01:00",
+            "\"2030-01-01T00:00:00.000Z\"",
+        ),
+    ] {
         assert_eq!(
-            literal_json(&call(id, vec![expr(IrExpr::Text("stamp".into()))])),
-            Some("\"stamp\"".into())
+            literal_json(&call(id, vec![expr(IrExpr::Text(source.into()))])),
+            Some(expected.into())
         );
     }
 }

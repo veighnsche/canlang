@@ -78,6 +78,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
             JsOperationField {
                 name: "z".into(),
                 field: JsMcpField::Integer,
+                value_type: None,
                 required: false,
                 nullable: true,
                 array_required: Some(false),
@@ -87,6 +88,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
             JsOperationField {
                 name: "a".into(),
                 field: JsMcpField::String,
+                value_type: None,
                 required: true,
                 nullable: false,
                 array_required: None,
@@ -100,6 +102,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
         fields: vec![JsModelField {
             name: "amount".into(),
             field: JsModelFieldType::Decimal,
+            value_type: None,
             required: false,
             nullable: false,
             server_only: false,

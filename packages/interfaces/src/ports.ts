@@ -9,6 +9,8 @@
  * bound-argument binding against the derived inputs when the catalog
  * carries them (`derivedFor`, E1).
  */
+import type { CanTypeId } from '@canlang/contracts/values';
+
 export interface InterfacesClock {
   nowMs(): number;
 }
@@ -184,6 +186,8 @@ export type McpSchemaField =
 export interface McpNamedField {
   readonly name: string;
   readonly field: McpSchemaField;
+  /** Optional owning compiler claim; a bare string kind cannot establish text. */
+  readonly valueType?: CanTypeId;
   readonly required: boolean;
   /** Authored `@{desc="..."}` text, verbatim; absent when not authored (MCP P4). */
   readonly description?: string;
