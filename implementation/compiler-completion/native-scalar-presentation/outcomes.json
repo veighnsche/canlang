@@ -1,0 +1,158 @@
+[
+  {
+    "id": "date0001",
+    "admit": {},
+    "rendered": "<p>⁨Jan 1, 1⁩</p>"
+  },
+  {
+    "id": "date0099",
+    "admit": {},
+    "rendered": "<p>⁨Jan 1, 99⁩</p>"
+  },
+  {
+    "id": "date2001",
+    "admit": {},
+    "rendered": "<p>⁨Jan 1, 2001⁩</p>"
+  },
+  {
+    "id": "date2024",
+    "admit": {},
+    "rendered": "<p>⁨Feb 29, 2024⁩</p>"
+  },
+  {
+    "id": "instant",
+    "admit": {},
+    "rendered": "<p>⁨10:30:00 PM⁩</p>"
+  },
+  {
+    "id": "offset",
+    "admit": {},
+    "rendered": "<p>⁨8:30:00 PM⁩</p>"
+  },
+  {
+    "id": "instant0001",
+    "admit": {},
+    "rendered": "<p>⁨12:00:00 AM⁩</p>"
+  },
+  {
+    "id": "instant0099",
+    "admit": {},
+    "rendered": "<p>⁨12:00:00 AM⁩</p>"
+  },
+  {
+    "id": "decimal",
+    "admit": {},
+    "rendered": "<p>⁨1.5⁩</p>"
+  },
+  {
+    "id": "decimalexact",
+    "admit": {},
+    "rendered": "<p>⁨12,345,678,901,234,567,890.123456789012345678⁩</p>"
+  },
+  {
+    "id": "integer",
+    "admit": {},
+    "rendered": "<p>⁨2⁩</p>"
+  },
+  {
+    "id": "ordinal",
+    "admit": {},
+    "rendered": "<p>⁨two⁩</p>"
+  },
+  {
+    "id": "styles",
+    "admit": {},
+    "rendered": "<p>⁨2/29/04|Feb 29, 4|February 29, 4|Sunday, February 29, 4⁩</p>"
+  },
+  {
+    "id": "direct",
+    "trace": [
+      "first",
+      "later"
+    ]
+  },
+  {
+    "id": "named",
+    "trace": [
+      "later",
+      "first"
+    ]
+  },
+  {
+    "id": "nested",
+    "trace": [
+      "later",
+      "first"
+    ]
+  },
+  {
+    "id": "reserved",
+    "trace": [
+      "instant",
+      "later",
+      "first"
+    ]
+  },
+  {
+    "id": "supplied-before-default",
+    "trace": [
+      "first",
+      "later",
+      "default-now"
+    ]
+  },
+  {
+    "id": "direct-invalid-native",
+    "trace": [
+      "first",
+      "later"
+    ],
+    "stage": "UI-sink",
+    "name": "TypeError"
+  },
+  {
+    "id": "direct-invalid-native",
+    "trace": [
+      "first",
+      "later"
+    ],
+    "stage": "UI-sink",
+    "name": "TypeError"
+  },
+  {
+    "id": "named-invalid-native",
+    "trace": [
+      "later",
+      "first"
+    ],
+    "stage": "UI-sink",
+    "name": "TypeError"
+  },
+  {
+    "id": "named-invalid-native",
+    "trace": [
+      "later",
+      "first"
+    ],
+    "stage": "UI-sink",
+    "name": "TypeError"
+  },
+  {
+    "id": "nested-invalid-native",
+    "trace": [
+      "later",
+      "first"
+    ],
+    "stage": "UI-sink",
+    "name": "TypeError"
+  },
+  {
+    "id": "nested-invalid-native",
+    "trace": [
+      "later",
+      "first"
+    ],
+    "stage": "UI-sink",
+    "name": "TypeError"
+  }
+]
