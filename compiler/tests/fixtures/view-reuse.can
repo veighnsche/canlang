@@ -2,24 +2,35 @@ app ViewReuse source="FR"
 context
  locale default="es"
 Given
- Card {title:text}
+ Card {title:text,flag:bool}
  Detail in Card {label:text}
  policy Card read=public
  policy Detail read=public
  derive chosen(value:Card):Card = value
 When
+ scenario save(note:text label="Authored note") by=public label="Save note"
+  do let supplied=note
+ scenario bind_card(visit:Card,note:text="Kept") by=public label="Bind card"
+  do let supplied=note
+ scenario recover_detail(attempt:Detail) by=public label="Recover detail"
+  do let supplied=attempt
 Then
  page /views title="Views"
   list Card empty="No cards"
    show card_body {row=chosen(row)}
    show card_body {row=chosen(row)}
  view card_body(row:Card)
+  actions bind_card
+  status row.flag tone=success size=sm
   text row.title
   tabs
    tab "Coordination"@{nl="Afstemming"}
     text row.title
-    list row.Detail empty="No details"
+    list row.Detail
      text row.label
+     button action=recover_detail arguments={attempt=row}
     text row.title
    tab "History"@{nl="Geschiedenis"}
     text row.title
+  form save fields=note display=inline
+   input note

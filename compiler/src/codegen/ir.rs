@@ -1193,7 +1193,10 @@ pub struct IrQuery {
 // --- Guards, effects, pages, UI (PR5 contract) -----------------------------
 
 /// Checked admission guard: `by` clauses, `require` conditions, page guards.
+// Checked expressions stay inline in the once-built IR, as with IrStep below.
+// Boxing here would change its public representation and add allocations.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum IrGuard {
     /// Role gate (canonical role, or a predicate spelling `members`, `owner`,
     /// `authenticated`, `public`) → `hasRole(c, id)`.
@@ -1320,7 +1323,10 @@ pub struct IrMatchArm {
 }
 
 /// Checked effect/handler statements in source order.
+// Statement payloads stay inline in the once-built IR; changing their public
+// representation solely for variant size would add allocations, as with IrStep.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum IrStmt {
     /// `let name = value`.
     Let {
@@ -7092,10 +7098,18 @@ impl<'a> Cx<'a> {
             "fieldset" => Some(self.decode_fieldset(scope, node, row_ctx)),
             "fab" => Some(self.decode_fab(scope, node, row_ctx)),
             "chat_bubble" => Some(self.decode_chat_bubble(scope, node, row_ctx)),
+            "button"
+                if ui_attributes(self.db, node)
+                    .iter()
+                    .any(|(name, _)| name == "action") =>
+            {
+                self.decode_action_button(scope, node)
+            }
             "button" => Some(self.decode_button(scope, node, row_ctx)),
             "modal" | "drawer" => Some(self.decode_modal(scope, node, word, row_ctx)),
             "divider" => Some(self.decode_divider(scope, node, row_ctx)),
             "badge" => Some(self.decode_badge(scope, node, row_ctx)),
+            "status" => self.decode_status(scope, node, row_ctx),
             "breadcrumbs" => Some(self.decode_breadcrumbs(scope, node, row_ctx)),
             "pagination" => Some(self.decode_pagination(scope, node, row_ctx)),
             "stat" => Some(self.decode_stat(scope, node, row_ctx)),
@@ -7133,17 +7147,6 @@ impl<'a> Cx<'a> {
             return None;
         };
         let declaration = self.node(&definition)?.clone();
-        if let Some(form) = declaration
-            .descendants()
-            .find(|n| matches!(n.kind, SyntaxKind::Form | SyntaxKind::Edit))
-        {
-            self.diags.push(Diagnostic::error(
-                "E6008",
-                "cannot lower view form: per-use pending-edit identity has no owning preparer profile".to_string(),
-                form.span,
-            ));
-            return None;
-        }
         let object = kids(node)
             .into_iter()
             .find(|n| n.kind == SyntaxKind::Object)?;
@@ -7472,6 +7475,223 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// Only checked ordinary mutation scenarios have the protected form profile.
+    fn action_scenario(
+        &mut self,
+        module: ModuleId,
+        target: &SyntaxNode,
+    ) -> Option<(SymbolId, Vec<SymbolId>)> {
+        let selected = self
+            .resolve_operation_target(module, target)
+            .and_then(|id| {
+                let symbol = self.program.symbols.get(id.0 as usize)?;
+                let SymbolKind::Scenario {
+                    params,
+                    trusted: false,
+                    ..
+                } = &symbol.kind
+                else {
+                    return None;
+                };
+                let data = self.program.effects.scenarios.get(&id)?;
+                (!data.read && !data.expose_none && data.on.is_none()).then(|| (id, params.clone()))
+            });
+        if selected.is_none() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower action: target has no published ordinary mutation form profile"
+                    .to_string(),
+                target.span,
+            ));
+        }
+        selected
+    }
+
+    /// Reuse the native preparer's unbound fields, protected arguments and display.
+    fn protected_action_form(
+        &mut self,
+        operation: SymbolId,
+        arguments: TypedExpr,
+        span: Span,
+    ) -> IrUi {
+        let mut props = vec![
+            (
+                "operation".to_string(),
+                TypedExpr::new(
+                    IrExpr::Text(self.canonical(operation)),
+                    ResolvedType::Scalar(Scalar::Text),
+                    span,
+                ),
+            ),
+            ("arguments".to_string(), arguments),
+        ];
+        if let Some(data) = self.program.effects.scenarios.get(&operation).cloned()
+            && let Some(label) = data.label
+            && let Some(message) = self.decode_message_value(data.module, &label)
+        {
+            props.push((
+                "submit".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(message),
+                    ResolvedType::Scalar(Scalar::Text),
+                    span,
+                ),
+            ));
+        }
+        IrUi {
+            view: None,
+            factory: "form".to_string(),
+            props,
+            children: Vec::new(),
+            row_scope: None,
+            gate: None,
+            span,
+        }
+    }
+
+    /// `actions` is a private grouping of ordinary protected operation forms.
+    fn decode_actions(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "actions", &[]);
+        if kids(node)
+            .iter()
+            .any(|child| is_ui_node(child.kind) && !is_gate_leaf(self.db, child))
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower actions: protected controls take no content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let Some((model, row)) = row_ctx else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower actions: an owning stored row is required".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let targets: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind))
+            .collect();
+        let mut operations = HashSet::new();
+        let mut children = Vec::new();
+        for target in targets {
+            let (operation, params) = self.action_scenario(scope.module, target)?;
+            if !operations.insert(operation) {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower actions: duplicate canonical operation".to_string(),
+                    target.span,
+                ));
+                return None;
+            }
+            let host_ty = ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            };
+            let matching: Vec<_> = params
+                .into_iter()
+                .filter(|id| self.program.types.symbol_types.get(id) == Some(&host_ty))
+                .collect();
+            let [param] = matching.as_slice() else {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower actions: operation needs exactly one parameter matching the owning row model".to_string(), target.span));
+                return None;
+            };
+            let name = self.program.symbols.get(param.0 as usize)?.name.clone();
+            let argument = TypedExpr::new(IrExpr::Name(row.clone()), host_ty, target.span);
+            let arguments = TypedExpr::new(
+                IrExpr::Object(vec![(name, argument)]),
+                ResolvedType::Unknown,
+                target.span,
+            );
+            children.push(self.protected_action_form(operation, arguments, target.span));
+        }
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower actions: at least one operation is required".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "actions".to_string(),
+            props: Vec::new(),
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
+    /// Explicit bound buttons reuse the same protected form with authored refs.
+    fn decode_action_button(&mut self, scope: &Scope, node: &SyntaxNode) -> Option<IrUi> {
+        self.check_ui_attributes(node, "button action", &["action", "arguments"]);
+        if kids(node).iter().any(|n| is_expression(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button action: protected controls take no positional header"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let attributes = ui_attributes(self.db, node);
+        let target = attributes
+            .iter()
+            .find(|(name, _)| name == "action")
+            .and_then(|(_, value)| *value)?;
+        let (operation, params) = self.action_scenario(scope.module, target)?;
+        let object = attributes
+            .iter()
+            .find(|(name, _)| name == "arguments")
+            .and_then(|(_, value)| *value);
+        let Some(object) = object.filter(|node| node.kind == SyntaxKind::Object) else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button action: explicit protected record arguments are required"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let arguments = self.decode_expr(scope, object);
+        let IrExpr::Object(entries) = &arguments.expr else {
+            return None;
+        };
+        let mut names = HashSet::new();
+        let supported = !entries.is_empty()
+            && entries.iter().all(|(name, value)| {
+                names.insert(name.clone())
+                    && params.iter().any(|id| {
+                        self.program
+                            .symbols
+                            .get(id.0 as usize)
+                            .is_some_and(|param| param.name == *name)
+                            && matches!(
+                                self.program.types.symbol_types.get(id),
+                                Some(ResolvedType::Record { stored: true, .. })
+                            )
+                            && self.program.types.symbol_types.get(id) == Some(&value.ty)
+                    })
+            });
+        if !supported || !self.decode_ui_children(scope, node, None).is_empty() {
+            self.diags.push(Diagnostic::error("E6008", "cannot lower button action: only declared singular stored-record bindings without a content suite are supported".to_string(), node.span));
+            return None;
+        }
+        let mut form = self.protected_action_form(operation, arguments, node.span);
+        form.gate = self.decode_gate(scope, node);
+        Some(form)
+    }
+
     fn decode_button(
         &mut self,
         scope: &Scope,
@@ -7715,6 +7935,73 @@ impl<'a> Cx<'a> {
             gate: self.decode_gate(scope, node),
             span: node.span,
         }
+    }
+
+    /// Decode the owning status leaf's primitive/message TextValue profile.
+    fn decode_status(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "status", &["caption", "tone", "size"]);
+        let headers: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+            .collect();
+        let [header] = headers.as_slice() else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower status: status takes one readable value".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let value = self.decode_ui_header_value(scope, header);
+        if !matches!(
+            value.ty.nullable_inner().unwrap_or(&value.ty),
+            ResolvedType::Scalar(Scalar::Bool | Scalar::Text | Scalar::Int)
+                | ResolvedType::Enum { .. }
+                | ResolvedType::Message(_)
+                | ResolvedType::Null
+        ) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower status: value has no admitted primitive/message TextValue carrier"
+                    .to_string(),
+                header.span,
+            ));
+            return None;
+        }
+        let mut props = vec![("value".to_string(), value)];
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                let value = if name == "caption" {
+                    self.decode_ui_header_value(scope, value)
+                } else {
+                    self.decode_word_attr(scope, &name, value)
+                };
+                props.push((name, value));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if !children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower status: status takes no content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "status".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
     }
 
     /// Decode a `badge`: exactly one readable typed value.
@@ -8124,13 +8411,6 @@ impl<'a> Cx<'a> {
             gate,
             span: node.span,
         })
-    }
-
-    /// Resolve a `Model.op`/`scenario` operation reference to its
-    /// canonical identity (total).
-    fn decode_operation_ref(&mut self, module: ModuleId, node: &SyntaxNode) -> Option<String> {
-        self.resolve_operation_target(module, node)
-            .map(|id| self.canonical(id))
     }
 
     /// Resolve a `Model.op`/`scenario`/`Cap.op` operation reference to
@@ -8573,6 +8853,20 @@ impl<'a> Cx<'a> {
         // re-establishes it.
         let mut unowned = scope.clone();
         unowned.in_field_owner = false;
+        if let Some(model) = model_id {
+            // The collection's checked element owns this lexical row slot;
+            // a surrounding view's host type must not leak into its children.
+            unowned.name_types.insert(
+                row_name.clone(),
+                ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                },
+            );
+            unowned
+                .row_rewrite
+                .insert(row_name.clone(), row_name.clone());
+        }
         let children = child_nodes
             .iter()
             .filter(|n| !is_gate_leaf(self.db, n))
@@ -8712,7 +9006,10 @@ impl<'a> Cx<'a> {
         word: &str,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
-        if matches!(word, "metrics" | "copy" | "action" | "actions" | "history") {
+        if word == "actions" {
+            return self.decode_actions(scope, node, row_ctx);
+        }
+        if matches!(word, "metrics" | "copy" | "action" | "history") {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
@@ -8760,57 +9057,6 @@ impl<'a> Cx<'a> {
                     "values".to_string(),
                     TypedExpr::new(IrExpr::Array(exprs), ResolvedType::Unknown, node.span),
                 ));
-            }
-            "actions" | "action" => {
-                let operations: Vec<String> = kids(node)
-                    .iter()
-                    .filter(|n| {
-                        matches!(
-                            n.kind,
-                            SyntaxKind::Member | SyntaxKind::NameRef | SyntaxKind::Path
-                        )
-                    })
-                    .filter_map(|n| self.decode_operation_ref(scope.module, n))
-                    .collect();
-                let span = node.span;
-                props.push((
-                    "operations".to_string(),
-                    TypedExpr::new(
-                        IrExpr::Array(
-                            operations
-                                .iter()
-                                .map(|op| {
-                                    TypedExpr::new(
-                                        IrExpr::Text(op.clone()),
-                                        ResolvedType::Scalar(Scalar::Text),
-                                        span,
-                                    )
-                                })
-                                .collect(),
-                        ),
-                        ResolvedType::Unknown,
-                        span,
-                    ),
-                ));
-                if let Some((_, row)) = &row_ctx {
-                    // The row record binds the actions; shorthand keeps
-                    // the source binding name.
-                    props.push((
-                        "boundArgs".to_string(),
-                        TypedExpr::new(
-                            IrExpr::Object(vec![(
-                                row.clone(),
-                                TypedExpr::new(
-                                    IrExpr::Name(row.clone()),
-                                    ResolvedType::Unknown,
-                                    span,
-                                ),
-                            )]),
-                            ResolvedType::Unknown,
-                            span,
-                        ),
-                    ));
-                }
             }
             "content" | "title" => {
                 let key = if word == "title" { "text" } else { "value" };
