@@ -16,7 +16,7 @@
  * removed every serving path outside canonical execution, so a missing scope
  * fails loud instead of committing directly.
  */
-import type { DatetimeValue, DeliveryRef, InvocationContext, ProjectedRecord, ReceiptProperty, RecordParent, SelectedReceiptProjection, StoragePort, StoredRow, UserRef } from '@canlang/contracts';
+import type { DatetimeValue, DeliveryRef, InvocationContext, JudgmentSpec, ProjectedRecord, ReceiptProperty, RecordParent, SelectedReceiptProjection, StoragePort, StoredRow, UserRef } from '@canlang/contracts';
 import { makeDatetime, makeUserRef } from '@canlang/values';
 
 /** Authenticated caller identity: stable user id plus granted role names. */
@@ -113,6 +113,8 @@ export interface HandlerContext {
   memberships: string[];
   preferences: Record<string, Record<string, unknown>>;
   readonly formatting?: HandlerFormattingScope;
+  /** Pure source asset resolver installed from this invocation's pinned compiled definition. */
+  readonly judgmentSpecification?: (qualifiedName: string) => JudgmentSpec;
   /** Source facts installed only from an admitted canonical context. */
   readonly actor?: UserRef | null;
   /** Current-caller facts for checked actor property reads; never part of a generic user reference. */
@@ -159,6 +161,7 @@ export interface CreateContextDeps {
   qualified?: Pick<InvocationContext, 'actor' | 'team' | 'now' | 'source'> & { readonly operationId?: string };
   /** Internal checked selected-app formatting facts. No context-level defaults. */
   formatting?: HandlerFormattingScope;
+  judgmentSpecification?: HandlerContext['judgmentSpecification'];
 }
 
 /**
@@ -178,6 +181,7 @@ export function createContext(deps: CreateContextDeps): HandlerContext {
       formatting: Object.freeze({ appDefault: deps.formatting.appDefault }),
     }),
     ...(deps.canonical === undefined ? {} : { canonical: deps.canonical }),
+    ...(deps.judgmentSpecification === undefined ? {} : { judgmentSpecification: deps.judgmentSpecification }),
     ...(deps.sendDeferred === undefined ? {} : { sendDeferred: deps.sendDeferred }),
     ...(deps.scheduleDeferred === undefined ? {} : { scheduleDeferred: deps.scheduleDeferred }),
     ...(deps.cancelDeferred === undefined ? {} : { cancelDeferred: deps.cancelDeferred }),
