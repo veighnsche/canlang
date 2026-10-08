@@ -42,6 +42,143 @@ fn production_selected_calls_execute_actual_facades() {
 }
 
 #[test]
+fn imported_scalar_aliases_preserve_installed_temporal_overloads() {
+    use canlang_compiler::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
+    use canlang_compiler::codegen::ir::{IrCallTarget, IrExpr, IrItemKind};
+
+    let scratch = tempfile::tempdir().unwrap();
+    let source = include_str!("fixtures/scalar-alias-overlaps.can");
+    let mut db = SourceDb::new();
+    let source_id = db.add("scalar-alias-overlaps.can".into(), source.into());
+    let catalog_path = root().join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: scratch.path(),
+        primary: Span::new(source_id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    assert_eq!(catalog.overloads("overlaps").unwrap().len(), 2);
+    let (checked, diagnostics) = check_program(&db, &[source_id], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut arms = Vec::new();
+    for (key, selected) in &checked.types.selected_calls {
+        let SelectedCallTarget::Builtin { id, overload } = &selected.target else {
+            continue;
+        };
+        if id != "overlaps" {
+            continue;
+        }
+        let scalar = match overload {
+            0 => Scalar::Date,
+            1 => Scalar::Datetime,
+            other => panic!("unexpected installed overlaps arm: {other}"),
+        };
+        arms.push(*overload);
+        assert_eq!(
+            checked.types.node_types[key],
+            ResolvedType::Scalar(Scalar::Bool)
+        );
+        assert_eq!(selected.slots, [Some(3), Some(1), Some(2), Some(0)]);
+        assert_eq!(selected.arguments.len(), 4);
+        for argument in &selected.arguments {
+            assert_eq!(
+                checked.types.node_types[argument],
+                ResolvedType::Scalar(scalar)
+            );
+            let alias = &checked.types.selected_calls[argument];
+            let SelectedCallTarget::DeriveFn(symbol) = alias.target else {
+                panic!("scalar originates in an imported owning derive")
+            };
+            let expected_owner = if *overload == 0 {
+                "Calendar.day"
+            } else {
+                "Calendar.instant"
+            };
+            assert_eq!(checked.symbols[symbol.0 as usize].canonical, expected_owner);
+        }
+    }
+    arms.sort_unstable();
+    assert_eq!(arms, [0, 1]);
+
+    let (program, diagnostics) = ir::build(&checked, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for (canonical, scalar, owner) in [
+        ("ScalarAlias.date_overlap", Scalar::Date, "Calendar.day"),
+        (
+            "ScalarAlias.datetime_overlap",
+            Scalar::Datetime,
+            "Calendar.instant",
+        ),
+    ] {
+        let item = program
+            .items
+            .iter()
+            .find(|item| item.canonical == canonical)
+            .unwrap();
+        let IrItemKind::DeriveFn {
+            expr: Some(value), ..
+        } = &item.kind
+        else {
+            panic!("owning scalar workflow derive")
+        };
+        assert_eq!(value.ty, ResolvedType::Scalar(Scalar::Bool));
+        let IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } = &value.expr
+        else {
+            panic!("named temporal operands preserve checked slots")
+        };
+        assert!(matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "overlaps"));
+        assert_eq!(slots, &[Some(3), Some(1), Some(2), Some(0)]);
+        assert_eq!(args.len(), 4);
+        for (argument, field) in args.iter().zip(["bEnd", "aEnd", "bStart", "aStart"]) {
+            assert_eq!(argument.ty, ResolvedType::Scalar(scalar));
+            let IrExpr::Call {
+                target: IrCallTarget::DeriveFn(actual),
+                args,
+            } = &argument.expr
+            else {
+                panic!("imported identity derive remains source-callable")
+            };
+            assert_eq!(actual, owner);
+            assert_eq!(args.len(), 1);
+            assert_eq!(args[0].ty, ResolvedType::Scalar(scalar));
+            assert!(
+                matches!(&args[0].expr, IrExpr::Member { field: actual, .. } if actual == field)
+            );
+        }
+    }
+    // Reuse the existing production CLI/native facade host in its isolated
+    // scalar mode; the earlier selected-call matrix is not executed.
+    std::os::unix::fs::symlink(
+        root().join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let script = scratch.path().join("probe.mjs");
+    std::fs::write(&script, include_str!("fixtures/selected-call-consumer.mjs")).unwrap();
+    let output = Command::new("node")
+        .arg(script)
+        .arg(root())
+        .arg(env!("CARGO_BIN_EXE_can"))
+        .arg(scratch.path())
+        .arg("--scalar-alias-overlaps")
+        .output()
+        .expect("Node required for actual temporal scalar facade qualification");
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
 fn effectful_custom_same_arity_binding_executes_typed_native_getters() {
     use canlang_compiler::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
     use canlang_compiler::codegen::ir::{IrCallTarget, IrExpr, IrItemKind, IrStmt};

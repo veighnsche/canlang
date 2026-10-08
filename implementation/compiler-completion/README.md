@@ -681,6 +681,59 @@ Full S9-Q02/Q08, metadata and computed ordering remain open. Completion remains
 **58/67**, with **9 open** references; Work owns Cloudflare/fixture capture and
 the coordinator owns DECISIONS/index joins.
 
+The [read-dependent default handoff](default-read-dependency/outcome.md) passes
+its first actual case **1/1** (5.13s), then the required host-migration
+affected-case rerun **1/1** (0.51s) after a consumer-only setup correction;
+its affected `--no-run` build passed (5.60s). No production repair was needed. Actual
+checked default NodeKey/derive ownership and Int type survive into the same
+owning computed-call IR. Production CLI/public loading and assembly/native
+Cloudflare/State Memory execute the generated read/count default against two
+CRUD-created rows: omission returns wire `"2"`, explicit `"9"` skips the
+helper. After host migration `45cbbd3e`, public CRUD returns `null` without
+read authorization; consumer setup now supplies an operation ID and verifies
+the created row through the owning internal store. Authored source grants and
+default expectations are unchanged. Forwarding native observers retain
+admitted context and native row identity, with one default read/count and
+unchanged domain rows/history.
+Existing `computedDefault`/no literal default and state/state.parameters
+requirements remain qualified. Legitimate policy role checks were allowed in
+the observer before the first run. The migration rerun was required by the
+actual host change, not an old-matrix repeat. Earlier actor/read/default/effects
+outcomes including `d2fb9024` are reused unexecuted. No server-marker/
+unsupported-default API expansion or full SEM-R08/task-count credit follows.
+Completion remains **58/67**, with **9 open** references.
+
+The [finite native text presentation join](localized-format/outcome.md) passes
+`localized_format_displays_checked_source_locale_and_frozen_result` on its
+first run **1/1** (6.81s), with three older cases filtered out. Checked owner
+source language reaches one generated UI constructor helper, which canonicalizes
+the fourth source-locale argument and requires its returned field; absent
+ownership is E6006 and an incompatible constructor refuses. Values formatting
+signatures remain unchanged. Actual CLI/loading/assembly/page admission/render
+with installed UI presents both imported French zero grammar and the complete
+frozen formatter pair safely, with escaping, literal braces, Arabic isolation
+and language markup. A Dutch rerender changes only the direct descriptor; the
+explicit formatted pair retains French. Legacy calls, source mismatch/malformed
+pair checks, incompatible constructor refusal and formatted badge E6008/no
+modules pass. Only text values admit the pair; other business/sink refusals stay
+intact. Affected codegen/localized-format targets compile0 without executing
+old matrices. Earlier branch/label/expression results are reused; wider
+S9-Q01 hosts/business/outbound/timezone remain open. Completion remains
+**58/67**, with **9 remaining** references.
+
+The finite SEM-R08 imported scalar-alias consumer passes its first actual case
+**1/1** (0.54s). `Calendar.day` and `Calendar.instant` aliases retain their
+checked source identities and `date`/`datetime` scalar types through named,
+reordered arguments into the installed same-arity `overlaps` overloads; checked
+facts and typed IR select arms 0 and 1 with slots `[3,1,2,0]`. The unchanged
+installed catalog, public compiler path, generated imports and Values facade
+execute date and datetime overlap/touching controls with receiver-bound getters
+once in source order and preserve original input references. Six unchanged
+selected-call tests are reused. This is finite alias/overload qualification,
+not a demonstrated preexisting defect or full SEM-R08 credit; unknown dotted
+nominals, authority-derived provenance and other SEM-R08 duties remain open.
+Completion remains **58/67**, with **9 remaining** references.
+
 The human-priority preferences placement slice is implemented and its focused
 native source case is qualified. Preferences schemas and their own invariants
 now belong in `Then`; `Given` preferences schemas fail E1200. The focused
@@ -694,3 +747,30 @@ case rebuild at 0.78s. Shared owner, empty/duplicate/export guards remain, as
 do nested bare UI preference panels. This does not qualify saved preference
 admission, browser/read lifecycle or full S9-Q03, and earns no reference-count
 credit; completion remains **58/67**, with **9 open** references.
+
+The current cohort-host case is now qualified at its recorded scope. The
+original installed-host failure is retained: scoped JSON case 55 in
+`/private/tmp/canlang-crud-public-migration/node-tests.log259ff` reports
+`ValueError` for `same(entry.parent,event.container)`. Authored source, checked
+producer and saved emission are correct; the split private host and installed
+stdlib use distinct WeakMaps for native record identity. One test-only
+`stdlibUrl` adjustment in the owning Cloudflare test makes both sides share the
+actual emitted owner, without changing production/compiler/reference policy.
+Package released Services closure `5ca0e117`; normal Services Cloudflare dist
+emit0 and installed1/1/pages3/3 are reused, not rerun. Root refreshed the
+selected cohort/required-stdlib TypeScript emit in the fresh private root (0),
+then the same owning `typed-private-cohort` case passed **1/1** (23.760s;
+24.118s total). The full case completes native frozen sibling, scoped
+membership, current references, restart/recovery, fences and retained
+navigation, plus installed bundle/worker behavior; the original `same()`
+reference failure is gone.
+
+Earlier host attempts remain recorded: first0/1 (21.831s) passed the reference,
+scope, frozen, restart and current-authority portions before private-host
+self-package resolution failed; after a temporary dependency overlay, second
+0/1 (22.806s) passed those portions before the bound-judgment staged module was
+missing. The third attempt was interrupted at21.460s (cancelled,1 pass,0 fail)
+while awaiting package closure. The explicit release justified the final
+same-case repeat. No production/runtime/compiler/reference-policy or shared
+identity-map change was made. No S9-Q02/full-task, BDD3 policy or new-packet
+credit follows; original completion remains **58/67**, with **9 open**.

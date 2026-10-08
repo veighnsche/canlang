@@ -3,7 +3,7 @@ import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {format} from '@canlang/stdlib';
+import {format,date,datetime} from '@canlang/stdlib';
 const [root,can,scratch]=process.argv.slice(2);
 const catalog=resolve(root,'packages/values/dist/catalog.json');
 const receipts=[];
@@ -21,6 +21,33 @@ function compile(id,source,selectedCatalog=catalog,ok=true){
  return artifact;
 }
 async function entry(id,artifact){return (await import(pathToFileURL(resolve(scratch,id,artifact.modules[0].path)))).canApp()}
+if(process.argv.includes('--scalar-alias-overlaps')){
+ const source=readFileSync(resolve(root,'compiler/tests/fixtures/scalar-alias-overlaps.can'),'utf8');
+ const artifact=compile('scalar-alias-overlaps',source);
+ assert.ok(artifact.modules.some(module=>/import \{[^}]*\boverlaps\b[^}]*\} from "@canlang\/stdlib";/.test(module.js)),'actual installed overlaps import');
+ const registry=await entry('scalar-alias-overlaps',artifact);
+ const sourceOrder=['bEnd','aEnd','bStart','aStart'];
+ const cases=[
+  ['date_overlap',date,['2026-10-01','2026-10-05','2026-10-03','2026-10-07'],true],
+  ['date_overlap',date,['2026-10-01','2026-10-05','2026-10-05','2026-10-07'],false],
+  ['datetime_overlap',datetime,['2026-10-01T00:00:00Z','2026-10-01T12:00:00Z','2026-10-01T06:00:00Z','2026-10-01T18:00:00Z'],true],
+  ['datetime_overlap',datetime,['2026-10-01T00:00:00Z','2026-10-01T12:00:00Z','2026-10-01T12:00:00Z','2026-10-01T18:00:00Z'],false],
+ ];
+ for(const [name,maker,texts,want]of cases){
+  const native=Object.fromEntries(['aStart','aEnd','bStart','bEnd'].map((field,index)=>[field,maker(texts[index])]));
+  const record={},trace=[],seen=new Set();
+  for(const field of sourceOrder)Object.defineProperty(record,field,{get(){
+   assert.equal(this,record,field+' owning getter receiver');
+   assert.ok(!seen.has(field),field+' evaluated more than once');seen.add(field);
+   trace.push({field,value:native[field]});return native[field];
+  }});
+  assert.equal(await registry['ScalarAlias.'+name]({},record),want,name+' native half-open overlap');
+  assert.deepEqual(trace.map(item=>item.field),sourceOrder,name+' written argument order');
+  for(const item of trace)assert.equal(item.value,native[item.field],item.field+' exact native input identity');
+ }
+ console.log(JSON.stringify({scope:'genuine installed scalar/alias overlaps through generated imports; direct derives only',date:[true,false],datetime:[true,false],getterOrder:sourceOrder,once:true}));
+ process.exit(0);
+}
 const source=`app T
 Given
  contract Box {left:text,right:text}

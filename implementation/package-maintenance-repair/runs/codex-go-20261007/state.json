@@ -3021,6 +3021,11 @@
       "state": "released one-hunk consumer accepted",
       "verified": "same native1/1 23.760s total24.118s; privateemit0",
       "limits": "no production/ref/authority change; full parent separate"
+    },
+    "released_compiler_consumer_capture": {
+      "state": "released focused consumer source/notes captured",
+      "verified": "read-default currenthost1/1 .51s; scalaralias overlaps1/1 .54s; prior presentation/cohort reused",
+      "limits": "no production/API/full-parent/count credit"
     }
   },
   "live_finite_packets": [
