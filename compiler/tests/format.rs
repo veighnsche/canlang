@@ -212,6 +212,69 @@ fn operators_bind_tightly_and_groups_keep_space() {
 }
 
 #[test]
+fn enum_match_arms_preserve_scopes_comments_and_branch_spacing() {
+    let source = r#"app  MatchFormatting
+Given
+ State { phase:enum(active,idle),  step:enum(one,two), ticks:int=0 }
+When
+ scenario  advance(state:State)  by = members
+  require  state.ticks >= 0
+  do
+   ## The subject stays grouped, and each case keeps its own body.
+   match  ( state.phase )
+    case  active
+     let next = state.ticks + 1
+     require  ( next > state.ticks )
+     ## Nested cases belong to this active arm.
+     match  state.step
+      case  one
+       if  state.ticks == 0
+        set state { ticks = next }
+       else
+        require  next > 0
+      case  two
+       require  next > 0 ; set state { ticks = next }
+     require  state.ticks >= 0
+    ## The idle arm does not inherit the active arm's local.
+    case  idle
+     let next = 0
+     set state { ticks = next }
+Then
+"#;
+    let expected = r#"app MatchFormatting
+Given
+ State { phase:enum(active,idle), step:enum(one,two), ticks:int=0 }
+When
+ scenario advance(state:State) by=members
+  require state.ticks>=0
+  do
+   ## The subject stays grouped, and each case keeps its own body.
+   match (state.phase)
+    case active
+     let next=state.ticks+1
+     require (next>state.ticks)
+     ## Nested cases belong to this active arm.
+     match state.step
+      case one
+       if state.ticks==0
+        set state {ticks=next}
+       else
+        require next>0
+      case two
+       require next>0; set state {ticks=next}
+     require state.ticks>=0
+    ## The idle arm does not inherit the active arm's local.
+    case idle
+     let next=0
+     set state {ticks=next}
+Then
+"#;
+    let formatted = format_fixed_point(source);
+    assert_eq!(formatted.text, expected);
+    assert!(formatted.changed);
+}
+
+#[test]
 fn calls_suffixes_and_nested_commas_stay_tight() {
     let formatted = format_fixed_point(
         "app A\nGiven\n M { kind:enum(a,b), tags:text[], run:action(go,stop)? }\nWhen\n scenario s(m:M) by=members\n  require ( m.kind==a )\n  do\n   let r = require ( m )\nThen\n",

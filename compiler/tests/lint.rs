@@ -249,6 +249,49 @@ fn unreachable_require_false_semicolon_sequence_has_no_fix() {
     );
 }
 
+#[test]
+fn enum_match_lints_keep_unreachable_reads_and_shadowing_in_the_owning_arm() {
+    let text = "app T\nGiven\n Todo {title:int}\nWhen\n scenario s(task:Todo,state:enum(a,b)) by=members\n  do\n   let shared=1\n   match state\n    case a\n     let shared=shared+1\n     let local=shared\n     set task {title=local}\n     require false\n     set task {title=0}\n    case b\n     let shared=2\n     let local=3\n     set task {title=shared}\n   set task {title=shared}\nThen\n";
+    let (db, id, program, errors) = check(text, None);
+    assert!(
+        errors.iter().all(|error| error.code == "E6002"),
+        "{errors:?}"
+    );
+    let diags = lint_program(&program, &db, &all());
+    let unreachable: Vec<_> = diags.iter().filter(|diag| diag.code == "W1001").collect();
+    assert_eq!(unreachable.len(), 1, "{diags:?}");
+    assert_eq!(
+        unreachable[0].primary,
+        span_of(id, text, "\n     set task {title=0}")
+    );
+    assert_eq!(
+        unreachable[0].related[0].span,
+        span_of(id, text, "\n     require false")
+    );
+    let unused: Vec<_> = diags.iter().filter(|diag| diag.code == "I1001").collect();
+    assert_eq!(unused.len(), 1, "{diags:?}");
+    let unread = text.find("local=3").unwrap() as u32;
+    assert_eq!(unused[0].primary, Span::new(id, unread, unread + 5));
+    let shadows: Vec<_> = diags.iter().filter(|diag| diag.code == "W2001").collect();
+    assert_eq!(shadows.len(), 2, "{diags:?}");
+    let outer = text.find("shared=1").unwrap() as u32;
+    for (diag, spelling) in shadows.iter().zip(["shared=shared", "shared=2"]) {
+        let start = text.find(spelling).unwrap() as u32;
+        assert_eq!(diag.primary, Span::new(id, start, start + 6));
+        assert_eq!(diag.related[0].span, Span::new(id, outer, outer + 6));
+    }
+    assert_eq!(diags.len(), 4, "{diags:?}");
+    // The recommended profile keeps shadowing opt-in while retaining the
+    // exact dead statement and the unread sibling-arm binding.
+    let recommended = lint_program(&program, &db, &LintConfig::default());
+    assert_eq!(recommended.len(), 2, "{recommended:?}");
+    assert!(
+        recommended
+            .iter()
+            .all(|diag| matches!(diag.code, "W1001" | "I1001"))
+    );
+}
+
 // --- I1001 unused-binding (`let`) ---------------------------------------
 
 #[test]
