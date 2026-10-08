@@ -5617,6 +5617,9 @@ impl<'a> Emitter<'a> {
                     ];
                     if let Some(event) = event_source {
                         members.push(format!("event:{}", js_string(event)));
+                        if let Some(invocation) = self.private_event_invocation(item, event) {
+                            members.push(format!("invocation:{}", invocation.to_json()));
+                        }
                     }
                     if let Some(by) = self.by_member(by, item.span) {
                         members.push(format!("by:{by}"));
@@ -6019,6 +6022,73 @@ impl<'a> Emitter<'a> {
             }
         }
         format!("disabled:[{}]", disabled.join(","))
+    }
+
+    /// Private trusted admission uses the existing flat operation profile.
+    /// The runtime admits these event fields, then binds the admitted values
+    /// into the handler's `{event}` envelope. Observed stored ref versions
+    /// remain payload metadata; this descriptor enrolls current references.
+    fn private_event_invocation(&self, handler: &IrItem, event: &str) -> Option<JsOperation> {
+        let declaration = self.ir.items.iter().find(|item| item.canonical == event)?;
+        let IrItemKind::Event { fields } = &declaration.kind else {
+            return None;
+        };
+        let mut inputs = Vec::new();
+        for id in fields {
+            let item = self.ir.items.get(id.0 as usize)?;
+            let IrItemKind::Field {
+                ty,
+                default,
+                required_array,
+                description,
+                ..
+            } = &item.kind
+            else {
+                return None;
+            };
+            let (field, is_array) = self.mcp_field_for_type(ty, false)?;
+            // The existing flat ref profile represents model identities,
+            // not structural contracts or nested event objects.
+            if let JsMcpField::Ref { model, .. } = &field
+                && !self.ir.items.iter().any(|item| {
+                    item.canonical == *model && matches!(item.kind, IrItemKind::Model { .. })
+                })
+            {
+                return None;
+            }
+            let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
+            inputs.push(JsOperationField {
+                name: item.name.clone(),
+                field,
+                value_type: checked_string_value_type(ty),
+                required: default.is_none() && !nullable && (!is_array || *required_array),
+                nullable,
+                array_required: is_array.then_some(*required_array),
+                default: js_field_default(default.as_ref(), None),
+                description: description.clone(),
+            });
+        }
+        if has_duplicate_names(&inputs) {
+            return None;
+        }
+        let IrItemKind::Scenario {
+            description,
+            result,
+            ..
+        } = &handler.kind
+        else {
+            return None;
+        };
+        Some(JsOperation {
+            name: handler.canonical.clone(),
+            kind: JsOperationKind::Scenario,
+            description: description
+                .as_ref()
+                .map(|message| message.source.clone())
+                .unwrap_or_default(),
+            inputs,
+            result: checked_scenario_result(result.as_ref()),
+        })
     }
 
     /// Emit the `canApp()` callable-registry factory: the shared
