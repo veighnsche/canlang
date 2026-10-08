@@ -391,11 +391,13 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
     void (async () => {
       try {
         const metadata = JSON.parse(form.getAttribute('data-can-generated-form') ?? '') as {
-          derived?: DerivedOperationInputs; mode?: FormMode;
+          derived?: DerivedOperationInputs; mode?: FormMode; renderedInputs?: readonly string[];
         } | null;
         if (metadata?.derived === undefined || typeof metadata.derived.operation !== 'string' ||
             !Array.isArray(metadata.derived.inputs) ||
-            !['create', 'update', 'scenario'].includes(metadata.mode ?? '')) {
+            !['create', 'update', 'scenario'].includes(metadata.mode ?? '') ||
+            (metadata.renderedInputs !== undefined && (!Array.isArray(metadata.renderedInputs) ||
+              metadata.renderedInputs.some(name => typeof name !== 'string')))) {
           throw new GeneratedSubmitError('usage', 'Form submit metadata is unavailable.', false);
         }
         const FormData = internals.windowRef.FormData;
@@ -414,6 +416,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
         }
         const result = await submitGeneratedForm({
           derived: metadata.derived, mode: metadata.mode!, flat,
+          ...(metadata.renderedInputs === undefined ? {} : { renderedInputs: metadata.renderedInputs }),
           action: form.getAttribute('action') ?? '', fragment: false, denialFormat: 'json',
           fetchImpl: (url, init) => {
             if (!alive()) throw new GeneratedSubmitError('transport', 'Form submit owner is no longer active.', false);

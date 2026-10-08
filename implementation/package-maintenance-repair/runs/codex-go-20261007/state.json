@@ -1619,7 +1619,7 @@
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "heading": "2026-10-07 — Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   },
@@ -1937,7 +1937,7 @@
         "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
         "packages/cloudflare/src/runtime/t17b-durable.test.ts"
       ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
+      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2→1 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
       "commands_live": false,
       "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
     }
@@ -2138,6 +2138,7 @@
     "metadata_commits": [
       "a9ff3f342b5863e6ecdd5d924d3064d54ad632d6",
       "a9569c25f126bbcbc967edea758e1ea238612533"
-    ]
+    ],
+    "rendered_projection": "Root direct-reviewed exact rendered-input projection; private UI emit0; affected29/29 effective passes (28 original run, obsolete create-tag assertion corrected and only that case rerun1/1). Optional legacy behavior retained; selected unchecked bool false, unrendered boolean/ref/datetime/unknown/delivery omitted; no protected-binding authority claim."
   }
 }
