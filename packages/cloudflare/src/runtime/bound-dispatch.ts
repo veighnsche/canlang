@@ -1,8 +1,11 @@
 /** Installed Email dispatch over the existing Work lifecycle and State join. */
 import type { OutboxId, OutboxIntent, StoragePort } from '@canlang/contracts';
+import { createReceiptJoinPort } from '@canlang/state/receipt/tables';
+import type { SystemCommandDef } from '@canlang/state/ports/system';
 import { dispatchByStateQuery } from '@canlang/work/kernel/tables';
 import { assembleDispatchCommands } from '../worker/assembly.js';
 import type { BoundMailAdapter } from './bound-mail.js';
+import { stageReceiptProgress } from './receipt-progress.js';
 import {
   driveDispatchIntent,
   loadDispatchSystemProducers,
@@ -13,6 +16,7 @@ import {
 } from './invoke.js';
 import type {
   DispatchReconcileEvidence,
+  DispatchProviderOutcome,
   DispatchWorkerCommand,
   DriveDispatchFenceInput,
   DriveDispatchIntentOpts,
@@ -70,12 +74,44 @@ export async function createBoundMailDispatcher(
       options.workCommands.filter(command => command.name === claim.name).length !== 1) {
     throw new Error('Installed mail dispatch needs exactly one defining Work claim command.');
   }
+  const recordCommands = options.workCommands.filter(command => command.name === 'work.dispatch.record-attempt');
+  const originalRecord = recordCommands[0] as SystemCommandDef | undefined;
+  if (recordCommands.length !== 1 || typeof originalRecord?.stage !== 'function') {
+    throw new Error('Installed mail dispatch needs exactly one defining Work record command.');
+  }
+  // The actual call result remains local to its held claim. Work owns all
+  // lifecycle admission; this wrapper adds only the receipt writes after it.
+  const completions = new Map<string, { intent: OutboxIntent; outcome: DispatchProviderOutcome }>();
+  const record: SystemCommandDef = {
+    name: originalRecord.name,
+    async stage(args, ctx) {
+      const staged = await originalRecord.stage(args, ctx);
+      const completion = completions.get(`${String(args['intentId'])}\0${String(args['claimId'])}`);
+      const outcome = args['outcome'];
+      if (completion === undefined || typeof outcome !== 'object' || outcome === null ||
+          !staged.outboxAck?.includes(completion.intent.intentId)) return staged;
+      const recorded = outcome as Record<string, unknown>;
+      const selected = completion.outcome.kind === 'delivered' && recorded['state'] === 'delivered'
+        ? { kind: 'delivered' as const, result: completion.outcome.result }
+        : completion.outcome.kind === 'failed' && recorded['state'] === 'failed' &&
+          recorded['retryClass'] === 'terminal' && typeof recorded['errorCode'] === 'string' &&
+          typeof recorded['errorMessage'] === 'string'
+        ? { kind: 'failed' as const, error: { code: recorded['errorCode'], message: recorded['errorMessage'] } }
+        : null;
+      if (selected === null) return staged;
+      const receipt = await stageReceiptProgress({ intent: completion.intent, outcome: selected,
+        revision: (await options.store.readRevision()) + 1 }, ctx);
+      return { ...staged, writes: [...(staged.writes ?? []), ...(receipt.writes ?? [])] };
+    },
+  };
   const registry = producers.createSystemRegistry(assembleDispatchCommands({
     l3Commands: producers.l3Commands,
-    workCommands: options.workCommands.map(command => command.name === claim.name ? claim : command),
+    workCommands: options.workCommands.map(command => command.name === claim.name ? claim
+      : command.name === record.name ? record : command),
     stageCommands: options.stageCommands,
   }));
-  const joinPort = producers.createDispatchJoinPort({ store: options.store });
+  const receiptStore = withDispatchJoinPort(options.store, createReceiptJoinPort({ store: options.store }));
+  const joinPort = producers.createDispatchJoinPort({ store: receiptStore });
   const store = withDispatchJoinPort(options.store, joinPort);
   const refreshPending = async (): Promise<void> => {
     const rows = await store.outboxPending();
@@ -101,11 +137,22 @@ export async function createBoundMailDispatcher(
             fence: { checkpoint, triggerRevision: trigger } };
         }
       }
-      const outcome = await driveDispatchIntent({ ...input, registry, store, intent,
-        callProvider: selected => options.adapter.callProvider(selected) });
-      return outcome.status === 'not-claimed' && outcome.reason === 'unavailable'
-        ? { status: 'unavailable', intentId: intent.intentId, target: intent.target }
-        : outcome;
+      const heldKeys: string[] = [];
+      try {
+        const outcome = await driveDispatchIntent({ ...input, registry, store, intent,
+          callProvider: async (selected, held) => {
+            const answer = await options.adapter.callProvider(selected);
+            const key = `${selected.intentId}\0${held.claimId}`;
+            heldKeys.push(key);
+            completions.set(key, { intent: selected, outcome: answer });
+            return answer;
+          } });
+        return outcome.status === 'not-claimed' && outcome.reason === 'unavailable'
+          ? { status: 'unavailable', intentId: intent.intentId, target: intent.target }
+          : outcome;
+      } finally {
+        for (const key of heldKeys) completions.delete(key);
+      }
     },
     async recover(input) {
       if (!Number.isInteger(input.limit) || input.limit < 1) {
@@ -128,7 +175,17 @@ export async function createBoundMailDispatcher(
         if (answer !== null) evidence.set(intent.intentId, answer);
       }
       return runRecoverySweep({ ...input, registry, store, joinPort,
-        readEvidence: id => evidence.get(id) ?? null });
+        readEvidence: id => evidence.get(id) ?? null,
+        stageReconciledReceipt: async ({ intentId, evidence: answer, revision, context }) => {
+          const intent = pending.get(intentId);
+          if (intent === undefined || !options.adapter.available(intent)) {
+            throw new Error('Reconciled mail lost its installed original intent.');
+          }
+          const outcome = answer.kind === 'delivered'
+            ? { kind: 'delivered' as const, result: answer.result }
+            : { kind: 'failed' as const, error: { code: answer.code, message: answer.message } };
+          return (await stageReceiptProgress({ intent, outcome, revision }, context)).writes ?? [];
+        } });
     },
   };
 }

@@ -133,6 +133,8 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/dispatch-staging.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/schedule-staging.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/occurrence-staging.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/receipt/index.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("./receipt-staging.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/ui/index.js");
     expect(bundle.modules["vendor/values/schema.js"]).toContain("normalizeSchema");
     expect(bundle.modules["vendor/values/schema.js"]).toContain("validateOperationInput");
@@ -144,6 +146,9 @@ describe("deploy bundle (P-B)", () => {
       "vendor/work/kernel/schedule-staging.js",
       "vendor/work/kernel/staging-support.js",
       "vendor/work/kernel/tables.js",
+      "vendor/work/observation/association.js",
+      "vendor/work/observation/observation.js",
+      "vendor/work/receipt/index.js",
     ]);
     expect(bundle.modules["vendor/work/kernel/dispatch-staging.js"]).toContain("stageCanonicalSend");
     expect(bundle.modules["vendor/work/kernel/schedule-staging.js"]).toContain("workSchedulePutCommand");

@@ -108,6 +108,7 @@ import type {
   CanonicalReadOpts,
   ContractVersionSet,
   RequiresProvidedVersions,
+  SelectedReceiptObserverBinding,
 } from "../runtime/invoke.js";
 import type {
   BakedDerivedInputs,
@@ -574,6 +575,8 @@ export interface AssemblyDeps {
   store: StoragePort;
   identityStore: unknown;
   now?: () => number;
+  /** Installed owning Work observer for generated selected delivery reads. */
+  selectedReceiptObserver?: SelectedReceiptObserverBinding;
   /**
    * Interim files binding for `/files/*` dispatch. Absent until the
    * files join lands; while absent, known file routes answer an
@@ -899,6 +902,7 @@ export interface CanonicalInvokerOpts {
   readonly appId?: string;
   /** Host-owned checked selected-app metadata, shared with page serving. */
   readonly appInfo?: AppInfo;
+  readonly selectedReceiptObserver?: SelectedReceiptObserverBinding;
 }
 
 /**
@@ -1000,6 +1004,7 @@ export function buildInvoker(
           identity,
           store,
           memberships: opts.memberships as CanonicalMembershipReader,
+          ...(opts.selectedReceiptObserver === undefined ? {} : { observer: opts.selectedReceiptObserver }),
         });
         return { result };
       } catch (error) {
@@ -1162,6 +1167,7 @@ interface InterimDispatchContext {
   readonly asm: AssembledModules;
   readonly store: StoragePort;
   readonly identityStore: unknown;
+  readonly selectedReceiptObserver?: SelectedReceiptObserverBinding;
   readonly mcp: McpJoin | undefined;
   readonly http: HttpJoin | undefined;
   readonly browserAssets?: BrowserAssetsHandler;
@@ -1232,6 +1238,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
       source: "mcp",
       appInfo: ctx.app,
       now,
+      ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
     }),
     catalog,
     files: {
@@ -1334,6 +1341,7 @@ async function handleHttpOperationRequest(
       source: "http",
       appInfo: ctx.app,
       now,
+      ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
     }),
     catalog,
     limiter: {
@@ -1690,6 +1698,7 @@ export async function assembleWorker(
     asm,
     store: deps.store,
     identityStore: deps.identityStore,
+    ...(deps.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: deps.selectedReceiptObserver }),
     mcp: deps.mcp,
     http: deps.http,
     ...(browserAssets === undefined ? {} : { browserAssets }),
