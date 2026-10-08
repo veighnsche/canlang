@@ -14,6 +14,12 @@ const registry=entry.canApp(), context={memberships:['members'],actor:{id:'actor
 const call=(name,...args)=>{const item=artifact.callables.find(item=>item.id===`Exact.${name}`);assert(item,name);let fn=registry;for(const key of item.member)fn=fn[key];return fn(context,...args);};
 const exact=(value,coef,scale)=>{assert(value instanceof Decimal);assert(Object.isFrozen(value));assert.equal(value.coef,coef);assert.equal(value.scale,scale);};
 for(const [name,coef,scale] of [['positive',150n,2],['negative',-150n,2],['zero',0n,2],['integer',99999999999999999999999999999999999999n,0],['fraction',99999999999999999999123456789012345678n,18],['tiny',1n,18],['optional',7n,0],['defaults',150n,2]])exact(await call(name),coef,scale);
+// Authored literals reach the real arithmetic owner with no binary-float step.
+for(const [name,coef,scale] of [
+ ['exactSum',30n,2],['difference',125n,2],['product',-30000n,4],
+ ['quotient',125n,3],['bigSum',123456789012345678901201n,4],
+ ['repeating',333333333333333333n,18],
+])exact(await call(name),coef,scale);
 assert.equal(await call('whole'),42n);
 const nested=await call('nested');exact(nested.amount,3n,0);nested.values.forEach((v,i)=>exact(v,[150n,-200n,4n][i],[2,2,0][i]));
 exact(await call('literal',{}),-150n,2);
