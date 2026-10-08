@@ -7,6 +7,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import {
   MappingValidationError,
   digestGraph,
@@ -16,6 +17,7 @@ import {
   ComfyUINativeAdapter,
   readHistoryRun,
 } from '../src/media/comfyui.js';
+import type { ComfyUIImagesInstallation } from '../src/media/comfyui.js';
 import { startControlledComfyServer } from '../src/media/harness.js';
 import type {
   ControlledComfyScenario,
@@ -24,8 +26,10 @@ import type {
 import type {
   ApiGraph,
   ImageGenerateInput,
+  ImageRequest,
   WorkflowNodeMapping,
 } from '@canlang/contracts';
+import type { InstalledImageOptions } from '../src/ports.js';
 
 const GRAPH: ApiGraph = {
   '3': {
@@ -760,5 +764,191 @@ describe('media: history evidence reading', () => {
       assert.equal(completion.status, 'succeeded');
       assert.equal(server.requests[0]?.hadAuth, true);
     });
+  });
+});
+
+const INSTALLED_JOB = 'd8abbe33-9bb0-4675-998c-a09a58267ac5';
+
+function installationFor(): ComfyUIImagesInstallation {
+  const mapping = mappingFor();
+  return {
+    binding: { capability: 'std.ImagesV1', capabilityVersion: 1, deployment: 'deployment.images', account: 'test-account' },
+    workflow: { graph: mapping.workflow, prompt: mapping.inputs.prompt, negative: mapping.inputs.negative, width: mapping.inputs.width, height: mapping.inputs.height },
+    seed: { kind: 'fixed', value: 42 },
+  };
+}
+
+function requestFor(over: Partial<ImageRequest> = {}): ImageRequest {
+  return {
+    source: 'app.Draft.poster', revision: 3, workflow: installationFor().workflow,
+    validation: mappingFor().graphDigest, prompt: 'a poster', negative: 'blurry',
+    width: 512, height: 768, max_outputs: 2, max_duration: 5000n, ...over,
+  };
+}
+
+function originalOptions(durationMs = 5000): InstalledImageOptions {
+  return { deliveryId: 'delivery_original', jobId: INSTALLED_JOB, deadlineMs: Date.now() + durationMs };
+}
+
+describe('media: installed std Images full requests', () => {
+  it('submits the exact frozen installation then reconciles bytes under original identity/deadline', async () => {
+    await withServer({
+      kind: 'accept', history: { [INSTALLED_JOB]: successEntry([{ filename: 'a.png', subfolder: '', type: 'output' }]) }, files: { 'a.png': PNG_A },
+    }, async (server) => {
+      const graph = structuredClone(GRAPH);
+      const mapping = mappingFor(graph);
+      const config = installationFor();
+      const installed = makeAdapter(server.url, { graph, mapping }).installImages(config);
+      const request = requestFor();
+      const original = originalOptions();
+      config.workflow.prompt.node = 'changed';
+      (config.seed as { value: number }).value = 100;
+      mapping.inputs.prompt.node = 'changed';
+      graph['6']!.inputs['text'] = 'changed';
+      assert.ok(Object.isFrozen(installed.workflow.prompt));
+      assert.ok(Object.isFrozen(installed.policy.seed));
+      assert.deepEqual(installed.policy, { seed: { kind: 'fixed', value: 42 }, maxOutputs: 8, maxDurationMs: 5000, maxOutputBytes: 1_000_000 });
+      assert.deepEqual(await installed.images.submit(request, original), { delivery_id: original.deliveryId, status: 'succeeded', result: { job: original.jobId }, error: null });
+      const wire = JSON.parse(server.requests[0]!.bodyText);
+      assert.equal(wire.prompt_id, original.jobId);
+      assert.equal(wire.prompt['3'].inputs.seed, 42);
+      assert.equal(wire.prompt['6'].inputs.text, request.prompt);
+      const observed = await installed.images.reconcile(request, original);
+      assert.equal(observed.delivery_id, original.deliveryId);
+      assert.equal(observed.result?.job, original.jobId);
+      assert.equal(observed.result?.state, 'succeeded');
+      assert.deepEqual(observed.result?.outputs[0]?.bytes, PNG_A);
+      assert.equal(request.source, 'app.Draft.poster');
+      assert.equal(request.revision, 3);
+    });
+  });
+
+  it('refuses unsupported bindings, graph/map pins and missing/invalid deployment seed policies without transport', async () => {
+    await withServer({ kind: 'accept' }, async (server) => {
+      const adapter = makeAdapter(server.url);
+      for (const config of [
+        { ...installationFor(), binding: { ...installationFor().binding, capability: 'ai.ImagesV1' } },
+        { ...installationFor(), binding: { ...installationFor().binding, capabilityVersion: 2 } },
+        { ...installationFor(), workflow: { ...installationFor().workflow, graph: 'another-graph' } },
+        { ...installationFor(), workflow: { ...installationFor().workflow, prompt: { node: '7', key: 'text' } } },
+        { ...installationFor(), seed: undefined },
+        { ...installationFor(), seed: { kind: 'random', value: 42 } },
+        { ...installationFor(), seed: { kind: 'fixed', value: -1 } },
+      ]) {
+        assert.throws(() => adapter.installImages(config as ComfyUIImagesInstallation), MappingValidationError);
+      }
+      assert.throws(() => makeAdapter(server.url, { mapping: { ...mappingFor(), graphDigest: 'wrong' } }).installImages(installationFor()), MappingValidationError);
+      assert.throws(() => makeAdapter(server.url, { timeoutMs: 2_147_483_648 }).installImages(installationFor()), MappingValidationError);
+      assert.equal(server.requests.length, 0);
+    });
+  });
+
+  it('refuses every invalid full-request field and caller option on each lifecycle method before transport', async () => {
+    await withServer({ kind: 'accept' }, async (server) => {
+      const installed = makeAdapter(server.url).installImages(installationFor());
+      const invalid = [
+        { source: '' }, { revision: -1 }, { revision: 1.5 },
+        { workflow: { ...requestFor().workflow, graph: 'wrong' } },
+        { workflow: { ...requestFor().workflow, width: { node: '5', key: 'height' } } },
+        { validation: 'wrong' }, { prompt: null }, { negative: null },
+        { width: 0 }, { height: Number.MAX_SAFE_INTEGER + 1 },
+        { max_outputs: 0 }, { max_outputs: 9 }, { max_duration: 0n },
+        { max_duration: 5001n }, { max_duration: 100 }, { seed: 42 },
+      ];
+      for (const method of ['submit', 'reconcile', 'cancel'] as const) {
+        for (const over of invalid) {
+          await assert.rejects(async () => installed.images[method]({ ...requestFor(), ...over } as ImageRequest, originalOptions()), MappingValidationError);
+        }
+        for (const over of [
+          { deliveryId: '' }, { jobId: 'arbitrary-id' }, { jobId: INSTALLED_JOB.toUpperCase() },
+          { deadlineMs: Infinity }, { deadlineMs: Date.now() - 1 }, { deadlineMs: Date.now() + 10000 },
+        ]) {
+          await assert.rejects(async () => installed.images[method](requestFor(), { ...originalOptions(), ...over }), MappingValidationError);
+        }
+      }
+      assert.equal(server.requests.length, 0);
+    });
+  });
+
+  it('keeps returned job mismatch unknown and never switches original history identity', async () => {
+    const other = 'e8abbe33-9bb0-4675-998c-a09a58267ac5';
+    await withServer({ kind: 'accept', promptBody: { prompt_id: other }, history: { [other]: successEntry([]) } }, async (server) => {
+      const installed = makeAdapter(server.url).installImages(installationFor());
+      const original = originalOptions();
+      const submitted = await installed.images.submit(requestFor(), original);
+      assert.equal(submitted.status, 'unknown');
+      assert.equal(submitted.result, null);
+      const observed = await installed.images.reconcile(requestFor(), original);
+      assert.equal(observed.result?.state, 'unknown');
+      assert.equal(observed.result?.job, original.jobId);
+      assert.equal(server.requests[1]?.path, `/history/${original.jobId}`);
+    });
+  });
+
+  it('enforces requested output and actual per-output byte ceilings without truncating', async () => {
+    await withServer({ kind: 'accept', history: { [INSTALLED_JOB]: successEntry([
+      { filename: 'a.png', subfolder: '', type: 'output' }, { filename: 'b.png', subfolder: '', type: 'output' },
+    ]) }, files: { 'a.png': PNG_A, 'b.png': PNG_B } }, async (server) => {
+      const installed = makeAdapter(server.url, { maxDownloadBytes: PNG_A.length - 1 }).installImages(installationFor());
+      const limited = await installed.images.reconcile(requestFor({ max_outputs: 1 }), originalOptions());
+      assert.equal(limited.result?.state, 'failed');
+      assert.equal(server.requests.length, 1);
+      const byteLimited = await installed.images.reconcile(requestFor(), originalOptions());
+      assert.equal(byteLimited.result?.state, 'unknown');
+      assert.deepEqual(byteLimited.result?.outputs, []);
+      assert.equal(installed.policy.maxOutputBytes, PNG_A.length - 1);
+    });
+  });
+
+  it('keeps unsupported cancel as an actual original-job observation', async () => {
+    await withServer({ kind: 'accept' }, async (server) => {
+      const installed = makeAdapter(server.url).installImages(installationFor());
+      const original = originalOptions();
+      const observed = await installed.images.cancel(requestFor(), original);
+      assert.equal(observed.result?.job, original.jobId);
+      assert.equal(observed.result?.state, 'unknown');
+      assert.match(observed.result?.detail ?? '', /Targeted cancel unsupported/);
+      assert.deepEqual(server.requests.map((request) => request.path), [`/api/jobs/${original.jobId}/cancel`, `/history/${original.jobId}`]);
+    }, { cancelStatus: 404 });
+  });
+
+  it('shares the original deadline across JSON and sequential downloads instead of renewing per file', async () => {
+    const paths: string[] = [];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const server = http.createServer((req, res) => {
+      const path = req.url ?? '';
+      paths.push(path);
+      if (path.startsWith('/history/')) {
+        timers.push(setTimeout(() => res.end(JSON.stringify({ [INSTALLED_JOB]: successEntry([
+          { filename: 'a.png', subfolder: '', type: 'output' },
+          { filename: 'b.png', subfolder: '', type: 'output' },
+          { filename: 'c.png', subfolder: '', type: 'output' },
+        ]) })), 40));
+      } else {
+        timers.push(setTimeout(() => { if (!res.destroyed) res.end(PNG_A); }, 140));
+      }
+    });
+    await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+    try {
+      const address = server.address();
+      assert.ok(address && typeof address !== 'string');
+      const installed = makeAdapter(`http://127.0.0.1:${address.port}`).installImages(installationFor());
+      const original = originalOptions(260);
+      const started = performance.now();
+      const observed = await installed.images.reconcile(requestFor({ max_outputs: 3, max_duration: 260n }), original);
+      const elapsed = performance.now() - started;
+      assert.equal(observed.result?.state, 'unknown');
+      assert.equal(observed.result?.outputs.length, 1);
+      assert.deepEqual(observed.result?.outputs[0]?.bytes, PNG_A);
+      assert.equal(paths.length, 3); // history, first output, timed-out second; never third.
+      assert.ok(elapsed < 420, `aggregate deadline elapsed ${elapsed}ms`);
+      assert.equal(original.deadlineMs < Date.now() + 10, true);
+      await assert.rejects(async () => installed.images.reconcile(requestFor(), original), MappingValidationError);
+      assert.equal(paths.length, 3);
+    } finally {
+      for (const timer of timers) clearTimeout(timer);
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });
