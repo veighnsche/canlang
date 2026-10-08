@@ -13,8 +13,10 @@
  * those slices; the build records the catalog version it bound
  * against (see `ui/scripts/build-browser.mjs`).
  *
- * Behaviors (all progressive enhancement — the page works without
- * JS; no-htmx pages simply skip swap hooks):
+ * Generated operation forms require this client to project their bracketed
+ * controls into the canonical JSON envelope; native no-JS submission is
+ * not qualified. Other behaviors progressively enhance markup, and
+ * no-htmx pages simply skip swap hooks:
  *
  * - Poll regions: `[data-can-poll]` elements arm one `PollRegion`
  *   each (`data-can-poll-url`, `data-can-poll-interval`,
@@ -23,6 +25,9 @@
  * - Unsaved forms: `form[data-can-guard]` tracks dirtiness; a dirty
  *   form arms `beforeunload`, and submit clears it. Navigation away
  *   with unsaved input warns; no other form is affected.
+ * - Generated forms: `form[data-can-generated-form]` binds the exact
+ *   prepared operation metadata to the existing submit client. Result
+ *   hooks leave occurrence-specific error and draft rendering to the host.
  * - Obsolete actions: `[data-can-once]` controls disable while their
  *   request is in flight (re-enabled on completion/failure), so a
  *   repeated activation can never double-submit a mutation.
@@ -41,7 +46,9 @@
  */
 import { PollRegion, submitFetchPollFetch } from "./polling.js";
 import type { VisibilityLike } from "./polling.js";
-import type { SubmitFetch } from "../client.js";
+import { GeneratedSubmitError, submitGeneratedForm } from "../client.js";
+import type { DomControlLike, GeneratedSubmitResult, SubmitFetch, SubmitFetchInit } from "../client.js";
+import type { DerivedOperationInputs, FormMode } from "@canlang/contracts";
 
 /** Minimal structural document (satisfied by DOM Document and fakes). */
 export interface DocumentLike {
@@ -72,7 +79,14 @@ export interface EventLike {
   readonly target: ElementLike | null;
   readonly type: string;
   readonly persisted?: boolean;
+  readonly submitter?: ElementLike | null;
   preventDefault(): void;
+  stopPropagation?(): void;
+}
+
+/** Native FormData owns successful controls, including the activated submitter. */
+interface FormDataConstructor {
+  new (form: ElementLike, submitter?: ElementLike | null): Iterable<readonly [string, unknown]>;
 }
 
 /** Minimal structural window (satisfied by DOM Window and fakes). */
@@ -83,6 +97,7 @@ export interface WindowLike {
   removeEventListener(type: string, listener: (event: EventLike) => void): void;
   setTimeout(callback: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
+  readonly FormData?: FormDataConstructor;
 }
 
 /** Client internals shared with binders (fetch, window, poll delivery). */
@@ -92,6 +107,8 @@ export interface ClientInternals {
   readonly deliver?: BrowserClientOptions["deliverPollResponse"];
   readonly document: DocumentLike;
   readonly visibility: VisibilityLike;
+  readonly onGeneratedFormResult?: BrowserClientOptions["onGeneratedFormResult"];
+  readonly onGeneratedFormError?: BrowserClientOptions["onGeneratedFormError"];
 }
 
 /** Per-component binder: bind behavior under `root`, return an unbind. */
@@ -136,6 +153,9 @@ export interface BrowserClientOptions {
    * stops the poll rather than painting an error or a different context.
    */
   readonly deliverPollResponse?: (region: ElementLike, body: string, status: number) => boolean | void;
+  /** The host owns occurrence-specific outcome and draft rendering. */
+  readonly onGeneratedFormResult?: (form: ElementLike, result: GeneratedSubmitResult) => void;
+  readonly onGeneratedFormError?: (form: ElementLike, error: unknown) => void;
 }
 
 export interface BrowserClient {
@@ -335,6 +355,83 @@ function bindGuardedForm(
   };
 }
 
+/** Source forms submit through the existing projection, never native bracket expansion. */
+function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: ClientInternals): () => void {
+  const context = client.contextKey();
+  let stopped = false;
+  let pending = false;
+  let previousBusy: string | null = null;
+  const alive = () => !stopped && form.isConnected && client.contextKey() === context;
+  const releaseBusy = () => {
+    if (previousBusy === null) form.removeAttribute('aria-busy');
+    else form.setAttribute('aria-busy', previousBusy);
+  };
+  const onSubmit = (event: EventLike): void => {
+    event.preventDefault();
+    event.stopPropagation?.();
+    if (pending || !alive()) return;
+    pending = true;
+    previousBusy = form.getAttribute('aria-busy');
+    form.setAttribute('aria-busy', 'true');
+    form.setAttribute('data-can-submit-state', 'pending');
+    void (async () => {
+      try {
+        const metadata = JSON.parse(form.getAttribute('data-can-generated-form') ?? '') as {
+          derived?: DerivedOperationInputs; mode?: FormMode;
+        } | null;
+        if (metadata?.derived === undefined || typeof metadata.derived.operation !== 'string' ||
+            !Array.isArray(metadata.derived.inputs) ||
+            !['create', 'update', 'scenario'].includes(metadata.mode ?? '')) {
+          throw new GeneratedSubmitError('usage', 'Form submit metadata is unavailable.', false);
+        }
+        const FormData = internals.windowRef.FormData;
+        if (FormData === undefined) throw new GeneratedSubmitError('usage', 'Native FormData is unavailable.', false);
+        const controls = (form as ElementLike & { readonly elements: ArrayLike<DomControlLike & {
+          readonly disabled?: boolean; matches?(selector: string): boolean;
+        }> }).elements;
+        for (const control of Array.from(controls)) {
+          if (!control.disabled && control.matches?.(':disabled') !== true && (control.files?.length ?? 0) > 0) {
+            throw new GeneratedSubmitError('usage', 'File submission needs its supplied upload intents route.', false);
+          }
+        }
+        const flat: Record<string, string> = Object.create(null) as Record<string, string>;
+        for (const [name, value] of new FormData(form, event.submitter)) {
+          if (typeof value === 'string') flat[name] = value;
+        }
+        const result = await submitGeneratedForm({
+          derived: metadata.derived, mode: metadata.mode!, flat,
+          action: form.getAttribute('action') ?? '', fragment: false,
+          fetchImpl: (url, init) => {
+            if (!alive()) throw new GeneratedSubmitError('transport', 'Form submit owner is no longer active.', false);
+            return internals.fetchImpl(url, init);
+          },
+        });
+        if (alive()) {
+          form.setAttribute('data-can-submit-state', result.kind);
+          internals.onGeneratedFormResult?.(form, result);
+        }
+      } catch (error) {
+        if (alive()) {
+          form.setAttribute('data-can-submit-state', 'error');
+          internals.onGeneratedFormError?.(form, error);
+        }
+      } finally {
+        if (!stopped) releaseBusy();
+        pending = false;
+      }
+    })();
+  };
+  form.addEventListener('submit', onSubmit);
+  return () => {
+    stopped = true;
+    form.removeEventListener('submit', onSubmit);
+    if (pending) {
+      releaseBusy();
+      form.removeAttribute('data-can-submit-state');
+    }
+  };
+}
+
 function bindOnceAction(control: ElementLike): () => void {
   let inflight = false;
   const onClick = (): void => {
@@ -392,12 +489,14 @@ function closeOpenDetails(document: DocumentLike): void {
 // Core binder seeds (catalog ids bound by this slice).
 registerBinder("poll-region", bindPollRegion);
 registerBinder("guarded-form", bindGuardedForm);
+registerBinder("generated-form", bindGeneratedForm);
 registerBinder("once-action", (root) => bindOnceAction(root));
 
 /** Scan hooks: selector per core binder id. */
 const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
   ["poll-region", "[data-can-poll]"],
   ["guarded-form", "form[data-can-guard]"],
+  ["generated-form", "form[data-can-generated-form]"],
   ["once-action", "[data-can-once]"],
 ];
 
@@ -433,6 +532,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
     windowRef: options.window,
     document,
     visibility: options.visibility ?? document,
+    ...(options.onGeneratedFormResult === undefined ? {} : { onGeneratedFormResult: options.onGeneratedFormResult }),
+    ...(options.onGeneratedFormError === undefined ? {} : { onGeneratedFormError: options.onGeneratedFormError }),
     ...(options.deliverPollResponse === undefined
       ? {}
       : { deliver: options.deliverPollResponse }),
@@ -476,7 +577,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
           continue;
         }
         for (const element of document.querySelectorAll(selector)) {
-          const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}`;
+          const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}|${element.getAttribute('data-can-generated-form') ?? ''}|${element.getAttribute('action') ?? ''}`;
           const oldIndex = bound.findIndex((entry) => entry.element === element && entry.binder === id);
           const old = bound[oldIndex];
           if (old !== undefined && old.signature === signature) continue;
@@ -489,7 +590,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
       for (let index = bound.length - 1; index >= 0; index -= 1) {
         const entry = bound[index];
         if (entry !== undefined && (!entry.element.isConnected ||
-            (entry.binder === 'poll-region' && !entry.element.hasAttribute('data-can-poll')))) {
+            (entry.binder === 'poll-region' && !entry.element.hasAttribute('data-can-poll')) ||
+            (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form')))) {
           bound.splice(index, 1);
           entry.stop();
         }
@@ -542,11 +644,12 @@ interface NativeWindow {
     removeEventListener(type: string, listener: () => void): void;
   };
   readonly location: WindowLike['location'];
+  readonly FormData?: FormDataConstructor;
   addEventListener(type: string, listener: (event: EventLike) => void): void;
   removeEventListener(type: string, listener: (event: EventLike) => void): void;
   setTimeout(callback: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
-  fetch(url: string, init: { readonly method: string; readonly headers: Record<string, string>; readonly credentials: string; readonly cache: string }): Promise<{
+  fetch(url: string, init: SubmitFetchInit & { readonly credentials: string; readonly cache: string }): Promise<{
     readonly status: number; readonly redirected?: boolean;
     readonly headers: { get(name: string): string | null }; text(): Promise<string>;
   }>;
@@ -568,12 +671,13 @@ export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
     removeEventListener: (type, listener) => native.removeEventListener(type, listener),
     setTimeout: (callback, ms) => native.setTimeout(callback, ms),
     clearTimeout: (handle) => native.clearTimeout(handle),
+    ...(native.FormData === undefined ? {} : { FormData: native.FormData }),
   };
   const client = startBrowserClient({
     window: windowRef,
     visibility: { get visibilityState() { return suspended ? "hidden" : native.document.visibilityState; } },
     fetchImpl: async (url, init) => {
-      const response = await native.fetch(url, { method: init.method, headers: init.headers, credentials: 'same-origin', cache: 'no-store' });
+      const response = await native.fetch(url, { ...init, credentials: 'same-origin', cache: 'no-store' });
       return { status: response.redirected === true ? 409 : response.status, headers: response.headers, text: () => response.text() };
     },
     onHtmxSwap: (rescan) => {

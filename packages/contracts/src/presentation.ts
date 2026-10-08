@@ -788,6 +788,8 @@ export interface FormProps {
   /** Fresh idempotency key rendered per form (replay-safe resubmits). */
   readonly operationId: string;
   readonly mode: FormMode;
+  /** Checked operation inputs consumed by the existing browser submit projection. */
+  readonly derived?: DerivedOperationInputs;
   /** Bound record for updates (hidden id/version); required in update mode. */
   readonly record?: MutationRef;
   /** Resolved rendering timezone (team adapter or explicit UTC fallback). */

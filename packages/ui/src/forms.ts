@@ -677,9 +677,11 @@ function needsMultipart(fields: readonly FormFieldDef[] | undefined): boolean {
   return fields.some((field) => field.control === "file_input");
 }
 
-function formOpenTag(action: string, multipart: boolean): string {
+function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperationInputs): string {
   const encoding = multipart ? ` enctype="multipart/form-data"` : "";
-  return `<form action="${escapeAttr(safeHref(action))}" method="post"${encoding}>`;
+  const projection = derived === undefined ? ""
+    : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind }))}"`;
+  return `<form action="${escapeAttr(safeHref(action))}" method="post"${encoding}${projection}>`;
 }
 
 function splitErrors(
@@ -887,6 +889,10 @@ function outcomeBanner(
  * Transport fields, outcome banners and the submit/cancel row remain canonical.
  */
 export async function form(props: FormProps): Promise<string> {
+  if (props.derived !== undefined) {
+    assertGeneratedMode(props.derived, props.mode);
+    if (props.operation !== props.derived.operation) throw new Error("form: operation disagrees with checked inputs");
+  }
   if (props.mode === "update" && props.record === undefined) {
     throw new Error("form: update mode requires a bound record");
   }
@@ -916,7 +922,7 @@ export async function form(props: FormProps): Promise<string> {
   const fieldsHtml = rendered.join("");
   const submitLabel = escapeHtml(resolveCaption(props.submit, props.context));
   const renderedForm = (
-    formOpenTag(props.action, needsMultipart(props.fields)) +
+    formOpenTag(props.action, needsMultipart(props.fields), props.derived) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
@@ -1468,6 +1474,7 @@ export async function generatedForm(props: GeneratedFormProps): Promise<string> 
     operation: props.derived.operation,
     operationId: props.operationId,
     mode: props.mode,
+    derived: props.derived,
     ...(props.record === undefined ? {} : { record: props.record }),
     timeZone: props.timeZone,
     fields,
