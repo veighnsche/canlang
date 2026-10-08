@@ -347,6 +347,35 @@ function projectRow(
   };
 }
 
+/** Shared actor and row matching for viewer queries and saved-row disclosure. */
+async function viewerGrantAuthority(policy: InterimModelPolicy, context: ByContext): Promise<boolean[]> {
+  const allowed: boolean[] = [];
+  for (const grant of policy.grants) allowed.push(await evaluateBy(grant.by, context));
+  return allowed;
+}
+
+function matchingViewerGrants(
+  grants: ReadonlyArray<InterimGrant>, allowed: ReadonlyArray<boolean>, row: StoredRow,
+): InterimGrant[] {
+  return grants.filter((grant, index) => allowed[index] === true &&
+    (grant.when === undefined || evalPredicateForRow(grant.when, row)));
+}
+
+/** Authorize against the live row; copy only the original saved row's values. */
+export async function projectSavedRecordForViewer(input: {
+  readonly policy: InterimModelPolicy | undefined;
+  readonly context: ByContext;
+  readonly current: StoredRow;
+  readonly saved: StoredRow;
+  readonly originalSecretFields: ReadonlyArray<string>;
+}): Promise<ProjectedRecord | null> {
+  if (input.policy === undefined) return null;
+  const allowed = await viewerGrantAuthority(input.policy, input.context);
+  const grants = matchingViewerGrants(input.policy.grants, allowed, input.current);
+  return grants.length === 0 ? null : projectRow(input.saved, grants,
+    [...input.originalSecretFields, ...input.policy.secretFields]);
+}
+
 type NumericOrderType = 'int' | 'decimal' | 'money';
 type NumericOrderValue = bigint | Decimal | MoneyValue | null | undefined;
 interface NumericOrderField {
@@ -817,14 +846,10 @@ async function runAuthorizedQuery(
     if (found !== undefined) {
       policy = found;
       secrets = found.secretFields;
-      const byOk: boolean[] = [];
+      const byOk = await viewerGrantAuthority(found, byCtx);
       const covered: string[] = [];
-      for (const grant of found.grants) {
-        const ok = await evaluateBy(grant.by, byCtx);
-        byOk.push(ok);
-        if (ok) {
-          covered.push(...grant.fields);
-        }
+      for (const [index, grant] of found.grants.entries()) {
+        if (byOk[index]) covered.push(...grant.fields);
       }
       grantByOk = byOk;
       grantedFields = covered;
@@ -874,18 +899,7 @@ async function runAuthorizedQuery(
   } else {
     const grants: ReadonlyArray<InterimGrant> = policy === null ? [] : policy.grants;
     for (const row of scanned) {
-      const matching: InterimGrant[] = [];
-      for (let index = 0; index < grants.length; index += 1) {
-        const grant = grants[index];
-        const byOk = grantByOk[index];
-        if (grant === undefined || byOk === undefined || !byOk) {
-          continue;
-        }
-        if (grant.when !== undefined && !evalPredicateForRow(grant.when, row)) {
-          continue;
-        }
-        matching.push(grant);
-      }
+      const matching = matchingViewerGrants(grants, grantByOk, row);
       if (matching.length === 0) {
         continue;
       }
