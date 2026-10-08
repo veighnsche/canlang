@@ -1206,6 +1206,7 @@ interface StateInvokeProducer {
     readonly kind?: 'user' | 'trusted';
     readonly trustedSource?: string;
     readonly execute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
+    readonly observeCommittedReceipt?: (receipt: Receipt) => void;
     /**
      * C2/B2 (Q3): serverOnly exclusions for denial currents (mirror of
      * `ConflictServerOnly`). The holder builds it from the loaded
@@ -1214,6 +1215,15 @@ interface StateInvokeProducer {
      */
     readonly conflictServerOnly?: ReadonlyMap<string, ReadonlySet<string>>;
   }): Promise<MutationResult>;
+  projectGeneratedCrudReceipt?(input: {
+    readonly receipt: Receipt;
+    readonly registry: ReadonlyMap<string, unknown>;
+    readonly policy: unknown;
+    readonly app: string;
+    readonly identity: ResolvedIdentity;
+    readonly store: StoragePort;
+    readonly memberships: CanonicalMembershipReader;
+  }): Promise<{ readonly result: null; readonly records: readonly ProjectedRecord[] }>;
   /** T17b: canonical generated-read entry (scenario `records()` calls it per read). */
   invokeRead(input: {
     readonly registry: ReadonlyMap<string, unknown>;
@@ -1236,6 +1246,7 @@ interface StateCrudProducer {
     readonly table: unknown;
     readonly store: StoragePort;
     readonly encodeField?: (type: CanTypeId, value: unknown) => unknown;
+    readonly secretFields?: ReadonlyMap<string, readonly string[]>;
   }): (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
 }
 
@@ -1497,6 +1508,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     invoke: {
       invoke: invoke as StateInvokeProducer["invoke"],
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
+      ...(typeof invokeMod['projectGeneratedCrudReceipt'] !== 'function' ? {} : {
+        projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
+      }),
     },
     crud: { generatedCrudExecute: generatedCrudExecute as StateCrudProducer["generatedCrudExecute"] },
     models: { buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"] },
@@ -1963,6 +1977,7 @@ export interface LoadedCanonicalDescriptors {
   /** Emitted hooks cannot be skipped by the canonical empty-hook table. */
   readonly unsupportedHookOperations: ReadonlySet<string>;
   readonly collectionColumns: ReadonlyMap<string, readonly ColumnMeta[]>;
+  readonly secretFields: ReadonlyMap<string, readonly string[]>;
   /** C3/B3: loader-built delivery-field schema, carried for the T25 receipt join (D3 consumes). */
   readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   readonly valueSchema?: NormalizedSchema;
@@ -2593,6 +2608,7 @@ export async function loadCanonicalDescriptors(
     ruledModels,
     unsupportedHookOperations,
     collectionColumns,
+    secretFields: new Map([...loaded.secretFields].map(([model, fields]) => [model, [...fields]])),
     producers,
     conflictServerOnly: buildConflictServerOnly(loaded.models),
     deliveryFields: loaded.deliveryFields,
@@ -4030,13 +4046,16 @@ export async function invokeMutationCanonical(
   const crudExecute = loaded.producers.crud.generatedCrudExecute({
     table: loaded.table,
     store: receiptStore,
+    secretFields: loaded.secretFields,
     encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
   });
   // One opaque ID per actual schedule ordinal, retained across State retries.
   const occurrenceIds: string[] = [];
   let attachments: FileAttachment[] = [];
+  let committedReceipt: Receipt | undefined;
   const result = await loaded.producers.invoke.invoke({
     registry: loaded.registry,
+    observeCommittedReceipt: receipt => { committedReceipt = receipt; },
     envelope: {
       operation: opts.operation,
       operation_id: opts.operationId,
@@ -4087,6 +4106,20 @@ export async function invokeMutationCanonical(
       result: result.result, attachments, store: opts.store, files: opts.files,
       identity: opts.identity, app: opts.app,
     });
+  }
+  // The public generated-CRUD contract maps saved content. Scenario
+  // disclosure remains a separate join; raw retention above stays internal.
+  const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
+  if (kind === 'create' || kind === 'update' || kind === 'delete' ||
+      (committedReceipt !== undefined && Object.hasOwn(committedReceipt.outcome, 'generatedCrud'))) {
+    if (committedReceipt === undefined || loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {
+      throw new StateError('validation', 'Installed State producer cannot disclose a saved CRUD outcome.');
+    }
+    const projected = await loaded.producers.invoke.projectGeneratedCrudReceipt({
+      receipt: committedReceipt, registry: loaded.registry, policy: loaded.policy,
+      app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
+    });
+    return { ...result, ...projected };
   }
   return result;
 }

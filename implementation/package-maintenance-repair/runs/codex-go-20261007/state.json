@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T22:30:12.228919+00:00",
+  "updated_utc": "2026-10-08T22:34:34.601865+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2912,6 +2912,17 @@
       "validation": "Owner State typecheck/private emit0; existing focused invoke-read22/22; no unchanged matrix rerun",
       "scope": "Current by/read masks over original saved row; shared existing grants matcher/projectRow; no raw receipt mutation/reexecution; absent original metadata explicitly refuses",
       "limits": "CF D1/HTTP/CSV actual consumer pending; logical lifetime/global physical owner/scalar scenario disclosure remain open; TECH-S02/REPLAY-IP07 not complete"
+    },
+    "crud_host_consumer": {
+      "status": "Root implemented and reviewed canonical public CRUD join; actual D1 HTTP/CSV accepted at finite scope",
+      "validation": "Actual fixture production CLI0, State owning emit0, CF noEmit0/emit0. Existing sole reviewed CSV native case1/1 case3426.361ms total3723.031ms, require_escalated established Node24.21/workerd sockets",
+      "failures_preserved": [
+        "Sandboxed Node InternalCallbackScope abort before assertions (555ms), not product failure/acceptance",
+        "First native case0/1 (1904ms) exposed old raw-result assertion; intentionally migrated to result:null and authorized saved records, then same case passed"
+      ],
+      "scope": "Real private source-declared model by=members/read=auditor, saved vs changed-live data, surviving-member role loss through HTTP+CSV, no duplicate defaults/effects/receipt/history/revision. Existing Entry/source workflows retained. Raw file retention stays before public mapper; actual scenario results unchanged",
+      "migration": "Read-only finite inventory of former raw CRUD test callers in progress; production grep found only correctly retained internal file-staging raw consumer",
+      "limits": "No scalar scenario current-read dependency provenance, logical lifetime/global owner-store or backend/default/deploy qualification. Interfaces age gates deliberately untouched; TECH-S02/REPLAY-IP07 remain open"
     }
   },
   "live_finite_packets": [

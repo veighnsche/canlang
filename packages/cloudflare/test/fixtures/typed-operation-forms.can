@@ -1,8 +1,12 @@
 app TypedOperationForms
 Given
+ role auditor
+ PrivateEntry { label:text, count:int=1 }
+ policy PrivateEntry read=auditor fields=label,count
  Entry { label:text label="Entry label", count:int=1 label="Count", owner:user server=actor }
  policy Entry read=members
 When
+ crud PrivateEntry by=members fields=label,count
  crud Entry by=members fields=label,count label={create="Create entry"}
  ## The bound entry keeps its admitted version; only label and delta are editable.
  scenario rename(entry:Entry label="Entry",newLabel:text label="New label",delta:int=1 label="Increment") -> int by=members label="Rename entry"
