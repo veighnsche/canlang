@@ -1012,7 +1012,7 @@ pub struct JsOutput {
     pub entry: JsModule,
     /// One module per non-entrypoint package, in source order.
     pub packages: Vec<JsModule>,
-    /// `E6008` diagnostics for checked-but-unlowerable positions.
+    /// Lowering diagnostics, including `E6012` for unrepresentable output lines.
     pub diagnostics: Vec<Diagnostic>,
     /// Catalog builtins the lowering references (for `E6007` checks).
     pub referenced_builtins: Vec<ReferencedBuiltin>,
@@ -1033,6 +1033,7 @@ pub struct JsOutput {
 pub struct JsWriter {
     buf: String,
     lines: Vec<JsLine>,
+    capacity_error: Option<Diagnostic>,
 }
 
 impl JsWriter {
@@ -1042,42 +1043,96 @@ impl JsWriter {
     }
 
     /// Push one line attributed to `span` (and optionally `name`).
+    /// An unrepresentable 1-based u32 line number latches `E6012` before
+    /// changing output. Subsequent writes are ignored; check [`Self::try_finish`].
     pub fn push(&mut self, span: Span, name: Option<String>, text: &str) {
+        if self.capacity_error.is_some() {
+            return;
+        }
+        let Some(line) = self
+            .lines
+            .len()
+            .checked_add(1)
+            .and_then(|line| u32::try_from(line).ok())
+        else {
+            self.capacity_error = Some(Self::line_capacity_error(span));
+            return;
+        };
         self.buf.push_str(text);
         self.buf.push('\n');
-        self.lines.push(JsLine {
-            line: self.lines.len() as u32 + 1,
-            span,
-            name,
-        });
+        self.lines.push(JsLine { line, span, name });
     }
 
     /// Append another writer's lines, renumbering them.
+    /// A failed writer or an unrepresentable combined line count latches
+    /// `E6012` before changing output. Check [`Self::try_finish`] for failure.
     pub fn append(&mut self, other: &JsWriter) {
+        if self.capacity_error.is_some() {
+            return;
+        }
+        if let Some(error) = &other.capacity_error {
+            self.capacity_error = Some(error.clone());
+            return;
+        }
+        if self
+            .lines
+            .len()
+            .checked_add(other.lines.len())
+            .and_then(|count| u32::try_from(count).ok())
+            .is_none()
+        {
+            // Both writers individually fit. The first appended line beyond
+            // u32::MAX retains its owning source span in the diagnostic.
+            let first_excess = u32::MAX as usize - self.lines.len();
+            self.capacity_error = Some(Self::line_capacity_error(other.lines[first_excess].span));
+            return;
+        }
+        let offset = u32::try_from(self.lines.len()).expect("admitted JavaScript line count");
         self.buf.push_str(&other.buf);
         for line in &other.lines {
             self.lines.push(JsLine {
-                line: self.lines.len() as u32 + 1,
+                line: offset + line.line,
                 span: line.span,
                 name: line.name.clone(),
             });
         }
     }
 
-    /// Finish into a module.
-    pub fn finish(&self, path: String) -> JsModule {
-        JsModule {
+    fn line_capacity_error(span: Span) -> Diagnostic {
+        Diagnostic::error(
+            "E6012",
+            "generated JavaScript line number exceeds the u32 range".to_string(),
+            span,
+        )
+    }
+
+    /// Finish into a module, refusing any incomplete prefix after failure.
+    pub fn try_finish(&self, path: String) -> Result<JsModule, Diagnostic> {
+        if let Some(error) = &self.capacity_error {
+            return Err(error.clone());
+        }
+        Ok(JsModule {
             path,
             js: self.buf.clone(),
             lines: self.lines.clone(),
-        }
+        })
+    }
+
+    /// Compatibility convenience for callers that require representable output.
+    ///
+    /// # Panics
+    /// Panics deterministically when emission latched a capacity diagnostic.
+    /// Production emission uses [`Self::try_finish`] to report that diagnostic.
+    pub fn finish(&self, path: String) -> JsModule {
+        self.try_finish(path)
+            .unwrap_or_else(|error| panic!("cannot finish JavaScript module: {}", error.message))
     }
 }
 
 /// Lower an [`IrProgram`] to production JS modules.
 ///
 /// Returns the entrypoint module, one module per non-entrypoint package,
-/// `E6008` diagnostics and the link metadata the artifact assembly needs.
+/// Lowering diagnostics and the link metadata the artifact assembly needs.
 pub fn emit_program(ir: &IrProgram) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     let entry_id = pick_entrypoint(ir);
@@ -1115,7 +1170,15 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         out.push(entry_span, None, &line);
     }
     out.append(&body);
-    let entry = out.finish(module_path(&entry_name));
+    let entry_path = module_path(&entry_name);
+    let entry = out.try_finish(entry_path.clone()).unwrap_or_else(|error| {
+        emitter.diags.push(error);
+        JsModule {
+            path: entry_path,
+            js: String::new(),
+            lines: Vec::new(),
+        }
+    });
     let stdlib_imports = emitter.stdlib.clone();
     let ui_imports = emitter.ui.clone();
 
@@ -4781,7 +4844,6 @@ impl<'a> Emitter<'a> {
                     IrItemKind::Scenario {
                         trusted: false,
                         hook: None,
-                        read: false,
                         ..
                     }
                 )
@@ -5701,7 +5763,7 @@ impl<'a> Emitter<'a> {
                     description,
                     ..
                 } => {
-                    let inputs = self.emit_params_schema(params, !*read && !*trusted);
+                    let inputs = self.emit_params_schema(params, !*trusted);
                     let mut members = vec![
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
@@ -6365,8 +6427,7 @@ impl<'a> Emitter<'a> {
                                 required: default.is_none() && !nullable && !is_array,
                                 nullable,
                                 array_required: is_array.then_some(false),
-                                computed_default: !*read
-                                    && hook.is_none()
+                                computed_default: hook.is_none()
                                     && matches!(default, Some(IrDefault::Computed { .. }))
                                     && scenario_default_omission_supported(ty),
                                 default: match default {
@@ -7744,7 +7805,15 @@ impl<'a> Emitter<'a> {
         self.builtins.append(&mut builtins);
         self.callables.extend(callables);
         self.pages.extend(pages);
-        out.finish(module_path(&module_data.name))
+        let path = module_path(&module_data.name);
+        out.try_finish(path.clone()).unwrap_or_else(|error| {
+            self.diags.push(error);
+            JsModule {
+                path,
+                js: String::new(),
+                lines: Vec::new(),
+            }
+        })
     }
 }
 
