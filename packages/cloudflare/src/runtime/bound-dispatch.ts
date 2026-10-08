@@ -7,6 +7,7 @@ import type { SystemCommandDef } from '@canlang/state/ports/system';
 import { dispatchByStateQuery, WORK_DISPATCH_MODEL } from '@canlang/work/kernel/tables';
 import { assembleDispatchCommands } from '../worker/assembly.js';
 import type { BoundMailAdapter } from './bound-mail.js';
+import type { BoundJudgmentAdapter } from './bound-judgment.js';
 import { stageReceiptProgress } from './receipt-progress.js';
 import type { BoundTextGenerationAdapter, TextRunWire } from './bound-text-generation.js';
 import type { BoundImagesAdapter, ImageRunWire } from './bound-images.js';
@@ -75,10 +76,15 @@ export interface BoundImagesDispatcherOptions extends Omit<BoundMailDispatcherOp
   readonly progressed?: CheckedDeliveryProgressProducer;
 }
 
+export interface BoundJudgmentDispatcherOptions extends Omit<BoundMailDispatcherOptions, 'adapter'> {
+  readonly adapter: BoundJudgmentAdapter;
+}
+
 type InstalledDispatcherOptions =
   | (BoundMailDispatcherOptions & { readonly profile: 'mail' })
   | (BoundTextGenerationDispatcherOptions & { readonly profile: 'text' })
-  | (BoundImagesDispatcherOptions & { readonly profile: 'images' });
+  | (BoundImagesDispatcherOptions & { readonly profile: 'images' })
+  | (BoundJudgmentDispatcherOptions & { readonly profile: 'judgment' });
 type RichRunWire = TextRunWire | ImageRunWire;
 
 /** All installations use the same defining claim, record, recovery and fence. */
@@ -88,6 +94,10 @@ export function createBoundTextGenerationDispatcher(options: BoundTextGeneration
 
 export function createBoundImagesDispatcher(options: BoundImagesDispatcherOptions): Promise<BoundMailDispatcher> {
   return createInstalledDispatcher({ ...options, profile: 'images' });
+}
+
+export function createBoundJudgmentDispatcher(options: BoundJudgmentDispatcherOptions): Promise<BoundMailDispatcher> {
+  return createInstalledDispatcher({ ...options, profile: 'judgment' });
 }
 
 /**
@@ -118,8 +128,9 @@ function sameRetainedEvidence(expected: DispatchReconcileEvidence,
 async function createInstalledDispatcher(
   options: InstalledDispatcherOptions,
 ): Promise<BoundMailDispatcher> {
-  const rich = options.profile !== 'mail';
-  const progressed = options.profile === 'mail' ? undefined : options.progressed;
+  const rich = options.profile === 'text' || options.profile === 'images';
+  const typed = options.profile !== 'mail';
+  const progressed = options.profile === 'text' || options.profile === 'images' ? options.progressed : undefined;
   const readRetainedReceipt = options.profile === 'images'
     ? readRetainedImageGenerationReceipt : readRetainedTextGenerationReceipt;
   const readRetainedEvidence = options.profile === 'images'
@@ -184,7 +195,8 @@ async function createInstalledDispatcher(
       if (selected === null) return staged;
       const revision = (await options.store.readRevision()) + 1;
       const receipt = !rich
-        ? await stageReceiptProgress({ intent: completion.intent, outcome: selected, revision }, ctx)
+        ? await stageReceiptProgress({ intent: completion.intent, outcome: selected, revision,
+          ...(options.profile === 'judgment' ? { context: requireResultContext(completion.intent.intentId) } : {}) }, ctx)
         : await stageRichProgress({ intent: completion.intent,
           context: requireResultContext(completion.intent.intentId), revision,
           ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner: completion.owner } }),
@@ -222,7 +234,7 @@ async function createInstalledDispatcher(
     stageCommands: options.stageCommands,
   }));
   const receiptStore = withDispatchJoinPort(options.store, createReceiptJoinPort({ store: options.store,
-    ...(!rich ? {} : { resultContexts: () => resultContexts }) }));
+    ...(!typed ? {} : { resultContexts: () => resultContexts }) }));
   const joinPort = producers.createDispatchJoinPort({ store: receiptStore });
   const store = withDispatchJoinPort(options.store, joinPort);
   const refreshPending = async (): Promise<void> => {
@@ -297,7 +309,7 @@ async function createInstalledDispatcher(
                     operationId: `${held.claimId}:progress:${progress.sequence}` }, { store });
                 committedProgress = progress;
               };
-              if (options.profile === 'mail') answer = await options.adapter.callProvider(selected);
+              if (options.profile === 'mail' || options.profile === 'judgment') answer = await options.adapter.callProvider(selected);
               else if (options.profile === 'text') answer = await options.adapter.callProvider(selected, { onProgress: commitProgress });
               else {
                 const original = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
@@ -422,7 +434,8 @@ async function createInstalledDispatcher(
             throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
           }
           return (!rich
-            ? await stageReceiptProgress({ intent, outcome, revision }, context)
+            ? await stageReceiptProgress({ intent, outcome, revision,
+              ...(options.profile === 'judgment' ? { context: requireResultContext(intent.intentId) } : {}) }, context)
             : await stageRichProgress({ intent, context: requireResultContext(intent.intentId), revision,
               ...(outcome.kind === 'delivered' ? { progress: outcome.result as RichRunWire } : { outcome }) }, context)).writes ?? [];
         } });

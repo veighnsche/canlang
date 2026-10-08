@@ -50,6 +50,7 @@ import type {
   CanValue,
   CanonicalModelDescriptor,
   CanonicalNominalResult,
+  CanonicalValueTypes,
   ClaimId,
   CompileArtifact,
   ColumnMeta,
@@ -83,6 +84,7 @@ import type {
   QuerySpec,
   Receipt,
   ReceiptProperty,
+  ReceiptResultContext,
   RecordId,
   RecordVersion,
   ResolvedIdentity,
@@ -100,10 +102,10 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT, DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
-import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput } from "@canlang/values";
-import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
+import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
+import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
-import { assertReceiptJoin } from "@canlang/state/receipt/tables";
+import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/receipt/tables";
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import { bindNativeRecord } from './native-records.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
@@ -122,6 +124,9 @@ import type { AssembledModules } from "./modules.js";
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
+import { freezeBoundJudgmentRequest } from './bound-judgment.js';
+import { freezeJudgmentSource } from '@canlang/services';
+import type { StaticJudgmentDescriptor } from '@canlang/services';
 
 export type { AssembledModules } from "./modules.js";
 export type { HandlerContext } from "./context.js";
@@ -1068,6 +1073,8 @@ interface StateRegistryProducer {
     readonly secretFields: ReadonlyMap<string, ReadonlySet<string>>;
     readonly containment: ReadonlyMap<string, unknown>;
     readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
+    readonly valueSchema?: NormalizedSchema;
+    readonly valueTypes?: CanonicalValueTypes;
   };
   /**
    * R01: the loader's own whole-set rejection class, for the
@@ -1246,6 +1253,7 @@ interface StateModelsProducer {
       readonly serverInits?: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
       readonly nullableFields?: ReadonlyMap<string, ReadonlySet<string>>;
       readonly containment?: ReadonlyMap<string, unknown>;
+      readonly valueSchema?: NormalizedSchema;
     },
   ): unknown;
 }
@@ -1954,6 +1962,8 @@ export interface LoadedCanonicalDescriptors {
   readonly collectionColumns: ReadonlyMap<string, readonly ColumnMeta[]>;
   /** C3/B3: loader-built delivery-field schema, carried for the T25 receipt join (D3 consumes). */
   readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly valueSchema?: NormalizedSchema;
+  readonly valueTypes?: CanonicalValueTypes;
   readonly producers: CanonicalStateProducers;
   /** C2/B2 (Q3): holder-built serverOnly exclusions, passed to every invoke. */
   readonly conflictServerOnly: ReadonlyMap<string, ReadonlySet<string>>;
@@ -2469,6 +2479,7 @@ export async function loadCanonicalDescriptors(
     serverInits: loaded.serverInits,
     nullableFields: loaded.nullableFields,
     containment: loaded.containment,
+    ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
   });
   // T17b: transcribe the read policy over the LOADED models (validated
   // names + declared fields — never the raw artifact). Ruled models are
@@ -2523,6 +2534,8 @@ export async function loadCanonicalDescriptors(
     producers,
     conflictServerOnly: buildConflictServerOnly(loaded.models),
     deliveryFields: loaded.deliveryFields,
+    ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+    ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
   };
   canonicalCache.set(artifact, canonical);
   return canonical;
@@ -3019,22 +3032,28 @@ function generatedScenarioDef(call: Pick<CanonicalSeamCall, 'def'>): GeneratedOp
 }
 
 /** Scenario writes may carry native values; stored fields/defaults are wire. */
-function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown): unknown {
+function decodeCanonicalValue(schema: NormalizedSchema | undefined, type: CanTypeId, wire: unknown): CanValue {
+  return schema === undefined ? decodeValue(type, wire) : validateValue(schema, type, wire, 'create');
+}
+
+function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown, schema?: NormalizedSchema): unknown {
   try {
+    let wire: unknown;
     try {
-      return encodeValue(type, value as CanValue);
+      wire = encodeValue(type, value as CanValue);
     } catch {
-      return encodeValue(type, decodeValue(type, value));
+      wire = encodeValue(type, decodeCanonicalValue(schema, type, value));
     }
+    return schema === undefined ? wire : encodeValue(type, validateValue(schema, type, wire, 'create'));
   } catch (error) {
     throw new StateError("validation", message(error));
   }
 }
 
 /** Incoming CRUD fields must use the declared wire representation. */
-function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown): unknown {
+function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown, schema?: NormalizedSchema): unknown {
   try {
-    return encodeValue(type, decodeValue(type, value));
+    return encodeValue(type, decodeCanonicalValue(schema, type, value));
   } catch (error) {
     throw new StateError("validation", message(error));
   }
@@ -3048,14 +3067,14 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
     if (field.kind !== "ref" && field.kind !== "delivery" && field.valueType !== undefined) {
       try {
         if (!Object.hasOwn(parameters, field.name) && field.default?.kind === "literal") {
-          const value = decodeValue(field.valueType, field.default.value);
+          const value = decodeCanonicalValue(loaded.valueSchema, field.valueType, field.default.value);
           parameters[field.name] = value;
           resolvedDefaults[field.name] = encodeValue(field.valueType, value);
         } else if (!Object.hasOwn(parameters, field.name) && field.computedDefault !== true && field.valueType.endsWith("?")) {
           parameters[field.name] = null;
           resolvedDefaults[field.name] = null;
         } else if (field.kind === "enum" ? Object.hasOwn(parameters, field.name) : parameters[field.name] !== undefined) {
-          parameters[field.name] = decodeValue(field.valueType, parameters[field.name]);
+          parameters[field.name] = decodeCanonicalValue(loaded.valueSchema, field.valueType, parameters[field.name]);
         }
       } catch (error) {
         throw new loaded.producers.errors("validation", message(error));
@@ -3085,7 +3104,9 @@ function scenarioResult(call: Pick<CanonicalSeamCall, 'def'>, loaded: LoadedCano
       }
       return encodeValue(resultType, modelReference);
     }
-    return encodeValue(resultType, value as CanValue);
+    const wire = encodeValue(resultType, value as CanValue);
+    return loaded.valueSchema === undefined ? wire
+      : encodeValue(resultType, validateValue(loaded.valueSchema, resultType, wire, 'create'));
   } catch (error) {
     throw new loaded.producers.errors('validation', message(error));
   }
@@ -3151,7 +3172,7 @@ function nativeProjectedRecord(loaded: LoadedCanonicalDescriptors, modelName: st
   for (const [field, wire] of Object.entries(row.data)) {
     const type = model?.fields[field]?.valueType;
     const target = loaded.refs.get(modelName)?.find(reference => reference.field === field)?.model;
-    record[field] = type !== undefined ? decodeValue(type, wire)
+    record[field] = type !== undefined ? decodeCanonicalValue(loaded.valueSchema, type, wire)
       : target === undefined || wire === null ? wire : decodeValue(target, wire);
   }
   Object.assign(record, nativeRecordMetadata(row));
@@ -3282,7 +3303,7 @@ async function runScenarioSeam(
       enumerable: true, get: () => {
         const wire = current()?.data[field];
         const type = model?.fields[field]?.valueType;
-        return type === undefined || wire === undefined ? wire : decodeValue(type, wire);
+        return type === undefined || wire === undefined ? wire : decodeCanonicalValue(loaded.valueSchema, type, wire);
       },
     });
     // Ordinary references retain admitted metadata while domain reads see
@@ -3308,7 +3329,7 @@ async function runScenarioSeam(
     // matching read grant may expose only part of its data.
     for (const [field, wire] of Object.entries(row.data)) {
       const type = model?.fields[field]?.valueType;
-      record[field] = type === undefined ? wire : decodeValue(type, wire);
+      record[field] = type === undefined ? wire : decodeCanonicalValue(loaded.valueSchema, type, wire);
     }
     Object.assign(record, nativeRecordMetadata(row));
     Object.freeze(record);
@@ -3379,6 +3400,8 @@ async function runScenarioSeam(
             row.data[field.name]) as DeliveryRef | null,
           queued: queuedDeliveries, operationId: call.context.operationId,
           revision: call.checkpoint.revision + 1,
+          ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+          ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
         }, {
           actor: actorUserId ?? call.context.trustedSource ?? "anonymous",
           now: call.context.now, operation: call.context.operation,
@@ -3466,7 +3489,7 @@ async function runScenarioSeam(
           if (field.field.kind !== 'delivery' || data === undefined || !Object.hasOwn(data, field.name)) continue;
           data[field.name] = encodeCanonicalField(StateError,
             `delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
-            data[field.name]);
+            data[field.name], loaded.valueSchema);
         }
         const result = await loaded.producers.pipeline.runMutationWrites({
           table: loaded.table,
@@ -3488,7 +3511,7 @@ async function runScenarioSeam(
           // Generated writes carry native values; stored fields and defaults
           // carry wire values. Let this checked type's public codecs admit
           // either representation at the existing late checkpoint.
-          encodeField: (type, value) => encodeCanonicalField(StateError, type, value),
+          encodeField: (type, value) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
           // T32b: the triggering checkpoint point — hook bodies name it
           // back as their `triggerRevision` when they open fresh
           // transitive scopes. Absent on checkpoint-less calls.
@@ -3592,6 +3615,7 @@ async function runScenarioSeam(
     recordEngineFailure(failure);
     throw failure;
   };
+  const judgmentSpecification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation);
   const ctx = createContext({
     caller:
       actorUserId === null
@@ -3601,6 +3625,7 @@ async function runScenarioSeam(
     clock: () => admittedNow,
     memberships: grants,
     canonical: scope,
+    ...(judgmentSpecification === undefined ? {} : { judgmentSpecification }),
     scheduleDeferred: async (key, at, event, payload, ownerPackage) => {
       try {
         const selected = await scheduleScope(ownerPackage);
@@ -3665,41 +3690,48 @@ async function runScenarioSeam(
         const binding = member(member(definition, 'bindings'), bindingKey);
         const capability = member(binding, 'capability');
         const from = member(binding, 'from');
-        if (typeof capability !== 'string' || typeof from !== 'string' || from === '') {
-          throw new Error(`${where} has no exact checked binding ${JSON.stringify(bindingKey)}.`);
-        }
-        const prefix = `${capability}.`;
-        if (!source.startsWith(prefix) || source.slice(prefix.length).includes('.')) {
-          throw new Error(`${where} does not belong to binding ${JSON.stringify(bindingKey)}.`);
-        }
-        const declaration = member(member(definition, 'capabilities'), capability);
-        const operation = member(member(declaration, 'operations'), source.slice(prefix.length));
-        const inputs = member(operation, 'inputs');
-        if (!isUnknownRecord(inputs) || !isUnknownRecord(request)) {
-          throw new Error(`${where} requires its checked operation inputs and an argument object.`);
-        }
-        // Values owns schema admission, omission/default semantics and each
-        // native/wire codec. The adapter supplies the exact owning declaration.
-        const schema = normalizeSchema({
-          contracts: member(definition, 'contracts') ?? {},
-          enums: member(definition, 'enums') ?? {},
-          operations: { [source]: { inputs } },
-        } as SchemaDescriptor);
-        const wire: Record<string, unknown> = Object.create(null);
-        for (const [name, value] of Object.entries(request)) {
-          const field = member(inputs, name) as FieldDescriptor | undefined;
-          wire[name] = field === undefined || value === undefined ? value : encodeValue(field.type, value as CanValue);
-        }
-        const checked = validateOperationInput(schema, source, wire);
-        const args: Record<string, unknown> = Object.create(null);
-        for (const [name, value] of Object.entries(checked)) {
-          const field = member(inputs, name) as FieldDescriptor;
-          args[name] = encodeValue(field.type, value);
+        let boundRequest: BoundCapabilityRequest;
+        if (typeof member(binding, 'judgment') === 'string') {
+          boundRequest = freezeBoundJudgmentRequest({
+            appDefinition: definition, binding: bindingKey, target: source, arguments: request,
+          });
+        } else {
+          if (typeof capability !== 'string' || typeof from !== 'string' || from === '') {
+            throw new Error(`${where} has no exact checked binding ${JSON.stringify(bindingKey)}.`);
+          }
+          const prefix = `${capability}.`;
+          if (!source.startsWith(prefix) || source.slice(prefix.length).includes('.')) {
+            throw new Error(`${where} does not belong to binding ${JSON.stringify(bindingKey)}.`);
+          }
+          const declaration = member(member(definition, 'capabilities'), capability);
+          const operation = member(member(declaration, 'operations'), source.slice(prefix.length));
+          const inputs = member(operation, 'inputs');
+          if (!isUnknownRecord(inputs) || !isUnknownRecord(request)) {
+            throw new Error(`${where} requires its checked operation inputs and an argument object.`);
+          }
+          // Values owns schema admission, omission/default semantics and each
+          // native/wire codec. The adapter supplies the exact owning declaration.
+          const schema = normalizeSchema({
+            contracts: member(definition, 'contracts') ?? {},
+            enums: member(definition, 'enums') ?? {},
+            operations: { [source]: { inputs } },
+          } as SchemaDescriptor);
+          const wire: Record<string, unknown> = Object.create(null);
+          for (const [name, value] of Object.entries(request)) {
+            const field = member(inputs, name) as FieldDescriptor | undefined;
+            wire[name] = field === undefined || value === undefined ? value : encodeValue(field.type, value as CanValue);
+          }
+          const checked = validateOperationInput(schema, source, wire);
+          const args: Record<string, unknown> = Object.create(null);
+          for (const [name, value] of Object.entries(checked)) {
+            const field = member(inputs, name) as FieldDescriptor;
+            args[name] = encodeValue(field.type, value);
+          }
+          boundRequest = { binding: bindingKey, from, arguments: args };
         }
         const producer = await loadProducerModule('@canlang/work/kernel/dispatch-staging', 'work canonical send producer');
         const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
           typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
-        const boundRequest: BoundCapabilityRequest = { binding: bindingKey, from, arguments: args };
         const stagedSend = await stage({
           operationId: call.context.operationId, source, occurrenceIndex: sendIndex++,
           request: boundRequest, originOccurrence: due?.occurrenceId ?? cohort?.occurrenceId ?? null,
@@ -3858,7 +3890,7 @@ export async function invokeMutationCanonical(
   const crudExecute = loaded.producers.crud.generatedCrudExecute({
     table: loaded.table,
     store: receiptStore,
-    encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value),
+    encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
   });
   // One opaque ID per actual schedule ordinal, retained across State retries.
   const occurrenceIds: string[] = [];
@@ -4053,6 +4085,39 @@ export interface CanonicalDueScheduleOpts {
 
 function privateSourceMember(value: unknown, key: string): unknown {
   return isUnknownRecord(value) ? readMetadataMember(value, key, 'Private cohort source')?.value : undefined;
+}
+
+/** Import the already-pinned callable module before execution; the installed helper remains synchronous and pure. */
+async function loadJudgmentSpecificationResolver(
+  asm: AssembledModules, artifact: CompileArtifact, operation: string,
+  definingModuleUrl?: string,
+): Promise<HandlerContext['judgmentSpecification']> {
+  const callable = artifact.callables.find(entry => entry.id === operation);
+  const url = definingModuleUrl ?? (callable === undefined ? undefined : asm.moduleUrls[callable.module]);
+  if (url === undefined) return undefined;
+  const where = 'Judgment specification';
+  const own = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+  const definition = own(await import(url), 'appDefinition');
+  const judgments = own(definition, 'judgments');
+  if (judgments === undefined) return undefined;
+  if (!isUnknownRecord(judgments)) throw new Error(`${where} requires checked declaration metadata.`);
+  const specifications = new Map<string, import('@canlang/contracts').JudgmentSpec>();
+  return qualifiedName => {
+    if (typeof qualifiedName !== 'string' || !Object.hasOwn(judgments, qualifiedName)) {
+      throw new Error(`${where} requires an exact defining declaration.`);
+    }
+    const prior = specifications.get(qualifiedName);
+    if (prior !== undefined) return prior;
+    const descriptor = own(judgments, qualifiedName);
+    const language = own(descriptor, 'sourceLanguage');
+    if (!isUnknownRecord(descriptor) || typeof language !== 'string') {
+      throw new Error(`${where} has no checked source language.`);
+    }
+    const frozen = freezeJudgmentSource(qualifiedName, descriptor as unknown as StaticJudgmentDescriptor, language);
+    specifications.set(qualifiedName, frozen.specification);
+    return frozen.specification;
+  };
 }
 
 function assertDeclaredCohortVersion(artifact: CompileArtifact): void {
@@ -4797,6 +4862,7 @@ interface StateReceiptJoinProducer {
   observeSelectedReceiptJoin(input: {
     readonly declaredSource: string;
     readonly declaredResult?: import('@canlang/contracts').CanonicalNominalResult;
+    readonly declaredContext?: ReceiptResultContext;
     readonly locator: { readonly record: { readonly id: string }; readonly field: string };
     readonly selected: ReadonlyArray<string>;
     readonly model: string;
@@ -5185,6 +5251,16 @@ export async function invokeSelectedReceiptRead(
   if (opts.fence !== undefined) {
     opts.fence.enroll({ kind: "record", model, id: owner.id, version: owner.version });
   }
+  let declaredContext: ReceiptResultContext | undefined;
+  if ('judgment' in declaration.field && declaration.field.judgment === true) {
+    if (loaded.valueTypes === undefined) throw new StateError('validation', 'Judgment receipt has no checked value inventory.');
+    // This immutable serving artifact pins the rubric. A receipt from a
+    // different rubric cannot be accepted under a newer active declaration.
+    const specification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation, opts.asm.entryUrl);
+    if (specification === undefined) throw new StateError('validation', 'Judgment receipt has no defining source specification.');
+    declaredContext = createJudgmentReceiptContext(declaration.field,
+      specification(declaration.field.capability), loaded.valueTypes);
+  }
   const joinMod = await loadProducerModule(STATE_RECEIPT_JOIN_SPECIFIER, "state receipt join producer");
   const observeSelectedReceiptJoin = requireProducerFn(
     joinMod,
@@ -5195,6 +5271,7 @@ export async function invokeSelectedReceiptRead(
   const outcome = await observeSelectedReceiptJoin({
     declaredSource,
     ...(declaredResult === undefined ? {} : { declaredResult }),
+    ...(declaredContext === undefined ? {} : { declaredContext }),
     locator: { record: { id: recordId }, field },
     selected,
     model,
@@ -5380,10 +5457,12 @@ async function runReadScenarioSeam(
   const actor = call.actorUserId === null ? null : opts.identity.actor;
   const team = call.teamId === null ? null : opts.identity.team;
   const now = (opts.now ?? Date.now)();
+  const judgmentSpecification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation);
   const ctx = createContext({
     caller: { userId: call.actorUserId ?? 'anonymous', roles },
     memberships: roles, store: readonlyStore, canonical: scope,
     clock: () => now,
+    ...(judgmentSpecification === undefined ? {} : { judgmentSpecification }),
     sendDeferred: refuse, scheduleDeferred: refuse, cancelDeferred: refuse,
     qualified: {
       actor: actor === null ? null : { userId: call.actorUserId!, email: actor.email, emailVerified: actor.email_verified },

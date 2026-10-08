@@ -50,6 +50,7 @@
  */
 import type {
   CanValue,
+  JudgmentSpec,
   OrderTerm,
   ProjectedRecord,
   QueryPredicate,
@@ -69,6 +70,14 @@ export {
 } from '@canlang/values';
 export const same = sameNativeReference;
 export { delivery } from '@canlang/state/effects/delivery';
+
+/** Lowered static source constant: no provider call, storage read or additional authority. */
+export function judgmentSpecification(c: HandlerContext, qualifiedName: string): JudgmentSpec {
+  if (typeof c.judgmentSpecification !== 'function') {
+    throw new Error('Judgment specification requires the pinned compiled source resolver.');
+  }
+  return c.judgmentSpecification(qualifiedName);
+}
 
 /** Pure checked equality, with compatibility for earlier c-first artifacts. */
 export function equalValue(typeId: string, a: CanValue, b: CanValue): boolean;
