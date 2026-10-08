@@ -42,6 +42,164 @@ fn production_selected_calls_execute_actual_facades() {
 }
 
 #[test]
+fn effectful_custom_same_arity_binding_executes_typed_native_getters() {
+    use canlang_compiler::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
+    use canlang_compiler::codegen::ir::{IrCallTarget, IrExpr, IrItemKind, IrStmt};
+
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root().join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let installed_catalog = root().join("packages/values/dist/catalog.json");
+    let mut custom: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(installed_catalog).unwrap()).unwrap();
+    let builtin = custom["entries"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|entry| entry["id"] == "add_days")
+        .unwrap();
+    assert_eq!(builtin["signature"], "add_days(value:date,days:int)->date");
+    assert_eq!(builtin["availability"], "implemented");
+    // Same names and arity: actual field types reject the earlier candidate.
+    // The winning signature restores the installed facade's Date/Int order.
+    builtin["signature"] =
+        "add_days(days:date,value:int)->date; add_days(value:date,days:int)->date".into();
+    builtin["effects"] = "state-read".into();
+    let catalog_path = scratch.path().join("catalog.json");
+    std::fs::write(&catalog_path, serde_json::to_vec(&custom).unwrap()).unwrap();
+    let source = "app T\nGiven\n contract Shift {start:date,offset:int}\nWhen\n scenario shift(v:Shift) read=true -> date by=members\n  do return add_days(days=v.offset,value=v.start)\nThen\n";
+    let mut db = SourceDb::new();
+    let id = db.add("shift.can".into(), source.into());
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: scratch.path(),
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    assert_eq!(catalog.overloads("add_days").unwrap().len(), 2);
+    let (checked, diagnostics) = check_program(&db, &[id], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(checked.types.selected_calls.len(), 1);
+    let (call_key, selected) = checked.types.selected_calls.iter().next().unwrap();
+    assert!(
+        matches!(&selected.target, SelectedCallTarget::Builtin { id, overload: 1 } if id == "add_days")
+    );
+    assert_eq!(selected.slots, [Some(1), Some(0)]);
+    assert_eq!(
+        checked.types.node_types[call_key],
+        ResolvedType::Scalar(Scalar::Date)
+    );
+    assert_eq!(
+        selected
+            .arguments
+            .iter()
+            .map(|key| &checked.types.node_types[key])
+            .collect::<Vec<_>>(),
+        [
+            &ResolvedType::Scalar(Scalar::Int),
+            &ResolvedType::Scalar(Scalar::Date)
+        ]
+    );
+    // Carry the actual owning SourceDb and loaded catalog through lowering.
+    let (ir, diagnostics) = ir::build(&checked, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let scenario = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "T.shift")
+        .unwrap();
+    let IrItemKind::Scenario { effects, .. } = &scenario.kind else {
+        panic!("owning scenario declaration")
+    };
+    let [
+        IrStmt::Return {
+            value: Some(value), ..
+        },
+    ] = effects.as_slice()
+    else {
+        panic!("one authored return: {effects:?}")
+    };
+    let IrExpr::BoundCall {
+        target,
+        args,
+        slots,
+    } = &value.expr
+    else {
+        panic!("checked reordered builtin: {:?}", value.expr)
+    };
+    assert!(matches!(target, IrCallTarget::Builtin { id, awaited: true } if id == "add_days"));
+    assert_eq!(slots, &selected.slots);
+    for (arg, field) in args.iter().zip(["offset", "start"]) {
+        assert!(matches!(&arg.expr, IrExpr::Member { field: actual, .. } if actual == field));
+    }
+    assert_eq!(args.len(), 2);
+    let emitted = canlang_compiler::codegen::js::emit_program(&ir);
+    assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+    assert!(emitted.stdlib_imports.contains("add_days"));
+    for module in std::iter::once(&emitted.entry).chain(&emitted.packages) {
+        let path = scratch.path().join(&module.path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, &module.js).unwrap();
+    }
+    // A strict native getter host exercises expression evaluation only. It
+    // does not qualify State admission, authority integration, or serving.
+    let script = scratch.path().join("probe.mjs");
+    std::fs::write(
+        &script,
+        r#"import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+import {date} from '@canlang/stdlib';
+const registry = (await import(pathToFileURL(process.argv[2]))).canApp();
+const context = {memberships:['members']};
+const start = date('2026-10-07');
+const expected = {kind:'date',year:2026,month:10,day:10};
+function host(trace, fail) {
+  const reads = new Set();
+  const failures = {offset:new Error('offset failed'),start:new Error('start failed')};
+  const record = {};
+  for (const [field, value] of [['offset',3n],['start',start]]) {
+    Object.defineProperty(record, field, {get() {
+      assert.equal(this, record, field+' receiver');
+      assert(!reads.has(field), field+' read twice');
+      reads.add(field); trace.push(field);
+      if (fail === field) throw failures[field];
+      return value;
+    }});
+  }
+  return {record, failures};
+}
+const trace = [];
+const {record} = host(trace);
+assert.deepEqual(await registry['T.shift'](context, {v:record}), expected);
+assert.deepEqual(trace, ['offset','start']);
+for (const [fail, expectedTrace] of [['offset',['offset']],['start',['offset','start']]]) {
+  const trace = [];
+  const {record, failures} = host(trace, fail);
+  await assert.rejects(registry['T.shift'](context, {v:record}), error => error === failures[fail]);
+  assert.deepEqual(trace, expectedTrace);
+}
+"#,
+    )
+    .unwrap();
+    let output = Command::new("node")
+        .arg(script)
+        .arg(scratch.path().join(&emitted.entry.path))
+        .output()
+        .expect("Node required for actual installed facade execution");
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn missing_checked_binding_has_no_catalog_reconstruction_fallback() {
     let mut db = SourceDb::new();
     let id = db.add(
