@@ -21,6 +21,7 @@
  * fenceRevision; id-only, denied and null reads enroll nothing).
  */
 import type {
+  CanonicalNominalResult,
   ReceiptAssociation,
   ReceiptError,
   ReceiptProperty,
@@ -79,6 +80,8 @@ export interface JoinStoredReceipt {
 export interface JoinObserverInput {
   readonly locator: unknown;
   readonly selected: readonly ReceiptProperty[];
+  /** Result declaration from the same checked owning delivery field. */
+  readonly declaredResult?: CanonicalNominalResult;
   readonly association: ReceiptAssociation | null;
   readonly receipt: JoinStoredReceipt | null;
   readonly grants: JoinGrantPort;
@@ -166,7 +169,7 @@ export function resolveJoinLocator(locator: unknown): JoinLocator {
   return { recordId, field };
 }
 
-const KNOWN_PROPERTIES: ReadonlySet<string> = new Set(['id', 'status', 'result', 'error']);
+const KNOWN_PROPERTIES: ReadonlySet<string> = new Set(['id', 'status', 'result', 'error', 'result.content']);
 
 /**
  * Validate the selected-leaf shape up front (mirror of the mechanism's
@@ -204,6 +207,8 @@ export interface SelectedReceiptJoinInput {
   readonly schema: DeliveryFieldSchema;
   /** Capability.operation from the same checked owning delivery declaration. */
   readonly declaredSource: string;
+  /** Required for result subfields; supplied from the same checked owning field. */
+  readonly declaredResult?: CanonicalNominalResult;
   /** Grant source: the declared per-model policy table. */
   readonly policy: PolicyTable;
   readonly caller: JoinCaller;
@@ -362,6 +367,7 @@ export async function observeSelectedReceiptJoin(
     // authoritatively; the mirror above only loaded rows.
     locator: input.locator,
     selected: input.selected,
+    ...(input.declaredResult === undefined ? {} : { declaredResult: input.declaredResult }),
     association,
     receipt,
     grants,
