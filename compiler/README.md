@@ -162,6 +162,8 @@ Implemented modules:
   whole and child-only grants stay distinct. `tests/delivery_progress_runtime.rs`
   exercises one exact flat-key observation for `.progress.content` and
   `.result.content`, Can null and inline enum equality through real Values.
+  A null facade response for an absent association becomes Can null before
+  selecting a member; exact selection and single evaluation are preserved.
   Real State grant facts retain child paths without upward expansion. The
   package-owned facade is released; the genuine Cloudflare async/absence/error
   consumer remains its runtime owner's qualification. This compiler witness

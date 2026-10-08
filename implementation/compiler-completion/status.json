@@ -1,10 +1,11 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T10:36:57Z",
+  "updated_utc": "2026-10-08T10:44:56Z",
   "total": 67,
-  "finished_at_recorded_scope": 53,
-  "remaining_including_partial": 14,
+  "finished_at_recorded_scope": 54,
+  "remaining_including_partial": 13,
   "finished_references": [
+    "ARCH-02",
     "COST-01",
     "DEP-01",
     "DEP-02",
@@ -61,7 +62,6 @@
   ],
   "remaining_references": [
     "ARCH-01",
-    "ARCH-02",
     "FAIL-R06",
     "OR-06",
     "OUT-R05",
@@ -101,9 +101,9 @@
     }
   },
   "latest_component": {
-    "commit": "f0cb18be0057942002a867dba0951fb24f319b13",
-    "previous_component": "0da68becee7bcf7adc28eea678710809a60e0ac9",
-    "outcome": "Both declared progress aliases and ordinary delivery result children request and access the exact flat selected key, with no implicit whole-result read. The affected native case passes 1/1 after the production revision: once order, typed children, Can null, real Values enum equality and real State parent/child grant facts at the strict host seam. Defining facade8c61fc5b and selected Work projection25302017 are released; genuine Cloudflare async/absence/error qualification remains runtime-owned. H1 computed defaults retain their previously recorded positive native/State body result and corrected E1213 negative expectation without a repeat."
+    "commit": "768e9e443016b52f0646f546b48c41d19a7ce5cb",
+    "previous_component": "f0cb18be0057942002a867dba0951fb24f319b13",
+    "outcome": "Nullable exact selected delivery extraction handles a null facade response as Can null, preserving one observation and exact keys. The revised native case passes1/1 at its host seam; genuine Cloudflare fixture qualification is runtime-owned. ARCH-02 original retain-support index is complete by reusing all five previously accepted family outcomes; zero deletion/mechanisms and no new checks. Read-scenario computed defaults remain blocked by actual State/CF read execution prerequisites, routed to their runtime owner."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -125,9 +125,12 @@
     "../../compiler/tests/graph_width.rs",
     "../../compiler/tests/file_profile_runtime.rs",
     "../../compiler/tests/std_nominal_construct.rs",
-    "../../compiler/tests/delivery_progress_runtime.rs"
+    "../../compiler/tests/delivery_progress_runtime.rs",
+    "retained-support-review/report.md",
+    "public-fragment-support/independent-review/qualification.md",
+    "lsp-support/independent-review/review.md"
   ],
-  "current_source_work": "Private trusted handler invocation metadata86a8be55, standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a retain their accepted bounded outcomes. Ordered nonnullable scalar scenario defaults and File native profiles121688d7 pass source/native/State-omission/Values-codec controls; reference/identity/enum/collapsed-alias computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain open owning joins; qualified native nullable/ordinary-array omission is recorded below. Executed default/server scope closured2fb9024 repairs actual E4051 omission while supplied overrides stay inactive. Known standard nominal construct join6dd7bf96 passes genuine TextRequest nested enum/native execution without guessed schemas. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph widths remain bounded; extreme source/count/generated-output admission is unresolved. Anonymous format coveragee71b37cf, earlier selected-call controls and held BDD/timezone/model-rule profiles remain bounded. No broader reference or whole-suite closure is claimed. Reachable standard nominal contract emission8aa1bc33 resolves the demonstrated real Values TextRequest admission blocker using existing producer schemas; generated/native request validation passes at its declared scope. Declared progress alias74cb4cb8 qualifies checked/canonical paths. Exact flat selected-key loweringf0cb18be qualifies both progress and ordinary result children, Can null/order/Values equality and child-only grant facts in the focused native host case1/1. Defining facade8c61fc5b and Work selected projection25302017 are released; genuine Cloudflare serving remains runtime-owned. Additive computedDefault:true producer0da68bec pairs artifact/canonical profiles; direct real-State/native nullable/ordinary-array omission and suppliednull/[] controls pass at their recorded body scope. A subsequent stale grammar expectation is corrected without repeating accepted work; no overall passing run total is claimed. Actual Cloudflare serving and ref/identity/enum/collapsed-alias/read/receipt/replay joins remain owning work.",
+  "current_source_work": "Private trusted handler invocation metadata86a8be55, standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a retain their accepted bounded outcomes. Ordered nonnullable scalar scenario defaults and File native profiles121688d7 pass source/native/State-omission/Values-codec controls; reference/identity/enum/collapsed-alias computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain open owning joins; qualified native nullable/ordinary-array omission is recorded below. Executed default/server scope closured2fb9024 repairs actual E4051 omission while supplied overrides stay inactive. Known standard nominal construct join6dd7bf96 passes genuine TextRequest nested enum/native execution without guessed schemas. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph widths remain bounded; extreme source/count/generated-output admission is unresolved. Anonymous format coveragee71b37cf, earlier selected-call controls and held BDD/timezone/model-rule profiles remain bounded. No broader reference or whole-suite closure is claimed. Reachable standard nominal contract emission8aa1bc33 resolves the demonstrated real Values TextRequest admission blocker using existing producer schemas; generated/native request validation passes at its declared scope. Declared progress alias74cb4cb8 qualifies checked/canonical paths. Exact flat selected-key loweringf0cb18be qualifies both progress and ordinary result children, Can null/order/Values equality and child-only grant facts in the focused native host case1/1. Defining facade8c61fc5b and Work selected projection25302017 are released; genuine Cloudflare serving remains runtime-owned. Additive computedDefault:true producer0da68bec pairs artifact/canonical profiles; direct real-State/native nullable/ordinary-array omission and suppliednull/[] controls pass at their recorded body scope. A subsequent stale grammar expectation is corrected without repeating accepted work; no overall passing run total is claimed. Actual Cloudflare serving and ref/identity/enum/collapsed-alias/read/receipt/replay joins remain owning work. Nullable selected extraction768e9e44 repairs actual null-facade indexing before Can null normalization; the focused affected host case passes1/1, genuine CF qualification is separate. Read-scenario computed defaults have actual missing State/CF marker/admission/handler-serving prerequisites; no unsupported marker promise is emitted. ARCH-02 retain-support index is reconciled from all five accepted family-specific outcomes with zero deletion/mechanisms and no repeated checks.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
