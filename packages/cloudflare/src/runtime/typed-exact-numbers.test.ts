@@ -3,8 +3,11 @@ import { test } from 'node:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { Miniflare } from 'miniflare';
+import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, MutationEnvelope } from '@canlang/contracts';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import {
   FIXED_NOW, asId, asModel, asOperation, asOperationId, createMemoryIdentityStore,
   makeIdentity, seedMember, uuidv7,
@@ -161,4 +164,154 @@ canApp = function() {
     assert.deepEqual(await store.historyFor(MODEL, asId(row.id)), history);
     assert.doesNotThrow(() => JSON.stringify([createReceipt, defaultsReceipt, stored, history]));
   } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+async function openD1(dir: string) {
+  const worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+    script: 'export default { fetch() { return new Response("ok"); } }',
+    d1Databases: { DB: 'typed-exact-numbers' }, d1Persist: dir });
+  try {
+    const database = await worker.getD1Database('DB') as unknown as D1Database;
+    await ensureSchema(database);
+    return { worker, store: createD1Storage(database) };
+  } catch (error) {
+    try { await worker.dispose(); } catch { /* Preserve the acquisition failure. */ }
+    throw error;
+  }
+}
+
+test('compiled decimal and money D1 lifecycle persists exact values, CRUD refusals and reopened replay', async () => {
+  const path = resolve('packages/cloudflare/test/fixtures/typed-exact-numbers.json');
+  const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
+  const dir = await mkdtemp(join(tmpdir(), 'can-exact-numbers-d1-'));
+  let d1: Awaited<ReturnType<typeof openD1>> | undefined;
+  // Membership/identity are fixtures; persisted rows, history and receipts use actual D1 State.
+  const memberships = createMemoryIdentityStore();
+  const member = await seedMember(memberships, { isOwner: false });
+  const identity = makeIdentity({ membership: member.membership, email: member.user.email });
+  const options = { memberships, now: () => FIXED_NOW };
+  const receiptIdentity = (request: MutationEnvelope) => ({ app: APP,
+    owner: identity.team!.team_id, principal: identity.actor!.user_id,
+    operation: asOperation(request.operation), operationId: asOperationId(request.operation_id) });
+  try {
+    const asm = await assembleModules({ artifact, sourcePath: path }, {
+      workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+      uiUrl: import.meta.resolve('@canlang/ui'),
+    });
+    d1 = await openD1(join(dir, 'd1'));
+    const invoker = buildInvoker(artifact, asm, d1.store, options);
+    const suppliedMoney = { cash: eur('250'), seedCoins: [eur('10'), eur('20')] };
+    const create = envelope('Ledger.create', suppliedMoney);
+    const born = committed(await invoker.invokeMutation(create, identity));
+    const row = born.result as { id: string; data: Record<string, unknown> };
+    const initialData = {
+      amount: '1.5', ...suppliedMoney, amounts: [], coins: [], seedAmounts: ['0.1', '0.2'],
+      maybeAmount: null, maybeCash: null, maybeAmounts: null, maybeCoins: null,
+    };
+    assert.deepEqual(row.data, initialData);
+    assert.deepEqual((await d1.store.load(MODEL, asId(row.id)))?.data, initialData);
+    const createReceipt = await d1.store.readReceipt(receiptIdentity(create));
+    assert.ok(createReceipt !== null);
+    for (const field of ['amount', 'seedAmounts', 'maybeAmount', 'maybeCash', 'maybeAmounts', 'maybeCoins'] as const) {
+      assert.deepEqual(createReceipt.resolvedDefaults[field], initialData[field]);
+    }
+    assert.equal(Object.hasOwn(createReceipt.resolvedDefaults, 'cash'), false);
+    assert.equal(Object.hasOwn(createReceipt.resolvedDefaults, 'seedCoins'), false);
+    const defaults = envelope('defaults', { cash: eur('20'), coins: [eur('10')] });
+    assert.deepEqual(committed(await invoker.invokeMutation(defaults, identity)).result, eur('30'));
+    const defaultsReceipt = await d1.store.readReceipt(receiptIdentity(defaults));
+    assert.deepEqual(defaultsReceipt?.resolvedDefaults, { delta: '0.1', amounts: ['0.1', '0.2'] });
+    const ref = (version: number) => ({ id: row.id, version: String(version) });
+    const add = envelope('add', {
+      ledger: ref(1), delta: '9007199254740993.1', cash: eur('9007199254740993'),
+      amounts: ['0.1', '0.2'], coins: [eur('20'), eur('30')], accept: true,
+    });
+    assert.equal(committed(await invoker.invokeMutation(add, identity)).result, '9007199254740995.2');
+    const exactRow = await d1.store.load(MODEL, asId(row.id));
+    assert.equal(exactRow?.version, 2);
+    assert.deepEqual(exactRow?.data, { ...initialData, amount: '9007199254740995.2',
+      cash: eur('9007199254741323'), amounts: ['0.1', '0.2'], coins: [eur('20'), eur('30')] });
+    const firstHistory = await d1.store.historyFor(MODEL, asId(row.id));
+    const firstRevision = await d1.store.readRevision();
+    assert.equal(committed(await invoker.invokeMutation(add, identity), 'replayed').result, '9007199254740995.2');
+    assert.equal(await d1.store.readRevision(), firstRevision);
+    assert.deepEqual(await d1.store.load(MODEL, asId(row.id)), exactRow);
+    assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), firstHistory);
+    const usd = { minor: '9007199254740993', currency: 'USD' };
+    const optional = envelope('optional', { ledger: ref(2), amount: '0.5', cash: usd,
+      amounts: ['0.6', '0.7'], coins: [usd] });
+    assert.equal(committed(await invoker.invokeMutation(optional, identity)).result, '0.5');
+    const populated = await d1.store.load(MODEL, asId(row.id));
+    assert.deepEqual(populated?.data, { ...exactRow?.data, maybeAmount: '0.5', maybeCash: usd,
+      maybeAmounts: ['0.6', '0.7'], maybeCoins: [usd] });
+    const partial = envelope('Ledger.update', { record: ref(3), amount: '9007199254740995.3' });
+    committed(await invoker.invokeMutation(partial, identity));
+    assert.deepEqual((await d1.store.load(MODEL, asId(row.id)))?.data, {
+      ...populated?.data, amount: '9007199254740995.3',
+    });
+    const clear = envelope('optional', { ledger: ref(4) });
+    assert.equal(committed(await invoker.invokeMutation(clear, identity)).result, null);
+    const clearReceipt = await d1.store.readReceipt(receiptIdentity(clear));
+    assert.deepEqual(clearReceipt?.resolvedDefaults, { amount: null, cash: null, amounts: null, coins: null });
+    const stored = await d1.store.load(MODEL, asId(row.id));
+    assert.equal(stored?.version, 5);
+    assert.deepEqual(stored?.data, { ...exactRow?.data, amount: '9007199254740995.3' });
+    const history = await d1.store.historyFor(MODEL, asId(row.id));
+    const rows = await d1.store.query({ model: MODEL, authority: 'owner' });
+    const rollback = envelope('add', { ledger: ref(5), delta: '0.1', cash: eur('1'),
+      amounts: [], coins: [], accept: false });
+    const rollbackError = rejected(await invoker.invokeMutation(rollback, identity));
+    const rollbackReceipt = await d1.store.readReceipt(receiptIdentity(rollback));
+    assert.equal(rollbackReceipt?.outcome.status, 'rejected');
+    assert.deepEqual(await d1.store.load(MODEL, asId(row.id)), stored);
+    assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), history);
+    for (const bad of [{ amount: 0.1 }, { amount: '1e3' }, { cash: { minor: 1, currency: 'EUR' } },
+      { cash: { minor: '1', currency: 'XXX' } }, { amounts: [0.1] },
+      { coins: [{ minor: '1', currency: 'EUR', extra: true }] }, { maybeAmount: true },
+      { maybeCash: { minor: '1', currency: 'XXX' } }, { maybeAmounts: [false] }, { maybeCoins: [eur('1.5')] }]) {
+      rejected(await invoker.invokeMutation(envelope('Ledger.create', {
+        ...suppliedMoney, ...bad,
+      }), identity), 'validation');
+      rejected(await invoker.invokeMutation(envelope('Ledger.update', {
+        record: ref(5), ...bad,
+      }), identity), 'validation');
+    }
+    assert.deepEqual(await d1.store.query({ model: MODEL, authority: 'owner' }), rows);
+    assert.deepEqual(await d1.store.load(MODEL, asId(row.id)), stored);
+    assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), history);
+
+    await d1.worker.dispose();
+    d1 = undefined;
+    d1 = await openD1(join(dir, 'd1'));
+    const reopened = buildInvoker(artifact, asm, d1.store, options);
+    assert.deepEqual(await d1.store.load(MODEL, asId(row.id)), stored);
+    assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), history);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(create)), createReceipt);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(defaults)), defaultsReceipt);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(clear)), clearReceipt);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(rollback)), rollbackReceipt);
+    assert.deepEqual(committed(await reopened.invokeMutation(envelope('cash', { ledger: ref(5) }), identity)).result,
+      eur('9007199254741323'));
+    assert.deepEqual(committed(await reopened.invokeMutation(envelope('amounts', { ledger: ref(5) }), identity)).result,
+      ['0.3', '9007199254740995.3']);
+    assert.deepEqual(committed(await reopened.invokeMutation(envelope('coins', { ledger: ref(5) }), identity)).result,
+      [eur('20'), eur('30')]);
+    for (const operation of ['maybeAmount', 'maybeCash', 'maybeAmounts', 'maybeCoins']) {
+      assert.equal(committed(await reopened.invokeMutation(envelope(operation, { ledger: ref(5) }), identity)).result, null);
+    }
+    const revision = await d1.store.readRevision();
+    assert.deepEqual(committed(await reopened.invokeMutation(create, identity), 'replayed').result, born.result);
+    assert.equal(committed(await reopened.invokeMutation(add, identity), 'replayed').result, '9007199254740995.2');
+    assert.equal(committed(await reopened.invokeMutation(optional, identity), 'replayed').result, '0.5');
+    committed(await reopened.invokeMutation(partial, identity), 'replayed');
+    assert.equal(committed(await reopened.invokeMutation(clear, identity), 'replayed').result, null);
+    assert.deepEqual(committed(await reopened.invokeMutation(defaults, identity), 'replayed').result, eur('30'));
+    assert.deepEqual(rejected(await reopened.invokeMutation(rollback, identity)), rollbackError);
+    assert.equal(await d1.store.readRevision(), revision);
+    assert.deepEqual(await d1.store.query({ model: MODEL, authority: 'owner' }), rows);
+    assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), history);
+  } finally {
+    try { await d1?.worker.dispose(); }
+    finally { await rm(dir, { recursive: true, force: true }); }
+  }
 });
