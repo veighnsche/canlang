@@ -3027,3 +3027,9 @@ Private State emission and three direct memory checks passed. Root reviewed sour
 The canonical due intake now checks all matching declared handlers before consuming Work's source occurrence. The current cohort-only producer covers one owning module; mixed ordinary/cohort and multiple ordinary siblings remain pending from either selected handler until complete retained routing exists. A cross-module source route also refuses. This prevents choosing one sibling from consuming the source while losing the others; it does not invent shared handler execution or retroactive source rejection.
 
 The genuine fixture compiled and the one changed native D1 consumer case passed, preserving the exact pending source, absent receipt, revision, rows and history. Cloudflare source emission passed; unchanged ordinary and winning-claim checks are reused. Root reviewed released source directly. The actual retained all-handler intake and independent ordinary bodies remain required consumer work, with no whole package acceptance or replacement reduction credit.
+
+## 2026-10-08: qualify member-frame actor defaults through receipts
+
+The genuine canonical Memory consumer qualifies omitted who:user?=actor through the already admitted fixed member frame, with closed user wire encoding and explicit null/peer overrides. Matching raw-input receipts replay the saved values before current membership admission; changed inputs conflict and a fresh revoked call refuses without a receipt. Existing generated default observation, identity, codec and replay policies are unchanged.
+
+The owning changed consumer case passed once after correcting its trace expectation; root directly reviewed source and reused the result. Anonymous/null actor frames, nonnullable actor defaults and wider D1/application qualification remain separate. This is selected evidence of existing capability, not production reduction or full package acceptance.
