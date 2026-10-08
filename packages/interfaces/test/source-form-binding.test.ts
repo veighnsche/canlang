@@ -40,10 +40,19 @@ test('source binding survives transport and reconstruction with the same configu
   assert.deepEqual(transported.inputs, { title: 'Edited draft' }, 'restoration does not mutate submitted inputs');
   const fresh = await renderer.seal({ ...context, operationId: 'fresh-nonce', nowMs: context.nowMs + 1_000 }, bound, ['title']);
   assert.equal(fresh.identity, proof.identity, 'fresh nonce and expiry retain the same source binding identity');
+  assert.equal(fresh.draftIdentity, proof.draftIdentity);
   assert.notEqual(fresh.token, token);
-  assert.notEqual((await renderer.seal(context, { record: { id: 'entry-2', version: '7' } }, ['title'])).identity, proof.identity);
-  assert.notEqual((await renderer.seal(context, { record: { id: 'entry-1', version: '8' } }, ['title'])).identity, proof.identity);
-  assert.notEqual((await renderer.seal({ ...context, appId: 'AnotherApp' }, bound, ['title'])).identity, proof.identity);
+  const changedRecord = await renderer.seal(context, { record: { id: 'entry-2', version: '7' } }, ['title']);
+  assert.notEqual(changedRecord.identity, proof.identity); assert.notEqual(changedRecord.draftIdentity, proof.draftIdentity);
+  const changedVersion = await renderer.seal(context, { record: { id: 'entry-1', version: '8' } }, ['title']);
+  assert.notEqual(changedVersion.identity, proof.identity);
+  assert.equal(changedVersion.draftIdentity, proof.draftIdentity, 'same record at a new version permits editable draft transfer only');
+  const changedContext = await renderer.seal({ ...context, appId: 'AnotherApp' }, bound, ['title']);
+  assert.notEqual(changedContext.identity, proof.identity); assert.notEqual(changedContext.draftIdentity, proof.draftIdentity);
+  const changedSchema = await renderer.seal({ ...context, derived: { ...derived, inputs: [
+    derived.inputs[0]!, { ...derived.inputs[1]!, required: true }, derived.inputs[2]!,
+  ] } }, bound, ['title']);
+  assert.notEqual(changedSchema.draftIdentity, proof.draftIdentity);
   assert.equal(new TextDecoder().decode(base64UrlToBytes(token.split('.')[0]!)!).includes(revision), false, 'host revision details are not disclosed');
 });
 
