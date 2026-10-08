@@ -6,9 +6,10 @@
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
       "paths": [
-        "compiler/src/codegen/sourcemap.rs"
+        "compiler/src/analysis/types.rs::cyclic field-type reuse",
+        "compiler/tests/width_boundaries.rs"
       ],
-      "status": "Source-map name interning correction and focused product test ready; bounded Cargo awaits slot."
+      "status": "Fix existing E3008 refusal after direct cycle control exposed missing diagnostic; no new support policy."
     }
   },
   "integrated_releases": {
@@ -32,7 +33,10 @@
     "UI_full_civil_years": "9a2759fc; original26tests retained,28focused+directpublic independentcontrols pass; UI source/test paths released.",
     "release_notices": "ba856554; actualselected macOS/LinuxRust1.99/archive/notice closure accepted; hostedCI/publication unclaimed.",
     "checked_operation_result": "61c08f20;13 focused tests pass, unsupported/missing results remain unknown.",
-    "UI_native_scalar_presentation": "56b06e68;31 focused messages plus generated native/wire and State query outcomes; original SEM-R06 defects complete."
+    "UI_native_scalar_presentation": "56b06e68;31 focused messages plus generated native/wire and State query outcomes; original SEM-R06 defects complete.",
+    "source_map_names": "3d304dc7;6 focused checks pass; broader widths remain open.",
+    "selected_app_locale": "94c2ae16;6 locale/117 codegen tests pass; runtime formatting join remains open.",
+    "editor_project_scope": "5a0006ec;declared document/catalog lifetime and actual client/CLI comparison accepted bounded."
   },
   "pending_releases": {
     "UI_static": "Releasedc718517a; furtherlegalcaption/genericprofiles needexactownerqualification",
@@ -56,7 +60,7 @@
     "compiler_inputs": 127,
     "package_dist_inputs": 1770,
     "external_can_fixtures": 5,
-    "source_writers": "Width-boundary source-map writer only; no current whole-source freeze. Foreign package ownership retained.",
+    "source_writers": "Type-reuse cycle writer only; no current whole-source freeze. Foreign package ownership retained.",
     "status": "Historical native1162 at83d40be0 accepted. Corpus0611 focused independently accepted. No current whole-source freeze.",
     "start_head": "0134ebb01b978831e07e6428bd15512de75e610a",
     "receipt": "integration-after-bindings/after-action-invocation/native-run/profile-accounting/final-run.json"

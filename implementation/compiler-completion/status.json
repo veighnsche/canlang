@@ -1,9 +1,9 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T01:32:34.932012+00:00",
+  "updated_utc": "2026-10-08T01:47:03.475814+00:00",
   "total": 67,
-  "finished_at_recorded_scope": 45,
-  "remaining_including_partial": 22,
+  "finished_at_recorded_scope": 46,
+  "remaining_including_partial": 21,
   "finished_references": [
     "COST-01",
     "DEP-01",
@@ -14,6 +14,7 @@
     "ED-R04",
     "ED-R05",
     "ED-R06",
+    "ED-R07",
     "ED-R08",
     "ED-R09",
     "FAIL-R01",
@@ -55,7 +56,6 @@
     "ARCH-01",
     "ARCH-02",
     "DEP-02",
-    "ED-R07",
     "FAIL-R06",
     "OR-02",
     "OR-06",
@@ -102,11 +102,10 @@
       "receipt": "session-history/native-mode-qualification/receipt.json"
     }
   },
-  "goal_status": "active",
   "latest_component": {
-    "commit": "56b06e68",
-    "previous_component": "61c08f20",
-    "outcome": "SEM-R06 original three UI defects resolved; checked operation result metadata integrated as a bounded component."
+    "commit": "5a0006ec",
+    "previous_component": "94c2ae16",
+    "outcome": "Editor supported document/catalog closure qualified; checked app locale producer integrated as a bounded formatting component."
   },
   "latest_accepted_outcomes": [
     "renderer-failure-qualification/README.md",
@@ -114,7 +113,7 @@
     "json-frame-oracles/README.md",
     "corpus-admission/independent-review/REVIEW.md"
   ],
-  "current_source_work": "Native scalar UI and checked operation result producer integrated. Redundant nested verification removed; direct fixtures/results retained. Width-boundary source work proceeds; localized formatting and BDD consumer work remain open.",
+  "current_source_work": "Cyclic field-type reuse currently emits no E3008 despite existing refusal contract; focused types.rs correction underway. Actual used-catalog and forward-reuse ladders pass at depths0/16/32/64/128. Broader widths, runtime formatting and BDD consumer work remain open.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
