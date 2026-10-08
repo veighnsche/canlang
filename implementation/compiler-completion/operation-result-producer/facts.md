@@ -2,7 +2,7 @@
 
 The shared `operations_json` serializer publishes optional `result: {type}`.
 Selected checked Scenario declarations publish the closed
-`int`/`datetime`/`text`/`bool`/`decimal`/`money`
+`int`/`datetime`/`text`/`bool`/`decimal`/`money`/`date`/`duration`
 scalar profile, one optional array suffix followed by one nullable suffix, or
 explicit `void` for declaration-established no-result signatures. Other result
 shapes, including specialized string types and records, remain absent.
@@ -102,3 +102,25 @@ Clippy pass. Constructor folding remains an explicit dependency-boundary gap:
 source has no alternate money literal syntax, and this change introduces neither
 a native Values dependency nor duplicate currency/rounding rules. Completion
 remains **48/67**.
+
+Date/duration follow-up: both have distinct owning checked scalar declarations.
+Selected Scenario results publish their scalar/array/nullable profiles directly.
+Duration inputs publish the distinct `duration` kind; model duration tags already
+retain that identity. Date operation inputs retain the existing string kind with
+an exact own `valueType` claim (`date`, `date?`, `date[]`, or `date[]?`); model fields
+retain the distinct date tag and the same checked claim. Flattened create/update
+inputs preserve claims and array/null markers. Other specialized strings do not
+acquire claims. No date identity is inferred from string values or duration from
+integer carriers.
+
+The shared default classifier also recognizes synchronous builtin date calls
+with one direct text literal, recursively within existing literal arrays/objects.
+Their existing wire serializer emits checked ISO dates. Dynamic date parameter
+defaults retain E6008; invalid calendar literals retain E3001. Duration defaults
+reuse integer-millisecond wire serialization. Fresh CLI source witnesses cover
+results, inputs, model defaults, CRUD claims, constructor refusals and artifact/
+canApp serializer equality. **2/2** operation_results and strict library Clippy
+pass. A first fixture expectation incorrectly used a date input tag and omitted
+claim suffixes; these expectations were corrected to the existing wire contract.
+The corresponding TypeScript mirrors and actual calendar/duration consumer run
+belong to their package owners. This bounded producer leaves completion **48/67**.
