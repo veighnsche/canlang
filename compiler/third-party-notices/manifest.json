@@ -2,17 +2,17 @@
   "schema": 1,
   "scope": "Existing compiler binary release targets; retain supplied license alternatives without a new licensing choice or lower-MSRV claim.",
   "inputs": {
-    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
-    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64"
+    "compiler/Cargo.toml": "96307d5d54252f77665c64084a7587530826078350993421e0da04599e92e099",
+    "compiler/Cargo.lock": "37b66aa0bc6e40c37b670fff968dfc92bf7bb31e916c2c66076abe7f08f3ce40"
   },
   "targets": {
     "aarch64-apple-darwin": {
       "file": "THIRD-PARTY-NOTICES-aarch64-apple-darwin.txt",
-      "sha256": "0a564c52d731ea3d89e63dc3be0ff85392575782c8b76643e30d8b08a8ef2ba6"
+      "sha256": "3e6747c10d07c4f142963f7627a78199753daa70f13b3b3f3db4cfecf4387950"
     },
     "x86_64-unknown-linux-gnu": {
       "file": "THIRD-PARTY-NOTICES-x86_64-unknown-linux-gnu.txt",
-      "sha256": "a6967ea3370acea393101ebff90faa640491e9e82973b3b2192f44517e026f91"
+      "sha256": "bdc98727d273d19d6f1df59bd3696d206ad6e720e435203f79b5976033a44238"
     }
   },
   "provenance": {

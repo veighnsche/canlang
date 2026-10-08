@@ -40,6 +40,7 @@
 
 pub mod artifact;
 pub mod bdd;
+mod defaults;
 pub mod ir;
 pub mod js;
 pub mod sourcemap;

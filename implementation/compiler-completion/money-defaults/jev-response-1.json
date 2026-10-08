@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "A standalone Rust compiler must support constant Money constructor defaults for model fields and operation parameters. The owning Values Rust crate is private but exposes checked decimal parsing, integer/decimal major-unit Money construction, pinned currency membership/scales, once-only half-even rounding, signed-int64 minor range checks, and canonical Money wire encoding. Its JavaScript public constructor uses the same semantics. The compiler currently explicitly refuses these defaults. The Rust owner is in the same repository, has no dependency on the compiler, and is already consumed through a Cargo path dependency by native bindings. Its dependency set is big integers, numeric traits, number formatting and serde; these are locally available. Current catalogs provide signatures and descriptive semantics, not executable constant folding. No public/compiler extension API or separately published native crate exists. Outcomes are identical for each alternative: exact compiled/native default agreement, one owner of currency/rounding/codec behavior, useful model and parameter defaults, maintainable ownership, smallest complete change, and preservation of a standalone compiler. Only constant integer/decimal/text constructor arguments are in scope; dynamic expressions stay refused. Select a boundary, treating advice as nonbinding.",
+    "questions": {
+      "money_default_boundary": {
+        "type": "choice",
+        "instructions": "Choose using equal stated outcomes; weigh coupling against added API or host requirements and retain uncertainty.",
+        "criteria": {
+          "direct_owner": "Add a compiler Cargo path dependency on the existing private Values Rust crate. A small compiler adapter calls its current checked constructors and wire codec. Reuses complete semantics with no new owner API or runtime process; couples compiler to private modules/representations and adds existing native dependencies.",
+          "owner_facade": "Add a narrow owner-provided constant-Money folding facade around the same constructor/codec and then a compiler Cargo path dependency. Reuses complete semantics and hides internal carriers behind a focused contract; requires extra owner API, implementation and maintenance before compiler use, with the same native dependencies.",
+          "public_js_process": "Call the public JavaScript Values constructor and codec from a subprocess during compilation. Reuses the public surface and avoids a Rust private-module dependency; requires installed JavaScript runtime/package, process/data transport and failures, so the compiler no longer has only its standalone-binary prerequisite."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "money_default_boundary": {
+        "type": "choice",
+        "choice": "direct_owner",
+        "confidence": 0.83,
+        "probabilities": {
+          "direct_owner": 0.89,
+          "owner_facade": 0.11,
+          "public_js_process": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 741,
+      "output_tokens": 46
+    }
+  }
+}

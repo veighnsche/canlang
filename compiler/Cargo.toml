@@ -15,6 +15,9 @@ name = "can"
 path = "src/main.rs"
 
 [dependencies]
+# Constant defaults share the private owning Values constructor and wire codec.
+values-semantics = { path = "../packages/values/semantics", version = "=0.1.0" }
+
 # Ordinary HTTP(S) value admission; keep authored values after parsing.
 url = { version = "=2.5.8", default-features = false, features = ["std"] }
 # Stable byte-hash adapter; no optional assembly or serialization features.

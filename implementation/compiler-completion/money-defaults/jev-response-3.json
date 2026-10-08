@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "The task is to add compiler support for literal Money(amount,currency) model and parameter defaults while retaining explicit refusal for dynamic cases. Verified owner facts: an existing private Rust value crate exports exact decimal parsing, Money construction, and canonical scalar wire encoding; it applies pinned currency scales, one half-even rounding step and int64 minor bounds. Public JavaScript semantics match that owner. The monorepo native bindings use a Cargo path dependency on it already, without a compiler cycle. Its big-integer/formatting/serde dependencies are available locally. There is no stable external native API; catalog signatures cannot perform this fold. Evaluate each candidate against exact default behavior, avoiding duplicate semantics, maintaining ownership over time, implementation size, and the compiler remaining a standalone executable. Pick the smallest justified complete dependency boundary, with any uncertainty retained.",
+    "questions": {
+      "money_default_boundary": {
+        "type": "choice",
+        "instructions": "Choose using equal stated outcomes; weigh coupling against added API or host requirements and retain uncertainty.",
+        "criteria": {
+          "direct_owner": "Compiler directly consumes existing private Rust constructor/parser/codec exports through a Cargo path dependency, with a thin exact-literal adapter. Small complete reuse and standalone execution; acknowledges coupling to private paths/types and existing native crates.",
+          "owner_facade": "Values gains a narrow supported constant-Money-folding entrypoint, backed by its existing parser/constructor/codec; compiler depends on that entrypoint through Cargo. Encapsulates representations but introduces an additional maintained API and owner changes with the same dependency graph.",
+          "public_js_process": "Compiler launches installed public JavaScript Values to construct/encode defaults. Public semantics remain authoritative; an extra runtime/package and process protocol become required at compile time, increasing operational requirements while avoiding Rust private API coupling."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "money_default_boundary": {
+        "type": "choice",
+        "choice": "direct_owner",
+        "confidence": 0.95,
+        "probabilities": {
+          "owner_facade": 0.03,
+          "direct_owner": 0.97,
+          "public_js_process": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 651,
+      "output_tokens": 46
+    }
+  }
+}

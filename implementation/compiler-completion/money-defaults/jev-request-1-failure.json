@@ -1,0 +1,6 @@
+{
+  "attempt": 1,
+  "http_status": 503,
+  "response_saved": false,
+  "note": "First request failed at service; one isolated retry planned."
+}

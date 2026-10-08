@@ -4136,7 +4136,7 @@ fn t15a_literal_json_exactness() {
     );
     assert_eq!(
         js::literal_json(&money_call).as_deref(),
-        Some("{\"minor\":\"25\",\"currency\":\"EUR\"}")
+        Some("{\"minor\":\"2500\",\"currency\":\"EUR\"}")
     );
     let date_call = typed(
         IrExpr::Call {

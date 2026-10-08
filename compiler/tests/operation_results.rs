@@ -382,19 +382,19 @@ fn invalid_result_body_never_publishes_a_successful_artifact() {
             "E6008",
         ),
         (
-            "app Invalid\nGiven\n Ledger {cash:money=money(0.20,\"EUR\")}\nWhen\nThen\n",
+            "app Invalid\nGiven\n Ledger {cash:money=money(92233720368547758.08,\"EUR\")}\nWhen\nThen\n",
             "E6008",
         ),
         (
-            "app Invalid\nGiven\n Ledger {coins:money[]=[money(0.10,\"EUR\")]}\nWhen\nThen\n",
+            "app Invalid\nGiven\n Ledger {coins:money[]=[money(92233720368547758.08,\"EUR\")]}\nWhen\nThen\n",
             "E6008",
         ),
         (
-            "app Invalid\nGiven\nWhen\n scenario cash(value:money=money(0.20,\"EUR\")) read=true -> money by=members\n  do return value\nThen\n",
+            "app Invalid\nGiven\nWhen\n scenario cash(raw:decimal,value:money=money(raw,\"EUR\")) read=true -> money by=members\n  do return value\nThen\n",
             "E6008",
         ),
         (
-            "app Invalid\nGiven\nWhen\n scenario coins(value:money[]=[money(0.10,\"EUR\")]) read=true -> money[] by=members\n  do return value\nThen\n",
+            "app Invalid\nGiven\nWhen\n scenario coins(raw:decimal,value:money[]=[money(raw,\"EUR\")]) read=true -> money[] by=members\n  do return value\nThen\n",
             "E6008",
         ),
     ] {
