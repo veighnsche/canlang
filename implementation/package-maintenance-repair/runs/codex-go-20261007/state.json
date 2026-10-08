@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T07:31:15.306383+00:00",
+  "updated_utc": "2026-10-08T07:33:04.643604+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2187,6 +2187,12 @@
     ],
     "boundary_guard": "global checker exit1 with52 other-owner source-resolution/crosspackage-fixture violations; no selected Work violation observed; retained for owning follow-up",
     "counts_unchanged": true,
-    "models": "Sol high finite crosspackage stage/identity seam; Sol low unchanged shared-helper consolidation; root direct review/checks and Git"
+    "models": "Sol high finite crosspackage stage/identity seam; Sol low unchanged shared-helper consolidation; root direct review/checks and Git",
+    "bound_request": {
+      "type": "Contracts BoundCapabilityRequest {binding,from,arguments}, nested in the existing outbox record; canonical source/target and v1 identity unchanged",
+      "owners": "Runtime assembly derives exact logical binding/from and validates/encodes only authored arguments; Work captures once and stages unchanged; State persists in its existing JSON arguments slot. Services installed routing/current authority remain dispatch responsibilities.",
+      "validation": "Contracts emit0; Work emit0; only the affected canonical staging witness rerun1/1. Two same-capability aliases retain their distinct binding/from, authored binding input stays nested, records clone/freeze and no commit occurs.",
+      "limits": "Actual compiled-source/D1 persistence consumer in progress; provider availability-before-guard, installed/version compatibility/current authority, replay-content mismatch and adapter forwarding are not claimed."
+    }
   }
 }
