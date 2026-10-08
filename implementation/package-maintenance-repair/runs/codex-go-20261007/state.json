@@ -1808,10 +1808,11 @@
         "packages/cloudflare/src/worker/assembly.ts::loadAppInfo",
         "packages/cloudflare/test/app-locale-serving.test.ts"
       ],
-      "status": "Released and root direct reviewed: owning private TypeScript emit passed;11focused existing assembly factory handoff cases passed. Metadata fixture scope only; actual compiler/durable/installed claims remain open.",
+      "status": "Committed67f51aee and root direct reviewed: owning private TypeScript emit passed;11focused existing assembly factory handoff cases passed. Metadata fixture scope only; actual compiler/durable/installed claims remain open.",
       "outputs": "/private/tmp/canlang-app-locale-consumer-20261008",
       "validation": "One private exact owning TypeScript emit and emitted Vitest run;11/11. Private-only missing resolver links and test discovery fixed before behavioral pass, no production weakening.",
-      "commands_live": false
+      "commands_live": false,
+      "commit": "67f51aee"
     },
     {
       "task": "DEL-B02/DEL-R01 original owning assembly caller regression migration",
@@ -1851,5 +1852,12 @@
     "worker_goals": "Do not create or maintain separate worker goals or supervision; retain task list and substantive implementation under current cross-chat coordinator.",
     "shared_output_incident": "One delegated wrong-cwd ordinary root build refreshed shared dist/cache (26 tasks,8.327s); ended, reported to coordinator and not credited as qualification. Further validation uses exact private package cwd."
   },
-  "released_nested_cleanup": "Committed2266088b: single direct validation instructions, retired nested metadata/snapshots; preserved original product fixtures/results and exact H1 advice. No production reduction or parent completion claim."
+  "released_nested_cleanup": "Committed2266088b: single direct validation instructions, retired nested metadata/snapshots; preserved original product fixtures/results and exact H1 advice. No production reduction or parent completion claim.",
+  "ui_values_dependency": {
+    "source_manifest": "packages/ui/package.json",
+    "lock_commit": "6cd15950",
+    "release": "Compiler owner explicitly released existing @canlang/values workspace edge; manifest writer inactive",
+    "validation": "Reuse unchanged actual31/31 UI checks from compiler Values guard/codec correction; no rerun",
+    "limits": "Workspace dependency ownership only; installed/complete backend gates open"
+  }
 }

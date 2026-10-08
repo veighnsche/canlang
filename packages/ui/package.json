@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@canlang/contracts": "workspace:*",
+    "@canlang/values": "workspace:*",
     "csv-parse": "7.0.3"
   },
   "devDependencies": {
