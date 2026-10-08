@@ -1,0 +1,14 @@
+{
+  "state": "A Rust compiler and its owning exact-value implementation live in one repository. Static Money defaults currently fail explicitly. The private native Values library already exports validated decimal parsing, checked Money construction from major-unit integer or decimal amounts, and scalar Money wire encoding. It owns currency tables, half-even rounding and int64 overflow. Native bindings already depend on that library by Cargo path; there is no cycle or separately published crate. Needed transitive crates are locally cached. Build catalogs carry signatures rather than an evaluator. We need real constant model-field and operation-parameter defaults without reimplementing arithmetic, currency facts or codecs. Compare alternatives by the same standards: semantic parity with the public JavaScript owner, clear maintenance ownership, small complete implementation, and a self-contained single-binary compiler. Constant scalar inputs are supported; general expression evaluation is excluded. Which reuse boundary should be selected? Advice does not itself approve the change.",
+  "questions": {
+    "money_default_boundary": {
+      "type": "choice",
+      "instructions": "Choose using equal stated outcomes; weigh coupling against added API or host requirements and retain uncertainty.",
+      "criteria": {
+        "direct_owner": "Reuse current exported Rust owner functions via a local Cargo dependency and adapt only literal inputs/output structure in compiler. Minimal additional code and no JavaScript host; the compiler explicitly depends on private module/carrier stability and takes the owner dependencies.",
+        "owner_facade": "First expose a focused Money-default evaluator from the Rust owner, then consume it through Cargo. Constructor/codec semantics stay shared and private carriers are hidden; adds an API and coordinated owner work without removing native dependencies.",
+        "public_js_process": "Evaluate defaults using an external JavaScript runtime and installed public Values package. Keeps the public package as the direct API; adds process orchestration and required host installation instead of a Rust owner dependency, affecting standalone compilation."
+      }
+    }
+  }
+}

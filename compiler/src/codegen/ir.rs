@@ -4994,6 +4994,9 @@ impl<'a> Cx<'a> {
 
 /// Whether a default expression stays a literal `default` value.
 fn is_literal_default(expr: &TypedExpr) -> bool {
+    if super::defaults::money_default_wire(expr).is_some() {
+        return true;
+    }
     match &expr.expr {
         IrExpr::Int(_)
         | IrExpr::Decimal(_)
