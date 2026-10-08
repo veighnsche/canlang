@@ -27,8 +27,8 @@ use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
-    IrBinOp, IrCallTarget, IrDefault, IrExpr, IrFieldLabel, IrGuard, IrHook, IrItem, IrItemKind,
-    IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp,
+    IrBinOp, IrCallTarget, IrDefault, IrEventSource, IrExpr, IrFieldLabel, IrGuard, IrHook, IrItem,
+    IrItemKind, IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp,
     ReferencedBuiltin, ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::diagnostic::Diagnostic;
@@ -2749,7 +2749,11 @@ impl<'a> Emitter<'a> {
         // `null` against any nullable side compares directly.
         if matches!(left.ty, ResolvedType::Null) || matches!(right.ty, ResolvedType::Null) {
             let js_op = if negate { "!==" } else { "===" };
-            return format!("{l} {js_op} {r}");
+            return format!(
+                "{} {js_op} {}",
+                parenthesize_operand(l, &left.expr),
+                parenthesize_operand(r, &right.expr)
+            );
         }
         // Nullable values must apply the owning null rules before a scalar
         // comparator or reference helper sees either operand. Hook carrier
@@ -5769,7 +5773,11 @@ impl<'a> Emitter<'a> {
                         format!("inputs:{{{inputs}}}"),
                     ];
                     if let Some(event) = event_source {
-                        members.push(format!("event:{}", js_string(event)));
+                        let identity = match event {
+                            IrEventSource::Declared(identity)
+                            | IrEventSource::DeliveryProgressed(identity) => identity,
+                        };
+                        members.push(format!("event:{}", js_string(identity)));
                         if let Some(invocation) = self.private_event_invocation(item, event) {
                             members.push(format!("invocation:{}", invocation.to_json()));
                         }
@@ -6194,7 +6202,44 @@ impl<'a> Emitter<'a> {
     /// The runtime admits these event fields, then binds the admitted values
     /// into the handler's `{event}` envelope. Observed stored ref versions
     /// remain payload metadata; this descriptor enrolls current references.
-    fn private_event_invocation(&self, handler: &IrItem, event: &str) -> Option<JsOperation> {
+    fn private_event_invocation(
+        &self,
+        handler: &IrItem,
+        event: &IrEventSource,
+    ) -> Option<JsOperation> {
+        let event = match event {
+            IrEventSource::Declared(identity) => identity.as_str(),
+            IrEventSource::DeliveryProgressed(_) => {
+                let IrItemKind::Scenario {
+                    description,
+                    result,
+                    ..
+                } = &handler.kind
+                else {
+                    return None;
+                };
+                return Some(JsOperation {
+                    name: handler.canonical.clone(),
+                    kind: JsOperationKind::Scenario,
+                    description: description
+                        .as_ref()
+                        .map(|message| message.source.clone())
+                        .unwrap_or_default(),
+                    inputs: vec![JsOperationField {
+                        name: "delivery_id".to_string(),
+                        field: JsMcpField::String,
+                        value_type: Some("text"),
+                        required: true,
+                        nullable: false,
+                        array_required: None,
+                        computed_default: false,
+                        default: None,
+                        description: None,
+                    }],
+                    result: checked_scenario_result(result.as_ref()),
+                });
+            }
+        };
         let declaration = self.ir.items.iter().find(|item| item.canonical == event)?;
         let IrItemKind::Event { fields } = &declaration.kind else {
             return None;

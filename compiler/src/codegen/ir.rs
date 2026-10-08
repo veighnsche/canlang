@@ -199,7 +199,7 @@ pub enum IrItemKind {
         params: Vec<SymbolId>,
         trusted: bool,
         /// Checked declared event identity for the ordinary trusted handler.
-        event_source: Option<String>,
+        event_source: Option<IrEventSource>,
         /// Pre-commit hook trigger, when `on=Model.create/update/delete`
         /// (T31 Rule A); declared events use the ordinary trusted handler.
         hook: Option<IrHook>,
@@ -1206,6 +1206,13 @@ impl IrDeleteMode {
             IrDeleteMode::Remove => "remove",
         }
     }
+}
+
+/// Checked trusted handler identity and finite payload authority.
+#[derive(Debug, Clone)]
+pub enum IrEventSource {
+    Declared(String),
+    DeliveryProgressed(String),
 }
 
 /// Pre-commit hook trigger (T31 Rule A): the hooked model plus the
@@ -4779,7 +4786,7 @@ impl<'a> Cx<'a> {
         Vec<IrStmt>,
         Option<IrHook>,
         Option<IrCohort>,
-        Option<String>,
+        Option<IrEventSource>,
     ) {
         let empty = (
             false,
@@ -4832,7 +4839,12 @@ impl<'a> Cx<'a> {
             Some(crate::analysis::effects::HandlerSource::Event(event))
                 if data.cohort.is_none() =>
             {
-                Some(self.canonical(*event))
+                Some(IrEventSource::Declared(self.canonical(*event)))
+            }
+            Some(crate::analysis::effects::HandlerSource::DeliveryProgressed { source })
+                if data.cohort.is_none() =>
+            {
+                Some(IrEventSource::DeliveryProgressed(source.clone()))
             }
             _ => None,
         };

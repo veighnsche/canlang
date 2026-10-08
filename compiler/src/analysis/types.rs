@@ -421,6 +421,8 @@ pub(crate) fn std_delivery_result_type(op: &StdOperation) -> ResolvedType {
 pub struct TypeTable {
     /// Checked external and capability/operation declaration heads for sends.
     pub target_bindings: HashMap<NodeKey, Binding>,
+    /// Checked owning progress handler identities, consumed without source rebinding.
+    pub delivery_progress_handlers: HashMap<NodeKey, String>,
     /// Selected call authority consumed by IR without rebinding arguments.
     pub selected_calls: HashMap<NodeKey, SelectedCall>,
     /// Name references with a lexical value binding. Retained for IR so
@@ -3444,6 +3446,23 @@ impl<'a> Typer<'a> {
                 envelope,
             );
         }
+        if let Some(on) = attribute_value(node, "on", text)
+            && self
+                .types
+                .delivery_progress_handlers
+                .contains_key(&NodeKey::of(on))
+        {
+            env.insert(
+                NarrowKey {
+                    decl: DeclKey::CtxEvent,
+                    path: Vec::new(),
+                },
+                ResolvedType::Object(vec![(
+                    "delivery_id".to_string(),
+                    ResolvedType::Scalar(Scalar::Text),
+                )]),
+            );
+        }
         // `by=` authorization narrows `actor` for guards and the body
         // (DESIGN §3); the resolver already narrowed
         // members/owner/authenticated, so this only adds role
@@ -4180,14 +4199,33 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Check a three-segment `on=` source: `Cap.op.completed` delivery
-    /// completions.
+    /// Check three-segment delivery lifecycle sources. Progress belongs only
+    /// to the original operations in the accepted associated-progress manifest;
+    /// cancel/reconcile command receipts do not gain owning progress handlers.
     fn check_on_completed(
         &mut self,
         cx: &Ctx<'_, '_>,
         on: &SyntaxNode,
         segments: &[&str],
     ) -> Option<(SymbolId, CrudOp)> {
+        if segments[2] == "progressed" {
+            let scopes = &self.tables.module_scopes[cx.module.0 as usize];
+            if let Some(ScopedName::External { provider, name }) = scopes.prod.get(segments[0])
+                && provider == "std"
+                && let Some(cap) = std_capability(name)
+                && cap.operations.iter().any(|op| op.name == segments[1])
+                && matches!(
+                    (cap.name, segments[1]),
+                    ("std.TextGenerationV1", "generate") | ("std.ImagesV1", "submit")
+                )
+            {
+                let owner = &self.tables.modules[cx.module.0 as usize].name;
+                self.types
+                    .delivery_progress_handlers
+                    .insert(NodeKey::of(on), format!("{owner}.{}", segments.join(".")));
+                return None;
+            }
+        }
         if segments[2] != "completed" {
             self.diags.push(Diagnostic::error(
                 "E3010",
