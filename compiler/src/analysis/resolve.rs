@@ -1000,14 +1000,16 @@ impl<'a> Resolver<'a> {
                                     .find(|name| *name != "view")
                                 {
                                     let key = (module, name.to_string());
-                                    if self.tables.views.contains_key(&key) {
+                                    if let std::collections::hash_map::Entry::Vacant(entry) =
+                                        self.tables.views.entry(key)
+                                    {
+                                        entry.insert(NodeKey::of(item));
+                                    } else {
                                         diags.push(Diagnostic::error(
                                             "E2002",
                                             format!("duplicate view '{name}'"),
                                             item.span,
                                         ));
-                                    } else {
-                                        self.tables.views.insert(key, NodeKey::of(item));
                                     }
                                 }
                             }

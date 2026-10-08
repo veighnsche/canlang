@@ -808,3 +808,43 @@ does not clone helper bodies or add exports/APIs. Focused codegen and
 BDD-binding `--no-run` build passed (13.37s), with no broad suite or old-case
 rerun. BDD3 result/payload/`as`, live/context/disclosure and input-slot policy
 remain held, and full S9-Q07 remains open; completion stays **58/67**.
+
+The changed affected view case now also passes **1/1** (4.75s) after the owning
+boolean-status and shared collection-empty profiles were released. Existing
+native `status` consumes the checked bool; omitted nested-list `empty` reaches
+the real shared default for empty projected rows. Source status records and
+unsupported appearance refuse publication. This repeats only the changed case;
+the owning shared-default checks are reused. Prepared actions, table split
+selection and per-use form edit identity remain separate original52 duties.
+
+The focused compiler-source check
+`cargo clippy --manifest-path compiler/Cargo.toml --locked --offline -j2 --lib --bin can -- -D warnings`
+passes (exit 0, 5.60s; handle 61090). Its first run reported five warnings in
+the view namespace map entry, two judgment nested-if cases, and the existing
+public inline `IrGuard`/`IrStmt` enums. The fixes use `HashMap::entry`, equivalent
+judgment let-chain conditions, and documented local allows on those enums. No
+semantic native case was rerun; the recorded view case remains qualified at its
+existing scope, without whole-closure or reference-count credit.
+
+The same app-local view case now also qualifies a protected nested
+action/form slice: actual outer Card and nested Detail actions seal only their
+own identity/version through the installed Interfaces catalog, preparer/seal
+and UI path. Authored labels, omitted display defaults, and distinct stable DOM
+prefixes, bindings and drafts survive locale change/requery; reference-only
+status and duplicate/no-host controls refuse. Authored action content refuses
+except for the ordinary `require` gate, now covered by a permanent control. The first IR failure exposed an
+outer typed fallback inherited by the nested row; the producer now reuses the
+existing collection child scope and `row_rewrite` for exact-model shadowing.
+Two later failures were harness setup assumptions (framing-only catalog, then
+bare field name); the case passed **1/1** (0.31s), before the content-refusal
+control. The final same case including that control passes **1/1** (0.69s).
+Focused builds passed (13.19s, 5.88s, and final changed-source build 9.76s).
+This does not qualify `by`/`for`
+availability, full original52/11/CanBook/table/split, or held BDD3/public-wire
+semantics; the original **58/67** count is unchanged.
+The earlier focused Clippy result was **0** (3.50s; handle 18184). Final focused
+Clippy on the changed producer source also passes:
+`cargo clippy --manifest-path compiler/Cargo.toml --locked --offline -j2 --lib --bin can -- -D warnings`
+(exit 0, 2.93s; handle 30727). Scoped rustfmt check passes; a test-line wrapping
+correction was formatting-only and had no semantic rerun. No unrelated native
+case or broader suite was run.

@@ -15280,23 +15280,22 @@ impl<'a> Typer<'a> {
                 valid_arguments = false;
             }
         }
-        if valid_arguments && self.diags.len() == before {
-            if let Some((owner, _)) = self
+        if valid_arguments
+            && self.diags.len() == before
+            && let Some((owner, _)) = self
                 .tables
                 .judgment_declarations
                 .iter()
                 .find(|(_, judgment)| judgment.specification == Some(id))
-            {
-                if let Some((_, argument)) = bound.first() {
-                    self.types.judgment_specification_calls.insert(
-                        NodeKey::of(node),
-                        CheckedJudgmentSpecificationCall {
-                            judgment: *owner,
-                            options: NodeKey::of(argument.value),
-                        },
-                    );
-                }
-            }
+            && let Some((_, argument)) = bound.first()
+        {
+            self.types.judgment_specification_calls.insert(
+                NodeKey::of(node),
+                CheckedJudgmentSpecificationCall {
+                    judgment: *owner,
+                    options: NodeKey::of(argument.value),
+                },
+            );
         }
         match self.results.get(&id).cloned() {
             Some(Some(ty)) => ty,
