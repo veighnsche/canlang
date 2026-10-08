@@ -32,3 +32,4 @@ export * from './oauth/routes.js';
 export * from './docs/reference.js';
 
 export * from './http/presentation.js';
+export * from './http/forms.js';

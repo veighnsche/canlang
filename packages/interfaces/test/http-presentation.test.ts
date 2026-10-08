@@ -16,7 +16,7 @@ import type {
 import { deriveCsrfToken } from '@canlang/identity';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import { handlePageRequest } from '../src/http/pages.js';
-import { buildPresentationContext } from '../src/http/presentation.js';
+import { buildPageSourceContext, buildPresentationContext } from '../src/http/presentation.js';
 
 function fakeIdentity(): ResolvedIdentity {
   return {
@@ -71,7 +71,38 @@ test('buildPresentationContext sets all fields from the inputs', () => {
   assert.equal(context.principal, principal);
   assert.equal(context.invocation, principal);
   assert.equal(context.query, query);
+  assert.equal(context.actor, null);
+  assert.equal(context.actorFacts, null);
+  assert.equal(context.team, null);
+  assert.deepEqual(context.memberships, []);
+  assert.deepEqual(context.canonical?.builtinRoles, ['public']);
   assert.ok(!('currencyScales' in context));
+});
+
+test('page source roles require an active membership matching the selected actor and team', () => {
+  const stamp = new Date(0).toISOString();
+  const identity: ResolvedIdentity = {
+    ...fakeIdentity(),
+    actor: { user_id: 'user-one', email: 'a@example.test', email_verified: true },
+    team: { team_id: 'team-one', timezone: 'Europe/Brussels', created_at: stamp },
+    membership: { membership_id: 'member-one', user_id: 'user-one', team_id: 'team-one',
+      status: 'active', is_owner: true, roles: [{ role: 'TestApp.reviewer', granted_at: stamp, granted_by: 'user-one' }],
+      created_at: stamp, updated_at: stamp },
+  };
+  const source = buildPageSourceContext(identity);
+  assert.equal(source.actor?.id, 'user-one');
+  assert.deepEqual(source.actorFacts, { email: 'a@example.test', email_verified: true });
+  assert.deepEqual(source.team, { id: 'team-one', timezone: 'Europe/Brussels' });
+  assert.deepEqual(source.memberships, ['TestApp.reviewer']);
+  assert.deepEqual(source.canonical.builtinRoles, ['public', 'authenticated', 'members', 'owner']);
+  for (const membership of [null, { ...identity.membership!, status: 'removed' as const },
+    { ...identity.membership!, team_id: 'other-team' }, { ...identity.membership!, user_id: 'other-user' }]) {
+    const denied = buildPageSourceContext({ ...identity, membership });
+    assert.deepEqual(denied.memberships, []);
+    assert.deepEqual(denied.canonical.builtinRoles, ['public', 'authenticated']);
+  }
+  const owner = buildPageSourceContext({ ...identity, membership: { ...identity.membership!, roles: [] } });
+  assert.deepEqual(owner.memberships, []);
 });
 
 test('buildPresentationContext honors isPartial and caps locale tags at 10', () => {
@@ -128,6 +159,9 @@ test('dispatch builds equal partial and full contexts across all 10 fields', asy
   assert.deepEqual(partialCtx.theme, fullCtx.theme);
   assert.equal(partialCtx.path, fullCtx.path);
   assert.equal(partialCtx.csrfToken, fullCtx.csrfToken);
+  for (const field of ['actor', 'actorFacts', 'team', 'memberships', 'canonical'] as const) {
+    assert.deepEqual(partialCtx[field], fullCtx[field]);
+  }
   // Separate dispatches stamp separate `admitted_at` clocks; the rest of
   // the identity must be equal.
   const { admitted_at: _fullClock, ...fullPrincipal } = fullCtx.principal as ResolvedIdentity;

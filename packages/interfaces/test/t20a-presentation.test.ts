@@ -328,6 +328,47 @@ test('generated ui fields map the REAL derivation for every formable pilot op', 
   }
 });
 
+test('source form preparation scopes typed controls and refuses unavailable bindings', async () => {
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: PILOT_OPS });
+  const { deps, identity } = await createTestDeps();
+  const { identity: principal } = await resolveRequestIdentity(deps.identity.store, testRequest('/forms', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
+  const context = buildPresentationContext({
+    request: testRequest('/forms', { cookie: identity.cookie }), pathname: '/forms', isPartial: false,
+    appDefaultLocale: 'en', csrfToken: await deriveCsrfToken(identity.sessionToken), principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: deps.clock,
+  });
+  const prepare = context.prepareForm!;
+  const first = prepare({ operation: STORE_CREATE_OP.name, fields: ['title'], authoredFields: ['title'], labels: { title: 'Gadget title' }, submit: 'Publish', display: 'inline' });
+  assert.equal(first.status, 'ready');
+  if (first.status !== 'ready') throw new Error('expected the admitted unbound form');
+  assert.deepEqual(first.derived, deriveOperationInputs(STORE_CREATE_OP));
+  assert.equal(first.field('title').field.type, 'text');
+  assert.equal(first.field('title').field.label, 'Gadget title');
+  assert.equal(first.field('title').context.principal, principal);
+  assert.equal(first.props.action, '/api/operations/Store.Gadget.create');
+  assert.equal(first.props.timeZone, principal.team!.timezone);
+  assert.equal(first.props.submit, 'Publish');
+  assert.equal(first.props.display, 'inline');
+  assert.equal(validateOperationId(first.props.operationId, deps.clock), null);
+  const second = prepare({ operation: STORE_CREATE_OP.name });
+  assert.equal(second.status, 'ready');
+  if (second.status !== 'ready') throw new Error('expected automatic form');
+  assert.notEqual(second.props.idPrefix, first.props.idPrefix);
+  assert.notEqual(second.props.operationId, first.props.operationId);
+  assert.equal(second.props.display, 'drawer');
+  assert.throws(() => first.field('other'), /outside/);
+  assert.throws(() => prepare({ operation: STORE_CREATE_OP.name, fields: ['title', 'title'] }), /unique/);
+  assert.throws(() => prepare({ operation: STORE_CREATE_OP.name, authoredFields: ['title', 'title'] }), /unique/);
+  for (const request of [
+    { operation: STORE_CREATE_OP.name, arguments: { title: 'protected' } },
+    { operation: STORE_UPDATE_OP.name },
+    { operation: STORE_CREATE_OP.name, authoredFields: [] },
+    { operation: STORE_CREATE_OP.name, fields: [] },
+    { operation: GADGET_CREATE_OP.name, authoredFields: ['title', 'stock', 'price', 'state', 'owner', 'tags', 'ids', 'code'] },
+    { operation: 'Missing.create' },
+  ]) assert.equal(prepare(request).status, 'unavailable');
+});
+
 test('bindingFromDerived pins the operation and checks mode agreement', () => {
   clearFormBindings();
   const derived = deriveOperationInputs(STORE_CREATE_OP);

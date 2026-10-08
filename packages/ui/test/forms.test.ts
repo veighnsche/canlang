@@ -12,6 +12,7 @@ import type {
 } from "@canlang/contracts";
 import type { FieldError, SealedActionHandle } from "@canlang/contracts";
 import { message } from "../src/messages.js";
+import { input } from "../src/controls.js";
 import {
   action,
   actions,
@@ -238,6 +239,25 @@ describe("form hidden fields and roots", () => {
     assert.ok(!plain.includes("btn-ghost"));
     const withCancel = await form(makeFormProps({ cancelHref: "/back" }));
     assert.ok(withCancel.includes('<a class="btn btn-ghost" href="/back">Cancel</a>'));
+
+    const props = makeFormProps({ fields: [field("title")], cancelHref: "/back", submit: "Publish" });
+    const authoredControl = input({ context: props.context, field: props.fields[0]!, idPrefix: props.idPrefix, mode: props.mode });
+    const authored = await form({ ...props, children: async () => ["<section>", authoredControl, "</section>"] });
+    assert.ok(authored.includes('<section><fieldset>'));
+    assert.equal((authored.match(/name="inputs\[title\]"/g) ?? []).length, 1);
+    assert.ok(authored.includes('</section><div class="flex gap-4">'));
+    assert.ok(authored.includes('<button type="submit" class="btn btn-primary">Publish</button>'));
+    assert.ok(authored.includes('<a class="btn btn-ghost" href="/back">Cancel</a>'));
+    for (const name of ["operation", "operation_id", CSRF_FIELD, "timezone"]) {
+      assert.ok(authored.includes(`type="hidden" name="${name}"`));
+    }
+
+    const inDrawer = await form({ ...props, display: "drawer", children: [authoredControl] });
+    assert.ok(inDrawer.includes('<input id="f1-drawer" type="checkbox" class="drawer-toggle">'));
+    assert.ok(inDrawer.includes('<label for="f1-drawer" class="btn drawer-button">Publish</label>'));
+    assert.ok(inDrawer.includes('<div class="drawer-side">'));
+    assert.ok(inDrawer.includes('<label for="f1-drawer" class="drawer-overlay"'));
+    assert.ok(inDrawer.includes('<form action="/submit" method="post">'));
   });
 
   it("resolves the submit label and cancel copy per locale", async () => {
@@ -619,6 +639,15 @@ describe("form error mapping", () => {
     assert.ok(html.includes("There were problems with your submission."));
     assert.ok(html.includes("Unknown input rejected (unknown-field)"));
     assert.ok(!html.includes("aria-invalid"));
+
+    const authored = await form(makeFormProps({
+      fields: [],
+      children: ["<p>Review before submitting</p>"],
+      errors: [fieldError("/title", "Omitted field rejected")],
+    }));
+    assert.ok(authored.includes("Omitted field rejected (type)"));
+    assert.ok(authored.indexOf('role="alert"') < authored.indexOf("<p>Review before submitting</p>"));
+    assert.ok(!authored.includes('name="inputs[title]"'));
   });
 
   it("matches update errors under /changes and treats /title as unmatched", async () => {

@@ -48,6 +48,7 @@ import type {
   DerivedWritableInput,
 } from "@canlang/contracts";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
+import { drawer } from "./overlays.js";
 // C4b explicit-control dispatch + label/validator fragment reuse. This is a
 // forms<->controls import cycle, safe under ESM: both modules touch the
 // other's bindings only inside render-time function bodies, never at module
@@ -880,6 +881,10 @@ function outcomeBanner(
  * Canonical bound form. Renders hidden operation/operation_id/CSRF/timezone
  * fields (plus the bound record), one fieldset per field, and the submit
  * row. Update mode requires a record; field paths must be identifiers.
+ * Authored children replace only the automatic field body, in authored order.
+ * In that mode fields must describe the controls actually rendered: errors
+ * for omitted controls then remain visible in the unmatched top banner.
+ * Transport fields, outcome banners and the submit/cancel row remain canonical.
  */
 export async function form(props: FormProps): Promise<string> {
   if (props.mode === "update" && props.record === undefined) {
@@ -900,12 +905,17 @@ export async function form(props: FormProps): Promise<string> {
     errors: props.errors,
   };
   const rendered: string[] = [];
-  for (const field of props.fields) {
-    rendered.push(await renderField(field, fieldCtx));
+  if (props.children === undefined) {
+    for (const field of props.fields) {
+      rendered.push(await renderField(field, fieldCtx));
+    }
+  } else {
+    const children = typeof props.children === "function" ? await props.children() : props.children;
+    rendered.push(...(await Promise.all(children)));
   }
   const fieldsHtml = rendered.join("");
   const submitLabel = escapeHtml(resolveCaption(props.submit, props.context));
-  return (
+  const renderedForm = (
     formOpenTag(props.action, needsMultipart(props.fields)) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
@@ -918,6 +928,14 @@ export async function form(props: FormProps): Promise<string> {
     `<div class="flex gap-4"><button type="submit" class="btn btn-primary">${submitLabel}</button>${cancelLink(props.cancelHref, props.context)}</div>` +
     `</form>`
   );
+  return props.display === "drawer"
+    ? drawer({
+        context: props.context,
+        id: `${props.idPrefix}-drawer`,
+        caption: props.submit,
+        content: [renderedForm],
+      })
+    : renderedForm;
 }
 
 /** Canonical update control: form() in update mode with its bound record. */
