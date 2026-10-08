@@ -2675,3 +2675,14 @@ Evidence/rationale: committed compiler source and the owning frozen source/nativ
 Accepted evidence release `42aad771` adds qualification of finite message choices/placeholders, diagnostic ordering/spans and typed graph chains/stars/DAG/cycle attribution. Existing owning source and precise negative controls are reused. This commit changes tests and scope records, not production behavior.
 
 Limits: observed finite inputs do not establish extreme source/cardinality/generated-output bounds, performance thresholds, public forged-carrier guarantees or wider runtime formatter/graph execution. Compiler scenario computed defaults remain separate SEM-R08/S9-Q02 work; root package task counts do not advance from this evidence.
+
+
+### 2026-10-08 — Receipt reads require current delivery-owner agreement
+
+Accepted defining State repair: an authorized selected receipt read requires the current stored delivery field's exact `{id, operation}` wire to agree with its protected association and the capability/operation from the same checked singular owning field declaration (`declaredSource`). Cleared, replaced, malformed or mismatched fields and missing/drifted protected pairs fail closed instead of exposing an obsolete result. The declaration input comes from the owning runtime's checked model metadata, never caller transport data.
+
+Privacy order: current record leaf authorization precedes protected association/receipt loads and consistency checks. Denied leaves retain their unique first-selected order and reveal no corruption or presence; the same resolved per-call grant verdicts feed the existing observer. Retention, exact selected projection, id-only behavior and receipt-fence enrollment retain their owners.
+
+Evidence: normal State/Work emits passed; the original receipt memory suite passed 29/29, real D1 2/2, workerd DO 2/2, and the affected existing mirror group 4/4. Old valid fixtures now publish/clear the canonical owner value in the same fence as the protected pair; decoy/clear/replacement/source-drift/missing-pair and denied-corruption cases remain explicit negative witnesses. Earlier sandbox durable startup was cancelled; the final actual local durable checks passed with process permission.
+
+Limits: this is a correctness/privacy repair, not a replacement-only code-reduction claim. The genuine generated Cloudflare provider/association/MCP observation journey remains a separate consumer gate, as do wider CRUD confidentiality/replay, installed/default deployment and native preparation. Root task counts remain unchanged.

@@ -54,5 +54,38 @@
     "identity_host_limits": "Identity fixtures memory; effects actual nativeD1 and real bounded localhost HTTP. Explicit configured Node integration, not remote email/default deployed Worker/multiprovider or full installed release.",
     "commit": "60db9b13",
     "state": "Root direct-reviewed repaired five-path source release and committed60db9b13; original result-association/whole-release gates remain open"
+  },
+  "current_owner_read_guard": {
+    "status": "Defining State source directly reviewed and owning checks passed; exact four-path commit pending; real CF generated observer integration remains pending",
+    "paths": [
+      "packages/state/src/receipt/join.ts",
+      "packages/work/test/state-receipt/t25-receipt-join.test.ts",
+      "packages/work/test/state-receipt/t25-receipt-durable.test.ts",
+      "packages/work/test/b3-mirror-conformance.test.ts"
+    ],
+    "contract": "Required declaredSource from same checked singular owning delivery descriptor; current stored canonical {id,operation}, protected association and declared source agree after current owner leaf authorization",
+    "privacy_order": "Resolve current owner/policy once; unique selected verdicts in first-selected order; denied outcome before protected loads, declaration/presence/corruption checks or fence enrollment; injected observer uses scoped cached verdicts",
+    "refusals": [
+      "Clear/replaced/malformed current field with stale association",
+      "Current/association source differing from checked declaration",
+      "Missing protected association/receipt or pair drift"
+    ],
+    "owning_results": {
+      "normal_state_emit": 0,
+      "normal_work_emit": 0,
+      "original_memory_receipt": "29/29",
+      "original_native_D1": "2/2",
+      "original_workerd_DO": "2/2",
+      "changed_b3_differential": "4/4"
+    },
+    "environment_limit": "Earlier sandbox combined receipt process cancelled; actual final local Miniflare D1/DO passed with elevated process permissions. No broad suite rerun.",
+    "fixture_policy": "Legitimate original receipt fixtures now atomically publish/clear canonical owner wire with protected pair; original decoy retained as a decisive refusal control, original fence/progress/no-domain-write assertions retained",
+    "source_outputs_released": true,
+    "model": "gpt-6.1-sol medium for finite typed repair; root direct source review and b3 caller/Git",
+    "counts_unchanged": true,
+    "limits": [
+      "Defining State read guard only; final genuine CF generated MCP observer/provider journey remains owning Roadmap next gate",
+      "No whole CRUD confidentiality/replay, installed/default deployed/native preparation or parent closure"
+    ]
   }
 }
