@@ -1091,7 +1091,7 @@ impl<'a> Cx<'a> {
                 };
                 let span = data.locale_default_span.unwrap_or(module.name_span);
                 if let Some((first, first_span)) = &explicit {
-                    if first != tag {
+                    if !first.eq_ignore_ascii_case(tag) {
                         conflict = true;
                         let mut diagnostic = Diagnostic::error(
                             "E2002",

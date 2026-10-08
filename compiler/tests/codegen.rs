@@ -2420,8 +2420,8 @@ fn construct_effects() {
 }
 
 /// Messages: static `message(source,{locales})` and parameterized
-/// three-argument forms; `format(c,descriptor,{locale})`. Oracles:
-/// `CanCheck.mjs` captions and `format(c,message(...),{locale:null})`.
+/// three-argument UI forms and the localized adapter over the public
+/// two-argument values formatter.
 #[test]
 fn construct_messages_and_format() {
     let ir = fixture_ir();
@@ -2450,18 +2450,25 @@ fn construct_messages_and_format() {
     );
     let formatted = typed(
         IrExpr::Format {
-            descriptor: Box::new(typed(
-                IrExpr::Message(static_message),
-                ResolvedType::Message(SymbolId(0)),
-            )),
-            locale: None,
+            args: vec![
+                typed(
+                    IrExpr::Message(static_message),
+                    ResolvedType::Message(SymbolId(0)),
+                ),
+                typed(IrExpr::Null, ResolvedType::Null),
+            ],
+            descriptor_index: 0,
+            locale_index: 1,
+            source_lang: "en".to_string(),
+            param_types: vec![],
         },
         ResolvedType::Scalar(Scalar::Text),
     );
-    assert_eq!(
-        emitter.lower_expr(&formatted),
-        "format(c,$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),{locale:null})"
-    );
+    let emitted = emitter.lower_expr(&formatted);
+    assert!(emitted.contains("$can$h$6c6f63616c697a65645f666f726d6174(c,"));
+    assert!(emitted.ends_with(
+        "([$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),null])"
+    ));
     let (diags, _, _, _) = emitter.finish();
     assert!(diags.is_empty());
 }
@@ -6415,8 +6422,11 @@ fn t31_hook_expr_gaps() {
     );
     let format = typed(
         IrExpr::Format {
-            descriptor: Box::new(text_lit("m")),
-            locale: None,
+            args: vec![text_lit("m"), typed(IrExpr::Null, ResolvedType::Null)],
+            descriptor_index: 0,
+            locale_index: 1,
+            source_lang: "en".to_string(),
+            param_types: vec![],
         },
         ResolvedType::Scalar(Scalar::Text),
     );
