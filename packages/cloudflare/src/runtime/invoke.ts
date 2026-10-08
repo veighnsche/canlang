@@ -3704,7 +3704,37 @@ async function runScenarioSeam(
     : callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, resolvedDefaults)
     : { operation_id: call.context.operationId, inputs: call.inputs };
-  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [argument], due !== undefined || cohort !== undefined);
+  const observesDefaults = due === undefined && cohort === undefined && callable?.inputStyle === 'parameters';
+  const computedSlots = new Map((generatedScenarioDef(call)?.descriptor.inputs ?? []).flatMap(field =>
+    field.kind !== 'ref' && field.kind !== 'delivery' && field.computedDefault === true && !Object.hasOwn(call.inputs, field.name)
+      ? [[field.name, field] as const] : []));
+  const observedDefaults = new Set<string>();
+  const observeDefault = (name: unknown, value: unknown): void => {
+    try {
+      const field = typeof name === 'string' ? computedSlots.get(name) : undefined;
+      if (field === undefined || observedDefaults.has(field.name)) {
+        throw new StateError('validation', 'Computed default reports require an omitted owning slot, exactly once.');
+      }
+      let wire: unknown;
+      if (field.kind === 'enum') {
+        if (typeof value !== 'string' || !field.enumValues?.includes(value)) {
+          throw new StateError('validation', 'Computed enum default is outside its declared cases.');
+        }
+        wire = value;
+      } else {
+        if (field.valueType === undefined) throw new StateError('validation', 'Computed default lacks its owning value type.');
+        wire = encodeValue(field.valueType, value as CanValue);
+      }
+      resolvedDefaults[field.name] = wire;
+      observedDefaults.add(field.name);
+    } catch (error) {
+      const failure = error instanceof StateError ? error : new StateError('validation', message(error));
+      recordEngineFailure(failure);
+      throw failure;
+    }
+  };
+  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx,
+    observesDefaults ? [argument, observeDefault] : [argument], due !== undefined || cohort !== undefined);
   if (!outcome.ok) {
     // Attributed engine failure first: an uncaught engine `StateError`
     // propagates verbatim, so its message matches the recorded one
@@ -3725,6 +3755,9 @@ async function runScenarioSeam(
         ? outcome.error
         : "The operation was rejected.";
     throw new StateError("rule_failed", message);
+  }
+  if (observesDefaults && observedDefaults.size !== computedSlots.size) {
+    throw new StateError('validation', 'Generated handler omitted a required computed-default report.');
   }
   const uniques = netStagedUniques(stagedTouches);
   const returnedBinding = typeof outcome.value === 'object' && outcome.value !== null

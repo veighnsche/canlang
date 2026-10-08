@@ -7775,6 +7775,7 @@ impl<'a> Emitter<'a> {
                 IrItemKind::Scenario {
                     params,
                     trusted,
+                    read,
                     hook,
                     cohort,
                     by,
@@ -7789,6 +7790,19 @@ impl<'a> Emitter<'a> {
                     }
                     let handler = object_key(&item.canonical);
                     self.enter_scope();
+                    let observes_defaults = !*trusted
+                        && !*read
+                        && params.iter().any(|id| {
+                            matches!(
+                                &self.ir.items[id.0 as usize].kind,
+                                IrItemKind::Param {
+                                    ty,
+                                    default: Some(IrDefault::Computed { .. }),
+                                    ..
+                                } if scenario_default_omission_supported(ty)
+                            )
+                        });
+                    let mut default_observer = None;
                     let signature = if *trusted {
                         let mut bindings = vec![format!("event:{}", self.bind("event"))];
                         if let Some(bind) = cohort.as_ref().and_then(|cohort| cohort.bind.as_ref())
@@ -7804,7 +7818,14 @@ impl<'a> Emitter<'a> {
                                 format!("{}:{}", object_key(&name), self.bind(&name))
                             })
                             .collect();
-                        format!("c,{{{}}}", names.join(","))
+                        let signature = format!("c,{{{}}}", names.join(","));
+                        if observes_defaults {
+                            let observer = self.bind("$resolvedDefault");
+                            default_observer = Some(observer.clone());
+                            format!("{signature},{observer}")
+                        } else {
+                            signature
+                        }
                     };
                     // Scenarios without any decoded body keep the failing
                     // stub (the IR build reports the `E6006`).
@@ -7831,6 +7852,7 @@ impl<'a> Emitter<'a> {
                         for id in params {
                             let param = self.ir.items[id.0 as usize].clone();
                             if let IrItemKind::Param {
+                                ty,
                                 default: Some(default),
                                 ..
                             } = &param.kind
@@ -7844,10 +7866,22 @@ impl<'a> Emitter<'a> {
                                         )
                                     }
                                 };
+                                let report = match (&default_observer, default) {
+                                    (Some(observer), IrDefault::Computed { .. })
+                                        if scenario_default_omission_supported(ty) =>
+                                    {
+                                        format!(
+                                            "{observer}?.({},{});",
+                                            js_string(&param.name),
+                                            name
+                                        )
+                                    }
+                                    _ => String::new(),
+                                };
                                 out.push(
                                     param.span,
                                     Some(item.canonical.clone()),
-                                    &format!("if({name}===undefined){{{name}={value};}}"),
+                                    &format!("if({name}===undefined){{{name}={value};{report}}}"),
                                 );
                             }
                         }

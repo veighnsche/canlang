@@ -2962,3 +2962,14 @@ Coordinator accepted original Roadmap task55 at its conditional measurement/no-p
 
 This qualifies that named headless profile; headed ten-window visibility and SQL read counts remain unclaimed. Earlier native desktop arrangement attempts failed visibility before valid metrics. No added runner, verification packet, publication or package-repair completion credit follows.
 
+## 2026-10-08: retain concrete continuations and defer bounded-await syntax
+
+Accepted original Roadmap task56 reconsideration: retain the qualified typed delivery-observer and typed keyed-schedule compositions. The existing task18/19/20 native outcomes are reused; no duplicated app continuation counter, checkpoint or stack, or demonstrated remaining maintenance saving, justifies a new bounded-await syntax now. Coordinator records Roadmap30/63; this is a disposition, with no implementation or package-repair completion credit.
+
+Broader provider, deployed and upgrade behavior remains unqualified. A future syntax implementation requires a concrete benefit, a fresh verified-context three-question JEV consultation and a contract preserving the complete existing behavior. No new test, consultation, artifact or acknowledgment-only commit is needed for this decision.
+
+## 2026-10-08: record generated computed defaults through the owning observer
+
+Accepted finite Compiler/Cloudflare join: ordinary generated mutation handlers optionally report each resolved computed default to the invocation-local observer. The consumer checks the current descriptor, omitted owning slot, native type or enum membership, exactly-once reporting and complete successful reporting before publishing the receipt. Resolution stays in source declaration order; explicit overrides skip it, and rejected attempts discard provisional defaults. Matching raw-input receipts retain existing receipt-first replay, including after membership revocation; new admission still requires current authority.
+
+Compiler's existing genuine-source canonical Memory case passed 1/1 after Cloudflare emit0; two unchanged producer compatibility cases are reused. This qualifies that Memory receipt join, not D1, installed hosts, prepared provenance or whole S9/package repair completion. No new codec or second evaluation path is introduced.
