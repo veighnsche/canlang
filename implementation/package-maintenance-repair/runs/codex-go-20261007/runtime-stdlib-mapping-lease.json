@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "origin": "/root existing goal implementation authorization; assetsevenwriterpaths released; readonly stdlib mapping diagnosis released",
-  "scope": "Existing defining Cloudflare generated runtime stdlib selection in deployment bundler, matching CLI selection; no fa\u00e7ade/runtime/newbuiltin signature change",
+  "scope": "Existing defining Cloudflare generated runtime stdlib selection in deployment bundler, matching CLI selection; no façade/runtime/newbuiltin signature change",
   "paths": {
     "packages/cloudflare/src/deploy/bundle.ts": "58ded31efce1f9ee89369eb21eb35636725b9d16a14cda6c2258efdf786a2875",
     "packages/cloudflare/test/browser-assets-bundle.test.ts": "07fc3b33dc304614816da23faee477249a26141db91cecabfe6745e33ccae11b"
@@ -36,5 +36,5 @@
   ],
   "status": "exact_twofile_writer_and_all_commands_released_root_mapping_review_accepted",
   "created_utc": "2026-10-08T00:41:55.363251+00:00",
-  "result": "asset-mount-proof/mapping/result.md"
+  "result": "asset-mount-root-review.json"
 }
