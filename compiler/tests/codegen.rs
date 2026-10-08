@@ -390,10 +390,8 @@ fn golden_teamtasks_structure() {
     // - G8 derives: none declared.
     // - G9 modules: page descriptors/functions, app/package/page
     //   descriptions; `disabled` computed (empty: full CRUD everywhere).
-    //   Catalog UI factories `breadcrumbs`/`input`/`textarea`/
-    //   `pagination` lower; `tooltip`/`collapse` have no §13 lowering,
-    //   while bound tabs and authored collection order are refused
-    //   (5 E6008, each pinned below).
+    //   Forms consume prepared field controls; unavailable navigation,
+    //   list options and other owning profiles remain explicit E6008s.
     // - G10 examples: the update table (fixture recipe, common inputs,
     //   selectors, observations, rows with errors) lowered.
     // - G12 awaited: `count` is catalog state-read, so calls await.
@@ -475,14 +473,15 @@ fn golden_teamtasks_structure() {
         entry.contains("c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",labels:{title:$can$u$6d657373616765(\"Title\",{nl:\"Titel\"}),assignee:$can$u$6d657373616765(\"Assignee\",{nl:\"Toegewezen aan\"})},authoredFields:[\"title\"]})"),
         "form operation"
     );
-    // Field-placement controls lower to `field` selector strings;
-    // breadcrumbs and pagination lower bare (ancestry/collection state
-    // comes from the render context). No-recurse rule: children of an
+    // Field controls consume prepared props. Breadcrumbs and pagination
+    // lack owning source carriers. No-recurse rule: children of an
     // *unlowered* factory are swallowed by its placeholder (one E6008
     // for the factory, none for the absorbed children).
     assert!(
-        entry.contains("$can$u$62726561646372756d6273({context:c})"),
-        "breadcrumbs"
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message
+                .contains("cannot lower breadcrumbs: ancestry and label carriers")),
+        "breadcrumbs carrier profile is refused"
     );
     assert!(
         entry.contains("$can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$696e707574({...$can$f$666f726d.field(\"title\")})]})"),
@@ -495,16 +494,28 @@ fn golden_teamtasks_structure() {
         "textarea child"
     );
     assert!(
-        entry.contains("$can$u$706167696e6174696f6e({context:$can$l$323a726f7756696577})"),
-        "collection pagination"
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message
+                .contains("cannot lower pagination: cursor and label carriers")),
+        "pagination carrier profile is refused"
     );
     assert!(
         entry.contains("where:($can$l$303a7461736b)=>(preferences.view === \"all\")"),
         "list predicate lambda"
     );
     assert!(
-        entry.contains("search:[\"title\"],filter:[\"done\"]"),
-        "supported list props"
+        !entry.contains("search:[\"title\"]")
+            && !entry.contains("filter:[\"done\"]")
+            && ["search", "filter"].iter().all(|option| {
+                diags.iter().any(|d| {
+                    d.code == "E6008"
+                        && d.message
+                            == format!(
+                                "cannot lower list: option {option} has no consumed factory profile"
+                            )
+                })
+            }),
+        "unavailable list options are refused"
     );
     assert!(
         !entry.contains("order:[\"-created\"]"),
@@ -515,8 +526,9 @@ fn golden_teamtasks_structure() {
         "row scope"
     );
     assert!(
-        entry.contains("$can$u$65646974({context:$can$l$323a726f7756696577,operation:\"TeamTasks.Todo.update\",record:$can$l$313a726f77})"),
-        "inferred edit"
+        !entry.contains("$can$u$65646974({")
+            && diags.iter().any(|d| d.code == "E6008" && d.message.contains("cannot lower edit: the bound edit profile has no complete owning form props")),
+        "edit operation has no owning factory profile"
     );
     // G12: state-read builtins await; the bare model domain lowers
     // through the shared query contract.
@@ -694,8 +706,8 @@ fn golden_teamtasks_structure() {
     }
     // Codegen diagnostics: zero E6006 (every emission-needed position
     // is checked and bridged), zero E6007 (the golden catalog verifies
-    // every referenced builtin), and five E6008: the untyped BDD call,
-    // `tooltip`/`collapse`, bound tabs, and authored collection order.
+    // every referenced builtin). The test-only partial artifact retains
+    // admitted nodes alongside explicit E6008s for unavailable UI profiles.
     for diag in &diags {
         assert!(
             diag.code == "E6006" || diag.code == "E6007" || diag.code == "E6008",
@@ -721,8 +733,8 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        5,
-        "unsupported count"
+        15,
+        "unsupported count: {diags:?}"
     );
     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
         assert_eq!(
@@ -732,6 +744,23 @@ fn golden_teamtasks_structure() {
                 .count(),
             n,
             "{word} factory"
+        );
+    }
+    for (profile, count) in [
+        ("cannot lower breadcrumbs:", 2),
+        ("cannot lower pagination:", 2),
+        ("cannot lower edit:", 2),
+        ("cannot lower list: option search", 2),
+        ("cannot lower list: option filter", 1),
+        ("cannot lower list: option display", 1),
+    ] {
+        assert_eq!(
+            diags
+                .iter()
+                .filter(|d| d.code == "E6008" && d.message.starts_with(profile))
+                .count(),
+            count,
+            "{profile} refusal"
         );
     }
     for word in ["bound tabs", "collection order"] {
@@ -884,9 +913,8 @@ fn golden_expenseflow_structure() {
     // - G7 messages: decision-note descriptor inlined at label sites.
     // - G8 derives: none declared.
     // - G9 modules: pages, descriptions; `disabled` names the missing
-    //   delete. Catalog UI factories lower: `breadcrumbs`, `input`,
-    //   `textarea`, `badge`, `alert` (gated), `divider`, `join`,
-    //   `button`, `modal`/`slot`, `pagination`, `stat`.
+    //   delete. Prepared form fields, badges, alerts, dividers, joins,
+    //   buttons and modal content lower; unavailable profiles report E6008.
     // - G10 examples: three table suites lowered; the approve suite also
     //   carries the causal sequence (`call`/`let`/assertion steps with
     //   §13 type ids). Value-domain queries lower through array
@@ -1052,22 +1080,23 @@ fn golden_expenseflow_structure() {
         entry.contains("await create(c,\"expenses.Expense\",input,{when:crudWhen[\"Expense\"]});"),
         "create admission"
     );
-    // G9 pages: collections, actions, history, catalog factories,
-    // arguments. Every catalog word on the pages lowers; nothing throws.
+    // G9 pages: admitted nodes remain visible in the test-only partial
+    // artifact; refused owning profiles retain diagnostics and no usable call.
     assert!(
-        entry
-            .contains("$can$u$616374696f6e({context:$can$l$313a726f7756696577,operations:[\"expenses.submit\"],boundArgs:{row:$can$l$303a726f77}})"),
-        "row actions"
+        !entry.contains("$can$u$616374696f6e({")
+            && diags.iter().any(|d| d.code == "E6008" && d.message.contains("cannot lower action: the source profile has no complete owning factory payload")),
+        "row actions lack an owning factory profile"
     );
     assert!(
-        entry.contains(
-            "$can$u$686973746f7279({context:$can$l$313a726f7756696577,record:$can$l$303a726f77})"
-        ),
-        "row history"
+        !entry.contains("$can$u$686973746f7279({")
+            && diags.iter().any(|d| d.code == "E6008" && d.message.contains("cannot lower history: the source profile has no complete owning factory payload")),
+        "row history lacks an owning factory profile"
     );
     assert!(
-        entry.contains("$can$u$62726561646372756d6273({context:c})"),
-        "page breadcrumbs"
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message
+                .contains("cannot lower breadcrumbs: ancestry and label carriers")),
+        "page breadcrumbs carrier profile is refused"
     );
     assert!(
         entry.contains(
@@ -1094,7 +1123,7 @@ fn golden_expenseflow_structure() {
         "join with opener buttons"
     );
     assert!(
-        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"}),id:\"approve_expense\",children:[$can$u$736c6f74({context:$can$l$313a726f7756696577,name:\"content\",children:[(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})($can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],labels:{note:$can$u$6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"})},authoredFields:[\"note\"]}))]})]})"),
+        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"}),id:\"approve_expense\",content:[(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],labels:{note:$can$u$6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"})},authoredFields:[\"note\"]}))]})"),
         "approve modal with content slot"
     );
     assert!(
@@ -1102,30 +1131,40 @@ fn golden_expenseflow_structure() {
         "reject modal"
     );
     assert!(
-        entry.contains("$can$u$706167696e6174696f6e({context:$can$l$313a726f7756696577})"),
-        "collection pagination"
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message
+                .contains("cannot lower pagination: cursor and label carriers")),
+        "pagination carrier profile is refused"
     );
     assert!(
-        entry.contains("$can$u$73746174({context:c,values:[result.count,result.total]})"),
-        "stat metric values"
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message
+                .contains("cannot lower stat: only one value header")),
+        "multi-value stat profile is refused"
     );
     assert!(
         !entry.contains("unknown UI factory"),
-        "every factory lowered"
+        "no unknown factory spelling in the partial artifact"
     );
     assert!(
         entry.contains("arguments:{status:preferences.status}"),
         "form arguments"
     );
     assert!(
-        entry.contains("defaults:{status:preferences.status}"),
-        "list defaults"
+        !entry.contains("defaults:{status:preferences.status}")
+            && diags.iter().any(|d| d.code == "E6008"
+                && d.message
+                    == "cannot lower list: option defaults has no consumed factory profile"),
+        "list defaults lack an owning factory profile"
     );
     assert!(
         !entry.contains("selector:\"reporting.status\""),
         "refused tabs selector is absent"
     );
-    assert!(!entry.contains("order:"), "refused collection order is absent");
+    assert!(
+        !entry.contains("order:"),
+        "refused collection order is absent"
+    );
     // Callables cover scenarios and generated CRUD ops (no delete).
     let callable_ids: Vec<&str> = artifact.callables.iter().map(|c| c.id.as_str()).collect();
     assert_eq!(
@@ -1291,7 +1330,8 @@ fn golden_expenseflow_structure() {
     // Zero E6006 (tables and the approve sequence all bridge), zero
     // E6007 (the golden catalog verifies every referenced builtin),
     // BDD calls and dependent assertion types consume owning checked facts.
-    // Bound tabs and authored collection order are explicitly refused.
+    // Bound tabs, authored collection order and the unavailable UI carrier
+    // profiles are explicitly refused; this is a test-only partial artifact.
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6006").count(),
         0,
@@ -1308,9 +1348,29 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        2,
-        "bound tabs and authored collection order refusals: {diags:?}"
+        12,
+        "owning UI profile refusals: {diags:?}"
     );
+    for (profile, count) in [
+        ("cannot lower breadcrumbs:", 2),
+        ("cannot lower pagination:", 1),
+        ("cannot lower edit:", 1),
+        ("cannot lower action:", 1),
+        ("cannot lower history:", 1),
+        ("cannot lower stat:", 1),
+        ("cannot lower list: option filter", 1),
+        ("cannot lower list: option defaults", 1),
+        ("cannot lower list: option display", 1),
+    ] {
+        assert_eq!(
+            diags
+                .iter()
+                .filter(|d| d.code == "E6008" && d.message.starts_with(profile))
+                .count(),
+            count,
+            "{profile} refusal"
+        );
+    }
     for word in ["bound tabs", "collection order"] {
         assert_eq!(
             diags
@@ -3365,7 +3425,7 @@ fn form_fields_unknown_op_stays_loud() {
     // No operation prop (unresolvable) and crucially no `fields` prop:
     // Preparation receives the unresolved request without a silent field default.
     assert!(
-        entry.contains("(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:c,values:[$can$f$666f726d.message]});return $can$u$666f726d($can$f$666f726d.props);})(c.prepareForm({display:\"inline\"}))"),
+        entry.contains("(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:c,values:[$can$f$666f726d.message]});return $can$u$666f726d($can$f$666f726d.props);})(await c.prepareForm({display:\"inline\"}))"),
         "loud form without fields:\n{entry}"
     );
 }
@@ -3383,7 +3443,7 @@ fn form_fields_unknown_op_stays_loud() {
 /// ternaries.
 #[test]
 fn catalog_factories_lower_from_source() {
-    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name delete=none\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   breadcrumbs\n   card \"Sell\"@{nl=\"Verkopen\"}\n    form Item.create\n     input name\n    list Item empty=\"No items yet\"\n     badge row.name\n     alert\n      require row.name != \"\"\n      text row.name\n     divider \"More\"@{nl=\"Meer\"}\n     join\n      button opens=dlg\n     modal \"Dialog\"@{nl=\"Dialoog\"} id=dlg\n      slot content\n       text row.name\n     pagination\n    stat 1,2\n";
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name delete=none\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   card \"Sell\"@{nl=\"Verkopen\"}\n    form Item.create\n     input name\n    list Item empty=\"No items yet\"\n     badge row.name\n     form Item.update arguments={record=row} display=inline\n      require row.name != \"\"\n      input name\n     alert\n      require row.name != \"\"\n      text row.name\n     divider \"More\"@{nl=\"Meer\"}\n     join\n      button opens=dlg\n     modal \"Dialog\"@{nl=\"Dialoog\"} id=dlg\n      slot content\n       text row.name\n    stat 1\n";
     let mut db = SourceDb::new();
     let id = db.add("probe-ui.can".to_string(), src.to_string());
     let (catalog, catalog_path) = golden_catalog();
@@ -3393,18 +3453,34 @@ fn catalog_factories_lower_from_source() {
     assert!(diags.is_empty(), "clean lowerings: {diags:?}");
     let entry = &artifact.modules[0].js;
     for marker in [
-        "$can$u$62726561646372756d6273({context:c})",
         "$can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$696e707574({...$can$f$666f726d.field(\"name\")})]})",
         "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.name})",
         "$can$l$303a726f77.name !== \"\" ? $can$u$616c657274({context:$can$l$313a726f7756696577,children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]}) : null",
         "$can$u$64697669646572({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"More\",{nl:\"Meer\"})})",
         "$can$u$6a6f696e({context:$can$l$313a726f7756696577,children:[$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"dlg\"})]})",
-        "$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Dialog\",{nl:\"Dialoog\"}),id:\"dlg\",children:[$can$u$736c6f74({context:$can$l$313a726f7756696577,name:\"content\",children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]})]})",
-        "$can$u$706167696e6174696f6e({context:$can$l$313a726f7756696577})",
-        "$can$u$73746174({context:c,values:[1n,2n]})",
+        "$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Dialog\",{nl:\"Dialoog\"}),id:\"dlg\",content:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]})",
+        "$can$u$73746174({context:c,value:1n})",
     ] {
         assert!(entry.contains(marker), "missing {marker}:\n{entry}");
     }
+    assert_eq!(entry.matches(".prepareForm(").count(), 2, "{entry}");
+    assert_eq!(entry.matches("await c.prepareForm(").count(), 1, "{entry}");
+    assert_eq!(
+        entry
+            .matches("await $can$l$313a726f7756696577.prepareForm(")
+            .count(),
+        1,
+        "{entry}"
+    );
+    assert!(
+        entry.contains("renderRow:async($can$l$303a726f77,$can$l$313a726f7756696577)=>"),
+        "nested form preparation awaits inside the row callback:\n{entry}"
+    );
+    assert!(
+        entry.contains("$can$l$303a726f77.name !== \"\" ? (($can$f$666f726d)=>")
+            && entry.contains("await $can$l$313a726f7756696577.prepareForm({operation:\"shop.Item.update\",arguments:{record:$can$l$303a726f77},display:\"inline\",fields:[\"name\"],labels:{name:$can$u$6d657373616765(\"Item\",{nl:\"Artikel\"})},authoredFields:[\"name\"]})"),
+        "row gate encloses preparation with source request properties in order:\n{entry}"
+    );
     assert!(
         !entry.contains("throw new Error"),
         "nothing throws:\n{entry}"
@@ -3415,7 +3491,7 @@ fn catalog_factories_lower_from_source() {
 /// per violated position (never a silent drop or an invented default).
 #[test]
 fn catalog_profile_violations_stay_loud() {
-    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name delete=none\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   pagination\n   card \"Sell\"@{nl=\"Verkopen\"}\n    button\n    modal \"No slots\"@{nl=\"Geen\"}\n    badge \"x\"\n     text \"y\"\n    input\n    stat\n    divider 42\n";
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name delete=none\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   breadcrumbs\n   pagination\n   card \"Sell\"@{nl=\"Verkopen\"}\n    button\n    modal \"No slots\"@{nl=\"Geen\"}\n    badge \"x\"\n     text \"y\"\n    input\n    stat\n    divider 42\n";
     let mut db = SourceDb::new();
     let id = db.add("probe-bad-ui.can".to_string(), src.to_string());
     let (catalog, catalog_path) = golden_catalog();
@@ -3424,14 +3500,16 @@ fn catalog_profile_violations_stay_loud() {
     let _ = std::fs::remove_file(&catalog_path);
     let messages: Vec<&str> = diags.iter().map(|d| d.message.as_str()).collect();
     for marker in [
+        "cannot lower breadcrumbs: ancestry and label carriers are not implemented",
+        "cannot lower pagination: cursor and label carriers are not implemented",
         "cannot lower pagination: pagination is valid only inside a collection",
         "cannot lower button: bound controls need one binding",
         "cannot lower modal: activated panels need a content slot",
         "cannot lower badge: badges take no content suite",
         "cannot lower input: field controls need an owning form",
         "cannot lower input: field controls take an input selector",
-        "cannot lower stat: stat needs observations or a value slot",
-        "cannot lower divider: dividers take a text caption",
+        "cannot lower stat: only one value header without a slotted suite has an owning factory profile",
+        "cannot lower divider: caption has no checked text profile",
     ] {
         assert!(
             messages.iter().any(|m| m.contains(marker)),
@@ -7602,7 +7680,9 @@ fn a2b_require_desugars_to_admit_and_gate() {
     );
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("if(!(hasRole(c,\"members\")))throw {code:\"forbidden\",message:\"forbidden\"}"),
+        js.contains(
+            "if(!(hasRole(c,\"members\")))throw {code:\"forbidden\",message:\"forbidden\"}"
+        ),
         "page require gates admission:\n{js}"
     );
     assert!(!js.contains("require({"), "require never renders:\n{js}");
