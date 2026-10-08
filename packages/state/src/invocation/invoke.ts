@@ -12,6 +12,7 @@
 import type {
   AdmissionKind,
   AuthorizedRecordsResult,
+  CanonicalModelDescriptor,
   CommitBatch,
   DomainWrite,
   HistoryEntry,
@@ -376,6 +377,8 @@ export type ReadSelection = Pick<ViewerRecordsInput, 'where' | 'order' | 'limit'
 /** T17a canonical read invocation input: no clock, no executor, no receipts. */
 export interface InvokeReadInput {
   readonly registry: OperationRegistry;
+  /** Checked owning declarations from trusted host wiring, never ReadSelection. */
+  readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
   readonly envelope: ReadEnvelope;
   readonly identity: ResolvedIdentity;
   /** Engine-local read grants (T17b transcribes the emitted read rules; T04b formalizes). */
@@ -495,9 +498,11 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
   const order = input.selection?.order;
   const limit = input.selection?.limit;
   const predicate = input.selection?.predicate;
+  const modelDescriptor = input.models?.find((descriptor) => descriptor.name === model);
   return queryRecords({
     policy: input.policy,
     model,
+    ...(modelDescriptor !== undefined ? { modelDescriptor } : {}),
     authority: 'viewer',
     context: { actorUserId, teamId },
     memberships: input.memberships,

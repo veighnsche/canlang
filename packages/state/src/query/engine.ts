@@ -14,6 +14,7 @@ import type {
   AggregateSpec,
   AuthorityRowsResult,
   AuthorizedRecordsResult,
+  CanonicalModelDescriptor,
   ModelName,
   OrderTerm,
   ProjectedRecord,
@@ -23,6 +24,10 @@ import type {
   Revision,
   StoredRow,
 } from '@canlang/contracts';
+import {
+  compareInt, compareDecimal, compareMoney, decodeValue, SchemaError, ValueError,
+  type Decimal, type MoneyValue,
+} from '@canlang/values';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
 import type { FenceScope } from '../invocation/admission.js';
@@ -51,6 +56,8 @@ export interface QueryCallerContext {
 export interface BaseQueryInput {
   readonly policy: PolicyTable;
   readonly model: ModelName;
+  /** Checked owning declaration from trusted host wiring; never selection/JSON input. */
+  readonly modelDescriptor?: CanonicalModelDescriptor;
   readonly where?: QueryPredicate;
   readonly order?: ReadonlyArray<OrderTerm>;
   readonly limit?: number;
@@ -340,23 +347,84 @@ function projectRow(
   };
 }
 
+type NumericOrderType = 'int' | 'decimal' | 'money';
+type NumericOrderValue = bigint | Decimal | MoneyValue | null | undefined;
+interface NumericOrderField {
+  readonly type: NumericOrderType;
+  readonly values: ReadonlyMap<StoredRow, NumericOrderValue>;
+}
+
+/** Select only declared numeric scalar fields; containers have no scalar ordering. */
+function numericOrderTypes(
+  descriptor: CanonicalModelDescriptor | undefined,
+  model: ModelName,
+  terms: ReadonlyArray<OrderTerm>,
+): { readonly types: ReadonlyMap<string, NumericOrderType>; readonly arrays: ReadonlyArray<string> } {
+  const types = new Map<string, NumericOrderType>();
+  const arrays: string[] = [];
+  if (descriptor === undefined || descriptor.name !== model) return { types, arrays };
+  for (const term of terms) {
+    if (isMetadataPath(term.field) || !Object.hasOwn(descriptor.fields, term.field)) continue;
+    const field = descriptor.fields[term.field]!;
+    const type = field.valueType;
+    if (type === undefined || !/^(int|decimal|money)(\[\])?\??$/.test(type)) continue;
+    if (field.array !== undefined || type.includes('[]')) {
+      arrays.push(term.field);
+      continue;
+    }
+    types.set(term.field, type.replace(/\?$/, '') as NumericOrderType);
+  }
+  return { types, arrays };
+}
+
+/** Decode projected values once, including singleton results; keep existing null/missing order. */
+function decodeNumericOrder(
+  rows: ReadonlyArray<StoredRow>,
+  types: ReadonlyMap<string, NumericOrderType>,
+): ReadonlyMap<string, NumericOrderField> {
+  const fields = new Map<string, NumericOrderField>();
+  for (const [field, type] of types) {
+    const values = new Map<StoredRow, NumericOrderValue>();
+    for (const row of rows) {
+      const wire = resolveRowPath(row, field);
+      try {
+        values.set(row, wire === null || wire === undefined ? wire :
+          decodeValue(type, wire) as NumericOrderValue);
+      } catch (error) {
+        if (!(error instanceof SchemaError) && !(error instanceof ValueError)) throw error;
+        throw new StateError('validation', `Query order field ${JSON.stringify(field)} has an invalid ${type} wire value: ${error.message}.`);
+      }
+    }
+    fields.set(field, { type, values });
+  }
+  return fields;
+}
+
+/** Values owns exact numeric comparison and incompatible money currency refusal. */
+function compareNumericOrder(type: NumericOrderType, a: NumericOrderValue, b: NumericOrderValue): number {
+  switch (type) {
+    case 'int': return compareInt(a as bigint, b as bigint);
+    case 'decimal': return compareDecimal(a as Decimal, b as Decimal);
+    case 'money': return compareMoney(a as MoneyValue, b as MoneyValue);
+  }
+}
+
 /**
- * In-memory order comparator mirroring storage semantics (NULLs first in
- * ASC, numbers before strings, booleans as 1/0). Non-scalar ties keep scan
- * order; the id tiebreak below keeps every result deterministic. Storage
- * adapters already append an `id ASC` tiebreak (verified: D1/SQLite
- * `ORDER BY ..., id ASC` with default `created ASC, id ASC`; memory adapter
- * `compareRows` id fallback), and the engine re-applies it so ordering is
- * identical on every backend.
+ * Values compares declared numeric fields; all other fields retain storage
+ * semantics (NULLs first in ASC, numbers before strings, booleans as 1/0).
+ * The engine reapplies the caller's terms and an id ASC tiebreak uniformly,
+ * independently of the backend's scan order.
  */
 function compareRowsForOrder(
   left: StoredRow,
   right: StoredRow,
   terms: ReadonlyArray<OrderTerm>,
+  numeric: ReadonlyMap<string, NumericOrderField>,
 ): number {
   for (const term of terms) {
-    const rawA = resolveRowPath(left, term.field);
-    const rawB = resolveRowPath(right, term.field);
+    const field = numeric.get(term.field);
+    const rawA = field === undefined ? resolveRowPath(left, term.field) : field.values.get(left);
+    const rawB = field === undefined ? resolveRowPath(right, term.field) : field.values.get(right);
     const a = typeof rawA === 'boolean' ? (rawA ? 1 : 0) : rawA;
     const b = typeof rawB === 'boolean' ? (rawB ? 1 : 0) : rawB;
     const aNull = a === null || a === undefined;
@@ -364,6 +432,13 @@ function compareRowsForOrder(
     let compared: number;
     if (aNull || bNull) {
       compared = aNull && bNull ? 0 : aNull ? -1 : 1;
+    } else if (field !== undefined) {
+      try {
+        compared = compareNumericOrder(field.type, a as NumericOrderValue, b as NumericOrderValue);
+      } catch (error) {
+        if (!(error instanceof ValueError)) throw error;
+        throw new StateError('validation', `Query order field ${JSON.stringify(term.field)} cannot be compared: ${error.message}.`);
+      }
     } else if (typeof a === 'number' && typeof b === 'number') {
       compared = a === b ? 0 : a < b ? -1 : 1;
     } else if (typeof a === 'string' && typeof b === 'string') {
@@ -680,6 +755,9 @@ async function runAuthorizedQuery(
   if (input.where !== undefined) {
     validatePredicateShape(input.where);
   }
+  // Copy only the selected scalar type claims before any asynchronous reads.
+  const modelDescriptorMismatch = input.modelDescriptor !== undefined && input.modelDescriptor.name !== input.model;
+  const numericTypes = numericOrderTypes(input.modelDescriptor, input.model, order);
 
   if (eventual && input.fence !== undefined) {
     throw new StateError(
@@ -767,6 +845,12 @@ async function runAuthorizedQuery(
   // Unbounded scan: storage applies model/archived/order only. `where` stays
   // in memory (grant visibility first), and `limit` is never pushed down —
   // overflow must error, never truncate.
+  if (modelDescriptorMismatch) {
+    throw new StateError('validation', 'Query model descriptor does not match the selected model.');
+  }
+  for (const field of numericTypes.arrays) {
+    throw new StateError('validation', `Query order field ${JSON.stringify(field)} requires a singular numeric declaration.`);
+  }
   const spec: QuerySpec = {
     model: input.model,
     authority: input.authority,
@@ -824,7 +908,8 @@ async function runAuthorizedQuery(
 
   // One engine ordering over the effective order plus the id tiebreak, so
   // results are identical regardless of backend scan order.
-  matched.sort((left, right) => compareRowsForOrder(left, right, order));
+  const numeric = decodeNumericOrder(matched, numericTypes.types);
+  matched.sort((left, right) => compareRowsForOrder(left, right, order, numeric));
   const rows = matched;
 
   // Limit overflow fails (never truncates). Code choice: `validation` per the
