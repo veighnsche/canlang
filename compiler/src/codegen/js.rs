@@ -1252,6 +1252,27 @@ fn collect_form_usages(node: &IrUi, page: &str, out: &mut Vec<FormUsage>) {
     }
 }
 
+/// Writable selector controls currently admitted by the source lowering.
+fn is_form_field_control(factory: &str) -> bool {
+    matches!(factory, "input" | "textarea" | "radio" | "select")
+}
+
+/// Collect actual controls owned by this form, preserving authored traversal.
+/// Nested forms establish their own binding; collections end inherited ownership.
+fn collect_authored_form_fields(node: &IrUi, out: &mut Vec<String>) {
+    if node.factory == "form" || node.row_scope.is_some() {
+        return;
+    }
+    if is_form_field_control(&node.factory)
+        && let Some(path) = form_prop_text(node, "field")
+    {
+        out.push(path);
+    }
+    for child in &node.children {
+        collect_authored_form_fields(child, out);
+    }
+}
+
 /// Render one admission gate as manifest spellings: direct role gates
 /// list their spelling; anything else (subject/expression/compound
 /// gates) sets `gated` so the manifest marks enforcement without
@@ -2564,10 +2585,7 @@ impl<'a> Emitter<'a> {
             }
             self.stdlib.insert("equalValue".to_string());
             let id = self.canonical_type_id(&left.ty, span);
-            return negate_call(
-                negate,
-                &format!("equalValue({}, {l},{r})", js_string(&id)),
-            );
+            return negate_call(negate, &format!("equalValue({}, {l},{r})", js_string(&id)));
         }
         let l_family = scalar_family(&left.ty);
         let r_family = scalar_family(&right.ty);
@@ -3812,6 +3830,89 @@ impl<'a> Emitter<'a> {
         format!("check({bool_text},\"forbidden\")")
     }
 
+    /// Source-authored captions for the actual published inputs of this form.
+    /// Reuse the operation collector's writable names; declaration labels remain
+    /// the sole caption authority, without a second schema or identifier fallback.
+    fn form_labels_request(&mut self, node: &IrUi) -> Option<String> {
+        let canonical = form_prop_text(node, "operation")?;
+        let operation = self
+            .ir
+            .items
+            .iter()
+            .find(|item| item.canonical == canonical)?;
+        let (owner, declarations) = match &operation.kind {
+            IrItemKind::CrudOp { model, .. } => {
+                let model_item = self.ir.items.get(model.0 as usize)?;
+                let IrItemKind::Model { fields, .. } = &model_item.kind else {
+                    return None;
+                };
+                (*model, fields.clone())
+            }
+            IrItemKind::Scenario { params, .. } => (operation.id, params.clone()),
+            _ => return None,
+        };
+        let published = self
+            .collect_operations()
+            .into_iter()
+            .find(|input_operation| input_operation.name == canonical)?;
+        let names: BTreeSet<&str> = published
+            .inputs
+            .iter()
+            .map(|input| input.name.as_str())
+            .collect();
+        let selected = node
+            .props
+            .iter()
+            .any(|(name, _)| name == "fields")
+            .then(|| {
+                form_prop_fields(node, "fields")
+                    .into_iter()
+                    .collect::<BTreeSet<_>>()
+            });
+        let labels: Vec<(String, IrMessage)> = declarations
+            .iter()
+            .filter_map(|id| {
+                let item = self.ir.items.get(id.0 as usize)?;
+                if !names.contains(item.name.as_str())
+                    || selected
+                        .as_ref()
+                        .is_some_and(|fields| !fields.contains(&item.name))
+                {
+                    return None;
+                }
+                let caption = match &item.kind {
+                    IrItemKind::Field {
+                        owner: field_owner,
+                        label: Some(label),
+                        ..
+                    } if *field_owner == owner => &label.text,
+                    IrItemKind::Param {
+                        owner: param_owner,
+                        label: Some(label),
+                        ..
+                    } if *param_owner == owner => label,
+                    _ => return None,
+                };
+                Some((item.name.clone(), caption.clone()))
+            })
+            .collect();
+        if labels.is_empty() {
+            return None;
+        }
+        Some(format!(
+            "labels:{{{}}}",
+            labels
+                .iter()
+                .map(|(name, caption)| format!(
+                    "{}:{}",
+                    object_key(name),
+                    self.lower_message(caption)
+                ))
+                .collect::<Vec<_>>()
+                .join(",")
+        ))
+    }
+
     /// Lower one UI factory node: lowercase server factory, one props
     /// object (with `context`) plus a `children` array when non-empty,
     /// or `renderRow:(row,view)=>[children]` for row-scoped collections.
@@ -3823,12 +3924,18 @@ impl<'a> Emitter<'a> {
     /// Lower one UI node under an explicit context expression. Children
     /// inherit the context; row scopes thread their view name instead.
     pub fn lower_ui_ctx(&mut self, node: &IrUi, ctx: &str) -> String {
-        self.lower_ui_occurrence(node, ctx, &[])
+        self.lower_ui_occurrence(node, ctx, &[], None)
     }
 
     /// Occurrence identities thread through enclosing collection rows so
     /// repeated tabsets never share their radio group or panel identifiers.
-    fn lower_ui_occurrence(&mut self, node: &IrUi, ctx: &str, occurrences: &[String]) -> String {
+    fn lower_ui_occurrence(
+        &mut self,
+        node: &IrUi,
+        ctx: &str,
+        occurrences: &[String],
+        prepared_form: Option<&str>,
+    ) -> String {
         if !is_ui_factory(&node.factory) {
             self.unsupported(
                 "UI node",
@@ -3858,6 +3965,100 @@ impl<'a> Emitter<'a> {
             .as_ref()
             .map(|g| self.lower_business_expr(g, "formatted UI gate"));
         self.ui.insert(node.factory.clone());
+        if node.factory == "form" {
+            // Preparation is synchronous. Its request expression remains in the
+            // surrounding page scope so any authored awaits stay legal and ordered.
+            let mut request = Vec::new();
+            for (key, value) in &node.props {
+                request.push(format!(
+                    "{}:{}",
+                    object_key(key),
+                    self.lower_business_expr(value, "unclassified formatted UI prop")
+                ));
+            }
+            if let Some(labels) = self.form_labels_request(node) {
+                request.push(labels);
+            }
+            let mut authored = Vec::new();
+            for child in &node.children {
+                collect_authored_form_fields(child, &mut authored);
+            }
+            if !node.children.is_empty() {
+                request.push(format!(
+                    "authoredFields:[{}]",
+                    authored
+                        .iter()
+                        .map(|path| js_string(path))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ));
+            }
+            self.enter_scope();
+            // The IIFE owns this private name; nested forms shadow it in
+            // their own IIFE without consuming authored binding identities.
+            let prepared = binding_ident("f", "form");
+            let children = node
+                .children
+                .iter()
+                .map(|child| self.lower_ui_occurrence(child, ctx, occurrences, Some(&prepared)))
+                .collect::<Vec<_>>()
+                .join(",");
+            let body = if node.children.is_empty() {
+                String::new()
+            } else {
+                let prefix = if node.children.iter().any(ui_immediate_uses_async) {
+                    "async"
+                } else {
+                    ""
+                };
+                format!(",children:{prefix}()=>[{children}]")
+            };
+            self.exit_scope();
+            self.ui.insert("text".to_string());
+            let ready_props = if node.children.is_empty() {
+                format!("{prepared}.props")
+            } else {
+                format!("{{...{prepared}.props{body}}}")
+            };
+            let call = format!(
+                "(({prepared})=>{{if({prepared}.status!==\"ready\")return {}({{context:{ctx},values:[{prepared}.message]}});return {}({ready_props});}})({ctx}.prepareForm({{{}}}))",
+                binding_ident("u", "text"),
+                binding_ident("u", "form"),
+                request.join(",")
+            );
+            return match gate {
+                Some(cond) => format!("{cond} ? {call} : null"),
+                None => call,
+            };
+        }
+        if is_form_field_control(&node.factory)
+            && let Some(prepared) = prepared_form
+            && let Some((_, field)) = node.props.iter().find(|(key, _)| key == "field")
+        {
+            let mut props = vec![format!(
+                "...{prepared}.field({})",
+                self.lower_business_expr(field, "form input selector")
+            )];
+            for (key, value) in &node.props {
+                if key == "field" {
+                    continue;
+                }
+                props.push(format!(
+                    "{}:{}",
+                    object_key(key),
+                    self.lower_business_expr(value, "unclassified formatted UI prop")
+                ));
+            }
+            let call = format!(
+                "{}({{{}}})",
+                binding_ident("u", &node.factory),
+                props.join(",")
+            );
+            return match gate {
+                Some(cond) => format!("{cond} ? {call} : null"),
+                None => call,
+            };
+        }
         let transient_tabs = node.factory == "tabs"
             && node.props.iter().any(|(key, _)| key == "id")
             && node.children.iter().all(|child| child.factory == "tabItem");
@@ -3884,7 +4085,7 @@ impl<'a> Emitter<'a> {
                 let children = node
                     .children
                     .iter()
-                    .map(|c| self.lower_ui_occurrence(c, &child_ctx, &child_occurrences))
+                    .map(|c| self.lower_ui_occurrence(c, &child_ctx, &child_occurrences, None))
                     .collect::<Vec<_>>()
                     .join(",");
                 // `async` exactly when a row child awaits.
@@ -3903,52 +4104,55 @@ impl<'a> Emitter<'a> {
                 // never `children` (their F props have no children
                 // slot; shapes validated at decode).
                 if transient_tabs {
-                    let items =
-                        node.children
-                            .iter()
-                            .map(|item| {
-                                let gate = item.gate.as_ref().map(|gate| {
-                                    self.lower_business_expr(gate, "formatted UI gate")
-                                });
-                                let mut fields = Vec::new();
-                                for (key, value) in &item.props {
-                                    fields.push(format!(
-                                        "{}:{}",
-                                        object_key(key),
-                                        self.lower_business_expr(
-                                            value,
-                                            "unclassified formatted UI prop"
-                                        )
-                                    ));
-                                }
-                                // Eager arrays preserve authored depth-first evaluation:
-                                // each caption then its descendants, exactly once.
-                                let children = item
-                                    .children
-                                    .iter()
-                                    .map(|child| self.lower_ui_occurrence(child, ctx, occurrences))
-                                    .collect::<Vec<_>>()
-                                    .join(",");
-                                fields.push(format!("children:[{children}]"));
-                                let item = format!("({{{}}})", fields.join(","));
-                                match gate {
-                                    Some(gate) => format!("{gate}?{item}:null"),
-                                    None => item,
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join(",");
+                    let items = node
+                        .children
+                        .iter()
+                        .map(|item| {
+                            let gate = item
+                                .gate
+                                .as_ref()
+                                .map(|gate| self.lower_business_expr(gate, "formatted UI gate"));
+                            let mut fields = Vec::new();
+                            for (key, value) in &item.props {
+                                fields.push(format!(
+                                    "{}:{}",
+                                    object_key(key),
+                                    self.lower_business_expr(
+                                        value,
+                                        "unclassified formatted UI prop"
+                                    )
+                                ));
+                            }
+                            // Eager arrays preserve authored depth-first evaluation:
+                            // each caption then its descendants, exactly once.
+                            let children = item
+                                .children
+                                .iter()
+                                .map(|child| {
+                                    self.lower_ui_occurrence(child, ctx, occurrences, prepared_form)
+                                })
+                                .collect::<Vec<_>>()
+                                .join(",");
+                            fields.push(format!("children:[{children}]"));
+                            let item = format!("({{{}}})", fields.join(","));
+                            match gate {
+                                Some(gate) => format!("{gate}?{item}:null"),
+                                None => item,
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
                     props.push(format!("items:[{items}].filter(item=>item!=null)"));
                 } else if node.factory == "fab" {
                     let mut kids = node.children.iter();
                     if let Some(main) = kids.next() {
                         props.push(format!(
                             "main:[{}]",
-                            self.lower_ui_occurrence(main, ctx, occurrences)
+                            self.lower_ui_occurrence(main, ctx, occurrences, prepared_form)
                         ));
                     }
                     let rest: Vec<String> = kids
-                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences))
+                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences, prepared_form))
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
                 } else if node.factory == "chatBubble" {
@@ -3973,7 +4177,12 @@ impl<'a> Emitter<'a> {
                             .filter(|c| crate::codegen::ir::ui_slot_name(c) == Some(name))
                         {
                             for grand in &child.children {
-                                group.push(self.lower_ui_occurrence(grand, ctx, occurrences));
+                                group.push(self.lower_ui_occurrence(
+                                    grand,
+                                    ctx,
+                                    occurrences,
+                                    prepared_form,
+                                ));
                             }
                         }
                         props.push(format!("{}:[{}]", object_key(name), group.join(",")));
@@ -3982,7 +4191,7 @@ impl<'a> Emitter<'a> {
                     let children = node
                         .children
                         .iter()
-                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences))
+                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences, prepared_form))
                         .collect::<Vec<_>>()
                         .join(",");
                     props.push(format!("children:[{children}]"));
@@ -4082,8 +4291,18 @@ impl<'a> Emitter<'a> {
         let admit_body = if page.admit.is_empty() {
             format!("async(c,routeBindings={{}})=>{{return {{{bindings}}};}}")
         } else {
-            let check_text = self.lower_admission(&page.admit);
-            format!("async(c,routeBindings={{}})=>{{{check_text};return {{{bindings}}};}}")
+            // Page admission crosses the HTTP BusinessError boundary;
+            // scenario guards keep the State-owned check semantics.
+            let checks = page
+                .admit
+                .iter()
+                .map(|guard| {
+                    let condition = self.lower_guard_bool(guard);
+                    format!("if(!({condition}))throw {{code:\"forbidden\",message:\"forbidden\"}};")
+                })
+                .collect::<Vec<_>>()
+                .join("");
+            format!("async(c,routeBindings={{}})=>{{{checks}return {{{bindings}}};}}")
         };
         members.push(format!("admit:{admit_body}"));
         members.push(format!("render:{func}"));
@@ -4125,6 +4344,16 @@ impl<'a> Emitter<'a> {
             &format!("export async function {func}(c,bindings){{{preamble}return (await Promise.all([{children}])).filter(value=>value!=null).join('');}}"),
         );
     }
+}
+
+/// Whether rendering this node evaluates an await in the current callback.
+/// Form and collection descendants execute under their own deferred callbacks.
+fn ui_immediate_uses_async(node: &IrUi) -> bool {
+    node.props.iter().any(|(_, value)| expr_uses_async(value))
+        || node.gate.as_ref().is_some_and(expr_uses_async)
+        || (node.factory != "form"
+            && node.row_scope.is_none()
+            && node.children.iter().any(ui_immediate_uses_async))
 }
 
 /// Whether a UI subtree awaits (state-read calls in prop values).
