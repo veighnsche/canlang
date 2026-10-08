@@ -97,6 +97,19 @@ test('compiled aggregates use authorized native row fields and live owner read g
     rows = await store.query({ model: MODEL, authority: 'owner' });
     assert.equal(rows.length, 4);
     assert.equal(rows.filter(row => row.data.count === '14').length, 1);
+    const ascending = ['1', '7', '14', '9007199254740993'];
+    for (const identity of [ownerIdentity, auditorIdentity]) {
+      assert.deepEqual(committed(await invoker.invokeMutation(envelope('ascending'), identity)).result, ascending);
+      assert.deepEqual(committed(await invoker.invokeMutation(envelope('descending'), identity)).result, [...ascending].reverse());
+    }
+    for (const identity of [memberIdentity, anonymous]) {
+      for (const operation of ['ascending', 'descending']) {
+        const denied = await invoker.invokeMutation(envelope(operation), identity);
+        assert.ok('error' in denied, JSON.stringify(denied));
+        assert.equal(denied.error.code, 'validation');
+        assert.match(denied.error.message, /Query path "count" is not granted/);
+      }
+    }
     const beforeRollback = rows;
     const rollbackHistory = await Promise.all(rows.map(row => store.historyFor(MODEL, row.id)));
     const rejected = await invoker.invokeMutation(envelope('filteredStaged', { count: '17', accept: false }), ownerIdentity);
