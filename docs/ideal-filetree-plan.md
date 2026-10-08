@@ -318,3 +318,6 @@ Root datetime-default producer reconciliation: compiler checked literal/default 
 
 
 Root bounded temporal consumer reconciliation: Cloudflare scenario/default/record projection retains one binding over State-loaded metadata and public Values codecs; State remains admission/storage/receipt owner. Null-prototype parameter/default dictionaries preserve supported own names. Owner source compilation and corrected actual generated Node-handler/D1 profile1/1 pass; integer compatibility3/3 reused. Compiler current collection-call source commit, wider scalar/hook/deployed/installed/native consumers and complete checkpoint review remain separate; no duplicate Values implementation or merge.
+
+
+Root released collection producer reconciliation: compiler6b4b7d91 retains checked element/alias/scope ownership and delegates mechanics to existing Values sum/any/all. Its one installed-export consumer and Clippy results are reused; Cloudflare669084c0 separately qualifies finite canonical Node/D1 int/datetime arrays. Active-producer commit prerequisite is resolved; wider scalar/async/deployed/installed and accumulated complete checkpoint review remain open. No new collection owner or merge.
