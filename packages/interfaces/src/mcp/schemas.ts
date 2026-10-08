@@ -892,6 +892,7 @@ function checkArtifactInputChannels(
   what: string,
   fieldKind: string,
   nominalName?: string,
+  enumValues?: readonly string[],
 ): CheckedInputChannels {
   if (typeof value['required'] !== 'boolean') {
     failDescriptor('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
@@ -928,7 +929,7 @@ function checkArtifactInputChannels(
     }
     const base = type.base.kind === 'nominal' && nominalName === type.base.path ? 'nominal'
       : type.base.kind === 'scalar' ? type.base.name
-      : type.base.kind === 'user' || type.base.kind === 'file' ? type.base.kind : undefined;
+      : type.base.kind === 'user' || type.base.kind === 'file' || type.base.kind === 'enum' ? type.base.kind : undefined;
     if (base === undefined || (type.requiredArray && fieldKind !== 'nominal')) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
     }
@@ -936,6 +937,11 @@ function checkArtifactInputChannels(
       : base === 'text' || base === 'date' ? 'string' : base;
     if (expectedKind !== fieldKind) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
+    }
+    if (type.base.kind === 'enum' && (enumValues === undefined ||
+        type.base.cases.length !== enumValues.length ||
+        type.base.cases.some((entry, index) => entry !== enumValues[index]))) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with enum cases.`);
     }
     if (type.array !== (array !== undefined)) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with array marker.`);
@@ -978,7 +984,8 @@ function checkArtifactInput(value: unknown, opName: string, inventory?: Canonica
     return { name, delivery, ...checkArtifactInputChannels(value, what, 'delivery') };
   }
   const field = checkArtifactFieldTag(tag, what, inventory);
-  const channels = checkArtifactInputChannels(value, what, field.kind, field.kind === 'nominal' ? field.name : undefined);
+  const channels = checkArtifactInputChannels(value, what, field.kind,
+    field.kind === 'nominal' ? field.name : undefined, field.kind === 'enum' ? field.values : undefined);
   if (field.kind === 'nominal' && channels.default?.kind === 'literal') {
     const type = channels.valueType ?? `${field.name}${channels.array === undefined ? '' : channels.array.required ? '[]!' : '[]'}${channels.nullable ? '?' : ''}`;
     try { validateValue(normalizeValueTypes(field.valueTypes).valueSchema, type, channels.default.value, 'create'); }
@@ -1375,7 +1382,7 @@ function checkedPropertySchema(checked: CheckedArtifactField): Record<string, un
   const shape: Record<string, unknown> = checked.array === undefined
     ? element
     : { type: 'array', items: element };
-  const schema = (checked.field.kind === 'user' || checked.field.kind === 'nominal') && checked.nullable === true
+  const schema = (checked.field.kind === 'user' || checked.field.kind === 'nominal' || checked.field.kind === 'enum') && checked.nullable === true
     ? { anyOf: [shape, { type: 'null' }] }
     : shape;
   return checked.description === undefined ? schema : { ...schema, description: checked.description };
