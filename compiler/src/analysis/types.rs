@@ -9699,14 +9699,6 @@ impl<'a> Typer<'a> {
 
     fn phase1_given(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
         match node.kind {
-            SyntaxKind::Preferences => {
-                if let Some(prefs) = self.prefs_symbol(module) {
-                    self.prefs.insert(module, prefs);
-                    for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                        self.phase1_field(file, text, module, prefs, field);
-                    }
-                }
-            }
             SyntaxKind::Model | SyntaxKind::Contract | SyntaxKind::Event => {
                 let head = match node.kind {
                     SyntaxKind::Model => "model",
@@ -9821,6 +9813,15 @@ impl<'a> Typer<'a> {
     }
 
     fn phase1_then(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+        if node.kind == SyntaxKind::Preferences {
+            if let Some(prefs) = self.prefs_symbol(module) {
+                self.prefs.insert(module, prefs);
+                for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
+                    self.phase1_field(file, text, module, prefs, field);
+                }
+            }
+            return;
+        }
         if node.kind != SyntaxKind::Page {
             return;
         }

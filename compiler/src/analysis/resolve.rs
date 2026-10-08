@@ -984,6 +984,9 @@ impl<'a> Resolver<'a> {
                         match marker {
                             "Given" => self.index_given(*file, text, module, item, diags)?,
                             "When" => self.index_when(*file, text, module, item, diags)?,
+                            "Then" if item.kind == SyntaxKind::Preferences => {
+                                self.index_preferences(text, module, item, diags)?;
+                            }
                             _ => {}
                         }
                     }
@@ -3720,14 +3723,6 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
         match node.kind {
-            SyntaxKind::Preferences => {
-                for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                    self.resolve_field_parts(text, module, root, None, field, true, diags)?;
-                }
-                if let Some(label) = attribute_value(node, "label", text) {
-                    self.resolve_caption(text, module, label, diags);
-                }
-            }
             SyntaxKind::Model => {
                 let name = Self::decl_name(text, node, &["export"]).map(|(n, _)| n);
                 let model = name.as_deref().and_then(|n| self.lookup_prod(module, n));
@@ -3810,43 +3805,65 @@ impl<'a> Resolver<'a> {
                 self.resolve_rule(text, module, root, node, diags)?;
             }
             SyntaxKind::Invariant => {
-                let inv_parts = kids(node);
-                let target = inv_parts.iter().find(|n| n.kind == SyntaxKind::Path);
-                let mut row_scope =
-                    self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
-                if let Some(target) = target {
-                    let segments = path_segments(target, text);
-                    // `invariant preferences:` validates the owner's
-                    // preferences row (DESIGN §9); preferences live
-                    // outside the production namespace.
-                    let prefs = if segments == ["preferences"] {
-                        self.tables
-                            .symbols
-                            .iter()
-                            .find(|s| {
-                                s.module == module
-                                    && matches!(s.kind, SymbolKind::Preferences { .. })
-                            })
-                            .map(|s| s.id)
-                    } else {
-                        None
-                    };
-                    if let Some(prefs) = prefs {
-                        self.tables.node_symbol.insert(NodeKey::of(target), prefs);
-                        row_scope = self.with_row(row_scope, prefs, node.span)?;
-                    } else if let Some(model) =
-                        self.resolve_model_path(module, &segments, target, text, diags)
-                    {
-                        row_scope = self.with_row(row_scope, model, node.span)?;
-                    }
-                }
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        self.walk_expr(module, row_scope, child, text, ExprCtx::bare(), diags)?;
-                    }
-                }
+                self.resolve_invariant(text, module, root, node, false, diags)?;
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn resolve_invariant(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        in_then: bool,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let target = kids(node).into_iter().find(|n| n.kind == SyntaxKind::Path);
+        let mut row_scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
+        if let Some(target) = target {
+            let segments = path_segments(target, text);
+            let prefs = (segments == ["preferences"])
+                .then(|| {
+                    self.tables
+                        .symbols
+                        .iter()
+                        .find(|s| {
+                            s.module == module && matches!(s.kind, SymbolKind::Preferences { .. })
+                        })
+                        .map(|s| s.id)
+                })
+                .flatten();
+            if let Some(prefs) = prefs {
+                if !in_then {
+                    diags.push(Diagnostic::error(
+                        "E1200",
+                        "preferences validation belongs in Then".into(),
+                        node.span,
+                    ));
+                    return Ok(());
+                }
+                self.tables.node_symbol.insert(NodeKey::of(target), prefs);
+                row_scope = self.with_row(row_scope, prefs, node.span)?;
+            } else if in_then {
+                diags.push(Diagnostic::error(
+                    "E1200",
+                    "Then invariants must validate the owning preferences schema".into(),
+                    target.span,
+                ));
+                return Ok(());
+            } else if let Some(model) =
+                self.resolve_model_path(module, &segments, target, text, diags)
+            {
+                row_scope = self.with_row(row_scope, model, node.span)?;
+            }
+        }
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                self.walk_expr(module, row_scope, child, text, ExprCtx::bare(), diags)?;
+            }
         }
         Ok(())
     }
@@ -5709,7 +5726,22 @@ impl<'a> Resolver<'a> {
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
     ) -> Result<(), Diagnostic> {
-        if has_error(node) || node.kind != SyntaxKind::Page {
+        if has_error(node) {
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::Preferences {
+            for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
+                self.resolve_field_parts(text, module, root, None, field, true, diags)?;
+            }
+            if let Some(label) = attribute_value(node, "label", text) {
+                self.resolve_caption(text, module, label, diags);
+            }
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::Invariant {
+            return self.resolve_invariant(text, module, root, node, true, diags);
+        }
+        if node.kind != SyntaxKind::Page {
             return Ok(());
         }
         let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
