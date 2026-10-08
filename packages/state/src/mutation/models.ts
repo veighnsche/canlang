@@ -354,10 +354,10 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
         );
       }
       if (Object.hasOwn(field, 'valueType') &&
-          (typeof field.valueType !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(field.valueType) ||
+          (typeof field.valueType !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(field.valueType) ||
            field.valueType.includes('[]') !== (field.array !== undefined) ||
            Object.hasOwn(field, 'nullable') && field.valueType.endsWith('?') !== field.nullable)) {
-        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: int/datetime/text/bool/decimal/money/date/duration/user profile must agree with array/nullable markers.`);
+        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: int/datetime/text/bool/decimal/money/date/duration/user/file profile must agree with array/nullable markers.`);
       }
       if (field.array !== undefined) {
         const marker = field.array;
@@ -744,11 +744,11 @@ export function buildModelTableFromCanonical(
     const fields: Record<string, InterimFieldDef> = {};
     for (const [name, field] of Object.entries(model.fields)) {
       if (Object.hasOwn(field, 'valueType') &&
-          (typeof field.valueType !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(field.valueType) ||
+          (typeof field.valueType !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(field.valueType) ||
            field.valueType.includes('[]') !== (field.array !== undefined) ||
            Object.hasOwn(field, 'nullable') &&
              (typeof field.nullable !== 'boolean' || field.valueType.endsWith('?') !== field.nullable))) {
-        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model.name)}: int/datetime/text/bool/decimal/money/date/duration/user profile must agree with array/nullable markers.`);
+        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model.name)}: int/datetime/text/bool/decimal/money/date/duration/user/file profile must agree with array/nullable markers.`);
       }
 
       let fallback: unknown;

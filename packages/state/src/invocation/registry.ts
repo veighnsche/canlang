@@ -297,11 +297,11 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
   if (!Object.hasOwn(holder, 'result')) return undefined;
   const result = holder['result'];
   if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user profile or bare void.`);
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile or bare void.`);
   }
   const type = result['type'];
-  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(type))) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user profile or bare void.`);
+  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type))) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile or bare void.`);
   }
   return Object.freeze({ type });
 }
@@ -309,8 +309,8 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
 function checkValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
   if (!Object.hasOwn(field, 'valueType')) return undefined;
   const type = field['valueType'];
-  if (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(type)) {
-    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money/date/duration/user profile.`);
+  if (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type)) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile.`);
   }
   if (Object.hasOwn(field, 'nullable') &&
       (typeof field['nullable'] !== 'boolean' || type.endsWith('?') !== field['nullable'])) {
@@ -336,6 +336,7 @@ function scalarTypeForKind(kind: unknown): string | undefined {
     case 'date': return 'date';
     case 'duration': return 'duration';
     case 'user': return 'user';
+    case 'file': return 'file';
     case 'string': return 'text';
     default: return undefined;
   }
