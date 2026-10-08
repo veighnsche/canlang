@@ -56,6 +56,10 @@
       "types": "./dist/src/kernel/occurrence-staging.d.ts",
       "default": "./dist/src/kernel/occurrence-staging.js"
     },
+    "./kernel/handler-occurrence": {
+      "types": "./dist/src/kernel/handler-occurrence.d.ts",
+      "default": "./dist/src/kernel/handler-occurrence.js"
+    },
     "./kernel/tables": {
       "types": "./dist/src/kernel/tables.d.ts",
       "default": "./dist/src/kernel/tables.js"
