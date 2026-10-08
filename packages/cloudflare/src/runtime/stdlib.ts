@@ -49,6 +49,7 @@
  * silent, never fake data.
  */
 import type {
+  CanValue,
   OrderTerm,
   ProjectedRecord,
   QueryPredicate,
@@ -57,9 +58,18 @@ import type {
   StoredRow,
 } from '@canlang/contracts';
 import type { CanonicalEffectsScope, HandlerContext } from './context.js';
+import { equalValue as equalValueProducer } from '@canlang/values';
 
 // Generated pure helpers retain their Values producer identity.
-export { int64, datetime, compareInstant, addDuration, all, sum, join } from '@canlang/values';
+export {
+  int64, datetime, compareInstant, addDuration, all, sum, join,
+  parseDecimal, addDecimal, money, addMoney, compareMoney,
+} from '@canlang/values';
+
+/** Generated equality is c-first; the pure Values producer needs only its typed operands. */
+export function equalValue(_c: HandlerContext, typeId: string, a: CanValue, b: CanValue): boolean {
+  return equalValueProducer(typeId, a, b);
+}
 
 /** Input for {@link create}: explicit id plus data (crud interim convention). */
 export interface CreateInput {
