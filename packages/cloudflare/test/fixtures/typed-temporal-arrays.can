@@ -1,0 +1,52 @@
+app TypedTemporalArrays
+Given
+ Slot { count:int=1, at:datetime=datetime("2030-01-01T00:00:00.000Z"), counts:int[], instants:datetime[], seedCounts:int[]=[1,2], seedInstants:datetime[]=[datetime("2030-01-01T00:00:00.000Z")], maybeCounts:int[]?, maybeInstants:datetime[]?, requiredCounts:int[]! }
+ policy Slot read=public
+When
+ crud Slot by=members fields=count,at,counts,instants,seedCounts,seedInstants,maybeCounts,maybeInstants,requiredCounts
+ ## Both admitted arrays and stored arrays participate in native typed operations.
+ scenario advance(slot:Slot,delta:int,at:datetime,counts:int[],instants:datetime[],accept:bool) -> datetime by=members
+  do
+   require at>slot.at and at>slot.created
+   require all(instants as instant,instant>slot.at)
+   require all(slot.seedInstants as instant,instant>slot.created)
+   set slot {count=slot.count+delta+sum(counts)+sum(slot.seedCounts),at=at+1s,counts=counts,instants=instants}
+   require accept
+   return slot.at
+ scenario numbers(slot:Slot) -> int[] by=members
+  do
+   return [sum(slot.counts),slot.count]
+ scenario times(slot:Slot) -> datetime[] by=members
+  do
+   require all(slot.instants as instant,instant>slot.created)
+   return slot.instants
+ scenario maybeNumbers(slot:Slot) -> int[]? by=members
+  do
+   return slot.maybeCounts
+ scenario maybeTimes(slot:Slot) -> datetime[]? by=members
+  do
+   return slot.maybeInstants
+ scenario created(slot:Slot) -> datetime by=members
+  do
+   return slot.created
+ ## Null is a value; an ordinary omitted array remains empty.
+ scenario echoMaybeNumbers(value:int[]?) -> int[]? by=members
+  do return value
+ scenario echoMaybeTime(value:datetime?) -> datetime? by=members
+  do return value
+ scenario total(values:int[]) -> int by=members
+  do return sum(values)
+ scenario namedDefault(__proto__:datetime=datetime("2030-01-01T00:00:00.000Z")) -> datetime by=members
+  do return __proto__
+ scenario born() -> datetime by=members
+  do
+   create Slot {requiredCounts=[]} as slot
+   require sum(slot.seedCounts)==3
+   return slot.at
+ ## Original parameter defaults remain wire receipt data while handlers see native values.
+ scenario defaults(value:int=2,counts:int[]=[1,2],at:datetime=datetime("2030-01-01T00:00:00.000Z"),instants:datetime[]=[datetime("2030-01-01T00:00:00.000Z")]) -> datetime by=members
+  do
+   require value+sum(counts)==5
+   require all(instants as instant,instant>=at)
+   return at+1s
+Then

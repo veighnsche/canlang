@@ -2827,13 +2827,22 @@ function generatedScenarioDef(call: CanonicalSeamCall): GeneratedOperationDef | 
 }
 
 /** Clone admitted snapshots; decode only their loader-owned type associations. */
-function scenarioParameters(call: CanonicalSeamCall, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>): Record<string, unknown> {
-  const parameters = structuredClone(call.inputs);
+function scenarioParameters(call: CanonicalSeamCall, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults: Record<string, unknown>): Record<string, unknown> {
+  const parameters: Record<string, unknown> = Object.assign(Object.create(null), structuredClone(call.inputs));
   const def = generatedScenarioDef(call);
   for (const field of def?.descriptor.inputs ?? []) {
-    if (field.kind === "integer" && def?.inputArrays[field.name] === undefined && parameters[field.name] !== undefined) {
+    if (field.kind !== "ref" && field.kind !== "delivery" && field.valueType !== undefined) {
       try {
-        parameters[field.name] = decodeValue("int", parameters[field.name]);
+        if (!Object.hasOwn(parameters, field.name) && field.default?.kind === "literal") {
+          const value = decodeValue(field.valueType, field.default.value);
+          parameters[field.name] = value;
+          resolvedDefaults[field.name] = encodeValue(field.valueType, value);
+        } else if (!Object.hasOwn(parameters, field.name) && field.valueType.endsWith("?")) {
+          parameters[field.name] = null;
+          resolvedDefaults[field.name] = null;
+        } else if (parameters[field.name] !== undefined) {
+          parameters[field.name] = decodeValue(field.valueType, parameters[field.name]);
+        }
       } catch (error) {
         throw new loaded.producers.errors("validation", message(error));
       }
@@ -2944,9 +2953,10 @@ async function runScenarioSeam(
     // Ordinary references retain admitted metadata while domain reads see
     // provisional writes; reserved post-write versions belong to staged rows.
     Object.assign(record, { id: row.id, version: BigInt(row.version),
-      created: new Date(row.created).toISOString(), updated: new Date(row.updated).toISOString(),
+      created: decodeValue("datetime", new Date(row.created).toISOString()),
+      updated: decodeValue("datetime", new Date(row.updated).toISOString()),
       created_by: row.createdBy, updated_by: row.updatedBy,
-      archived_at: row.archivedAt === null ? null : new Date(row.archivedAt).toISOString(),
+      archived_at: row.archivedAt === null ? null : decodeValue("datetime", new Date(row.archivedAt).toISOString()),
     });
     Object.freeze(record);
     views.set(key, record);
@@ -2958,7 +2968,7 @@ async function runScenarioSeam(
   const reservedVersions = new Map<string, RecordVersion>();
   const stagedHistory: unknown[] = [];
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
-  const resolvedDefaults: Record<string, unknown> = {};
+  const resolvedDefaults: Record<string, unknown> = Object.create(null);
   let callIndex = 0;
   let createIndex = 0;
   const applyStagedWrite = (write: CanonicalStagedDomainWrite): StoredRow | null => {
@@ -3038,12 +3048,16 @@ async function runScenarioSeam(
           // C2/B1: admission-parity archive gate (CRUD inherits it from
           // admission; scenario writes bypass per-write admission).
           gateArchivedTargets: true,
-          // The checked type fixes semantics. Strings here are that type's
-          // wire carrier (stored fields/defaults); other values go directly
-          // to its defining native encoder. No source type is inferred.
+          // Generated writes carry native values; stored fields and defaults
+          // carry wire values. Let this checked type's public codecs admit
+          // either representation at the existing late checkpoint.
           encodeField: (type, value) => {
             try {
-              return encodeValue(type, typeof value === "string" ? decodeValue(type, value) : value as CanValue);
+              try {
+                return encodeValue(type, value as CanValue);
+              } catch {
+                return encodeValue(type, decodeValue(type, value));
+              }
             } catch (error) {
               throw new StateError("validation", message(error));
             }
@@ -3139,7 +3153,7 @@ async function runScenarioSeam(
   });
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
   const argument = callable?.inputStyle === "parameters"
-    ? scenarioParameters(call, loaded, recordView)
+    ? scenarioParameters(call, loaded, recordView, resolvedDefaults)
     : { operation_id: call.context.operationId, inputs: call.inputs };
   const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [argument]);
   if (!outcome.ok) {
