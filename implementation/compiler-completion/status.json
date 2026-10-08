@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T09:11:50Z",
+  "updated_utc": "2026-10-08T09:42:46Z",
   "total": 67,
   "finished_at_recorded_scope": 53,
   "remaining_including_partial": 14,
@@ -82,7 +82,8 @@
     "S9-Q03",
     "S9-Q06",
     "SEM-R08",
-    "FAIL-R06"
+    "FAIL-R06",
+    "S9-Q02"
   ],
   "counting_policy": "Count canonical reference once. Reuse17previously accepted bounded references; add only full recorded finding/retention outcomes. Partial joins/components do not close their broader reference. Wider host/application and future-source requirements remain separately explicit. These references overlap and are not67independent implementations.",
   "suite": {
@@ -100,9 +101,9 @@
     }
   },
   "latest_component": {
-    "commit": "f1d63d0a31a4906bcc368aa4e8c7cb0ef2f51161",
-    "previous_component": "bdab357663c446d4ce0e88577cc4d935b0e6a7fc",
-    "outcome": "Checked standard delivery canonical types/nullable field schemas and reserved Receipt.read metadata reach the unchanged native Email fixture and real State descriptor loader. Exact closed required inputs, generated public read gate and genuine source collision refusal pass. Native case, eight affected T15b cases, strict library Clippy and can build pass. Actual current-grant/provider serving remains owning runtime qualification."
+    "commit": "121688d7d8bbdd4c2e2770a82cf080cdf5a9ceb7",
+    "previous_component": "f1d63d0a31a4906bcc368aa4e8c7cb0ef2f51161",
+    "outcome": "Ordered nonnullable scalar scenario defaults and File scalar/nullable/array model/input/result profiles pass their focused native cases, including real State omission and Values identity codecs. Scope closure d2fb9024 follows only executed omitted parameter/create defaults and server initializers; new 11-control and affected existing creation cases pass. Owning standard nominal constructors 6dd7bf96 contextualize TextMessage.role from its declared schema and pass genuine TextRequest native execution plus refusal/alias/binding controls. Strict library Clippy and can build pass across these source changes. Nullable/array/reference computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain separate owning joins."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -121,9 +122,11 @@
     "../../compiler/tests/syntax.rs",
     "../../compiler/tests/width_boundaries.rs",
     "../../compiler/tests/message_width.rs",
-    "../../compiler/tests/graph_width.rs"
+    "../../compiler/tests/graph_width.rs",
+    "../../compiler/tests/file_profile_runtime.rs",
+    "../../compiler/tests/std_nominal_construct.rs"
   ],
-  "current_source_work": "Private trusted handler invocation metadata86a8be55 preserves the existing handler/c,{event} boundary while the owning Work/CF/State path validates occurrences and admits current fields. Standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a pass genuine compiler/native/State-loader cases without fabricated consumer metadata. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph width controls qualify their declared inputs; extreme source/count/generated-output admission remains unresolved. Anonymous format coveragee71b37cf and earlier SEM-R08 overload/nominal/default/executed-initializer controls stay bounded; scenario computed defaults, bytes owner, held BDD/timezone and wider application/provider workflows remain open. Existing matching checks are reused, not a full-suite or whole-reference closure.",
+  "current_source_work": "Private trusted handler invocation metadata86a8be55, standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a retain their accepted bounded outcomes. Ordered nonnullable scalar scenario defaults and File native profiles121688d7 pass source/native/State-omission/Values-codec controls; nullable/array/ref computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain open owning joins. Executed default/server scope closured2fb9024 repairs actual E4051 omission while supplied overrides stay inactive. Known standard nominal construct join6dd7bf96 passes genuine TextRequest nested enum/native execution without guessed schemas. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph widths remain bounded; extreme source/count/generated-output admission is unresolved. Anonymous format coveragee71b37cf, earlier selected-call controls and held BDD/timezone/model-rule profiles remain bounded. No broader reference or whole-suite closure is claimed.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
