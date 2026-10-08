@@ -33,6 +33,7 @@ When
  scenario mixedOrdinary on=Mixed
   do
    set event.entry {label=event.marker}
+   require event.entry.consent
  scenario mixedCohort on=Mixed each=Entry as child
   do
    set child {label=event.marker}
