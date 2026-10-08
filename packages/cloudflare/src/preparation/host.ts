@@ -27,10 +27,10 @@ import { diffPlans, formatPreview, loadPreviousPlan, requireYes } from "../deplo
 import {
   DEPLOY_DIR_SUFFIX,
   WORKER_MAIN_MISSING,
-  buildDeployBundle,
+  buildDeployBundleWithAssets,
   deployBundleMain,
-  writeDeployBundle,
-  type DeployBundle,
+  writeDeployBundleWithAssets,
+  type PackageDeployBundle,
 } from "../deploy/bundle.js";
 import {
   launchPreparation,
@@ -355,9 +355,9 @@ export async function runPreparedDeploy(
     installed,
   });
   let bundleRef: DeployBundleRef | null = null;
-  let deployBundle: DeployBundle | null = null;
+  let deployBundle: PackageDeployBundle | null = null;
   try {
-    const bundle = buildDeployBundle(loaded.artifact, { verdict });
+    const bundle = buildDeployBundleWithAssets(loaded.artifact, { verdict, assets: { browser: (loaded.artifact.pages?.length ?? 0) > 0 } });
     bundleRef = {
       main: deployBundleMain(stem),
       moduleCount: bundle.moduleCount,
@@ -424,7 +424,7 @@ export async function runPreparedDeploy(
   }
   let bundleFiles: string[] = [];
   if (deployBundle !== null) {
-    const written = writeDeployBundle(deployBundle, join(dir, `${stem}${DEPLOY_DIR_SUFFIX}`));
+    const written = writeDeployBundleWithAssets(deployBundle, join(dir, `${stem}${DEPLOY_DIR_SUFFIX}`));
     bundleFiles = written.files;
   }
   writeFileSync(planPath, rendered.json, "utf8");

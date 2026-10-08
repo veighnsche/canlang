@@ -68,6 +68,7 @@ import type {
   AssemblyDeps,
   BrowserAssetsHandler,
   HttpOperationHandlerFactory,
+  HttpPageHandlerFactory,
   McpHandlerFactory,
   McpPermissions,
 } from "./assembly.js";
@@ -190,6 +191,7 @@ export interface MainLoaders {
   readonly loadDerivedInputs?: () => Promise<BakedDerivedInputs | undefined>;
   /** Resolves `undefined` when `./http-operations.js` is absent (-> assembly 501 on the op route). */
   readonly loadHttpOperationsFactory?: () => Promise<HttpOperationHandlerFactory | undefined>;
+  readonly loadHttpPageFactory?: () => Promise<HttpPageHandlerFactory | undefined>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -438,6 +440,17 @@ async function defaultLoadHttpOperationsFactory(): Promise<HttpOperationHandlerF
   return ((deps) => (req, op) => handle(deps, req, op)) as HttpOperationHandlerFactory;
 }
 
+async function defaultLoadHttpPageFactory(): Promise<HttpPageHandlerFactory | undefined> {
+  let mod: unknown;
+  try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
+  catch { return undefined; }
+  if (!isRecord(mod) || typeof mod["handlePageRequest"] !== "function") {
+    throw new Error('deploy main: worker sibling ./http-operations.js has no function export "handlePageRequest"');
+  }
+  const handle = mod["handlePageRequest"] as (deps: unknown, request: Request) => Promise<Response>;
+  return deps => request => handle(deps, request);
+}
+
 async function defaultLoadDerivedInputs(): Promise<BakedDerivedInputs | undefined> {
   let mod: unknown;
   try {
@@ -563,6 +576,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const loadPerms = loaders.loadMcpPermissions ?? defaultLoadMcpPermissions;
   const loadDerived = loaders.loadDerivedInputs ?? defaultLoadDerivedInputs;
   const loadHttpOps = loaders.loadHttpOperationsFactory ?? defaultLoadHttpOperationsFactory;
+  const loadHttpPages = loaders.loadHttpPageFactory ?? defaultLoadHttpPageFactory;
 
   const prodDepsByEnv = new WeakMap<object, Promise<ProductionDeps>>();
   const workerByEnv = new WeakMap<object, Promise<AssembledWorker>>();
@@ -577,6 +591,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const getPermsFactory = memoize(() => loadPerms());
   const getDerivedInputs = memoize(() => loadDerived());
   const getHttpOpsFactory = memoize(() => loadHttpOps());
+  const getHttpPageFactory = memoize(() => loadHttpPages());
   const getAssemble = memoize(() => loadAssemble());
 
   function prodDepsFor(env: Record<string, unknown>): Promise<ProductionDeps> {
@@ -591,6 +606,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
     const deps = await prodDepsFor(env);
     const factory = await getMcpFactory();
     const httpFactory = await getHttpOpsFactory();
+    const pageFactory = await getHttpPageFactory();
     const permFactory = factory === undefined ? undefined : await getPermsFactory();
     const derivedInputs =
       factory === undefined && httpFactory === undefined ? undefined : await getDerivedInputs();
@@ -610,11 +626,12 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
               ...(derivedInputs === undefined ? null : { derivedInputs }),
             },
           }),
-      ...(httpFactory === undefined && browserAssets === undefined
+      ...(httpFactory === undefined && pageFactory === undefined && browserAssets === undefined
         ? null
         : {
             http: {
               ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),
+              ...(pageFactory === undefined ? {} : { createPageHandler: pageFactory }),
               ...(derivedInputs === undefined ? null : { derivedInputs }),
               ...(browserAssets === undefined ? {} : {
                 loadBrowserAssets: (pages: readonly PageDescriptor[]) => loadBrowserAssetsHandler(browserAssets, pages),

@@ -252,6 +252,7 @@ export const renderPage: RenderPageFn = async (
     `<!DOCTYPE html>` +
     `<html lang="${escapeAttr(locale)}" dir="${escapeAttr(direction)}" data-theme="${escapeAttr(theme)}">` +
     `<head><meta charset="utf-8">` +
+    `<link rel="stylesheet" href="/assets/browser/can-style.css">` +
     `<meta name="viewport" content="width=device-width, initial-scale=1">` +
     metaDescription +
     `<title>${headTitle}</title></head>` +
@@ -277,7 +278,7 @@ export const renderPage: RenderPageFn = async (
     renderAccount(shell, context) +
     `</aside></div></div>` +
     renderSettings(shell, context) +
-    (descriptor.poll === undefined ? '' : '<script type="module" src="/assets/browser/bootstrap.js"></script>') +
+    '<script type="module" src="/assets/browser/bootstrap.js"></script>' +
     `</body></html>`
   );
 };
