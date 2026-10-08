@@ -4022,22 +4022,19 @@ impl<'a> Cx<'a> {
                             why: "ordering has no array lowering".to_string(),
                         };
                     }
-                    // Selector order only (`order=-created`); expression
-                    // keys have no lowering.
-                    let unsupported = clause_parts.iter().any(|n| {
-                        matches!(
-                            n.kind,
-                            SyntaxKind::Binary
-                                | SyntaxKind::Unary
-                                | SyntaxKind::Call
-                                | SyntaxKind::Member
-                        )
-                    });
-                    if unsupported {
-                        return IrExpr::Unsupported {
-                            what: "expression query order".to_string(),
-                            why: "no §13 lowering exists".to_string(),
-                        };
+                    if let Some(value) = clause_parts.iter().find(|n| is_expression(n.kind)) {
+                        let term = model_id.zip(alias.as_deref()).and_then(|(model, alias)| {
+                            self.decode_query_field_order(value, model, alias)
+                        });
+                        match term {
+                            Some(term) => order.push(term),
+                            None => {
+                                return IrExpr::Unsupported {
+                                    what: "expression query order".to_string(),
+                                    why: "no §13 lowering exists".to_string(),
+                                };
+                            }
+                        }
                     }
                     for selector in clause_parts.iter().filter(|n| {
                         matches!(
@@ -4129,6 +4126,59 @@ impl<'a> Cx<'a> {
             select,
             select_param,
         })
+    }
+
+    /// The native mutation query contract orders direct stored fields of
+    /// the checked domain. It does not evaluate arbitrary key expressions.
+    fn decode_query_field_order(
+        &self,
+        node: &SyntaxNode,
+        model: SymbolId,
+        alias: &str,
+    ) -> Option<IrOrder> {
+        let (member, descending) = if node.kind == SyntaxKind::Unary {
+            let parts = kids(node);
+            let op = parts.iter().find(|n| n.kind == SyntaxKind::Punct)?;
+            if self.text(op.span) != "-" {
+                return None;
+            }
+            (*parts.iter().find(|n| is_expression(n.kind))?, true)
+        } else {
+            (node, false)
+        };
+        if member.kind != SyntaxKind::Member {
+            return None;
+        }
+        let parts = kids(member);
+        let base = *parts.iter().find(|n| is_expression(n.kind))?;
+        if base.kind != SyntaxKind::NameRef
+            || self.text(base.span) != alias
+            || self.node_type(base)
+                != (ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                })
+        {
+            return None;
+        }
+        let field = parts.iter().rev().find_map(|n| name_text(self.db, n))?;
+        let symbol = self.fields.get(&(model, field.clone()))?;
+        if !matches!(self.program.symbols[symbol.0 as usize].kind,
+            SymbolKind::Field { owner, .. } if owner == model)
+        {
+            return None;
+        }
+        let ty = self.node_type(member);
+        let ty = ty.nullable_inner().unwrap_or(&ty);
+        if !matches!(
+            ty,
+            ResolvedType::Scalar(
+                Scalar::Text | Scalar::Bool | Scalar::Int | Scalar::Decimal | Scalar::Money
+            )
+        ) {
+            return None;
+        }
+        Some(IrOrder { field, descending })
     }
 }
 

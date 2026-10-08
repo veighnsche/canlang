@@ -3167,3 +3167,7 @@ Native parameter-style mutation record queries reuse the existing State viewer s
 ### Accepted: checked model metadata for mutation ordering
 
 Cloudflare forwards its existing checked model descriptors into State invokeRead for mutation queries. State remains the sole numeric comparator and query-path permission owner. The actual compiled D1 test exposed lexicographic sorting before the correction and now preserves ascending/descending int order beyond Number precision. Unreadable sort paths deliberately refuse validation rather than returning an invented empty selection. No new State API or comparator; broader private decision authority and original task closure remain separate.
+
+### Accepted: direct model ordering and contextual label ownership
+
+Compiler admits only a direct stored field of the checked current-model query alias, optionally unary descending, into existing IrOrder/native selector emission. Computed keys and foreign roots retain E6008 refusal. The production source case and actual authorized D1 consumer qualify int order beyond Number precision; State remains the comparator owner. Separately, parameter label: bindings remain ordinary names while label= uses existing field metadata ownership, preserving dependent defaults and parameterized-caption E3016 refusal. Existing installed formatter case qualifies this fix. No parser/facade/carrier addition or broader S9/SEM completion.

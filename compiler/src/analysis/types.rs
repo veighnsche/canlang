@@ -4037,7 +4037,8 @@ impl<'a> Typer<'a> {
             let expected = self.decl_type(param);
             // Only the owning type's immediate `=` introduces a default;
             // choice metadata and a parameter named `choices` never do.
-            let default = field_parts(param_node, text).default;
+            let field = field_parts(param_node, text);
+            let default = field.default;
             if let Some(default) = default {
                 if default.kind == SyntaxKind::NameRef
                     && let Some(Binding::Symbol(seed)) =
@@ -4075,15 +4076,10 @@ impl<'a> Typer<'a> {
                     ));
                 }
             }
-            let parts = kids(param_node);
-            for (j, part) in parts.iter().enumerate() {
-                if is_name(part, text, "label")
-                    && let Some(caption) = parts.get(j + 2)
-                {
-                    let narrow = NarrowEnv::default();
-                    let cx = Self::body_cx(module, file, text, &narrow);
-                    self.check_scalar_caption(&cx, caption, "label");
-                }
+            if let Some(caption) = field.label {
+                let narrow = NarrowEnv::default();
+                let cx = Self::body_cx(module, file, text, &narrow);
+                self.check_scalar_caption(&cx, caption, "label");
             }
             let parts = kids(param_node);
             let choices = parts
