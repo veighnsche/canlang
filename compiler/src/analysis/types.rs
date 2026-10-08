@@ -8476,8 +8476,8 @@ struct Typer<'a> {
     routes: HashMap<NodeKey, ResolvedType>,
     /// Module to its preferences symbol, when declared.
     prefs: HashMap<ModuleId, SymbolId>,
-    /// Field-type resolution stack (reuse-cycle guard).
-    resolving: Vec<SymbolId>,
+    /// Declared type dependencies from the latest phase-1 round.
+    field_reuse_edges: Vec<(SymbolId, SymbolId, Span)>,
     /// Scenario result expectation while walking its body:
     /// `None` = outside a scenario, `Some(None)` = void scenario.
     current_result: Option<Option<ResolvedType>>,
@@ -8531,7 +8531,7 @@ impl<'a> Typer<'a> {
             sends: HashMap::new(),
             routes: HashMap::new(),
             prefs: HashMap::new(),
-            resolving: Vec::new(),
+            field_reuse_edges: Vec::new(),
             current_result: None,
             retain_seen: HashMap::new(),
             current_op: None,
@@ -8801,9 +8801,11 @@ impl<'a> Typer<'a> {
         self.types
             .unresolved_members
             .retain(|m| seen.insert((m.node, m.name.clone())));
+        self.check_field_reuse_cycles();
     }
 
     fn phase1_round(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        self.field_reuse_edges.clear();
         for (file, tree) in trees {
             let text = self.text(*file).to_string();
             for child in kids(tree) {
@@ -9343,17 +9345,13 @@ impl<'a> Typer<'a> {
         head: SymbolId,
         fields: &[SymbolId],
         consumed: usize,
-        _owner: Option<SymbolId>,
+        owner: Option<SymbolId>,
     ) -> ResolvedType {
         let segments = path_segments(path, text);
         let Some(first) = fields.first() else {
             return ResolvedType::Opaque("empty reuse chain");
         };
-        let mut current = self.field_type_guarded(module, *first, path);
-        if self.resolving.contains(first) {
-            // Cycle already reported by `field_type_guarded`.
-            return ResolvedType::Error;
-        }
+        let mut current = self.reused_field_type(owner, *first, path.span);
         // Navigate deeper segments (`consumed` counts the head plus
         // the resolver-validated field; qualified paths consumed one
         // extra package segment, which `consumed` accounts for).
@@ -9372,7 +9370,7 @@ impl<'a> Typer<'a> {
                         .copied();
                     match found {
                         Some(field) => {
-                            current = self.field_type_guarded(module, field, path);
+                            current = self.reused_field_type(owner, field, path.span);
                         }
                         None => {
                             let base_name = record_name(self.tables, module, symbol);
@@ -9404,27 +9402,77 @@ impl<'a> Typer<'a> {
         current
     }
 
-    /// Field type with a reuse-cycle guard: a field whose type chain
-    /// reaches itself is `E3008`.
-    fn field_type_guarded(
+    fn reused_field_type(
         &mut self,
-        module: ModuleId,
+        owner: Option<SymbolId>,
         field: SymbolId,
-        path: &SyntaxNode,
+        span: Span,
     ) -> ResolvedType {
-        if self.resolving.contains(&field) {
-            let name = record_name(self.tables, module, field);
-            self.diags.push(Diagnostic::error(
-                "E3008",
-                format!("cyclic field-type reuse through '{name}'"),
-                path.span,
-            ));
-            return ResolvedType::Error;
+        if let Some(owner) = owner {
+            self.field_reuse_edges.push((owner, field, span));
         }
-        self.resolving.push(field);
-        let ty = self.decl_type(field);
-        self.resolving.pop();
-        ty
+        self.decl_type(field)
+    }
+
+    /// Cached field types cannot recurse while resolving an annotation.
+    /// Diagnose dependency cycles after forward types reach their fixpoint,
+    /// using iterative strongly connected components and authored edge order.
+    fn check_field_reuse_cycles(&mut self) {
+        if self.field_reuse_edges.is_empty() {
+            return;
+        }
+        let count = self.tables.symbols.len();
+        let mut forward = vec![Vec::new(); count];
+        let mut reverse = vec![Vec::new(); count];
+        for &(from, to, _) in &self.field_reuse_edges {
+            forward[from.0 as usize].push(to.0 as usize);
+            reverse[to.0 as usize].push(from.0 as usize);
+        }
+        let mut seen = vec![false; count];
+        let mut order = Vec::new();
+        for root in 0..count {
+            let mut stack = vec![(root, false)];
+            while let Some((node, finished)) = stack.pop() {
+                if finished {
+                    order.push(node);
+                } else if !seen[node] {
+                    seen[node] = true;
+                    stack.push((node, true));
+                    stack.extend(forward[node].iter().rev().map(|&next| (next, false)));
+                }
+            }
+        }
+        let mut components = vec![usize::MAX; count];
+        let mut sizes = Vec::new();
+        for root in order.into_iter().rev() {
+            if components[root] != usize::MAX {
+                continue;
+            }
+            let component = sizes.len();
+            let mut size = 0;
+            let mut stack = vec![root];
+            while let Some(node) = stack.pop() {
+                if components[node] != usize::MAX {
+                    continue;
+                }
+                components[node] = component;
+                size += 1;
+                stack.extend(reverse[node].iter().copied());
+            }
+            sizes.push(size);
+        }
+        for &(from, to, span) in &self.field_reuse_edges {
+            let component = components[from.0 as usize];
+            if component == components[to.0 as usize] && (sizes[component] > 1 || from == to) {
+                let module = self.tables.symbols[from.0 as usize].module;
+                let name = record_name(self.tables, module, to);
+                self.diags.push(Diagnostic::error(
+                    "E3008",
+                    format!("cyclic field-type reuse through '{name}'"),
+                    span,
+                ));
+            }
+        }
     }
 
     /// Resolve a `UnionType`: every arm must be a supported tagged
