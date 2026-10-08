@@ -62,14 +62,18 @@ import { equalValue as equalValueProducer } from '@canlang/values';
 
 // Generated pure helpers retain their Values producer identity.
 export {
-  int64, datetime, compareInstant, addDuration, all, sum, join, same,
+  int64, datetime, compareInstant, addDuration, all, sum, join, same, trim,
   parseDecimal, addDecimal, money, addMoney, compareMoney,
   date, add_days, compareDate,
 } from '@canlang/values';
 
-/** Generated equality is c-first; the pure Values producer needs only its typed operands. */
-export function equalValue(_c: HandlerContext, typeId: string, a: CanValue, b: CanValue): boolean {
-  return equalValueProducer(typeId, a, b);
+/** Pure checked equality, with compatibility for earlier c-first artifacts. */
+export function equalValue(typeId: string, a: CanValue, b: CanValue): boolean;
+export function equalValue(c: HandlerContext, typeId: string, a: CanValue, b: CanValue): boolean;
+export function equalValue(typeOrContext: string | HandlerContext, typeOrA: string | CanValue, aOrB: CanValue, b?: CanValue): boolean {
+  return typeof typeOrContext === 'string'
+    ? equalValueProducer(typeOrContext, typeOrA as CanValue, aOrB)
+    : equalValueProducer(typeOrA as string, aOrB, b as CanValue);
 }
 
 /** Input for {@link create}: explicit id plus data (crud interim convention). */

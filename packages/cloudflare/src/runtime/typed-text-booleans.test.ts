@@ -146,6 +146,9 @@ async function openD1(dir: string) {
 test('compiled text and boolean D1 lifecycle persists defaults, CRUD refusals and reopened replay', async () => {
   const path = resolve('packages/cloudflare/test/fixtures/typed-text-booleans.json');
   const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
+  const normalize = artifact.operations!.find((operation) => operation.name === `${APP}.normalize`)!;
+  assert.equal(normalize.inputs.fields.find((input) => input.name === 'value')?.valueType, 'text');
+  assert.deepEqual(normalize.result, { type: 'text' });
   const dir = await mkdtemp(join(tmpdir(), 'can-text-booleans-d1-'));
   let d1: Awaited<ReturnType<typeof openD1>> | undefined;
   // Membership/identity are fixtures; persisted rows, history and receipts use actual D1 State.
@@ -200,18 +203,28 @@ test('compiled text and boolean D1 lifecycle persists defaults, CRUD refusals an
     const clear = envelope('Profile.update', { record: ref(3),
       maybeNames: null, maybeFlags: null, maybeName: null, maybeEnabled: null });
     committed(await invoker.invokeMutation(clear, identity));
+    const whitespace = envelope('normalize', { profile: ref(4), value: '\u0085 \tnormalized\n\u0085' });
+    assert.equal(committed(await invoker.invokeMutation(whitespace, identity)).result, 'normalized');
+    const plainText = '\ufeffplain\ufeff';
+    const plain = envelope('normalize', { profile: ref(5), value: plainText });
+    assert.equal(committed(await invoker.invokeMutation(plain, identity)).result, plainText);
+    const whitespaceReceipt = await d1.store.readReceipt(receiptIdentity(whitespace));
+    const plainReceipt = await d1.store.readReceipt(receiptIdentity(plain));
     const stored = await d1.store.load(MODEL, asId(row.id));
-    assert.equal(stored?.version, 4);
-    assert.deepEqual(stored?.data, { ...initialData, name: 'partial', enabled: true,
+    assert.equal(stored?.version, 6);
+    assert.deepEqual(stored?.data, { ...initialData, name: plainText, enabled: true,
       names: ['Ada', 'Bo'], flags: [true, true] });
     const history = await d1.store.historyFor(MODEL, asId(row.id));
     const rows = await d1.store.query({ model: MODEL, authority: 'owner' });
+    const blank = envelope('normalize', { profile: ref(6), value: '\u0085 \t\n' });
+    const blankError = rejected(await invoker.invokeMutation(blank, identity), 'rule_failed');
+    const blankReceipt = await d1.store.readReceipt(receiptIdentity(blank));
     // Exercise generated CRUD admission for scalar, array and nullable typed fields.
     for (const bad of [{ name: 3 }, { enabled: 'false' }, { names: [true] }, { flags: ['false'] },
       { maybeName: false }, { maybeEnabled: 1 }, { maybeNames: [false] }, { maybeFlags: ['true'] }]) {
       rejected(await invoker.invokeMutation(envelope('Profile.create', bad), identity), 'validation');
       rejected(await invoker.invokeMutation(envelope('Profile.update', {
-        record: ref(4), ...bad,
+        record: ref(6), ...bad,
       }), identity), 'validation');
     }
     assert.deepEqual(await d1.store.query({ model: MODEL, authority: 'owner' }), rows);
@@ -226,17 +239,23 @@ test('compiled text and boolean D1 lifecycle persists defaults, CRUD refusals an
     assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), history);
     assert.deepEqual(await d1.store.readReceipt(receiptIdentity(create)), createReceipt);
     assert.deepEqual(await d1.store.readReceipt(receiptIdentity(defaults)), defaultsReceipt);
-    assert.equal(committed(await reopened.invokeMutation(envelope('active', { profile: ref(4) }), identity)).result, true);
-    assert.deepEqual(committed(await reopened.invokeMutation(envelope('names', { profile: ref(4) }), identity)).result, ['Ada', 'Bo']);
-    assert.deepEqual(committed(await reopened.invokeMutation(envelope('flags', { profile: ref(4) }), identity)).result, [true, true]);
-    assert.equal(committed(await reopened.invokeMutation(envelope('maybeNames', { profile: ref(4) }), identity)).result, null);
-    assert.equal(committed(await reopened.invokeMutation(envelope('maybeFlags', { profile: ref(4) }), identity)).result, null);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(whitespace)), whitespaceReceipt);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(plain)), plainReceipt);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(blank)), blankReceipt);
+    assert.equal(committed(await reopened.invokeMutation(envelope('active', { profile: ref(6) }), identity)).result, true);
+    assert.deepEqual(committed(await reopened.invokeMutation(envelope('names', { profile: ref(6) }), identity)).result, ['Ada', 'Bo']);
+    assert.deepEqual(committed(await reopened.invokeMutation(envelope('flags', { profile: ref(6) }), identity)).result, [true, true]);
+    assert.equal(committed(await reopened.invokeMutation(envelope('maybeNames', { profile: ref(6) }), identity)).result, null);
+    assert.equal(committed(await reopened.invokeMutation(envelope('maybeFlags', { profile: ref(6) }), identity)).result, null);
     const revision = await d1.store.readRevision();
     assert.deepEqual(committed(await reopened.invokeMutation(create, identity), 'replayed').result, born.result);
     assert.equal(committed(await reopened.invokeMutation(change, identity), 'replayed').result, 'Ada/Bo');
     committed(await reopened.invokeMutation(partial, identity), 'replayed');
     committed(await reopened.invokeMutation(clear, identity), 'replayed');
     assert.equal(committed(await reopened.invokeMutation(defaults, identity), 'replayed').result, 'hello:a/b');
+    assert.equal(committed(await reopened.invokeMutation(whitespace, identity), 'replayed').result, 'normalized');
+    assert.equal(committed(await reopened.invokeMutation(plain, identity), 'replayed').result, plainText);
+    assert.deepEqual(rejected(await reopened.invokeMutation(blank, identity), 'rule_failed'), blankError);
     assert.equal(await d1.store.readRevision(), revision);
     assert.deepEqual(await d1.store.query({ model: MODEL, authority: 'owner' }), rows);
     assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), history);

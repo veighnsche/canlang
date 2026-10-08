@@ -15,6 +15,14 @@ When
    require profile.enabled==enabled and all(profile.flags as flag,flag==enabled)
    require accept
    return profile.name
+ ## Trim the supplied text; blank names roll back the staged change.
+ scenario normalize(profile:Profile,value:text) -> text by=members
+  do
+   let normalized=trim(value)
+   set profile {name=normalized}
+   require [profile.name]==[normalized]
+   require profile.name!=""
+   return profile.name
  scenario active(profile:Profile) -> bool by=members
   do return profile.enabled
  scenario names(profile:Profile) -> text[] by=members
