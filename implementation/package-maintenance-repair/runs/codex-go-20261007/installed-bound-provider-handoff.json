@@ -1,5 +1,5 @@
 {
-  "scope": "SEQ018 selected installed std.EmailV1.send defining Services port and consumer handoff; no installed transport acceptance",
+  "scope": "SEQ018 Services defining port plus direct-reviewed selected emitted Node/nativeD1/owned localhost consumer; original persisted result association and whole installed-host gates remain open",
   "source_sha256": {
     "packages/services/src/ports.ts": "1e1a5aecf982f15c1914a953fa01032b4758ce731bb44b2ee85a6aa026305027"
   },
@@ -28,9 +28,29 @@
   },
   "allowed_consumer": "Real adapter fetch against owned bounded localhost provider server only; no external email or paid calls; exact compiler envelope and actual D1 retry/reopen paths where claimed.",
   "gaps": [
-    "No runtime installed resolver implementation/availability short-circuit yet",
-    "Async actual recovery/completion association and original restart id qualification pending",
-    "No general provider/native Cloudflare preparation/installed release/whole-parent acceptance"
+    "Validated provider result is not yet retained with the owning record declared delivery-field association and authorized result observation",
+    "Whole installed/deployed Worker/native preparation/release and broader provider profiles remain unqualified"
   ],
-  "model": "Sol low frozen type-only definition; Sol medium read-only existing API inventory; root direct source review/emit/Git"
+  "model": "Sol low frozen type-only definition; Sol medium read-only existing API inventory; root direct source review/emit/Git",
+  "consumer_review": {
+    "source_sha256": {
+      "bun.lock": "5ee9ded0092593a9cc04ce507b3732bc67c1e714b36480509acd28141135ca81",
+      "packages/cloudflare/package.json": "3055c59d93287f69ff578477a30739eb8055bac3b60e703c6d28dc7031ea04b2",
+      "packages/cloudflare/src/runtime/bound-mail.ts": "cba221531fe2531ee8944a39836d7c9e0009f9fb48cd472b1ee456f87b3e2c15",
+      "packages/cloudflare/src/runtime/bound-dispatch.ts": "ce1ec8855285c794a05fa47fc7086d40fb5acf8f6b5228c74a61529f321c7192",
+      "packages/cloudflare/src/runtime/bound-mail-durable.test.ts": "11bf35e8178c9fea5ad1db14cd776433209f4a3c457abad95010396084bcd650"
+    },
+    "review": "Root direct five-path source/caller/owning test review; no second verification chain",
+    "owning_release": "Exact same Roadmap owner frozen five-path release after pagination repair; normalCFemit0, actual changed3/3 includes sole selected mail nativecase1/1",
+    "accepted_invariants": [
+      "Exact emitted binding/from/capability/version/account installation before candidate claim effects/current dynamic callbacks/transport",
+      "Only admitted nested Values arguments enter real Services EmailV1Adapter; original intent ID is request id and idempotency header through interruption/reopen/retry/reconcile",
+      "Malformed200 and unknown-delivery404 remain uncertain; no unproved not-found retry or ack",
+      "Real postclaim authority interruption preserves claimed state; same D1 directory reopening and stale recovery reuse original intent ID",
+      "Selected async evidence page explicitly matches owning recovery planner lexical id order; genuine two-intent created-order inversion recovers newer lexical first and older on next limit1 sweep",
+      "Existing no-effect system command still advances its receiptless fence revision, with claim/domain/attempt/outbox unchanged"
+    ],
+    "repair": "Root found default D1 created/id evidence page vs lexical planner page starvation; owner fixed explicit id ASC and genuine two-send D1/Services regression within same case",
+    "identity_host_limits": "Identity fixtures memory; effects actual nativeD1 and real bounded localhost HTTP. Explicit configured Node integration, not remote email/default deployed Worker/multiprovider or full installed release."
+  }
 }

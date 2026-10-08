@@ -2286,15 +2286,15 @@
     }
   },
   "installed_bound_provider_release": {
-    "status": "Defining Services type port committed3f8c1d918e0797c93bbea9999d8975300b48cb22; actual adapter and claim consumer prepared by owning Roadmap, not accepted",
+    "status": "Root direct-reviewed selected explicit Node/nativeD1/Services localhost installed-mail component; source commit pending; original result-association/whole-release gates open",
     "task": "SEQ018 std.EmailV1.send selected installed provider join",
     "handoff": "installed-bound-provider-handoff.json",
     "counts_unchanged": true,
     "writers_commands_released": true,
     "limits": [
-      "No runtime installed resolver implementation/availability short-circuit yet",
-      "Async actual recovery/completion association and original restart id qualification pending",
-      "No general provider/native Cloudflare preparation/installed release/whole-parent acceptance"
+      "Selected explicit Node/nativeD1/localhost Email component only; identity remains explicit memory fixture",
+      "Persisted provider result/declared delivery-field association and authorized observation remain open",
+      "No remote/default deployed Worker/multiprovider/native preparation/installed release/whole-parent acceptance"
     ],
     "commit": "3f8c1d918e0797c93bbea9999d8975300b48cb22",
     "claim_availability_gate": {
@@ -2308,8 +2308,27 @@
     },
     "consumer_handoff": {
       "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "state": "Services port and operative installed/refusal/async-reconcile handoff delivered; actual owner adapter prepared, requested/received defining Work claim factory source. Final8addb074 built22/22 API release sent; exact consumer completion/repair acceptance remains pending.",
+      "state": "Exact5-path same-owner final repaired mail release received; root direct-reviewed, original persisted result/association and broader installed scope remain pending",
       "commands": "Root defining emissions/checks complete and released; no duplicate owning provider test or live external transport."
+    },
+    "consumer_review": {
+      "state": "Reviewed fixed five-path release; owner normalCFemit0/changed3/3 with selected actual mail1/1 and genuine two-intent paging regression",
+      "reviewed_paths": [
+        "bun.lock",
+        "packages/cloudflare/package.json",
+        "packages/cloudflare/src/runtime/bound-mail.ts",
+        "packages/cloudflare/src/runtime/bound-dispatch.ts",
+        "packages/cloudflare/src/runtime/bound-mail-durable.test.ts"
+      ],
+      "initial_owning_checks": "CFemit0; real compiled source/Services localhost/nativeD1 case1/1; root does not rerun unchanged proof",
+      "defect": "Async evidence prefetch default D1 created/id order differed from recovery planner lexical intentId page; limit1 olderZ/newerA can starve both forever",
+      "repair_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "requested_fix": "Explicit id ASC on selected evidence page; genuine two-row differing-created-vs-id D1 regression, same defining deriveOutboxIdAsync/source/Services path",
+      "counts_unchanged": true,
+      "original_remaining": "Persisted provider result/declared record-field association and actual authorized result observation; deployed/installed whole-release/native/default adoption not qualified",
+      "repair_result": "Explicit id ASC; newer lexical intent then older next limit1 page, confirmed via genuine compiled source/Services/nativeD1, no extra POST or starvation",
+      "review": "installed-bound-provider-handoff.json consumer_review",
+      "sources_commands_released": true
     }
   }
 }
