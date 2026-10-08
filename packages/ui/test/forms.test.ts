@@ -526,6 +526,8 @@ describe("form field widgets", () => {
     const html = await form(makeFormProps({ fields: [field("avatar", { type: "file" })] }));
     assert.ok(html.includes('<input type="file" data-can-file="avatar"'));
     assert.ok(html.includes('name="inputs[avatar]" value=""'));
+    const attached = await form(makeFormProps({ fields: [field("avatar", { type: "file", value: { id: "file-1" } })] }));
+    assert.ok(attached.includes('name="inputs[avatar]" value="file-1"'));
     const video = await form(makeFormProps({ fields: [field("clip", { type: "file.video" })] }));
     assert.ok(video.includes('<input type="file" data-can-file="clip"'));
     assert.ok(video.includes('name="inputs[clip]" value=""'));

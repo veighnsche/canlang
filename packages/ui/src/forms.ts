@@ -17,6 +17,7 @@ import {
   GENERATED_FORM_TYPE_FOR_KIND,
   GENERATED_REF_VERSION_SUFFIX,
 } from "@canlang/contracts";
+import { decodeValue, encodeValue, isFileValue } from "@canlang/values";
 import {
   isValidDate,
   stringFieldValue,
@@ -352,10 +353,10 @@ function fileFieldValue(field: FormFieldDef): string | null {
   if (value === undefined || value === null) {
     return null;
   }
-  if (typeof value !== "string") {
-    throw new TypeError(`field "${field.path}": type ${field.type} needs an opaque file id string`);
-  }
-  return value;
+  // Draft controls retain id text; canonical record values carry wire {id}.
+  if (typeof value === "string") return value;
+  const wire = encodeValue("file", isFileValue(value) ? value : decodeValue("file", value));
+  return (wire as { id: string }).id;
 }
 
 /**
@@ -1842,12 +1843,12 @@ export function projectGeneratedInputs(
     }
     if (input.kind === "file") {
       // The opaque finalized id, filled by the client after the S7
-      // intent flow. Cleared travels verbatim; the bound checker
-      // rejects it correctably.
+      // intent flow becomes the canonical Values wire {id}. An empty
+      // draft id stays empty inside that shape for correctable admission.
       if (raw === undefined) {
         continue;
       }
-      out[input.name] = raw;
+      out[input.name] = { id: raw };
       continue;
     }
     if (input.kind === "money") {

@@ -641,7 +641,8 @@ export async function submitGeneratedForm(
       delete intentArgs[pending.name];
     }
     Object.assign(intentArgs, completed);
-    const pointer = input.mode === "update" ? `/changes/${target.name}` : `/${target.name}`;
+    // Canonical operation inputs are flat; changes is only DOM control notation.
+    const pointer = `/${target.name}`;
     const uploadId = mint();
     if (typeof uploadId !== "string" || uploadId === "") {
       throw new GeneratedSubmitError(
@@ -678,7 +679,10 @@ export async function submitGeneratedForm(
       target.name,
     );
     await putBytes(fetchImpl, intent.content, csrf, file.bytes, target.name);
-    const finalized = await postJson(fetchImpl, intent.finalize, csrf, {}, target.name, "finalize");
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", new Uint8Array(file.bytes).buffer);
+    const bytesDigest = "sha256:" + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+    const finalized = await postJson(fetchImpl, intent.finalize, csrf,
+      { upload_id: uploadId, bytes_digest: bytesDigest }, target.name, "finalize");
     if (!isRecord(finalized) || typeof finalized["file"] !== "string" || finalized["file"] === "") {
       throw new GeneratedSubmitError(
         "contract",
@@ -686,7 +690,7 @@ export async function submitGeneratedForm(
         false,
       );
     }
-    completed[target.name] = finalized["file"];
+    completed[target.name] = { id: finalized["file"] };
     working[root(target.name)] = finalized["file"];
   }
 

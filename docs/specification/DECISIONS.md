@@ -2757,3 +2757,10 @@ The genuine nativeD1 scenario case passes after the own-marker repair, including
 Accepted: Cloudflare's stdlib reexports State's `delivery` binding. The real source callback delegates its original host-bound record/model, checked result declaration and exact selection to the existing State/Work join and receipt observer. It does not fabricate identity, expand a child grant into a parent grant or introduce another observation mechanism. Nullable generated progress access preserves null through the compiler's corrected lowering.
 
 The actual generated-source/nativeD1 case passes for missing association, pending result, exact content grant, outsiders and current membership revocation; root reviewed the released source and reused the owner result. Positive provider progress, terminal/late-usage lifecycle, notifications, durable restart and staged/installed acceptance remain separate. These prerequisites receive no whole-parent or replacement reduction credit.
+
+
+## 2026-10-08 — Public File submit follows the owning upload contract
+
+Accepted: the public generated client finalizes the original upload with its retry ID and WebCrypto SHA-256 digest, projects the defining File `{id}` wire shape and uses the real flat operation-input pointer. Form rendering uses the existing Values File codec; draft control IDs stay text. The public function now runs through actual Interfaces HTTP/upload handlers, session/CSRF checks, compiled source, SQLite Files and nativeD1 State.
+
+The changed owning source controls and same native File workflow pass, including invalid CSRF without effects, attachment, byte read, reopen and current revocation. Root reviewed the released slice and reused those results. This closes Roadmap's selected generic native browser/MCP File transfer only; Chrome DOM, R2/default Worker, shared-principal, generated-provider finalization and whole-F7/hosted qualification stay separate. Root48 counts remain unchanged.

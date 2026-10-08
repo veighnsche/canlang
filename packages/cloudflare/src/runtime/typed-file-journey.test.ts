@@ -13,12 +13,14 @@ import { createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createSqliteFileBindings, createSqliteFileStore } from '@canlang/files/host/sqlite';
 import { sha256Hex, stagingKeyForIntent } from '@canlang/files/upload';
 import { createFileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
-import { catalogFromArtifactOperations } from '@canlang/interfaces/http/operations';
+import { catalogFromArtifactOperations, handleOperationRequest } from '@canlang/interfaces/http/operations';
 import { createMcpHandler } from '@canlang/interfaces/mcp/server';
-import type { McpDeps, UploadDeps } from '@canlang/interfaces';
+import type { HttpDeps, McpDeps, UploadDeps } from '@canlang/interfaces';
+import { GeneratedSubmitError, submitGeneratedForm } from '@canlang/ui';
+import type { SubmitFetch } from '@canlang/ui';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { createArtifactCatalog, createArtifactRegistry } from '@canlang/cloudflare/runtime/mcp-registry';
-import { buildInvoker } from '@canlang/cloudflare/worker/assembly';
+import { assembleWorker, buildInvoker } from '@canlang/cloudflare/worker/assembly';
 import { createBoundFileHandler, createCanonicalFileBinding } from '@canlang/cloudflare/runtime/bound-files';
 import { createMemberMcpPermissions } from './mcp-permissions.js';
 
@@ -230,6 +232,52 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     assert.deepEqual(await state.historyFor(MODEL, asId(row.id)), committedHistory);
     assert.equal(await state.readRevision(), committedRevision);
     assert.equal(fileStore.files.get(ref)?.attachedRecord, retainedRecord);
+
+    // The public browser submit consumer uses the same real session, upload
+    // handler and generated HTTP operation join as this native deployment.
+    const browserWorker = await assembleWorker(artifact, asm, { store: state,
+      identityStore: identities, now: () => now,
+      files: { usesFiles: true, kernel, canonical: createCanonicalFileBinding(kernel), fetch: handler },
+      http: { derivedInputs, createOperationHandler: deps => (request, operation) =>
+        handleOperationRequest(deps as unknown as HttpDeps, request, operation) },
+    }, { active: true });
+    const browserFetch: SubmitFetch = (url, init) => browserWorker.fetch(new Request(
+      new URL(url, 'https://test.invalid'), { method: init.method,
+        headers: { ...init.headers, cookie }, ...(init.body === undefined ? {} : { body: init.body }) }));
+    const browserDerived = derivedInputs[`${APP}.attach`]; assert.ok(browserDerived);
+    const browserFlat = { operation_id: operationId(), _csrf: csrf,
+      'inputs[entry]': committedOwner.id, 'inputs[entry__version]': String(committedOwner.version),
+      'inputs[accept]': 'true' };
+    const browserSubmission = { derived: browserDerived, mode: 'scenario' as const, flat: browserFlat,
+      files: [{ field: 'attachment', name: 'browser.pdf', type: 'application/pdf', size: BYTES.length, bytes: BYTES }],
+      action: `https://test.invalid/api/operations/${APP}.attach`, fragment: false,
+      denialFormat: 'json' as const, intentsUrl: 'https://test.invalid/files/intents', fetchImpl: browserFetch };
+    const beforeBrowserIntents = fileStore.intents.listAll();
+    const beforeBrowserFiles = fileStore.files.listAll();
+    await assert.rejects(submitGeneratedForm({ ...browserSubmission,
+      flat: { ...browserFlat, _csrf: 'invalid-csrf' }, mintUploadId: () => operationId() }),
+    error => error instanceof GeneratedSubmitError && error.code === 'upload_failed');
+    assert.deepEqual(fileStore.intents.listAll(), beforeBrowserIntents);
+    assert.deepEqual(fileStore.files.listAll(), beforeBrowserFiles);
+    assert.deepEqual(await state.load(MODEL, asId(row.id)), committedOwner);
+    assert.deepEqual(await state.historyFor(MODEL, asId(row.id)), committedHistory);
+    assert.equal(await state.readRevision(), committedRevision);
+    const browserUploadId = operationId();
+    const browserSubmitted = await submitGeneratedForm({ ...browserSubmission, mintUploadId: () => browserUploadId });
+    assert.equal(browserSubmitted.kind, 'committed', JSON.stringify(browserSubmitted));
+    if (browserSubmitted.kind !== 'committed') throw new Error('Expected native browser attachment commit');
+    assert.equal(browserSubmitted.result.status, 'committed');
+    assert.equal(browserSubmitted.result.operation_id, browserFlat.operation_id);
+    const browserIntent = fileStore.intents.getByRetryId(browserUploadId); assert.ok(browserIntent);
+    assert.equal(browserIntent.state, 'finalized');
+    const browserRef = browserIntent.finalizedRef; assert.ok(browserRef);
+    assert.notEqual(browserRef, ref);
+    const browserOwner = await state.load(MODEL, asId(row.id)); assert.ok(browserOwner);
+    assert.equal(browserOwner.version, committedOwner.version + 1);
+    assert.deepEqual(browserOwner.data['attachment'], { id: browserRef });
+    assert.equal(fileStore.files.get(browserRef)?.attachedRecord, retainedRecord);
+    assert.equal(fileStore.files.get(browserRef)?.file.bytesDigest, sha256Hex(BYTES));
+
     const downloadPath = `/files/read/${MODEL}/${row.id}/attachment`;
     const download = await handler(authRequest(downloadPath, 'GET'));
     assert.equal(download.status, 200, await download.clone().text());
@@ -247,12 +295,15 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     kernel = kernelFor(); handler = handlerFor(); invoker = invokerFor();
     const reopened = await handler(authRequest(downloadPath, 'GET'));
     assert.equal(reopened.status, 200); assert.deepEqual(new Uint8Array(await reopened.arrayBuffer()), BYTES);
+    assert.deepEqual((await state.load(MODEL, asId(row.id)))?.data['attachment'], { id: browserRef });
+    assert.equal(fileStore.files.get(browserRef)?.attachedRecord, retainedRecord);
     assert.equal(fileStore.files.get(ref)?.attachedRecord, retainedRecord);
     await identities.revokeMcpGrant(ownerGrant.grant.grant_id);
     assert.equal((await handler(authRequest(downloadPath, 'GET'))).status, 401);
     const nativeKernel = kernel;
     let removedDuringRead = false;
     kernel = { ...nativeKernel, async readBytes(fileRef, caller) {
+      assert.equal(fileRef, browserRef);
       const bytes = await nativeKernel.readBytes(fileRef, caller);
       assert.ok(bytes);
       assert.deepEqual(bytes, BYTES);
@@ -266,6 +317,7 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     assert.equal(removed.status, 404);
     const refusedBody = await removed.text();
     assert.equal(refusedBody.includes(ref), false);
+    assert.equal(refusedBody.includes(browserRef), false);
     assert.equal(refusedBody.includes(new TextDecoder().decode(BYTES)), false);
     assert.equal((await state.load(MODEL, asId(row.id)))?.data['label'], 'Uploaded');
   } finally {

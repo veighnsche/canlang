@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:56:56.289614+00:00",
+  "updated_utc": "2026-10-08T10:58:27.193044+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2522,7 +2522,7 @@
       "source_outputs_handles_released": true,
       "counts_unchanged": true,
       "consumer": {
-        "status": "Frozen8-path actual generated source runtime receipt-read consumer directly reviewed; commit ready",
+        "status": "Root reviewed and committeded19f33e selected generated runtime read prefix; rich/provider lifecycle remains open",
         "sources": [
           "packages/cloudflare/src/runtime/context.ts",
           "packages/cloudflare/src/runtime/stdlib.ts",
@@ -2537,7 +2537,8 @@
         "verification": "Owner normal CF emit0 and same real nativeD1 generation case1/1 after actual compiler nullable-observation fault768e9e44 and owning artifact regeneration. Null association/pending result, exact child-only selection, outsider and live membership revocation pass; root direct source review reuses those results.",
         "limits": "Actual generated source+Node repository nativeD1 read chain with memory identity, only null/pending result prefix. Positive actual provider snapshots, rich lifecycle/late usage, notifications, durable post-ack/restart and installed/staged/whole-parent qualification remain open.",
         "sources_outputs_handles_released": true,
-        "counts_unchanged": true
+        "counts_unchanged": true,
+        "commit": "ed19f33e73c40ad47569e924cbe332d89e88d0b2"
       }
     },
     "file_durable_consumer": {
@@ -2566,7 +2567,24 @@
       ],
       "sources_outputs_handles_released": true,
       "counts_unchanged": true,
-      "commit": "c2d0499228ea4fc38dc976f22034d02d67cefa24"
+      "commit": "c2d0499228ea4fc38dc976f22034d02d67cefa24",
+      "public_ui_consumer": {
+        "status": "Root directly reviewed frozen6-path real public File submit consumer; selected native browser-client workflow accepted; commit ready",
+        "sources": [
+          "packages/ui/src/client.ts",
+          "packages/ui/src/forms.ts",
+          "packages/ui/test/forms.test.ts",
+          "packages/ui/test/t20a-generated-forms.test.ts",
+          "packages/ui/test/t20b-client.test.ts",
+          "packages/cloudflare/src/runtime/typed-file-journey.test.ts"
+        ],
+        "contract": "Public client finalizes using original upload_id and WebCrypto SHA-256 prefix digest, supplies canonical File{id}, and uses actual flat operation input pointer. Rendering reuses existing Values File codec; draft controls retain ID text. Existing same compiled source/assembled Worker/Interfaces HTTP/session+CSRF/SQLite+nativeD1 workflow consumes it.",
+        "verification": "Owner UI/CF normal emits0; initial8 changed source checks reused, same native File case1/1 after actual bare-digest conflict correction. Real public submit, invalid CSRF with no effects, source/current-version metadata, finalized bytes, domain attach/read/reopen and live revocation pass; root exact diff review, no repeated check.",
+        "limits": "Actual public submission function in Node with assembled selected native host; no Chrome DOM, R2/default Worker/shared-principal/hosted or generated-provider finalization/whole-F7 qualification.",
+        "sources_outputs_handles_released": true,
+        "counts_unchanged": true,
+        "other_owner_scope": "Roadmap SEQ-023 selected generic native browser/MCP File transfer accepted17/63; independent denominator"
+      }
     }
   }
 }

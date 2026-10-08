@@ -636,7 +636,7 @@ describe("submission projection", () => {
         "inputs[title]": "t",
         "inputs[scan]": "file-opaque-1",
       }),
-      { title: "t", scan: "file-opaque-1" },
+      { title: "t", scan: { id: "file-opaque-1" } },
     );
   });
 });

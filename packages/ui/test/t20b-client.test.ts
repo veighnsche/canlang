@@ -572,7 +572,7 @@ describe("T20b S7 upload flow", () => {
     expires_at: "2026-10-06T06:30:00.000Z",
   };
 
-  it("mints intent, puts bytes, finalizes, then submits the opaque id", async () => {
+  it("mints intent, finalizes exact bytes with retry identity, then submits canonical File wire", async () => {
     const { fetch, calls } = stubFetch([
       {
         method: "POST",
@@ -625,15 +625,21 @@ describe("T20b S7 upload flow", () => {
     assert.equal(put.init.headers["content-type"], "application/octet-stream");
     assert.equal(put.init.headers["x-csrf-token"], "csrf-123");
     assert.deepEqual(put.init.body, new Uint8Array([1, 2, 3]));
+    const finalize = pickCall(calls, "POST", INTENT.finalize);
+    assert.deepEqual(finalize.json, {
+      upload_id: "up-1",
+      bytes_digest: "sha256:039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+    });
+    assert.equal(finalize.init.headers["x-csrf-token"], "csrf-123");
     const op = pickCall(calls, "POST", "/api/operations/Ledger.Entry.create");
     assert.deepEqual(op.json, {
       operation: "Ledger.Entry.create",
       operation_id: "op-1",
-      inputs: { title: "t", doc: "file-opaque-1" },
+      inputs: { title: "t", doc: { id: "file-opaque-1" } },
     });
   });
 
-  it("points update intents at the changes slot", async () => {
+  it("points update intents at the canonical flat file slot", async () => {
     const { fetch, calls } = stubFetch([
       {
         method: "POST",
@@ -677,7 +683,7 @@ describe("T20b S7 upload flow", () => {
     assert.deepEqual(intent.json, {
       upload_id: "up-2",
       operation: "Ledger.Entry.update",
-      field: "/changes/doc",
+      field: "/doc",
       arguments: { record: { id: "e1", version: "4" } },
       name: "a.pdf",
       type: "application/pdf",
@@ -687,7 +693,7 @@ describe("T20b S7 upload flow", () => {
     assert.deepEqual(op.json, {
       operation: "Ledger.Entry.update",
       operation_id: "op-1",
-      inputs: { record: { id: "e1", version: "4" }, doc: "file-opaque-2" },
+      inputs: { record: { id: "e1", version: "4" }, doc: { id: "file-opaque-2" } },
     });
   });
 
@@ -749,7 +755,7 @@ describe("T20b S7 upload flow", () => {
     assert.equal(first["field"], "/doc");
     assert.deepEqual(first["arguments"], {});
     assert.equal(next["field"], "/scan");
-    assert.deepEqual(next["arguments"], { doc: "file-1" });
+    assert.deepEqual(next["arguments"], { doc: { id: "file-1" } });
   });
 
   it("reuses draft ids without uploads and mints upload ids by default", async () => {
@@ -775,7 +781,7 @@ describe("T20b S7 upload flow", () => {
     assert.deepEqual(calls[0]?.json, {
       operation: "Ledger.Entry.create",
       operation_id: "op-1",
-      inputs: { title: "t", doc: "file-opaque-9" },
+      inputs: { title: "t", doc: { id: "file-opaque-9" } },
     });
 
     // Default upload_id mint: Web Crypto randomUUID, no injection needed.
