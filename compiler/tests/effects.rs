@@ -1825,3 +1825,61 @@ fn every_scope_follows_executed_creation_initializers() {
     let (_, diags) = analysis::check_program(&db, &[file], Some(&catalog));
     assert!(diags.is_empty(), "{diags:?}");
 }
+
+#[test]
+fn every_scope_follows_only_executed_parameter_and_crud_defaults() {
+    let catalog = fixture();
+    for (model_initializer, body, mixed) in [
+        (
+            "=team_count()",
+            "let team_total=count(Todo)\n   let result=pick()",
+            true,
+        ),
+        (
+            "=team_count()",
+            "let team_total=count(Todo)\n   let result=pick(1)",
+            false,
+        ),
+        (
+            "=team_count()",
+            "let team_total=count(Todo)\n   let result=nested()",
+            true,
+        ),
+        (
+            "=team_count()",
+            "let team_total=count(Todo)\n   let result=dependent(first=1)",
+            false,
+        ),
+        (
+            "=team_count()",
+            "let team_total=count(Todo)\n   call helper {}",
+            true,
+        ),
+        (
+            "=team_count()",
+            "let team_total=count(Todo)\n   call helper {first=1}",
+            false,
+        ),
+        ("=team_count()", "call AppConfig.create {}", true),
+        ("=team_count()", "call AppConfig.create {n=1}", false),
+        ("=nested_team()", "call AppConfig.create {}", true),
+        (" server=nested_team()", "call AppConfig.create {}", true),
+        ("=team_count()", "let team_total=count(Todo)", false),
+    ] {
+        let src = format!(
+            "app Scope\nGiven\n Todo {{title:text}}\n AppConfig in app {{label:text=\"Config\",n:int{model_initializer}}}\n policy AppConfig read=members\n derive team_count():int = count(Todo)\n derive app_count():int = count(AppConfig)\n derive pick(value:int=app_count()):int = value\n derive nested(value:int=pick()):int = value\n derive nested_team(value:int=team_count()):int = value\n derive dependent(first:int=app_count(),second:int=first):int = second\nWhen\n crud AppConfig by=members fields=label\n scenario helper(first:int=app_count(),second:int=first) by=members\n  do let result=second\n scenario tick on=every(5m)\n  do\n   {body}\nThen\n"
+        );
+        let mut db = SourceDb::new();
+        let file = db.add("executed-defaults.can".into(), src.clone());
+        let (_, diagnostics) = analysis::check_program(&db, &[file], Some(&catalog));
+        if mixed {
+            assert_findings(&src, &diagnostics, &[("E4051", "every(5m)", 1)]);
+        } else {
+            assert!(
+                diagnostics.is_empty(),
+                "initializer {model_initializer}, body {body}: {:?}",
+                &diagnostics[..diagnostics.len().min(4)]
+            );
+        }
+    }
+}
