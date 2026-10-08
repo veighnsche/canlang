@@ -1866,15 +1866,13 @@ impl<'a> Emitter<'a> {
                 );
                 self.throw_expr("delivery type id")
             }
-            // T14c: typed `std` receipts have no §13 type id either;
-            // fail closed exactly like bound deliveries.
-            ResolvedType::StdDelivery { .. } => {
-                self.unsupported(
-                    "type",
-                    "std delivery values have no §13 structural type id",
-                    span,
-                );
-                self.throw_expr("std delivery type id")
+            ResolvedType::StdDelivery { capability, op } => {
+                if delivery_descriptor(capability, op).is_some() {
+                    format!("delivery({capability}.{})", op.name)
+                } else {
+                    self.unsupported("type", "std delivery has no owning descriptor", span);
+                    self.throw_expr("std delivery type id")
+                }
             }
             ResolvedType::Array { element, .. } => {
                 format!("{}[]", self.canonical_type_id(element, span))
@@ -2000,6 +1998,22 @@ impl<'a> Emitter<'a> {
                 "type:\"delivery\",operation:{}",
                 js_string(&self.ir.items[op.0 as usize].canonical.clone())
             ),
+            ResolvedType::StdDelivery { capability, op } => {
+                if delivery_descriptor(capability, op).is_some() {
+                    format!(
+                        "type:\"delivery\",operation:{}",
+                        js_string(&format!("{capability}.{}", op.name))
+                    )
+                } else {
+                    self.unsupported(
+                        "field schema",
+                        "std delivery has no owning descriptor",
+                        span,
+                    );
+                    "type:\"unknown\"".to_string()
+                }
+            }
+
             ResolvedType::Nullable(inner) => match inner.as_ref() {
                 // Nullable arrays omit `requiredArray`: nullability wins
                 // (an omitted `T[]?` yields null), and GRAMMAR L192
