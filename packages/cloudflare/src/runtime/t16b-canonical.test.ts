@@ -30,7 +30,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import type {
   CompileArtifact,
@@ -66,6 +66,8 @@ import {
 /* Fixture builders.                                                   */
 /* ------------------------------------------------------------------ */
 
+// Synthetic source metadata for this hand-written fixture, not compiler output.
+const FIXTURE_SOURCE_SHA256 = createHash("sha256").update("t16b hand-written fixture").digest("hex");
 const tempDirs: string[] = [];
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
@@ -81,7 +83,21 @@ function tempDir(): string {
 
 function writeModule(dir: string, name: string, source: string): string {
   const path = join(dir, name);
-  writeFileSync(path, source);
+  // Authored fixture declarations mirror the original full-field public read rules.
+  const declarations = `const fixtureReadRules = {"Todo.read.1": () => true,"Todo.read.2": () => true,"Memo.read.1": () => true,"Sku.read.1": () => true,"Sealed.read.1": () => true};\n`;
+  const registrySource = source.replace(
+    "export function canApp() {\n  return {",
+    "export function canApp() {\n  return {\n    read: fixtureReadRules,",
+  );
+  const definition = `\nconst fixturePolicy = typeof canApp === "function" ? canApp().policy : undefined;
+const fixtureFields = {"acme.Todo":{"title":{"type":"text"},"done":{"type":"bool"}}};
+export const appDefinition = {
+  id: "TeamTasks", policy: fixturePolicy,
+  models: Object.fromEntries(Object.entries(fixtureFields).map(([model, fields]) => [model, {
+    fields, readGrants: (fixturePolicy?.models?.[model]?.read instanceof Array ? fixturePolicy.models[model].read : []).map((rule) => ({ rule }))
+  }]))
+};\n`;
+  writeFileSync(path, declarations + registrySource + definition);
   return pathToFileURL(path).href;
 }
 
@@ -254,8 +270,8 @@ function generatedArtifact(module: string, overrides: Record<string, unknown> = 
     artifact_version: 1,
     language_version: "t16b-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "t16b-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: "examples/TeamTasks.can", sha256: FIXTURE_SOURCE_SHA256 }],
+    modules: [{ path: module, js: "" }],
     callables: shopCallables(module),
     pages: [],
     requires: [
@@ -275,7 +291,7 @@ function legacyArtifact(module: string): CompileArtifact {
     artifact_version: 1,
     language_version: "t16b-fixture/0 (hand-written legacy shape)",
     tool_version: "t16b-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
+    sources: [{ path: "examples/TeamTasks.can", sha256: FIXTURE_SOURCE_SHA256 }],
     modules: [],
     callables: [
       { id: "fixture.echo", kind: "operation", module, export: "echo", member: ["echo"] },
@@ -631,7 +647,7 @@ describe("T16b canonical CRUD (pipeline executes; handlers never run)", () => {
     assert.equal(row.version, 1);
     assert.deepEqual(row.data, { title: "buy milk" });
     // Receipt persisted under the canonical identity (app from the
-    // artifact stem, team owner, user principal).
+    // authored appDefinition, team owner, user principal).
     const receipt = await store.readReceipt({
       app: "TeamTasks",
       owner: seed.teamId,

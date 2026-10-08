@@ -25,7 +25,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type {
   CompileArtifact,
   ModelName,
@@ -60,6 +60,8 @@ import { create, deleteRecord, records, set } from "./stdlib.js";
 /* Fixture builders.                                                   */
 /* ------------------------------------------------------------------ */
 
+// Synthetic source metadata for this hand-written fixture, not compiler output.
+const FIXTURE_SOURCE_SHA256 = createHash("sha256").update("t17b hand-written fixture").digest("hex");
 const tempDirs: string[] = [];
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
@@ -76,7 +78,21 @@ function tempDir(): string {
 
 function writeModule(dir: string, name: string, source: string): string {
   const path = join(dir, name);
-  writeFileSync(path, source);
+  // Authored fixture declarations mirror the original full-field public read rules.
+  const declarations = `const fixtureReadRules = {"Todo.read.1": () => true,"Todo.read.2": () => true,"Memo.read.1": () => true,"Sku.read.1": () => true,"Sealed.read.1": () => true};\n`;
+  const registrySource = source.replace(
+    "export function canApp() {\n  return {",
+    "export function canApp() {\n  return {\n    read: fixtureReadRules,",
+  );
+  const definition = `\nconst fixturePolicy = typeof canApp === "function" ? canApp().policy : undefined;
+const fixtureFields = {"acme.Todo":{"title":{"type":"text"},"done":{"type":"bool"}},"acme.Memo":{"title":{"type":"text"}},"acme.Sku":{"code":{"type":"text"},"stock":{"type":"int"}},"acme.Sealed":{"title":{"type":"text"}},"acme.Keep":{"title":{"type":"text"}}};
+export const appDefinition = {
+  id: "TeamTasks", policy: fixturePolicy,
+  models: Object.fromEntries(Object.entries(fixtureFields).map(([model, fields]) => [model, {
+    fields, readGrants: (fixturePolicy?.models?.[model]?.read instanceof Array ? fixturePolicy.models[model].read : []).map((rule) => ({ rule }))
+  }]))
+};\n`;
+  writeFileSync(path, declarations + registrySource + definition);
   return pathToFileURL(path).href;
 }
 
@@ -369,8 +385,8 @@ function shopArtifact(module: string, overrides: Record<string, unknown> = {}): 
     artifact_version: 1,
     language_version: "t17b-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "t17b-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: "examples/TeamTasks.can", sha256: FIXTURE_SOURCE_SHA256 }],
+    modules: [{ path: module, js: "" }],
     callables: shopCallables(module),
     pages: [],
     requires: [
@@ -588,7 +604,10 @@ describe("T17b read-policy transcription (PolicyTable grants)", () => {
     };
     // Pure-public: all rules marked -> honored grant, not ruled.
     assert.deepEqual(
-      mapReadRulesToPolicy("acme.Todo", { read: ["Todo.read.1"], public: ["Todo.read.1"] }, fields),
+      mapReadRulesToPolicy("acme.Todo", { read: ["Todo.read.1"], public: ["Todo.read.1"] }, fields, {
+        secretFields: [], declaration: { fields: { title: {}, done: {} }, readGrants: [{ rule: "Todo.read.1" }] },
+        readRules: { "Todo.read.1": () => true },
+      }),
       { ruled: false, input: publicInput },
     );
     // Mixed: marked slice honored (public grant), unevaluable rules
@@ -599,6 +618,10 @@ describe("T17b read-policy transcription (PolicyTable grants)", () => {
         "acme.Todo",
         { read: ["Todo.read.1", "Todo.read.2"], public: ["Todo.read.1"] },
         fields,
+        {
+          secretFields: [], declaration: { fields: { title: {}, done: {} }, readGrants: [{ rule: "Todo.read.1" }, { rule: "Todo.read.2" }] },
+          readRules: { "Todo.read.1": () => true, "Todo.read.2": () => true },
+        },
       ),
       { ruled: false, input: publicInput },
     );
