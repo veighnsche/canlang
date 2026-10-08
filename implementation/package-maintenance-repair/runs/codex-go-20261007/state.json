@@ -1421,7 +1421,8 @@
         "packages/state/src/storage/d1.ts",
         "packages/state/src/storage/durable-object.ts",
         "packages/work/src/kernel/commands.ts"
-      ]
+      ],
+      "numeric_order_prerequisite": "Released checked State producer; actual CF consumer wiring/qualification pending, distinct from original scan/recovery resource budgets."
     },
     "TECH-S04-cohort": {
       "planning_status": "blocked",
@@ -1578,7 +1579,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T13:33:22.626869Z",
+  "updated_utc": "2026-10-08T13:52:39.740322Z",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2057,10 +2058,27 @@
       "sources_outputs_handles_released": true,
       "counts_unchanged": true,
       "checked_producer": "Compiler829f1510 matching CLI and genuine input_choices source/artifact release canonical model[] read results and version1 choices in both channels; owning validation reused. Feature remains refused until real consumer qualifies.",
-      "commit": "841d82939093b48c5cff677c4461d8d48800567e"
+      "commit": "841d82939093b48c5cff677c4461d8d48800567e",
+      "numeric_order_component": {
+        "status": "Root directly reviewed released State declared numeric-order prerequisite; checked coherent commit ready",
+        "sources": [
+          "packages/state/src/query/engine.ts",
+          "packages/state/src/invocation/invoke.ts",
+          "packages/state/src/ports/transact.ts",
+          "packages/state/test/invocation/read-selection.test.ts"
+        ],
+        "contract": "Trusted createReadInvoker({...,models:loaded.models}) snapshots checked declarations at bind, outside public ReadSelection. Matching model and selected singular int/decimal/money claims reach existing query sort; Values decodes projected wire once including singleton then compares exactly. Missing/null, metadata/text/untyped behavior, current grants/archive, caller order/direction/id tie and overflow are retained. Explicit model mismatch, numeric arrays, invalid selected wire and incompatible money currencies refuse.",
+        "verification": "Normal private State emit0 and only changed existing bound-reader case1/1. Adjacent int64 maxima, high-precision decimals/money minors, tie/secondary direction, per-row grant-projected malformed hidden fields, null/missing/archive, old lexical text/no-metadata callers and inability to smuggle type context through public selection pass. First negative incorrectly assumed owner rejects string02; changed only fixture to genuine wrong wire number2, preserving Values contract. Root read exact source/test diff and reused unchanged results.",
+        "model": "gpt-6.1-sol high for finite checked descriptor/wire-native comparison/authority cross-file seam; root direct review",
+        "limits": "State producer only; owning CF must wire actual loaded.models and qualify its existing source/D1/Worker/DOM consumer. Resource/scan budgets, whole TECH-S04-query, full35/36 and root48 remain open. Required capability/correctness addition, no replacement reduction credit.",
+        "private_output": "/private/tmp/can-state-numeric-order-gipx2wfs/dist",
+        "pending_cleanup": "Root owns private State output; retain for actual CF consumer handoff, clean only after recipient releases it.",
+        "sources_outputs_handles_released": true,
+        "counts_unchanged": true
+      }
     },
     "compiled_match_later_failure": {
-      "status": "Root directly reviewed missing SEQ030 actual compiled Match effect/later-failure consumer; coherent commit ready",
+      "status": "Root directly reviewed and committed737fdf1 actual compiled Match later-failure consumer",
       "sources": [
         "packages/cloudflare/src/runtime/generated-machines.test.ts",
         "packages/cloudflare/test/fixtures/generated-machines.can",
@@ -2072,8 +2090,9 @@
       "limits": "Closes only this missing emitted Match\u2192effect\u2192later-failure memory consumer gate. Compiler once-subject/branch/effect-order results reused, broader roadmap/three original handlers/all-host outcomes remain owning gates. Original48 count unchanged and native preparation HOLD retained.",
       "model": "gpt-6.1-sol medium for finite existing consumer/fixture mechanics after contract release; root direct source review",
       "sources_outputs_handles_released": true,
-      "private_output_cleanup": "Root owns released /private/tmp/can-match-gate.ijo2og and temporary /private/tmp/can-match-generated-machines.json; discard after source/compact outcome commit, preserve shared caches and foreign outputs.",
-      "counts_unchanged": true
+      "private_output_cleanup": "Completed: root removed only released own private snapshot and duplicate artifact after tracked source/compact outcome commit; shared caches/foreign outputs preserved.",
+      "counts_unchanged": true,
+      "commit": "737fdf1a9f1081262796e8628a7ece5c9bc17f3e"
     }
   },
   "live_finite_packets": [

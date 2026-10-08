@@ -4,6 +4,7 @@ import type { ModelName, QuerySpec, StoragePort } from '@canlang/contracts';
 import { invokeRead, type ReadSelection } from '../../src/invocation/invoke.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { createReadInvoker } from '../../src/ports/transact.js';
+import { queryRecords } from '../../src/query/engine.js';
 import { createTestMemoryStorage } from '../../src/storage/memory.js';
 import { grant, modelPolicy, policyTable, seedRows } from '../query/fixtures.js';
 import { captureStateError, createMemoryIdentityStore, fieldPaths, makeIdentity, seedMember } from './fixtures.js';
@@ -216,4 +217,112 @@ test('bound read forwards exact authorized ordering and fails rather than trunca
     envelope: { operation, inputs: { bogus: true } }, selection,
   }));
   assert.deepEqual(fieldPaths(closed), ['/bogus']);
+});
+
+test('checked model declarations order numeric wire values through the bound viewer read', async () => {
+  const { store } = createTestMemoryStorage();
+  const memberships = createMemoryIdentityStore();
+  const alice = await seedMember(memberships, { isOwner: false });
+  const raw = slice();
+  raw.models![0]!.fields = [
+    { name: 'count', field: { kind: 'integer' }, required: false, nullable: true, serverOnly: false },
+    { name: 'amount', field: { kind: 'decimal' }, required: false, nullable: true, serverOnly: false },
+    { name: 'price', field: { kind: 'money' }, required: false, nullable: true, serverOnly: false },
+    { name: 'counts', field: { kind: 'integer' }, required: false, array: { required: false }, serverOnly: false },
+    { name: 'privateCount', field: { kind: 'integer' }, required: false, serverOnly: false },
+    { name: 'code', field: { kind: 'string' }, valueType: 'text', required: false, serverOnly: false },
+  ];
+  const loaded = loadArtifactDescriptors(raw, { by: 'members' });
+  const models = structuredClone(loaded.models);
+  const policy = policyTable(modelPolicy(model, { grants: [
+    grant('members', ['label', 'count', 'amount', 'price', 'counts', 'code'],
+      { op: 'eq', field: 'label', value: 'full' }),
+    grant('members', ['label'], { op: 'eq', field: 'label', value: 'partial' }),
+  ] }));
+  const scans: QuerySpec[] = [];
+  const observed: StoragePort = { ...store, query: async (spec) => {
+    scans.push(spec);
+    return store.query(spec);
+  } };
+  const dependencies = { registry: loaded.registry, policy, store: observed, memberships };
+  const reader = createReadInvoker({ ...dependencies, models });
+  const legacy = createReadInvoker(dependencies);
+  // Bound type context is detached from metadata the host can mutate later.
+  Object.defineProperty(models[0]!.fields['count']!, 'valueType', { value: 'text' });
+  const args = { envelope: { operation, inputs: {} },
+    identity: makeIdentity({ membership: alice.membership, email: alice.user.email }) };
+  await seedRows(store, model, [
+    { id: 'a', data: { label: 'full', count: '10', amount: '10.000', price: { minor: '10', currency: 'EUR' }, code: '10' } },
+    { id: 'b', data: { label: 'full', count: '2', amount: '2.00', price: { minor: '2', currency: 'EUR' }, code: '2' } },
+    { id: 'c', data: { label: 'full', count: '2', amount: '2.0', price: { minor: '2', currency: 'EUR' }, code: '2' } },
+    { id: 'd', data: { label: 'full', count: '-3', amount: '-3', price: { minor: '-3', currency: 'EUR' }, code: '-3' } },
+    { id: 'e', data: { label: 'full', count: null, amount: null, price: null } },
+    { id: 'f', data: { label: 'full' } },
+    // This visible row's malformed numerics are withheld by its matching grant.
+    { id: 'g', data: { label: 'partial', count: 'bad', amount: {}, price: {}, code: 'bad' } },
+    { id: 'h', archivedAt: 1, data: { label: 'full', count: 'bad', amount: {}, price: {} } },
+    { id: 'i', data: { label: 'hidden', count: 'bad', amount: {}, price: {} } },
+    { id: 'j', data: { label: 'full', count: '9223372036854775807',
+      amount: '9007199254740992.000000000000000001', price: { minor: '9007199254740993', currency: 'EUR' } } },
+    { id: 'k', data: { label: 'full', count: '9223372036854775806',
+      amount: '9007199254740992.000000000000000000', price: { minor: '9007199254740992', currency: 'EUR' } } },
+  ]);
+  const ids = (result: Awaited<ReturnType<typeof reader>>) => result.records.map(record => record.id);
+  for (const field of ['count', 'amount', 'price']) {
+    for (const direction of ['asc', 'desc'] as const) {
+      const order = [{ field, direction }];
+      const result = await reader({ ...args, selection: { order, limit: 9 } });
+      assert.deepEqual(ids(result), direction === 'asc'
+        ? ['e', 'f', 'g', 'd', 'b', 'c', 'a', 'k', 'j'] : ['j', 'k', 'a', 'b', 'c', 'd', 'e', 'f', 'g']);
+      assert.deepEqual(scans.at(-1)!.order, order);
+      assert.equal(Object.hasOwn(scans.at(-1)!, 'limit'), false);
+      assert.equal(result.revision, 1);
+      assert.deepEqual(result.records.find(record => record.id === 'g')!.data, { label: 'partial' });
+    }
+  }
+  const order = [{ field: 'count', direction: 'asc' as const }];
+  const secondary = await reader({ ...args, selection: {
+    order: [...order, { field: 'id', direction: 'desc' }],
+  } });
+  assert.deepEqual(ids(secondary), ['g', 'f', 'e', 'd', 'c', 'b', 'a', 'k', 'j']);
+  const smuggled = { order, models: loaded.models, modelDescriptor: loaded.models[0] } as ReadSelection;
+  assert.deepEqual(ids(await legacy({ ...args, selection: smuggled })), ['e', 'f', 'g', 'd', 'a', 'b', 'c', 'k', 'j']);
+  assert.deepEqual(ids(await reader({ ...args, selection: { order: [{ field: 'code', direction: 'asc' }] } })),
+    ['e', 'f', 'g', 'j', 'k', 'd', 'a', 'b', 'c']);
+  const overflow = await captureStateError(reader({ ...args, selection: { order, limit: 8 } }));
+  assert.equal(overflow.code, 'validation');
+  assert.match(overflow.message, /over the limit/);
+  const scanCount = scans.length;
+  for (const [field, message] of [['privateCount', /not granted/], ['counts', /singular numeric/]] as const) {
+    const error = await captureStateError(reader({ ...args, selection: { order: [{ field, direction: 'asc' }] } }));
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, message);
+  }
+  assert.equal(scans.length, scanCount);
+  const mismatched = await captureStateError(queryRecords({ ...dependencies, model,
+    modelDescriptor: { ...loaded.models[0]!, name: 'Example.Other' as ModelName },
+    authority: 'viewer', order,
+    context: { actorUserId: args.identity.actor!.user_id, teamId: args.identity.team!.team_id },
+  }));
+  assert.equal(mismatched.code, 'validation');
+  assert.match(mismatched.message, /descriptor does not match/);
+  assert.equal(scans.length, scanCount);
+  await seedRows(store, model, [
+    { id: 'bad', data: { label: 'full', count: 2, amount: 2, price: { minor: '2', currency: 'ZZZ' } } },
+    { id: 'usd', data: { label: 'full', price: { minor: '2', currency: 'USD' } } },
+  ]);
+  // A singleton must validate its selected wire value even without comparisons.
+  for (const field of ['count', 'amount', 'price']) {
+    const error = await captureStateError(reader({ ...args, selection: {
+      where: { op: 'eq', field: 'id', value: 'bad' }, order: [{ field, direction: 'asc' }],
+    } }));
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /invalid .* wire value/);
+  }
+  const currency = await captureStateError(reader({ ...args, selection: {
+    where: { op: 'or', args: [{ op: 'eq', field: 'id', value: 'b' }, { op: 'eq', field: 'id', value: 'usd' }] },
+    order: [{ field: 'price', direction: 'asc' }],
+  } }));
+  assert.equal(currency.code, 'validation');
+  assert.match(currency.message, /matching currencies/);
 });
