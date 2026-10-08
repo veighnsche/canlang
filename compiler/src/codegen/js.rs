@@ -6536,6 +6536,17 @@ impl<'a> Emitter<'a> {
         result: Option<&ResolvedType>,
         read: bool,
     ) -> Option<Cow<'static, str>> {
+        // A declared stored model result preserves its owning identity for
+        // reads and mutations alike; publishing it does not encode the row.
+        if let Some(ResolvedType::Record {
+            symbol,
+            stored: true,
+        }) = result
+            && let Some(model) = self.ir.items.get(symbol.0 as usize)
+            && matches!(model.kind, IrItemKind::Model { .. })
+        {
+            return Some(Cow::Owned(model.canonical.clone()));
+        }
         if read
             && let Some(ResolvedType::Array { element, .. }) = result
             && let ResolvedType::Record {
