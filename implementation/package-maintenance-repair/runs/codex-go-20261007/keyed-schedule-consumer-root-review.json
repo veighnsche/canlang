@@ -35,7 +35,7 @@
     "No installed scheduler/consent/default backend/native preparation/release or full parent completion"
   ],
   "due_handler": {
-    "status": "Root direct-reviewed selected compiled private due handler; coherent six-path source release ready for commit",
+    "status": "Root direct-reviewed and committed selected compiled private due handler; broader parent open",
     "paths": [
       "packages/cloudflare/src/runtime/invoke.ts",
       "packages/cloudflare/src/runtime/typed-durable-admission.test.ts",
@@ -72,6 +72,7 @@
       "Bundle mapping/link evidence does not qualify default deployed execution"
     ],
     "counts_unchanged": true,
-    "verification_policy": "Reuse unchanged owning emit/cases; direct source review only, no duplicate test run or extra proof packet"
+    "verification_policy": "Reuse unchanged owning emit/cases; direct source review only, no duplicate test run or extra proof packet",
+    "commit": "de3cd6938a19ec5bab80188c8190c6d252d15225"
   }
 }
