@@ -143,10 +143,12 @@ execution and general allocation/resource guarantees remain unverified.
 
 Existing map producer cases pass **6/6**, preserving names, snapshots, missing
 sources, mappings and serialization. Existing generated BDD suite/shell cases
-pass **2/2**. The unchanged actual map consumer case failed **0/1** after its
+pass **2/2**. The unchanged actual map consumer case first failed **0/1** after its
 map/raw/independent-decoder assertions: Node 24.21 strip-only import rejects
 the package's new `DueScheduleChanged` parameter-property constructor in
-`packages/cloudflare/src/runtime/invoke.ts`. This concrete source-owner
-prerequisite is routed; the consumer is not declared passed or replaced.
+`packages/cloudflare/src/runtime/invoke.ts`. After the owning source's released
+explicit-field correction, the same actual consumer passes **1/1**, preserving
+the prior failure. Only that failed case was repeated; its source/Cargo lease
+is released.
 No new test, proof packet, giant probe, global byte cap or full FAIL-R06 closure
 is added.
