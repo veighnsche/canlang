@@ -33,7 +33,7 @@ import {
   readFanoutChildRow,
   readFanoutIntentRow,
 } from '../fanout/tables.js';
-import { invoke, invokeRead, type ExecuteHandler } from '../invocation/invoke.js';
+import { invoke, invokeRead, type ExecuteHandler, type ReadSelection } from '../invocation/invoke.js';
 import type { OperationRegistry } from '../invocation/registry.js';
 import type { ClockPort } from '../invocation/context.js';
 import type { MembershipReader } from '../policy/roles.js';
@@ -117,6 +117,8 @@ export interface ReadInvokeArgs {
   readonly identity: ResolvedIdentity;
   readonly kind?: AdmissionKind;
   readonly trustedSource?: string;
+  /** Internal viewer predicate/result bound; it does not change admission. */
+  readonly selection?: ReadSelection;
 }
 
 /** Bound read port: canonical generated-read serving with dependencies fixed. */
@@ -140,6 +142,7 @@ export function createReadInvoker(input: ReadInvokerInput): BoundReadInvoker {
       identity: args.identity,
       ...(args.kind !== undefined ? { kind: args.kind } : {}),
       ...(args.trustedSource !== undefined ? { trustedSource: args.trustedSource } : {}),
+      ...(args.selection !== undefined ? { selection: args.selection } : {}),
     });
 }
 

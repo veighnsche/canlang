@@ -50,7 +50,7 @@ import {
   type ConflictServerOnly,
   type GuardRevalidation,
 } from './admission.js';
-import { queryRecords } from '../query/index.js';
+import { queryRecords, type ViewerRecordsInput } from '../query/index.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
@@ -366,6 +366,9 @@ export async function invoke(input: {
   });
 }
 
+/** Internal per-call selection using the existing viewer query vocabulary. */
+export type ReadSelection = Pick<ViewerRecordsInput, 'where' | 'limit'>;
+
 /** T17a canonical read invocation input: no clock, no executor, no receipts. */
 export interface InvokeReadInput {
   readonly registry: OperationRegistry;
@@ -377,6 +380,8 @@ export interface InvokeReadInput {
   readonly memberships: MembershipReader;
   readonly kind?: AdmissionKind;
   readonly trustedSource?: string;
+  /** Applied by the viewer query engine only after read admission. */
+  readonly selection?: ReadSelection;
 }
 
 /**
@@ -421,8 +426,9 @@ function generatedReadModel(operation: string): ModelName {
  * Serving rule (fail closed): viewer authority with grant projection only —
  * owner bypass stays engine-internal (T32 owns authority fences). Archived
  * rows are excluded. Core-scope reads carry NO descriptor inputs and serve
- * the whole visible model; a read WITH descriptor inputs validates closed
- * and then refuses LOUD — T04a carries no filter vocabulary, so serving
+ * the whole visible model unless an internal selection is supplied; a read
+ * WITH descriptor inputs validates closed and then refuses LOUD — T04a
+ * carries no filter vocabulary, so serving
  * would silently mis-filter (T04b carries filter inputs). A policy miss
  * serves empty records (the engine's fail-closed rule — no invented error).
  * The def's engine-local `when`, when present, is ignored exactly like
@@ -481,6 +487,8 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
     );
   }
 
+  const where = input.selection?.where;
+  const limit = input.selection?.limit;
   return queryRecords({
     policy: input.policy,
     model,
@@ -489,6 +497,8 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
     memberships: input.memberships,
     store: input.store,
     archived: 'exclude',
+    ...(where !== undefined ? { where } : {}),
+    ...(limit !== undefined ? { limit } : {}),
   });
 }
 
