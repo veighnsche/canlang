@@ -17,8 +17,8 @@
  * the enumeration revision); admitted child rows materialize in bounded
  * chunks; the final chunk nulls the enumeration cursor. A crash between
  * chunks leaves a non-null cursor with missing rows, which re-freezing
- * (same cutoff+cohort) resumes idempotently: the intent insert collides,
- * the existing frozen set replays, missing rows admit, and the cursor
+ * (same cutoff+cohort) resumes idempotently: the retained intent is loaded
+ * before live enumeration, its frozen set replays, missing rows admit, and the cursor
  * nulls only when fully admitted. Re-freezing NEVER re-enumerates.
  *
  * Failure posture: every failure here is a capability/admission failure
@@ -314,6 +314,24 @@ export async function freezeFanoutMembership(
   );
 
   for (let attempt = 1; attempt <= input.bounds.maxAttempts; attempt += 1) {
+    let retainedIntent: StoredRow | null;
+    try {
+      retainedIntent = await input.store.load(FANOUT_INTENT_MODEL as ModelName, fanoutId as RecordId);
+    } catch (error) {
+      if (error instanceof StateError) {
+        throw error;
+      }
+      return {
+        ok: false,
+        diagnosis: diagnoseCohort(
+          'membership-unavailable',
+          `Fanout retained intent lookup failed: ${error instanceof Error ? error.message : String(error)}.`,
+        ),
+      };
+    }
+    if (retainedIntent !== null) {
+      return replayFreeze(input, fanoutId);
+    }
     let revision: Revision;
     let enumerated: string[];
     try {
@@ -731,8 +749,8 @@ async function finishEnumerationCursor(
 }
 
 /**
- * Intent-collision replay: another freeze (or a pre-crash attempt) won
- * the intent insert. The existing frozen set replays — members are the
+ * Retained-intent or intent-collision replay: a pre-crash attempt or
+ * another freeze already committed the intent. Members are the
  * STORED set, never re-enumerated — missing rows admit, and the cursor
  * nulls only when fully admitted.
  */

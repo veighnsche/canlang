@@ -2924,3 +2924,9 @@ The generated form edits its existing controls; assistance does not invoke the m
 Accepted the released Cloudflare bundle correction: pin the native-records and input-choices runtime modules, map the owning Interfaces HTTP operations entry, and expose its actual catalog/checker/bound-argument helpers in the staged HTTP module. The existing readonly-page case now uses a dedicated native Chrome context to observe real visibility, polling pause while hidden, and refresh after restoration.
 
 The owner changed-source emission and the same focused native D1/browser case passed; unchanged results are reused. This evidence covers the staged bundle and the Mac Chrome lifecycle case, with the owned browser process/profile cleaned up. Broader host, installed-release, native-preparation and parent task qualification remain open. This is required delivery behavior, with no library-replacement reduction claim.
+
+## 2026-10-08: resume frozen fanout admission without live enumeration
+
+Accepted a bounded TECH-W02 correction in State membership freezing. Each attempt first checks its deterministic retained intent; existing frozen membership resumes through the established missing-child admission path. A failed retained lookup refuses admission rather than replacing membership. Fresh freezes retain the existing owner, cutoff, model, bounds and revision fences, including collision replay.
+
+Private State emission and one regression using the actual memory StoragePort passed: interrupted [a,b] admission resumes b with zero current-domain queries, excludes a late member, and clears the cursor only after admission. Root reviewed the source directly and removed the released private output. This is source/memory evidence, not compiled, durable, installed or whole TECH-W02 acceptance, and earns no replacement reduction credit.
