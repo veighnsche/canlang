@@ -1,0 +1,33 @@
+app TypedTextBooleans
+Given
+ Profile { name:text="initial", enabled:bool=false, names:text[], flags:bool[], seedNames:text[]=["a","b"], seedFlags:bool[]=[true,false], maybeNames:text[]?, maybeFlags:bool[]?, maybeName:text?, maybeEnabled:bool? }
+ policy Profile read=public
+When
+ crud Profile by=members fields=name,enabled,names,flags,seedNames,seedFlags,maybeNames,maybeFlags,maybeName,maybeEnabled
+ ## True joins the names; false keeps the supplied scalar name. Failed acceptance rolls back either set.
+ scenario change(profile:Profile,name:text,enabled:bool,names:text[],flags:bool[],accept:bool) -> text by=members
+  do
+   require all(names as item,item!="")
+   if enabled
+    set profile {name=join(names,"/"),enabled=enabled,names=names,flags=flags}
+   else
+    set profile {name=name,enabled=enabled,names=names,flags=flags}
+   require profile.enabled==enabled and all(profile.flags as flag,flag==enabled)
+   require accept
+   return profile.name
+ scenario active(profile:Profile) -> bool by=members
+  do return profile.enabled
+ scenario names(profile:Profile) -> text[] by=members
+  do return profile.names
+ scenario flags(profile:Profile) -> bool[] by=members
+  do return profile.flags
+ scenario maybeNames(profile:Profile) -> text[]? by=members
+  do return profile.maybeNames
+ scenario maybeFlags(profile:Profile) -> bool[]? by=members
+  do return profile.maybeFlags
+ ## Omitted literal parameters are resolved once and retain original receipt values.
+ scenario defaults(name:text="hello",enabled:bool=true,names:text[]=["a","b"],flags:bool[]=[true,true]) -> text by=members
+  do
+   require enabled and all(flags as flag,flag)
+   return join([name,join(names,"/")],":")
+Then

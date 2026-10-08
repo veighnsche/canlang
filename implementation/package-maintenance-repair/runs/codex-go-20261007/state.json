@@ -2017,7 +2017,23 @@
       "validation": "Owning Contracts+State tsc passed; affected metadata14/14; unchanged admission28/28 reused. Root direct diff reviewed, no repeated test layer.",
       "scope": "Text/bool scalar, one array suffix and nullable container, exact own claim/tag checks; generated CRUD forwards existing late field encoder, preserving order and default attribution",
       "limits": "Consumer committed separately; other scalar/default/hook/native/installed/whole packet qualification open; no task count advancement",
-      "recorded_utc": "2026-10-08T03:27:09.941856+00:00"
+      "recorded_utc": "2026-10-08T03:27:09.941856+00:00",
+      "commit": "0dcfa8c4"
+    },
+    "text_bool_runtime": {
+      "status": "Root direct-reviewed accepted finite canonical-memory consumer and common CRUD/scenario encoder; six-file writer released",
+      "files": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/stdlib.ts",
+        "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+        "packages/cloudflare/src/runtime/typed-text-booleans.test.ts",
+        "packages/cloudflare/test/fixtures/typed-text-booleans.can",
+        "packages/cloudflare/test/fixtures/typed-text-booleans.json"
+      ],
+      "validation": "Owning CF tsc0; actual compiled text/bool memory1/1; affected int/temporal D1+compatibility4/4. Canonical memory31/31:30unchanged passes reused, one obsolete timestamp assertion corrected and affected case rerun1/1. Root direct source review, no added test layer.",
+      "scope": "Existing public Values field encoder shared by canonical CRUD/scenario; direct join export; typed text/bool scalar/array/null/default/result, branch/join, invalid writes, rollback/history, partial update and replay",
+      "limits": "Text/bool persistence, other scalar/hook/provider/deployed/installed/native and whole packet acceptance open. Synthetic invalid-result control labeled. No task count advancement.",
+      "recorded_utc": "2026-10-08T03:29:06.767491+00:00"
     }
   }
 }
