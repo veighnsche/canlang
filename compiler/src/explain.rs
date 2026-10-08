@@ -101,7 +101,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 117] = [
+const CATALOG: [CodeInfo; 118] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -501,6 +501,14 @@ const CATALOG: [CodeInfo; 117] = [
         explanation: "Derived definitions cannot recurse: pure functions and computed fields that reach themselves through calls form a cycle. Each definition on the cycle is reported. Break the cycle by removing one call edge.",
         example_valid: "app T\nGiven\n derive ok(): int = 1\nWhen\nThen\n",
         example_invalid: "app T\nGiven\n derive a(): int = b()\n derive b(): int = a()\nWhen\nThen\n",
+    },
+    CodeInfo {
+        code: "E2019",
+        title: "semantic-id-capacity",
+        severity: Severity::Error,
+        explanation: "Module, symbol and lexical-scope IDs use the intrinsic range 0..=u32::MAX. The last ID is valid; resolution refuses the next allocation instead of truncating an ID or publishing partial semantic tables. Full checking stops before dependent passes and retains diagnostics and input-cohort metadata. Reduce the number of declarations or scopes in the checked program.",
+        example_valid: "A checked program whose module, symbol and scope IDs all fit in 0..=u32::MAX.",
+        example_invalid: "A checked program requiring a module, symbol or scope ID greater than u32::MAX.",
     },
     CodeInfo {
         code: "E3001",
