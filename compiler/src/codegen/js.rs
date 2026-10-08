@@ -2132,7 +2132,7 @@ impl<'a> Emitter<'a> {
             return format!("{}.trim()", parenthesize_operand(&arg, &args[0].expr));
         }
         let parts: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
-        self.lower_call_rendered(target, &parts, span, true)
+        self.lower_call_rendered(target, &parts, args.first().map(|arg| &arg.ty), span, true)
     }
 
     /// Source values evaluate left to right outside a synchronous capture.
@@ -2157,7 +2157,13 @@ impl<'a> Emitter<'a> {
                 None => "void 0".to_string(),
             })
             .collect();
-        let call = self.lower_call_rendered(target, &ordered, span, false);
+        let domain_type = slots
+            .first()
+            .copied()
+            .flatten()
+            .and_then(|index| args.get(index))
+            .map(|arg| &arg.ty);
+        let call = self.lower_call_rendered(target, &ordered, domain_type, span, false);
         let awaited = matches!(
             target,
             IrCallTarget::Builtin { awaited: true, .. }
@@ -2175,17 +2181,40 @@ impl<'a> Emitter<'a> {
         &mut self,
         target: &IrCallTarget,
         parts: &[String],
+        domain_type: Option<&ResolvedType>,
         span: Span,
         await_result: bool,
     ) -> String {
         match target {
             IrCallTarget::Builtin { id, awaited } => {
+                let mut parts = parts.to_vec();
+                if id == "sum" {
+                    let element = match domain_type {
+                        Some(ResolvedType::Array { element, .. }) => match element.as_ref() {
+                            ResolvedType::Scalar(Scalar::Int) => Some("int"),
+                            ResolvedType::Scalar(Scalar::Decimal) => Some("decimal"),
+                            ResolvedType::Scalar(Scalar::Money) => Some("money"),
+                            ResolvedType::Scalar(Scalar::Duration) => Some("duration"),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    let Some(element) = element.filter(|_| !parts.is_empty()) else {
+                        self.unsupported(
+                            "sum domain",
+                            "sum requires a checked int[], decimal[], money[], or duration[] domain",
+                            span,
+                        );
+                        return self.throw_expr("sum domain has no static element lowering");
+                    };
+                    // Values requires a static element tag before the optional currency.
+                    parts.insert(1, js_string(element));
+                }
                 self.stdlib.insert(id.clone());
                 self.builtins.push(ReferencedBuiltin {
                     id: id.clone(),
                     span,
                 });
-                let parts = parts.to_vec();
                 let call = format!("{}({})", id, parts.join(","));
                 if *awaited && await_result {
                     format!("await {call}")
