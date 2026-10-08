@@ -27,14 +27,16 @@ use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
-    IrBinOp, IrCallTarget, IrDefault, IrEventSource, IrExpr, IrFieldLabel, IrGuard, IrHook, IrItem,
-    IrItemKind, IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp,
-    ReferencedBuiltin, ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
+    IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEventSource, IrExpr, IrFieldLabel, IrGuard,
+    IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrMessage, IrOwner, IrPage, IrProgram,
+    IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily, TypedExpr,
+    expr_uses_async, is_structural, scalar_family,
 };
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 /// Follow nominal field references using the consumed owner schema only.
@@ -582,6 +584,60 @@ pub struct JsOperationField {
     /// slot inline/attached/shared/legacy spellings feed; variants
     /// never leave the source — localized MCP is deferred).
     pub description: Option<String>,
+    /// Checked operation-owned dependent candidate assistance.
+    pub choices: Option<JsInputChoiceBinding>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JsInputChoiceBinding {
+    pub version: u8,
+    pub read_operation: String,
+    pub arguments: BTreeMap<String, JsChoiceArgument>,
+    pub value: JsChoiceValue,
+    pub labels: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JsChoiceArgument {
+    pub input: String,
+    pub path: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum JsChoiceValue {
+    Record,
+    Field { field: String },
+}
+
+impl From<&IrInputChoiceBinding> for JsInputChoiceBinding {
+    fn from(binding: &IrInputChoiceBinding) -> Self {
+        Self {
+            version: 1,
+            read_operation: binding.read_operation.clone(),
+            arguments: binding
+                .arguments
+                .iter()
+                .map(|(name, argument)| {
+                    (
+                        name.clone(),
+                        JsChoiceArgument {
+                            input: argument.input.clone(),
+                            path: argument.path.clone(),
+                        },
+                    )
+                })
+                .collect(),
+            value: match &binding.value {
+                IrChoiceValue::Record => JsChoiceValue::Record,
+                IrChoiceValue::Field(field) => JsChoiceValue::Field {
+                    field: field.clone(),
+                },
+            },
+            labels: binding.labels.clone(),
+        }
+    }
 }
 
 impl JsOperationField {
@@ -605,7 +661,7 @@ pub struct JsOperation {
     pub inputs: Vec<JsOperationField>,
     /// Checked scenario result type in the bounded publication profile.
     /// Absent means unknown; generated reads and CRUD do not claim void.
-    pub result: Option<&'static str>,
+    pub result: Option<Cow<'static, str>>,
 }
 
 impl JsOperation {
@@ -909,7 +965,8 @@ impl Serialize for JsOperationField {
                 + usize::from(self.array_required.is_some())
                 + usize::from(self.default.is_some())
                 + usize::from(self.computed_default)
-                + usize::from(self.description.is_some()),
+                + usize::from(self.description.is_some())
+                + usize::from(self.choices.is_some()),
         )?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("field", &self.field)?;
@@ -931,6 +988,9 @@ impl Serialize for JsOperationField {
         }
         if let Some(description) = &self.description {
             state.serialize_field("description", description)?;
+        }
+        if let Some(choices) = &self.choices {
+            state.serialize_field("choices", choices)?;
         }
         state.end()
     }
@@ -980,8 +1040,8 @@ impl Serialize for JsOperation {
             fields: &'a [JsOperationField],
         }
         #[derive(Serialize)]
-        struct ResultType {
-            r#type: &'static str,
+        struct ResultType<'a> {
+            r#type: &'a str,
         }
         let mut state =
             serializer.serialize_struct("Operation", 4 + usize::from(self.result.is_some()))?;
@@ -994,7 +1054,7 @@ impl Serialize for JsOperation {
                 fields: &self.inputs,
             },
         )?;
-        if let Some(result) = self.result {
+        if let Some(result) = &self.result {
             state.serialize_field("result", &ResultType { r#type: result })?;
         }
         state.end()
@@ -6173,7 +6233,11 @@ impl<'a> Emitter<'a> {
                 continue;
             };
             if let IrItemKind::Param {
-                ty, default, label, ..
+                ty,
+                default,
+                label,
+                choices,
+                ..
             } = &param.kind
             {
                 // Unknown types already carry an `E6006` from the IR
@@ -6224,6 +6288,12 @@ impl<'a> Emitter<'a> {
                 }
                 if !wire && let Some(label) = label {
                     members.push_str(&format!(",label:{}", self.lower_message(label)));
+                }
+                if !wire && let Some(choices) = choices {
+                    members.push_str(&format!(
+                        ",choices:{}",
+                        descriptor_json(&JsInputChoiceBinding::from(choices))
+                    ));
                 }
                 parts.push(format!("{}:{{{members}}}", object_key(&param.name)));
             }
@@ -6303,6 +6373,7 @@ impl<'a> Emitter<'a> {
                         computed_default: false,
                         default: None,
                         description: None,
+                        choices: None,
                     }],
                     result: checked_scenario_result(result.as_ref()),
                 });
@@ -6346,6 +6417,7 @@ impl<'a> Emitter<'a> {
                 computed_default: false,
                 default: js_field_default(default.as_ref(), None),
                 description: description.clone(),
+                choices: None,
             });
         }
         if has_duplicate_names(&inputs) {
@@ -6418,6 +6490,7 @@ impl<'a> Emitter<'a> {
                     computed_default: false,
                     default: None,
                     description: None,
+                    choices: None,
                 })
                 .collect(),
             result: None,
@@ -6458,6 +6531,25 @@ impl<'a> Emitter<'a> {
     /// inline/attached/shared/legacy spellings feed one slot and MCP
     /// renders its source string on this same path; variants stay out
     /// of the descriptors (localized MCP is deferred).
+    fn checked_operation_result(
+        &self,
+        result: Option<&ResolvedType>,
+        read: bool,
+    ) -> Option<Cow<'static, str>> {
+        if read
+            && let Some(ResolvedType::Array { element, .. }) = result
+            && let ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = element.as_ref()
+            && let Some(model) = self.ir.items.get(symbol.0 as usize)
+            && matches!(model.kind, IrItemKind::Model { .. })
+        {
+            return Some(Cow::Owned(format!("{}[]", model.canonical)));
+        }
+        checked_scenario_result(result)
+    }
+
     fn collect_operations(&mut self) -> Vec<JsOperation> {
         let mut operations = Vec::new();
         if self.has_receipt_delivery_fields() {
@@ -6521,6 +6613,7 @@ impl<'a> Emitter<'a> {
                             ty,
                             default,
                             description,
+                            choices,
                             ..
                         } = &param.kind
                         else {
@@ -6548,6 +6641,7 @@ impl<'a> Emitter<'a> {
                                     _ => js_field_default(default.as_ref(), None),
                                 },
                                 description: description.clone(),
+                                choices: choices.as_ref().map(JsInputChoiceBinding::from),
                             }),
                             None => {
                                 mappable = false;
@@ -6570,7 +6664,7 @@ impl<'a> Emitter<'a> {
                             .map(|message| message.source.clone())
                             .unwrap_or_default(),
                         inputs,
-                        result: checked_scenario_result(result.as_ref()),
+                        result: self.checked_operation_result(result.as_ref(), *read),
                     });
                 }
                 IrItemKind::CrudOp {
@@ -6679,6 +6773,7 @@ impl<'a> Emitter<'a> {
                                     computed_default: false,
                                     default: js_field_default(default.as_ref(), None),
                                     description: description.clone(),
+                                    choices: None,
                                 });
                             }
                             None => {
@@ -6703,6 +6798,7 @@ impl<'a> Emitter<'a> {
                         computed_default: false,
                         default: None,
                         description: None,
+                        choices: None,
                     };
                     let inputs = match op {
                         CrudOp::Create => {
@@ -6731,6 +6827,7 @@ impl<'a> Emitter<'a> {
                                     computed_default: false,
                                     default: None,
                                     description: None,
+                                    choices: None,
                                 });
                             }
                             inputs
@@ -7965,12 +8062,12 @@ fn scenario_default_omission_supported(ty: &IrType) -> bool {
 }
 
 /// Closed checked scalar result profile; other shapes stay unknown.
-fn checked_scenario_result(result: Option<&ResolvedType>) -> Option<&'static str> {
+fn checked_scenario_result(result: Option<&ResolvedType>) -> Option<Cow<'static, str>> {
     // Only successful checked Scenario signatures establish no result.
     let Some(result) = result else {
-        return Some("void");
+        return Some(Cow::Borrowed("void"));
     };
-    checked_value_profile(result)
+    checked_value_profile(result).map(Cow::Borrowed)
 }
 
 fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {

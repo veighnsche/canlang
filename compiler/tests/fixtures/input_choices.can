@@ -1,0 +1,27 @@
+## Finite compiler witness for operation-owned choice metadata.
+app InputChoices
+Given
+ Country {name:text,active:bool=true}
+ Region in Country {name:text}
+ Site {name:text}
+ Document {site:Site}
+ Submission in Document {note:text}
+ Employee {user:user,name:text?,role:text,home:Site}
+ policy Country read=members
+ policy Region read=members
+ policy Site read=members
+ policy Document read=members
+ policy Submission read=members
+ policy Employee read=members
+When
+ scenario region_choices(country:Country) read=true -> Region[] by=members
+  do return country.Region
+ scenario reviewer_choices(document:Document) read=true -> Employee[] by=members
+  do return Employee as candidate where candidate.home==document.site
+ scenario save(country:Country,region:Region choices={read=region_choices(country=country),labels=["name"]},note:text="Kept" desc="Address note" label="Note") -> Region by=members
+  do return region
+ scenario assign(submission:Submission,assignee:user?=null choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]} desc="Chosen reviewer" label="Reviewer") -> user? by=members
+  do return assignee
+ scenario submit(document:Document,assignee:user?=null choices={read=reviewer_choices(document=document),value="user",labels=["name","role","home"]} desc="Chosen reviewer" label="Reviewer") -> user? by=members
+  do return assignee
+Then
