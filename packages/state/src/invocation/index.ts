@@ -23,8 +23,11 @@ export { stableStringify, hashInputs } from './replay.js';
 export {
   MAX_ADMISSION_ATTEMPTS,
   invoke,
+  readGeneratedCrudAssociation,
   type ExecuteHandler,
   type ExecutionEffects,
+  type CommittedReceiptOutcome,
+  type GeneratedCrudReceiptAssociation,
 } from './invoke.js';
 export {
   type InterimInputDef,
