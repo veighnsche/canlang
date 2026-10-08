@@ -819,3 +819,181 @@ describe('context-qualified TextRun snapshots and late measured usage', () => {
       status: 'skipped', result: null, error: null });
   });
 });
+
+describe('selected canonical ImageRun receipt and progress core', () => {
+  const relation = 'std.ImagesV1.submit';
+  const context: ReceiptResultContext = { source: relation,
+    declaredResult: { name: 'ImageRun', fields: DELIVERY_RESULT_LEAVES['ImageRun'] },
+    request: { source: 'image_request', revision: '9223372036854775807' } };
+  const outputs = [{ position: '0', image: { id: 'file_a' } }, { position: '1', image: { id: 'file_b' } }];
+  const run = { source: 'image_request', revision: '9223372036854775807', sequence: '9007199254740993',
+    state: 'running', outputs, charged_jobs: null, detail: null };
+  const envelope = (result: unknown, status: ReceiptStatus = 'pending', revision = 8, source = relation) =>
+    progress(source, { source, revision, status, result });
+  const held = () => association({ source: relation });
+
+  it('checks original submit/cancel/reconcile declarations and requests while preserving inspect/validate', () => {
+    for (const source of ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile']) {
+      for (const [state, status] of [['queued', 'pending'], ['running', 'pending'], ['unknown', 'unknown']] as const) {
+        const outcome = applyRelatedProgress(source, association({ source }), receiptRow(),
+          envelope({ ...run, state }, status, 8, source), { ...context, source });
+        assert.equal(outcome.applied, true);
+        if (outcome.applied) assert.equal(outcome.notification, null);
+      }
+    }
+    for (const invalid of [undefined, { source: relation, declaredResult: context.declaredResult },
+      { ...context, declaredResult: { name: 'ImageRun', fields: [] } },
+      { ...context, request: { source: 'other', revision: context.request!.revision } },
+      { ...context, request: { source: 'image_request', revision: '01' } }]) {
+      assert.deepEqual(applyRelatedProgress(relation, held(), receiptRow(), envelope(run), invalid),
+        { applied: false, reason: 'inconsistent-envelope' });
+    }
+    assert.throws(() => applyRelatedProgress(relation, held(), receiptRow(), envelope(run),
+      { ...context, source: 'std.ImagesV1.cancel' }), /context disagrees with relation/);
+    for (const source of ['std.ImagesV1.inspect', 'std.ImagesV1.validate']) {
+      assert.equal(applyRelatedProgress(source, association({ source }), receiptRow(),
+        envelope({ valid: true }, 'succeeded', 8, source),
+        { source, declaredResult: { name: 'WorkflowValidation', fields: [] } }).applied, true);
+    }
+  });
+
+  it('retains actual current and original receipt objects for semantic ordered-output replays', () => {
+    const first = applyRelatedProgress(relation, held(), receiptRow(), envelope(run), context);
+    assert.equal(first.applied, true);
+    if (!first.applied) return;
+    const copy = { ...run, outputs: outputs.map(output => Object.assign(Object.create(null),
+      { image: Object.assign(Object.create(null), output.image), position: output.position })) };
+    const replay = applyRelatedProgress(relation, first.association, first.receipt, envelope(copy), context);
+    assert.equal(replay.applied, true);
+    if (replay.applied) {
+      assert.strictEqual(replay.receipt, first.receipt);
+      assert.strictEqual(replay.association, first.association);
+      assert.equal(replay.replay, true);
+      assert.equal(replay.notification, null);
+    }
+    const retained = applyRetainedRelatedProgress(relation, first.receipt, envelope(copy), context);
+    assert.equal(retained.applied, true);
+    if (retained.applied) {
+      assert.strictEqual(retained.receipt, first.receipt);
+      assert.equal(retained.replay, true);
+      assert.equal(retained.notification, null);
+      assert.equal(Object.hasOwn(retained, 'association'), false);
+    }
+    for (const changed of [[...outputs].reverse(), [outputs[0]],
+      [{ ...outputs[0], image: { id: 'other_file' } }, outputs[1]]]) {
+      assert.deepEqual(applyRetainedRelatedProgress(relation, first.receipt,
+        envelope({ ...run, outputs: changed }), context), { applied: false, reason: 'inconsistent-envelope' });
+    }
+    for (const sequence of ['9007199254740992', '9007199254740993']) {
+      assert.deepEqual(applyRelatedProgress(relation, first.association, first.receipt,
+        envelope({ ...run, sequence }, 'pending', 9), context), { applied: false, reason: 'stale-sequence' });
+    }
+    const replacement = association({ source: relation, deliveryId: 'replacement', revision: 20 });
+    assert.deepEqual(applyRelatedProgress(relation, replacement,
+      receiptRow({ deliveryId: 'replacement', revision: 20 }), envelope(run), context),
+      { applied: false, reason: 'id-mismatch' });
+    for (const [change, reason] of [[{ delivery_id: 'replacement' }, 'id-mismatch'],
+      [{ source: 'other' }, 'source-mismatch'], [{ revision: 7 }, 'stale-revision'],
+      [{ relation: 'std.ImagesV1.cancel' }, 'cross-relation'],
+      [{ result: { ...run, revision: '7' } }, 'inconsistent-envelope']] as const) {
+      assert.deepEqual(applyRetainedRelatedProgress(relation, first.receipt,
+        { ...envelope({ ...run, sequence: '9007199254740994' }, 'pending', 9), ...change }, context),
+        { applied: false, reason });
+    }
+  });
+
+  it('keeps one nonnegative measurement and enriches terminal outputs once through both progress gates', () => {
+    const measured = { ...run, charged_jobs: '7' };
+    const first = applyRelatedProgress(relation, held(), receiptRow(), envelope(measured), context);
+    assert.equal(first.applied, true);
+    if (!first.applied) return;
+    for (const charged_jobs of [null, '8']) {
+      assert.deepEqual(applyRelatedProgress(relation, first.association, first.receipt,
+        envelope({ ...measured, charged_jobs, sequence: '9007199254740994' }, 'pending', 9), context),
+        { applied: false, reason: 'inconsistent-envelope' });
+    }
+    assert.deepEqual(applyRetainedRelatedProgress(relation, first.receipt, envelope(null, 'succeeded', 9), context),
+      { applied: false, reason: 'inconsistent-envelope' });
+    for (const state of ['succeeded', 'failed', 'cancelled']) {
+      const terminal = { ...run, state };
+      const ended = applyRelatedProgress(relation, held(), receiptRow(), envelope(terminal, 'succeeded'), context);
+      assert.equal(ended.applied, true);
+      if (!ended.applied) continue;
+      assert.deepEqual(ended.notification, { relation, deliveryId: 'del_1', revision: 8, status: 'succeeded' });
+      const lateSnapshot = { ...terminal, sequence: '9007199254740994', charged_jobs: '9007199254740993',
+        outputs: structuredClone(outputs) };
+      const late = applyRelatedProgress(relation, ended.association, ended.receipt,
+        envelope(lateSnapshot, 'succeeded', 9), context);
+      const retained = applyRetainedRelatedProgress(relation, ended.receipt, envelope(lateSnapshot, 'succeeded', 9), context);
+      for (const result of [late, retained]) {
+        assert.equal(result.applied, true);
+        if (result.applied) {
+          assert.deepEqual(result.receipt.result, lateSnapshot);
+          assert.equal(result.notification, null);
+          assert.equal(result.replay, false);
+        }
+      }
+      const replay = applyRetainedRelatedProgress(relation, ended.receipt,
+        envelope({ ...terminal, sequence: '0', outputs: [] }, 'succeeded'), context);
+      assert.equal(replay.applied, true);
+      if (replay.applied) {
+        assert.strictEqual(replay.receipt, ended.receipt);
+        assert.equal(replay.replay, true);
+        assert.equal(replay.notification, null);
+      }
+      for (const change of [{ outputs: [...outputs].reverse() }, { outputs: [] }, { detail: 'changed' },
+        { outputs: [{ position: '0', image: { id: 'other_file' } }, outputs[1]] }]) {
+        assert.deepEqual(applyRetainedRelatedProgress(relation, ended.receipt,
+          envelope({ ...lateSnapshot, ...change }, 'succeeded', 9), context),
+          { applied: false, reason: 'terminal-immutable' });
+      }
+      if (late.applied) {
+        for (const charged_jobs of [null, '8']) {
+          assert.deepEqual(applyRetainedRelatedProgress(relation, late.receipt,
+            envelope({ ...lateSnapshot, charged_jobs, sequence: '9007199254740995' }, 'succeeded', 10), context),
+            { applied: false, reason: 'inconsistent-envelope' });
+        }
+      }
+    }
+  });
+
+  it('refuses malformed nested wire values before any accessor read or State row staging', () => {
+    let reads = 0;
+    const accessor = { position: '0', get image() { reads++; return { id: 'file_a' }; } };
+    const fileAccessor = { get id() { reads++; return 'file_a'; } };
+    const arrayAccessor = [outputs[0]];
+    Object.defineProperty(arrayAccessor, '0', { get() { reads++; return outputs[0]; }, enumerable: true });
+    const badResults = [{ ...run, outputs: [accessor] }, { ...run, outputs: [{ position: '0', image: fileAccessor }] },
+      { ...run, outputs: arrayAccessor }, { ...run, get outputs() { reads++; return outputs; } },
+      { ...run, outputs: [Object.create(outputs[0])] }, { ...run, outputs: [undefined] },
+      { ...run, outputs: new Array(1) }, { ...run, outputs: [{ position: '01', image: { id: 'file_a' } }] },
+      { ...run, outputs: [{ position: 0, image: { id: 'file_a' } }] },
+      { ...run, outputs: [{ position: '0', image: { id: '' } }] },
+      { ...run, outputs: [{ position: '0', image: 'file_a' }] },
+      { ...run, outputs: [{ position: '0', image: { id: 'file_a', url: 'private' } }] },
+      { ...run, outputs: [{ position: '0', image: { id: 'file_a' }, extra: undefined }] },
+      { ...run, outputs: [{ image: { id: 'file_a' } }] }, { ...run, outputs: undefined },
+      { ...run, sequence: '-1' }, { ...run, charged_jobs: '-1' }, { ...run, sequence: '01' },
+      { ...run, revision: '9223372036854775808' }, { ...run, source: 'other' },
+      { ...run, extra: 'private' }, { job: 'provider_job', state: 'running', outputs: [], detail: null }];
+    const data = { deliveryId: 'del_1', revision: 8, status: 'pending' as const, result: run, error: null,
+      contentRef: null, resultExpiresAtMs: null };
+    const meta = { nowMs: NOW, actor: 'worker' };
+    const row = newReceiptRow(data, meta, context);
+    assert.deepEqual(readReceiptRow(row, context).receipt.result, run);
+    const batch: CommitBatch = { expectedRevision: 7 as CommitBatch['expectedRevision'],
+      writes: [{ kind: 'insert', model: RECEIPT_MODEL as CommitBatch['writes'][number]['model'], row }],
+      history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] };
+    assert.throws(() => assertReceiptJoin(batch), /inconsistent/);
+    assert.doesNotThrow(() => assertReceiptJoin(batch, new Map([['del_1', context]])));
+    const later = withReceiptRowData(row, { ...data, revision: 9, result: { ...run, sequence: '9007199254740994' } }, meta, context);
+    assert.equal(readReceiptRow(later, context).receipt.revision, 9);
+    for (const result of badResults) {
+      assert.deepEqual(applyRelatedProgress(relation, held(), receiptRow(), envelope(result), context),
+        { applied: false, reason: 'inconsistent-envelope' });
+      assert.throws(() => newReceiptRow({ ...data, result }, meta, context), /inconsistent/);
+      assert.throws(() => withReceiptRowData(row, { ...data, revision: 9, result }, meta, context), /inconsistent/);
+    }
+    assert.equal(reads, 0);
+  });
+});
