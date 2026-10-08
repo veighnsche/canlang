@@ -62,3 +62,19 @@ SYN-R04 is complete at its original silent semantic-loss scope. The frozen retir
 Checked scheduling at `01dc0651` carries the declaring package, canonical Values event inputs and simple declared-event handler linkage. Private trusted invocation metadata at `86a8be55` lets the owning runtime admit current fields and bind `{event}`; captured versions retain their existing meaning. Checked standard delivery schemas at `bdab3576` and the reserved `Receipt.read` descriptor at `f1d63d0a` pass the unchanged native Email fixture and real State descriptor loader. Current grants, persistence and provider observation remain owning runtime duties. Anonymous format coverage at `e71b37cf` and the earlier SEM-R08 overload/nominal/default/initializer controls remain bounded, with the broader references open.
 
 FAIL-R06 [finite width controls](width-boundaries/README.md) now cover genuine source offsets/snapshots, named-message branches/parameters, diagnostic multiplicity/output and typed graph edges/IDs. The tiny standalone decoder overflow is repaired at `c0a633b2`; focused cases and strict library Clippy pass. Extreme whole-source/count/output admission remains unresolved. Existing source-map, catalog, field-reuse and cycle outcomes are reused; no new proof packet or whole-suite claim is added.
+
+Ordered scenario defaults at `121688d7` follow the accepted earlier-parameter rule
+in supported native nonnullable scalar execution. Real State admission keeps
+omitted inputs absent, supplied overrides skip defaults, and async/default
+failure order is preserved. Nullable/array/reference computed defaults retain
+E6008; read-scenario runtime and resolved-default receipt/replay remain open.
+The same release publishes owning File scalar/nullable/array profiles, qualified
+through native returns and real Values codecs. Scope closure at `d2fb9024`
+follows executed omitted parameter/create defaults and server initializers,
+while supplied ordinary overrides stay inactive. Known standard nominal
+constructs at `6dd7bf96` use their declared field schemas; the genuine
+TextRequest source executes its contextual role enum and preserves selected
+send/association/require order. Focused native cases, strict library Clippy and
+the compiler build pass. These components leave the count at **53/67**, with
+**14 remaining**; File authority/byte transfer and wider runtime workflows
+remain owning consumer work.
