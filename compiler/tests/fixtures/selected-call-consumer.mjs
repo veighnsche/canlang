@@ -101,6 +101,11 @@ for(const [name,expected,receiverTrace]of [
   const failedTrace=[];await assert.rejects(call(name,collectionBox(failedTrace,fail)),{message});assert.deepEqual(failedTrace,expectedTrace,name+' '+message);
  }
 }
+for(const [value,expected]of [['\u0085padded\u0085','padded'],['\uFEFFpadded\uFEFF','\uFEFFpadded\uFEFF']]){
+ const trace=[];const returned={get text(){trace.push('text');return value}};
+ const input={get right(){trace.push('right');return returned},get left(){trace.push('left');return returned}};
+ assert.equal(await call('returned_trim',input),expected);assert.deepEqual(trace,['right','left','text']);
+}
 {const trace=[];await assert.rejects(call('ordered',box(trace,true)),{message:'first'});assert.deepEqual(trace,['left'])}
 {const trace=[];assert.equal(await call('lazy',box(trace)),false);assert.deepEqual(trace,[])}
 {const trace=[];assert.equal(await call('mixed',box(trace)),true);assert.deepEqual(trace,['right','left'])}

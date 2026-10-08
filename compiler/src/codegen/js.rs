@@ -18,7 +18,7 @@
 //! Scalar lowering uses one import name per operation (`addMoney`,
 //! `compareMoney` with relational compare against zero, ...), BigInt exact
 //! integers/durations, `int64` checked arithmetic, `same` reference
-//! identity and `equalValue(c, canonicalTypeId, a, b)` structural equality.
+//! identity and `equalValue(canonicalTypeId, a, b)` structural equality.
 //! Guards lower `by` to `check(hasRole(...), 'forbidden')`; effects lower
 //! `deleteRecord` modes, bound `send`, `schedule` with `on:{every}` and
 //! CRUD `create`/`set` with `when`.
@@ -1932,7 +1932,7 @@ impl<'a> Emitter<'a> {
     /// Scalar dispatch follows §13 exactly: one import name per operation,
     /// comparators returning -1/0/1 compared against zero, BigInt exact
     /// integers/durations, `int64` checked arithmetic, `same` reference
-    /// identity and `equalValue(c, canonicalTypeId, a, b)` structural
+    /// identity and `equalValue(canonicalTypeId, a, b)` structural
     /// equality. Unlowerable combinations are `E6008` plus a throwing
     /// placeholder.
     pub fn lower_expr(&mut self, expr: &TypedExpr) -> String {
@@ -2153,15 +2153,10 @@ impl<'a> Emitter<'a> {
 
     /// Lower a call: catalog builtins import from `@canlang/stdlib`
     /// (availability-checked at link time); capability operations import
-    /// from their owning package module as `await op(c, ...)`. `trim/1`
-    /// lowers to the `<arg>.trim()` method per the oracle corpus.
+    /// from their owning package module as `await op(c, ...)`.
     fn lower_call(&mut self, target: &IrCallTarget, args: &[TypedExpr], span: Span) -> String {
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
-        }
-        if matches!(target, IrCallTarget::Builtin { id, .. } if id == "trim") && args.len() == 1 {
-            let arg = self.lower_expr(&args[0]);
-            return format!("{}.trim()", parenthesize_operand(&arg, &args[0].expr));
         }
         let parts: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         self.lower_call_rendered(target, &parts, args.first().map(|arg| &arg.ty), span, true)
@@ -2487,7 +2482,7 @@ impl<'a> Emitter<'a> {
                 )
             }
             IrBinOp::In => {
-                if !matches!(right.ty, ResolvedType::Array { .. }) {
+                let ResolvedType::Array { element, .. } = &right.ty else {
                     let id = self.canonical_type_id(&right.ty, span);
                     self.unsupported(
                         "in membership",
@@ -2495,11 +2490,16 @@ impl<'a> Emitter<'a> {
                         span,
                     );
                     return self.throw_expr("in over non-collection");
-                }
+                };
                 // Call arguments evaluate once in authored left-to-right
                 // order, including awaits. The lambda's parameters cannot
                 // capture either operand and introduce no Promise turn.
-                format!("(($member,$collection)=>$collection.includes($member))({l},{r})")
+                self.stdlib.insert("equalValue".to_string());
+                let type_id = self.canonical_type_id(element, span);
+                format!(
+                    "(($member,$collection)=>$collection.some($item=>equalValue({},$member,$item)))({l},{r})",
+                    js_string(&type_id)
+                )
             }
             IrBinOp::Eq | IrBinOp::Ne => self.lower_equality(op, left, right, span, l, r),
             IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge => {
@@ -2512,7 +2512,7 @@ impl<'a> Emitter<'a> {
     }
 
     /// Lower `==`/`!=`: `null` compares directly, money uses `equalMoney`,
-    /// decimals and structural values use `equalValue(c, typeId, a, b)`,
+    /// decimals and structural values use `equalValue(typeId, a, b)`,
     /// references use `same`, secrets use `secretEqual`, ordered scalars
     /// compare directly.
     fn lower_equality(
@@ -2558,7 +2558,7 @@ impl<'a> Emitter<'a> {
             if self.in_hook() {
                 return self.hook_gap(
                     "hook equality",
-                    "structural equality needs the ambient context (equalValue(c, ...)), which hooks do not receive",
+                    "structural equality has no qualified native hook carrier profile",
                     span,
                 );
             }
@@ -2566,7 +2566,7 @@ impl<'a> Emitter<'a> {
             let id = self.canonical_type_id(&left.ty, span);
             return negate_call(
                 negate,
-                &format!("equalValue(c,{}, {l},{r})", js_string(&id)),
+                &format!("equalValue({}, {l},{r})", js_string(&id)),
             );
         }
         let l_family = scalar_family(&left.ty);
@@ -2580,12 +2580,12 @@ impl<'a> Emitter<'a> {
                 if self.in_hook() {
                     return self.hook_gap(
                         "hook equality",
-                        "decimal equality needs the ambient context (equalValue(c, ...)), which hooks do not receive",
+                        "decimal equality has no qualified native hook carrier profile",
                         span,
                     );
                 }
                 self.stdlib.insert("equalValue".to_string());
-                negate_call(negate, &format!("equalValue(c,\"decimal\",{l},{r})"))
+                negate_call(negate, &format!("equalValue(\"decimal\",{l},{r})"))
             }
             (
                 Some(

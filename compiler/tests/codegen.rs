@@ -945,7 +945,7 @@ fn golden_expenseflow_structure() {
         "lock rule"
     );
     assert!(
-        entry.contains("(($member,$collection)=>$collection.includes($member))(row.status,[\"approved\",\"rejected\"])"),
+        entry.contains("(($member,$collection)=>$collection.some($item=>equalValue(\"expenses.Expense.status\",$member,$item)))(row.status,[\"approved\",\"rejected\"])"),
         "in membership"
     );
     // G4 contracts and preferences.
@@ -1027,7 +1027,7 @@ fn golden_expenseflow_structure() {
         "approve effect"
     );
     assert!(
-        entry.contains("$can$l$363a6e6f7465.trim() !== \"\""),
+        entry.contains("trim($can$l$363a6e6f7465) !== \"\""),
         "reject trim guard"
     );
     assert!(
@@ -1723,7 +1723,7 @@ fn construct_scalars_per_op() {
         &binary(IrBinOp::Eq, dec("1.5"), dec("1.5"), bool_ty.clone()),
     );
     assert!(
-        text.starts_with("equalValue(c,\"decimal\","),
+        text.starts_with("equalValue(\"decimal\","),
         "decimal equality: {text}"
     );
 
@@ -1808,7 +1808,7 @@ fn construct_scalars_per_op() {
             bool_ty.clone(),
         ),
     );
-    assert_eq!(text, "equalValue(c,\"text[]\", a,b)");
+    assert_eq!(text, "equalValue(\"text[]\", a,b)");
     let widget = ResolvedType::Record {
         symbol: SymbolId(0),
         stored: true,
@@ -1836,7 +1836,7 @@ fn construct_scalars_per_op() {
             bool_ty.clone(),
         ),
     );
-    assert_eq!(text, "equalValue(c,\"demo.Summary\", a,b)");
+    assert_eq!(text, "equalValue(\"demo.Summary\", a,b)");
 
     // Membership, coalescing, logic, trim.
     let (text, _, _) = lower(
@@ -1859,9 +1859,9 @@ fn construct_scalars_per_op() {
     );
     assert_eq!(
         text,
-        "(($member,$collection)=>$collection.includes($member))(\"a\",[\"a\",\"b\"])"
+        "(($member,$collection)=>$collection.some($item=>equalValue(\"text\",$member,$item)))(\"a\",[\"a\",\"b\"])"
     );
-    let (text, _, _) = lower(
+    let (text, imports, _) = lower(
         &ir,
         &typed(
             IrExpr::Call {
@@ -1874,7 +1874,8 @@ fn construct_scalars_per_op() {
             text_ty.clone(),
         ),
     );
-    assert_eq!(text, "note.trim()");
+    assert_eq!(text, "trim(note)");
+    assert!(imports.iter().any(|i| i.contains("trim")));
     // Awaited builtins record their catalog reference for E6007 checks.
     let mut emitter = Emitter::new(&ir);
     let call = emitter.lower_expr(&typed(
@@ -6316,8 +6317,8 @@ fn t31_hook_query_unsupported() {
     );
 }
 
-/// (T31) Ambient-context equality in hooks has no lowering: decimal `==`
-/// needs `equalValue(c, ...)` and hooks have no `c`.
+/// (T31) Decimal equality in hooks remains unsupported pending qualification
+/// of the native hook carrier profile.
 #[test]
 fn t31_hook_decimal_eq_unsupported() {
     let (catalog, path) = golden_catalog();
