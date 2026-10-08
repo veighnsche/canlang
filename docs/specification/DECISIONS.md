@@ -2743,3 +2743,10 @@ State owns the `delivery(c, {record, field}, selected)` function. It forwards th
 Accepted: the existing Files kernel uses an explicit Node24 SQLite host subpath. Upload intents, finalized metadata and bytes share one SQLite transaction; the portable package root stays separate. The actual authenticated Interfaces upload/MCP attachment and canonical record-field download reuse the defining Values File codec and current identity/owner/membership checks. Download rechecks current access and the same field/value/version before exposing bytes.
 
 The selected nativeD1 State and SQLite Files case and existing bundle link pass; root reviewed the released source and reused those results. Files attachment metadata follows the State commit and is repaired on the same receipted envelope after a lost response. This is not a cross-database atomic transaction. Identity in this case remains an explicit memory fixture. Browser, R2/default Worker, shared-principal, installed release and wider parent gates stay open; this capability addition receives no replacement reduction credit.
+
+
+## 2026-10-08 — Own computed-default claims and real omission consumer
+
+Accepted: the runtime pairs the own-data `computedDefault:true` claim in the original artifact with the owning generated module's appDefinition before invoking a scenario. State retains omission and the generated handler evaluates the default in source order; absent nullable/ordinary-array inputs must not be filled with null/empty before that handler. Explicit null, empty array and supplied values still override the default. Inherited metadata cannot establish the claim.
+
+The genuine nativeD1 scenario case passes after the own-marker repair, including refusal without revision/row change, omission versus explicit input identity, original receipt replay and reopen. Root directly reviewed the released change and reused the owning emit/case. This selected scalar-default consumer does not close prepared/ref/all-host/installed H1 or root parent gates. Compiler's five ARCH-02 public-support families remain supported with no API retirement or deletion credit; their existing acceptance is reused.

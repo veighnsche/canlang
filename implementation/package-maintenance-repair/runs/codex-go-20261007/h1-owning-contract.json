@@ -62,8 +62,8 @@
     "reuse_current_producer_and_source_evidence": true,
     "finite_contract_review": "gpt-6.1-sol high: multi-owner interface tradeoff",
     "estimates_not_measured": {
-      "shared_first_source_lines": "160\u2013360 before write/native support",
-      "prior_local_bridge_lines": "100\u2013240"
+      "shared_first_source_lines": "160–360 before write/native support",
+      "prior_local_bridge_lines": "100–240"
     },
     "replacement_savings": 0,
     "growth_budget": "required typed runtime correctness, shared horizon maintenance benefit remains to measure"
@@ -82,7 +82,7 @@
     "limits": "Actual Values codecs, full typed inputs/defaults/hooks/results/native/durable/installed consumers remain open"
   },
   "computed_default_omission": {
-    "status": "Defining Contracts/State source released and directly reviewed; commit ready, generated-handler/runtime consumer pending",
+    "status": "Defining Contracts/Statea9d70298 committed; corrected real generated-handler/nativeD1 runtime consumer accepted by root direct review; consumer commit ready",
     "source_paths": [
       "packages/contracts/src/artifact.ts",
       "packages/contracts/src/state.ts",
@@ -96,6 +96,20 @@
     "consumer_limits": "Compiler producer and appDefinition/artifact pairing plus nullable scenarioParameters fill suppression remain owning Compiler/Roadmap consumer work. Whole H1, read/ref/replay/durable/installed and parent acceptance are not implied.",
     "model": "gpt-6.1-sol medium: frozen finite checked omission metadata consumer",
     "sources_dist_handles_released": true,
-    "counts_unchanged": true
+    "counts_unchanged": true,
+    "consumer": {
+      "status": "Corrected own-source/artifact computedDefault pair and real ordered scenario omission consumer accepted; commit ready",
+      "sources": [
+        "packages/cloudflare/test/fixtures/typed-scenario-values.can",
+        "packages/cloudflare/test/fixtures/typed-scenario-values.json",
+        "packages/cloudflare/src/runtime/typed-scenario-values.test.ts",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ],
+      "contract": "Generated source alone evaluates defaults; real runtime verifies matching own-data omission markers against same original artifact declaration, preserves absent nullable/array parameters for generated handler. Explicit null/empty array and supplied values keep their meanings; inherited artifact marker refuses before mutation.",
+      "verification": "Owning genuine source/current compiler artifact regeneration0, normal CF emit0 and same existing native typed-scenario case1/1 after actual inherited-marker repair. Omitted default/explicit null/[]/supplied overrides, numeric wire refusal, input-hash distinction, replay and D1 reopen covered; root reviewed released source and reused unchanged results.",
+      "limits": "Selected bound nullable/ordinary-array scalar signature defaults with nativeD1 State and explicit memory identity only. Full prepared provenance, ref/default/read/native-installed/wider H1 and parent gates open.",
+      "source_outputs_handles_released": true,
+      "counts_unchanged": true
+    }
   }
 }

@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:52:10.221361+00:00",
+  "updated_utc": "2026-10-08T10:53:34.274705+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1839,10 +1839,17 @@
         "limits": "Nullable/array/ref computed defaults retain E6008; read-scenario/default receipt/replay joins, File authority/durable bytes, wider host/native/parent closure remain separate",
         "State_consumer_prerequisite": "544aae43",
         "counts_unchanged": true
+      },
+      "public_support_retention": {
+        "commit": "4e8e7bf1",
+        "scope": "ARCH-02 retain-support disposition for existing docs legacy views, public map decoder, LSP render builders, public descriptor fragments and duplicate LSP position carriers",
+        "owner_status": "Compiler54/67; separate from root48",
+        "credit": "No API retirement/deletion or replacement reduction",
+        "checks": "Existing accepted family coverage reused; no new checks/review layer"
       }
     },
     "computed_default_omission": {
-      "status": "Defining Contracts/State source released and directly reviewed; commit ready, generated-handler/runtime consumer pending",
+      "status": "Defining Contracts/Statea9d70298 committed; corrected real generated-handler/nativeD1 runtime consumer accepted by root direct review; consumer commit ready",
       "source_paths": [
         "packages/contracts/src/artifact.ts",
         "packages/contracts/src/state.ts",
@@ -1856,7 +1863,21 @@
       "consumer_limits": "Compiler producer and appDefinition/artifact pairing plus nullable scenarioParameters fill suppression remain owning Compiler/Roadmap consumer work. Whole H1, read/ref/replay/durable/installed and parent acceptance are not implied.",
       "model": "gpt-6.1-sol medium: frozen finite checked omission metadata consumer",
       "sources_dist_handles_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "consumer": {
+        "status": "Corrected own-source/artifact computedDefault pair and real ordered scenario omission consumer accepted; commit ready",
+        "sources": [
+          "packages/cloudflare/test/fixtures/typed-scenario-values.can",
+          "packages/cloudflare/test/fixtures/typed-scenario-values.json",
+          "packages/cloudflare/src/runtime/typed-scenario-values.test.ts",
+          "packages/cloudflare/src/runtime/invoke.ts"
+        ],
+        "contract": "Generated source alone evaluates defaults; real runtime verifies matching own-data omission markers against same original artifact declaration, preserves absent nullable/array parameters for generated handler. Explicit null/empty array and supplied values keep their meanings; inherited artifact marker refuses before mutation.",
+        "verification": "Owning genuine source/current compiler artifact regeneration0, normal CF emit0 and same existing native typed-scenario case1/1 after actual inherited-marker repair. Omitted default/explicit null/[]/supplied overrides, numeric wire refusal, input-hash distinction, replay and D1 reopen covered; root reviewed released source and reused unchanged results.",
+        "limits": "Selected bound nullable/ordinary-array scalar signature defaults with nativeD1 State and explicit memory identity only. Full prepared provenance, ref/default/read/native-installed/wider H1 and parent gates open.",
+        "source_outputs_handles_released": true,
+        "counts_unchanged": true
+      }
     },
     "file_mcp_transport": {
       "status": "Defining Interfaces51d10222 committed; actual native Files23 MCP consumer passed1/1, selected File release accepted by root direct review",
@@ -2501,7 +2522,7 @@
       "counts_unchanged": true
     },
     "file_durable_consumer": {
-      "status": "Root directly reviewed frozen12-path Files release; selected Node24 SQLite/nativeD1 authenticated upload/attachment/field read accepted; commit ready",
+      "status": "Root reviewed and committedc2d04992 selected Node24 SQLite/nativeD1 File consumer; wider profiles open",
       "sources": [
         "bun.lock",
         "packages/files/package.json",
@@ -2525,7 +2546,8 @@
         "Selected singular checked File workflow; array/ref/all-host/browser/installed/native-preparation/default Worker/R2/shared-principal and broad parent acceptance remain open"
       ],
       "sources_outputs_handles_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "c2d0499228ea4fc38dc976f22034d02d67cefa24"
     }
   }
 }
