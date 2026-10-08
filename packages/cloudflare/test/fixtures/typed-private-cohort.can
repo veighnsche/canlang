@@ -4,6 +4,8 @@ Given
  Entry in Container {label:text,applicable:bool=true,consent:bool=true,count:int=0}
  event Sweep {marker:text}
  event Scoped {container:Container,marker:text}
+ event Mixed {entry:Entry,marker:text}
+ event OrdinaryPair {entry:Entry,marker:text}
  policy Container read=members
  policy Entry read=members
 When
@@ -27,4 +29,17 @@ When
    require actor==null
    require operation.source=="schedule"
    let marker=event.marker
+ ## Intake must keep these sources pending until every sibling has retained routing.
+ scenario mixedOrdinary on=Mixed
+  do
+   set event.entry {label=event.marker}
+ scenario mixedCohort on=Mixed each=Entry as child
+  do
+   set child {label=event.marker}
+ scenario ordinaryFirst on=OrdinaryPair
+  do
+   set event.entry {label=event.marker}
+ scenario ordinarySecond on=OrdinaryPair
+  do
+   set event.entry {count=event.entry.count+1}
 Then

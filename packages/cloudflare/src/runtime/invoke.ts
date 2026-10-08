@@ -4254,6 +4254,38 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
     throw new Error('Due handler lacks its exact private invocation/event/scope declaration.');
   }
   const cohorts = member(definition, 'cohorts');
+  // One event source must account for every declared handler before consuming
+  // Work's occurrence. The current cohort producer covers one owning module;
+  // ordinary intake covers one handler, not a mixed or multi-handler unit.
+  const definitions = new Map<string, unknown>([[callable.module, definition]]);
+  let matchingHandlers = 0;
+  let ordinaryHandlers = 0;
+  for (const sibling of opts.artifact.callables) {
+    if (sibling.kind !== 'handler') continue;
+    if (!definitions.has(sibling.module)) {
+      const siblingUrl = opts.asm.moduleUrls[sibling.module];
+      if (siblingUrl === undefined) throw new Error('Due sibling has no owning assembled module.');
+      definitions.set(sibling.module, member(await import(siblingUrl), 'appDefinition'));
+    }
+    const siblingDefinition = definitions.get(sibling.module);
+    const siblingHandler = member(member(siblingDefinition, 'operations'), sibling.id);
+    if (member(siblingHandler, 'event') !== opts.due.event) continue;
+    const siblingInvocation = member(siblingHandler, 'invocation');
+    if (!isUnknownRecord(siblingInvocation) || member(siblingInvocation, 'name') !== sibling.id ||
+        member(siblingInvocation, 'kind') !== 'scenario' ||
+        !isUnknownRecord(member(member(member(siblingDefinition, 'events'), opts.due.event), 'inputs'))) {
+      throw new Error('Due sibling lacks its exact private invocation/event declaration.');
+    }
+    if (sibling.module !== callable.module) {
+      return { status: 'refused' as const, reason: 'cross-module-source-handler-routing-unsupported' };
+    }
+    matchingHandlers += 1;
+    const siblingCohorts = member(siblingDefinition, 'cohorts');
+    if (!isUnknownRecord(siblingCohorts) || !Object.hasOwn(siblingCohorts, sibling.id)) ordinaryHandlers += 1;
+  }
+  if (matchingHandlers > 1 && ordinaryHandlers > 0) {
+    return { status: 'refused' as const, reason: 'multiple-source-handler-routing-unsupported' };
+  }
   if (isUnknownRecord(cohorts) && Object.hasOwn(cohorts, opts.handler)) {
     return invokeDueCohortsCanonical(opts, loaded, definition);
   }

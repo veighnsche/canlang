@@ -88,6 +88,27 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const opts = (handler: string, due = sweepDue): CanonicalDueScheduleOpts => ({ artifact, asm,
       app: APP, handler: `${APP}.${handler}`, due, store: storage.state, identities: storage.identity, now: clock.nowMs,
       cohortBounds: { pageLimit: 2, chunkSize: 2 } });
+    for (const [event, handlers] of [
+      ['Mixed', ['mixedOrdinary', 'mixedCohort']],
+      ['OrdinaryPair', ['ordinaryFirst', 'ordinarySecond']],
+    ] as const) {
+      const due = await schedule(event, { entry: { id: accepted.id, version: String(accepted.version) },
+        marker: 'must remain unapplied' });
+      const pendingSource = await storage.state.load(WORK_SCHEDULE_MODEL, asId(due.occurrenceId));
+      assert.ok(pendingSource);
+      assert.equal(readScheduleRow(pendingSource).state, 'pending');
+      const beforeRevision = await storage.state.readRevision();
+      const beforeRows = await storage.state.query({ model: ENTRY, authority: 'owner' });
+      const beforeHistories = await Promise.all(beforeRows.map(row => storage.state.historyFor(ENTRY, row.id)));
+      for (const handler of handlers) {
+        assert.equal(outcomeStatus(await invokeDueScheduleCanonical(opts(handler, due))), 'refused');
+        assert.deepEqual(await storage.state.load(WORK_SCHEDULE_MODEL, asId(due.occurrenceId)), pendingSource);
+        assert.equal(await storage.state.load(WORK_OCCURRENCE_MODEL, asId(due.occurrenceId)), null);
+        assert.equal(await storage.state.readRevision(), beforeRevision);
+        assert.deepEqual(await storage.state.query({ model: ENTRY, authority: 'owner' }), beforeRows);
+        assert.deepEqual(await Promise.all(beforeRows.map(row => storage.state.historyFor(ENTRY, row.id))), beforeHistories);
+      }
+    }
     assert.ok(!artifact.operations!.some(operation => operation.name === `${APP}.sweep`));
     const publicAttempt = await invoker.invokeMutation({ operation: `${APP}.sweep`, operation_id: nextId(), inputs: {} },
       await resolveIdentity(storage.identity, { session_token: token }, { clock }));
