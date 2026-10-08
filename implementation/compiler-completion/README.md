@@ -149,3 +149,14 @@ also guarded before processing; the affected existing lexer and parser cases
 each pass **1/1**, and the final CLI build passes. Semantic registry and generated output/map
 widths remain separate, with no full-source allocation/resource claim.
 Completion stays **54/67**, with **13** remaining.
+
+Resolver admission at `e217deaf` checks each actual module, symbol and lexical
+scope allocation before mutation. `try_resolve_program` refuses unrepresentable
+IDs with E2019; full checking stops before dependent passes, and the existing
+resolver API returns empty tables with that diagnostic. The finite graph case
+passes **1/1** and the existing resolver target **11/11**. Three saved advisory
+replies disagree about retaining partial tables; the actual compatibility
+caller has no failed-prefix status, supporting complete abort while preserving
+that uncertainty. Billion-entry exhaustion was not allocated. Generated
+output/map widths and the broader FAIL-R06 reference remain open; completion
+stays **54/67**, with **13** remaining.

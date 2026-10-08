@@ -185,6 +185,11 @@ Implemented modules:
   typed error log. Standalone lexer/parser entrypoints also admit whole source
   length before scanning and return E1008 for unrepresentable input. Exact
   `u32::MAX` endpoints stay supported; no memory/timing guarantee follows.
+- Semantic allocation uses fallible `analysis::resolve::try_resolve_program`
+  for module, symbol and scope IDs. The final `u32::MAX` ID is valid; E2019
+  refuses its successor. Full checking stops before dependent passes, retaining
+  diagnostics and cohort metadata. The compatibility resolver returns empty
+  tables on capacity failure. Generated output/map widths remain separate.
 - `src/policy.rs`, `src/lint/`, `src/format.rs`, `src/ide/`: policy dumps,
   lint rules, the formatter, and editor services.
 

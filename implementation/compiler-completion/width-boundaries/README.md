@@ -45,7 +45,7 @@ invocation or extreme cardinality guarantee follows from checked source.
 
 ## Remaining original obligations
 
-- Source-owner counts/whole-source bytes and standalone line-index/lexer/parser intake now have explicit representability admission as recorded below. Semantic IDs and generated/source-map widths remain separate; no giant allocation or arbitrary resource guarantee follows from finite controls.
+- Source-owner counts/whole-source bytes, standalone line-index/lexer/parser intake and semantic IDs now have explicit representability admission as recorded below. Generated/source-map widths remain separate; no giant allocation or arbitrary resource guarantee follows from finite controls.
 - The new permanent `width_boundaries` test qualifies actual loaded builtin matching through 0/16/32/64/128 nullable postfix wrappers: clean int input produces exactly one selected builtin call, and bool input produces E3005. The original loaded Catalog and owning SourceDb remain intact. This does not qualify arbitrary collection/object signature shapes or an extreme supported depth.
 - Direct inspection corrected the original field-depth lead: current `decl_type` only reads cached types, and phase1 resolves forward declarations by fixpoint rounds rather than recursive declaration traversal. The permanent valid forward-chain test passed 0/16/32/64/128 reuse links and verified each canonical field resolves to int plus an explicitly typed derive use. The original two-field cycle returned no diagnostics despite the existing E3008 contract. The checker now records canonical field dependencies in the final fixpoint round and uses deterministic iterative strongly connected components to report cyclic reference spans. The ineffective stack guard is retired. Self and mutual cycles refuse; acyclic upstream references and unrelated int fields retain their behavior.
 - The new graph, message and diagnostic width controls cover the finite cases above; extreme numeric/output growth remains a separate support obligation. Existing semantic outcomes are reused at their declared scope.
@@ -79,10 +79,37 @@ without allocating huge source text. An actual ordinary fmt stdin control
 retains exact bytes and exits 0. Standalone lexer/parser entrypoints at `41b587fc` use the
 same whole-length admission before UTF-8/scanning/layout/parsing; rejection is
 E1008 at the source start with empty lines or the existing empty File root.
-Actual MAX-sized text and billions of identities were not allocated; semantic
-registry and generated output/map growth remain unqualified. This component
+Actual MAX-sized text and billions of identities were not allocated;
+generated output/map growth remains unqualified. This component
 does not close the broader FAIL-R06 reference.
 
 Their existing lexer and parser error/span cases each pass **1/1** after
 these guards; the final source-matching CLI build passes. The ordinary
 source/graph/message/diagnostic controls are reused without a repeat suite.
+
+## Semantic ID admission
+
+`e217deaf` checks the owning vector length before every actual module, symbol
+and lexical-scope allocation. IDs through `u32::MAX` are representable;
+E2019 refuses the next allocation without truncation. The additive
+`try_resolve_program` returns a capacity error instead of partial tables.
+The existing `resolve_program` appends that diagnostic and returns empty
+tables. `check_program` stops before dependent passes, retaining earlier
+diagnostics, catalog version and checked-cohort metadata. Ordinary recoverable
+source errors retain their behavior.
+
+The [three saved advisory replies](../resolver-admission/jev-response-1.json)
+are weak and split: confidence .23/.36/.55; the first ties complete abort and
+partial-prefix retention, the second favors complete abort and the third
+favors partial retention. They provide no rationale. The shipped IDE also
+calls the compatibility resolver for a tables view without retaining duplicate
+diagnostics, and no existing caller promises useful tables after capacity
+failure. Complete abort avoids presenting a valid prefix as a full result;
+external demand for explicit partial-prefix support remains unverified.
+
+The changed-source finite graph case passes **1/1**, preserving IDs, types,
+edges and cycle precision. The existing `b4_resolve` target passes **11/11**,
+including duplicate, trusted-handler, ownership and operation-alias paths.
+Compilation exposed the explanation catalog's array count; it was corrected
+before these passing checks. No billion-entry exhaustion, full-suite repeat or
+full FAIL-R06 closure is claimed.
