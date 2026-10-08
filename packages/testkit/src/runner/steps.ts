@@ -7,6 +7,8 @@
  * runner evaluates rather than interprets: table `inputs`/`values` /
  * `expected` / `observations` take `(callerBindings, scopeValues)`, and
  * sequence steps additionally take the let-binding scope `(c, s, b)`.
+ * Optional sequence request closures evaluate after caller and inputs;
+ * their values pass unchanged to the invoker, which owns envelope semantics.
  * Fixture and binding scopes expose authored properties while retaining
  * Map methods when an authored key does not shadow them. Recipe dependencies
  * resolve to the module's own recipe consts;
@@ -35,6 +37,8 @@ export interface StepCall {
   readonly operation: string;
   /** Evaluated inputs callback value (header bindings / call inputs). */
   readonly inputs: unknown;
+  /** Evaluated wire-envelope overrides; the real invoker owns their semantics. */
+  readonly request?: unknown;
   /**
    * Evaluated caller: the row `as`-cell value for tables, the step `by`
    * value for sequences. The real invoker owns caller semantics.
@@ -285,7 +289,10 @@ export async function runSequenceSteps(
     }
     const by = await callClosure(step.by, `${what} by`, [ctx.callerBindings, scopeArg, bindingsArg]);
     const inputs = await callClosure(step.inputs, `${what} inputs`, [ctx.callerBindings, scopeArg, bindingsArg]);
-    const outcome = await ctx.invoke({ operation: step.operation, inputs, by, scope: ctx.scope });
+    const request = step.request === undefined
+      ? {}
+      : { request: await callClosure(step.request, `${what} request`, [ctx.callerBindings, scopeArg, bindingsArg]) };
+    const outcome = await ctx.invoke({ operation: step.operation, inputs, by, scope: ctx.scope, ...request });
     if (!outcome.ok && "unsupported" in outcome) {
       return outcome;
     }
