@@ -775,3 +775,120 @@ describe("worker POST /mcp", () => {
     expect(await page.text()).toContain("ok");
   });
 });
+describe("genuine compiled MCP operations through native Worker and D1", () => {
+  it("discovers source tools and preserves canonical defaults, replay and live membership denial", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const { Miniflare } = await import("miniflare");
+    const { hashPassword, loginWithPassword, sha256HexText, issueMcpGrant } = await import("@canlang/identity");
+    const { buildDeployBundleWithAssets, writeDeployBundleWithAssets, DEPLOY_MAIN_MODULE } = await import("../src/deploy/bundle.js");
+    const artifact = JSON.parse(readFileSync(resolve("packages/cloudflare/test/fixtures/typed-operation-forms.json"), "utf8")) as CompileArtifact;
+    const bundle = buildDeployBundleWithAssets(artifact, { verdict: { active: true }, assets: { browser: false } });
+    const dir = tempDir();
+    writeDeployBundleWithAssets(bundle, dir);
+    const worker = new Miniflare({ compatibilityDate: "2026-07-15", modulesRoot: "/",
+      modules: [DEPLOY_MAIN_MODULE, ...Object.keys(bundle.modules).filter(path => path !== DEPLOY_MAIN_MODULE)].map(path => ({
+        type: "ESModule" as const, path: `/${path}`, contents: bundle.modules[path]!,
+      })), d1Databases: { DB: "actual-mcp-forms" } });
+    try {
+      const DB = await worker.getD1Database("DB");
+      const stagedUrl = pathToFileURL(join(dir, "runtime/env-assembly.js")).href;
+      const { buildProductionDeps } = await import(/* @vite-ignore */ stagedUrl);
+      const deps = await buildProductionDeps({ DB });
+      const password = "mcp-source-password";
+      const user = await deps.identityStore.createUser({ email: "mcp-source@example.test",
+        password_hash: await hashPassword(password), email_verified: true });
+      const team = await deps.identityStore.createTeam({ timezone: "Europe/Brussels" });
+      const membership = await deps.identityStore.createMembership({ team_id: team.team_id,
+        user_id: user.user_id, is_owner: false, roles: [] });
+      const { token } = await loginWithPassword(deps.identityStore, { email: user.email, password });
+      const session = await deps.identityStore.findSessionByTokenHash(await sha256HexText(token));
+      expect(session).not.toBeNull();
+      await deps.identityStore.setSessionTeam(session.session_id, team.team_id);
+      const authenticated = await resolveIdentity(deps.identityStore, { session_token: token });
+      expect(authenticated.actor?.user_id).toBe(user.user_id);
+      expect(authenticated.team?.team_id).toBe(team.team_id);
+      // The public issuance helper receives a genuinely authenticated selected-team caller.
+      const { token: grant } = await issueMcpGrant(deps.identityStore, {
+        user_id: authenticated.actor!.user_id, team_id: authenticated.team!.team_id,
+        client_id: "native-source-consumer",
+      });
+      const nativeFetch = async (request: Request) => worker.dispatchFetch(request.url, {
+        method: request.method, headers: request.headers, body: await request.text(),
+      });
+      const initialized = await mcpCall(nativeFetch, "initialize", INIT_PARAMS, { grant });
+      expect(initialized.status).toBe(200);
+      expect(initialized.body.error).toBeUndefined();
+      const listed = await mcpCall(nativeFetch, "tools/list", {}, { grant });
+      expect(listed.status).toBe(200);
+      expect(listed.body.error).toBeUndefined();
+      const tools = (listed.body.result as { tools: Array<{ name: string; inputSchema: {
+        anyOf: Array<{ properties: Record<string, unknown>; required: string[] }>;
+      } }> }).tools;
+      const createTool = tools.find(tool => tool.name === "TypedOperationForms.Entry.create")!;
+      const renameTool = tools.find(tool => tool.name === "TypedOperationForms.rename")!;
+      expect(createTool).toBeDefined(); expect(renameTool).toBeDefined();
+      expect(createTool.inputSchema.anyOf[0]!.properties).toHaveProperty("label");
+      expect(createTool.inputSchema.anyOf[0]!.properties).toHaveProperty("count");
+      expect(createTool.inputSchema.anyOf[0]!.properties).not.toHaveProperty("owner");
+      expect(createTool.inputSchema.anyOf[0]!.required).toContain("label");
+      expect(renameTool.inputSchema.anyOf[0]!.properties).toHaveProperty("entry");
+      expect(renameTool.inputSchema.anyOf[0]!.properties).toHaveProperty("delta");
+      const operationId = freshOperationId();
+      const createArguments = { operation_id: operationId, label: "From MCP" };
+      const created = await mcpCall(nativeFetch, "tools/call", {
+        name: createTool.name, arguments: createArguments,
+      }, { grant });
+      expect(created.status).toBe(200); expect(created.body.error).toBeUndefined();
+      const createResult = created.body.result as ToolResultBody;
+      expect(createResult.isError).toBeUndefined();
+      const born = JSON.parse(createResult.content[0]!.text) as {
+        status: string; result: { id: string; version: number; data: Record<string, unknown> };
+      };
+      expect(born.status).toBe("committed");
+      expect(born.result.version).toBe(1);
+      expect(born.result.data).toEqual({ label: "From MCP", count: "1", owner: { id: user.user_id } });
+      const receipt = await deps.store.readReceipt({ app: "TypedOperationForms", owner: team.team_id,
+        principal: user.user_id, operation: createTool.name, operationId });
+      expect(receipt.resolvedDefaults).toEqual({ count: "1", owner: { id: user.user_id } });
+      const renamed = await mcpCall(nativeFetch, "tools/call", { name: renameTool.name,
+        arguments: { operation_id: freshOperationId(), entry: { id: born.result.id, version: "1" }, newLabel: "Renamed MCP" },
+      }, { grant });
+      expect(renamed.status).toBe(200); expect(renamed.body.error).toBeUndefined();
+      const renameResult = renamed.body.result as ToolResultBody;
+      expect(renameResult.isError).toBeUndefined();
+      expect(JSON.parse(renameResult.content[0]!.text)).toMatchObject({ status: "committed", result: "2" });
+      const model = "TypedOperationForms.Entry";
+      const rows = await deps.store.query({ model, authority: "owner" });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].version).toBe(2);
+      expect(rows[0].data).toEqual({ label: "Renamed MCP", count: "2", owner: { id: user.user_id } });
+      const history = await deps.store.historyFor(model, born.result.id);
+      const revision = await deps.store.readRevision();
+      const replayed = await mcpCall(nativeFetch, "tools/call", { name: createTool.name,
+        arguments: createArguments }, { grant });
+      expect(replayed.status).toBe(200); expect(replayed.body.error).toBeUndefined();
+      const replayResult = replayed.body.result as ToolResultBody;
+      expect(replayResult.isError).toBeUndefined();
+      expect(JSON.parse(replayResult.content[0]!.text)).toMatchObject({ status: "replayed", result: born.result });
+      const invalid = await mcpCall(nativeFetch, "tools/call", { name: createTool.name,
+        arguments: { operation_id: freshOperationId(), label: "Invalid", count: "1.5" } }, { grant });
+      expect(invalid.status).toBe(200);
+      expect(invalid.body.error?.code).toBe(-32602);
+      expect(invalid.body.error?.message).toContain('Invalid value for input "count"');
+      expect(await deps.store.readRevision()).toBe(revision);
+      expect(await deps.store.query({ model, authority: "owner" })).toEqual(rows);
+      expect(await deps.store.historyFor(model, born.result.id)).toEqual(history);
+      expect(await deps.store.outboxPending()).toEqual([]);
+      expect(await deps.store.schedulesDue(Date.now(), 100)).toEqual([]);
+      await deps.identityStore.removeMembership(membership.membership_id);
+      const revoked = await mcpCall(nativeFetch, "tools/call", { name: createTool.name,
+        arguments: { operation_id: freshOperationId(), label: "After removal", count: "malformed" } }, { grant });
+      expect(revoked.status).toBe(401);
+      expect(revoked.body).toMatchObject({ error: { code: "forbidden" } });
+      expect(await deps.store.readRevision()).toBe(revision);
+      expect(await deps.store.query({ model, authority: "owner" })).toEqual(rows);
+      expect(await deps.store.historyFor(model, born.result.id)).toEqual(history);
+    } finally { await worker.dispose(); }
+  }, 60_000);
+});
