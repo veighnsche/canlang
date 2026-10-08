@@ -1,0 +1,5 @@
+app Recovery
+Given
+ corpus Broken model=Missing
+When
+Then

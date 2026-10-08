@@ -1,0 +1,6 @@
+app Decisions
+Given
+ judgment Verdict version=1
+  acceptable noul "Acceptable?"
+When
+Then

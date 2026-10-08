@@ -1,0 +1,12 @@
+app Local
+Given
+ Item { title:text }
+ corpus Handbook model=Item scope=title title=title content=title where=true from=deployment.knowledge
+When
+ scenario echo(value:text) read=true -> text by=members
+  do
+   return value
+  examples value=""
+   value -> result
+   "hello" -> "hello"
+Then

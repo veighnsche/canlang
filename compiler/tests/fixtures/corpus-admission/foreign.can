@@ -1,0 +1,12 @@
+package Library
+ Given
+  export Item { title:text }
+ When
+ Then
+package Knowledge
+ use Library {Item as Imported}
+ Given
+  corpus Handbook model=Imported scope=title title=title content=title where=true from=deployment.knowledge
+ When
+ Then
+app Product uses=[Knowledge]

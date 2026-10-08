@@ -1,0 +1,5 @@
+app Bare
+Given
+ corpus Empty
+When
+Then
