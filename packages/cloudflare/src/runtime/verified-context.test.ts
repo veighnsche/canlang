@@ -25,7 +25,7 @@ describe('qualified source facts on the handler context', () => {
     assert.equal(context.clock, clock);
     assert.equal(reads, 0);
     assert.equal(context.clock(), 1);
-    for (const name of ['actor', 'team', 'now', 'operation', 'canonical']) assert.equal(Object.hasOwn(context, name), false);
+    for (const name of ['actor', 'actorFacts', 'team', 'now', 'operation', 'canonical']) assert.equal(Object.hasOwn(context, name), false);
   });
 
   it('keeps the default clock lazy outside qualified execution', (t) => {
@@ -41,6 +41,7 @@ describe('qualified source facts on the handler context', () => {
     let reads = 0;
     const context = createContext({ caller: { userId: 'unrelated-label', roles: ['owner'] }, store, clock: () => ++reads, qualified: admitted });
     assert.deepEqual(context.actor, makeUserRef('verified-user'));
+    assert.deepEqual(context.actorFacts, { email: 'member@example.test', email_verified: true });
     assert.deepEqual(context.now, makeDatetime(1791454830123n));
     assert.deepEqual(context.team, { id: 'verified-team', timezone: 'Europe/Brussels' });
     assert.deepEqual(context.operation, { id: admitted.operationId, source: 'mcp' });
@@ -50,19 +51,23 @@ describe('qualified source facts on the handler context', () => {
   });
 
   it('copies and freezes compound facts without freezing or exposing the admitted carrier', () => {
-    const actor = { userId: 'copy-user' };
+    const actor = { userId: 'copy-user', email: 'copy@example.test', emailVerified: true };
     const team = { teamId: 'copy-team', timezone: 'Europe/Brussels' };
     const qualified = { ...admitted, actor, team };
     const context = createContext({ caller: { userId: 'label', roles: [] }, store, qualified });
     actor.userId = 'changed-user';
+    actor.email = 'changed@example.test';
+    actor.emailVerified = false;
     team.teamId = 'changed-team';
     team.timezone = 'UTC';
     qualified.source = 'changed-source';
     assert.equal(context.actor?.id, 'copy-user');
+    assert.deepEqual(context.actorFacts, { email: 'copy@example.test', email_verified: true });
     assert.deepEqual(context.team, { id: 'copy-team', timezone: 'Europe/Brussels' });
     assert.equal(context.operation?.source, 'mcp');
-    for (const value of [context.actor, context.team, context.now, context.operation]) assert.equal(Object.isFrozen(value), true);
+    for (const value of [context.actor, context.actorFacts, context.team, context.now, context.operation]) assert.equal(Object.isFrozen(value), true);
     assert.throws(() => Object.assign(context.actor!, { id: 'forged' }), TypeError);
+    assert.throws(() => Object.assign(context.actorFacts!, { email_verified: false }), TypeError);
     assert.throws(() => Object.assign(context.team!, { timezone: 'UTC' }), TypeError);
     assert.throws(() => Object.assign(context.operation!, { id: 'forged' }), TypeError);
     assert.equal(Object.isFrozen(qualified), false);
@@ -71,10 +76,20 @@ describe('qualified source facts on the handler context', () => {
   it('preserves null actor and team without attribution or caller fallback', () => {
     const context = createContext({ caller: { userId: 'anonymous', roles: ['public'] }, store, qualified: { ...admitted, actor: null, team: null } });
     assert.equal(context.actor, null);
+    assert.equal(context.actorFacts, null);
     assert.equal(context.team, null);
     assert.equal(Object.hasOwn(context, 'actor'), true);
     assert.equal(Object.hasOwn(context, 'team'), true);
     assert.deepEqual(context.operation, { id: admitted.operationId, source: 'mcp' });
+  });
+
+  it('preserves unknown facts in legacy admitted principals without contact defaults', () => {
+    const context = createContext({ caller: { userId: 'label', roles: [] }, store,
+      qualified: { ...admitted, actor: { userId: 'legacy-user' } } });
+    assert.deepEqual(context.actor, makeUserRef('legacy-user'));
+    assert.equal(context.actorFacts?.email, undefined);
+    assert.equal(context.actorFacts?.email_verified, undefined);
+    assert.equal(Object.isFrozen(context.actorFacts), true);
   });
 
   it('retains owning constructor failures and never samples the clock for conversion', () => {
