@@ -14,7 +14,7 @@
 //! Diagnostics use codes E1001–E1008 (see `syntax::mod` catalog).
 
 use crate::diagnostic::Diagnostic;
-use crate::source::{SourceId, Span};
+use crate::source::{SourceId, Span, admit_source_len};
 
 /// Punctuation token. Multi-character operators lex longest-match.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -193,6 +193,8 @@ pub struct Lexed {
 
 /// Lex raw bytes, rejecting malformed UTF-8 with E1002.
 pub fn lex_bytes(file: SourceId, bytes: &[u8]) -> Result<Lexed, Diagnostic> {
+    admit_source_len(bytes.len() as u64)
+        .map_err(|error| Diagnostic::error("E1008", error.to_string(), Span::new(file, 0, 0)))?;
     match std::str::from_utf8(bytes) {
         Ok(text) => Ok(lex(file, text)),
         Err(error) => {
@@ -208,9 +210,19 @@ pub fn lex_bytes(file: SourceId, bytes: &[u8]) -> Result<Lexed, Diagnostic> {
 
 /// Lex validated source text into physical lines.
 ///
-/// Never fails: every byte lands in exactly one token span or in trivia
-/// gaps between spans, and every problem is a diagnostic.
+/// Within the source-offset range, every byte lands in exactly one token
+/// span or in trivia gaps. Oversized text returns no lines and one E1008.
 pub fn lex(file: SourceId, text: &str) -> Lexed {
+    if let Err(error) = admit_source_len(text.len() as u64) {
+        return Lexed {
+            lines: Vec::new(),
+            diagnostics: vec![Diagnostic::error(
+                "E1008",
+                error.to_string(),
+                Span::new(file, 0, 0),
+            )],
+        };
+    }
     let mut diagnostics = Vec::new();
     let mut lines = Vec::new();
     let bytes = text.as_bytes();
