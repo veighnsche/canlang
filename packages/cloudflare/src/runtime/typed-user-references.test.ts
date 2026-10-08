@@ -1,17 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact, MutationEnvelope } from '@canlang/contracts';
+import type { MutationEnvelope } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import {
   FIXED_NOW, asId, asModel, asOperation, asOperationId, createMemoryIdentityStore,
   makeIdentity, seedMember, uuidv7,
 } from '@canlang/state/testing/invocation/fixtures';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
+import { loadArtifactFile } from '@canlang/cloudflare/runtime/artifact';
 import { buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 
 const APP = 'TypedUserReferences';
@@ -46,7 +47,7 @@ async function openD1(dir: string) {
 
 test('compiled UserRefs preserve actor equality and closed wire shapes through D1 and replay', async () => {
   const path = resolve('packages/cloudflare/test/fixtures/typed-user-references.json');
-  const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
+  const { artifact } = loadArtifactFile(path);
   const dir = await mkdtemp(join(tmpdir(), 'can-user-references-'));
   let d1: Awaited<ReturnType<typeof openD1>> | undefined;
   // Membership/identity are fixtures. Both supplied users are active in this

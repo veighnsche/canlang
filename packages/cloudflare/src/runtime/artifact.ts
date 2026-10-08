@@ -108,6 +108,8 @@ const OPERATION_FIELD_KINDS: ReadonlySet<string> = new Set([
   "decimal",
   "money",
   "datetime",
+  "duration",
+  "user",
   "boolean",
   "file",
   "enum",
@@ -301,7 +303,7 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
           fail(
             path,
             `${fieldWhere}.field.kind must be one of ` +
-              `ref|string|integer|decimal|money|datetime|boolean|file|enum|delivery ` +
+              `ref|string|integer|decimal|money|datetime|duration|user|boolean|file|enum|delivery ` +
               `(got ${JSON.stringify(schema.kind)})`,
           );
         }
