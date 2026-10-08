@@ -76,6 +76,9 @@
  * `test/worker-boundary.test.ts`).
  */
 
+import { parse as parseJavaScript } from "acorn";
+import { analyze as analyzeScopes } from "eslint-scope";
+import { walk as walkJavaScript } from "estree-walker";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
@@ -802,154 +805,47 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* workerd-loadability scan: no node file-URLs, no real CJS.            */
-/*                                                                     */
-/* Two subtleties keep this scan honest on REAL bundler output:        */
-/* - String literals and comments are blanked before scanning (the MCP  */
-/*   SDK embeds `require("ajv/dist/…")` codegen strings and a           */
-/*   `startsWith("file://")` zod check — none of it executable CJS).   */
-/* - `__commonJS(…)` regions are blanked: bun's CJS-interop wrapper     */
-/*   binds `exports`/`module` as parameters, so wrapped CJS deps load   */
-/*   as self-contained ESM in workerd. Only UNWRAPPED CJS refuses.      */
-/* ------------------------------------------------------------------ */
-
-function blankStringsAndComments(source: string): string {
-  const out = source.split("");
-  const length = source.length;
-  const blank = (from: number, to: number): void => {
-    for (let k = from; k < to; k++) {
-      if (out[k] !== "\n") out[k] = " ";
-    }
-  };
-  let i = 0;
-  while (i < length) {
-    const c = source[i];
-    const d = source[i + 1];
-    if (c === "/" && d === "/") {
-      let j = i + 2;
-      while (j < length && source[j] !== "\n" && source[j] !== "\r" && source[j] !== "\u2028" && source[j] !== "\u2029") j++;
-      blank(i, j);
-      i = j;
-    } else if (c === "/" && d === "*") {
-      const j = source.indexOf("*/", i + 2);
-      const end = j === -1 ? length : j + 2;
-      blank(i, end);
-      i = end;
-    } else if (c === "'" || c === '"') {
-      let j = i + 1;
-      while (j < length) {
-        if (source[j] === "\\") j += 2;
-        else if (source[j] === c) {
-          j++;
-          break;
-        } else j++;
-      }
-      blank(i, j);
-      i = j;
-    } else if (c === "`") {
-      // Template literal: blank text spans, keep `${…}` code live.
-      let j = i + 1;
-      let segment = i;
-      while (j < length) {
-        if (source[j] === "\\") {
-          j += 2;
-          continue;
-        }
-        if (source[j] === "`") {
-          blank(segment, j + 1);
-          j++;
-          break;
-        }
-        if (source[j] === "$" && source[j + 1] === "{") {
-          blank(segment, j);
-          let depth = 1;
-          j += 2;
-          while (j < length && depth > 0) {
-            if (source[j] === "{") depth++;
-            else if (source[j] === "}") depth--;
-            j++;
-          }
-          segment = j;
-          continue;
-        }
-        j++;
-      }
-      if (j >= length) blank(segment, length);
-      i = j;
-    } else {
-      i++;
-    }
-  }
-  return out.join("");
-}
-
-function blankCommonJsWrappers(source: string): string {
-  const out = source.split("");
-  const length = source.length;
-  const tag = "__commonJS(";
-  let i = 0;
-  while ((i = source.indexOf(tag, i)) !== -1) {
-    let j = i + tag.length;
-    let depth = 1;
-    let inString: string | null = null;
-    while (j < length && depth > 0) {
-      const c = source[j] as string;
-      if (inString !== null) {
-        if (c === "\\") j += 2;
-        else if (c === inString) {
-          inString = null;
-          j++;
-        } else j++;
-      } else if (c === "'" || c === '"' || c === "`") {
-        inString = c;
-        j++;
-      } else if (c === "(") {
-        depth++;
-        j++;
-      } else if (c === ")") {
-        depth--;
-        j++;
-      } else j++;
-    }
-    for (let k = i; k < j; k++) {
-      if (out[k] !== "\n") out[k] = " ";
-    }
-    i = j;
-  }
-  return out.join("");
-}
-
-const BARE_REQUIRE_RE = /(?<![\w$.])require\s*\(/g;
-const MODULE_EXPORTS_RE = /(?<![\w$.])module\.exports/g;
-const FREE_EXPORTS_RE = /(?<![\w$.])exports(?![\w$])(?!\s*:)/g;
+/* Host CommonJS preflight: library syntax and lexical bindings. */
 
 function scanModuleIssues(source: string, modulePath: string): string[] {
   const issues: string[] = [];
-  for (const re of [BARE_REQUIRE_RE, MODULE_EXPORTS_RE, FREE_EXPORTS_RE]) {
-    re.lastIndex = 0;
-  }
-  let match: RegExpExecArray | null;
   for (const record of scanModuleImports(source, modulePath)) {
     if (record.specifier?.startsWith("file://")) issues.push(`node file-URL import at offset ${record.statement.start}`);
   }
-  const stripped = blankCommonJsWrappers(blankStringsAndComments(source));
-  while ((match = BARE_REQUIRE_RE.exec(stripped)) !== null) {
-    // `export function require(…)` is @canlang/stdlib's guard helper, not CJS.
-    if (/function\s+$/.test(stripped.slice(Math.max(0, match.index - 9), match.index))) continue;
-    issues.push(`bare require( call at offset ${match.index}`);
+  let ast: Parameters<typeof walkJavaScript>[0];
+  try {
+    // Acorn's ESTree nodes retain original UTF-16 ranges for scope diagnostics.
+    ast = parseJavaScript(source, { ecmaVersion: 2025, sourceType: "module", ranges: true }) as unknown as Parameters<typeof walkJavaScript>[0];
+  } catch (error) {
+    const offset = (error as { pos?: unknown } | null)?.pos;
+    if (typeof offset !== "number" || !Number.isInteger(offset)) throw error;
+    throw new Error(`deploy bundle: module ${JSON.stringify(modulePath)} has invalid JavaScript syntax at offset ${offset}`);
   }
-  while ((match = MODULE_EXPORTS_RE.exec(stripped)) !== null) {
-    issues.push(`CommonJS module.exports at offset ${match.index}`);
-  }
-  while ((match = FREE_EXPORTS_RE.exec(stripped)) !== null) {
-    issues.push(`CommonJS free exports at offset ${match.index}`);
+  // Resolve lexical module bindings. Dynamic eval contents are outside this
+  // preflight; no implicit Node/CommonJS bindings or wrapper exemptions apply.
+  const scope = analyzeScopes(ast, { ecmaVersion: 2025, sourceType: "module", ignoreEval: true, nodejsScope: false });
+  const unresolved = new Set(scope.globalScope!.through.map((reference) => reference.identifier));
+  const offsets: [number[], number[], number[]] = [[], [], []];
+  walkJavaScript(ast, {
+    enter(node, parent) {
+      if (node.type !== "Identifier" || !unresolved.has(node)) return;
+      const offset = node.range![0];
+      const directCall = parent?.type === "NewExpression" || (parent?.type === "CallExpression" && !parent.optional);
+      if (node.name === "require" && directCall && parent.callee === node) offsets[0].push(offset);
+      if (node.name === "module" && parent?.type === "MemberExpression" && parent.object === node && !parent.computed && !parent.optional && parent.property.type === "Identifier" && parent.property.name === "exports") offsets[1].push(offset);
+      if (node.name === "exports") offsets[2].push(offset);
+    },
+  });
+  const labels = ["bare require( call", "CommonJS module.exports", "CommonJS free exports"] as const;
+  for (const [group, positions] of offsets.entries()) {
+    for (const offset of positions.sort((a, b) => a - b)) issues.push(`${labels[group]} at offset ${offset}`);
   }
   return issues;
 }
 
 /**
  * Refuse any module that workerd cannot load as ESM: node file-URL imports
- * or real (unwrapped) CommonJS. Bundler `__commonJS` interop, quoted
+ * or free CommonJS references. Bound bundler `__commonJS` interop, quoted
  * tokens, and the stdlib `require` guard pass (proven by tests).
  */
 export function assertWorkerdLoadable(modules: Readonly<Record<string, string>>): void {
