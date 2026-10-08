@@ -4636,7 +4636,7 @@ impl<'a> Emitter<'a> {
     /// Lower one UI node under an explicit context expression. Children
     /// inherit the context; row scopes thread their view name instead.
     pub fn lower_ui_ctx(&mut self, node: &IrUi, ctx: &str) -> String {
-        self.lower_ui_occurrence(node, ctx, &[], None)
+        self.lower_ui_occurrence(node, ctx, &[], None, false)
     }
 
     /// Occurrence identities thread through enclosing collection rows so
@@ -4647,7 +4647,35 @@ impl<'a> Emitter<'a> {
         ctx: &str,
         occurrences: &[String],
         prepared_form: Option<&str>,
+        view_scope: bool,
     ) -> String {
+        if let Some(view) = &node.view {
+            // Evaluate the supplied authorized row once in the caller scope,
+            // then shadow it only for this declaration-owned expansion.
+            let argument = self.lower_business_expr(&view.argument, "view row argument");
+            self.enter_scope();
+            let row = self.bind("row");
+            let mut nested = occurrences.to_vec();
+            nested.push(js_string(&view.identity));
+            nested.push(format!("{row}.id"));
+            let gate = node
+                .gate
+                .as_ref()
+                .map(|gate| self.lower_business_expr(gate, "view gate"));
+            let children = node
+                .children
+                .iter()
+                .map(|child| self.lower_ui_occurrence(child, ctx, &nested, None, true))
+                .collect::<Vec<_>>()
+                .join(",");
+            self.exit_scope();
+            let guard = gate
+                .map(|gate| format!("if(!({gate}))return '';"))
+                .unwrap_or_default();
+            return format!(
+                "await (async({row})=>{{{guard}return (await Promise.all([{children}])).filter(value=>value!=null).join('');}})({argument})"
+            );
+        }
         if !is_ui_factory(&node.factory) {
             self.unsupported(
                 "UI node",
@@ -4756,7 +4784,9 @@ impl<'a> Emitter<'a> {
             let children = node
                 .children
                 .iter()
-                .map(|child| self.lower_ui_occurrence(child, ctx, occurrences, Some(&prepared)))
+                .map(|child| {
+                    self.lower_ui_occurrence(child, ctx, occurrences, Some(&prepared), view_scope)
+                })
                 .collect::<Vec<_>>()
                 .join(",");
             let body = if node.children.is_empty() {
@@ -4825,7 +4855,14 @@ impl<'a> Emitter<'a> {
             } else {
                 self.lower_business_expr(value, "unclassified formatted UI prop")
             };
-            let value = if transient_tabs && key == "id" && !occurrences.is_empty() {
+            let value = if ((transient_tabs && key == "id")
+                || (view_scope
+                    && matches!(
+                        key.as_str(),
+                        "id" | "idPrefix" | "regionId" | "target" | "opens"
+                    )))
+                && !occurrences.is_empty()
+            {
                 format!(
                     r#"{value}+"-"+encodeURIComponent(JSON.stringify([{}]))"#,
                     occurrences.join(",")
@@ -4845,7 +4882,15 @@ impl<'a> Emitter<'a> {
                 let children = node
                     .children
                     .iter()
-                    .map(|c| self.lower_ui_occurrence(c, &child_ctx, &child_occurrences, None))
+                    .map(|c| {
+                        self.lower_ui_occurrence(
+                            c,
+                            &child_ctx,
+                            &child_occurrences,
+                            None,
+                            view_scope,
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join(",");
                 // `async` exactly when a row child awaits.
@@ -4864,55 +4909,68 @@ impl<'a> Emitter<'a> {
                 // never `children` (their F props have no children
                 // slot; shapes validated at decode).
                 if transient_tabs {
-                    let items = node
-                        .children
-                        .iter()
-                        .map(|item| {
-                            let gate = item
-                                .gate
-                                .as_ref()
-                                .map(|gate| self.lower_business_expr(gate, "formatted UI gate"));
-                            let mut fields = Vec::new();
-                            for (key, value) in &item.props {
-                                fields.push(format!(
-                                    "{}:{}",
-                                    object_key(key),
-                                    self.lower_business_expr(
-                                        value,
-                                        "unclassified formatted UI prop"
-                                    )
-                                ));
-                            }
-                            // Eager arrays preserve authored depth-first evaluation:
-                            // each caption then its descendants, exactly once.
-                            let children = item
-                                .children
-                                .iter()
-                                .map(|child| {
-                                    self.lower_ui_occurrence(child, ctx, occurrences, prepared_form)
-                                })
-                                .collect::<Vec<_>>()
-                                .join(",");
-                            fields.push(format!("children:[{children}]"));
-                            let item = format!("({{{}}})", fields.join(","));
-                            match gate {
-                                Some(gate) => format!("{gate}?{item}:null"),
-                                None => item,
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .join(",");
+                    let items =
+                        node.children
+                            .iter()
+                            .map(|item| {
+                                let gate = item.gate.as_ref().map(|gate| {
+                                    self.lower_business_expr(gate, "formatted UI gate")
+                                });
+                                let mut fields = Vec::new();
+                                for (key, value) in &item.props {
+                                    fields.push(format!(
+                                        "{}:{}",
+                                        object_key(key),
+                                        self.lower_business_expr(
+                                            value,
+                                            "unclassified formatted UI prop"
+                                        )
+                                    ));
+                                }
+                                // Eager arrays preserve authored depth-first evaluation:
+                                // each caption then its descendants, exactly once.
+                                let children = item
+                                    .children
+                                    .iter()
+                                    .map(|child| {
+                                        self.lower_ui_occurrence(
+                                            child,
+                                            ctx,
+                                            occurrences,
+                                            prepared_form,
+                                            view_scope,
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(",");
+                                fields.push(format!("children:[{children}]"));
+                                let item = format!("({{{}}})", fields.join(","));
+                                match gate {
+                                    Some(gate) => format!("{gate}?{item}:null"),
+                                    None => item,
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(",");
                     props.push(format!("items:[{items}].filter(item=>item!=null)"));
                 } else if node.factory == "fab" {
                     let mut kids = node.children.iter();
                     if let Some(main) = kids.next() {
                         props.push(format!(
                             "main:[{}]",
-                            self.lower_ui_occurrence(main, ctx, occurrences, prepared_form)
+                            self.lower_ui_occurrence(
+                                main,
+                                ctx,
+                                occurrences,
+                                prepared_form,
+                                view_scope
+                            )
                         ));
                     }
                     let rest: Vec<String> = kids
-                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences, prepared_form))
+                        .map(|c| {
+                            self.lower_ui_occurrence(c, ctx, occurrences, prepared_form, view_scope)
+                        })
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
                 } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer") {
@@ -4950,6 +5008,7 @@ impl<'a> Emitter<'a> {
                                     ctx,
                                     occurrences,
                                     prepared_form,
+                                    view_scope,
                                 ));
                             }
                         }
@@ -4959,7 +5018,9 @@ impl<'a> Emitter<'a> {
                     let children = node
                         .children
                         .iter()
-                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences, prepared_form))
+                        .map(|c| {
+                            self.lower_ui_occurrence(c, ctx, occurrences, prepared_form, view_scope)
+                        })
                         .collect::<Vec<_>>()
                         .join(",");
                     props.push(format!("children:[{children}]"));
@@ -5117,7 +5178,8 @@ impl<'a> Emitter<'a> {
 /// Whether rendering this node evaluates an await in the current callback.
 /// Form and collection descendants execute under their own deferred callbacks.
 fn ui_immediate_uses_async(node: &IrUi) -> bool {
-    node.factory == "form"
+    node.view.is_some()
+        || node.factory == "form"
         || node.props.iter().any(|(_, value)| expr_uses_async(value))
         || node.gate.as_ref().is_some_and(expr_uses_async)
         || (node.factory != "form"
@@ -5127,7 +5189,8 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
 
 /// Whether a UI subtree awaits (form preparation or state-read calls).
 fn ui_uses_async(node: &IrUi) -> bool {
-    node.factory == "form"
+    node.view.is_some()
+        || node.factory == "form"
         || node.props.iter().any(|(_, v)| expr_uses_async(v))
         || node.gate.as_ref().is_some_and(expr_uses_async)
         || node.children.iter().any(ui_uses_async)
@@ -5192,7 +5255,11 @@ fn page_uses_preferences(page: &IrPage) -> bool {
         }
     }
     fn ui_uses(node: &IrUi) -> bool {
-        node.props.iter().any(|(_, v)| expr_uses(v)) || node.children.iter().any(ui_uses)
+        node.view
+            .as_ref()
+            .is_some_and(|view| expr_uses(&view.argument))
+            || node.props.iter().any(|(_, v)| expr_uses(v))
+            || node.children.iter().any(ui_uses)
     }
     page.admit.iter().any(guard_uses) || page.render.iter().any(ui_uses)
 }

@@ -1305,6 +1305,9 @@ impl<'a> Cx<'a> {
                 ("When", SyntaxKind::Scenario) => self.walk_scenario(file, module, text, item),
                 ("When", SyntaxKind::Crud) => self.walk_crud(file, module, text, item),
                 ("Then", SyntaxKind::Invariant) => self.walk_rule(file, module, text, item),
+                ("Then", SyntaxKind::View) if self.checks_on => {
+                    self.walk_ui_leaf_grants(text, item)
+                }
                 ("Then", SyntaxKind::Page) => self.walk_page(module, text, item),
                 _ => {}
             }

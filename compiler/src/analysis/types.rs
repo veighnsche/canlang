@@ -449,6 +449,10 @@ pub enum CheckedChoiceValue {
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Checked local view host models, without executable symbols.
+    pub view_models: HashMap<NodeKey, SymbolId>,
+    /// Successfully checked same-module show targets.
+    pub view_uses: HashMap<NodeKey, NodeKey>,
     /// Checked declarations: one descriptor owns every derived shape.
     pub judgments: HashMap<SymbolId, CheckedJudgment>,
     /// Exact checked generated source constant references.
@@ -711,6 +715,17 @@ impl<'a> Typer<'a> {
     /// Walk one module's sections, dispatching declarations by kind.
     fn phase2_module(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
         self.phase2_owner_attrs(file, text, module, node);
+        for section in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Section)
+        {
+            for view in kids(section)
+                .into_iter()
+                .filter(|n| n.kind == SyntaxKind::View)
+            {
+                self.phase2_view(file, text, module, view);
+            }
+        }
         for section in kids(node) {
             if section.kind != SyntaxKind::Section {
                 continue;
@@ -7245,6 +7260,32 @@ impl<'a> Typer<'a> {
         }
     }
 
+    /// Check declaration-owned UI before publishing any same-module uses.
+    fn phase2_view(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+        if has_error(node) || node.descendants().any(|n| n.kind == SyntaxKind::Show) {
+            return;
+        }
+        let key = NodeKey::of(node);
+        let Some(model) = self.tables.view_models.get(&key).copied() else {
+            return;
+        };
+        let narrow = NarrowEnv::default();
+        let cx = Self::body_cx(module, file, text, &narrow);
+        let before = self.diags.len();
+        for child in kids(node) {
+            if matches!(
+                child.kind,
+                SyntaxKind::Name | SyntaxKind::Punct | SyntaxKind::Parameter
+            ) {
+                continue;
+            }
+            self.walk_ui_page(&cx, child, SyntaxKind::View);
+        }
+        if self.diags.len() == before {
+            self.types.view_models.insert(key, model);
+        }
+    }
+
     /// Check a page (GRAMMAR `page` row): required static `title=`,
     /// pure-read `data=`, constant `order=`/`poll=`, static `group=`,
     /// `nav=none`, and `refresh=` naming a canonical user mutation
@@ -7451,6 +7492,65 @@ impl<'a> Typer<'a> {
         let domain = kids(node).iter().find(|n| is_expression(n.kind)).copied();
         let mut row_seed: Option<NarrowEnv> = None;
         match node.kind {
+            SyntaxKind::Show => {
+                let objects: Vec<_> = kids(node)
+                    .into_iter()
+                    .filter(|n| n.kind == SyntaxKind::Object)
+                    .collect();
+                let entries = objects.first().map(|args| object_entries(args, cx.text));
+                let row = entries
+                    .as_ref()
+                    .and_then(|entries| match entries.as_slice() {
+                        [("row", _, Some(value))] if objects.len() == 1 => Some(*value),
+                        _ => None,
+                    });
+                let Some(row) = row else {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "show requires exactly the explicit row argument {row=expression}"
+                            .to_string(),
+                        tight_span(cx.text, node),
+                    ));
+                    for args in objects {
+                        self.walk_object_values(cx, args);
+                    }
+                    return;
+                };
+                let before = self.diags.len();
+                let actual = self.expr(cx, row, None);
+                for (name, span) in self.effectful_calls(row, cx.text) {
+                    self.diags.push(Diagnostic::error(
+                        "E3010",
+                        format!("show row argument must be pure; '{name}' is not allowed here"),
+                        span,
+                    ));
+                }
+                let key = NodeKey::of(node);
+                let target = self.tables.show_views.get(&key).copied();
+                if let Some((target, model)) = target.and_then(|target| {
+                    self.types
+                        .view_models
+                        .get(&target)
+                        .copied()
+                        .map(|model| (target, model))
+                }) {
+                    let expected = ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    };
+                    if actual != expected {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "show row must be the view's exact nonnullable stored model"
+                                .to_string(),
+                            tight_span(cx.text, row),
+                        ));
+                    } else if self.diags.len() == before {
+                        self.types.view_uses.insert(key, target);
+                    }
+                }
+                return;
+            }
             SyntaxKind::Require => {
                 if let Some(pred) = domain {
                     let ty = self.expr(cx, pred, None);

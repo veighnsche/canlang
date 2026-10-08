@@ -386,6 +386,12 @@ pub struct UnresolvedMember {
 /// every resolution the types pass and PR5 consume.
 #[derive(Debug, Clone, Default)]
 pub struct ResolveTables {
+    /// Same-module presentation declarations, separate from executable symbols.
+    pub views: HashMap<(ModuleId, String), NodeKey>,
+    /// Checked required stored-model row parameter for each view.
+    pub view_models: HashMap<NodeKey, SymbolId>,
+    /// Local presentation target selected by each show use.
+    pub show_views: HashMap<NodeKey, NodeKey>,
     /// Modules in `(file, span)` order.
     pub modules: Vec<Module>,
     /// Symbols in declaration order.
@@ -986,6 +992,24 @@ impl<'a> Resolver<'a> {
                             "When" => self.index_when(*file, text, module, item, diags)?,
                             "Then" if item.kind == SyntaxKind::Preferences => {
                                 self.index_preferences(text, module, item, diags)?;
+                            }
+                            "Then" if item.kind == SyntaxKind::View && !has_error(item) => {
+                                if let Some(name) = kids(item)
+                                    .iter()
+                                    .filter_map(|n| name_text(n, text))
+                                    .find(|name| *name != "view")
+                                {
+                                    let key = (module, name.to_string());
+                                    if self.tables.views.contains_key(&key) {
+                                        diags.push(Diagnostic::error(
+                                            "E2002",
+                                            format!("duplicate view '{name}'"),
+                                            item.span,
+                                        ));
+                                    } else {
+                                        self.tables.views.insert(key, NodeKey::of(item));
+                                    }
+                                }
                             }
                             _ => {}
                         }
@@ -3365,6 +3389,19 @@ impl<'a> Resolver<'a> {
     ) -> Result<(), Diagnostic> {
         let root = self.module_root(module, node.span)?;
         self.resolve_description_refs(text, module, node, diags);
+        // Resolve declaration-owned view scopes before any page use, including
+        // views written later in the same Then section.
+        for section in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Section)
+        {
+            for view in kids(section)
+                .into_iter()
+                .filter(|n| n.kind == SyntaxKind::View)
+            {
+                self.resolve_view(text, module, root, view, diags)?;
+            }
+        }
         for child in kids(node) {
             match child.kind {
                 SyntaxKind::Attribute => {
@@ -5716,6 +5753,76 @@ impl<'a> Resolver<'a> {
 impl<'a> Resolver<'a> {
     // --- Pass 5d: Then ------------------------------------------------------
 
+    fn resolve_view(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        if has_error(node) {
+            return Ok(());
+        }
+        let params: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Parameter)
+            .collect();
+        let model = if let [param] = params.as_slice() {
+            let parts = kids(param);
+            let name = parts.iter().find_map(|n| name_text(n, text));
+            let ty = parts.iter().find(|n| is_type_node(n.kind)).copied();
+            if let Some(ty) = ty.filter(|ty| {
+                name == Some("row")
+                    && ty.kind == SyntaxKind::NamedType
+                    && parts.len() == 3
+                    && is_punct(parts[1], text, ":")
+            }) {
+                self.resolve_type(text, module, ty, diags);
+                kids(ty)
+                    .into_iter()
+                    .find(|n| n.kind == SyntaxKind::Path)
+                    .and_then(|path| self.tables.node_symbol.get(&NodeKey::of(path)).copied())
+                    .filter(|id| {
+                        matches!(
+                            self.tables.symbols[id.0 as usize].kind,
+                            SymbolKind::Model { .. }
+                        )
+                    })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let Some(model) = model else {
+            diags.push(Diagnostic::error(
+                "E3001",
+                "view requires exactly one required nonnullable stored-model parameter named row"
+                    .to_string(),
+                node.span,
+            ));
+            return Ok(());
+        };
+        self.tables.view_models.insert(NodeKey::of(node), model);
+        // A module root supplies owning declarations, never caller variables,
+        // page preferences/result/route facts, or actor/now context captures.
+        let scope = self.with_row(root, model, node.span)?;
+        self.tables.expr_scope.insert(NodeKey::of(node), scope);
+        if node.descendants().any(|n| n.kind == SyntaxKind::Show) {
+            diags.push(Diagnostic::error(
+                "E6008",
+                "nested show in a view is unsupported by the typed-row pilot".to_string(),
+                node.span,
+            ));
+            return Ok(());
+        }
+        for child in kids(node).into_iter().filter(|n| is_ui_child(n.kind)) {
+            self.walk_ui(text, module, scope, child, diags)?;
+        }
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn resolve_then(
         &mut self,
@@ -5966,6 +6073,29 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
         match node.kind {
+            SyntaxKind::Show => {
+                let name = kids(node)
+                    .into_iter()
+                    .filter_map(|n| name_text(n, text))
+                    .find(|name| *name != "show");
+                if let Some(target) = name
+                    .and_then(|name| self.tables.views.get(&(module, name.to_string())).copied())
+                {
+                    self.tables.show_views.insert(NodeKey::of(node), target);
+                } else {
+                    diags.push(Diagnostic::error(
+                        "E2001",
+                        "show must name a view declared in the same module".to_string(),
+                        node.span,
+                    ));
+                }
+                for args in kids(node)
+                    .into_iter()
+                    .filter(|n| n.kind == SyntaxKind::Object)
+                {
+                    self.walk_object_values(module, scope, args, text, diags)?;
+                }
+            }
             SyntaxKind::Card | SyntaxKind::Details => {
                 for child in kids(node) {
                     if is_expression(child.kind) {
@@ -6603,6 +6733,7 @@ fn is_ui_child(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::Card
+            | SyntaxKind::Show
             | SyntaxKind::Details
             | SyntaxKind::Tabs
             | SyntaxKind::Tab
