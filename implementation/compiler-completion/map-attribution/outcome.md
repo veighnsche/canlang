@@ -11,3 +11,24 @@ One bounded build was run: `cargo test --manifest-path compiler/Cargo.toml --loc
 The original [DEP-02 row](../../../docs/research/compiler-library-audit-20261006/resumption/audit-costs-and-oracles.md) asks for repeated source identity, an independent decoder, actual attributed failures, and a supported public API before extraction replacement, with **retain/defer** selected. Joined with the accepted repeated-path/current map controls and [supported extraction/public decoder retention decision](../map-support/decision.md), this witness supplies its missing current emitted-failure consumer outcome. **The original finite DEP-02 retain/defer duty is complete at this bounded scope.** Extraction remains retained with zero deletion credit; no upgrade or replacement is selected.
 
 Browser navigation, installed/deployed original applications, canonical operation invocation, universal host attribution, huge resource profiles and GUI workflows are not qualified. The original audit assigns those broader actual-application profiles separately to OR-06; they are not an extra DEP-02 completion condition. A future dependency upgrade/extraction replacement must requalify its own supported API and compatibility outcomes.
+
+## S9-Q08 public callable mapper
+
+The same consumer's `--registry-mapped-outcome` mode and
+`production_failure_reaches_native_registry_mapped_outcome` pass **1/1**
+(0.22s). The unchanged genuine source is compiled and assembled normally;
+installed `@canlang/cloudflare/runtime/invoke` invokes its emitted registry
+callable once. With Node source-map support disabled, the current runtime
+mapper returns the exact error `Division by zero` and original absolute
+`failure.can` identity at **4:8**, including `Attribution.remainder` as the
+mapped name. The first result (0/1, 0.55s) exposed an omitted expected name;
+the existing public `MappedPosition.name` contract determined that observer
+correction. Only this affected new case repeated, using the same executable.
+The accepted DEP-02 Node/decoder outcomes remain reused.
+
+Full State operation attribution remains a defining prerequisite: canonical
+`runScenarioSeam` converts `InvokeResult.error` to a State error and discards
+`mapped`; the read path preserves the throw before State converts it. The
+current BusinessError wire carrier has no mapped-location member. This
+callable profile supplies no new carrier/disclosure policy, original error
+object guarantee, State operation, deployment or full S9-Q08 credit.
