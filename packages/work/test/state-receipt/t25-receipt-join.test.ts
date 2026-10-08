@@ -7,8 +7,8 @@
  * in `t25-receipt-durable.test.ts`.
  *
  * Mail-shaped world: `Acme.Item` rows carry a `notification` delivery
- * field whose stored value is a DECOY (never trusted: the runtime
- * resolves the actual association internally), and recipient-like
+ * field whose canonical wire agrees with the protected association,
+ * and recipient-like
  * policies grant `notification.status` without the whole association.
  */
 import { describe, it } from 'node:test';
@@ -74,7 +74,7 @@ import { loadWorkReceiptFns, type WorkReceiptFns } from './work-loader.js';
 
 const ITEM = 'Acme.Item';
 const ITEM_MODEL = asModel(ITEM);
-const SOURCE = 'mailroom.Mail.send';
+const SOURCE = 'std.MailV1.send';
 const ACTOR = 't25-test';
 
 /**
@@ -137,7 +137,7 @@ async function setupWorld(): Promise<World> {
   };
 }
 
-/** One owner row; `notification` holds a DECOY the join must never trust. */
+/** One owner row; `notification` starts clear until the pair is associated. */
 async function seedOwner(
   store: StoragePort,
   id = 'item-1',
@@ -145,7 +145,7 @@ async function seedOwner(
 ): Promise<void> {
   const row = makeRow({
     id,
-    data: { service: 'svc-1', notice_state: 'pending', notification: 'decoy-id', ...data },
+    data: { service: 'svc-1', notice_state: 'pending', notification: null, ...data },
   });
   const revision = await store.readRevision();
   await store.commit(
@@ -173,6 +173,7 @@ function joinInput(
     selected: ['status'],
     model: ITEM_MODEL,
     schema: world.schema,
+    declaredSource: SOURCE,
     policy,
     caller: { actorUserId: member.user.user_id, teamId: world.teamId },
     memberships: world.memberships,
@@ -224,10 +225,18 @@ async function associate(store: StoragePort, opts: AssociateOpts = {}): Promise<
     },
     { nowMs: FIXED_NOW, actor: ACTOR },
   );
+  const owner = await store.load(ITEM_MODEL, asId(opts.recordId ?? 'item-1'));
+  assert.ok(owner !== null);
   const revisionNow = await store.readRevision();
   await port.commitJoin(
     makeBatch(revisionNow as number, {
       writes: [
+        {
+          kind: 'update', model: ITEM_MODEL, id: owner.id, expectedVersion: owner.version,
+          row: { ...owner, version: ((owner.version as number) + 1) as typeof owner.version,
+            data: { ...(owner.data as Record<string, unknown>),
+              [opts.field ?? 'notification']: { id: deliveryId, operation: opts.source ?? SOURCE } } },
+        },
         { kind: 'insert', model: RECEIPT_ASSOCIATION_MODEL as ModelName, row: assoc },
         { kind: 'insert', model: RECEIPT_MODEL as ModelName, row: receipt },
       ],
@@ -588,9 +597,8 @@ describe('t25 join: authorized selected read end-to-end (real mechanism, real st
     await progress(world.store, { revision: 1, status: 'succeeded', result: { ok: true } });
     const owner = await world.store.load(ITEM_MODEL, asId('item-1'));
     assert.ok(owner !== null);
-    // The stored field value is the decoy: the observation MUST come
-    // from the internally resolved association, never row data.
-    assert.equal((owner.data as Record<string, unknown>)['notification'], 'decoy-id');
+    // The canonical owner field agrees with the protected association.
+    assert.deepEqual((owner.data as Record<string, unknown>)['notification'], { id: 'del_1', operation: SOURCE });
     const outcome = await observeSelectedReceiptJoin(
       joinInput(world, recipientPolicy(['notification.status']), world.alice, {
         locator: { record: owner, field: 'notification' },
@@ -966,10 +974,17 @@ describe('t25 join: null, stale and revoked associations', () => {
       associationRowId(ITEM, 'item-1', 'notification') as RecordId,
     );
     assert.ok(assocRow !== null);
+    const owner = await world.store.load(ITEM_MODEL, asId('item-1'));
+    assert.ok(owner !== null);
     const revision = await world.store.readRevision();
     await world.store.commit(
       makeBatch(revision as number, {
         writes: [
+          {
+            kind: 'update', model: ITEM_MODEL, id: owner.id, expectedVersion: owner.version,
+            row: { ...owner, version: ((owner.version as number) + 1) as typeof owner.version,
+              data: { ...(owner.data as Record<string, unknown>), notification: null } },
+          },
           {
             kind: 'remove',
             model: RECEIPT_ASSOCIATION_MODEL as ModelName,
@@ -983,6 +998,83 @@ describe('t25 join: null, stale and revoked associations', () => {
       joinInput(world, recipientPolicy(['notification.status']), world.alice),
     );
     assert.equal(outcome.outcome, 'null-association');
+  });
+
+  it('rejects stale or malformed current owner values before returning a protected receipt', async () => {
+    for (const notification of [
+      'decoy-id', null, { id: 'del_replaced', operation: SOURCE },
+      { id: 'del_1', operation: 'std.MailV1.other' },
+      { id: 'del_1', operation: SOURCE, extra: true },
+      { id: '', operation: SOURCE },
+    ]) {
+      const world = await setupWorld();
+      await seedOwner(world.store);
+      await associate(world.store);
+      const owner = await world.store.load(ITEM_MODEL, asId('item-1'));
+      assert.ok(owner !== null);
+      await world.store.commit(makeBatch(await world.store.readRevision() as number, {
+        writes: [{ kind: 'update', model: ITEM_MODEL, id: owner.id, expectedVersion: owner.version,
+          row: { ...owner, version: ((owner.version as number) + 1) as typeof owner.version,
+            data: { ...(owner.data as Record<string, unknown>), notification } } }],
+      }));
+      await assert.rejects(observeSelectedReceiptJoin(
+        joinInput(world, recipientPolicy(['notification.status']), world.alice),
+      ), (error: unknown) => error instanceof Error && !(error instanceof StateError));
+    }
+  });
+
+  it('fails closed on missing declaration or a missing protected association', async () => {
+    const world = await setupWorld();
+    await seedOwner(world.store, 'item-1', { notification: { id: 'del_1', operation: SOURCE } });
+    const input = joinInput(world, recipientPolicy(['notification.status']), world.alice);
+    await assert.rejects(observeSelectedReceiptJoin({ ...input, declaredSource: undefined as unknown as string }),
+      /missing declared delivery source/);
+    await assert.rejects(observeSelectedReceiptJoin(input), /missing association/);
+  });
+
+  it('denies unique leaves before any protected load or current-field consistency check', async () => {
+    const world = await setupWorld();
+    await seedOwner(world.store);
+    await associate(world.store);
+    const owner = await world.store.load(ITEM_MODEL, asId('item-1'));
+    assert.ok(owner !== null);
+    const association = await world.store.load(RECEIPT_ASSOCIATION_MODEL as ModelName,
+      associationRowId(ITEM, 'item-1', 'notification') as RecordId);
+    const receipt = await world.store.load(RECEIPT_MODEL as ModelName, asId('del_1'));
+    assert.ok(association !== null && receipt !== null);
+    await world.store.commit(makeBatch(await world.store.readRevision() as number, {
+      writes: [
+        { kind: 'update', model: ITEM_MODEL, id: owner.id, expectedVersion: owner.version,
+          row: { ...owner, version: ((owner.version as number) + 1) as typeof owner.version,
+            data: { ...(owner.data as Record<string, unknown>), notification: 'decoy-id' } } },
+        { kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName, id: association.id,
+          expectedVersion: association.version,
+          row: { ...association, version: ((association.version as number) + 1) as typeof association.version, data: {} } },
+        { kind: 'remove', model: RECEIPT_MODEL as ModelName, id: receipt.id, expectedVersion: receipt.version },
+      ],
+    }));
+    let protectedLoads = 0;
+    const store = new Proxy(world.store, {
+      get(target, property) {
+        if (property === 'load') return async (model: ModelName, id: RecordId) => {
+          if (model === RECEIPT_ASSOCIATION_MODEL || model === RECEIPT_MODEL) {
+            protectedLoads++;
+            throw new Error('protected load must not occur');
+          }
+          return target.load(model, id);
+        };
+        const value = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const scope = openFenceScope(await world.store.readRevision(), world.teamId);
+    const outcome = await observeSelectedReceiptJoin(joinInput(world, recipientPolicy([]), world.alice, {
+      store, selected: ['error', 'status', 'error'], fence: scope,
+      declaredSource: undefined as unknown as string,
+    }));
+    assert.deepEqual(outcome, { outcome: 'denied', denied: ['error', 'status'], readRevision: scope.revision });
+    assert.equal(protectedLoads, 0);
+    assert.deepEqual(scope.dependencies, []);
   });
 
   it('fails loud on revision drift between the stored pair', async () => {

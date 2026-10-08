@@ -73,7 +73,7 @@ import { loadWorkReceiptFns, type WorkReceiptFns } from './work-loader.js';
 
 const ITEM = 'Acme.Item';
 const ITEM_MODEL = asModel(ITEM);
-const SOURCE = 'mailroom.Mail.send';
+const SOURCE = 'std.MailV1.send';
 const ACTOR = 't25-durable';
 
 /**
@@ -290,7 +290,7 @@ async function seedDurableOwner(store: StoragePort): Promise<void> {
           model: ITEM_MODEL,
           row: makeRow({
             id: 'item-1',
-            data: { service: 'svc-1', notice_state: 'pending', notification: 'decoy-id' },
+            data: { service: 'svc-1', notice_state: 'pending', notification: null },
           }),
         },
       ],
@@ -300,10 +300,17 @@ async function seedDurableOwner(store: StoragePort): Promise<void> {
 
 async function associateDurable(store: StoragePort): Promise<void> {
   const port = createReceiptJoinPort({ store });
+  const owner = await store.load(ITEM_MODEL, 'item-1' as RecordId);
+  assert.ok(owner !== null);
   const revision = await store.readRevision();
   await port.commitJoin(
     makeBatch(revision as number, {
       writes: [
+        {
+          kind: 'update', model: ITEM_MODEL, id: owner.id, expectedVersion: owner.version,
+          row: { ...owner, version: ((owner.version as number) + 1) as typeof owner.version,
+            data: { ...(owner.data as Record<string, unknown>), notification: { id: 'del_1', operation: SOURCE } } },
+        },
         {
           kind: 'insert',
           model: RECEIPT_ASSOCIATION_MODEL as ModelName,
@@ -421,6 +428,7 @@ function durableInput(
     selected: ['status'],
     model: ITEM_MODEL,
     schema: world.schema,
+    declaredSource: SOURCE,
     policy: world.policy,
     caller: { actorUserId: world.alice.user.user_id, teamId: world.teamId },
     memberships: world.memberships,
@@ -446,9 +454,11 @@ function durableSuite(
       const world = await setupDurableWorld();
       await seedDurableOwner(store);
       await associateDurable(store);
+      const associatedOwner = await store.load(ITEM_MODEL, asId('item-1'));
+      assert.ok(associatedOwner !== null);
       await progressDurable(store);
       // Cross-handle observation: the peer resolves the stored pair
-      // internally (the decoy row value is never trusted) and projects
+      // internally with the canonical owner value and projects
       // exactly the granted leaf.
       const peer = secondHandle();
       const scope = openFenceScope(await peer.readRevision(), world.teamId);
@@ -468,11 +478,11 @@ function durableSuite(
         version: (await peer.load(RECEIPT_MODEL as ModelName, asId('del_1')))?.version,
       });
       // The owner row is untouched by receipt progress: same version,
-      // same decoy, no domain write.
+      // same delivery, no domain write.
       const owner = await peer.load(ITEM_MODEL, asId('item-1'));
       assert.ok(owner !== null);
-      assert.equal(owner.version, 1);
-      assert.equal((owner.data as Record<string, unknown>)['notification'], 'decoy-id');
+      assert.equal(owner.version, associatedOwner.version);
+      assert.deepEqual((owner.data as Record<string, unknown>)['notification'], { id: 'del_1', operation: SOURCE });
     });
 
     it('voids concurrent observations when receipt progress lands first', async () => {

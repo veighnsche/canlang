@@ -14,8 +14,8 @@
  * Evaluation order: locator resolution (throws) → selected-shape
  * validation (throws) → declared-delivery-field check (throws) →
  * fence-join read (conflicts when the checkpoint moved) → owner load
- * (not_found) → association/receipt loads (loud on store disagreement)
- * → leaf-grant resolution (record + actor + policy, never presence) →
+ * (not_found) → leaf-grant resolution (record + actor + policy, never presence)
+ * → denial → current-field agreement + association/receipt loads →
  * the injected observation (deny-before-presence, null-means-null) →
  * fence enrollment (receipt row iff observed with a non-null
  * fenceRevision; id-only, denied and null reads enroll nothing).
@@ -202,6 +202,8 @@ export interface SelectedReceiptJoinInput {
   readonly model: ModelName;
   /** Declared delivery fields per model (the canonical-schema source). */
   readonly schema: DeliveryFieldSchema;
+  /** Capability.operation from the same checked owning delivery declaration. */
+  readonly declaredSource: string;
   /** Grant source: the declared per-model policy table. */
   readonly policy: PolicyTable;
   readonly caller: JoinCaller;
@@ -239,8 +241,8 @@ export type SelectedReceiptJoinOutcome =
 /**
  * Observe one selected receipt through its record/field locator on the
  * real store. Resolves the locator to the CURRENT stored owner row
- * (the row's own field value is never trusted: the runtime resolves
- * the actual association internally from the stored association row),
+ * and requires its canonical delivery value to agree with the stored
+ * association and checked owning declaration after authorization,
  * resolves leaf grants over record + actor + policy, and runs the
  * injected T25a observation — so deny-before-presence, null-means-null
  * and exact-leaf projection hold exactly as the mechanism pins them.
@@ -277,6 +279,49 @@ export async function observeSelectedReceiptJoin(
   if (owner === null) {
     throw new StateError('not_found', 'Receipt owner record not found.');
   }
+  const paths = await resolveLeafGrantPaths({
+    policy: input.policy,
+    model: input.model,
+    caller: input.caller,
+    memberships: input.memberships,
+    row: owner,
+  });
+  const policyGrants = createSelectedGrants({ field, paths });
+  const selectedVerdicts = new Map<ReceiptProperty, boolean>();
+  for (const property of new Set(input.selected)) {
+    selectedVerdicts.set(property,
+      policyGrants.mayObserve(property, { field, deliveryId: null, revision: null }));
+  }
+  const denied = [...selectedVerdicts].filter(([, allowed]) => !allowed).map(([property]) => property);
+  const grants: JoinGrantPort = {
+    mayObserve: (property, context) => context.field === field && selectedVerdicts.get(property) === true,
+  };
+  if (denied.length !== 0) {
+    return { outcome: 'denied', denied, readRevision };
+  }
+  if (typeof input.declaredSource !== 'string' || input.declaredSource.length === 0) {
+    throw new Error('receipt join: missing declared delivery source');
+  }
+  const current: unknown = (owner.data as Record<string, unknown>)[field];
+  let delivery: { id: string; operation: string } | null = null;
+  if (current !== null && current !== undefined) {
+    if (
+      typeof current !== 'object' || Array.isArray(current) ||
+      (Object.getPrototypeOf(current) !== Object.prototype && Object.getPrototypeOf(current) !== null) ||
+      Reflect.ownKeys(current).length !== 2 ||
+      !Object.hasOwn(current, 'id') || !Object.hasOwn(current, 'operation') ||
+      typeof (current as Record<string, unknown>)['id'] !== 'string' ||
+      (current as Record<string, unknown>)['id'] === '' ||
+      typeof (current as Record<string, unknown>)['operation'] !== 'string' ||
+      (current as Record<string, unknown>)['operation'] === ''
+    ) {
+      throw new Error('receipt join: malformed current owner delivery field');
+    }
+    delivery = current as { id: string; operation: string };
+    if (delivery.operation !== input.declaredSource) {
+      throw new Error('receipt join: current owner delivery source disagrees with its declaration');
+    }
+  }
   const associationId = associationRowId(input.model as string, recordId, field);
   const associationRow = await input.store.load(
     RECEIPT_ASSOCIATION_MODEL as ModelName,
@@ -294,6 +339,10 @@ export async function observeSelectedReceiptJoin(
       // derivation and the reader checks it): loud, never guessed.
       throw new Error('receipt join: association locator disagrees with the resolved locator');
     }
+    if (delivery === null || delivery.id !== stored.deliveryId ||
+        delivery.operation !== stored.source || stored.source !== input.declaredSource) {
+      throw new Error('receipt join: current owner delivery disagrees with the stored association');
+    }
     const row = await input.store.load(RECEIPT_MODEL as ModelName, stored.deliveryId as RecordId);
     if (row === null) {
       throw new Error('receipt join: missing receipt row for the stored association');
@@ -305,13 +354,9 @@ export async function observeSelectedReceiptJoin(
     contentRef = retained.contentRef;
     resultExpiresAtMs = retained.resultExpiresAtMs;
   }
-  const paths = await resolveLeafGrantPaths({
-    policy: input.policy,
-    model: input.model,
-    caller: input.caller,
-    memberships: input.memberships,
-    row: owner,
-  });
+  if (associationRow === null && delivery !== null) {
+    throw new Error('receipt join: missing association for the current owner delivery');
+  }
   const outcome = input.observeSelected({
     // The ORIGINAL locator: the mechanism re-validates it
     // authoritatively; the mirror above only loaded rows.
@@ -319,7 +364,7 @@ export async function observeSelectedReceiptJoin(
     selected: input.selected,
     association,
     receipt,
-    grants: createSelectedGrants({ field, paths }),
+    grants,
     content: createRetentionContentPolicy({ contentRef, resultExpiresAtMs }),
     nowMs: input.nowMs,
   });
