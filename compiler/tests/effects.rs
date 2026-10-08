@@ -1203,13 +1203,9 @@ fn t25_l1_unknown_leaves_stay_e2013_only() {
 // cross-owner and unsupported cohort forms fail with precise E4055
 // diagnostics and ordinary bounded loops keep their existing rules.
 //
-// Standing context (not F6's): the parser still marks every each= with
-// E1203 (narrowing it to out-of-contract forms belongs to the parser
-// owner), and binding the `as` name in body scope belongs to the
-// resolve join, so bodies referencing the child binding carry
-// pre-existing E2001/E2013/E3001 cascades. F6's contract: zero E4055
-// on valid forms (no NEW findings on valid bodies), exact E4055 on
-// invalid forms, and cohort descriptors only for checked cohorts.
+// This family pins cohort selection findings. Syntax/child binding and
+// genuine declared-event emission are checked in their owning cases;
+// complete application and runtime qualification remain separate.
 
 /// E4055 findings as sorted (message, start, end).
 fn e4055(diags: &[Diagnostic]) -> Vec<(&str, u32, u32)> {

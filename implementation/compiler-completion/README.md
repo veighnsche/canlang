@@ -307,3 +307,19 @@ counts for current/improved/match are **6471/6471/6466** for approval and
 generation/effect counts and accepted rollback/tooling outcomes are reused;
 model tokens are unmeasured and no overall source saving is claimed.
 Canonical completion remains **57/67**.
+
+The current declared-event cohort producer passes the new genuine
+source/native case **1/1**, affected F6 descriptor cases **4/4**, and the
+parser corpus case **1/1**. `each=Model [as child]` and nonnullable
+`each=event.parent.Child [as child]` now reach checked private handlers.
+The existing cohort descriptor shape stays intact; private event inputs add
+one exact required child-model reference, named by the alias or `$cohort`
+when omitted. The artifact requires `state.cohorts@1`. Native bindings keep
+child identity, input/getter once, ordered effects and exact awaited failure
+propagation. Context shadowing, event-field/alias collisions, unknown models,
+nullable anchors and unsupported trigger kinds refuse. The genuine
+[source fixture](../../compiler/tests/fixtures/cohort_trigger.can) and
+[direct check](../../compiler/tests/cohort_trigger_runtime.rs) are released
+to the existing runtime child-unit owner. Frozen membership, transactional
+rollback/replay and the complete original48 runtime matrix remain separate;
+this producer does not close the broader compiler references.

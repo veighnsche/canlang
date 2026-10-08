@@ -2390,7 +2390,16 @@ impl<'a> Cx<'a> {
                 // Paths in value position are single names (set/delete
                 // targets, `by=` spellings handled by guards).
                 let name = path_text(self.db, node);
-                self.decode_bare_name(scope, &name, &ty, span)
+                if self
+                    .program
+                    .types
+                    .cohort_child_references
+                    .contains_key(&NodeKey::of(node))
+                {
+                    IrExpr::Name(name)
+                } else {
+                    self.decode_bare_name(scope, &name, &ty, span)
+                }
             }
             _ => IrExpr::Unsupported {
                 what: format!("{:?} expression", node.kind),
@@ -2573,6 +2582,14 @@ impl<'a> Cx<'a> {
         // Analysis owns enum-case claims, including spellings also used
         // by unrelated fields or fixed scope slots such as `b`.
         let key = NodeKey::of(node);
+        if self
+            .program
+            .types
+            .cohort_child_references
+            .contains_key(&key)
+        {
+            return IrExpr::Name(name);
+        }
         if let Some(role) = self.program.types.role_references.get(&key) {
             return IrExpr::HasRole {
                 role: self.canonical(*role),
@@ -4985,9 +5002,20 @@ impl<'a> Cx<'a> {
         // Pre-commit hooks use the engine context. Ordinary declared events
         // retain their checked identity and existing `{event}` handler ABI.
         let event_source = match &data.on {
-            Some(crate::analysis::effects::HandlerSource::Event(event))
-                if data.cohort.is_none() =>
-            {
+            Some(crate::analysis::effects::HandlerSource::Event(event)) => {
+                if let Some(bind) = data.cohort.as_ref().and_then(|cohort| cohort.bind.as_ref())
+                    && let SymbolKind::Event { fields } =
+                        &self.program.symbols[event.0 as usize].kind
+                    && fields
+                        .iter()
+                        .any(|field| self.program.symbols[field.0 as usize].name == *bind)
+                {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        format!("cannot lower scenario {}: cohort child binding `{bind}` conflicts with an event input", symbol.canonical),
+                        symbol.span,
+                    ));
+                }
                 Some(IrEventSource::Declared(self.canonical(*event)))
             }
             Some(crate::analysis::effects::HandlerSource::DeliveryProgressed { source })
@@ -4998,10 +5026,14 @@ impl<'a> Cx<'a> {
             _ => None,
         };
         let hook = match &data.on {
-            Some(crate::analysis::effects::HandlerSource::Hook { model, op }) => Some(IrHook {
-                model: *model,
-                op: *op,
-            }),
+            Some(crate::analysis::effects::HandlerSource::Hook { model, op })
+                if data.cohort.is_none() =>
+            {
+                Some(IrHook {
+                    model: *model,
+                    op: *op,
+                })
+            }
             Some(_) if event_source.is_some() => None,
             Some(_) => {
                 self.diags.push(Diagnostic::error(
@@ -5017,6 +5049,17 @@ impl<'a> Cx<'a> {
             None => None,
         };
         scope.in_hook = hook.is_some();
+        if let Some(cohort) = &data.cohort
+            && let Some(bind) = &cohort.bind
+        {
+            scope.name_types.insert(
+                bind.clone(),
+                ResolvedType::Record {
+                    symbol: cohort.model,
+                    stored: true,
+                },
+            );
+        }
         let what = symbol.canonical.clone();
         let guards = data
             .guards

@@ -1,0 +1,20 @@
+app CohortJourney
+Given
+ Container {name:text}
+ Entry in Container {label:text,applicable:bool=true,consent:bool=true,count:int=0}
+ event Sweep {marker:text}
+ event Scoped {container:Container,marker:text}
+When
+ scenario sweep on=Sweep each=Entry as entry
+  do
+   require entry.applicable
+   set entry {count=entry.count+1,label=event.marker}
+   require entry.consent
+ scenario scoped on=Scoped each=event.container.Entry as entry
+  do
+   require entry.parent==event.container
+   set entry {count=entry.count+1,label=event.marker}
+ scenario unbound on=Sweep each=Entry
+  do
+   let marker=event.marker
+Then

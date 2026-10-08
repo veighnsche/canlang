@@ -182,6 +182,7 @@ fn classify_name(
                 Binding::Let { .. }
                 | Binding::QueryAlias { .. }
                 | Binding::ForItem { .. }
+                | Binding::CohortChild { .. }
                 | Binding::CreateAs { .. }
                 | Binding::CallAs { .. }
                 | Binding::SendAs { .. }

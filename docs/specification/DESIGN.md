@@ -545,6 +545,23 @@ The `application/json` sample is a valid UTF-8 JSON object with string node IDs 
 
 `by=` means a user-callable operation. `on=` means a typed trusted source. They are mutually exclusive. Handler input is inferred from that source and bound to `event`; handlers declare no client parameters and never become MCP tools. `scenario name on=Source` retains the same require/do body.
 
+A declared-event handler may select `each=Model [as child]` or
+`each=event.parent.Child [as child]`. The first selects a same-package stored
+model; the second requires a nonnullable event reference and that parent's
+contained collection. The optional alias is a checked stored child reference
+in the handler body. It cannot hide contextual facts or collide with a source
+event field in the current flat private admission profile. The compiler emits
+the existing cohort descriptor and private event invocation metadata, adding
+one required ID-only child reference to the exact selected model. Its input
+name is the authored alias, or reserved `$cohort` when no alias is authored.
+The callable remains private and requires `state.cohorts@1`. A target must
+join that metadata to its canonical child invocation and current row loading
+before advertising the capability. The [source/native compiler check](../../compiler/tests/cohort_trigger_runtime.rs)
+qualifies child identity, bindings, written effect order and failures; frozen
+membership, child transaction/replay and the complete fanout workflow remain
+runtime qualifications. Periodic, lifecycle and delivery-progress cohort
+lowering still reports an explicit unsupported diagnostic.
+
 | Source | Contract |
 | --- | --- |
 | `Model.create`, `.update`, `.delete` | Pre-commit CRUD hook; `event.before`, `event.after`, and `event.input` have generated types; unavailable record side is null |
@@ -1114,7 +1131,7 @@ An expression-query `order=expr` lowers to `order:{by:row=>keyExpression,directi
 
 An enabled generated CRUD entry excluded by its owner's `expose` allowlist carries `expose:false`; permitted entries omit the property. UI/MCP/external publishers apply that one property with product selection, while ordinary internal dispatch retains unchanged business admission. The canonical registry is not duplicated into a separate public manifest. No transport error code is added for an interface that is not mounted.
 
-Canonical user-operation exports are their qualified identity constants; the registry holds their implementation. Importing an implementation function must not bypass canonical invocation, input validation or authorization. Exported pure derives remain functions. Trusted handler signatures are `(c,{event})`. A source `on=every(duration)` is represented as `on:{every:durationMilliseconds}` with an exact BigInt duration; keyed scheduled events retain their declared event identity. Bound sends use `send(c,'owner.Service.operation',arguments,...)`, with `bindings:{'owner.Service':{capability,from:'deployment.service'}}`; the binding does not copy the capability's operation list. CRUD effects pass the canonical admission function as `create(c,model,input,{when:crudWhen.Model})` or `set(c,record,changes,{when:crudWhen.Model})`. These proposed shared effects normalize the candidate and run admission before staging as specified above; ordinary source effects do not gain invented CRUD guards.
+Canonical user-operation exports are their qualified identity constants; the registry holds their implementation. Importing an implementation function must not bypass canonical invocation, input validation or authorization. Exported pure derives remain functions. Trusted handler signatures are `(c,{event})`; a declared-event cohort with an authored child alias receives `(c,{event,child})`, using that exact alias and the admitted current native child. An omitted alias adds no body binding. A source `on=every(duration)` is represented as `on:{every:durationMilliseconds}` with an exact BigInt duration; keyed scheduled events retain their declared event identity. Bound sends use `send(c,'owner.Service.operation',arguments,...)`, with `bindings:{'owner.Service':{capability,from:'deployment.service'}}`; the binding does not copy the capability's operation list. CRUD effects pass the canonical admission function as `create(c,model,input,{when:crudWhen.Model})` or `set(c,record,changes,{when:crudWhen.Model})`. These proposed shared effects normalize the candidate and run admission before staging as specified above; ordinary source effects do not gain invented CRUD guards.
 
 Associated delivery fields use `{type:"delivery",operation:"owner.Service.operation",nullable:true}` (omit nullable when nonnullable), resolving the existing bound operation once. Send returns its protected handle; ordinary set stores it. Every stored property read lowers to the sole proposed observation helper `await delivery(c,{record:row,field:"notification"},["status"])`, using compiler-resolved owning record/field provenance and a static selected-property list. The runtime resolves the current association internally, checks record/team/lifetime and every requested leaf before reading, applies independent content restrictions and returns one immutable selected object or null for an authorized null association. Missing authorization is denied/withheld, not null or a silently missing requested property. There is no handle-only/raw-ID alternate lookup or default all-properties request. Nullable source access therefore reads the checked locator first, then accesses its selected result. Stored `.id` uses the same helper with `["id"]`; it needs no mutable receipt fence, while status/result/error reads enroll the observation revision. A current local send result's immutable ID remains available under that originating effect authority, but mutable observation requires association first. Partial viewer projections cannot become handles or locators. Standard field rendering and pure query predicates use this same checked contract.
 
