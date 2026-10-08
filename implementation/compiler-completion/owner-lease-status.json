@@ -2,18 +2,13 @@
   "updated": "2026-10-08",
   "owner": "compiler completion root",
   "current_source_leases": {
-    "compiler_temporal_presentation_join": {
+    "compiler_width_boundaries": {
       "model": "gpt-6.1-sol",
-      "reasoning_effort": "high",
+      "reasoning_effort": "medium",
       "paths": [
-        "compiler/src/codegen/js.rs::lower_message (reserved; write held pending native/wire contract)",
-        "packages/ui/src/messages.ts::isValidDate",
-        "packages/ui/test/messages.test.ts",
-        "compiler/tests/temporal_presentation.rs",
-        "compiler/tests/fixtures/temporal-presentation/"
+        "compiler/src/codegen/sourcemap.rs"
       ],
-      "evidence": "implementation/compiler-completion/temporal-presentation-join/",
-      "limits": "No IR/analysis/Values/stdlib/State/Cloudflare/Git ownership. Preserve existing wire-backed model/query workflow; no selective provenance or coercion workaround."
+      "status": "Source-map name interning correction and focused product test ready; bounded Cargo awaits slot."
     }
   },
   "integrated_releases": {
@@ -33,7 +28,11 @@
     "decimal_materialization": "0134ebb0; exact dotted/contextualintegral publicconstructor bounded leaf, independent acceptance;119worker+10relocatedcurrent+1formattedgolden checks and strictClippy0. Broader value/default consumers open.",
     "checked_static_action_targets": "83d40be0; independentHighaccepted correctedstatic paths; compositeerasure regression refused.",
     "invocation_existing_producer": "83d40be0; independentHighaccepted existingpurefacade/canonicalschema join; admission/execution remainsopen.",
-    "corpus_explicit_refusal": "0611db21; independentHighaccepted originalSYN05/S9Q04 no-loss viaexplicitE6008/retainedJudgmentE6006, no supportedworkflow release."
+    "corpus_explicit_refusal": "0611db21; independentHighaccepted originalSYN05/S9Q04 no-loss viaexplicitE6008/retainedJudgmentE6006, no supportedworkflow release.",
+    "UI_full_civil_years": "9a2759fc; original26tests retained,28focused+directpublic independentcontrols pass; UI source/test paths released.",
+    "release_notices": "ba856554; actualselected macOS/LinuxRust1.99/archive/notice closure accepted; hostedCI/publication unclaimed.",
+    "checked_operation_result": "61c08f20;13 focused tests pass, unsupported/missing results remain unknown.",
+    "UI_native_scalar_presentation": "56b06e68;31 focused messages plus generated native/wire and State query outcomes; original SEM-R06 defects complete."
   },
   "pending_releases": {
     "UI_static": "Releasedc718517a; furtherlegalcaption/genericprofiles needexactownerqualification",
@@ -57,7 +56,7 @@
     "compiler_inputs": 127,
     "package_dist_inputs": 1770,
     "external_can_fixtures": 5,
-    "source_writers": "Temporal UI validator writer active; compiler message encoding remains held for exact native/wire contract. Foreign package owners retain their leases.",
+    "source_writers": "Width-boundary source-map writer only; no current whole-source freeze. Foreign package ownership retained.",
     "status": "Historical native1162 at83d40be0 accepted. Corpus0611 focused independently accepted. No current whole-source freeze.",
     "start_head": "0134ebb01b978831e07e6428bd15512de75e610a",
     "receipt": "integration-after-bindings/after-action-invocation/native-run/profile-accounting/final-run.json"

@@ -1,2 +1,0 @@
-current decoder extracted verbatim: authored rows/order, 11 malformed cases, all 5 accumulation-overflow dimensions PASS
-public numeric encoding + full-map to_writer/to_data_url PASS: {"version":3,"file":"probe.mjs","sources":["probe.can"],"names":[],"mappings":"AAAA;AAAE"}
