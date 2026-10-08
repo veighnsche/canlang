@@ -8,7 +8,8 @@
  *
  * - {@link stepCallToDispatchRequest} normalizes one step call to a
  *   dispatchable request (operation identity, object inputs, present
- *   caller). Malformed calls fail loud with call context.
+ *   caller) and forwards present envelope overrides unchanged. Malformed
+ *   calls fail loud with call context.
  * - {@link populateLiveScope} builds the `Map` observation closures read:
  *   live values per fixture name with static fallback for names the
  *   reader does not know (`undefined`); reader throws propagate with
@@ -24,6 +25,8 @@ export interface DispatchRequest {
   readonly operation: string;
   readonly inputs: Record<string, unknown>;
   readonly caller: unknown;
+  /** Evaluated wire-envelope overrides; producer dispatch owns their semantics. */
+  readonly request?: unknown;
 }
 
 /** Real operation dispatch (B/C slice; injected). */
@@ -47,7 +50,12 @@ export function stepCallToDispatchRequest(call: StepCall): DispatchRequest {
   if (call.by === null || call.by === undefined) {
     throw new Error(`dispatch call ${JSON.stringify(call.operation)} has no caller`);
   }
-  return { operation: call.operation, inputs: call.inputs as Record<string, unknown>, caller: call.by };
+  return {
+    operation: call.operation,
+    inputs: call.inputs as Record<string, unknown>,
+    caller: call.by,
+    ...("request" in call ? { request: call.request } : {}),
+  };
 }
 
 /**

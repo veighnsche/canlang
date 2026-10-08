@@ -4,6 +4,119 @@
 
 #[cfg(unix)]
 #[test]
+fn authored_sequence_requests_reach_the_dispatch_adapter() {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let source = scratch.path().join("requests.can");
+    std::fs::write(
+        &source,
+        r#"app SequenceRequests
+Given
+ Task { title:text }
+ fixture class=Task {title="fixture"}
+When
+ scenario apply(task:Task,note:text) by=members
+  do set task {title=note}
+  examples seed=[class]
+   do
+    let get=1
+    let __proto__=get
+    call apply {task=class,note=class.title} by=self request={task={version=class.version}} -> error(conflict)
+    call apply {task=class,note=class.title} by=other request={task={version=__proto__}} -> error(conflict)
+    call apply {task=class,note=class.title} by=other
+    get,__proto__ -> 1,1
+Then
+"#,
+    )
+    .unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&source)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
+    let runner = scratch.path().join("requests.mjs");
+    std::fs::write(
+        &runner,
+        r#"
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const testkit = process.env.CAN_TESTKIT_DIST
+ ? pathToFileURL(resolve(process.env.CAN_TESTKIT_DIST,'index.js')).href
+ : '@canlang/testkit';
+const {loadExampleSuite,fixtureValuesOf,createExampleHooks} = await import(testkit);
+const base=dirname(new URL(import.meta.url).pathname);
+const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+assert.equal(artifact.tests.length,1);
+const test=artifact.tests[0];
+const modulePath=resolve(base,test.module.path);
+mkdirSync(dirname(modulePath),{recursive:true});writeFileSync(modulePath,test.module.js);
+const events=[],calls=[];
+let fixture;
+const hooks=createExampleHooks({
+ dispatch:async call=>{
+  events.push('dispatch');calls.push(call);
+  assert.equal(call.operation,'SequenceRequests.apply');
+  assert.equal(call.inputs.task,fixture,'business record identity remains unchanged');
+  assert.equal(call.inputs.note,'fixture');
+  if(calls.length<3){
+   assert.deepEqual(call.request,{task:{version:calls.length===1?7n:1n}});
+   return {ok:false,error:'conflict'};
+  }
+  assert.equal(Object.hasOwn(call,'request'),false,'absent override stays absent');
+  return {ok:true};
+ },
+ readLive:()=>undefined,
+});
+const bindings={self:'self-context',other:'other-context',imported:null};
+const suite=await loadExampleSuite(pathToFileURL(modulePath).href,bindings,hooks);
+assert.equal(suite.rows.length,1);
+const row=suite.rows[0],scope={snapshot:async()=>null,dispose:async()=>{}};
+await row.setup(scope);
+fixture=fixtureValuesOf(scope).get('class');
+Object.defineProperty(fixture,'title',{get(){events.push('inputs');return 'fixture';}});
+Object.defineProperty(fixture,'version',{configurable:true,get(){events.push('request');return 7n;}});
+assert.deepEqual(await row.invoke(scope),{ok:true});
+assert.equal(calls.length,3);
+assert.deepEqual(calls.map(call=>call.caller),['self-context','other-context','other-context']);
+assert.deepEqual(events,['inputs','request','dispatch','inputs','dispatch','inputs','dispatch']);
+assert.equal(Object.hasOwn(fixture,'request'),false);
+Object.defineProperty(fixture,'version',{get(){throw new Error('invalid override');}});
+await assert.rejects(()=>row.invoke(scope),/example at index 0 step 2 request threw: invalid override/);
+assert.equal(calls.length,3,'a failed request closure never dispatches');
+console.log('Actual compiled sequence forwarded authored request overrides and preserved call order/absence');
+"#,
+    )
+    .unwrap();
+    let executed = Command::new("node").arg(runner).output().unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn fixture_bindings_and_suite_paths_execute_through_testkit() {
     use std::path::PathBuf;
     use std::process::Command;
