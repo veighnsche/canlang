@@ -457,11 +457,26 @@ function checkDefault(value: unknown, what: string): CanonicalFieldDefault | und
   return { kind: 'derived' };
 }
 
+/** A computed default is an own omission claim, never a wire default value. */
+function checkComputedDefault(
+  input: Record<string, unknown>, operationKind: unknown, inputKind: unknown,
+  valueType: CanTypeId | undefined, required: boolean, what: string,
+): true | undefined {
+  if (!Object.hasOwn(input, 'computedDefault')) return undefined;
+  if (input['computedDefault'] !== true || operationKind !== 'scenario' || required ||
+      scalarTypeForKind(inputKind) === undefined || valueType === undefined ||
+      Object.hasOwn(input, 'default') || input['default'] !== undefined) {
+    fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar scenario input without a wire default.`);
+  }
+  return true;
+}
+
 /** Validate one canonical operation input; `modelNames` resolves ref targets. */
 function checkCanonicalInput(
   value: unknown,
   opName: string,
   modelNames: ReadonlySet<string>,
+  operationKind: unknown,
 ): CanonicalInputDef {
   if (!isRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
     fail(
@@ -490,6 +505,7 @@ function checkCanonicalInput(
       !(kind === 'string' && inputBase === 'date')) {
     fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
   }
+  const computedDefault = checkComputedDefault(value, operationKind, kind, valueType, required, what);
   if (kind === 'ref') {
     if (typeof value['model'] !== 'string' || value['model'] === '') {
       fail('malformed_descriptor', `Invalid ${what}: ref inputs name a non-empty model.`);
@@ -538,6 +554,7 @@ function checkCanonicalInput(
   return {
     name,
     kind: kind as CanonicalScalarKind,
+    ...(computedDefault !== undefined ? { computedDefault } : {}),
     ...(valueType !== undefined ? { valueType } : {}),
     required,
     ...(fallback !== undefined ? { default: fallback } : {}),
@@ -767,7 +784,7 @@ export function loadExecutionDescriptorSet(
     const inputs: CanonicalInputDef[] = [];
     const seenInputs = new Set<string>();
     for (const input of operation['inputs'] as unknown[]) {
-      const checked = checkCanonicalInput(input, opName, modelNames);
+      const checked = checkCanonicalInput(input, opName, modelNames, kind);
       if (seenInputs.has(checked.name)) {
         fail(
           'duplicate_name',
@@ -853,6 +870,9 @@ export function loadExecutionDescriptorSet(
     for (const input of inputs) {
       if (input.kind !== 'ref' && input.kind !== 'delivery') {
         checkTypeArray(input.valueType, Object.hasOwn(arrayMarkers, input.name), `input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}`);
+        if (input.computedDefault === true && arrayMarkers[input.name]?.required === true) {
+          fail('malformed_descriptor', `Invalid input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}: computedDefault requires an ordinary array marker.`);
+        }
       }
     }
     // Null proof belongs to this exact checked singular-ref input. Use own
@@ -1245,6 +1265,11 @@ export function artifactToDescriptorSet(
       }
       const fallback = checkDefault(input.default, what);
       const valueType = artifactValueType(input as unknown as Record<string, unknown>, what, true);
+      const computedDefault = checkComputedDefault(input as unknown as Record<string, unknown>,
+        operation.kind, inputKind, valueType, input.required, what);
+      if (computedDefault === true && input.array?.required === true) {
+        fail('malformed_descriptor', `Invalid ${what}: computedDefault requires an ordinary array marker.`);
+      }
       if (inputKind === 'ref') {
         const refTag = input.field as { model?: unknown; requireVersion?: unknown };
         if (typeof refTag['model'] !== 'string' || refTag['model'] === '') {
@@ -1292,6 +1317,7 @@ export function artifactToDescriptorSet(
         inputs.push({
           name: input.name,
           kind: inputKind as CanonicalScalarKind,
+          ...(computedDefault !== undefined ? { computedDefault } : {}),
           ...(valueType !== undefined ? { valueType } : {}),
           required: input.required,
           ...(fallback !== undefined ? { default: fallback } : {}),

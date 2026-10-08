@@ -18,6 +18,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
   CanonicalInputDef,
+  ExecutionDescriptorSet,
   CanonicalOperationDescriptor,
   ModelName,
   OperationName,
@@ -29,6 +30,8 @@ import {
   loadArtifactDescriptors,
   loadExecutionDescriptorSet,
   type GeneratedOperationDef,
+  type ArtifactDescriptorSlice,
+  IncompatibleArtifactError,
   type InterimOperationDef,
 } from '../../src/invocation/registry.js';
 import { validateCallInputs } from '../../src/invocation/admission.js';
@@ -264,6 +267,82 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
         assert.equal(typeof plan.rules[0]!.arrayFill, 'boolean');
       }
     }
+  });
+
+  it('preserves checked computed scenario default omission through loader admission', () => {
+    const operation = asOperation('Acme.computed');
+    const malformed = (run: () => unknown) => assert.throws(run, (error: unknown) =>
+      error instanceof IncompatibleArtifactError && error.reason === 'malformed_descriptor');
+    for (const nullable of [false, true]) {
+      const valueType = `int[]${nullable ? '?' : ''}`;
+      const raw: ArtifactDescriptorSlice = { artifact_version: 1, models: [], operations: [{
+        name: operation, kind: 'scenario', description: '', inputs: { fields: [
+          { name: 'values', field: { kind: 'integer' }, required: false, nullable,
+            array: { required: false }, computedDefault: true },
+          { name: 'flag', field: { kind: 'boolean' }, required: false, computedDefault: true },
+          { name: 'zero', field: { kind: 'integer' }, required: false, computedDefault: true },
+        ] },
+      }] };
+      const set: ExecutionDescriptorSet = { contractVersion: 1, models: [], operations: [{
+        name: operation, kind: 'scenario', inputs: [
+          { name: 'values', kind: 'integer', required: false, valueType, computedDefault: true },
+          { name: 'flag', kind: 'boolean', required: false, valueType: 'bool', computedDefault: true },
+          { name: 'zero', kind: 'integer', required: false, valueType: 'int', computedDefault: true },
+        ],
+      }] };
+      const options = { by: 'public' as const,
+        inputArrays: { [operation]: { values: { required: false } } } };
+      for (const loaded of [loadArtifactDescriptors(raw, { by: 'public' }),
+        loadExecutionDescriptorSet(set, options)]) {
+        const def = loaded.registry.get(operation)!;
+        assert.ok(isGeneratedOperationDef(def));
+        assert.ok(Object.isFrozen(def.descriptor.inputs[0]));
+        assert.equal(def.preparedInputs!.rules[0]!.arrayFill, false);
+        for (const supplied of [{}, { values: null }, { values: [], flag: false, zero: 0 }]) {
+          assert.deepEqual(validateCallInputs(def, supplied).normalized, supplied);
+          assert.deepEqual(validatePreparedInputs(def.preparedInputs!, supplied), validateCallInputs(def, supplied));
+        }
+        const invalid = { values: 0 };
+        assert.equal(captureFields(() => validateCallInputs(def, invalid))[0]!.code, 'invalid_array');
+        assert.deepEqual(captureFields(() => validatePreparedInputs(def.preparedInputs!, invalid)),
+          captureFields(() => validateCallInputs(def, invalid)));
+      }
+      for (const change of [{ computedDefault: false }, { computedDefault: undefined },
+        { computedDefault: 'true' }, { required: true }, { valueType: undefined },
+        { default: { kind: 'literal', value: [] } }, { default: undefined },
+        { kind: 'ref', model: MODEL, versioned: false }]) {
+        const bad = { ...set, operations: [{ ...set.operations[0]!, inputs: [
+          { ...set.operations[0]!.inputs[0]!, ...change },
+        ] }] } as unknown as ExecutionDescriptorSet;
+        malformed(() => loadExecutionDescriptorSet(bad, options));
+      }
+      for (const change of [{ computedDefault: false }, { computedDefault: undefined },
+        { required: true }, { default: { kind: 'literal', value: [] } },
+        { array: { required: true } }, { field: { kind: 'enum', values: ['one'] } }]) {
+        const bad = { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [
+          { ...raw.operations![0]!.inputs.fields[0]!, ...change },
+        ] } }] } as unknown as ArtifactDescriptorSlice;
+        malformed(() => loadArtifactDescriptors(bad, { by: 'public' }));
+      }
+      malformed(() => loadExecutionDescriptorSet(set, { ...options,
+        inputArrays: { [operation]: { values: { required: true } } } }));
+      malformed(() => loadExecutionDescriptorSet({ ...set, operations: [
+        { ...set.operations[0]!, kind: 'read' },
+      ] }, options));
+      malformed(() => loadArtifactDescriptors({ ...raw, operations: [
+        { ...raw.operations![0]!, kind: 'read' },
+      ] }, { by: 'public' }));
+    }
+    const inherited = Object.assign(Object.create({ computedDefault: true }),
+      { name: 'values', kind: 'integer', required: false, valueType: 'int[]' });
+    const loaded = loadExecutionDescriptorSet({ contractVersion: 1, models: [], operations: [{
+      name: operation, kind: 'scenario', inputs: [inherited],
+    }] }, { by: 'public', inputArrays: { [operation]: { values: { required: false } } } });
+    const def = loaded.registry.get(operation)!;
+    assert.ok(isGeneratedOperationDef(def));
+    assert.equal(Object.hasOwn(def.descriptor.inputs[0]!, 'computedDefault'), false);
+    assert.deepEqual(validateCallInputs(def, {}).normalized, { values: [] });
+    assert.deepEqual(validatePreparedInputs(def.preparedInputs!, {}).normalized, { values: [] });
   });
 
   it('preserves checked nullable array omissions for the owning default stage', () => {

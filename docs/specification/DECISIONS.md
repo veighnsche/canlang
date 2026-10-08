@@ -2716,3 +2716,8 @@ Accepted qualification at the existing single-handler Node/nativeD1 scope: the s
 ### 2026-10-08 — generation admission is a separate completed prefix
 
 Accepted component: genuine compiled `TextRequest` and `TextMessage` construction captures the original operation correlation, admitted record revision, message role and resource budgets. The existing canonical nativeD1 invocation stages the pending generation outbox, owning delivery-field association and receipt together. Compiler `8aa1bc333` releases the reachable owning nominal schemas; one direct source/native request-admission case passes with explicit memory identity. This prefix does not qualify a generation provider, progress stream, notifications, narrow result-subfield disclosure, HTTP/MCP transport or complete installed host; those remain the next consumer work.
+
+
+### 2026-10-08 — Preserve checked computed-default omission in State (accepted finite prerequisite)
+
+Use an own `computedDefault: true` marker on optional checked scalar scenario inputs, including ordinary arrays, to preserve omitted values until the generated handler evaluates the authored default. Contracts owns the additive artifact/canonical metadata; State validates and retains it without evaluating defaults or adding a wire default kind. Required, reference, non-scenario and conflicting wire-default claims refuse. Explicit caller values and current admission/error order remain. The owning Contracts/State emits and one existing loader-driven admission case passed; root reviewed the released source directly. Compiler/runtime source pairing and nullable argument-fill suppression remain separate consumer work; no complete H1 or installed/replay acceptance is claimed.

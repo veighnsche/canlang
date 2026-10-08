@@ -166,6 +166,8 @@ export type ArtifactOperationField =
 
 /** One named operation input (JSON shape of `McpNamedField`). */
 export interface ArtifactOperationInput {
+  /** Checked computed scenario parameter default; evaluation stays with the generated handler. */
+  computedDefault?: true;
   /** Checked source type association; text requires this claim beside the collapsed string tag. */
   valueType?: CanTypeId;
   /** Input name (parameter or flattened model field). */
@@ -190,8 +192,8 @@ export interface ArtifactOperationInput {
   /**
    * Source-declared default, when representable as `literal`/`parent`
    * (T15a additive, mirrors L3 `CanonicalInputDef.default`). Absent
-   * for computed defaults (the emitted `default(c)` callable preserves
-   * execution; T04b grows the vocabulary) and for update changes
+   * for computed defaults (marked by `computedDefault`; the emitted
+   * `default(c)` callable owns evaluation) and for update changes
    * (partial: omission means unchanged, never default-filled).
    */
   default?: ArtifactFieldDefault;
