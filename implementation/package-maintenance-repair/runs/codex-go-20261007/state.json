@@ -1222,7 +1222,7 @@
     },
     "DEL-E02": {
       "planning_status": "blocked",
-      "state": "Partial: accepted table disposal, DO audit reset and current caller scratch lifecycle cleanup",
+      "state": "Partial: accepted table disposal, DO audit reset, caller scratch cleanup and outside-checkout public runner disposal workflow",
       "files": [
         "packages/testkit/src/runner/table.ts",
         "packages/testkit/src/assertions/equal.ts",
@@ -1265,6 +1265,19 @@
         "reused": "Table disposal24b1d92a and TEST-ONLY DO migration_failures reset2819e8ad",
         "disposition": "Runner loader/dispatch own no temp or child. EC01/06/07/10 retain actual evidence/assets/oracles; EC02-05 conditional; EC09 retains truthful stage distinctions without retired proof chains.",
         "model": "gpt-6.1-sol medium for finite scratch owner changes; root owns e2e loader and Git"
+      },
+      "public_runner_disposal": {
+        "status": "Accepted bounded actual caller; source and commands released",
+        "file": "tests/e2e/fixtures/pilot-examples.spec.ts",
+        "caller": "Unchanged PilotExamples.runSuite and original JS SUITE_MODULE through package public exports",
+        "result": "Source-current owning Cloudflare/testkit private emits and caller typecheck0; one affected Playwright case1/1",
+        "scope": "Outside-checkout caller copy and emitted packages with actual manifests/public exports, using repository dependency bindings; explicit doubles and comparator/disposal fault injection",
+        "checks": "Exact primary throw identity, comparison then one disposal, no next row; invocation failure plus cleanup detail retained",
+        "reused": "24b1d92a table disposal and912dcee8 loader scratch outcomes",
+        "limits": "No new production mechanism, packed-release/native isolation, actual state engine or complete conditional evidence cleanup claim",
+        "model": "gpt-6.1-sol medium for bounded actual caller and failure-path qualification",
+        "private_outputs_removed": true,
+        "parent_closed": false
       }
     },
     "REPLAY-IP07": {
