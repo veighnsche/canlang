@@ -28,9 +28,9 @@ use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
     IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEventSource, IrExpr, IrFieldLabel, IrGuard,
-    IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrMessage, IrOwner, IrPage, IrProgram,
-    IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily, TypedExpr,
-    expr_uses_async, is_structural, scalar_family,
+    IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated, IrMessage, IrOwner,
+    IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily,
+    TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
@@ -45,7 +45,10 @@ fn collect_std_nominal_contracts(
     published: &mut BTreeSet<String>,
     schemas: &mut Vec<&'static crate::analysis::catalog::StdNominal>,
 ) {
-    let base = declared.trim_end_matches('?').trim_end_matches("[]");
+    let base = declared
+        .trim_end_matches('?')
+        .trim_end_matches("[]!")
+        .trim_end_matches("[]");
     let Some(schema) = nominal_schema(base) else {
         return;
     };
@@ -176,6 +179,10 @@ impl JsOperationKind {
 /// One closed typed input field (JSON shape of `McpSchemaField`).
 #[derive(Debug, Clone)]
 pub enum JsMcpField {
+    /// Canonical value contract, distinct from a stored-record reference.
+    Nominal {
+        name: String,
+    },
     /// Stored-record reference: canonical model + version requirement.
     Ref {
         model: String,
@@ -199,6 +206,7 @@ pub enum JsMcpField {
     /// plus the T13c result nominal; shared shape with
     /// [`JsModelFieldType::Delivery`] (one renderer, no drift).
     Delivery(JsDeliveryDescriptor),
+    JudgmentDelivery(JsJudgmentDeliveryDescriptor),
 }
 
 /// One T13c nominal result leaf, verbatim (JSON shape of
@@ -235,6 +243,20 @@ pub struct JsNominalResult {
     pub fields: Vec<JsNominalLeaf>,
 }
 
+/// Checked value schemas derived by their owning declarations.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct JsValueTypes {
+    pub contracts: Vec<JsNominalResult>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub enums: Vec<JsNamedEnum>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JsNamedEnum {
+    pub name: String,
+    pub cases: Vec<String>,
+}
+
 impl JsNominalResult {
     /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
@@ -260,6 +282,21 @@ pub struct JsDeliveryDescriptor {
     pub version: u32,
     /// Declared provider result with its T13c leaves.
     pub result: JsNominalResult,
+}
+
+/// Static Judgment delivery uses the exact declaration integer version.
+#[derive(Debug, Clone)]
+pub struct JsJudgmentDeliveryDescriptor {
+    pub capability: String,
+    pub operation: String,
+    pub version: String,
+    pub result: JsNominalResult,
+}
+
+impl JsJudgmentDeliveryDescriptor {
+    pub fn to_json(&self) -> String {
+        descriptor_json(self)
+    }
 }
 
 impl JsDeliveryDescriptor {
@@ -697,6 +734,10 @@ pub fn operations_json(operations: &[JsOperation]) -> String {
 /// format; unjoined shapes keep the `other` fallback.
 #[derive(Debug, Clone)]
 pub enum JsModelFieldType {
+    /// Canonical value contract, distinct from a stored-record reference.
+    Nominal {
+        name: String,
+    },
     /// Stored-record reference: canonical target model.
     Ref {
         model: String,
@@ -715,6 +756,7 @@ pub enum JsModelFieldType {
     /// T15b provider delivery: a T14c typed `std` receipt (shared
     /// [`JsDeliveryDescriptor`] shape with [`JsMcpField::Delivery`]).
     Delivery(JsDeliveryDescriptor),
+    JudgmentDelivery(JsJudgmentDeliveryDescriptor),
     /// T04b-preview additive tags (source-exact; T04a intake ignores).
     Date,
     Duration,
@@ -744,7 +786,7 @@ pub struct JsModelField {
     /// Element type tag (arrays add the `array` marker).
     pub field: JsModelFieldType,
     /// Checked source value identity when the wire kind alone is ambiguous.
-    pub value_type: Option<&'static str>,
+    pub value_type: Option<String>,
     /// Whether omission rejects at creation.
     pub required: bool,
     /// Whether the field accepts explicit null.
@@ -835,10 +877,26 @@ impl Serialize for JsDeliveryDescriptor {
     }
 }
 
+impl Serialize for JsJudgmentDeliveryDescriptor {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("JudgmentDelivery", 6)?;
+        state.serialize_field("kind", "delivery")?;
+        state.serialize_field("judgment", &true)?;
+        state.serialize_field("capability", &self.capability)?;
+        state.serialize_field("operation", &self.operation)?;
+        state.serialize_field("version", &self.version)?;
+        state.serialize_field("result", &self.result)?;
+        state.end()
+    }
+}
+
 // Borrowed wire adapters keep descriptor tags and member order explicit.
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 enum FieldTag<'a> {
+    Nominal {
+        name: &'a str,
+    },
     Ref {
         model: &'a str,
         #[serde(rename = "requireVersion", skip_serializing_if = "Option::is_none")]
@@ -870,6 +928,7 @@ enum FieldTag<'a> {
 impl Serialize for JsMcpField {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let tag = match self {
+            Self::Nominal { name } => FieldTag::Nominal { name },
             Self::Ref {
                 model,
                 require_version,
@@ -888,6 +947,7 @@ impl Serialize for JsMcpField {
             Self::File => FieldTag::File,
             Self::Enum { values } => FieldTag::Enum { values },
             Self::Delivery(value) => return value.serialize(serializer),
+            Self::JudgmentDelivery(value) => return value.serialize(serializer),
         };
         tag.serialize(serializer)
     }
@@ -896,6 +956,7 @@ impl Serialize for JsMcpField {
 impl Serialize for JsModelFieldType {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let tag = match self {
+            Self::Nominal { name } => FieldTag::Nominal { name },
             Self::Ref { model } => FieldTag::Ref {
                 model,
                 require_version: None,
@@ -917,6 +978,7 @@ impl Serialize for JsModelFieldType {
             Self::Bytes => FieldTag::Bytes,
             Self::Other { type_id } => FieldTag::Other { type_id },
             Self::Delivery(value) => return value.serialize(serializer),
+            Self::JudgmentDelivery(value) => return value.serialize(serializer),
         };
         tag.serialize(serializer)
     }
@@ -1009,7 +1071,7 @@ impl Serialize for JsModelField {
         )?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("field", &self.field)?;
-        if let Some(value_type) = self.value_type {
+        if let Some(value_type) = &self.value_type {
             state.serialize_field("valueType", value_type)?;
         }
         state.serialize_field("required", &self.required)?;
@@ -1082,6 +1144,8 @@ pub struct JsOutput {
     pub pages: Vec<JsPage>,
     /// User-invocable operation descriptors in source order (MCP P1).
     pub operations: Vec<JsOperation>,
+    /// One checked inventory shared by artifact claims and app schemas.
+    pub value_types: Option<JsValueTypes>,
     /// `@canlang/stdlib` imports used by the entrypoint.
     pub stdlib_imports: BTreeSet<String>,
     /// `@canlang/ui` imports used by the entrypoint.
@@ -1241,6 +1305,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
     });
     let stdlib_imports = emitter.stdlib.clone();
     let ui_imports = emitter.ui.clone();
+    let value_types = emitter.value_types.clone();
 
     let mut packages = Vec::new();
     for module in &ir.modules {
@@ -1258,6 +1323,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         callables,
         pages,
         operations,
+        value_types,
         stdlib_imports,
         ui_imports,
     }
@@ -1597,6 +1663,7 @@ fn fill_binary_template(template: String, left: &str, right: &str) -> String {
 /// Emission context: import tracking, diagnostics and link metadata.
 pub struct Emitter<'a> {
     ir: &'a IrProgram,
+    value_types: Option<JsValueTypes>,
     by_canonical: HashMap<String, usize>,
     stdlib: BTreeSet<String>,
     ui: BTreeSet<String>,
@@ -1633,6 +1700,13 @@ struct HookState {
 impl<'a> Emitter<'a> {
     /// Create an emitter over `ir`.
     pub fn new(ir: &'a IrProgram) -> Self {
+        let mut emitter = Self::with_value_types(ir, None);
+        emitter.value_types = emitter.collect_judgment_value_types();
+        emitter
+    }
+
+    /// Reuse the already checked inventory when collecting artifact models.
+    pub fn with_value_types(ir: &'a IrProgram, value_types: Option<JsValueTypes>) -> Self {
         let by_canonical = ir
             .items
             .iter()
@@ -1641,6 +1715,7 @@ impl<'a> Emitter<'a> {
             .collect();
         let mut emitter = Self {
             ir,
+            value_types,
             by_canonical,
             stdlib: BTreeSet::new(),
             ui: BTreeSet::new(),
@@ -1677,6 +1752,174 @@ impl<'a> Emitter<'a> {
             }
         }
         emitter
+    }
+
+    fn collect_judgment_value_types(&mut self) -> Option<JsValueTypes> {
+        if !self
+            .ir
+            .items
+            .iter()
+            .any(|item| matches!(item.kind, IrItemKind::Judgment { .. }))
+        {
+            return None;
+        }
+        let mut inventory = JsValueTypes::default();
+        let mut enums = BTreeMap::new();
+        for item in &self.ir.items.clone() {
+            let fields = match &item.kind {
+                IrItemKind::Judgment { result_fields, .. } => result_fields,
+                IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Contract { fields })
+                | IrItemKind::Contract { fields, .. } => fields,
+                _ => continue,
+            };
+            let mut leaves = Vec::new();
+            for id in fields {
+                let Some(field) = self.ir.items.get(id.0 as usize).cloned() else {
+                    self.unsupported(
+                        "Judgment value schema",
+                        "checked field identity is absent",
+                        item.span,
+                    );
+                    continue;
+                };
+                let (ty, required_array) = match &field.kind {
+                    IrItemKind::Field {
+                        ty, required_array, ..
+                    }
+                    | IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Field {
+                        ty,
+                        required_array,
+                        ..
+                    }) => (ty, *required_array),
+                    _ => {
+                        self.unsupported(
+                            "Judgment value schema",
+                            "checked field payload is absent",
+                            field.span,
+                        );
+                        continue;
+                    }
+                };
+                let IrType::Known(ty) = ty else {
+                    self.unsupported(
+                        "Judgment value schema",
+                        "checked field type is absent",
+                        field.span,
+                    );
+                    continue;
+                };
+                let mut declared = self.canonical_type_id(ty, field.span);
+                if required_array {
+                    declared.push('!');
+                }
+                leaves.push(JsNominalLeaf {
+                    name: field.name.clone(),
+                    declared,
+                });
+                let mut base = ty;
+                while let ResolvedType::Nullable(inner)
+                | ResolvedType::Array { element: inner, .. } = base
+                {
+                    base = inner;
+                }
+                if let ResolvedType::Enum {
+                    owner: Some(owner),
+                    cases,
+                } = base
+                {
+                    let name = self.ir.items[owner.0 as usize].canonical.clone();
+                    enums.entry(name).or_insert_with(|| cases.clone());
+                }
+            }
+            inventory.contracts.push(JsNominalResult {
+                name: item.canonical.clone(),
+                fields: leaves,
+            });
+        }
+        inventory.enums = enums
+            .into_iter()
+            .map(|(name, cases)| JsNamedEnum { name, cases })
+            .collect();
+        Some(inventory)
+    }
+
+    /// Nominal claims resolve only through the emitted checked inventory.
+    fn nominal_value_type(&self, ty: &ResolvedType) -> Option<String> {
+        match ty {
+            ResolvedType::Record { symbol, .. }
+            | ResolvedType::Enum {
+                owner: Some(symbol),
+                ..
+            } => {
+                let name = &self.ir.items.get(symbol.0 as usize)?.canonical;
+                let inventory = self.value_types.as_ref()?;
+                (inventory
+                    .contracts
+                    .iter()
+                    .any(|record| record.name == *name)
+                    || inventory
+                        .enums
+                        .iter()
+                        .any(|enumeration| enumeration.name == *name))
+                .then(|| name.clone())
+            }
+            ResolvedType::Nullable(inner) => self
+                .nominal_value_type(inner)
+                .map(|name| format!("{name}?")),
+            ResolvedType::Array { element, .. } => self
+                .nominal_value_type(element)
+                .map(|name| format!("{name}[]")),
+            _ => None,
+        }
+    }
+
+    fn operation_input_value_type(&self, ty: &IrType) -> Option<String> {
+        if let IrType::Known(resolved) = ty
+            && let Some(name) = self.nominal_value_type(resolved)
+        {
+            return Some(name);
+        }
+        checked_operation_input_value_type(ty)
+    }
+
+    fn model_value_type(&self, ty: &IrType) -> Option<String> {
+        if let IrType::Known(resolved) = ty
+            && let Some(name) = self.nominal_value_type(resolved)
+        {
+            return Some(name);
+        }
+        checked_string_value_type(ty).map(str::to_string)
+    }
+
+    fn judgment_delivery_descriptor(&self, op: SymbolId) -> Option<JsJudgmentDeliveryDescriptor> {
+        let operation = self.ir.items.get(op.0 as usize)?;
+        let IrItemKind::JudgmentGenerated(IrJudgmentGenerated::CapabilityOp {
+            result: IrType::Known(ResolvedType::Record { symbol, .. }),
+            ..
+        }) = &operation.kind
+        else {
+            return None;
+        };
+        let declaration = self.ir.items.get(symbol.0 as usize)?;
+        let IrItemKind::Judgment { version, .. } = declaration.kind else {
+            return None;
+        };
+        if operation.name != "evaluate" {
+            return None;
+        }
+        let result = self
+            .value_types
+            .as_ref()?
+            .contracts
+            .iter()
+            .find(|record| record.name == declaration.canonical)?
+            .clone();
+        Some(JsJudgmentDeliveryDescriptor {
+            capability: declaration.canonical.clone(),
+            operation: operation.name.clone(),
+            version: version.to_string(),
+            result,
+        })
     }
 
     fn enter_scope(&mut self) {
@@ -2107,6 +2350,15 @@ impl<'a> Emitter<'a> {
         required_array: bool,
         span: Span,
     ) -> String {
+        // Static Judgment enums are named types derived by the owning
+        // descriptor; fields reference that identity instead of copying cases.
+        if self.judgment_enum_type(ty) {
+            let mut id = self.canonical_type_id(ty, span);
+            if required_array && matches!(ty, ResolvedType::Array { .. }) {
+                id.push('!');
+            }
+            return format!("type:{}", js_string(&id));
+        }
         // The implemented Values FieldDescriptor owns shape in its canonical
         // type string. Invocation has no legacy structural descriptor keys.
         if invocation_base(ty) {
@@ -2207,6 +2459,22 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    fn judgment_enum_type(&self, ty: &ResolvedType) -> bool {
+        match ty {
+            ResolvedType::Enum {
+                owner: Some(id), ..
+            } => self
+                .ir
+                .items
+                .get(id.0 as usize)
+                .is_some_and(|item| matches!(item.kind, IrItemKind::JudgmentGenerated(_))),
+            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+                self.judgment_enum_type(inner)
+            }
+            _ => false,
+        }
+    }
+
     /// Lower a checked expression to JavaScript.
     ///
     /// Scalar dispatch follows §13 exactly: one import name per operation,
@@ -2264,6 +2532,17 @@ impl<'a> Emitter<'a> {
                 format!("datetime({})", js_string(value))
             }
             IrExpr::Name(name) => self.reference(name),
+            IrExpr::JudgmentSpecification { judgment } => {
+                if self.in_hook() {
+                    return self.hook_gap(
+                        "judgment specification",
+                        "the pinned invocation declaration is unavailable in this hook",
+                        span,
+                    );
+                }
+                self.stdlib.insert("judgmentSpecification".to_string());
+                format!("judgmentSpecification(c,{})", js_string(judgment))
+            }
             IrExpr::Member { base, field } => {
                 // IR context reads synthesize an unknown-typed `c` base.
                 // A source parameter named c owns a different, checked value.
@@ -4790,6 +5069,7 @@ fn page_uses_preferences(page: &IrPage) -> bool {
             | IrExpr::DurationMs(_)
             | IrExpr::Date(_)
             | IrExpr::Datetime(_)
+            | IrExpr::JudgmentSpecification { .. }
             | IrExpr::Unsupported { .. } => false,
         }
     }
@@ -5019,7 +5299,24 @@ impl<'a> Emitter<'a> {
         }
         members.push(self.emit_packages_member(entry));
         members.push(self.emit_bindings_member());
+        if let Some(judgments) = self.emit_judgments_member() {
+            members.push(judgments);
+        }
         members.push(self.emit_records_member("contracts", &["Contract"]));
+        if let Some(inventory) = &self.value_types {
+            let enums = inventory
+                .enums
+                .iter()
+                .map(|enumeration| {
+                    format!(
+                        "{}:{{cases:{}}}",
+                        js_string(&enumeration.name),
+                        descriptor_json(&enumeration.cases)
+                    )
+                })
+                .collect::<Vec<_>>();
+            members.push(format!("enums:{{{}}}", enums.join(",")));
+        }
         members.push(self.emit_records_member("events", &["Event"]));
         members.push(self.emit_capabilities_member());
         members.push(self.emit_models_member());
@@ -5108,16 +5405,88 @@ impl<'a> Emitter<'a> {
                 };
                 for (name, alias, _span) in import.members.clone() {
                     let key = format!("{}.{}", module.name, alias);
+                    let declaration = format!("{}.{}", import.provider, name);
+                    let kind = if self.ir.items.iter().any(|item| {
+                        item.canonical == declaration
+                            && matches!(item.kind, IrItemKind::Judgment { .. })
+                    }) {
+                        "judgment"
+                    } else {
+                        "capability"
+                    };
                     bindings.push(format!(
-                        "{}:{{capability:{},from:{}}}",
+                        "{}:{{{kind}:{},from:{}}}",
                         js_string(&key),
-                        js_string(&format!("{}.{}", import.provider, name)),
+                        js_string(&declaration),
                         js_string(&from)
                     ));
                 }
             }
         }
         format!("bindings:{{{}}}", bindings.join(","))
+    }
+
+    /// One source-owned descriptor supplies derived judgment schemas and calls.
+    fn emit_judgments_member(&mut self) -> Option<String> {
+        let mut declarations = Vec::new();
+        for item in self.ir.items.clone() {
+            let IrItemKind::Judgment {
+                source_language,
+                version,
+                questions,
+                ..
+            } = item.kind
+            else {
+                continue;
+            };
+            let mut rendered = Vec::new();
+            for question in questions {
+                let kind = match question.kind {
+                    crate::codegen::ir::IrJudgmentKind::Noul => "noul",
+                    crate::codegen::ir::IrJudgmentKind::Choice => "choice",
+                    crate::codegen::ir::IrJudgmentKind::Score => "score",
+                };
+                let mut fields = vec![
+                    format!("name:{}", js_string(&question.name)),
+                    format!("kind:{}", js_string(kind)),
+                    format!(
+                        "instructions:{}",
+                        self.lower_message(&question.instructions)
+                    ),
+                ];
+                if let Some(yes) = question.yes {
+                    fields.push(format!("yes:{}", self.lower_message(&yes)));
+                }
+                if let Some(no) = question.no {
+                    fields.push(format!("no:{}", self.lower_message(&no)));
+                }
+                for (key, options) in [("options", question.options), ("levels", question.levels)] {
+                    if options.is_empty() {
+                        continue;
+                    }
+                    let options = options
+                        .iter()
+                        .map(|option| {
+                            format!(
+                                "{{id:{},description:{}}}",
+                                js_string(&option.id),
+                                self.lower_message(&option.description),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    fields.push(format!("{key}:[{options}]"));
+                }
+                rendered.push(format!("{{{}}}", fields.join(",")));
+            }
+            declarations.push(format!(
+                "{}:{{sourceLanguage:{},version:{version}n,questions:[{}]}}",
+                js_string(&item.canonical),
+                js_string(&source_language),
+                rendered.join(","),
+            ));
+        }
+        (!declarations.is_empty()).then(|| format!("judgments:{{{}}}", declarations.join(",")))
     }
 
     /// Emit the `contracts`/`events` member: labels plus full field
@@ -5194,6 +5563,29 @@ impl<'a> Emitter<'a> {
             }
         }
         if kinds.contains(&"Contract") {
+            if let Some(inventory) = &self.value_types {
+                for record in &inventory.contracts {
+                    if !published.insert(record.name.clone()) {
+                        continue;
+                    }
+                    let fields = record
+                        .fields
+                        .iter()
+                        .map(|field| {
+                            format!(
+                                "{}:{{type:{}}}",
+                                object_key(&field.name),
+                                js_string(&field.declared)
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    records.push(format!(
+                        "{}:{{fields:{{{fields}}}}}",
+                        js_string(&record.name)
+                    ));
+                }
+            }
             // Reach only schemas owned by checked imported capabilities.
             // Keep source contracts first and never overwrite their identity.
             let mut schemas = Vec::new();
@@ -5831,11 +6223,29 @@ impl<'a> Emitter<'a> {
             ),
             _ => (None, false, None, None, None, None),
         };
-        let mut members = match ty {
-            Some(IrType::Known(resolved)) => {
-                self.field_schema_object(&resolved, required_array, field.span)
+        let inventory_type = match &field.kind {
+            IrItemKind::Field { owner, .. } => self.value_types.as_ref().and_then(|inventory| {
+                let owner = self.ir.items.get(owner.0 as usize)?;
+                inventory
+                    .contracts
+                    .iter()
+                    .find(|record| record.name == owner.canonical)?
+                    .fields
+                    .iter()
+                    .find(|leaf| leaf.name == field.name)
+                    .map(|leaf| leaf.declared.clone())
+            }),
+            _ => None,
+        };
+        let mut members = if let Some(type_id) = inventory_type {
+            format!("type:{}", js_string(&type_id))
+        } else {
+            match ty {
+                Some(IrType::Known(resolved)) => {
+                    self.field_schema_object(&resolved, required_array, field.span)
+                }
+                _ => "type:\"unknown\"".to_string(),
             }
-            _ => "type:\"unknown\"".to_string(),
         };
         if let Some(modifiers) = modifiers {
             if modifiers.trim {
@@ -6468,7 +6878,7 @@ impl<'a> Emitter<'a> {
             inputs.push(JsOperationField {
                 name: item.name.clone(),
                 field,
-                value_type: checked_operation_input_value_type(ty),
+                value_type: self.operation_input_value_type(ty),
                 required: default.is_none() && !nullable && (!is_array || *required_array),
                 nullable,
                 array_required: is_array.then_some(*required_array),
@@ -6536,7 +6946,10 @@ impl<'a> Emitter<'a> {
                 .any(|field| {
                     let descriptor = self.model_field(field);
                     descriptor.array_required.is_none()
-                        && matches!(descriptor.field, JsModelFieldType::Delivery(_))
+                        && matches!(
+                            descriptor.field,
+                            JsModelFieldType::Delivery(_) | JsModelFieldType::JudgmentDelivery(_)
+                        )
                 })
         })
     }
@@ -6618,6 +7031,11 @@ impl<'a> Emitter<'a> {
         result: Option<&ResolvedType>,
         read: bool,
     ) -> Option<Cow<'static, str>> {
+        if let Some(result) = result
+            && let Some(name) = self.nominal_value_type(result)
+        {
+            return Some(Cow::Owned(name));
+        }
         // A declared stored model result preserves its owning identity for
         // reads and mutations alike; publishing it does not encode the row.
         if let Some(ResolvedType::Record {
@@ -6735,7 +7153,7 @@ impl<'a> Emitter<'a> {
                             Some((field, is_array)) => inputs.push(JsOperationField {
                                 name: param.name.clone(),
                                 field,
-                                value_type: checked_operation_input_value_type(ty),
+                                value_type: self.operation_input_value_type(ty),
                                 required: default.is_none() && !nullable && !is_array,
                                 nullable,
                                 array_required: is_array.then_some(false),
@@ -6872,7 +7290,7 @@ impl<'a> Emitter<'a> {
                                 flat.push(JsOperationField {
                                     name: field_item.name.clone(),
                                     field,
-                                    value_type: checked_operation_input_value_type(ty),
+                                    value_type: self.operation_input_value_type(ty),
                                     required,
                                     nullable,
                                     array_required,
@@ -6989,12 +7407,9 @@ impl<'a> Emitter<'a> {
     /// clears `required` and sets `nullable`. Nested arrays have no
     /// mapping (the element position takes one tag only).
     ///
-    /// T15b provider join (landed): T14c typed `std` receipts map to
-    /// the closed [`JsMcpField::Delivery`] kind below; bound-local
-    /// `Delivery` still falls into the `_ => None` arm (operations
-    /// taking local deliveries omit, fail-closed) alongside the
-    /// model-tag twin [`Emitter::model_field_tag`]. T04b ratifies the
-    /// delivery shape.
+    /// Standard receipts retain their closed provider descriptor. Static
+    /// Judgment deliveries join their checked declaration and value inventory;
+    /// other local deliveries remain outside this profile.
     fn mcp_field_for_type(&self, ty: &IrType, require_version: bool) -> Option<(JsMcpField, bool)> {
         let resolved = match ty {
             IrType::Known(resolved) => resolved,
@@ -7033,6 +7448,16 @@ impl<'a> Emitter<'a> {
                 },
                 false,
             )),
+            ResolvedType::Record { .. } | ResolvedType::Enum { .. }
+                if self.nominal_value_type(resolved).is_some() =>
+            {
+                Some((
+                    JsMcpField::Nominal {
+                        name: self.nominal_value_type(resolved)?,
+                    },
+                    false,
+                ))
+            }
             ResolvedType::Record { symbol, .. } => Some((
                 JsMcpField::Ref {
                     model: self.ir.items.get(symbol.0 as usize)?.canonical.clone(),
@@ -7062,6 +7487,9 @@ impl<'a> Emitter<'a> {
             // keep the omit (fail-closed, exactly as before).
             ResolvedType::StdDelivery { capability, op } => delivery_descriptor(capability, op)
                 .map(|descriptor| (JsMcpField::Delivery(descriptor), false)),
+            ResolvedType::Delivery { op } => self
+                .judgment_delivery_descriptor(*op)
+                .map(|descriptor| (JsMcpField::JudgmentDelivery(descriptor), false)),
             _ => None,
         }
     }
@@ -7179,7 +7607,7 @@ impl<'a> Emitter<'a> {
             return JsModelField {
                 name: field_item.name.clone(),
                 field,
-                value_type: checked_string_value_type(ty),
+                value_type: self.model_value_type(ty),
                 required: false,
                 nullable,
                 server_only: true,
@@ -7230,7 +7658,7 @@ impl<'a> Emitter<'a> {
         JsModelField {
             name: field_item.name.clone(),
             field,
-            value_type: checked_string_value_type(ty),
+            value_type: self.model_value_type(ty),
             required,
             nullable,
             server_only: server.is_some(),
@@ -7361,13 +7789,13 @@ impl<'a> Emitter<'a> {
     /// T04b-preview or the honest `other` fallback carrying the source
     /// type id. Total and diagnostic-free.
     ///
-    /// T15b provider join (landed): T14c typed `std` receipts map to
-    /// the closed [`JsModelFieldType::Delivery`] tag below when both
-    /// joins resolve; bound-local `Delivery` keeps the source-exact
-    /// `other` tag (see the arm below), as do unjoined `std` shapes.
-    /// Twin of the operation mapping [`Emitter::mcp_field_for_type`];
-    /// T04b ratifies the delivery shape.
+    /// Standard receipts retain their provider descriptor. Static Judgment
+    /// deliveries use the checked declaration version and shared result
+    /// inventory; unjoined local deliveries retain their source-exact tag.
     fn model_field_tag(&self, ty: &ResolvedType) -> JsModelFieldType {
+        if let Some(name) = self.nominal_value_type(ty) {
+            return JsModelFieldType::Nominal { name };
+        }
         match ty {
             ResolvedType::Scalar(scalar) => match scalar {
                 Scalar::Text
@@ -7414,17 +7842,18 @@ impl<'a> Emitter<'a> {
                     .map(|row| row.canonical.clone())
                     .unwrap_or_else(|| "message".to_string()),
             },
-            // Bound-local delivery handles stay `other`: T15b scopes
-            // closed descriptors to T14c typed `std` receipts (local
-            // capabilities have no T13 contract identity to join).
-            ResolvedType::Delivery { op } => JsModelFieldType::Other {
-                type_id: self
-                    .ir
-                    .items
-                    .get(op.0 as usize)
-                    .map(|row| format!("delivery:{}", row.canonical))
-                    .unwrap_or_else(|| "delivery".to_string()),
-            },
+            // Only a checked static Judgment joins the local delivery profile.
+            ResolvedType::Delivery { op } => self
+                .judgment_delivery_descriptor(*op)
+                .map(JsModelFieldType::JudgmentDelivery)
+                .unwrap_or_else(|| JsModelFieldType::Other {
+                    type_id: self
+                        .ir
+                        .items
+                        .get(op.0 as usize)
+                        .map(|row| format!("delivery:{}", row.canonical))
+                        .unwrap_or_else(|| "delivery".to_string()),
+                }),
             // T15b: typed `std` receipts tag closed when both joins
             // resolve; unjoined shapes keep exactly the T14c `other`
             // fallback (fail-closed, T04b ratifies).
