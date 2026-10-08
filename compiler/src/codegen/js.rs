@@ -4131,8 +4131,9 @@ impl<'a> Emitter<'a> {
             .map(|g| self.lower_business_expr(g, "formatted UI gate"));
         self.ui.insert(node.factory.clone());
         if node.factory == "form" {
-            // Preparation is synchronous. Its request expression remains in the
-            // surrounding page scope so any authored awaits stay legal and ordered.
+            // Await preparation once before authored children. The request
+            // stays in the surrounding scope and preserves source evaluation
+            // order; the existing gate encloses preparation as well as render.
             let mut request = Vec::new();
             for (key, value) in &node.props {
                 request.push(format!(
@@ -4186,7 +4187,7 @@ impl<'a> Emitter<'a> {
                 format!("{{...{prepared}.props{body}}}")
             };
             let call = format!(
-                "(({prepared})=>{{if({prepared}.status!==\"ready\")return {}({{context:{ctx},values:[{prepared}.message]}});return {}({ready_props});}})({ctx}.prepareForm({{{}}}))",
+                "(({prepared})=>{{if({prepared}.status!==\"ready\")return {}({{context:{ctx},values:[{prepared}.message]}});return {}({ready_props});}})(await {ctx}.prepareForm({{{}}}))",
                 binding_ident("u", "text"),
                 binding_ident("u", "form"),
                 request.join(",")
@@ -4522,16 +4523,18 @@ impl<'a> Emitter<'a> {
 /// Whether rendering this node evaluates an await in the current callback.
 /// Form and collection descendants execute under their own deferred callbacks.
 fn ui_immediate_uses_async(node: &IrUi) -> bool {
-    node.props.iter().any(|(_, value)| expr_uses_async(value))
+    node.factory == "form"
+        || node.props.iter().any(|(_, value)| expr_uses_async(value))
         || node.gate.as_ref().is_some_and(expr_uses_async)
         || (node.factory != "form"
             && node.row_scope.is_none()
             && node.children.iter().any(ui_immediate_uses_async))
 }
 
-/// Whether a UI subtree awaits (state-read calls in prop values).
+/// Whether a UI subtree awaits (form preparation or state-read calls).
 fn ui_uses_async(node: &IrUi) -> bool {
-    node.props.iter().any(|(_, v)| expr_uses_async(v))
+    node.factory == "form"
+        || node.props.iter().any(|(_, v)| expr_uses_async(v))
         || node.gate.as_ref().is_some_and(expr_uses_async)
         || node.children.iter().any(ui_uses_async)
 }
