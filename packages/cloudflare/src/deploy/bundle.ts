@@ -576,6 +576,7 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === "@canlang/state/effects/transition") return relativeSpecifier(moduleKey, "vendor/state/effects/transition.js");
     if (spec === "@canlang/state/effects/guards") return relativeSpecifier(moduleKey, "vendor/state/effects/guards.js");
     if (spec === "@canlang/state/effects/delivery") return relativeSpecifier(moduleKey, "vendor/state/effects/delivery.js");
+    if (spec === "@canlang/state/receipt/tables") return relativeSpecifier(moduleKey, "vendor/state/receipt/tables.js");
     return spec;
   };
   return rewriteModuleImports(js, moduleKey, mapped, { profile: "trusted-producer" }).js;

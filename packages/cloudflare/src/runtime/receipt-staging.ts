@@ -38,6 +38,8 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
         (field.nullable !== undefined && field.nullable !== true)) refuse();
     const descriptor = field.field;
     const target = `${descriptor.capability}.${descriptor.operation}`;
+    const resultContext = descriptor.result === undefined ? undefined
+      : { source: target, declaredResult: descriptor.result };
     if (!T26_PROGRESS_RELATIONS.some(relation => relation.target === target && relation.version === descriptor.version)) refuse();
     if (input.value === null) {
       if (field.nullable !== true) refuse();
@@ -55,7 +57,7 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
           current.locator.field !== input.field || current.source !== target || current.revision > input.revision) refuse();
       const retained = await ctx.load(RECEIPT_MODEL as ModelName, current.deliveryId as RecordId);
       if (retained === null) refuse();
-      const receipt = readReceiptRow(retained).receipt;
+      const receipt = readReceiptRow(retained, resultContext).receipt;
       if (receipt.deliveryId !== current.deliveryId || receipt.revision !== current.revision) refuse();
     }
     if (input.value === null) {
@@ -64,7 +66,7 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
     }
     const priorAttempt = await ctx.load(RECEIPT_MODEL as ModelName, input.value.id as RecordId);
     if (priorAttempt !== null) {
-      const receipt = readReceiptRow(priorAttempt).receipt;
+      const receipt = readReceiptRow(priorAttempt, resultContext).receipt;
       // The overlay may already contain this same staged assignment. A known
       // attempt can never be reassigned or reset to pending from a saved result.
       if (current?.deliveryId === input.value.id && current.source === target && current.revision === input.revision &&

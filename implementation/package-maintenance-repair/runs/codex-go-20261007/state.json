@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T11:42:32.972859+00:00",
+  "updated_utc": "2026-10-08T11:58:20.116243+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1936,7 +1936,7 @@
       "counts_unchanged": true,
       "commit": "e1204fdb",
       "runtime_consumer": {
-        "status": "Root reviewed real source/native read consumer; commit pending",
+        "status": "Root reviewed and committedbe09f524 selected real source/native read consumer",
         "sources": [
           "packages/cloudflare/src/runtime/invoke.ts",
           "packages/cloudflare/src/runtime/context.ts",
@@ -1950,7 +1950,8 @@
         "node_source_syntax": "Coordinator requested concrete strip-only DueScheduleChanged parameter-property fix: explicit field and constructor assignment; preserves outcome identity.",
         "limits": "Node repository/nativeD1 with explicit memory identity. Authority scope and unsupported query shapes remain refused; prepared/ref/computed-ref/default provenance, all-host/installed and whole H1 remain separate. No counts/retirement/default/deploy/native preparation change.",
         "sources_outputs_handles_released": true,
-        "counts_unchanged": true
+        "counts_unchanged": true,
+        "commit": "be09f524"
       }
     }
   },
@@ -2699,7 +2700,49 @@
       "source_outputs_handles_released": true,
       "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
       "counts_unchanged": true,
-      "commit": "3a46ee0eba7b0f5943b5f38433b5be32e6a6d0d3"
+      "commit": "3a46ee0eba7b0f5943b5f38433b5be32e6a6d0d3",
+      "actual_runtime_consumer": {
+        "status": "Root source-reviewed and accepted selected generated/local-protocol/nativeD1 consumer after concrete lifecycle repairs; commit pending",
+        "owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "sources": [
+          "packages/cloudflare/src/runtime/bound-text-generation.ts",
+          "packages/cloudflare/src/runtime/text-generation-progress.ts",
+          "packages/cloudflare/src/runtime/bound-dispatch.ts",
+          "packages/cloudflare/src/runtime/invoke.ts",
+          "packages/cloudflare/src/runtime/context.ts",
+          "packages/cloudflare/src/runtime/typed-generation-progress.test.ts",
+          "packages/cloudflare/src/runtime/receipt-staging.ts"
+        ],
+        "review_model": "gpt-6.1-sol high: finite durable authority/lifecycle source review; no duplicate checks",
+        "concrete_repairs": [
+          "Release settled inprocess run/request and resultContexts only after actual original Work acknowledgement; active/unknown originals retained (producer implemented, source review ongoing).",
+          "Actual process death after progress but before record-attempt leaves claimed; stale reclaim/recover can otherwise blind resend. Admit original checked retained receipt before fresh bytes; terminal settles through actual owning record fence, queued/running/unknown refuses resend.",
+          "Await actual durable hostqueued progress before generateStream starts transport; missing original receipt cannot count as successful footprint.",
+          "Re-admit retained-derived terminal evidence inside actual record-attempt stage/fence before acknowledgement, not only earlier callProvider read.",
+          "Actual owning claimed-window case exposed existing authored assignment reading rich unknown receipts without their checked result context; owner passes the same defining field result declaration at both reads.",
+          "Already-recorded uncertain attempt with rejected cached progress promise must reconcile unknown instead of repeatedly throwing cached failure; fresh checked receipt/storage errors still propagate.",
+          "Remember actual acknowledged original while live result drains; delete exact cached run on settle after ACK with map identity guard, avoiding lost cleanup if ACK precedes settled marker."
+        ],
+        "changed_verification_policy": "One normal emit and same changed native owning case after relevant fix; unchanged portable link1/1 reused. No extra packet/proof chain.",
+        "limits": "Controlled localhost Ollama-compatible protocol and local tokenizer, explicit memory identity with nativeD1 State; no deployed real model/tokenizer/account upgrade/allhost/installed qualification. Queue is hostrequest state, not proof provideraccepted; crash between queue andbytes remains conservativelyunknown. Actual lateprovider-event/changedretained-evidence race and notificationdelivery/accounting consumers remain unqualified. PostACK authored cancel/reconcile lookup is next finite owner task, not part of this acceptance. No fullTask21/rootparent/replacementreduction/backenddefault/nativeprep credit.",
+        "counts_unchanged": true,
+        "verification": "Final normal CFemit0; SAME changed nativecase1/1 in14.78s after actual declared-result intake repair. Controlled localhost protocol/tokenizer through actual compiledsource/Services/Work/nativeD1: queued durable footprint beforeHTTP; real streamed/terminal and native scalar/whole result projection, replay/reopen/currentgrants; response-loss recovery, real process-stop-beforeWorkrecord leaves claimed, fresh staleclaim terminal settles/noHTTP and unknown stays uncertain/noHTTP; replacing unknown passes; cached rejected result reconcilesnull. Final tiny ACK-before-settle identity-guarded disposal source-reviewed and normal CFemit0; unchanged nativecase and portableclosure1/1 reused. Fixture wording clarified only, no executable edit/rerun.",
+        "source_outputs_handles_released": true,
+        "scope_paths": [
+          "packages/cloudflare/package.json",
+          "packages/cloudflare/src/runtime/bound-text-generation.ts",
+          "packages/cloudflare/src/runtime/text-generation-progress.ts",
+          "packages/cloudflare/src/runtime/bound-dispatch.ts",
+          "packages/cloudflare/src/runtime/context.ts",
+          "packages/cloudflare/src/runtime/invoke.ts",
+          "packages/cloudflare/src/runtime/receipt-staging.ts",
+          "packages/cloudflare/src/deploy/bundle.ts",
+          "packages/cloudflare/src/runtime/typed-generation-progress.test.ts",
+          "packages/cloudflare/test/fixtures/typed-generation-progress.can",
+          "packages/cloudflare/test/fixtures/typed-generation-progress.json"
+        ],
+        "next_retained_correlation": "Roadmap requested exact retained original outbox lookup by checked target/binding/deployment/business source/revision across pending+acknowledged, explicit absent/ambiguous; current API lacks it. Readiness/source ownership refresh required before dispatch; account continuity remains separate."
+      }
     }
   }
 }

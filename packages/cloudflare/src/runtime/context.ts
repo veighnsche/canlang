@@ -94,7 +94,7 @@ export interface CanonicalEffectsScope {
   observeDelivery?(
     locator: { readonly record: unknown; readonly field: string },
     selected: readonly ReceiptProperty[],
-  ): Promise<SelectedReceiptProjection | null>;
+  ): Promise<Readonly<Partial<Record<ReceiptProperty, unknown>>> | null>;
 }
 
 /** Formatting facts installed from the checked selected app. */

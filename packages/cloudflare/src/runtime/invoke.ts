@@ -95,7 +95,7 @@ import type {
   UniqueClaim,
   UniqueRelease,
 } from "@canlang/contracts";
-import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT } from "@canlang/contracts";
+import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT, DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
 import { decodeValue, encodeValue, makeRecordRef, normalizeSchema, validateOperationInput } from "@canlang/values";
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
@@ -3305,7 +3305,24 @@ async function runScenarioSeam(
         if (observed.outcome === 'denied') {
           throw new StateError('forbidden', 'Delivery observation is not authorized.');
         }
-        return observed.outcome === 'observed' ? observed.projection : null;
+        if (observed.outcome !== 'observed') return null;
+        const projection: Partial<Record<ReceiptProperty, unknown>> = { ...observed.projection };
+        const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
+          .find(field => field.name === locator.field)?.field;
+        if (declaration?.kind === 'delivery' && declaration.result !== undefined) {
+          const whole = projection['result'];
+          if (declaration.result.name === 'TextRun' && isUnknownRecord(whole)) {
+            const native: Record<string, unknown> = {};
+            for (const leaf of declaration.result.fields) native[leaf.name] = decodeValue(leaf.type, whole[leaf.name]);
+            projection['result'] = native;
+          }
+          for (const property of selected) {
+            if (!property.startsWith('result.') || projection[property] === null) continue;
+            const leaf = declaration.result.fields.find(field => `result.${field.name}` === property);
+            if (leaf !== undefined) projection[property] = decodeValue(leaf.type, projection[property]);
+          }
+        }
+        return projection;
       } catch (error) {
         recordEngineFailure(error);
         throw error;
@@ -4012,9 +4029,10 @@ export interface StateReceiptObserverProducer {
 
 const RECEIPT_READ_INPUT_KEYS: ReadonlyArray<string> = ["recordId", "field", "selected"];
 
-const RECEIPT_LEAVES: ReadonlySet<string> = new Set(["id", "status", "result", "result.content", "error"]);
+const RECEIPT_LEAVES: ReadonlySet<string> = new Set(["id", "status", "result", "error",
+  ...DELIVERY_RESULT_LEAVES['TextRun']!.map(leaf => `result.${leaf.name}`)]);
 
-const RECEIPT_PROJECTION_KEYS: ReadonlySet<string> = new Set(["id", "status", "result", "result.content", "error"]);
+const RECEIPT_PROJECTION_KEYS: ReadonlySet<string> = RECEIPT_LEAVES;
 
 /**
  * D3b: validate the closed serving envelope (C1 + C7). Exactly
