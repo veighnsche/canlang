@@ -1,6 +1,6 @@
 //! Finite operation metadata and nonexecuting choice annotations through native callables.
-//! A refusing records host qualifies no lookup or serving behavior. This witness
-//! does not replace the complete CountryRegion/CanApprove workflows.
+//! The bounded records host checks awaited child queries and admission order.
+//! Complete State and CountryRegion/CanApprove serving workflows qualify separately.
 #![cfg(unix)]
 
 use serde_json::{Value, json};
@@ -102,7 +102,7 @@ fn owning_input_choices_publish_checked_bindings_without_executing_annotations()
     std::fs::write(
         stdlib.join("index.mjs"),
         format!(
-            "export {{ require, hasRole, same }} from {};\nexport function records(){{throw Error('choice lookup executed');}}\n",
+            "export {{ require, hasRole, same }} from {};\nexport async function records(context,model,options){{const probe=globalThis.choiceLookup;if(!probe)throw Error('choice lookup executed');probe.calls.push({{context,model,options}});await Promise.resolve();if(probe.error)throw probe.error;return probe.rows;}}\n",
             serde_json::to_string(&root.join("packages/stdlib/dist/src/index.js").display().to_string()).unwrap()
         ),
     )
@@ -140,6 +140,19 @@ assert.equal(await callable('assign')(context,{submission}),null);
 assert.equal(await callable('submit')(context,{document,assignee}),assignee);
 assert.equal(await callable('save')(context,{country:document,region}),region);
 assert.equal(reads,0,'importing and invoking the owning operations never evaluates choice annotations');
+const country={id:'country',get Region(){throw Error('child collection must be queried');}};
+const probe={rows:[region],calls:[]};globalThis.choiceLookup=probe;
+let inputReads=0;
+assert.deepEqual(await callable('region_choices')(context,{get country(){inputReads++;return country;}}),[region]);
+assert.equal(inputReads,1);assert.equal(probe.calls.length,1);
+assert.equal(probe.calls[0].context,context);assert.equal(probe.calls[0].model,'InputChoices.Region');
+assert.deepEqual(probe.calls[0].options,{parent:country});
+const failure=Error('child query failed');probe.error=failure;probe.calls=[];
+await assert.rejects(callable('region_choices')(context,{country}),error=>error===failure);
+assert.equal(probe.calls.length,1);probe.calls=[];
+await assert.rejects(callable('region_choices')({memberships:[]},{country}));
+assert.equal(probe.calls.length,0,'admission rejects before the child query');
+delete globalThis.choiceLookup;
 const assign = entry.appDefinition.operations['InputChoices.assign'].inputs.assignee;
 assert.equal(assign.default,null);assert.equal(assign.label.source,'Reviewer');
 const note = entry.appDefinition.operations['InputChoices.save'].inputs.note;
