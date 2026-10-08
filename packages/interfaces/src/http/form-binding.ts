@@ -66,6 +66,10 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
   });
   return {
     async seal(context, bound, editable) {
+      if (Object.hasOwn(context, 'occurrence') && (typeof context.occurrence !== 'string' ||
+          !/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])+$/.test(context.occurrence))) {
+        throw new TypeError('Source form occurrence must be a nonempty well-formed string.');
+      }
       if (!validContext(context) || !validSelection(context, bound, editable)) {
         throw new TypeError('Source form bindings require declared versioned refs and disjoint editable inputs.');
       }
@@ -84,9 +88,10 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
       if (token.length > MAX_TOKEN_CHARS) throw new TypeError('Source form binding exceeds the token size limit.');
       const { nonce: _nonce, ...bindingContext } = currentClaims;
       void _nonce;
-      const identity = await sha256HexText(JSON.stringify({ ...bindingContext, bound: refs, editable: selectedEditable }));
+      const comparison = context.occurrence === undefined ? {} : { occurrence: context.occurrence };
+      const identity = await sha256HexText(JSON.stringify({ ...bindingContext, ...comparison, bound: refs, editable: selectedEditable }));
       const boundIds = Object.fromEntries(Object.entries(refs).map(([name, ref]) => [name, { id: ref.id }]));
-      const draftIdentity = await sha256HexText(JSON.stringify({ ...bindingContext, bound: boundIds, editable: selectedEditable }));
+      const draftIdentity = await sha256HexText(JSON.stringify({ ...bindingContext, ...comparison, bound: boundIds, editable: selectedEditable }));
       return { token, identity, draftIdentity };
     },
     async restore(context, token, inputs) {
