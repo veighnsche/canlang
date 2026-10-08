@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T07:51:49.066948+00:00",
+  "updated_utc": "2026-10-08T07:54:31.534043+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2198,14 +2198,47 @@
       "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
       "root_review": "canonical-send-consumer-root-review.json",
       "validation": "Roadmap one actual compiler/D1 rollback/replay/reopen1/1 and portable deployment-map closure1/1 reused; root source review, final CF emit0 and sole changed unsupported-guard helper1/1.",
-      "status": "root accepted; scoped commit pending",
+      "status": "root accepted and committed beea59b256f623e9581f23bb2faa0c4891f8a6c7",
       "scope": "Compiled bound unconditional std.EmailV1.send stages exact checked binding/from/nested wire arguments, Work dispatch and outbox in the existing single canonical State fence.",
       "limits": [
         "No installed provider transport or completion association",
         "Optional when explicitly refuses before callback/current context; no current-state guard qualification",
         "Original whole-parent, native preparation, release and backend adoption gates remain separate"
       ],
-      "commands_released": true
+      "commands_released": true,
+      "commit": "beea59b256f623e9581f23bb2faa0c4891f8a6c7"
     }
+  },
+  "portable_schedule_stage_release": {
+    "status": "root direct-reviewed and owning emitted33/33; scoped commit pending",
+    "task": "SEQ019 existing keyed put/cancel defining port only",
+    "api": "@canlang/work/kernel/schedule-staging exports the identical workSchedulePutCommand and workScheduleCancelCommand objects: SystemCommandDef.stage(Readonly<Record<string,unknown>>,SystemCommandContext)->SystemStaging|Promise<SystemStaging>",
+    "put_args": {
+      "key": "nonempty string",
+      "scope": {
+        "app": "verified source app",
+        "owner": "verified canonical owner",
+        "ownerPackage": "checked lexical source module"
+      },
+      "at": "finite epoch ms >=0",
+      "event": "checked canonical event identity",
+      "payload": "captured plain JSON record",
+      "occurrenceId": "runtime-owned original occurrence identity"
+    },
+    "cancel_args": {
+      "key": "nonempty string",
+      "scope": "same exact verified app/owner/checked lexical ownerPackage"
+    },
+    "context": "Existing readers-only actor,now,operation,load,query; no store/commit channel. Runtime owns verified context and occurrence allocation; compiler declares lexical ownerPackage/event/payload schema.",
+    "behavior": "Existing scoped key encoding/128UTF16 bound, lineage replacement/twin convergence, pending supersession and cancelled/admitted handling moved unchanged. Payload clone/freezes before first await. Shared update/supersession/argument helpers defined once.",
+    "validation": "Single owning Work emit0 and existing kernel-commands33/33; one new async caller-mutation witness and public command identity assertions. Root direct diff review; no second verification layer.",
+    "evidence": "portable-schedule-stage-root-review.json",
+    "limits": [
+      "No trusted due/current typed reference resolution or canonical handler execution qualification",
+      "No scheduler, timer consent, provider, installed/native/preparation or broad parent acceptance"
+    ],
+    "model": "Sol medium defining extraction/direct owning verification; root sole source review/Git",
+    "writer_commands_released": true,
+    "counts_unchanged": true
   }
 }

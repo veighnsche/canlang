@@ -44,6 +44,10 @@ import {
   workScheduleCancelCommand,
   workSchedulePutCommand,
 } from '../src/kernel/commands.js';
+import {
+  workScheduleCancelCommand as portableScheduleCancelCommand,
+  workSchedulePutCommand as portableSchedulePutCommand,
+} from '@canlang/work/kernel/schedule-staging';
 import { RootRecurrenceNotSupportedError } from '../src/schedule/every.js';
 
 const NOW = 1_758_000_000_000;
@@ -109,6 +113,10 @@ function dispatchRow(
 describe('kernel commands: registry shape', () => {
   it('exports 9 uniquely named dot-namespaced commands', () => {
     assert.equal(WORK_SYSTEM_COMMANDS.length, 9);
+    assert.equal(portableSchedulePutCommand, workSchedulePutCommand);
+    assert.equal(portableScheduleCancelCommand, workScheduleCancelCommand);
+    assert.ok(WORK_SYSTEM_COMMANDS.includes(portableSchedulePutCommand));
+    assert.ok(WORK_SYSTEM_COMMANDS.includes(portableScheduleCancelCommand));
     const names = WORK_SYSTEM_COMMANDS.map((command) => command.name);
     assert.equal(new Set(names).size, 9);
     for (const name of names) {
@@ -922,6 +930,41 @@ describe('kernel commands: schedule.put', () => {
         payload: { n: 1 },
       },
     ]);
+  });
+
+  it('captures nested payload before asynchronous schedule queries', async () => {
+    const payload = { reminder: { recipients: ['original'], count: 1 } };
+    const ctx = fakeCtx(seed([]));
+    const staged = await portableSchedulePutCommand.stage(
+      {
+        key: 'reminder',
+        scope: SCOPE,
+        at: NOW + 1000,
+        event: 'expense.remind',
+        payload,
+        occurrenceId: 'occ_1',
+      },
+      {
+        ...ctx,
+        query: async (spec) => {
+          await Promise.resolve();
+          payload.reminder.recipients[0] = 'changed';
+          payload.reminder.count = 2;
+          return ctx.query(spec);
+        },
+      },
+    );
+    assert.deepEqual(payload, { reminder: { recipients: ['changed'], count: 2 } });
+    const write = staged.writes?.[0];
+    assert.equal(write?.kind, 'insert');
+    if (write?.kind !== 'insert') throw new Error('unreachable');
+    assert.equal(write.model, WORK_SCHEDULE_MODEL);
+    const captured = { reminder: { recipients: ['original'], count: 1 } };
+    assert.deepEqual(write.row.data['payload'], captured);
+    const schedule = staged.schedules?.[0];
+    assert.equal(schedule?.op, 'replace');
+    if (schedule?.op !== 'replace') throw new Error('unreachable');
+    assert.deepEqual(schedule.payload, captured);
   });
 
   it('replaces pending predecessors with lineage and intent marks', async () => {

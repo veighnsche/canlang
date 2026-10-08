@@ -44,6 +44,10 @@
       "types": "./dist/src/kernel/commands.d.ts",
       "default": "./dist/src/kernel/commands.js"
     },
+    "./kernel/schedule-staging": {
+      "types": "./dist/src/kernel/schedule-staging.d.ts",
+      "default": "./dist/src/kernel/schedule-staging.js"
+    },
     "./kernel/dispatch-staging": {
       "types": "./dist/src/kernel/dispatch-staging.d.ts",
       "default": "./dist/src/kernel/dispatch-staging.js"

@@ -1,0 +1,32 @@
+{
+  "root": "originating Codex",
+  "scope": "portable defining keyed put/cancel stages, no-commit existing ABI",
+  "source_sha256": {
+    "packages/work/package.json": "6236f244a7e495925afea58f8e74d8f88c12df7606ade04e83623e04d072ccf6",
+    "packages/work/src/kernel/arguments.ts": "ee59ead1d6a78bcaa0ce81683ec6610b6234481ddd3d2b0705f3fdd45641cd63",
+    "packages/work/src/kernel/commands.ts": "a10e9bd13c445b1d9040653d37e16a0f4f645cfdd3ac748867b2467f6ffb9f87",
+    "packages/work/src/kernel/schedule-staging.ts": "13e05f911e96c54f9483dbc9b38a0f0b315459dcf2d800478d1ab87cde66900c",
+    "packages/work/src/kernel/staging-support.ts": "83f0df533fe947f1087b80f0987d048438f3bac0d6da02bfb208f9f125ee7a96",
+    "packages/work/test/kernel-commands.test.ts": "717a1d82b81d7b1f8d262ebe3024767bce899794dcf678e00c6699a5b61eaf94"
+  },
+  "review": "Existing schedule bodies and helpers moved to one portable owner; registry imports/reexports identical objects; only semantic correction is immutable payload capture before async queries. Exact current diff/source/caller inspection, no second test chain.",
+  "commands": [
+    {
+      "command": "bun run build:emit (cwd packages/work)",
+      "exit": 0
+    },
+    {
+      "command": "node --test packages/work/dist/test/kernel-commands.test.js",
+      "exit": 0,
+      "tests": 33,
+      "pass": 33,
+      "fail": 0
+    }
+  ],
+  "private_evidence": "/private/tmp/canlang-repair-go-20261007/portable-schedule-stages",
+  "limits": [
+    "Fake readers in existing command unit suite; not actual due execution/consumer acceptance",
+    "Due-head/version/current refs/trusted handler admission/fence remain CF/Work join duties",
+    "No timer/consent or native preparation/provider/installed/default-adoption claim"
+  ]
+}
