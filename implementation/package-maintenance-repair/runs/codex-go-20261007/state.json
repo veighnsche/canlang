@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T22:41:40.330315+00:00",
+  "updated_utc": "2026-10-08T22:45:23.583673+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2949,6 +2949,11 @@
         "private dependency union resolved dependencies; actual assertions reached"
       ],
       "limits": "scenario returns/direct State behavior preserved; failed consumers remain open; no whole parent count credit"
+    },
+    "judgment_usage_overflow_capture": {
+      "state": "released exact consumer captured",
+      "verified": "first same actual native case1/1 case4795.874042ms total5245.664709ms; selected emission0/4 outputs",
+      "limits": "no production repair; full46 and held22 open"
     }
   },
   "live_finite_packets": [
