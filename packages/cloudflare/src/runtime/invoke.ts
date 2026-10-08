@@ -100,6 +100,8 @@ import { decodeValue, encodeValue, makeRecordRef, normalizeSchema, validateOpera
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin } from "@canlang/state/receipt/tables";
+import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
+import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
 import type {
@@ -2466,6 +2468,8 @@ export interface CanonicalMutationOpts {
   readonly store: StoragePort;
   readonly memberships: CanonicalMembershipReader;
   readonly now: () => number;
+  /** Real finalized-file authority, bound by the selected host. */
+  readonly files?: CanonicalFileBinding;
 }
 
 function seamDefKind(def: unknown, operation: string): string {
@@ -3534,7 +3538,8 @@ export async function invokeMutationCanonical(
   });
   // One opaque ID per actual schedule ordinal, retained across State retries.
   const occurrenceIds: string[] = [];
-  return loaded.producers.invoke.invoke({
+  let attachments: FileAttachment[] = [];
+  const result = await loaded.producers.invoke.invoke({
     registry: loaded.registry,
     envelope: {
       operation: opts.operation,
@@ -3557,20 +3562,34 @@ export async function invokeMutationCanonical(
       // seam's guards/readings — CRUD via the state executor, scenarios
       // via `runScenarioSeam` above.
       const kind = seamDefKind(call.def, opts.operation);
+      let effects: CanonicalExecutionEffects;
       if (kind === "create" || kind === "update" || kind === "delete") {
-        return crudExecute(call);
+        effects = await crudExecute(call);
+      } else if (kind === "scenario") {
+        effects = await runScenarioSeam(loaded, opts, call, occurrenceIds);
+      } else {
+        throw new StateError("validation", `Operation ${JSON.stringify(opts.operation)} cannot execute here.`);
       }
-      if (kind === "scenario") {
-        return runScenarioSeam(loaded, opts, call, occurrenceIds);
-      }
-      // Reads never reach the seam (the invoke read-guard rejects
-      // first); unknown kinds never load. Defensive, unreachable.
-      throw new StateError(
-        "validation",
-        `Operation ${JSON.stringify(opts.operation)} cannot execute here.`,
-      );
+      const stagedFiles = await stageFileReferences({
+        artifact: opts.artifact, effects, store: opts.store, identity: opts.identity, app: opts.app,
+        ...(opts.files === undefined ? {} : { files: opts.files }),
+        refuse: text => { throw new StateError('validation', text); },
+      });
+      attachments = stagedFiles.attachments;
+      return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards] };
     },
   });
+  if (opts.files !== undefined) {
+    // File metadata and State are separate durable stores in this native host.
+    // A lost attachment response is repaired on the same State-receipted retry;
+    // it never repeats the domain mutation or pretends to be one SQL transaction.
+    await retainCommittedFiles({
+      artifact: opts.artifact, operation: opts.operation, inputs: opts.inputs,
+      result: result.result, attachments, store: opts.store, files: opts.files,
+      identity: opts.identity, app: opts.app,
+    });
+  }
+  return result;
 }
 
 /** Private host entry: source handlers remain absent from public operations. */
