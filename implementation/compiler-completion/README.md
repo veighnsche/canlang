@@ -422,3 +422,18 @@ refuses the anonymous caller without creating a receipt. No production policy
 or context changes were needed; prior accepted cases were reused. Nonnullable
 actor defaults, trusted/null actor workflows, D1 and full applications remain
 separate. Canonical completion remains **57/67**, with **10** remaining.
+
+The [enum-input claim case](../../compiler/tests/enum_input_claim_runtime.rs)
+passes **1/1** against the released State registry and Cloudflare decoder join.
+Public operation enum inputs now carry canonical inline `valueType` claims
+from checked case order and supported nullable/ordinary-array wrappers; State
+validates and forwards them to the existing Values decoder. Four genuine
+native outcomes preserve singular copied defaults, explicit overrides,
+nullable values and ordered arrays. Nine hostile case/carrier/null controls
+refuse before authored execution, retaining the existing rejected-receipt or
+earlier no-receipt policy and empty failed-default maps. Legacy unclaimed
+descriptors remain unchanged. The public Rust operation-field carrier now
+owns its dynamic type string; existing scalar claims stay identical.
+Prior actor/reference/replay checks were reused. Nullable/array computed
+enum defaults, wider CRUD/private/D1 consumers and full S9-Q02 remain open.
+Canonical completion remains **57/67**, with **10** remaining.
