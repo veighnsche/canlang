@@ -51,8 +51,9 @@ use super::catalog::{
     T13B_DELIVERY_OBSERVABLES, nominal_schema, std_capability,
 };
 use super::resolve::{
-    ActorKind, Binding, ContextVar, CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables,
-    ScopedName, SymbolId, SymbolKind, TypeRef, UnresolvedMember, has_error, is_expression,
+    ActorKind, Binding, CheckedJudgment, CheckedJudgmentKind, ContextVar, CrudOp, FixtureTarget,
+    ModelOwner, ModuleId, ResolveTables, ScopedName, SymbolId, SymbolKind, TypeRef,
+    UnresolvedMember, has_error, is_expression,
 };
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, is_punct, kids, name_text,
@@ -442,6 +443,14 @@ pub enum CheckedChoiceValue {
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Checked static declarations: one descriptor owns every derived shape.
+    pub judgments: HashMap<SymbolId, CheckedJudgment>,
+    /// Exact checked generated source constant references.
+    pub judgment_specifications: HashMap<NodeKey, SymbolId>,
+    /// Derived symbols have ordinary identities but no authored emission body.
+    pub judgment_generated_symbols: HashSet<SymbolId>,
+    /// Checked required-array field presence, independent of value cardinality.
+    pub judgment_required_arrays: HashSet<SymbolId>,
     /// Exact earlier-parameter identity claimed by an authored bare default.
     pub param_default_copy_sources: HashMap<SymbolId, SymbolId>,
     /// Exact typed cohort-child reads, consumed without spelling rebinding.
@@ -498,6 +507,7 @@ pub fn check_types(
     // Source languages first: message/descriptor variant checks
     // (`E3016` source-repeat) compare against the owning module tag.
     typer.collect_module_sources(trees);
+    typer.collect_judgment_messages(trees);
     typer.phase1(trees);
     typer.phase2(trees);
     typer.check_input_choice_cycles();
@@ -520,12 +530,15 @@ pub fn check_types(
         .iter()
         .filter(|(_, binding)| match binding {
             Binding::External { .. } => true,
-            Binding::Symbol(id) => matches!(
-                tables.symbols[id.0 as usize].kind,
-                SymbolKind::Capability { .. }
-                    | SymbolKind::CapabilityOp { .. }
-                    | SymbolKind::Scenario { .. }
-            ),
+            Binding::Symbol(id) => {
+                tables.judgments.contains(id)
+                    || matches!(
+                        tables.symbols[id.0 as usize].kind,
+                        SymbolKind::Capability { .. }
+                            | SymbolKind::CapabilityOp { .. }
+                            | SymbolKind::Scenario { .. }
+                    )
+            }
             _ => false,
         })
         .map(|(key, binding)| (*key, binding.clone()))
@@ -594,7 +607,10 @@ pub(crate) fn std_schema_type(declared: &str) -> Option<ResolvedType> {
     if let Some(inner) = declared.strip_suffix('?') {
         return std_schema_type(inner).map(|ty| ResolvedType::Nullable(Box::new(ty)));
     }
-    if let Some(element) = declared.strip_suffix("[]") {
+    if let Some(element) = declared
+        .strip_suffix("[]!")
+        .or_else(|| declared.strip_suffix("[]"))
+    {
         return std_schema_type(element).map(|ty| ResolvedType::Array {
             element: Box::new(ty),
             ordered: true,
@@ -642,7 +658,10 @@ fn std_nominal_leaf_type(declared: &str) -> ResolvedType {
     if let Some(inner) = declared.strip_suffix('?') {
         return ResolvedType::Nullable(Box::new(std_nominal_leaf_type(inner)));
     }
-    if let Some(element) = declared.strip_suffix("[]") {
+    if let Some(element) = declared
+        .strip_suffix("[]!")
+        .or_else(|| declared.strip_suffix("[]"))
+    {
         return ResolvedType::Array {
             element: Box::new(std_nominal_leaf_type(element)),
             ordered: true,
@@ -709,6 +728,7 @@ impl<'a> Typer<'a> {
                     | SyntaxKind::Retain => self.phase2_rule(file, text, module, item),
                     SyntaxKind::Fixture => self.phase2_fixture(file, text, module, item),
                     SyntaxKind::Capability => self.phase2_capability(file, text, module, item),
+                    SyntaxKind::Judgment => self.phase2_judgment(file, text, module, item),
                     SyntaxKind::Scenario => self.phase2_scenario(file, text, module, item),
                     SyntaxKind::Crud => self.phase2_crud(file, text, module, item),
                     SyntaxKind::Page => self.phase2_page(file, text, module, item),
@@ -6597,6 +6617,200 @@ impl<'a> Typer<'a> {
         }
     }
 
+    fn collect_judgment_messages(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        for (file, tree) in trees {
+            let text = self.text(*file).to_string();
+            for module_node in kids(tree)
+                .into_iter()
+                .filter(|n| matches!(n.kind, SyntaxKind::App | SyntaxKind::Package))
+            {
+                let Some(module) = module_of_node(self.tables, &text, module_node) else {
+                    continue;
+                };
+                for section in kids(module_node)
+                    .into_iter()
+                    .filter(|n| n.kind == SyntaxKind::Section)
+                {
+                    for message in kids(section)
+                        .into_iter()
+                        .filter(|n| n.kind == SyntaxKind::Message)
+                    {
+                        if let Some(id) =
+                            self.decl_symbol(module, &text, message, &["export", "message"])
+                        {
+                            self.judgment_messages.insert(id, message.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Count the actual static source string, following only resolved
+    /// zero-input message declarations. No executable expression is admitted.
+    fn judgment_caption_scalars(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        caption: &SyntaxNode,
+    ) -> Option<usize> {
+        if caption.kind != SyntaxKind::MessageValue {
+            self.check_caption(cx, caption, "judgment caption", None);
+        }
+        let value = match caption.kind {
+            SyntaxKind::Literal => string_literal_value(caption),
+            SyntaxKind::MessageValue => {
+                self.check_message_value(cx, caption, "judgment caption", Some(&[]));
+                kids(caption).into_iter().find_map(string_literal_value)
+            }
+            SyntaxKind::Path => {
+                let id = self
+                    .tables
+                    .node_symbol
+                    .get(&NodeKey::of(caption))
+                    .copied()?;
+                if !matches!(&self.tables.symbols[id.0 as usize].kind, SymbolKind::Message { params } if params.is_empty())
+                {
+                    return None;
+                }
+                let message = self.judgment_messages.get(&id)?.clone();
+                let descriptor = kids(&message)
+                    .into_iter()
+                    .find(|n| n.kind == SyntaxKind::MessageValue)?;
+                let message_module = self.tables.symbols[id.0 as usize].module;
+                let message_text = self.text(message.span.file).to_string();
+                let message_cx =
+                    Self::body_cx(message_module, message.span.file, &message_text, cx.narrow);
+                self.check_message_value(&message_cx, descriptor, "judgment message", Some(&[]));
+                kids(descriptor).into_iter().find_map(string_literal_value)
+            }
+            _ => None,
+        };
+        let Some(value) = value else {
+            self.diags.push(Diagnostic::error(
+                "E3016",
+                "judgment captions must be verified static text or zero-parameter messages"
+                    .to_string(),
+                tight_span(cx.text, caption),
+            ));
+            return None;
+        };
+        let count = value.chars().count();
+        if value.trim().is_empty() || count > 2_000 {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "judgment instruction/criterion must contain 1–2000 Unicode scalars".to_string(),
+                tight_span(cx.text, caption),
+            ));
+        }
+        Some(count)
+    }
+
+    fn phase2_judgment(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+        let Some(owner) = self.decl_symbol(module, text, node, &["export", "judgment"]) else {
+            return;
+        };
+        let Some(mut judgment) = self.tables.judgment_declarations.get(&owner).cloned() else {
+            self.diags.push(Diagnostic::error("E6006", "runtime-options judgment interfaces are not implemented; only checked static judgments are supported".to_string(), node.span));
+            return;
+        };
+        let before = self.diags.len();
+        match attribute_value(node, "version", text).and_then(|n| {
+            (n.kind == SyntaxKind::Literal)
+                .then(|| int_literal_value(n, text))
+                .flatten()
+        }) {
+            Some(version) => judgment.version = version,
+            None => self.diags.push(Diagnostic::error(
+                "E3001",
+                "judgment version must be an int literal".to_string(),
+                node.span,
+            )),
+        }
+        if !(1..=32).contains(&judgment.questions.len()) {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "judgment requires 1–32 questions".to_string(),
+                node.span,
+            ));
+        }
+        let narrow = NarrowEnv::default();
+        let cx = Self::body_cx(module, file, text, &narrow);
+        let mut combined = 0;
+        let mut question_names = HashSet::new();
+        let mut complete = true;
+        for item in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::JudgmentItem)
+        {
+            let parts = kids(item);
+            let Some(name) = parts.iter().find_map(|n| name_text(n, text)) else {
+                continue;
+            };
+            if !question_names.insert(name.to_string()) {
+                complete = false; // The owning resolver already reported E2002.
+            }
+            let Some(question) = judgment.questions.iter().find(|q| q.name == name) else {
+                complete = false;
+                continue;
+            };
+            let count = if question.kind == CheckedJudgmentKind::Choice {
+                question.options.len()
+            } else {
+                question.levels.len()
+            };
+            let allowed = match question.kind {
+                CheckedJudgmentKind::Noul => true,
+                CheckedJudgmentKind::Choice => (2..=26).contains(&count),
+                CheckedJudgmentKind::Score => (2..=10).contains(&count),
+            };
+            if !allowed {
+                self.diags.push(Diagnostic::error("E3001", "static judgment choices require 2–26 options; scores require 2–10 ordered levels".to_string(), item.span));
+            }
+            let mut ids = HashSet::new();
+            for option in question.options.iter().chain(question.levels.iter()) {
+                if !ids.insert(&option.id) {
+                    self.diags.push(Diagnostic::error(
+                        "E2002",
+                        format!("duplicate judgment option/level '{}'", option.id),
+                        item.span,
+                    ));
+                }
+            }
+            for caption in parts.iter().copied().filter(|n| {
+                matches!(
+                    n.kind,
+                    SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                )
+            }) {
+                combined += self.judgment_caption_scalars(&cx, caption).unwrap_or(0);
+            }
+            for option in parts
+                .iter()
+                .filter(|n| n.kind == SyntaxKind::JudgmentOption)
+            {
+                for caption in kids(option).into_iter().filter(|n| {
+                    matches!(
+                        n.kind,
+                        SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                    )
+                }) {
+                    combined += self.judgment_caption_scalars(&cx, caption).unwrap_or(0);
+                }
+            }
+        }
+        if combined > 24_000 {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "judgment specification exceeds 24000 combined source-language Unicode scalars"
+                    .to_string(),
+                node.span,
+            ));
+        }
+        if complete && before == self.diags.len() {
+            self.types.judgments.insert(owner, judgment);
+        }
+    }
+
     /// Check a capability declaration: `version=` must be an int
     /// literal, operation signatures contribute parameter defaults,
     /// and event schemas check as fields. Operations are
@@ -9076,6 +9290,7 @@ struct Typer<'a> {
     read_scenarios: HashSet<SymbolId>,
     /// Context-declared queue names per module (send/on= targets).
     queue_names: HashSet<(ModuleId, String)>,
+    judgment_messages: HashMap<SymbolId, SyntaxNode>,
 }
 
 impl<'a> Typer<'a> {
@@ -9117,6 +9332,7 @@ impl<'a> Typer<'a> {
             current_read: false,
             read_scenarios: HashSet::new(),
             queue_names: HashSet::new(),
+            judgment_messages: HashMap::new(),
         }
     }
 
@@ -9347,6 +9563,29 @@ impl<'a> Typer<'a> {
     /// (bad suffixes on resolved types, union arms, action/delivery
     /// targets, non-type annotations) are `E3008`/`E3009`/`E3010`.
     fn phase1(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        self.decl.extend(self.tables.judgment_types.clone());
+        for field in self.tables.judgment_types.keys() {
+            self.shapes.insert(
+                *field,
+                (
+                    false,
+                    false,
+                    self.tables.judgment_required_arrays.contains(field),
+                ),
+            );
+        }
+        self.types.judgment_generated_symbols = self.tables.judgment_generated_symbols.clone();
+        self.types.judgment_required_arrays = self.tables.judgment_required_arrays.clone();
+        for (owner, judgment) in &self.tables.judgment_declarations {
+            self.shapes.insert(judgment.state, (false, false, true));
+            self.results.insert(
+                judgment.evaluate,
+                Some(ResolvedType::Record {
+                    symbol: *owner,
+                    stored: true,
+                }),
+            );
+        }
         self.phase1_round(trees);
         // Forward field-chain references (`M.s` naming a field declared
         // later) read an absent `decl` entry on the first round and come
@@ -9869,6 +10108,9 @@ impl<'a> Typer<'a> {
         id: SymbolId,
         span: Span,
     ) -> ResolvedType {
+        if self.tables.judgment_generated_symbols.contains(&id) && self.decl.contains_key(&id) {
+            return self.decl_type(id);
+        }
         let symbol = &self.tables.symbols[id.0 as usize];
         match &symbol.kind {
             SymbolKind::Model { .. }
@@ -10460,6 +10702,11 @@ impl<'a> Typer<'a> {
 
     /// Navigate from an imported head through capability-op segments.
     fn op_at_path(&self, head: SymbolId, segments: &[&str]) -> Option<SymbolId> {
+        if segments == ["evaluate"]
+            && let Some(judgment) = self.tables.judgment_declarations.get(&head)
+        {
+            return Some(judgment.evaluate);
+        }
         if segments.is_empty() {
             return Some(head);
         }
@@ -11101,6 +11348,38 @@ impl<'a> Typer<'a> {
         }
         // Model/capability symbol receivers (operations, not fields).
         if let Some(id) = self.symbol_receiver(cx, receiver) {
+            if self.tables.judgments.contains(&id) {
+                if let Some(judgment) = self.tables.judgment_declarations.get(&id) {
+                    if !safe && name == "evaluate" {
+                        return ResolvedType::Operation(judgment.evaluate);
+                    }
+                    if !safe && name == "specification" {
+                        if let Some(symbol) = self
+                            .tables
+                            .judgment_standard_records
+                            .get("JudgmentSpec")
+                            .copied()
+                        {
+                            self.types
+                                .judgment_specifications
+                                .insert(NodeKey::of(node), id);
+                            return ResolvedType::Record {
+                                symbol,
+                                stored: true,
+                            };
+                        }
+                        self.diags.push(Diagnostic::error("E6006", "static judgment specification requires the consumed std.JudgmentSpec schema".to_string(), tight_span(cx.text, node)));
+                        return ResolvedType::Error;
+                    }
+                }
+                self.member_fail(
+                    node,
+                    name_node.span,
+                    format!("judgment {}", record_name(self.tables, cx.module, id)),
+                    name.to_string(),
+                );
+                return ResolvedType::Error;
+            }
             let symbol = &self.tables.symbols[id.0 as usize];
             match &symbol.kind {
                 SymbolKind::Model { .. } => {

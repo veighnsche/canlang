@@ -205,6 +205,9 @@ pub struct CompileArtifact {
     /// pinned contract version) this is the L3 `ExecutionDescriptorSet`
     /// content the T16 join loads.
     pub models: Vec<JsModel>,
+    /// Checked standard/custom value type contracts and enum declarations,
+    /// when the source program owns any such values.
+    pub value_types: Option<crate::codegen::js::JsValueTypes>,
     /// Page descriptors in source order.
     pub pages: Vec<ArtifactPage>,
     /// Lowered migration transitions in source order (B3-I1 registry).
@@ -383,7 +386,7 @@ pub fn assemble(
     // runtime reads `appDefinition.models`, so models — unlike
     // operations — are not threaded through `JsOutput`/canApp().
     // Collection is total and diagnostic-free (see `collect_models`).
-    let models = Emitter::new(ir).collect_models();
+    let models = Emitter::with_value_types(ir, js.value_types.clone()).collect_models();
     let artifact = CompileArtifact {
         language_version: crate::LANGUAGE_VERSION.to_string(),
         tool_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -392,6 +395,7 @@ pub fn assemble(
         callables,
         operations: js.operations.clone(),
         models,
+        value_types: js.value_types.clone(),
         pages,
         migrations,
         requires,
@@ -595,6 +599,7 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
             .collect(),
         operations: &artifact.operations,
         models: &artifact.models,
+        value_types: artifact.value_types.as_ref(),
         pages: artifact
             .pages
             .iter()
@@ -658,6 +663,9 @@ struct ArtifactWire<'a> {
     callables: Vec<CallableWire<'a>>,
     operations: &'a [JsOperation],
     models: &'a [JsModel],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "valueTypes")]
+    value_types: Option<&'a crate::codegen::js::JsValueTypes>,
     pages: Vec<PageWire<'a>>,
     migrations: Vec<MigrationWire<'a>>,
     requires: Vec<RequirementWire<'a>>,

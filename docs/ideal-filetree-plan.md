@@ -342,3 +342,6 @@ Static Judgment ownership now derives one frozen source-language specification a
 
 
 Static Judgment canonical intake retains one source/type owner: Compiler supplies the checked inventory, Contracts carries it, Values owns its sole normalization, State owns nominal admission/storage/receipt validation, and Interfaces consumes that public Values API. Exact Judgment version strings remain separate from standard numeric versions. Current source checks qualify this defining prerequisite; the same generated Cloudflare/D1 consumer is being joined under its existing owner. Original retained lookup after ACK and runtime-choice duties remain separate, repair totals and the accumulated complete checkpoint remain unchanged.
+
+
+Static Judgment Compiler ownership is reconciled against the released source producer: one checked IR inventory derives nominal and enum definitions for artifact and generated module, while installed module execution reuses the public Cloudflare/Values/State owners. Source refusals and installed module1/1 qualify the static compiler component. Native D1/provider/receipt and runtime-choice/application duties remain separate; no original parent credit or accumulated complete checkpoint advancement.
