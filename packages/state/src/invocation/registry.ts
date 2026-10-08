@@ -1,5 +1,5 @@
 import { checkFieldMachine } from '../internal/machine.js';
-import { parseTypeId } from '@canlang/values';
+import { parseTypeId, printTypeId } from '@canlang/values';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -340,6 +340,31 @@ function checkValueType(field: Record<string, unknown>, what: string): CanTypeId
   return type;
 }
 
+/** Explicit enum claims belong to the ordered declaration; absent claims stay legacy. */
+function checkEnumValueType(
+  holder: Record<string, unknown>, values: unknown, what: string,
+): CanTypeId | undefined {
+  if (!Object.hasOwn(holder, 'valueType')) return undefined;
+  const type = holder['valueType'];
+  let valid = false;
+  if (typeof type === 'string' && Array.isArray(values)) {
+    try {
+      const parsed = parseTypeId(type);
+      valid = parsed.base.kind === 'enum' && !parsed.requiredArray &&
+        printTypeId(parsed) === type && parsed.base.cases.length === values.length &&
+        parsed.base.cases.every((entry, index) => entry === values[index]) &&
+        (!Object.hasOwn(holder, 'nullable') ||
+          typeof holder['nullable'] === 'boolean' && parsed.nullable === holder['nullable']);
+    } catch {
+      // Whole-set rejection below owns malformed and contradictory claims.
+    }
+  }
+  if (!valid) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType must declare a canonical inline enum matching its ordered cases and nullable marker.`);
+  }
+  return type as CanTypeId;
+}
+
 function checkTypeArray(type: CanTypeId | undefined, array: boolean, what: string): void {
   if (type !== undefined && type.includes('[]') !== array) {
     fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with array marker.`);
@@ -365,6 +390,12 @@ function scalarTypeForKind(kind: unknown): string | undefined {
 
 /** Collapsed string tags require own claims; operation inputs also collapse checked date source. */
 function artifactValueType(field: Record<string, unknown>, what: string, operationInput = false): CanTypeId | undefined {
+  if (operationInput && Object.hasOwn(field, 'field') && isRecord(field['field']) &&
+      Object.hasOwn(field['field'], 'kind') && field['field']['kind'] === 'enum') {
+    const type = checkEnumValueType(field, field['field']['values'], what);
+    checkTypeArray(type, field['array'] !== undefined, what);
+    return type;
+  }
   if (Object.hasOwn(field, 'valueType')) {
     checkTypeArray(checkValueType(field, what), field['array'] !== undefined, what);
   }
@@ -487,7 +518,7 @@ function checkComputedDefault(
   if (input['computedDefault'] !== true || (operationKind !== 'scenario' && operationKind !== 'read') || required ||
       (inputKind !== 'enum' && inputKind !== 'ref' && (scalarTypeForKind(inputKind) === undefined || valueType === undefined)) ||
       ((inputKind === 'enum' || inputKind === 'ref') && (Object.hasOwn(input, 'array') || input['array'] !== undefined ||
-        (Object.hasOwn(input, 'nullable') && input['nullable'] !== false))) ||
+        (Object.hasOwn(input, 'nullable') && input['nullable'] !== false) || valueType?.endsWith('?'))) ||
       Object.hasOwn(input, 'default') || input['default'] !== undefined) {
     fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar or singular nonnullable enum/ref scenario or read input without a wire default.`);
   }
@@ -522,9 +553,10 @@ function checkCanonicalInput(
   }
   const required = value['required'] as boolean;
   const fallback = checkDefault(value['default'], what);
-  const valueType = checkValueType(value, what);
+  const valueType = kind === 'enum'
+    ? checkEnumValueType(value, value['enumValues'], what) : checkValueType(value, what);
   const inputBase = valueType?.replace(/\[\]|\?/g, '');
-  if (valueType !== undefined && inputBase !== scalarTypeForKind(kind) &&
+  if (kind !== 'enum' && valueType !== undefined && inputBase !== scalarTypeForKind(kind) &&
       !(kind === 'string' && inputBase === 'date')) {
     fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
   }
@@ -569,6 +601,7 @@ function checkCanonicalInput(
       kind: 'enum',
       required,
       enumValues: [...(values as string[])],
+      ...(valueType !== undefined ? { valueType } : {}),
       ...(computedDefault !== undefined ? { computedDefault } : {}),
       ...(fallback !== undefined ? { default: fallback } : {}),
     };
@@ -1343,6 +1376,7 @@ export function artifactToDescriptorSet(
           kind: 'enum',
           required: input.required,
           enumValues: [...(enumTag['values'] as string[])],
+          ...(valueType !== undefined ? { valueType } : {}),
           ...(computedDefault !== undefined ? { computedDefault } : {}),
           ...(fallback !== undefined ? { default: fallback } : {}),
         });

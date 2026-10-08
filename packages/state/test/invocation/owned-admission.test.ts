@@ -16,6 +16,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { decodeValue } from '@canlang/values';
 import type {
   CanonicalInputDef,
   ExecutionDescriptorSet,
@@ -95,6 +96,66 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
     assert.equal(plan.operation, OP as string);
     assert.equal(plan.rules.length, 1);
     assert.deepEqual(JSON.parse(JSON.stringify(plan)), plan);
+  });
+
+  it('forwards only explicit checked enum wire claims without widening State admission', () => {
+    for (const suffix of ['', '?', '[]', '[]?']) {
+      const valueType = `enum(one,two)${suffix}`;
+      const array = suffix.includes('[]');
+      const nullable = suffix.endsWith('?');
+      const raw: ArtifactDescriptorSlice = { artifact_version: 1, models: [], operations: [{
+        name: OP, kind: 'scenario', description: '', inputs: { fields: [{
+          name: 'choice', field: { kind: 'enum', values: ['one', 'two'] }, required: false,
+          valueType, nullable, ...(array ? { array: { required: false } } : {}),
+        }] },
+      }] };
+      const set: ExecutionDescriptorSet = { contractVersion: 1, models: [], operations: [{
+        name: OP, kind: 'scenario', inputs: [{ name: 'choice', kind: 'enum',
+          enumValues: ['one', 'two'], required: false, valueType }],
+      }] };
+      const opts = { by: 'public' as const,
+        ...(array ? { inputArrays: { [OP]: { choice: { required: false } } } } : {}) };
+      for (const loaded of [loadArtifactDescriptors(raw, { by: 'public' }), loadExecutionDescriptorSet(set, opts)]) {
+        const def = loaded.registry.get(OP)!;
+        assert.ok(isGeneratedOperationDef(def));
+        const input = def.descriptor.inputs[0]!;
+        assert.ok(input.kind !== 'ref' && input.kind !== 'delivery');
+        assert.equal(input.valueType, valueType);
+        assert.ok(Object.isFrozen(input));
+        const supplied = { choice: 'outside' };
+        if (!array) {
+          assert.deepEqual(validateCallInputs(def, supplied).normalized, supplied);
+          assert.deepEqual(validatePreparedInputs(def.preparedInputs!, supplied).normalized, supplied);
+        }
+        assert.deepEqual(decodeValue(valueType, array ? ['two'] : 'two'), array ? ['two'] : 'two');
+        assert.throws(() => decodeValue(valueType, array ? ['outside'] : 'outside'));
+        assert.throws(() => decodeValue(valueType, undefined));
+        assert.throws(() => decodeValue(valueType, array ? [1] : 1));
+        if (nullable) assert.equal(decodeValue(valueType, null), null);
+        else assert.throws(() => decodeValue(valueType, null));
+      }
+      const reject = (change: Record<string, unknown>) => {
+        assert.throws(() => loadArtifactDescriptors({ ...raw, operations: [{ ...raw.operations![0]!,
+          inputs: { fields: [{ ...raw.operations![0]!.inputs.fields[0]!, ...change }] },
+        }] }, { by: 'public' }), IncompatibleArtifactError);
+      };
+      reject({ valueType: `enum(two,one)${suffix}` });
+      reject({ valueType: `enum(one,other)${suffix}` });
+      reject({ valueType: `enum(one,two,)${suffix}` });
+      reject({ nullable: !nullable });
+      reject({ array: array ? undefined : { required: false } });
+      assert.throws(() => loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!,
+        inputs: [{ name: 'choice', kind: 'enum', enumValues: ['one', 'two'], required: false,
+          valueType: `enum(two,one)${suffix}` }],
+      }] }, opts), IncompatibleArtifactError);
+    }
+    const legacy = loadArtifactDescriptors({ artifact_version: 1, models: [], operations: [{
+      name: OP, kind: 'scenario', description: '', inputs: { fields: [{ name: 'choice',
+        field: { kind: 'enum', values: ['arbitrary label'] }, required: false, nullable: true } ] },
+    }] }, { by: 'public' }).registry.get(OP)!;
+    assert.ok(isGeneratedOperationDef(legacy));
+    assert.equal(Object.hasOwn(legacy.descriptor.inputs[0]!, 'valueType'), false);
+    assert.deepEqual(validateCallInputs(legacy, { choice: null }).normalized, { choice: null });
   });
 
   it('accepts presence-only scalars of every kind without value checks', () => {
