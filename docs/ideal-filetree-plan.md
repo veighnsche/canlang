@@ -303,3 +303,6 @@ Root model-rule refusal reconciliation: existing canonical metadata intake refus
 
 
 Root bounded loader-cleanup reconciliation: existing e2e loader/testkit conformance and fixture owners retain private scratch until successful handoff. Failure cleanup and unique MCP attempt roots replace leaked/shared scratch, with8direct lifecycle controls and5existing page-less specs; table disposal and DO audit reset are reused. Actual evidence/assets remain, conditional corpus and installed/native duties stay separate. No new lifetime owner, production saving, merge or complete checkpoint advancement.
+
+
+Root released formatting reconciliation: compiler owns checked localized-message lowering and its one descriptor bridge; existing Values format, Cloudflare trusted app scope and State invoker retain defining responsibilities. Owner source-current consumer and focused results close finite SEM-R03 only. Public presentation source-language, outbound classification/freezing and wider host/installed/app duties remain distinct; no whole locale or complete checkpoint advancement.
