@@ -132,7 +132,7 @@ function ownerRow(id: string, nowMs: number): StoredRow {
     updatedBy: ACTOR,
     archivedAt: null,
     parent: null,
-    data: { service: 'svc-1', notice_state: 'pending', notification: 'decoy-id' },
+    data: { service: 'svc-1', notice_state: 'pending', notification: null },
   };
 }
 
@@ -716,8 +716,23 @@ describe('d3a join differential (B3 read path vs work mechanism)', () => {
     resultExpiresAtMs: number | null = null,
   ): Promise<void> {
     const port = createReceiptJoinPort({ store });
+    const owner = await store.load(ITEM_MODEL, 'item-1' as RecordId);
+    assert.ok(owner !== null);
     await port.commitJoin(
       await batchWith(store, [
+        {
+          kind: 'update',
+          model: ITEM_MODEL,
+          id: owner.id,
+          expectedVersion: owner.version,
+          row: {
+            ...owner,
+            version: (owner.version + 1) as RecordVersion,
+            updated: T0,
+            updatedBy: ACTOR,
+            data: { ...owner.data, [FIELD]: { id: deliveryId, operation: SOURCE } },
+          },
+        },
         {
           kind: 'insert',
           model: RECEIPT_ASSOCIATION_MODEL as ModelName,
@@ -794,6 +809,7 @@ describe('d3a join differential (B3 read path vs work mechanism)', () => {
       selected,
       model: ITEM_MODEL,
       schema,
+      declaredSource: SOURCE,
       policy,
       caller,
       memberships: nullMemberships,
