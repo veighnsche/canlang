@@ -109,6 +109,11 @@ export interface HandlerContext {
   readonly formatting?: HandlerFormattingScope;
   /** Source facts installed only from an admitted canonical context. */
   readonly actor?: UserRef | null;
+  /** Current-caller facts for checked actor property reads; never part of a generic user reference. */
+  readonly actorFacts?: {
+    readonly email: string | undefined;
+    readonly email_verified: boolean | undefined;
+  } | null;
   readonly team?: { readonly id: string; readonly timezone: string } | null;
   readonly now?: DatetimeValue;
   readonly operation?: { readonly id: string; readonly source: string };
@@ -161,6 +166,10 @@ export function createContext(deps: CreateContextDeps): HandlerContext {
     ...(deps.canonical === undefined ? {} : { canonical: deps.canonical }),
     ...(deps.qualified === undefined ? {} : {
       actor: deps.qualified.actor === null ? null : makeUserRef(deps.qualified.actor.userId),
+      actorFacts: deps.qualified.actor === null ? null : Object.freeze({
+        email: deps.qualified.actor.email,
+        email_verified: deps.qualified.actor.emailVerified,
+      }),
       team: deps.qualified.team === null ? null : Object.freeze({ id: deps.qualified.team.teamId, timezone: deps.qualified.team.timezone }),
       now: makeDatetime(BigInt(deps.qualified.now)),
       operation: Object.freeze({ id: deps.qualified.operationId, source: deps.qualified.source }),
