@@ -1,7 +1,26 @@
   ## Added bounded comparison handler; current grammar, uncompiled evidence.
   scenario review_state_text(submission:Submission) read=true -> text by=members
-   require submission.parent.submitter==actor or (coordinator and (submission.parent.location==null or can_work(actor,submission.parent.location))) or (reviewer and submission.reviewer==actor and submission.state!=withdrawn and (submission.parent.location==null or can_work(actor,submission.parent.location)))
    do
+    if not (submission.parent.submitter==actor)
+     if coordinator
+      if submission.parent.location!=null
+       let person=actor
+       let location=submission.parent.location
+       let worker=first(Employee as e where e.user==person and e.active)
+       let allowed=worker!=null and active_member(person,team) and (worker.operator_wide or worker.home==location or location in worker.locations)
+       if not allowed
+        require reviewer and submission.reviewer==actor and submission.state!=withdrawn
+        let person=actor
+        let location=submission.parent.location
+        let worker=first(Employee as e where e.user==person and e.active)
+        require worker!=null and active_member(person,team) and (worker.operator_wide or worker.home==location or location in worker.locations)
+     else
+      require reviewer and submission.reviewer==actor and submission.state!=withdrawn
+      if submission.parent.location!=null
+       let person=actor
+       let location=submission.parent.location
+       let worker=first(Employee as e where e.user==person and e.active)
+       require worker!=null and active_member(person,team) and (worker.operator_wide or worker.home==location or location in worker.locations)
     let state=submission.state
     if state==pending
      return "Pending"

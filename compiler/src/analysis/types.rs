@@ -442,6 +442,8 @@ pub enum CheckedChoiceValue {
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Exact checked bare-role value references, preserving lexical collisions.
+    pub role_references: HashMap<NodeKey, SymbolId>,
     /// Optional checked assistance; final input typing/defaults/grants are unchanged.
     pub input_choices: HashMap<SymbolId, CheckedInputChoice>,
     /// Checked external and capability/operation declaration heads for sends.
@@ -10784,6 +10786,12 @@ impl<'a> Typer<'a> {
         node: &SyntaxNode,
         expect: Option<&ResolvedType>,
     ) -> ResolvedType {
+        let key = NodeKey::of(node);
+        if let Some(Binding::Symbol(id)) = self.tables.node_binding.get(&key)
+            && matches!(self.tables.symbols[id.0 as usize].kind, SymbolKind::Role)
+        {
+            self.types.role_references.insert(key, *id);
+        }
         // Narrowed root (continuation fact on the resolved
         // declaration, T03 §6).
         if let Some(name) = kids(node).iter().find_map(|n| name_text(n, cx.text)) {

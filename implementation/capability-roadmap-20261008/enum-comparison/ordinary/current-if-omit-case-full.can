@@ -53,8 +53,11 @@ package hire label="Recruitment"@{nl="Werving"}
  When
   ## Added bounded comparison handler; current grammar, uncompiled evidence.
   scenario stage_text(candidate:Candidate) read=true -> text by=recruiter
-   require can_work(actor,candidate.parent.location)
    do
+    let person=actor
+    let location=candidate.parent.location
+    let worker=first(Employee as e where e.user==person and e.active)
+    require worker!=null and active_member(person,team) and (worker.operator_wide or worker.home==location or location in worker.locations)
     let state=candidate.stage
     if state==applied
      return "Applied"

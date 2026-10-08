@@ -1,0 +1,233 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { Miniflare } from 'miniflare';
+import type { D1Database } from '@cloudflare/workers-types';
+import type { CompileArtifact, MutationResult, PresentationContext, StoragePort } from '@canlang/contracts';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
+import { asModel, asOperation, asOperationId } from '@canlang/state/testing/invocation/fixtures';
+import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
+import { createHttpHandler, handleAuthRequest, handleCsvRequest, handleOperationRequest, catalogFromArtifactOperations } from '@canlang/interfaces';
+import type { HttpDeps } from '@canlang/interfaces';
+import { collectCommitSelections, csvConfirmSection, csvPreviewSection, submitCsvCommit, submitCsvReview } from '@canlang/ui';
+import type { CsvReviewModel, SubmitFetch } from '@canlang/ui';
+import { assembleModules } from '@canlang/cloudflare/runtime/modules';
+import { buildInvoker } from '@canlang/cloudflare/worker/assembly';
+
+const APP = 'TypedOperationForms';
+const OPERATION = `${APP}.Entry.create`;
+const MODEL = asModel(`${APP}.Entry`);
+
+test('reviewed CSV commits authored rows through native D1 admission, replay and live authority', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'can-reviewed-csv-'));
+  const worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+    script: 'export default { fetch() { return new Response("ok"); } }',
+    d1Databases: { DB: 'reviewed-csv' }, d1Persist: join(dir, 'd1') });
+  const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom') as
+    typeof import('../../../ui/node_modules/happy-dom/lib/index.js');
+  const window = new Window({ url: 'https://csv.example.test/' });
+  const clock = { nowMs: () => Date.now() };
+  try {
+    const db = await worker.getD1Database('DB') as unknown as D1Database;
+    await ensureSchema(db); await ensureIdentitySchema(db);
+    const state = createD1Storage(db);
+    const identities = createD1IdentityStore(db, { clock });
+    const team = await identities.createTeam({ timezone: 'UTC' });
+    const user = await identities.createUser({ email: 'csv-owner@example.test', password_hash: 'unused', email_verified: true });
+    const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const token = 'native-reviewed-csv-session';
+    await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+      last_team_id: team.team_id, expires_at: new Date(clock.nowMs() + 3600_000).toISOString() });
+    const cookie = buildSessionCookie(token, { maxAgeSeconds: 3600 }).split(';')[0]!;
+    const csrf = await deriveCsrfToken(token);
+    const identity = await resolveIdentity(identities, { session_token: token }, { clock });
+    const path = resolve('packages/cloudflare/test/fixtures/typed-operation-forms.json');
+    const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: path }, {
+      workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+      uiUrl: import.meta.resolve('@canlang/ui') });
+    let revokeAfterCommit = false;
+    const store: StoragePort = { ...state, async commit(batch) {
+      const result = await state.commit(batch);
+      if (revokeAfterCommit && batch.writes.some(write => write.model === MODEL)) {
+        revokeAfterCommit = false;
+        await identities.removeMembership(membership.membership_id);
+      }
+      return result;
+    } };
+    const invoker = buildInvoker(artifact, asm, store, { memberships: identities, source: 'http', now: clock.nowMs });
+    // This route composition mounts only the existing CSV and canonical operation
+    // endpoints. No page, upload or provider port participates in this profile.
+    const unavailable = (): never => { throw new Error('Capability is not installed in the reviewed CSV host'); };
+    const deps: HttpDeps = { app: { appId: APP, brand: APP, appDefaultLocale: 'en', ownerLabels: new Map() },
+      pages: { descriptors: () => [] },
+      invoker, catalog: catalogFromArtifactOperations(artifact), clock, logger: { log: () => {} },
+      limiter: { check: async () => unavailable() },
+      identity: { store: identities, clock, mail: { sendMail: async () => unavailable() },
+        verifyBaseUrl: '', recoveryBaseUrl: '', inviteBaseUrl: '', sessionMaxAgeSeconds: 3600 },
+      secureCookies: false,
+      uploads: { files: { usesFiles: () => false }, kernel: {
+        maxBytes: unavailable, createIntent: async () => unavailable(), append: async () => unavailable(),
+        complete: async () => unavailable(), finalize: async () => unavailable(),
+      } },
+      ingress: { bindings: { bindingFor: () => null }, verifier: { verify: async () => null },
+        sink: { accept: async () => ({ accepted: false }) } },
+    };
+    const unmounted = async () => new Response('Not mounted', { status: 404 });
+    const http = createHttpHandler(deps, { csv: request => handleCsvRequest(deps, request),
+      operations: (request, operation) => handleOperationRequest(deps, request, operation),
+      auth: request => handleAuthRequest(deps, request), uploads: unmounted, ingress: unmounted, oauth: unmounted });
+    const wire: SubmitFetch = async (url, init) => {
+      const response = await http(new Request(new URL(url, 'https://csv.example.test'), {
+        method: init.method, headers: { ...init.headers, cookie }, body: init.body as string }));
+      return { status: response.status, headers: response.headers, text: () => response.text() };
+    };
+    const context: PresentationContext = { preferredLocales: [], appDefaultLocale: 'en',
+      theme: { mode: 'system', accent: 'blue', density: 'comfortable' }, path: '/', isPartial: false,
+      csrfToken: csrf, principal: identity, invocation: identity,
+      query: async () => { throw new Error('CSV presentation does not query rows'); } };
+    const review = async (csv: string) => {
+      const result = await submitCsvReview({ fetchImpl: wire, action: '/api/csv/review', csrf, operation: OPERATION, csv });
+      assert.ok(result.ok, JSON.stringify(result)); return result.review;
+    };
+    const selections = async (csv: string, reviewed: CsvReviewModel, excluded?: number) => {
+      window.document.body.innerHTML = await csvPreviewSection({ context, review: reviewed,
+        commitPath: '/api/csv/commit', csvText: csv, regionId: 'csv-preview' });
+      const form = window.document.querySelector('form')!;
+      if (excluded !== undefined) {
+        const checkbox = form.querySelector(`input[name="rows[${excluded}].selected"]`) as
+          import('../../../ui/node_modules/happy-dom/lib/index.js').HTMLInputElement;
+        checkbox.checked = false;
+      }
+      const flat: Record<string, string> = {};
+      for (const [name, value] of new window.FormData(form).entries()) {
+        assert.equal(typeof value, 'string'); flat[name] = value as string;
+      }
+      const collected = collectCommitSelections(flat);
+      assert.ok(collected.ok, JSON.stringify(collected)); return collected.selections;
+    };
+    const csv = 'label,count\nFirst,\nBad,not-int\nFirst,\nExcluded,2\nSecond,3\n';
+    const revision = await state.readRevision();
+    const reviewed = await review(csv);
+    assert.deepEqual(reviewed.counts, { total: 5, valid: 3, invalid: 1, duplicate: 1 });
+    assert.deepEqual(reviewed.rows.map(row => row.status), ['valid', 'invalid', 'duplicate', 'valid', 'valid']);
+    assert.equal(reviewed.rows[2]!.duplicate_of, 0);
+    assert.equal(await state.readRevision(), revision);
+    assert.deepEqual(await state.query({ model: MODEL, authority: 'owner' }), []);
+    const selected = await selections(csv, reviewed, 3);
+    assert.deepEqual(selected.map(row => row.index), [0, 4]);
+    assert.match(window.document.body.textContent, /Bad/);
+    assert.match(window.document.body.textContent, /Excluded/);
+    const request = { fetchImpl: wire, action: '/api/csv/commit', csrf, operation: OPERATION,
+      csv, consent: reviewed.consent, selections: [...selected].reverse() };
+    const changed = await submitCsvCommit({ ...request, csv: csv.replace('Second,3', 'Second,4') });
+    assert.equal(changed.ok, false); if (!changed.ok) assert.equal(changed.error.code, 'conflict');
+    assert.equal(await state.readRevision(), revision);
+    const committed = await submitCsvCommit(request);
+    assert.ok(committed.ok, JSON.stringify(committed));
+    assert.deepEqual(committed.outcome.rows.map(row => [row.index, row.status]), [[0, 'committed'], [4, 'committed']]);
+    const rows = await state.query({ model: MODEL, authority: 'owner' });
+    assert.equal(rows.length, 2);
+    assert.deepEqual(rows.map(row => [row.data['label'], row.data['count']]).sort(), [['First', '1'], ['Second', '3']]);
+    assert.ok(rows.every(row => JSON.stringify(row.data['owner']) === JSON.stringify({ id: user.user_id })));
+    const receipts = await Promise.all(selected.map(row => state.readReceipt({ app: APP, owner: team.team_id,
+      principal: user.user_id, operation: asOperation(OPERATION), operationId: asOperationId(row.operation_id) })));
+    assert.ok(receipts.every(receipt => receipt?.outcome.status === 'committed'));
+    assert.equal(receipts[0]!.resolvedDefaults['count'], '1');
+    const histories = await Promise.all(rows.map(row => state.historyFor(MODEL, row.id)));
+    assert.ok(histories.every(history => history.length === 1));
+    const committedRevision = await state.readRevision();
+    const replay = await submitCsvCommit(request);
+    assert.ok(replay.ok, JSON.stringify(replay));
+    assert.deepEqual(replay.outcome.rows.map(row => [row.index, row.operation_id, row.status]),
+      committed.outcome.rows.map(row => [row.index, row.operation_id, row.status]));
+    for (const [index, row] of replay.outcome.rows.entries()) {
+      const original = committed.outcome.rows[index]!.result as MutationResult;
+      const repeated = row.result as MutationResult;
+      assert.equal(original.status, 'committed');
+      assert.equal(repeated.status, 'replayed');
+      assert.equal(repeated.operation_id, original.operation_id);
+      assert.deepEqual(repeated.result, original.result);
+    }
+    assert.equal(await state.readRevision(), committedRevision);
+    assert.deepEqual(await state.query({ model: MODEL, authority: 'owner' }), rows);
+    assert.deepEqual(await Promise.all(rows.map(row => state.historyFor(MODEL, row.id))), histories);
+    assert.deepEqual(await Promise.all(selected.map(row => state.readReceipt({ app: APP, owner: team.team_id,
+      principal: user.user_id, operation: asOperation(OPERATION), operationId: asOperationId(row.operation_id) }))), receipts);
+    window.document.body.innerHTML = await csvConfirmSection({ context, outcome: committed.outcome, regionId: 'csv-confirm' });
+    assert.match(window.document.body.textContent, /Committed/);
+    assert.match(window.document.body.textContent, new RegExp(user.user_id));
+
+    const lostCsv = 'label,count\nLost response,7\n';
+    const lostReview = await review(lostCsv);
+    const lostSelections = await selections(lostCsv, lostReview);
+    const lostRequest = { ...request, csv: lostCsv, consent: lostReview.consent, selections: lostSelections };
+    const lostWire: SubmitFetch = async (url, init) => {
+      const response = await wire(url, init);
+      assert.equal(response.status, 200);
+      await response.text();
+      throw new Error('Native transport disconnected after the committed HTTP response');
+    };
+    const unknown = await submitCsvCommit({ ...lostRequest, fetchImpl: lostWire });
+    assert.equal(unknown.ok, false);
+    if (!unknown.ok) assert.equal(unknown.error.code, 'transport');
+    const lostRows = await state.query({ model: MODEL, authority: 'owner' });
+    assert.equal(lostRows.length, rows.length + 1);
+    const lostRow = lostRows.find(row => row.data['label'] === 'Lost response');
+    assert.ok(lostRow);
+    const lostReceiptIdentity = { app: APP, owner: team.team_id, principal: user.user_id,
+      operation: asOperation(OPERATION), operationId: asOperationId(lostSelections[0]!.operation_id) };
+    const lostReceipt = await state.readReceipt(lostReceiptIdentity);
+    assert.ok(lostReceipt);
+    assert.equal(lostReceipt.outcome.status, 'committed');
+    assert.ok(lostReceipt.outcome.status === 'committed');
+    const lostHistory = await state.historyFor(MODEL, lostRow.id);
+    assert.equal(lostHistory.length, 1);
+    const lostRevision = await state.readRevision();
+    // The caller explicitly retries the same selected row; the UI helper does
+    // not translate an unknown transport outcome into a server verdict or retry.
+    const recovered = await submitCsvCommit(lostRequest);
+    assert.ok(recovered.ok, JSON.stringify(recovered));
+    assert.deepEqual(recovered.outcome.rows.map(row => [row.index, row.operation_id, row.status]),
+      [[0, lostSelections[0]!.operation_id, 'committed']]);
+    const recoveredResult = recovered.outcome.rows[0]!.result as MutationResult;
+    assert.equal(recoveredResult.status, 'replayed');
+    assert.equal(recoveredResult.operation_id, lostSelections[0]!.operation_id);
+    assert.deepEqual(recoveredResult.result, lostReceipt.outcome.result);
+    assert.equal(await state.readRevision(), lostRevision);
+    assert.deepEqual(await state.query({ model: MODEL, authority: 'owner' }), lostRows);
+    assert.deepEqual(await state.historyFor(MODEL, lostRow.id), lostHistory);
+    assert.deepEqual(await state.readReceipt(lostReceiptIdentity), lostReceipt);
+
+    const partialCsv = 'label,count\nBefore revocation,5\nAfter revocation,6\n';
+    const partialReview = await review(partialCsv);
+    const partialSelections = await selections(partialCsv, partialReview);
+    revokeAfterCommit = true;
+    const partial = await submitCsvCommit({ ...request, csv: partialCsv, consent: partialReview.consent,
+      selections: [...partialSelections].reverse() });
+    assert.ok(partial.ok, JSON.stringify(partial));
+    assert.deepEqual(partial.outcome.rows.map(row => [row.index, row.status]), [[0, 'committed'], [1, 'failed']]);
+    assert.equal(partial.outcome.rows[1]!.error?.code, 'forbidden');
+    const afterPartial = await state.query({ model: MODEL, authority: 'owner' });
+    assert.equal(afterPartial.length, lostRows.length + 1);
+    const beforeRevocation = afterPartial.find(row => row.data['label'] === 'Before revocation');
+    assert.ok(beforeRevocation);
+    assert.equal((await state.historyFor(MODEL, beforeRevocation.id)).length, 1);
+    assert.equal((await state.readReceipt({ app: APP, owner: team.team_id, principal: user.user_id,
+      operation: asOperation(OPERATION), operationId: asOperationId(partialSelections[0]!.operation_id) }))?.outcome.status, 'committed');
+    assert.equal(afterPartial.some(row => row.data['label'] === 'After revocation'), false);
+    window.document.body.innerHTML = await csvConfirmSection({ context, outcome: partial.outcome, regionId: 'csv-partial' });
+    assert.match(window.document.body.textContent, /Failed/);
+    const afterRevision = await state.readRevision();
+    const revoked = await submitCsvCommit({ ...request, csv: partialCsv, consent: partialReview.consent, selections: partialSelections });
+    assert.equal(revoked.ok, false); if (!revoked.ok) assert.equal(revoked.error.code, 'forbidden');
+    assert.equal(await state.readRevision(), afterRevision);
+    assert.deepEqual(await state.query({ model: MODEL, authority: 'owner' }), afterPartial);
+  } finally {
+    await window.happyDOM.cancelAsync(); await worker.dispose();
+    await rm(dir, { recursive: true, force: true });
+  }
+});

@@ -16,6 +16,7 @@ export * from './projection/project.js';
 export * from './http/routes.js';
 export { handlePageRequest } from './http/pages.js';
 export * from './http/operations.js';
+export { handleCsvRequest } from './http/csv.js';
 export * from './http/fragments.js';
 export * from './http/limits.js';
 export * from './http/auth.js';
