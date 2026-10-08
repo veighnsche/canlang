@@ -913,6 +913,13 @@ export interface ExampleStateObservation {
 export interface CanonicalNominalLeaf {
   readonly name: string;
   readonly type: string;
+  /** Value constraints survive source field-type reuse; defaults and authority do not. */
+  readonly min?: number;
+  readonly max?: number;
+  readonly format?: 'name';
+  /** Request-local array identity constraints, independent of stored unique indexes. */
+  readonly distinctBy?: 'id';
+  readonly excludedIds?: ReadonlyArray<string>;
 }
 
 /**
@@ -929,6 +936,8 @@ export interface CanonicalNominalResult {
 /** The one checked nominal schema inventory carried by an artifact. */
 export interface CanonicalValueTypes {
   readonly contracts: ReadonlyArray<CanonicalNominalResult>;
+  /** Finite bounded text aliases; nominal names resolve through the checked schema. */
+  readonly aliases?: ReadonlyArray<{ readonly name: string; readonly type: 'text'; readonly min: number; readonly max: number; readonly format: 'name' }>;
   readonly enums?: ReadonlyArray<{ readonly name: string; readonly cases: ReadonlyArray<string> }>;
 }
 

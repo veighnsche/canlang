@@ -203,3 +203,47 @@ fn plan_gates_surface_as_plan_stage_errors() {
     );
     assert_eq!(unknown["code"], "unknown-plan");
 }
+
+#[test]
+fn native_profile_refuses_candidate_constraints_before_registration() {
+    let mut host = host();
+    let handle = owner(&mut host);
+    let mut alias_schema = schema();
+    alias_schema["aliases"] = json!([]);
+    let mut schemas = vec![alias_schema];
+    for key in [
+        "format",
+        "distinctBy",
+        "distinct_by",
+        "excludedIds",
+        "excluded_ids",
+    ] {
+        let mut constrained = schema();
+        constrained["contracts"][0]["fields"][0][key] = json!("unsupported");
+        schemas.push(constrained);
+    }
+    for constrained in schemas {
+        let response = call(
+            &mut host,
+            "plan.register",
+            json!({
+                "owner": handle, "profile": "values/v1", "schema": constrained, "provenance": provenance(),
+            }),
+        );
+        assert_eq!(response["ok"], false);
+        assert_eq!(response["stage"], "plan");
+        assert_eq!(response["code"], "malformed-schema");
+    }
+    // Refusals must not publish a plan or consume the first plan identity.
+    let accepted = call(
+        &mut host,
+        "plan.register",
+        json!({
+            "owner": handle, "profile": "values/v1", "schema": schema(), "provenance": provenance(),
+        }),
+    );
+    assert_eq!(
+        accepted["value"]["id"],
+        "plan:v1:values:native:artifact-1:g0:0"
+    );
+}
