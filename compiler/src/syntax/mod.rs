@@ -19,8 +19,8 @@
 //! Lexer: `E1001` bare carriage return, `E1002` invalid UTF-8 (bytes entry
 //! only), `E1003` tab in indentation/code, `E1004` backslash continuation,
 //! `E1005` invalid numeric literal or unit, `E1006` invalid string,
-//! `E1007` unexpected character, `E1008` code fragment exceeds the `u32`
-//! source-offset range (public `lex_fragment` API admission).
+//! `E1007` unexpected character, `E1008` source or code fragment exceeds
+//! the `u32` source-offset range (public lexer/parser API admission).
 //!
 //! Layout: `E1101` mismatched closing delimiter, `E1102` unclosed
 //! delimiter, `E1103` bad indentation or excessive nesting, `E1120` description column
@@ -64,7 +64,7 @@ pub use lexer::{
 pub use parser::parse_program;
 
 use crate::diagnostic::Diagnostic;
-use crate::source::{SourceDb, SourceId, Span};
+use crate::source::{SourceDb, SourceId, Span, admit_source_len};
 
 /// Parse one source from the database into a lossless CST plus diagnostics.
 ///
@@ -87,6 +87,16 @@ pub fn parse(db: &SourceDb, id: SourceId) -> (SyntaxNode, Vec<Diagnostic>) {
 
 /// Parse bare source text for `file` into a lossless CST plus diagnostics.
 pub fn parse_source(file: SourceId, text: &str) -> (SyntaxNode, Vec<Diagnostic>) {
+    if let Err(error) = admit_source_len(text.len() as u64) {
+        return (
+            SyntaxNode::interior(SyntaxKind::File, Span::new(file, 0, 0), Vec::new()),
+            vec![Diagnostic::error(
+                "E1008",
+                error.to_string(),
+                Span::new(file, 0, 0),
+            )],
+        );
+    }
     let lexed = lex(file, text);
     let laid_out = layout(file, text, lexed.lines);
     let (tree, parse_diags) = parse_program(file, text, &laid_out);

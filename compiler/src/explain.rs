@@ -162,7 +162,7 @@ const CATALOG: [CodeInfo; 117] = [
         code: "E1008",
         title: "fragment-offset-range",
         severity: Severity::Error,
-        explanation: "The public syntax::lex_fragment API requires the fragment's UTF-8 byte length to fit in u32 and base + byte length to be at most u32::MAX. An empty fragment at u32::MAX and an exact-fitting end are valid. A fragment outside this range returns no tokens and appends one error at the zero-width (file, base, base) span, preserving earlier diagnostics. Use a base and fragment length whose sum fits. These examples describe API arguments: CLI-authored source cannot specify a fragment base.",
+        explanation: "Public lexer/parser APIs require the whole source byte length to fit in u32; an oversized input reports one error at (file, 0, 0) before processing and returns empty lines or a File root. The public syntax::lex_fragment API also requires the fragment's UTF-8 byte length to fit in u32 and base + byte length to be at most u32::MAX. An empty fragment at u32::MAX and an exact-fitting end are valid. A fragment outside this range returns no tokens and appends one error at the zero-width (file, base, base) span, preserving earlier diagnostics. Use a base and fragment length whose sum fits. These examples describe API arguments: CLI-authored source cannot specify a fragment base.",
         example_valid: "syntax::lex_fragment(file, \"a\", u32::MAX - 1, &mut diagnostics)",
         example_invalid: "syntax::lex_fragment(file, \"a\", u32::MAX, &mut diagnostics)",
     },
