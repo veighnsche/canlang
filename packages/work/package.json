@@ -52,6 +52,10 @@
       "types": "./dist/src/kernel/dispatch-staging.d.ts",
       "default": "./dist/src/kernel/dispatch-staging.js"
     },
+    "./kernel/occurrence-staging": {
+      "types": "./dist/src/kernel/occurrence-staging.d.ts",
+      "default": "./dist/src/kernel/occurrence-staging.js"
+    },
     "./kernel/tables": {
       "types": "./dist/src/kernel/tables.d.ts",
       "default": "./dist/src/kernel/tables.js"
