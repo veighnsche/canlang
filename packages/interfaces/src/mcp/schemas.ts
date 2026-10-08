@@ -789,7 +789,8 @@ function checkArtifactInputChannels(
       if (!(err instanceof ValueError)) throw err;
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
     }
-    const base = type.base.kind === 'scalar' ? type.base.name : type.base.kind === 'user' ? 'user' : undefined;
+    const base = type.base.kind === 'scalar' ? type.base.name
+      : type.base.kind === 'user' || type.base.kind === 'file' ? type.base.kind : undefined;
     if (base === undefined || type.requiredArray) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
     }
