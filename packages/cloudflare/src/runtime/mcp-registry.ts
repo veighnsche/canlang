@@ -19,7 +19,7 @@
  */
 
 import type { CanTypeId, CompileArtifact, DerivedOperationInputs, ResolvedIdentity } from "@canlang/contracts";
-import { checkArtifactOperation, checkedToMcpInputSchema } from "@canlang/interfaces";
+import { checkArtifactOperation, checkArtifactOperations, checkedToMcpInputSchema } from "@canlang/interfaces";
 
 /* ------------------------------------------------------------------ */
 /* Verbatim mirrors of `packages/interfaces/src/ports.ts`.             */
@@ -261,7 +261,7 @@ function checkInput(raw: unknown, where: string): McpNamedField {
   };
 }
 
-function checkOperation(raw: unknown, index: number): OperationDescriptor {
+function checkOperation(raw: unknown, index: number, owningSchema?: McpInputSchema): OperationDescriptor {
   const where = `operations[${index}]`;
   if (!isRecord(raw)) fail(where, "must be an object");
   const name = raw["name"];
@@ -301,7 +301,7 @@ function checkOperation(raw: unknown, index: number): OperationDescriptor {
   // claims additionally pass through the owning Interfaces descriptor checker;
   // legacy descriptors retain their original framing-only admission.
   if (fieldsRaw.some((entry) => isRecord(entry) && Object.hasOwn(entry, "valueType"))) {
-    const schema = checkedToMcpInputSchema(checkArtifactOperation(raw));
+    const schema = owningSchema ?? checkedToMcpInputSchema(checkArtifactOperation(raw));
     fields.splice(0, fields.length, ...schema.fields);
   }
   return {
@@ -324,7 +324,13 @@ function readArtifactOperations(artifact: CompileArtifact): readonly OperationDe
     fail("operations", `must be an array (got ${typeof raw})`);
   }
   const seen = new Set<string>();
-  const descriptors = raw.map((entry, index) => checkOperation(entry, index));
+  const hasChoices = raw.some(entry => isRecord(entry) && isRecord(entry['inputs']) &&
+    Array.isArray(entry['inputs']['fields']) && entry['inputs']['fields'].some((field: unknown) =>
+      isRecord(field) && 'choices' in field));
+  const owningSchemas = hasChoices ? new Map(checkArtifactOperations(artifact).map(operation =>
+    [operation.name, checkedToMcpInputSchema(operation)])) : undefined;
+  const descriptors = raw.map((entry, index) => checkOperation(entry, index,
+    isRecord(entry) && typeof entry['name'] === 'string' ? owningSchemas?.get(entry['name']) : undefined));
   for (const descriptor of descriptors) {
     if (seen.has(descriptor.name)) {
       fail("operations", `repeats operation ${JSON.stringify(descriptor.name)}`);

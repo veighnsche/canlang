@@ -441,7 +441,8 @@ async function defaultLoadHttpOperationsFactory(): Promise<HttpOperationHandlerF
   // the bundle stays a pure re-export so no entry-path comment leaks
   // the tmpdir (bundle determinism); this stable source does the rest.
   const handle = chain as (deps: unknown, req: Request, op: string) => Promise<Response>;
-  return ((deps) => (req, op) => handle(deps, req, op)) as HttpOperationHandlerFactory;
+  return Object.assign(((deps) => (req, op) => handle(deps, req, op)) as HttpOperationHandlerFactory,
+    typeof mod['INPUT_CHOICES_VERSION'] === 'number' ? { inputChoicesVersion: mod['INPUT_CHOICES_VERSION'] } : {});
 }
 
 async function defaultLoadSourceFormBindingsFactory(): Promise<CreateSourceFormBindingsFn> {

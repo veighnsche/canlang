@@ -1799,14 +1799,15 @@ export interface MockupWindowProps {
  * GENERATED_REF_VERSION_SUFFIX companion); `file` maps to the file type
  * whose render fails closed with the established S7 upload-intents error
  * (no pilot operation carries a file input); `enum` renders a select whose
- * options are the derived values verbatim. The table carries exactly the
- * nine committed pilot kinds (pinned by the T20a contract test) and is
+ * options are the derived values verbatim. `user` renders an opaque ID;
+ * submission uses its existing canonical `{id}` wire value. The table is
  * deliberately NOT keyed by the live DerivedInputKind union: richer kinds
  * are T19b/T20b scope, and the factory fails closed on any kind missing
  * here — never a guessed widget.
  */
 export const GENERATED_FORM_TYPE_FOR_KIND = {
   ref: "text",
+  user: "text",
   string: "text",
   integer: "int",
   decimal: "decimal",
@@ -1854,8 +1855,7 @@ export const GENERATED_FOLD_SUFFIX = "__fold";
  *
  * The rule is documentary: no runtime member is exported because a
  * delivery input produces no field, no companion, and no envelope
- * member. The T20a contract test continues to pin the nine pilot
- * kinds; delivery stays absent from GENERATED_FORM_TYPE_FOR_KIND by
+ * member. Delivery stays absent from GENERATED_FORM_TYPE_FOR_KIND by
  * design (the factory fails closed on it, like any unlisted kind).
  */
 

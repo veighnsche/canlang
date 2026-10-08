@@ -49,6 +49,8 @@ export interface CanonicalStagedWrite {
  * instead of mis-serving; the stdlib passes its query through untouched.
  */
 export interface CanonicalReadQuery {
+  /** Retain authored containment filters so unsupported seams refuse them explicitly. */
+  readonly parent?: unknown;
   readonly where?: unknown;
   readonly order?: unknown;
   readonly limit?: number;

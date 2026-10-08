@@ -59,13 +59,15 @@ import type {
 } from '@canlang/contracts';
 import type { CanonicalEffectsScope, HandlerContext } from './context.js';
 import { equalValue as equalValueProducer } from '@canlang/values';
+import { sameNativeReference } from './native-records.js';
 
 // Generated pure helpers retain their Values producer identity.
 export {
-  int64, datetime, compareInstant, addDuration, all, sum, join, same, trim, compareScalar,
+  int64, datetime, compareInstant, addDuration, all, sum, join, trim, compareScalar,
   parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
   date, add_days, compareDate,
 } from '@canlang/values';
+export const same = sameNativeReference;
 export { delivery } from '@canlang/state/effects/delivery';
 
 /** Pure checked equality, with compatibility for earlier c-first artifacts. */
@@ -86,6 +88,7 @@ export interface CreateInput {
 
 /** Query overrides for {@link records}; everything is optional. */
 export interface RecordsQuery {
+  readonly parent?: unknown;
   readonly where?: QueryPredicate;
   readonly order?: ReadonlyArray<OrderTerm>;
   readonly limit?: number;
@@ -252,6 +255,7 @@ export async function records(
     throw new Error('t17: stdlib records() needs a non-empty string model.');
   }
   const selection = {
+    ...(query.parent === undefined ? {} : { parent: query.parent }),
     ...(query.where === undefined ? {} : { where: query.where }),
     ...(query.order === undefined ? {} : { order: query.order }),
     ...(query.limit === undefined ? {} : { limit: query.limit }),

@@ -32,6 +32,7 @@ export const KNOWN_CAPABILITIES: readonly string[] = [
   "state",
   "state.machines",
   "state.parameters",
+  "interfaces.input-choices",
   "d1-batch",
   "do-alarms",
 ];

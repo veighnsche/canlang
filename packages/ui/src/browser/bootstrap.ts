@@ -50,6 +50,8 @@ import type { VisibilityLike } from "./polling.js";
 import { GeneratedSubmitError, submitGeneratedForm } from "../client.js";
 import type { DomControlLike, GeneratedSubmitResult, SubmitFetch, SubmitFetchInit } from "../client.js";
 import type { DerivedOperationInputs, FormMode } from "@canlang/contracts";
+import { CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, GENERATED_REF_VERSION_SUFFIX } from "@canlang/contracts";
+import { projectGeneratedInputs, GENERATED_NULL_SUFFIX } from "../forms.js";
 
 /** Minimal structural document (satisfied by DOM Document and fakes). */
 export interface DocumentLike {
@@ -73,6 +75,7 @@ export interface ElementLike {
   readonly tagName: string;
   readonly isConnected: boolean;
   querySelector?(selectors: string): ElementLike | null;
+  querySelectorAll?(selectors: string): Iterable<ElementLike>;
 }
 
 /** Minimal structural event (satisfied by DOM Event and fakes). */
@@ -434,6 +437,202 @@ function bindGuardedForm(
 }
 
 /** Source forms submit through the existing projection, never native bracket expansion. */
+/** Assistance owns no submission path: selections only edit the existing controls. */
+function bindInputChoices(form: ElementLike, internals: ClientInternals, alive: () => boolean): () => void {
+  type Control = ElementLike & { name: string; value: string; checked: boolean; type: string };
+  type Select = ElementLike & { value: string; textContent: string | null; appendChild(child: unknown): unknown };
+  let metadata: {
+    derived?: DerivedOperationInputs; mode?: FormMode; renderedInputs?: readonly string[];
+  };
+  try { metadata = JSON.parse(form.getAttribute('data-can-generated-form') ?? '{}'); }
+  catch { return () => {}; }
+  if (!metadata || !metadata.derived || !metadata.mode) return () => {};
+  const derived = metadata.derived;
+  const mode = metadata.mode;
+  const controls = () => Array.from((form as ElementLike & { elements: ArrayLike<Control> }).elements);
+  const root = (name: string) => mode === 'update' ? `inputs[changes][${name}]` : `inputs[${name}]`;
+  const flat = (): Record<string, string> => {
+    const result: Record<string, string> = {};
+    const FormData = internals.windowRef.FormData;
+    if (!FormData) throw new Error('Native FormData is unavailable.');
+    for (const [name, value] of new FormData(form)) if (typeof value === 'string') result[name] = value;
+    return result;
+  };
+  const entries = Array.from(form.querySelectorAll?.('[data-can-choices]') ?? []).map(outlet => {
+    const input = derived.inputs.find(input => input.name === outlet.getAttribute('data-can-choices'));
+    const select = outlet.querySelector?.('[data-can-choices-select]') as Select | null;
+    const feedback = outlet.querySelector?.('[data-can-choices-feedback]') as (ElementLike & { textContent: string | null }) | null;
+    return { input, select, feedback, sequence: 0, values: [] as unknown[],
+      timer: null as unknown | null, inflight: null as AbortController | null };
+  });
+  let stopped = false;
+  const current = () => !stopped && alive();
+  const reset = (entry: typeof entries[number], message = '') => {
+    if (entry.timer !== null) internals.windowRef.clearTimeout(entry.timer);
+    entry.timer = null;
+    entry.inflight?.abort();
+    entry.inflight = null;
+    entry.sequence++;
+    entry.values = [];
+    if (entry.select) {
+      entry.select.textContent = '';
+      entry.select.setAttribute('disabled', '');
+      entry.select.removeAttribute('aria-busy');
+      const option = internals.document.createElement?.('option') as { value: string; textContent: string } | undefined;
+      if (option) { option.value = ''; option.textContent = 'Choose a value'; entry.select.appendChild(option); }
+    }
+    if (entry.feedback) entry.feedback.textContent = message;
+  };
+  const clear = (name: string) => {
+    for (const control of controls()) {
+      if ([root(name), root(name + GENERATED_REF_VERSION_SUFFIX), root(name + GENERATED_NULL_SUFFIX)].includes(control.name)) {
+        control.value = control.type === 'checkbox' ? 'true' : '';
+        if (control.type === 'checkbox') control.checked = false;
+      }
+    }
+  };
+  const parents = (entry: typeof entries[number]) => [...new Set(Object.values(entry.input?.choices?.arguments ?? {}).map(mapping => mapping.input))];
+  const request = (entry: typeof entries[number]): { key: string; body: string; csrf: string } | null => {
+    const draft = flat();
+    const names = parents(entry);
+    const protectedRoot = (name: string) => Boolean(draft[SOURCE_FORM_BINDING_FIELD]) &&
+      !controls().some(control => control.name === root(name));
+    const editable = names.filter(name => !protectedRoot(name));
+    if (editable.some(name => !derived.inputs.some(input => input.name === name && input.kind !== 'delivery') ||
+        !controls().some(control => control.name === root(name)))) return null;
+    const present = editable.filter(name => draft[root(name + GENERATED_NULL_SUFFIX)] !== 'true' &&
+      (draft[root(name)] !== undefined && draft[root(name)] !== '' ||
+       controls().some(control => control.name === root(name) && control.type === 'checkbox')));
+    if (present.length !== editable.length) return null;
+    if (editable.some(name => {
+      const input = derived.inputs.find(input => input.name === name);
+      return input?.kind === 'ref' && input.versioned === true && !draft[root(name + GENERATED_REF_VERSION_SUFFIX)];
+    })) return null;
+    const projected = projectGeneratedInputs(derived, mode, draft, present);
+    const inputs = Object.fromEntries(editable.map(name => [name, projected[name]]));
+    if (Object.values(inputs).some(value => value === null || value === undefined || value === '' || Array.isArray(value) && value.length === 0)) return null;
+    if (!draft.operation_id || !draft[CSRF_FIELD]) return null;
+    const body = JSON.stringify({ operation_id: draft.operation_id, inputs,
+      ...(draft[SOURCE_FORM_BINDING_FIELD] === undefined ? {} : { [SOURCE_FORM_BINDING_FIELD]: draft[SOURCE_FORM_BINDING_FIELD] }) });
+    return { key: JSON.stringify([body, draft[CSRF_FIELD], form.getAttribute('action')]), body, csrf: draft[CSRF_FIELD] };
+  };
+  const lookup = async (entry: typeof entries[number]) => {
+    reset(entry);
+    const input = entry.input;
+    if (!input?.choices || !entry.select) return;
+    if (input.array || !['ref', 'user', 'string', 'integer', 'decimal', 'duration', 'boolean', 'enum'].includes(input.kind) ||
+        parents(entry).some(name => {
+          const parent = derived.inputs.find(input => input.name === name);
+          return !parent || parent.array !== undefined || ['file', 'delivery'].includes(parent.kind);
+        }) ||
+        !controls().some(control => control.name === root(input.name)) ||
+        input.kind === 'ref' && input.versioned && !controls().some(control => control.name === root(input.name + GENERATED_REF_VERSION_SUFFIX))) {
+      reset(entry, 'Choice assistance is unavailable for this input. Use its value controls.'); return;
+    }
+    const sequence = entry.sequence;
+    let controller: AbortController | null = null;
+    try {
+      const sent = request(entry);
+      if (!current()) return;
+      if (!sent) {
+        if (entry.feedback) entry.feedback.textContent = 'Choose the required values first.';
+        return;
+      }
+      controller = new AbortController();
+      entry.inflight = controller;
+      entry.select.setAttribute('aria-busy', 'true');
+      if (entry.feedback) entry.feedback.textContent = 'Loading choices…';
+      const response = await internals.fetchImpl(`${form.getAttribute('action') ?? ''}/choices/${encodeURIComponent(input.name)}`, {
+        method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', 'x-csrf-token': sent.csrf }, body: sent.body,
+        signal: controller.signal,
+      });
+      const body: unknown = JSON.parse(await response.text());
+      if (!current() || sequence !== entry.sequence || request(entry)?.key !== sent.key) return;
+      if (response.status < 200 || response.status >= 300 || !body || typeof body !== 'object') throw new Error('Choice lookup failed.');
+      const result = body as { state?: unknown; choices?: unknown };
+      if (!['ready', 'absent'].includes(String(result.state)) || !Array.isArray(result.choices)) throw new Error('Invalid choices response.');
+      if (result.state === 'absent') {
+        if (entry.feedback) entry.feedback.textContent = 'Choose the required values first.';
+        return;
+      }
+      for (const candidate of result.choices) {
+        if (!candidate || typeof candidate !== 'object' || !Array.isArray(candidate.labels) || candidate.labels.some((label: unknown) => typeof label !== 'string')) throw new Error('Invalid choice label.');
+        const value: unknown = candidate.value;
+        if (value === null ? !input.nullable : input.kind === 'ref' || input.kind === 'user' ?
+            !value || typeof value !== 'object' || Array.isArray(value) || typeof (value as { id?: unknown }).id !== 'string' ||
+            (value as { id: string }).id === '' || Object.keys(value).some(key => key !== 'id' && !(input.versioned && key === 'version')) ||
+            (input.versioned && (typeof (value as { version?: unknown }).version !== 'string' || (value as { version: string }).version === '')) :
+            input.kind === 'boolean' ? typeof value !== 'boolean' : typeof value !== 'string') throw new Error('Invalid choice value.');
+        if (value !== null && input.kind === 'enum' && !input.enumValues?.includes(value as string)) throw new Error('Invalid enum choice.');
+        const option = internals.document.createElement?.('option') as { value: string; textContent: string } | undefined;
+        if (!option) throw new Error('Native option creation is unavailable.');
+        option.value = String(entry.values.length);
+        option.textContent = candidate.labels.join(' · ');
+        entry.values.push(value);
+        entry.select.appendChild(option);
+      }
+      if (entry.values.length > 0) entry.select.removeAttribute('disabled');
+      if (entry.feedback) entry.feedback.textContent = entry.values.length === 0
+        ? 'No choices available.' : `${entry.values.length} choices available.`;
+    } catch {
+      if (current() && sequence === entry.sequence) reset(entry, 'Choices could not be loaded. Use the value controls or try again.');
+    } finally {
+      if (entry.inflight === controller) entry.inflight = null;
+      if (current() && sequence === entry.sequence) entry.select.removeAttribute('aria-busy');
+    }
+  };
+  const schedule = (entry: typeof entries[number]) => {
+    reset(entry);
+    entry.timer = internals.windowRef.setTimeout(() => {
+      entry.timer = null;
+      if (current()) void lookup(entry);
+    }, 150);
+  };
+  const changed = (name: string) => {
+    const affected = new Set([name]);
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+      for (const entry of entries) if (entry.input && !affected.has(entry.input.name) && parents(entry).some(parent => affected.has(parent))) {
+        affected.add(entry.input.name); clear(entry.input.name); reset(entry); expanded = true;
+      }
+    }
+    for (const entry of entries) if (entry.input && affected.has(entry.input.name) && entry.input.name !== name) schedule(entry);
+  };
+  const listeners: Array<readonly [ElementLike, string, (event: EventLike) => void]> = [];
+  for (const control of controls()) {
+    const input = derived.inputs.find(input => [root(input.name), root(input.name + GENERATED_REF_VERSION_SUFFIX), root(input.name + GENERATED_NULL_SUFFIX)].includes(control.name));
+    if (!input) continue;
+    const listener = () => {
+      for (const entry of entries) if (entry.input?.name === input.name && entry.select) entry.select.value = '';
+      changed(input.name);
+    };
+    for (const type of ['input', 'change']) { control.addEventListener(type, listener); listeners.push([control, type, listener]); }
+  }
+  for (const entry of entries) {
+    if (!entry.select || !entry.input) continue;
+    const listener = () => {
+      if (!current() || entry.select!.value === '') return;
+      const value = entry.values[Number(entry.select!.value)];
+      if (value === undefined) return;
+      clear(entry.input!.name);
+      for (const control of controls()) {
+        if (control.name === root(entry.input!.name + GENERATED_NULL_SUFFIX)) control.checked = value === null;
+        if (value === null) continue;
+        if (control.name === root(entry.input!.name)) {
+          control.value = typeof value === 'object' ? (value as { id: string }).id : String(value);
+          if (control.type === 'checkbox') control.checked = value === true;
+        }
+        if (control.name === root(entry.input!.name + GENERATED_REF_VERSION_SUFFIX) && typeof value === 'object') control.value = (value as { version?: string }).version ?? '';
+      }
+      changed(entry.input!.name);
+    };
+    entry.select.addEventListener('change', listener); listeners.push([entry.select, 'change', listener]);
+    void lookup(entry);
+  }
+  return () => { stopped = true; for (const [element, type, listener] of listeners) element.removeEventListener(type, listener); for (const entry of entries) reset(entry); };
+}
+
 function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: ClientInternals): () => void {
   const context = client.contextKey();
   let stopped = false;
@@ -524,9 +723,11 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
       }
     })();
   };
+  const stopChoices = bindInputChoices(form, internals, alive);
   form.addEventListener('submit', onSubmit);
   return () => {
     stopped = true;
+    stopChoices();
     form.removeEventListener('submit', onSubmit);
     if (pending) {
       releaseBusy();
