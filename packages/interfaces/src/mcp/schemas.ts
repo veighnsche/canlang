@@ -28,7 +28,7 @@ import type {
   DerivedOperationInputs,
   DerivedWritableInput,
 } from '@canlang/contracts';
-import { INT64_MAX, INT64_MIN, SchemaError, ValueError, decodeValue, parseDecimal } from '@canlang/values';
+import { INT64_MAX, INT64_MIN, SchemaError, ValueError, decodeValue, parseDecimal, parseTypeId } from '@canlang/values';
 import type {
   McpInputSchema,
   McpNamedField,
@@ -271,6 +271,8 @@ function failDescriptor(reason: IncompatibleDescriptorReason, message: string): 
 export interface CheckedArtifactField {
   readonly name: string;
   readonly field: McpSchemaField;
+  /** Owning compiler claim, retained only after kind/container consistency checks. */
+  readonly valueType?: string;
   readonly required: boolean;
   /** Present and true exactly when the input accepts explicit null. */
   readonly nullable?: boolean;
@@ -741,6 +743,7 @@ function checkArtifactFieldTag(value: unknown, what: string): McpSchemaField {
 /** The T15a/T18 additive channels shared by caller-supplied and receipt inputs. */
 interface CheckedInputChannels {
   readonly required: boolean;
+  readonly valueType?: string;
   readonly nullable?: boolean;
   readonly array?: { readonly required: boolean };
   readonly default?: DerivedInputDefault;
@@ -773,8 +776,40 @@ function checkArtifactInputChannels(
     }
     description = rawDescription;
   }
+  let claimedType: string | undefined;
+  if (Object.hasOwn(value, 'valueType')) {
+    const rawType = value['valueType'];
+    if (typeof rawType !== 'string') {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
+    }
+    let type: ReturnType<typeof parseTypeId>;
+    try {
+      type = parseTypeId(rawType);
+    } catch (err) {
+      if (!(err instanceof ValueError)) throw err;
+      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
+    }
+    const base = type.base.kind === 'scalar' ? type.base.name : type.base.kind === 'user' ? 'user' : undefined;
+    if (base === undefined || type.requiredArray) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
+    }
+    const expectedKind = base === 'int' ? 'integer' : base === 'bool' ? 'boolean'
+      : base === 'text' || base === 'date' ? 'string' : base;
+    if (expectedKind !== fieldKind) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
+    }
+    if (type.array !== (array !== undefined)) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with array marker.`);
+    }
+    if ((Object.hasOwn(value, 'nullable') && typeof value['nullable'] !== 'boolean') ||
+        type.nullable !== (value['nullable'] === true)) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with nullable marker.`);
+    }
+    claimedType = rawType;
+  }
   return {
     required: value['required'],
+    ...(claimedType === undefined ? {} : { valueType: claimedType }),
     ...(value['nullable'] === true ? { nullable: true as const } : {}),
     ...(array === undefined ? {} : { array }),
     ...(fallback === undefined ? {} : { default: fallback }),
@@ -913,6 +948,7 @@ export function checkedToMcpInputSchema(checked: CheckedArtifactOperation): McpI
       name: named.name,
       field: named.field,
       required: named.required,
+      ...(named.valueType === undefined ? {} : { valueType: named.valueType }),
       ...(named.description === undefined ? {} : { description: named.description }),
     });
   }
