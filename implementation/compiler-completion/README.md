@@ -1,6 +1,6 @@
 # Active compiler completion
 
-Current completion is **53 of 67 references**, with **14 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **54 of 67 references**, with **13 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
@@ -117,3 +117,24 @@ inline enum equality and evaluation order. The defining facade and Work
 selected-child sources are released at `8c61fc5b` and `25302017`; their genuine
 Cloudflare consumer remains runtime-owned. This component leaves **53/67**
 finished and **14** remaining.
+
+`768e9e44` repairs the genuine Cloudflare absent-association failure: nullable
+delivery observations check the returned map before extracting the exact key
+and yield Can null. The revised native case passes **1/1**, with an actual null
+facade response and one observation per child; the runtime owner qualifies the
+regenerated genuine Cloudflare fixture separately. Read-scenario computed
+defaults remain blocked by the owning State/Cloudflare read execution model,
+which rejects their marker and serves model queries instead of scenario bodies.
+
+ARCH-02 is complete at its original **retain public support** disposition. Its
+[five indexed families](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md)
+now all have accepted retention outcomes: docs views and map decoder in the
+[existing support decisions](retained-support-review/report.md), public
+descriptor/fix fragments in the
+[existing qualification](public-fragment-support/independent-review/qualification.md),
+and LSP builders and position carriers in the
+[existing review](lsp-support/independent-review/review.md). Each family keeps
+its own recorded caller/byte/oracle scope. Production deletion and retired
+mechanisms are **0**; future replacements and API changes remain proposals.
+No checks were repeated for this index reconciliation. Completion is **54/67**,
+with **13** remaining.
