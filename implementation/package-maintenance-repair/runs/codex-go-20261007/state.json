@@ -569,7 +569,8 @@
         "GAP-L04": "accepted and committed 8a61be6",
         "GAP-L01": "independently accepted bounded cursor continuation memory/source profile",
         "GAP-L03": "independently accepted current admitted refs and guard-demand memory/source profile",
-        "full_parent": "open original compiled/durable/installed qualification"
+        "full_parent": "open original compiled/durable/installed qualification",
+        "retained_membership_resume": "Accepted finite source/memory repair854936b3; saved intent resumes without live cohort query. Original compiled/durable/installed/T26 gates open."
       },
       "limit": "No process restart or cross-store/universal concurrent scope from local adapter witnesses",
       "gap_l04_commit": "8a61be6",
@@ -2200,7 +2201,7 @@
       ]
     },
     "retained_membership_resume": {
-      "status": "Root accepted finite source/memory repair; focused commit prepared",
+      "status": "Root directly reviewed and committed finite retained admission-resume correction",
       "owner": "/root/fix_retained_membership_resume",
       "model": "gpt-6.1-sol",
       "effort": "medium",
@@ -2213,10 +2214,11 @@
       "verification": "Private State TypeScript emission0; one existing-source memory regression1/1 passed. Frozen [a,b] interrupted after a, live late insertion and failed domain query; b resumes with zero live domain queries, cursor clears only after admission. Unchanged checks reused.",
       "limit": "TECH-W02 retained admission-resume correction only; original durable/compiled/installed/T26 gates remain open.",
       "sources_outputs_handles_released": true,
-      "private_cleanup": "Removed exact /private/tmp/canlang-retained-membership.ySXQXo including symlink itself after command release; shared outputs/dependency targets preserved."
+      "private_cleanup": "Removed exact /private/tmp/canlang-retained-membership.ySXQXo including symlink itself after command release; shared outputs/dependency targets preserved.",
+      "commit": "854936b3665d491748a5d5f59942bc7d88829f89"
     },
     "enum_computed_default_intake": {
-      "status": "Root directly reviewed finite omission-marker intake; source released for Compiler original actual consumer and focused capture",
+      "status": "Root accepted finite omission-marker intake; focused commit prepared, Compiler actual consumer pending",
       "sources": [
         "packages/state/src/invocation/registry.ts",
         "packages/state/test/invocation/owned-admission.test.ts"

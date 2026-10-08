@@ -485,9 +485,11 @@ function checkComputedDefault(
 ): true | undefined {
   if (!Object.hasOwn(input, 'computedDefault')) return undefined;
   if (input['computedDefault'] !== true || (operationKind !== 'scenario' && operationKind !== 'read') || required ||
-      scalarTypeForKind(inputKind) === undefined || valueType === undefined ||
+      (inputKind !== 'enum' && (scalarTypeForKind(inputKind) === undefined || valueType === undefined)) ||
+      (inputKind === 'enum' && (Object.hasOwn(input, 'array') || input['array'] !== undefined ||
+        (Object.hasOwn(input, 'nullable') && input['nullable'] !== false))) ||
       Object.hasOwn(input, 'default') || input['default'] !== undefined) {
-    fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar scenario or read input without a wire default.`);
+    fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar or singular nonnullable enum scenario or read input without a wire default.`);
   }
   return true;
 }
@@ -566,6 +568,7 @@ function checkCanonicalInput(
       kind: 'enum',
       required,
       enumValues: [...(values as string[])],
+      ...(computedDefault !== undefined ? { computedDefault } : {}),
       ...(fallback !== undefined ? { default: fallback } : {}),
     };
   }
@@ -891,6 +894,9 @@ export function loadExecutionDescriptorSet(
     for (const input of inputs) {
       if (input.kind !== 'ref' && input.kind !== 'delivery') {
         checkTypeArray(input.valueType, Object.hasOwn(arrayMarkers, input.name), `input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}`);
+        if (input.kind === 'enum' && input.computedDefault === true && Object.hasOwn(arrayMarkers, input.name)) {
+          fail('malformed_descriptor', `Invalid input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}: computedDefault enum requires a singular input.`);
+        }
         if (input.computedDefault === true && arrayMarkers[input.name]?.required === true) {
           fail('malformed_descriptor', `Invalid input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}: computedDefault requires an ordinary array marker.`);
         }
@@ -1332,6 +1338,7 @@ export function artifactToDescriptorSet(
           kind: 'enum',
           required: input.required,
           enumValues: [...(enumTag['values'] as string[])],
+          ...(computedDefault !== undefined ? { computedDefault } : {}),
           ...(fallback !== undefined ? { default: fallback } : {}),
         });
       } else {

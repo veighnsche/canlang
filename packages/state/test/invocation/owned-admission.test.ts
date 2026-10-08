@@ -335,6 +335,87 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
         ] }, { by: 'public' }));
       }
     }
+    // Finite enum cases are checked/copied by intake; this marker claims
+    // omission only. The existing scalar admission profile is unchanged.
+    for (const kind of ['scenario', 'read'] as const) {
+      const cases = ['one', 'two'];
+      const raw: ArtifactDescriptorSlice = { artifact_version: 1, models: [], operations: [{
+        name: operation, kind, description: '', inputs: { fields: [{
+          name: 'choice', field: { kind: 'enum', values: cases }, required: false, computedDefault: true,
+        }] },
+      }] };
+      const set: ExecutionDescriptorSet = { contractVersion: 1, models: [], operations: [{
+        name: operation, kind, inputs: [{
+          name: 'choice', kind: 'enum', enumValues: cases, required: false, computedDefault: true,
+        }],
+      }] };
+      const options = { by: 'public' as const };
+      for (const loaded of [loadArtifactDescriptors(raw, options), loadExecutionDescriptorSet(set, options)]) {
+        const def = loaded.registry.get(operation)!;
+        assert.ok(isGeneratedOperationDef(def));
+        const input = def.descriptor.inputs[0]!;
+        assert.equal(input.kind, 'enum');
+        assert.equal(Object.hasOwn(input, 'computedDefault'), true);
+        assert.equal(input.computedDefault, true);
+        assert.equal(Object.hasOwn(input, 'valueType'), false);
+        assert.equal(Object.hasOwn(input, 'default'), false);
+        assert.notStrictEqual(input.enumValues, cases);
+        assert.deepEqual(input.enumValues, ['one', 'two']);
+        assert.ok(Object.isFrozen(input.enumValues));
+        for (const supplied of [{}, { choice: 'two' }]) {
+          assert.deepEqual(validateCallInputs(def, supplied).normalized, supplied);
+          assert.deepEqual(validatePreparedInputs(def.preparedInputs!, supplied).normalized, supplied);
+        }
+      }
+      for (const change of [{ computedDefault: false }, { computedDefault: undefined },
+        { computedDefault: 'true' }, { required: true }, { default: undefined },
+        { nullable: true }, { nullable: 'true' }, { array: { required: false } },
+        { default: { kind: 'literal', value: 'one' } }]) {
+        malformed(() => loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!,
+          inputs: [{ ...set.operations[0]!.inputs[0]!, ...change }],
+        }] } as unknown as ExecutionDescriptorSet, options));
+        malformed(() => loadArtifactDescriptors({ ...raw, operations: [{ ...raw.operations![0]!,
+          inputs: { fields: [{ ...raw.operations![0]!.inputs.fields[0]!, ...change }] },
+        }] } as unknown as ArtifactDescriptorSlice, options));
+      }
+      for (const required of [false, true]) {
+        malformed(() => loadExecutionDescriptorSet(set, { ...options,
+          inputArrays: { [operation]: { choice: { required } } },
+        }));
+      }
+      for (const values of [undefined, 'one', [''], [1]]) {
+        malformed(() => loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!,
+          inputs: [{ ...set.operations[0]!.inputs[0]!, enumValues: values }],
+        }] } as unknown as ExecutionDescriptorSet, options));
+        malformed(() => loadArtifactDescriptors({ ...raw, operations: [{ ...raw.operations![0]!,
+          inputs: { fields: [{ ...raw.operations![0]!.inputs.fields[0]!, field: { kind: 'enum', values } }] },
+        }] } as unknown as ArtifactDescriptorSlice, options));
+      }
+      for (const mutationKind of ['create', 'update'] as const) {
+        malformed(() => loadExecutionDescriptorSet({ ...set, operations: [
+          { ...set.operations[0]!, kind: mutationKind },
+        ] }, options));
+        malformed(() => loadArtifactDescriptors({ ...raw, operations: [
+          { ...raw.operations![0]!, kind: mutationKind },
+        ] }, options));
+      }
+      const inheritedEnum = Object.assign(Object.create({ computedDefault: true }),
+        { name: 'choice', kind: 'enum', enumValues: cases, required: false });
+      const inheritedArtifactEnum = Object.assign(Object.create({ computedDefault: true }),
+        { name: 'choice', field: { kind: 'enum', values: cases }, required: false });
+      for (const loaded of [
+        loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!, inputs: [inheritedEnum] }] }, options),
+        loadArtifactDescriptors({ ...raw, operations: [{ ...raw.operations![0]!,
+          inputs: { fields: [inheritedArtifactEnum] },
+        }] }, options),
+      ]) {
+        const def = loaded.registry.get(operation)!;
+        assert.ok(isGeneratedOperationDef(def));
+        assert.equal(Object.hasOwn(def.descriptor.inputs[0]!, 'computedDefault'), false);
+        assert.deepEqual(validateCallInputs(def, {}).normalized, {});
+        assert.deepEqual(validatePreparedInputs(def.preparedInputs!, {}).normalized, {});
+      }
+    }
     const inherited = Object.assign(Object.create({ computedDefault: true }),
       { name: 'values', kind: 'integer', required: false, valueType: 'int[]' });
     const loaded = loadExecutionDescriptorSet({ contractVersion: 1, models: [], operations: [{
