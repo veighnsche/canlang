@@ -1,0 +1,19 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.34s
+     Running tests/invocation_references.rs (compiler/target/debug/deps/invocation_references-7ff7a45f2d9f3752)
+
+running 1 test
+
+thread 'generated_invocations_execute_and_enter_existing_values_codecs' (2284444) panicked at tests/invocation_references.rs:29:5:
+{"complete":true,"diagnostics":[{"code":"E6008","message":"cannot lower field type: (() => { throw new Error(\"invocation type id\"); })() has no §13 field-schema lowering","primary":{"end":97,"file":0,"start":92},"related":[],"severity":"error","tags":[]},{"code":"E6008","message":"cannot lower type: invocation values have no §13 type id","primary":{"end":97,"file":0,"start":92},"related":[],"severity":"error","tags":[]},{"code":"E6008","message":"cannot lower field type: (() => { throw new Error(\"invocation type id\"); })() has no §13 field-schema lowering","primary":{"end":126,"file":0,"start":118},"related":[],"severity":"error","tags":[]},{"code":"E6008","message":"cannot lower type: invocation values have no §13 type id","primary":{"end":126,"file":0,"start":118},"related":[],"severity":"error","tags":[]},{"code":"E6008","message":"cannot lower field type: (() => { throw new Error(\"invocation type id\"); })() has no §13 field-schema lowering","primary":{"end":561,"file":0,"start":553},"related":[],"severity":"error","tags":[]},{"code":"E6008","message":"cannot lower type: invocation values have no §13 type id","primary":{"end":561,"file":0,"start":553},"related":[],"severity":"error","tags":[]}],"language_version":"1.0","omitted":0,"schema_version":1,"sources":[{"id":0,"path":"/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmpg0LdTA/invocations.can","sha256":"a17560149862ae51e3b106e34eadbd892a5fbb6105dc461076c987cd1ddd73a0"}],"tool":"can","tool_version":"0.1.0"}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test generated_invocations_execute_and_enter_existing_values_codecs ... FAILED
+
+failures:
+
+failures:
+    generated_invocations_execute_and_enter_existing_values_codecs
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test invocation_references`

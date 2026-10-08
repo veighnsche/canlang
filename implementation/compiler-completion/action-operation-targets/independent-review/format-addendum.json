@@ -1,0 +1,13 @@
+{
+  "accepted_raw_snapshot": "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/compiler/src/codegen/ir.rs",
+  "copied_accepted_snapshot": "implementation/compiler-completion/action-operation-targets/independent-review/reviewed-correction-ir.rs",
+  "accepted_sha256": "e9f1c7de6295e88f06566656d1012395a323ae1931f44ce882277c555e1b38a9",
+  "current_source": "compiler/src/codegen/ir.rs",
+  "current_sha256": "667bfb0ad290815af5632a7115761e3bd3d94ca384298912ea597afa8c4a9c49",
+  "only_target_predicate_wrap_and_indent_changed": true,
+  "whitespace_removed_bytes_equal": true,
+  "string_literals_unchanged": true,
+  "source_stable_after_check": true,
+  "disposition": "accept-format-only-addendum",
+  "tests_rerun": false
+}

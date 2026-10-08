@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/analysis.rs (compiler/target/debug/deps/analysis-33fe4504353b37c5)
+
+running 3 tests
+test invocation_type_position ... ok
+test invocation_result_type_and_call ... ok
+test invocation_constructor_complete_inputs ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.00s
+

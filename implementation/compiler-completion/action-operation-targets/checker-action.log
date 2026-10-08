@@ -1,0 +1,10 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.22s
+     Running tests/analysis.rs (compiler/target/debug/deps/analysis-33fe4504353b37c5)
+
+running 2 tests
+test read_scenarios_rejected_as_action_targets ... ok
+test call_on_action_reports_missing ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.01s
+

@@ -1,0 +1,1 @@
+Independent actual emitted field controls passed: canonical ordered target lists; closed descriptors; omission/null/required array semantics; array/null codecs; wrong-target rejection; native carrier structural cloning without pointer identity.

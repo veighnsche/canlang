@@ -1,0 +1,19 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.54s
+     Running tests/decimal_runtime.rs (compiler/target/debug/deps/decimal_runtime-6d3d9ce6d1217f47)
+
+running 1 test
+
+thread 'decimal_range_refusals_and_action_target_construction' (2293213) panicked at tests/decimal_runtime.rs:114:40:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test decimal_range_refusals_and_action_target_construction ... FAILED
+
+failures:
+
+failures:
+    decimal_range_refusals_and_action_target_construction
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.34s
+
+error: test failed, to rerun pass `--test decimal_runtime`

@@ -1,0 +1,16 @@
+{
+  "compiler/src/codegen/js.rs": "ce804121e2ff1bbb1158eb0953ec86ca5fcf0aba873b7c3be21eeb351c12c970",
+  "compiler/src/codegen/ir.rs": "e9f1c7de6295e88f06566656d1012395a323ae1931f44ce882277c555e1b38a9",
+  "packages/stdlib/src/index.ts": "0e64d8717b37680fb8fa02c432e7146d793ec90a47d788e3aa8393637171761a",
+  "packages/stdlib/dist/src/index.js": "1de219672fe05c82b09b4e6cdbb23223be43ef2b1d68b67544811dcaefb26735",
+  "packages/values/src/types.ts": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+  "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+  "packages/values/src/internal/schema-core.ts": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+  "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+  "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "packages/values/dist/stdlib-pure.js": "absent",
+  "compiler/tests/invocation_references.rs": "09c01642c749dffc282eef0d78336610b189edfb91da5f51418d454dc6ed82bf",
+  "compiler/tests/fixtures/invocation-references/source.can": "1d986880b22f00011017a84a3f264e82e7a2aa11e663639b59a565df5ef903d4",
+  "compiler/tests/fixtures/invocation-references/execute.mjs": "70e6da262f71c805e2f63ce37fddeeb0e02654b023625402547b9d059440f30b",
+  "packages/stdlib/test/assembly.test.ts": "bb38dd3b13fb611bd4020dcb703a4e2583c97eaf3a954472b8c4452a6858040a"
+}

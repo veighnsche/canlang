@@ -1,0 +1,36 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.93s
+     Running tests/action_references.rs (compiler/target/debug/deps/action_references-105e80e2fb4db9a5)
+
+running 3 tests
+
+thread 'invocation_uses_complete_inputs_and_canonical_target' (2262360) panicked at tests/action_references.rs:36:5:
+{"complete":true,"diagnostics":[{"code":"E6008","message":"cannot lower field type: (() => { throw new Error(\"invocation type id\"); })() has no §13 field-schema lowering","primary":{"end":107,"file":0,"start":97},"related":[],"severity":"error","tags":[]},{"code":"E6008","message":"cannot lower type: invocation values have no §13 type id","primary":{"end":107,"file":0,"start":97},"related":[],"severity":"error","tags":[]}],"language_version":"1.0","omitted":0,"schema_version":1,"sources":[{"id":0,"path":"/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmpTpgtJA/invocation.can","sha256":"77c2d222ee7e3872b22f318e18cf68ff716b91ce206eb3ae6369b8621735b4d0"}],"tool":"can","tool_version":"0.1.0"}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test invocation_uses_complete_inputs_and_canonical_target ... FAILED
+test invalid_constructor_inputs_retain_checker_diagnostics ... ok
+
+thread 'canonical_action_targets_execute_public_owners' (2262358) panicked at tests/action_references.rs:28:5:
+
+file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmpM7Sfvd/generated/$can$m$54617267657473.mjs:2
+import { action, require as check, create, deleteRecord, hasRole, parseDecimal, set } from "@canlang/stdlib";
+                                   ^^^^^^
+SyntaxError: The requested module '@canlang/stdlib' does not provide an export named 'create'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:455:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:553:5)
+    at async node:internal/modules/esm/loader:647:26
+    at async file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmpM7Sfvd/execute.mjs:11:13
+
+Node.js v24.21.0
+
+test canonical_action_targets_execute_public_owners ... FAILED
+
+failures:
+
+failures:
+    canonical_action_targets_execute_public_owners
+    invocation_uses_complete_inputs_and_canonical_target
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.77s
+
+error: test failed, to rerun pass `--test action_references`

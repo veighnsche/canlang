@@ -1,0 +1,11 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+     Running tests/invocation_references.rs (compiler/target/debug/deps/invocation_references-7ff7a45f2d9f3752)
+
+running 2 tests
+test invocation_target_alias_uses_owner_identity ... ok
+Generated invocation modules imported public stdlib; native record/Decimal, scalar/emitted-default-data/order/once construction and emitted schema normalize/validate/codec controls passed. No target executed or authority granted.
+test generated_invocations_execute_and_enter_existing_values_codecs ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.05s
+

@@ -1,0 +1,24 @@
+node:internal/modules/run_main:111
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ {
+- Decimal {
+    coef: 375n,
+    kind: 'decimal',
+    scale: 2
+  }
+
+    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/invocation-join/independent-review/owner-controls.mjs:39:8 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: { kind: 'decimal', coef: 375n, scale: 2 },
+  expected: Decimal { kind: 'decimal', coef: 375n, scale: 2 },
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.10.0

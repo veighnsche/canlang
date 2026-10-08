@@ -1,0 +1,15 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.44s
+     Running tests/action_references.rs (compiler/target/debug/deps/action_references-105e80e2fb4db9a5)
+
+running 6 tests
+test operation_values_outside_constructor_target_remain_unsupported ... ok
+test invocation_uses_complete_inputs_and_canonical_target ... ok
+test aliased_crud_targets_preserve_owning_operation_identity ... ok
+test computed_operation_targets_are_not_erased ... ok
+test invalid_constructor_inputs_retain_checker_diagnostics ... ok
+Action target data: canonical local identities, named slots, record versions and empty bindings executed through installed public owners; no target mutation invoked. Invocation native owner control passed; generated invocation runtime is outside this fixture. Stored-record hydration and worker admission remain unqualified.
+test canonical_action_targets_execute_public_owners ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.90s
+

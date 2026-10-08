@@ -2889,14 +2889,13 @@ impl<'a> Cx<'a> {
                         // checked action/invocation target formal. Keep source
                         // order and the checker's named-argument slot mapping;
                         // other positions retain ordinary value lowering.
-                        let target =
-                            matches!(id.as_str(), "action" | "invocation")
-                                && signature.params.iter().zip(&selected.slots).any(
-                                    |(param, slot)| {
-                                        matches!(param.ty, SigType::ActionTarget)
-                                            && *slot == Some(source)
-                                    },
-                                );
+                        let target = matches!(id.as_str(), "action" | "invocation")
+                            && signature.params.iter().zip(&selected.slots).any(
+                                |(param, slot)| {
+                                    matches!(param.ty, SigType::ActionTarget)
+                                        && *slot == Some(source)
+                                },
+                            );
                         if target
                             && let Some(ResolvedType::Operation(operation)) =
                                 self.program.types.node_types.get(key)

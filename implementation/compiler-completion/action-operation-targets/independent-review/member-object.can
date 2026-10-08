@@ -1,0 +1,10 @@
+app T
+Given
+When
+ scenario mutate() by=members
+  do
+   let x = 1
+ scenario descriptors(flag:bool) read=true by=members
+  do
+   let reference = action(({x=mutate}).x,{})
+Then

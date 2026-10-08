@@ -1,0 +1,12 @@
+{
+  "compiler/src/codegen/js.rs": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+  "compiler/src/codegen/ir.rs": "62bc9829d76aa8859851c9395a7d226a1ab92131bd06322ee9b105c382ba7dde",
+  "packages/stdlib/src/index.ts": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09",
+  "packages/stdlib/dist/src/index.js": "0aff4dc3cbd6da5dd9896e547ccee05d8e13b54e2d76956e0d2e175568e21293",
+  "packages/values/src/types.ts": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+  "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+  "packages/values/src/internal/schema-core.ts": "9dab0c573d4dfc250170de18cb2890ad12229ee80295dc42a6e3a82cc08af12f",
+  "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+  "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "packages/values/dist/stdlib-pure.js": "absent"
+}

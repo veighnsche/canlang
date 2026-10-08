@@ -1,0 +1,8 @@
+app Shape
+Given
+ contract C { value:invocation }
+When
+ scenario mutate() by=members
+  do
+   let x=1
+Then

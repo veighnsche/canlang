@@ -1,0 +1,26 @@
+{
+  "before": {
+    "compiler/target/debug/can": "ce7076fb4b70d9f4c4eb4f9037ec06c94143181ecc4d6ee7f2baf6843be5994b",
+    "compiler/src/codegen/ir.rs": "62bc9829d76aa8859851c9395a7d226a1ab92131bd06322ee9b105c382ba7dde",
+    "compiler/src/codegen/js.rs": "dc0bdb6330953abf67fb9bd9f28f8304e9a3d6a8b30c58aad466c886ecd8e1c0",
+    "compiler/tests/action_references.rs": "973e42dfc9470ceeafe78cfe8debbd7a75cc1c556cf8b95e4100963125ac8c5b",
+    "compiler/tests/fixtures/action-references/source.can": "944e331284f3a4b0bddc6a5a19174294bb08a7aacc8d6a832caa0255bc644ff3",
+    "compiler/tests/fixtures/action-references/execute.mjs": "106c4ae0720042dc3b0c0754404b49d71126e385fcbdf17494d6bc4a9b05f158",
+    "packages/stdlib/src/index.ts": "83e9cbc2843ba6743232b8d01ba340b9c440e85426d40955cc9977e187a1ab3e",
+    "node_modules/@canlang/stdlib/dist/src/index.js": "5a00c8a103bed3d7f74e373b123d3b00047b8faa28b461bf02b11cc16803962f",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+  },
+  "after": {
+    "compiler/target/debug/can": "ce7076fb4b70d9f4c4eb4f9037ec06c94143181ecc4d6ee7f2baf6843be5994b",
+    "compiler/src/codegen/ir.rs": "62bc9829d76aa8859851c9395a7d226a1ab92131bd06322ee9b105c382ba7dde",
+    "compiler/src/codegen/js.rs": "ce804121e2ff1bbb1158eb0953ec86ca5fcf0aba873b7c3be21eeb351c12c970",
+    "compiler/tests/action_references.rs": "973e42dfc9470ceeafe78cfe8debbd7a75cc1c556cf8b95e4100963125ac8c5b",
+    "compiler/tests/fixtures/action-references/source.can": "944e331284f3a4b0bddc6a5a19174294bb08a7aacc8d6a832caa0255bc644ff3",
+    "compiler/tests/fixtures/action-references/execute.mjs": "106c4ae0720042dc3b0c0754404b49d71126e385fcbdf17494d6bc4a9b05f158",
+    "packages/stdlib/src/index.ts": "83e9cbc2843ba6743232b8d01ba340b9c440e85426d40955cc9977e187a1ab3e",
+    "node_modules/@canlang/stdlib/dist/src/index.js": "5a00c8a103bed3d7f74e373b123d3b00047b8faa28b461bf02b11cc16803962f",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+  },
+  "compile_exit": 0,
+  "runtime_exit": 0
+}

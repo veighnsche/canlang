@@ -1,0 +1,126 @@
+▶ stdlib assembly
+  ✖ exports exactly the requested surface plus the assembly version (1.933833ms)
+  ✔ re-exports producer bindings identically (no wrappers) (0.139292ms)
+  ✔ holds all 66 type identity pins (0.0685ms)
+  ✔ executes façade bindings against the real producer (0.221208ms)
+✖ stdlib assembly (2.808833ms)
+ℹ tests 4
+ℹ suites 1
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 59.604125
+
+✖ failing tests:
+
+test at packages/stdlib/dist/test/assembly.test.js:297:5
+✖ exports exactly the requested surface plus the assembly version (1.933833ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'CATALOG',
+      'CURRENCY_MINOR_UNITS',
+      'DATETIME_MAX_MS',
+      'DATETIME_MIN_MS',
+  ...
+      'int64',
+  +   'invocation',
+      'isActionRef',
+      'isCurrencyShape',
+      'isDateValue',
+      'isDatetime',
+      'isDecimal',
+  
+      at TestContext.<anonymous> (file:///Users/vince/Projects/canlang/packages/stdlib/dist/test/assembly.test.js:302:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at node:internal/test_runner/test:1903:71
+      at node:internal/per_context/primordials:504:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:478:3)
+      at node:internal/per_context/primordials:504:9
+      at Array.map (<anonymous>) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'CATALOG',             'CURRENCY_MINOR_UNITS',   'DATETIME_MAX_MS',
+      'DATETIME_MIN_MS',     'Decimal',                'INT64_MAX',
+      'INT64_MIN',           'LANE02_CATALOG_VERSION', 'STDLIB_CONTRACT_VERSION',
+      'SchemaError',         'UPDATE_OMITTED',         'VALUES_CONTRACT_VERSION',
+      'ValueError',          'abs',                    'absDecimal',
+      'absDuration',         'absInt',                 'absMoney',
+      'action',              'addDecimal',             'addDuration',
+      'addInt',              'addMoney',               'add_days',
+      'add_months',          'all',                    'any',
+      'app_url',             'assertTimezone',         'at',
+      'canonicalLocale',     'compareDate',            'compareDecimal',
+      'compareDuration',     'compareInstant',         'compareInt',
+      'compareMoney',        'compareScalar',          'concat',
+      'contains',            'count',                  'currencyScale',
+      'date',                'date_year',              'dates',
+      'datetime',            'decimalToString',        'decodeValue',
+      'divideDecimal',       'divideDurationByInt',    'divideDurationMs',
+      'divideMoney',         'durationBetween',        'encodeValue',
+      'equalDecimal',        'equalMoney',             'equalValue',
+      'first',               'flatten',                'format',
+      'formatMessage',       'formatPlain',            'group',
+      'hasRole',             'int64',                  'invocation',
+      'isActionRef',         'isCurrencyShape',        'isDateValue',
+      'isDatetime',          'isDecimal',              'isDeliveryRef',
+      'isFileValue',         'isKnownCurrency',        'isMemberRef',
+      'isMessageDescriptor', 'isMoney',                'isRecordRef',
+      'isTimezone',          'isTypeId',               'isUnionValue',
+      'isUpdateOmitted',     'isUserRef',              'join',
+      'local_date',          'local_instant',          'lookupChain',
+      'lower',               'makeActionRef',          'makeDate',
+      'makeDatetime',        'makeDeliveryRef',        'makeFileValue',
+      'makeMemberRef',       'makeMessageDescriptor',  'makeMoney',
+      'makeRecordRef',       'makeUnionValue',         'makeUserRef',
+      'max',
+      ... 44 more items
+    ],
+    expected: [
+      'CATALOG',               'CURRENCY_MINOR_UNITS',   'DATETIME_MAX_MS',
+      'DATETIME_MIN_MS',       'Decimal',                'INT64_MAX',
+      'INT64_MIN',             'LANE02_CATALOG_VERSION', 'STDLIB_CONTRACT_VERSION',
+      'SchemaError',           'UPDATE_OMITTED',         'VALUES_CONTRACT_VERSION',
+      'ValueError',            'abs',                    'absDecimal',
+      'absDuration',           'absInt',                 'absMoney',
+      'action',                'addDecimal',             'addDuration',
+      'addInt',                'addMoney',               'add_days',
+      'add_months',            'all',                    'any',
+      'app_url',               'assertTimezone',         'at',
+      'canonicalLocale',       'compareDate',            'compareDecimal',
+      'compareDuration',       'compareInstant',         'compareInt',
+      'compareMoney',          'compareScalar',          'concat',
+      'contains',              'count',                  'currencyScale',
+      'date',                  'date_year',              'dates',
+      'datetime',              'decimalToString',        'decodeValue',
+      'divideDecimal',         'divideDurationByInt',    'divideDurationMs',
+      'divideMoney',           'durationBetween',        'encodeValue',
+      'equalDecimal',          'equalMoney',             'equalValue',
+      'first',                 'flatten',                'format',
+      'formatMessage',         'formatPlain',            'group',
+      'hasRole',               'int64',                  'isActionRef',
+      'isCurrencyShape',       'isDateValue',            'isDatetime',
+      'isDecimal',             'isDeliveryRef',          'isFileValue',
+      'isKnownCurrency',       'isMemberRef',            'isMessageDescriptor',
+      'isMoney',               'isRecordRef',            'isTimezone',
+      'isTypeId',              'isUnionValue',           'isUpdateOmitted',
+      'isUserRef',             'join',                   'local_date',
+      'local_instant',         'lookupChain',            'lower',
+      'makeActionRef',         'makeDate',               'makeDatetime',
+      'makeDeliveryRef',       'makeFileValue',          'makeMemberRef',
+      'makeMessageDescriptor', 'makeMoney',              'makeRecordRef',
+      'makeUnionValue',        'makeUserRef',            'max',
+      'min',
+      ... 43 more items
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

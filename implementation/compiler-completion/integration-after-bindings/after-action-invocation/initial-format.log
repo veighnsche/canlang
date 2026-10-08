@@ -1,0 +1,57 @@
+Diff in /Users/vince/Projects/canlang/compiler/src/codegen/ir.rs:2889:
+                         // checked action/invocation target formal. Keep source
+                         // order and the checker's named-argument slot mapping;
+                         // other positions retain ordinary value lowering.
+-                        let target = matches!(id.as_str(), "action" | "invocation")
+-                            && signature.params.iter().zip(&selected.slots).any(
+-                                |(param, slot)| {
+-                                    matches!(param.ty, SigType::ActionTarget)
+-                                        && *slot == Some(source)
+-                                },
+-                            );
++                        let target =
++                            matches!(id.as_str(), "action" | "invocation")
++                                && signature.params.iter().zip(&selected.slots).any(
++                                    |(param, slot)| {
++                                        matches!(param.ty, SigType::ActionTarget)
++                                            && *slot == Some(source)
++                                    },
++                                );
+                         if target
+                             && let Some(ResolvedType::Operation(operation)) =
+                                 self.program.types.node_types.get(key)
+Diff in /Users/vince/Projects/canlang/compiler/tests/selected_calls.rs:26:
+     )
+     .unwrap();
+     let script = scratch.path().join("probe.mjs");
+-    std::fs::write(
+-        &script,
+-        include_str!(
+-            "fixtures/selected-call-consumer.mjs"
+-        ),
+-    )
+-    .unwrap();
++    std::fs::write(&script, include_str!("fixtures/selected-call-consumer.mjs")).unwrap();
+     let output = Command::new("node")
+         .arg(script)
+         .arg(root())
+Diff in /Users/vince/Projects/canlang/compiler/tests/ui_adapter.rs:27:
+             let _ = std::fs::remove_dir_all(&self.0);
+         }
+     }
+-    let scratch = Scratch(
+-        std::env::temp_dir().join(format!(
++    let scratch = Scratch(std::env::temp_dir().join(format!(
+             "can-ui-adapter-{}-{}",
+             std::process::id(),
+             SystemTime::now()
+Diff in /Users/vince/Projects/canlang/compiler/tests/ui_adapter.rs:35:
+                 .duration_since(UNIX_EPOCH)
+                 .unwrap()
+                 .as_nanos()
+-        )),
+-    );
++        )));
+     std::fs::create_dir_all(&scratch.0).unwrap();
+     #[cfg(unix)]
+     std::os::unix::fs::symlink(root.join("node_modules"), scratch.0.join("node_modules")).unwrap();

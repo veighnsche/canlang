@@ -71,7 +71,7 @@ fn checked_decimal_materialization_and_default_consumers() {
 }
 
 #[test]
-fn decimal_range_and_adjacent_gaps_keep_diagnostics() {
+fn decimal_range_refusals_and_action_target_construction() {
     let scratch = tempfile::tempdir().unwrap();
     for (name, expression, diagnostic) in [
         ("scale19", "1.0000000000000000000", "E3001"),
@@ -103,18 +103,12 @@ fn decimal_range_and_adjacent_gaps_keep_diagnostics() {
         "action",
         "app T\nGiven\nWhen\n scenario mutate(value:decimal=1.50) by=members\n  do\n   let x = value\n scenario descriptor() read=true -> action(mutate) by=members\n  do\n   return action(mutate,{})\nThen\n",
     );
-    assert!(!output.status.success());
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(
-        json["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|d| d["code"] == "E6008"
-                && d["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains("reference to `mutate`")),
-        "{json}"
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
     );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(json.get("diagnostics").is_none(), "{json}");
 }

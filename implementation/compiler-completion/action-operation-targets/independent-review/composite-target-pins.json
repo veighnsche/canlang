@@ -1,0 +1,54 @@
+{
+  "before": {
+    "compiler/target/debug/can": "8dd1dddb13c4a59e2ad76b01f630f83c8b5aa1f2ccd37179939402f5ba4d1f21",
+    "compiler/src/codegen/ir.rs": "62bc9829d76aa8859851c9395a7d226a1ab92131bd06322ee9b105c382ba7dde",
+    "compiler/src/codegen/js.rs": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+    "compiler/src/analysis/types.rs": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "packages/values/src/catalog.ts": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+    "packages/values/src/kinds.ts": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+    "packages/stdlib/src/index.ts": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09"
+  },
+  "after": {
+    "compiler/target/debug/can": "8dd1dddb13c4a59e2ad76b01f630f83c8b5aa1f2ccd37179939402f5ba4d1f21",
+    "compiler/src/codegen/ir.rs": "62bc9829d76aa8859851c9395a7d226a1ab92131bd06322ee9b105c382ba7dde",
+    "compiler/src/codegen/js.rs": "699acfcaf96447ac8bcf26d716b927137364ce7975012b4914077bb8a6493758",
+    "compiler/src/analysis/types.rs": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "packages/values/src/catalog.ts": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+    "packages/values/src/kinds.ts": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+    "packages/stdlib/src/index.ts": "f267971a2ea31252aa35c34faa62180f7f619efe2f979738fac8628c58f78c09"
+  },
+  "results": {
+    "choose": {
+      "exit": 0,
+      "diagnostics": null,
+      "modules": 1
+    },
+    "group": {
+      "exit": 0,
+      "diagnostics": null,
+      "modules": 1
+    },
+    "raw_choose": {
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "return: expected action(mutate), found mutate",
+          "primary": {
+            "file": 0,
+            "start": 152,
+            "end": 178
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "modules": 0
+    }
+  }
+}

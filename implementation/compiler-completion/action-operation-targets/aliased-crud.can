@@ -1,0 +1,25 @@
+package stock
+ Given
+  export Widget { title:text }
+  policy Widget read=members
+ When
+  crud Widget by=members fields=title
+ Then
+app Targets
+use stock {Widget as Item}
+Given
+ contract References { local:action(mutate), update:action(Item.update), delete:action(Item.delete), create:action(Item.create) }
+When
+ scenario mutate(record:Item, amount:decimal=1.50) by=members
+  do
+   let amountCopy = amount
+ scenario descriptors(record:Item) read=true -> References by=members
+  do
+   return {local=action(bindings={record=record},target=mutate),update=action(Item.update,{record=record}),delete=action(Item.delete,{record=record}),create=action(Item.create,{})}
+ scenario empty() by=members
+  do
+   let value = 1
+ scenario defaults() read=true -> action(empty) by=members
+  do
+   return action(empty,{})
+Then

@@ -1,0 +1,27 @@
+{
+  "all_equal": false,
+  "changed": [
+    "compiler/src/codegen/ir.rs"
+  ],
+  "worker_final_after_match": {
+    "compiler/src/codegen/js.rs": true,
+    "compiler/src/codegen/ir.rs": true,
+    "packages/stdlib/src/index.ts": true,
+    "packages/stdlib/dist/src/index.js": true,
+    "packages/values/src/types.ts": true,
+    "packages/values/src/stdlib-pure.ts": true,
+    "packages/values/src/internal/schema-core.ts": true,
+    "packages/values/src/internal/wire-core.ts": true,
+    "packages/values/dist/catalog.json": true,
+    "compiler/tests/invocation_references.rs": true,
+    "compiler/tests/fixtures/invocation-references/source.can": true,
+    "compiler/tests/fixtures/invocation-references/execute.mjs": true,
+    "packages/stdlib/test/assembly.test.ts": true,
+    "packages/values/dist/src/stdlib-pure.js": true,
+    "packages/values/dist/src/kinds.js": true,
+    "packages/values/dist/src/types.js": true,
+    "packages/values/dist/src/internal/schema-core.js": true,
+    "packages/values/dist/src/internal/wire-core.js": true,
+    "compiler/target/debug/can": true
+  }
+}

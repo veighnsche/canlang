@@ -1,0 +1,14 @@
+▶ stdlib assembly
+  ✔ exports exactly the requested surface plus the assembly version (0.585625ms)
+  ✔ re-exports producer bindings identically (no wrappers) (0.154125ms)
+  ✔ holds all 66 type identity pins (0.075708ms)
+  ✔ executes façade bindings against the real producer (0.30375ms)
+✔ stdlib assembly (1.645375ms)
+ℹ tests 4
+ℹ suites 1
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.305542

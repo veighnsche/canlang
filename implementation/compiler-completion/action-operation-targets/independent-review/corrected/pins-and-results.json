@@ -1,0 +1,199 @@
+{
+  "before": {
+    "compiler/target/debug/can": "a1b5ef886eba1438bfba1ae93bb76b757093f23cc0cfe689ac89da35a033c486",
+    "compiler/src/codegen/ir.rs": "e9f1c7de6295e88f06566656d1012395a323ae1931f44ce882277c555e1b38a9",
+    "compiler/src/codegen/js.rs": "ce804121e2ff1bbb1158eb0953ec86ca5fcf0aba873b7c3be21eeb351c12c970",
+    "compiler/src/analysis/types.rs": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "compiler/tests/action_references.rs": "a10f7aea95813c87abfa8c38212fba64d7f58bb09c158974796fb29a00cfd32f",
+    "compiler/tests/fixtures/action-references/source.can": "944e331284f3a4b0bddc6a5a19174294bb08a7aacc8d6a832caa0255bc644ff3",
+    "compiler/tests/fixtures/action-references/execute.mjs": "0a107c9cf768d0b9620a886333d425fd0bc74b917dc9cc0fdb8f9d7d85f618aa",
+    "packages/values/src/catalog.ts": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+    "packages/values/src/kinds.ts": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+    "packages/stdlib/src/index.ts": "0e64d8717b37680fb8fa02c432e7146d793ec90a47d788e3aa8393637171761a",
+    "node_modules/@canlang/stdlib/dist/src/index.js": "1de219672fe05c82b09b4e6cdbb23223be43ef2b1d68b67544811dcaefb26735"
+  },
+  "after": {
+    "compiler/target/debug/can": "a1b5ef886eba1438bfba1ae93bb76b757093f23cc0cfe689ac89da35a033c486",
+    "compiler/src/codegen/ir.rs": "e9f1c7de6295e88f06566656d1012395a323ae1931f44ce882277c555e1b38a9",
+    "compiler/src/codegen/js.rs": "ce804121e2ff1bbb1158eb0953ec86ca5fcf0aba873b7c3be21eeb351c12c970",
+    "compiler/src/analysis/types.rs": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "compiler/tests/action_references.rs": "a10f7aea95813c87abfa8c38212fba64d7f58bb09c158974796fb29a00cfd32f",
+    "compiler/tests/fixtures/action-references/source.can": "944e331284f3a4b0bddc6a5a19174294bb08a7aacc8d6a832caa0255bc644ff3",
+    "compiler/tests/fixtures/action-references/execute.mjs": "0a107c9cf768d0b9620a886333d425fd0bc74b917dc9cc0fdb8f9d7d85f618aa",
+    "packages/values/src/catalog.ts": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+    "packages/values/src/kinds.ts": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+    "packages/stdlib/src/index.ts": "0e64d8717b37680fb8fa02c432e7146d793ec90a47d788e3aa8393637171761a",
+    "node_modules/@canlang/stdlib/dist/src/index.js": "1de219672fe05c82b09b4e6cdbb23223be43ef2b1d68b67544811dcaefb26735"
+  },
+  "results": {
+    "choose": {
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 171,
+            "end": 177
+          },
+          "related": [],
+          "tags": []
+        },
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 178,
+            "end": 184
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    "choose-throw": {
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 249,
+            "end": 255
+          },
+          "related": [],
+          "tags": []
+        },
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 256,
+            "end": 262
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    "group": {
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 160,
+            "end": 166
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    "raw-choose-binding-valid": {
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 163,
+            "end": 169
+          },
+          "related": [],
+          "tags": []
+        },
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 170,
+            "end": 176
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    "member-object-valid": {
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 162,
+            "end": 168
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    "invocation-choose-valid": {
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 182,
+            "end": 188
+          },
+          "related": [],
+          "tags": []
+        },
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower reference to `mutate`: no \u00a713 value lowering exists",
+          "primary": {
+            "file": 0,
+            "start": 189,
+            "end": 195
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    "direct-actions": {
+      "exit": 0,
+      "diagnostics": [],
+      "runtime_exit": 0
+    },
+    "aliased-crud": {
+      "exit": 0,
+      "diagnostics": [],
+      "canonical_operation_join": [
+        "stock.Widget.create",
+        "stock.Widget.update",
+        "stock.Widget.delete"
+      ]
+    }
+  },
+  "stable": true
+}

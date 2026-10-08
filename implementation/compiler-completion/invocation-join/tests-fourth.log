@@ -1,0 +1,36 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/invocation_references.rs (compiler/target/debug/deps/invocation_references-7ff7a45f2d9f3752)
+
+running 2 tests
+test invocation_target_alias_uses_owner_identity ... ok
+
+thread 'generated_invocations_execute_and_enter_existing_values_codecs' (2301282) panicked at tests/invocation_references.rs:34:5:
+
+file:///Users/vince/Projects/canlang/packages/values/dist/src/stdlib-pure.js:290
+            throw new ValueError("invalid-construction", `invocation argument ${name} must be a Can value`);
+                  ^
+
+ValueError: invocation argument note must be a Can value
+    at invocation (file:///Users/vince/Projects/canlang/packages/values/dist/src/stdlib-pure.js:290:19)
+    at file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmpOcg7PL/generated/$can$m$496e766f636174696f6e73.mjs:18:29
+    at Invocations.descriptors (file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmpOcg7PL/generated/$can$m$496e766f636174696f6e73.mjs:18:67)
+    at call (file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmpOcg7PL/execute.mjs:14:178)
+    at file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmpOcg7PL/execute.mjs:25:22 {
+  kind: 'value',
+  code: 'invalid-construction'
+}
+
+Node.js v24.21.0
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test generated_invocations_execute_and_enter_existing_values_codecs ... FAILED
+
+failures:
+
+failures:
+    generated_invocations_execute_and_enter_existing_values_codecs
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.63s
+
+error: test failed, to rerun pass `--test invocation_references`

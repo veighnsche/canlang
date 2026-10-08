@@ -1,0 +1,45 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running tests/invocation_references.rs (compiler/target/debug/deps/invocation_references-7ff7a45f2d9f3752)
+
+running 2 tests
+test invocation_target_alias_uses_owner_identity ... ok
+
+thread 'generated_invocations_execute_and_enter_existing_values_codecs' (2300329) panicked at tests/invocation_references.rs:34:5:
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ {
+- Decimal {
+    coef: 375n,
+    kind: 'decimal',
+    scale: 2
+  }
+
+    at file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmp9p27rJ/execute.mjs:22:8 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: { kind: 'decimal', coef: 375n, scale: 2 },
+  expected: Decimal { kind: 'decimal', coef: 375n, scale: 2 },
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.21.0
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test generated_invocations_execute_and_enter_existing_values_codecs ... FAILED
+
+failures:
+
+failures:
+    generated_invocations_execute_and_enter_existing_values_codecs
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.95s
+
+error: test failed, to rerun pass `--test invocation_references`

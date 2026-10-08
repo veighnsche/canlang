@@ -1,0 +1,11 @@
+app T
+Given
+When
+ scenario mutate() by=members
+  do
+   let x = 1
+ scenario descriptors(flag:bool) read=true -> text by=members
+  do
+   let reference = choose(flag,mutate,mutate)
+   return "constructed"
+Then
