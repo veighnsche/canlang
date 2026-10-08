@@ -137,6 +137,8 @@ export interface PageHttpDeps {
   readonly identity: Pick<IdentityDeps, 'store'>;
   /** Absent joins refuse queries; non-query pages need no collection backend. */
   readonly query?: RowQueryRunner;
+  /** The same checked operation catalog used by canonical HTTP submission. */
+  readonly catalog?: SchemaCatalog;
 }
 
 export interface HttpDeps extends PageHttpDeps {
