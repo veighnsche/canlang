@@ -4,9 +4,10 @@
  * secrets never leak, and secret-covering grants fail at build time. Memory
  * StoragePort + local membership double.
  */
-import { describe, it } from 'node:test';
+import { describe, it, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { queryRecords } from '../../src/query/index.js';
+import { queryAggregate, queryRecords } from '../../src/query/index.js';
+import { queryEventualRecords } from '../../src/query/engine.js';
 import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { captureFailure } from '../invocation/fixtures.js';
@@ -263,4 +264,64 @@ describe('projection', () => {
     });
     assert.equal(outsider.records.length, 0);
   });
+});
+
+
+test('trusted viewer predicates see matching-grant snapshots and cannot mutate ordered output', async () => {
+  const store = createMemoryStorage();
+  const std = await seedStandardTeam();
+  const policy = policyTable(modelPolicy(MODEL, { secretFields: ['settings.token'], grants: [
+    grant('members', ['title'], { op: 'eq', field: 'title', value: 'Narrow' }),
+    grant('members', ['title', 'settings'], { op: 'eq', field: 'title', value: 'Wide' }),
+  ] }));
+  await seedRows(store, MODEL, [
+    { id: 'narrow', data: { title: 'Narrow', settings: { score: 99, token: 'hidden' } } },
+    { id: 'wide', data: { title: 'Wide', settings: { score: 20, token: 'hidden' } } },
+    { id: 'invisible', data: { title: 'None', settings: { score: 100 } } },
+    { id: 'archived', archivedAt: FIXED_NOW, data: { title: 'Wide', settings: { score: 30 } } },
+  ]);
+  const input = { store, memberships: std.memberships, policy, model: MODEL,
+    authority: 'viewer' as const, context: { actorUserId: std.alice.user.user_id, teamId: std.team.team_id } };
+  const visited: string[] = [];
+  const result = await queryRecords({ ...input, limit: 1, order: [{ field: 'title', direction: 'desc' }],
+    predicate: async (record) => {
+      visited.push(record.id);
+      assert.equal(Object.hasOwn(record, 'model'), false);
+      assert.equal(Object.hasOwn(record, 'membership'), false);
+      const settings = record.data['settings'] as Record<string, unknown> | undefined;
+      if (settings === undefined) return false;
+      assert.deepEqual(settings, { score: 20 });
+      settings['score'] = 999;
+      (record.data as Record<string, unknown>)['title'] = 'Mutated';
+      (record as { id: string }).id = 'mutated';
+      return true;
+    },
+  });
+  assert.deepEqual(visited.sort(), ['narrow', 'wide']);
+  assert.deepEqual(result.records.map((record) => ({ id: record.id, data: record.data })), [
+    { id: 'wide', data: { title: 'Wide', settings: { score: 20 } } },
+  ]);
+  const ordered = await queryRecords({ ...input, predicate: () => true,
+    order: [{ field: 'title', direction: 'desc' }], limit: 2 });
+  assert.deepEqual(ordered.records.map((record) => record.id), ['wide', 'narrow']);
+});
+
+test('trusted source predicates are rejected on owner, aggregate and eventual routes before storage', async () => {
+  const s = await setup(policyTable(modelPolicy(MODEL, { grants: [grant('members', ['title'])] })));
+  let reads = 0;
+  const store = { ...s.store, readRevision: async () => { reads += 1; return s.store.readRevision(); } };
+  const input = { store, memberships: s.std.memberships, policy: s.policy, model: MODEL,
+    context: { actorUserId: s.std.alice.user.user_id, teamId: s.std.team.team_id },
+    predicate: () => { throw new Error('callback on disallowed route'); } };
+  for (const run of [
+    () => queryRecords({ ...input, authority: 'owner' }),
+    () => queryAggregate({ ...input, authority: 'viewer', spec: { op: 'count' } }),
+    () => queryAggregate({ ...input, authority: 'owner', spec: { op: 'count' } }),
+    () => queryEventualRecords({ ...input, authority: 'viewer' }),
+    () => queryEventualRecords({ ...input, authority: 'owner' }),
+  ]) {
+    await assert.rejects(run, (error: unknown) => error instanceof StateError &&
+      error.code === 'validation' && /current viewer record query/.test(error.message));
+  }
+  assert.equal(reads, 0);
 });

@@ -370,8 +370,8 @@ export async function invoke(input: {
   });
 }
 
-/** Internal per-call selection using the existing viewer query vocabulary. */
-export type ReadSelection = Pick<ViewerRecordsInput, 'where' | 'limit'>;
+/** Internal host-only selection; predicate functions never come from JSON/user input. */
+export type ReadSelection = Pick<ViewerRecordsInput, 'where' | 'order' | 'limit' | 'predicate'>;
 
 /** T17a canonical read invocation input: no clock, no executor, no receipts. */
 export interface InvokeReadInput {
@@ -492,7 +492,9 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
   }
 
   const where = input.selection?.where;
+  const order = input.selection?.order;
   const limit = input.selection?.limit;
+  const predicate = input.selection?.predicate;
   return queryRecords({
     policy: input.policy,
     model,
@@ -502,7 +504,9 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
     store: input.store,
     archived: 'exclude',
     ...(where !== undefined ? { where } : {}),
+    ...(order !== undefined ? { order } : {}),
     ...(limit !== undefined ? { limit } : {}),
+    ...(predicate !== undefined ? { predicate } : {}),
   });
 }
 

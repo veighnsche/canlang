@@ -131,6 +131,74 @@ test('missing and inherited result claims stay unknown; explicit malformed claim
   assert.equal(Object.hasOwn(descriptor(loadExecutionDescriptorSet({ ...set, operations: [inheritedDirect] }, opts)), 'result'), false);
 });
 
+test('generated read results admit only declared qualified ordinary model arrays in both loaders', () => {
+  const type = `${model}[]`;
+  const raw = artifact();
+  raw.operations![0]!.kind = 'read';
+  const result = { type };
+  raw.operations![0]!.result = result;
+  const converted = artifactToDescriptorSet(raw);
+  const loaded = loadArtifactDescriptors(raw, opts);
+  const set = intake();
+  const direct = loadExecutionDescriptorSet({ ...set, operations: [
+    { ...set.operations[0]!, kind: 'read', result },
+  ] }, opts);
+  result.type = 'Example.Unknown[]';
+  for (const checked of [converted.set.operations[0]!.result, descriptor(loaded).result, descriptor(direct).result]) {
+    assert.deepEqual(checked, { type });
+    assert.ok(Object.isFrozen(checked));
+  }
+});
+
+test('model result claims refuse nullable/required/union/ref/unknown and non-read profiles', () => {
+  for (const type of [model, `${model}?`, `${model}[]?`, `${model}[]!`, `${model}?[]`,
+    `${model}[][]`, `${model}|${model}[]`, `ref ${model}[]`, 'ref(Example.Job)[]',
+    'Example.Unknown[]', 'Example.Contract[]', 'enum(a,b)[]', ' Job[]', 'Job[]',
+    'Example..Job[]', 'Example.Job []', 'member[]', 'json[]']) {
+    const raw = artifact();
+    raw.operations![0]!.kind = 'read';
+    raw.operations![0]!.result = { type };
+    const set = intake();
+    const direct = { ...set, operations: [{ ...set.operations[0]!, kind: 'read' as const, result: { type } }] };
+    incompatible(() => artifactToDescriptorSet(raw));
+    incompatible(() => loadArtifactDescriptors(raw, opts));
+    incompatible(() => loadExecutionDescriptorSet(direct, opts));
+  }
+  // Membership alone does not admit an unqualified spelling.
+  const unqualified = artifact();
+  unqualified.models![0]!.name = 'Job';
+  unqualified.operations![0]!.kind = 'read';
+  unqualified.operations![0]!.result = { type: 'Job[]' };
+  incompatible(() => loadArtifactDescriptors(unqualified, opts));
+  const unqualifiedSet = intake();
+  incompatible(() => loadExecutionDescriptorSet({ ...unqualifiedSet,
+    models: [{ ...unqualifiedSet.models[0]!, name: 'Job' as ModelName }], operations: [
+      { ...unqualifiedSet.operations[0]!, kind: 'read', result: { type: 'Job[]' } },
+    ],
+  }, opts));
+  for (const kind of ['scenario', 'create', 'update', 'delete'] as const) {
+    const raw = artifact();
+    raw.operations![0]!.kind = kind;
+    raw.operations![0]!.result = { type: `${model}[]` };
+    const set = intake();
+    incompatible(() => loadArtifactDescriptors(raw, opts));
+    incompatible(() => loadExecutionDescriptorSet({ ...set, operations: [
+      { ...set.operations[0]!, kind, result: { type: `${model}[]` } },
+    ] }, opts));
+  }
+  const raw = artifact();
+  raw.operations![0]!.kind = 'read';
+  raw.operations![0]!.result = Object.create({ type: `${model}[]` });
+  incompatible(() => loadArtifactDescriptors(raw, opts));
+  const set = intake();
+  incompatible(() => loadExecutionDescriptorSet({ ...set, operations: [
+    { ...set.operations[0]!, kind: 'read', result: Object.create({ type: `${model}[]` }) },
+  ] }, opts));
+  const inherited = Object.assign(Object.create({ result: { type: `${model}[]` } }), raw.operations![0]);
+  delete inherited.result;
+  assert.equal(Object.hasOwn(descriptor(loadArtifactDescriptors({ ...raw, operations: [inherited] }, opts)), 'result'), false);
+});
+
 test('own source revisions are validated, copied and frozen without inventing load authority', () => {
   const raw = artifact();
   const source = { path: 'Example.can', sha256 };

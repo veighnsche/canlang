@@ -75,6 +75,13 @@ export interface BaseQueryInput {
 /** Viewer query input: grant-checked, projected records. */
 export interface ViewerRecordsInput extends BaseQueryInput {
   readonly authority: 'viewer';
+  /**
+   * Trusted internal generated-source wiring only, never JSON/user input.
+   * Receives a detached snapshot after per-row grant projection and AST
+   * where, before sorting/limit. Source conversion and final authority
+   * rechecks belong to the owning caller; this hook grants no capability.
+   */
+  readonly predicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
 }
 
 /** Owner query input: full stored rows, no projection. */
@@ -623,6 +630,22 @@ function toProjectedRecord(row: StoredRow): ProjectedRecord {
   };
 }
 
+/** Reject host callbacks outside the finite viewer-record route. */
+function checkViewerPredicate(
+  input: BaseQueryInput,
+  allowed: boolean,
+): ViewerRecordsInput['predicate'] {
+  const predicate = (input as ViewerRecordsInput).predicate;
+  if (predicate === undefined) return undefined;
+  if (!allowed || input.authority !== 'viewer') {
+    throw new StateError('validation', 'Generated-source predicates require a current viewer record query.');
+  }
+  if (typeof predicate !== 'function') {
+    throw new StateError('validation', 'Generated-source query predicate must be a trusted host function.');
+  }
+  return predicate;
+}
+
 /**
  * Shared record/aggregate pipeline: validate caller input, fence the
  * revision, resolve viewer authorization, scan unbounded, match and project
@@ -637,6 +660,7 @@ async function runAuthorizedQuery(
   // Eventual reads enroll nothing; their marked wrapper (not this flag)
   // is what authorization boundaries refuse.
   eventual = false,
+  predicate?: ViewerRecordsInput['predicate'],
 ): Promise<AuthorizedSet> {
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
     throw new StateError('validation', `Invalid query limit: ${JSON.stringify(input.limit)}.`);
@@ -785,6 +809,15 @@ async function runAuthorizedQuery(
       if (input.where !== undefined && !evalPredicateForRow(input.where, projected)) {
         continue;
       }
+      if (predicate !== undefined) {
+        // Copy metadata (including parent) and nested projected data again:
+        // callback mutation must never alter the matched or output rows.
+        const accepted = await predicate(cleanCopy(projected) as ProjectedRecord);
+        if (typeof accepted !== 'boolean') {
+          throw new StateError('validation', 'Generated-source query predicate must return a boolean.');
+        }
+        if (!accepted) continue;
+      }
       matched.push({ ...row, data: projected.data });
     }
   }
@@ -825,7 +858,8 @@ export function queryRecords(
 export async function queryRecords(
   input: QueryRecordsInput,
 ): Promise<AuthorizedRecordsResult | AuthorityRowsResult> {
-  const set = await runAuthorizedQuery(input);
+  const predicate = checkViewerPredicate(input, true);
+  const set = await runAuthorizedQuery(input, undefined, false, predicate);
   if (input.authority === 'owner') {
     return { rows: set.rows, revision: set.revision };
   }
@@ -857,6 +891,7 @@ function checkAggregateSpec(spec: AggregateSpec): void {
  * follows the empty-domain rules.
  */
 export async function queryAggregate(input: QueryAggregateInput): Promise<AggregateQueryResult> {
+  checkViewerPredicate(input, false);
   checkAggregateSpec(input.spec);
   const extraViewerPaths =
     input.spec.op === 'count' || input.spec.field === undefined ? [] : [input.spec.field];
@@ -920,6 +955,7 @@ export function queryEventualRecords(
 export async function queryEventualRecords(
   input: QueryRecordsInput,
 ): Promise<EventualRecordsResult & { result: AuthorizedRecordsResult | AuthorityRowsResult }> {
+  checkViewerPredicate(input, false);
   if (input.fence !== undefined) {
     throw new StateError(
       'validation',
