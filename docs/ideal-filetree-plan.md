@@ -297,3 +297,6 @@ Root typed metadata correction: the existing bound-record view owns stable admit
 
 
 Root formatting-scope reconciliation: existing AppInfo owns selected app locale; Cloudflare host invoker/context carries one frozen appDefault scope, separate from admitted team timezone. One actual bridge1/1 and private owning emit qualify source wiring; unchanged reader11controls reused. Compiler format lowering/source-language/installed and complete checkpoint review remain open. No new metadata reader, inferred viewer default or responsibility move.
+
+
+Root model-rule refusal reconciliation: existing canonical metadata intake refuses declared invariants/locks without their defining State execution binding; owning declarations and policy both preserve constraints. Owning test/compiler fixtures qualify12direct cases, not rule execution. Proposed callback ownership and complete checkpoint review remain open; no new parser/engine or responsibility reassignment.

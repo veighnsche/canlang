@@ -166,10 +166,10 @@
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
-    "DEL-B02/DEL-R01 actualstaticmount",
-    "TECH-V03/V04 realcheckedfield contract/H1",
-    "DEL-E02 DOtestreset migrationfailure isolation",
-    "TECH-V05 exactexternal timezone payload approvalpending"
+    "TECH-S02/REPLAY-IP07 finite CRUD public result contract (specific JEV approval pending)",
+    "H3 compiler consumer of released trusted formatting scope",
+    "H1 full scalar/array/default/hook/native consumer residuals",
+    "TECH-V05 exact external timezone payload approval pending"
   ],
   "packet_state": {
     "TECH-V01-values": {
@@ -1726,7 +1726,7 @@
   "foreign_runtime_pure_integration": "implementation/package-maintenance-repair/runs/codex-go-20261007/runtime-pure-helpers-root-integration.json",
   "current_goal_turn_actions": {
     "classification": "progress",
-    "evidence": "State one-query selection committed256a1796 with17focused passes; nested verification cleanup committed2266088b. Released page source uses defining Interfaces renderer and State executor, private owning builds and34checks pass. Preserved actual bare-list Images fails422 due missing required empty caption; compiler adds source refusal and supported authored variant qualification proceeds. Required shared-default design remains open. Full48 centrally tracked; no worker goal or timer. Page source committed1c1fcc9f. Ordered typed-write State checkpoint qualifies native row/default wire conversion at its existing late boundary with81focused passes; broad typed consumer remains in progress. Explicit authored empty-caption Images compiler and real Node/workerd+D1 gate pass; original workflow default stays open. State typed checkpoint committed841f56a8. Finite checked locale reader is now implementing. Checked locale reader private emit and11focused assembly boundary tests pass; the existing owning assembly/main caller fixtures are now being reconciled and tested for their concrete old-interim setup risk. Original owning caller fixtures reconciled with authored app entry and real Interfaces factory; private assembly21/21/main14/14 pass with original journeys retained. Typed runtime consumer extends context/stdlib by exact ACK and is checking actual D1 after one owning build22/22. Typed runtime actual D1, legacy missing-result and explicit-ID/binding profiles are released and accepted by direct source review; no broader parent completion. Original t16b/t17b synthetic fixtures are being reconciled separately without weakening production. Bound-ref metadata correction released after actual D1 profile1/1 passed: preserve admitted v, staged fields, stored v+1. Trusted app locale formatting scope released and directly checked1/1, compiler adapter can consume exact optional readonly c.formatting.appDefault. Original memory62/62 and all3D1journeys now qualified at honest handwritten fixture scope;3obsolete creating-version assertions corrected from existingDESIGN and only failedcase rerun."
+    "evidence": "State one-query selection committed256a1796 with17focused passes; nested verification cleanup committed2266088b. Released page source uses defining Interfaces renderer and State executor, private owning builds and34checks pass. Preserved actual bare-list Images fails422 due missing required empty caption; compiler adds source refusal and supported authored variant qualification proceeds. Required shared-default design remains open. Full48 centrally tracked; no worker goal or timer. Page source committed1c1fcc9f. Ordered typed-write State checkpoint qualifies native row/default wire conversion at its existing late boundary with81focused passes; broad typed consumer remains in progress. Explicit authored empty-caption Images compiler and real Node/workerd+D1 gate pass; original workflow default stays open. State typed checkpoint committed841f56a8. Finite checked locale reader is now implementing. Checked locale reader private emit and11focused assembly boundary tests pass; the existing owning assembly/main caller fixtures are now being reconciled and tested for their concrete old-interim setup risk. Original owning caller fixtures reconciled with authored app entry and real Interfaces factory; private assembly21/21/main14/14 pass with original journeys retained. Typed runtime consumer extends context/stdlib by exact ACK and is checking actual D1 after one owning build22/22. Typed runtime actual D1, legacy missing-result and explicit-ID/binding profiles are released and accepted by direct source review; no broader parent completion. Original t16b/t17b synthetic fixtures are being reconciled separately without weakening production. Bound-ref metadata correction released after actual D1 profile1/1 passed: preserve admitted v, staged fields, stored v+1. Trusted app locale formatting scope released and directly checked1/1, compiler adapter can consume exact optional readonly c.formatting.appDefault. Original memory62/62 and all3D1journeys now qualified at honest handwritten fixture scope;3obsolete creating-version assertions corrected from existingDESIGN and only failedcase rerun. Unsupported model-rule activation guard released12/12. New CRUD result/provenance/replay contract questions prepared; outbound blocked by automatic approval review and specific human permission pending, no call executed."
   },
   "live_finite_packets": [
     {
@@ -1932,5 +1932,25 @@
       "actual viewer pageRows current status"
     ],
     "limits": "Memory State + actual canonical query only; no DOM/provider/durable/installed/whole-app claim. Model-rule evaluation remains separate."
+  },
+  "unsupported_model_rule_activation": {
+    "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+    "files": [
+      "packages/cloudflare/src/runtime/invoke.ts",
+      "packages/cloudflare/src/runtime/model-rule-activation.test.ts",
+      "packages/cloudflare/test/fixtures/model-rule-activation.can",
+      "packages/cloudflare/test/fixtures/model-rule-activation.json"
+    ],
+    "status": "Released and root direct source reviewed; actual declaring invariants/locks now refuse activation until canonical enforcement exists; scoped commit pending",
+    "validation": "Final owning CF emit and direct12/12 after guard edit (9model-rule negatives,2unchanged generated-machine/current-read,1explicit-ID). TypedD1 and historical unaffected outcomes reused.",
+    "limits": "Refusal correction only, no rule callback/expression activation, State API, native hook or whole-rule qualification."
+  },
+  "crud_public_contract": {
+    "status": "Source-current finite investigation complete; exact new3JEV requests prepared, first outbound rejected by automatic approval review before execution; explicit human approval pending",
+    "requests": "/private/tmp/canlang-repair-go-20261007/crud-public-contract/request-{1,2,3}.json",
+    "bytes": 20847,
+    "scope": "Architecture/security-contract facts only, no source excerpts/secrets. New finite CRUD result/legacy producing-origin/live replay-authority questions, not repetition of prior metadata/H1 questions.",
+    "alternatives": "CRUD null-business-result plus authorized records versus complete saved row only when fully disclosable; new explicit result provenance/legacy refusal versus trusted historical association; current mutation-by+read versus current read only.",
+    "source_limits": "Current wire forbids partial result. Existing raw receipts lack producing-kind/artifact evidence; current descriptor/row shape cannot authenticate old outcome. No guessed mapper, replay reexecution, blanket unrelated null or first-call delivery claimed."
   }
 }

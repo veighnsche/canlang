@@ -1,0 +1,13 @@
+app ModelRuleActivation
+Given
+ InvariantOnly { label:text="valid" }
+ LockedOnly { label:text="valid" }
+ policy InvariantOnly read=public
+ policy LockedOnly read=public
+ ## Activation must refuse rules until their canonical execution join exists.
+ invariant InvariantOnly: row.label!="forbidden"
+ lock LockedOnly fields=label
+When
+ crud InvariantOnly by=public fields=label
+ crud LockedOnly by=public fields=label
+Then
