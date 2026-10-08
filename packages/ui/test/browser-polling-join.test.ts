@@ -126,9 +126,9 @@ function committed(): SubmitFetchResponse {
   return { status: 200, headers: { get: () => 'application/json' },
     text: async () => JSON.stringify({ status: 'committed', operation_id: 'rendered-operation-id', records: [], deliveries: [], result: null }) };
 }
-async function formPage(fetchImpl: SubmitFetch) {
+async function formPage(fetchImpl: SubmitFetch, html?: string) {
   const window = new Window({ url: 'https://can.test/jobs' });
-  window.document.body.innerHTML = await sourceForm();
+  window.document.body.innerHTML = html ?? await sourceForm();
   const results: GeneratedSubmitResult[] = [], errors: unknown[] = [];
   const client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'], fetchImpl,
     onGeneratedFormResult: (_form, result) => results.push(result), onGeneratedFormError: (_form, error) => errors.push(error) });
@@ -144,6 +144,32 @@ async function formPage(fetchImpl: SubmitFetch) {
 }
 
 describe('prepared source form browser submission', () => {
+  it('projects only rendered partial-update fields and keeps an unchecked selected boolean false', async () => {
+    const derived: DerivedOperationInputs = { ...formDerived, operation: 'Store.Job.update', kind: 'update',
+      inputs: [{ name: 'record', kind: 'ref', model: 'Store.Job', versioned: true, required: true },
+        ...formDerived.inputs] };
+    for (const selected of ['title', 'active']) {
+      const html = await form({ context, derived, operation: derived.operation, mode: 'update',
+        record: { id: 'job-one', version: '9' }, action: '/operations/update',
+        operationId: 'rendered-operation-id', timeZone: 'UTC',
+        fields: generatedFields(derived, 'update').filter(field => field.path === selected),
+        submit: 'Save', idPrefix: `selected-${selected}`,
+        ...(selected === 'title' ? { children: ['<input name="inputs[changes][title]" value="edited"><input name="inputs[changes][owner]" value="tampered"><input name="inputs[changes][unknown]" value="extra">'] } : {}),
+      });
+      const calls: SubmitFetchInit[] = [];
+      const page = await formPage(async (_url, init) => { calls.push(init); return committed(); }, html);
+      try {
+        const metadata = JSON.parse(page.window.document.querySelector('form')!.getAttribute('data-can-generated-form')!);
+        assert.deepEqual(metadata.derived, derived, 'complete operation metadata stays intact');
+        assert.deepEqual(metadata.renderedInputs, [selected]);
+        page.submit(); await settle();
+        assert.deepEqual(page.errors, []); assert.equal(calls.length, 1);
+        assert.deepEqual(JSON.parse(calls[0]!.body as string).inputs,
+          { record: { id: 'job-one', version: '9' }, ...(selected === 'title' ? { title: 'edited' } : { active: false }) });
+      } finally { await page.close(); }
+    }
+  });
+
   it('projects native successful controls with rendered identity, CSRF and reference version; retries reuse identity', async () => {
     const calls: Array<{ url: string; init: SubmitFetchInit }> = [];
     const page = await formPage(async (url, init) => { calls.push({ url, init }); return committed(); });

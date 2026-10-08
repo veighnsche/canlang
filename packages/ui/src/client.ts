@@ -138,6 +138,8 @@ export interface SubmitGeneratedFormInput {
   readonly derived: DerivedOperationInputs;
   readonly mode: FormMode;
   readonly flat: Record<string, string>;
+  /** Exact rendered field paths; omission keeps the legacy full-input projection. */
+  readonly renderedInputs?: readonly string[];
   readonly files?: ReadonlyArray<FileLike>;
   /** Dispatcher-supplied op POST target; never invented here. */
   readonly action: string;
@@ -610,12 +612,13 @@ export async function submitGeneratedForm(
       );
     }
   }
-  const ordered = input.derived.inputs.filter((entry) => byField.has(entry.name));
+  const ordered = input.derived.inputs.filter((entry) => byField.has(entry.name) &&
+    (input.renderedInputs === undefined || input.renderedInputs.includes(entry.name)));
   const uploadsUrl = ordered.length === 0 ? undefined : mustUploadsUrl(input.intentsUrl);
 
   let args: ClosedInputs;
   try {
-    args = projectGeneratedInputs(input.derived, input.mode, input.flat);
+    args = projectGeneratedInputs(input.derived, input.mode, input.flat, input.renderedInputs);
   } catch (error) {
     throw projectionError(error);
   }
@@ -689,7 +692,7 @@ export async function submitGeneratedForm(
 
   let inputs: ClosedInputs;
   try {
-    inputs = projectGeneratedInputs(input.derived, input.mode, working);
+    inputs = projectGeneratedInputs(input.derived, input.mode, working, input.renderedInputs);
   } catch (error) {
     throw projectionError(error);
   }
