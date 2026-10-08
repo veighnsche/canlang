@@ -21,6 +21,7 @@ import type {
   OperationName,
   OutboxIntent,
   Receipt,
+  ReceiptOutcome,
   RecordId,
   RecordVersion,
   Revision,
@@ -65,6 +66,46 @@ import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
 export const MAX_ADMISSION_ATTEMPTS = 3;
 
+/** Execution-owned association retained in the existing receipt outcome JSON. */
+export interface GeneratedCrudReceiptAssociation {
+  readonly kind: 'generated-crud/v1';
+  readonly model: ModelName;
+  readonly record: { readonly id: RecordId; readonly version: RecordVersion } | null;
+  readonly secretFields?: readonly string[];
+}
+
+export type CommittedReceiptOutcome = Extract<ReceiptOutcome, { status: 'committed' }> & {
+  readonly generatedCrud?: GeneratedCrudReceiptAssociation;
+};
+
+/** Legacy outcomes have no association; recognized malformed metadata refuses. */
+export function readGeneratedCrudAssociation(outcome: ReceiptOutcome): GeneratedCrudReceiptAssociation | null {
+  if (!Object.hasOwn(outcome, 'generatedCrud')) return null;
+  const value: unknown = Reflect.get(outcome, 'generatedCrud');
+  const object = (candidate: unknown): candidate is Record<string, unknown> =>
+    typeof candidate === 'object' && candidate !== null && !Array.isArray(candidate);
+  const invalid = (): never => { throw new Error('Invalid generated CRUD receipt association.'); };
+  if (outcome.status !== 'committed' || !object(value) ||
+      !Object.hasOwn(value, 'kind') || value.kind !== 'generated-crud/v1' ||
+      !Object.hasOwn(value, 'model') || typeof value.model !== 'string' || value.model === '' ||
+      !Object.hasOwn(value, 'record')) return invalid();
+  const record = value.record;
+  if (record !== null && (!object(record) ||
+      Object.keys(record).length !== 2 || !Object.hasOwn(record, 'id') ||
+      typeof record.id !== 'string' || record.id === '' || !Object.hasOwn(record, 'version') ||
+      typeof record.version !== 'number' || !Number.isSafeInteger(record.version) || record.version < 1)) return invalid();
+  if (Object.keys(value).some(key => !['kind', 'model', 'record', 'secretFields'].includes(key))) return invalid();
+  const fields: unknown = Object.hasOwn(value, 'secretFields') ? value.secretFields : undefined;
+  if (Object.hasOwn(value, 'secretFields') && (!Array.isArray(fields) ||
+      !Array.from(fields).every((field: unknown) => typeof field === 'string' && field !== ''))) return invalid();
+  return {
+    kind: 'generated-crud/v1', model: value.model as ModelName,
+    record: record === null ? null : { id: (record as Record<string, unknown>).id as RecordId,
+      version: (record as Record<string, unknown>).version as RecordVersion },
+    ...(fields === undefined ? {} : { secretFields: [...fields as string[]] }),
+  };
+}
+
 /** Provisional outcome of one execution pass, committed atomically or dropped. */
 export interface ExecutionEffects {
   writes: DomainWrite[];
@@ -75,6 +116,7 @@ export interface ExecutionEffects {
   uniqueReleases: UniqueRelease[];
   resolvedDefaults: Record<string, unknown>;
   result: unknown;
+  generatedCrud?: GeneratedCrudReceiptAssociation;
   /**
    * T32b-wire: guard predicates the fenced commit re-evaluates live against
    * CURRENT state (after the revision assertion, before the commit). Offered
@@ -157,6 +199,8 @@ export async function invoke(input: {
   kind?: AdmissionKind;
   trustedSource?: string;
   execute: ExecuteHandler;
+  /** Synchronous observation after durability; failures never retry execution. */
+  observeCommittedReceipt?: (receipt: Receipt & { readonly outcome: CommittedReceiptOutcome }) => void;
   /**
    * B2 (Q3): serverOnly exclusions for denial currents, forwarded to
    * `admit` (see `ConflictServerOnly`). The holder (seam/assembly)
@@ -204,6 +248,7 @@ export async function invoke(input: {
       if (outcome.status === 'rejected') {
         throw new StateError(outcome.code, outcome.message);
       }
+      input.observeCommittedReceipt?.({ ...call.replay, outcome });
       return {
         status: 'replayed',
         operation_id: input.envelope.operation_id,
@@ -330,7 +375,7 @@ export async function invoke(input: {
         throw fenceError;
       }
     }
-    const receipt: Receipt = {
+    const receipt: Receipt & { readonly outcome: CommittedReceiptOutcome } = {
       identity: receiptIdentityFor(context),
       inputHash: call.inputHash,
       resolvedDefaults: effects.resolvedDefaults,
@@ -338,6 +383,7 @@ export async function invoke(input: {
         status: 'committed',
         result: effects.result,
         recordVersions: recordVersionsOf(effects.writes),
+        ...(effects.generatedCrud === undefined ? {} : { generatedCrud: effects.generatedCrud }),
       },
       committedRevision: (call.revision + 1) as Revision,
       createdAt: now,
@@ -357,6 +403,7 @@ export async function invoke(input: {
       if (error instanceof FenceConflictError) continue;
       throw storageToStateError(error);
     }
+    input.observeCommittedReceipt?.(receipt);
     return {
       status: 'committed',
       operation_id: input.envelope.operation_id,

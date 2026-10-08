@@ -21,7 +21,10 @@ import {
 } from '../invocation/registry.js';
 import { buildModelTableFromCanonical, type ModelTable } from './models.js';
 import { generatedCrudExecute } from './crud.js';
-import { invoke } from '../invocation/invoke.js';
+import { invoke, readGeneratedCrudAssociation } from '../invocation/invoke.js';
+import type { CommittedReceiptOutcome } from '../invocation/invoke.js';
+import type { Receipt } from '@canlang/contracts';
+import { FenceConflictError } from '../storage/port.js';
 import { runMutationWrites } from './pipeline.js';
 import { buildContext } from '../invocation/context.js';
 import { createTestMemoryStorage, type MemoryStoreProbe } from '../storage/memory.js';
@@ -222,6 +225,62 @@ async function snapshotRows(store: StoragePort, model: string): Promise<StoredRo
 }
 
 describe('T16a generated CRUD: creates', () => {
+  it('retains generated associations and observes durable receipts without retrying failed observers', async () => {
+    const setup = await setupCrud();
+    const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
+    const secretFields = ['internal'];
+    const executeCrud = generatedCrudExecute({ table: setup.table, store: setup.store,
+      secretFields: new Map([[asModel(GADGET), secretFields]]) });
+    let executions = 0;
+    const execute = async (call: Parameters<typeof executeCrud>[0]) => {
+      executions += 1;
+      return executeCrud(call);
+    };
+    const operationId = uuidv7(FIXED_NOW, (crudSeq += 1));
+    const args = { ...callArgs(setup, execute), registry: loaded.registry,
+      envelope: makeEnvelope(`${GADGET}.create`, operationId, baseGadgetInputs('OBS-1')) };
+    const observed: Array<Receipt & { outcome: CommittedReceiptOutcome }> = [];
+    const failure = new FenceConflictError(0 as Receipt['committedRevision'], null);
+    const observeCommittedReceipt = (receipt: Receipt & { outcome: CommittedReceiptOutcome }) => {
+      observed.push(receipt);
+      throw failure;
+    };
+    await assert.rejects(invoke({ ...args, observeCommittedReceipt }), error => error === failure);
+    assert.equal(executions, 1);
+    assert.equal(observed.length, 1);
+    const saved = await setup.store.readReceipt(observed[0]!.identity);
+    assert.deepEqual(saved, observed[0]);
+    assert.equal(saved?.outcome.status, 'committed');
+    assert.deepEqual(observed[0]!.outcome.generatedCrud, {
+      kind: 'generated-crud/v1', model: GADGET, record: { id: operationId, version: 1 }, secretFields: ['internal'],
+    });
+    secretFields.push('later');
+    const revision = await setup.store.readRevision();
+    const rows = await snapshotRows(setup.store, GADGET);
+    const histories = await setup.store.historyFor(asModel(GADGET), asId(operationId));
+    await assert.rejects(invoke({ ...args, observeCommittedReceipt }), error => error === failure);
+    assert.equal(observed.length, 2);
+    assert.deepEqual(observed[1], saved);
+    assert.equal(executions, 1);
+    const replay = await invoke(args);
+    assert.equal(replay.status, 'replayed');
+    assert.deepEqual(replay.result, observed[0]!.outcome.result);
+    assert.deepEqual(JSON.parse(JSON.stringify(saved)), saved);
+    assert.ok(saved);
+    assert.deepEqual(readGeneratedCrudAssociation(saved.outcome), observed[0]!.outcome.generatedCrud);
+    assert.equal(readGeneratedCrudAssociation({ status: 'committed', result: null, recordVersions: [] }), null);
+    for (const generatedCrud of [null, { kind: 'generated-crud/v1', model: GADGET, record: { id: operationId, version: '1' } },
+      { kind: 'generated-crud/v1', model: GADGET, record: null, secretFields: [42] },
+      Object.create({ kind: 'generated-crud/v1', model: GADGET, record: null })]) {
+      const malformed = { status: 'committed' as const, result: null, recordVersions: [], generatedCrud };
+      assert.throws(() => readGeneratedCrudAssociation(malformed), /Invalid generated CRUD/);
+    }
+    assert.equal(await setup.store.readRevision(), revision);
+    assert.deepEqual(await snapshotRows(setup.store, GADGET), rows);
+    assert.deepEqual(await setup.store.historyFor(asModel(GADGET), asId(operationId)), histories);
+    assert.deepEqual(await setup.store.readReceipt(observed[0]!.identity), saved);
+  });
+
   it('creates flat rows with id=operationId, defaults, and omit-to-empty arrays', async () => {
     const setup = await setupCrud();
     const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
@@ -401,7 +460,9 @@ describe('T16a generated CRUD: updates, deletes, whens', () => {
     const setup = await setupCrud();
     const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
     const execute = generatedCrudExecute({ table: setup.table, store: setup.store });
-    const args = { ...callArgs(setup, execute), registry: loaded.registry };
+    const outcomes: CommittedReceiptOutcome[] = [];
+    const args = { ...callArgs(setup, execute), registry: loaded.registry,
+      observeCommittedReceipt: (receipt: Receipt & { outcome: CommittedReceiptOutcome }) => outcomes.push(receipt.outcome) };
     const created = await invoke({
       ...args,
       envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, (crudSeq += 1)), {
@@ -432,6 +493,9 @@ describe('T16a generated CRUD: updates, deletes, whens', () => {
     });
     assert.equal((removed.result as StoredRow).version, 3);
     assert.equal((removed.result as StoredRow).archivedAt, FIXED_NOW);
+    assert.deepEqual(outcomes.map(outcome => outcome.generatedCrud), [1, 2, 3].map(version => ({
+      kind: 'generated-crud/v1', model: GADGET, record: { id, version },
+    })));
 
     const twice = await captureStateError(
       invoke({
@@ -495,13 +559,16 @@ describe('T16a generated CRUD: updates, deletes, whens', () => {
       envelope: makeEnvelope(`${KEEPER}.create`, uuidv7(FIXED_NOW, (crudSeq += 1)), { name: 'loner' }),
     });
     const lonerId = (loner.result as StoredRow).id;
+    let removedOutcome: CommittedReceiptOutcome | undefined;
     const removed = await invoke({
       ...args,
+      observeCommittedReceipt: receipt => { removedOutcome = receipt.outcome; },
       envelope: makeEnvelope(`${KEEPER}.delete`, uuidv7(FIXED_NOW, (crudSeq += 1)), {
         record: { id: lonerId, version: '1' },
       }),
     });
     assert.equal(removed.result, null);
+    assert.deepEqual(removedOutcome?.generatedCrud, { kind: 'generated-crud/v1', model: KEEPER, record: null });
     assert.equal(await setup.store.load(asModel(KEEPER), lonerId), null);
   });
 
