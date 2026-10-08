@@ -139,7 +139,7 @@ When
     transition job.status generating -> failed
 Then
  page / title="Images" poll=2s
-  list Job
+  list Job empty="No jobs yet"
    alert
     require row.status==generating
     text "Generating"
