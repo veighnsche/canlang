@@ -425,6 +425,10 @@ pub struct TypeTable {
     pub delivery_progress_handlers: HashMap<NodeKey, String>,
     /// Selected call authority consumed by IR without rebinding arguments.
     pub selected_calls: HashMap<NodeKey, SelectedCall>,
+    /// Subject-domain labels checked for individual finite-enum match arms.
+    pub enum_match_cases: HashMap<NodeKey, String>,
+    /// Match statements with complete, unique checked subject-domain coverage.
+    pub exhaustive_matches: HashSet<NodeKey>,
     /// Name references with a lexical value binding. Retained for IR so
     /// enum-valued locals are not reconstructed as case spellings.
     pub bound_names: HashSet<NodeKey>,
@@ -1067,7 +1071,11 @@ impl<'a> Typer<'a> {
             | SyntaxKind::Cancel => {
                 out.drop_all_paths = true;
             }
-            SyntaxKind::If | SyntaxKind::For | SyntaxKind::DoBlock => {
+            SyntaxKind::If
+            | SyntaxKind::For
+            | SyntaxKind::Match
+            | SyntaxKind::MatchArm
+            | SyntaxKind::DoBlock => {
                 for child in kids(stmt) {
                     if matches!(
                         child.kind,
@@ -1085,6 +1093,8 @@ impl<'a> Typer<'a> {
                             | SyntaxKind::Require
                             | SyntaxKind::If
                             | SyntaxKind::For
+                            | SyntaxKind::Match
+                            | SyntaxKind::MatchArm
                             | SyntaxKind::DoBlock
                     ) {
                         self.scan_invalid(text, child, out);
@@ -1192,6 +1202,7 @@ impl<'a> Typer<'a> {
             SyntaxKind::Return => self.stmt_return(cx, node),
             SyntaxKind::Require => self.walk_guard(cx, node),
             SyntaxKind::If => self.stmt_if(cx, node),
+            SyntaxKind::Match => self.stmt_match(cx, node),
             SyntaxKind::For => self.stmt_for(cx, node),
             _ => {}
         }
@@ -3186,6 +3197,96 @@ impl<'a> Typer<'a> {
         }
     }
 
+    /// Finite enum arms use the checked subject domain, never lexical names.
+    fn stmt_match(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
+        let parts = kids(node);
+        let subject = parts.iter().find(|n| is_expression(n.kind)).copied();
+        let subject_ty = subject.map(|subject| self.expr(cx, subject, None));
+        let cases = match &subject_ty {
+            Some(ResolvedType::Enum { cases, .. }) => Some(cases.clone()),
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "match subject must be a known nonnullable finite enum".to_string(),
+                    tight_span(cx.text, subject.unwrap_or(node)),
+                ));
+                None
+            }
+        };
+        let mut seen = HashSet::new();
+        let mut valid = cases.is_some();
+        let arms: Vec<_> = parts
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::MatchArm)
+            .copied()
+            .collect();
+        for arm in &arms {
+            let arm_parts = kids(arm);
+            let label = arm_parts
+                .iter()
+                .filter(|n| n.kind == SyntaxKind::Name)
+                .nth(1)
+                .copied();
+            let case = label.and_then(|label| name_text(label, cx.text));
+            if let Some(cases) = &cases {
+                match case {
+                    Some(case) if cases.iter().any(|known| known == case) => {
+                        self.types
+                            .enum_match_cases
+                            .insert(NodeKey::of(arm), case.to_string());
+                        if !seen.insert(case.to_string()) {
+                            valid = false;
+                            self.diags.push(Diagnostic::error(
+                                "E3001",
+                                format!("duplicate match case '{case}'"),
+                                tight_span(cx.text, label.unwrap_or(arm)),
+                            ));
+                        }
+                    }
+                    _ => {
+                        valid = false;
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            format!(
+                                "match case '{}' is not in the subject enum",
+                                case.unwrap_or("")
+                            ),
+                            tight_span(cx.text, label.unwrap_or(arm)),
+                        ));
+                    }
+                }
+            }
+            let statements: Vec<_> = arm_parts
+                .into_iter()
+                .filter(|n| !matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                .collect();
+            // Each arm inherits the incoming facts; arm-local requirements
+            // and invalidations stay within its own sequential walk.
+            self.walk_seq(cx, &statements);
+        }
+        if let Some(cases) = cases {
+            let missing: Vec<_> = cases
+                .iter()
+                .filter(|case| !seen.contains(*case))
+                .cloned()
+                .collect();
+            if !missing.is_empty() {
+                valid = false;
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!(
+                        "match must cover every subject enum case; missing {}",
+                        missing.join(", ")
+                    ),
+                    tight_span(cx.text, node),
+                ));
+            }
+        }
+        if valid && !arms.is_empty() {
+            self.types.exhaustive_matches.insert(NodeKey::of(node));
+        }
+    }
+
     /// `for item in domain limit=n ...`: collection domain, positive
     /// integer limit, item-typed body.
     fn stmt_for(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
@@ -3790,7 +3891,7 @@ impl<'a> Typer<'a> {
             .into_iter()
             .filter(|s| s.kind != SyntaxKind::Name)
             .collect();
-        if !Self::stmts_return(text, &stmts) {
+        if !self.stmts_return(text, &stmts) {
             let span = arrow_result(node)
                 .map(|t| tight_span(text, t))
                 .unwrap_or_else(|| tight_span(text, node));
@@ -3803,13 +3904,13 @@ impl<'a> Typer<'a> {
     }
 
     /// Whether a statement list always returns.
-    fn stmts_return(text: &str, stmts: &[&SyntaxNode]) -> bool {
-        stmts.iter().any(|s| Self::stmt_returns(text, s))
+    fn stmts_return(&self, text: &str, stmts: &[&SyntaxNode]) -> bool {
+        stmts.iter().any(|s| self.stmt_returns(text, s))
     }
 
     /// Whether one statement always returns (`for` may run zero times;
     /// an `if` without `else` may fall through).
-    fn stmt_returns(text: &str, node: &SyntaxNode) -> bool {
+    fn stmt_returns(&self, text: &str, node: &SyntaxNode) -> bool {
         match node.kind {
             SyntaxKind::Return => true,
             SyntaxKind::If => {
@@ -3830,10 +3931,23 @@ impl<'a> Typer<'a> {
                 let branch_returns = |slice: &[&SyntaxNode]| {
                     slice.iter().any(|s| {
                         !matches!(s.kind, SyntaxKind::Name | SyntaxKind::Punct)
-                            && Self::stmt_returns(text, s)
+                            && self.stmt_returns(text, s)
                     })
                 };
                 branch_returns(&parts[1..split]) && branch_returns(&parts[split + 1..])
+            }
+            SyntaxKind::Match => {
+                self.types.exhaustive_matches.contains(&NodeKey::of(node))
+                    && kids(node)
+                        .into_iter()
+                        .filter(|arm| arm.kind == SyntaxKind::MatchArm)
+                        .all(|arm| {
+                            let statements: Vec<_> = kids(arm)
+                                .into_iter()
+                                .filter(|n| !matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                                .collect();
+                            self.stmts_return(text, &statements)
+                        })
             }
             _ => false,
         }

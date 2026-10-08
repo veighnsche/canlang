@@ -113,6 +113,10 @@ pub enum SyntaxKind {
     Require,
     If,
     For,
+    /// Enum-only execution selection: head, subject expression, then arms.
+    Match,
+    /// One bare subject-domain case label followed by body statements.
+    MatchArm,
     // Examples -----------------------------------------------------------
     Examples,
     ExampleRow,
