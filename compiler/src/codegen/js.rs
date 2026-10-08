@@ -3561,6 +3561,7 @@ impl<'a> Emitter<'a> {
                 )]
             }
             IrStmt::Schedule {
+                owner_package,
                 key,
                 at,
                 event,
@@ -3585,20 +3586,31 @@ impl<'a> Emitter<'a> {
                 let payload_text = self.lower_expr(payload);
                 vec![(
                     format!(
-                        "{pad}await schedule(c,{key_text},{at_text},{},{payload_text});",
-                        js_string(event)
+                        "{pad}await schedule(c,{key_text},{at_text},{},{payload_text},{{ownerPackage:{}}});",
+                        js_string(event),
+                        js_string(owner_package)
                     ),
                     *span,
                 )]
             }
-            IrStmt::Cancel { key, span } => {
+            IrStmt::Cancel {
+                owner_package,
+                key,
+                span,
+            } => {
                 if self.hook.is_some() {
                     let key_text = self.lower_expr(key);
                     return vec![(format!("{pad}$hookCtx.cancel({key_text});"), *span)];
                 }
                 self.stdlib.insert("cancel".to_string());
                 let key_text = self.lower_expr(key);
-                vec![(format!("{pad}await cancel(c,{key_text});"), *span)]
+                vec![(
+                    format!(
+                        "{pad}await cancel(c,{key_text},{{ownerPackage:{}}});",
+                        js_string(owner_package)
+                    ),
+                    *span,
+                )]
             }
             IrStmt::Return { value, span } => {
                 if self.hook.is_some() {
@@ -4939,6 +4951,9 @@ impl<'a> Emitter<'a> {
                 members.push(format!("label:{}", self.lower_message(&label)));
             }
             members.push(self.emit_fields_schema(&fields));
+            if matches!(item.kind, IrItemKind::Event { .. }) {
+                members.push(format!("inputs:{{{}}}", self.emit_event_inputs(&fields)));
+            }
             records.push(format!(
                 "{}:{{{}}}",
                 js_string(&item.canonical),
@@ -4946,6 +4961,106 @@ impl<'a> Emitter<'a> {
             ));
         }
         format!("{member}:{{{}}}", records.join(","))
+    }
+
+    /// Closed event payload descriptors for the owning Values input facade.
+    /// Presentation/record metadata stays in `fields`; no runtime schema
+    /// reconstruction from its legacy flags is needed.
+    fn emit_event_inputs(&mut self, fields: &[SymbolId]) -> String {
+        let mut inputs = Vec::new();
+        for id in fields {
+            let field = self.ir.items[id.0 as usize].clone();
+            let IrItemKind::Field {
+                ty,
+                required_array,
+                default,
+                server,
+                modifiers,
+                ..
+            } = &field.kind
+            else {
+                continue;
+            };
+            let type_id = match ty {
+                IrType::Known(ty) => self.canonical_type_id(ty, field.span),
+                IrType::Unknown => "unknown".to_string(),
+            };
+            if *required_array {
+                self.unsupported(
+                    "event input array",
+                    "required-array fields have no owning operation-input descriptor",
+                    field.span,
+                );
+            }
+            let mut members = vec![format!("type:{}", js_string(&type_id))];
+            if modifiers.trim {
+                members.push("trim:true".to_string());
+            }
+            let length_bound = match ty {
+                IrType::Known(ty) => {
+                    let mut base = ty;
+                    while let ResolvedType::Nullable(inner) = base {
+                        base = inner;
+                    }
+                    matches!(base, ResolvedType::Array { .. })
+                        || matches!(base, ResolvedType::Scalar(s) if s.is_string_like())
+                }
+                IrType::Unknown => false,
+            };
+            for (name, bound) in [("min", &modifiers.min), ("max", &modifiers.max)] {
+                if let Some(bound) = bound {
+                    if length_bound {
+                        if let IrExpr::Int(value) = bound.expr
+                            && (0..=9_007_199_254_740_991).contains(&value)
+                        {
+                            // Values length bounds are descriptor numbers;
+                            // value bounds and defaults are encoded wire values.
+                            members.push(format!("{name}:{value}"));
+                        } else {
+                            self.unsupported(
+                                "event input length bound",
+                                "expression has no exact owning descriptor number",
+                                bound.span,
+                            );
+                        }
+                    } else if let Some(value) = wire_literal(bound) {
+                        members.push(format!("{name}:{}", descriptor_json(&value)));
+                    } else {
+                        self.unsupported(
+                            "event input bound",
+                            "expression has no owning wire representation",
+                            bound.span,
+                        );
+                    }
+                }
+            }
+            if let Some(default) = default {
+                if let IrDefault::Literal(expr) = default
+                    && let Some(value) = wire_literal(expr)
+                {
+                    members.push(format!("default:{}", descriptor_json(&value)));
+                } else {
+                    self.unsupported(
+                        "event input default",
+                        "expression has no owning wire representation",
+                        field.span,
+                    );
+                }
+            }
+            if server.is_some() {
+                self.unsupported(
+                    "event input initializer",
+                    "server initializers have no event payload admission contract",
+                    field.span,
+                );
+            }
+            inputs.push(format!(
+                "{}:{{{}}}",
+                object_key(&field.name),
+                members.join(",")
+            ));
+        }
+        inputs.join(",")
     }
 
     /// Emit owning capability versions, operation schemas and events.
@@ -5487,6 +5602,7 @@ impl<'a> Emitter<'a> {
                 IrItemKind::Scenario { hook: Some(_), .. } => {}
                 IrItemKind::Scenario {
                     params,
+                    event_source,
                     result,
                     read,
                     by,
@@ -5499,6 +5615,9 @@ impl<'a> Emitter<'a> {
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
+                    if let Some(event) = event_source {
+                        members.push(format!("event:{}", js_string(event)));
+                    }
                     if let Some(by) = self.by_member(by, item.span) {
                         members.push(format!("by:{by}"));
                     }
