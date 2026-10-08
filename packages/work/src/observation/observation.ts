@@ -54,6 +54,7 @@
  * stored result is non-null, and `contentRef` is non-null.
  */
 import type {
+  CanonicalNominalResult,
   AssociatedReceipt,
   ReceiptAssociation,
   ReceiptError,
@@ -62,6 +63,7 @@ import type {
   ReceiptStatus,
   SelectedReceiptProjection,
 } from '@canlang/contracts';
+import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
 import type {
   ContentPolicyPort,
   GrantPort,
@@ -98,6 +100,30 @@ export interface ObserveReceiptInput {
 }
 
 const KNOWN_PROPERTIES: ReadonlySet<string> = new Set(['id', 'status', 'result', 'error']);
+const SELECTED_PROPERTIES: ReadonlySet<string> = new Set([...KNOWN_PROPERTIES, 'result.content']);
+
+/** Only the checked TextRun declaration admits the finite content selector. */
+function assertSelectedResultDeclaration(declaredResult: CanonicalNominalResult | undefined): void {
+  const expected = DELIVERY_RESULT_LEAVES['TextRun'].find((leaf) => leaf.name === 'content');
+  if (declaredResult?.name !== 'TextRun' || !Array.isArray(declaredResult.fields) ||
+      declaredResult.fields.filter((leaf) => leaf?.name === 'content').length !== 1 ||
+      declaredResult.fields.find((leaf) => leaf?.name === 'content')?.type !== expected?.type) {
+    throw new RangeError('result.content requires the canonical TextRun result declaration');
+  }
+}
+
+function selectedResultContent(result: unknown): string | null {
+  if (result === null) return null;
+  if (typeof result !== 'object' || Array.isArray(result) ||
+      (Object.getPrototypeOf(result) !== Object.prototype && Object.getPrototypeOf(result) !== null)) {
+    throw new RangeError('result.content requires a stored TextRun object');
+  }
+  const content = Object.getOwnPropertyDescriptor(result, 'content');
+  if (content === undefined || !Object.hasOwn(content, 'value') || typeof content.value !== 'string') {
+    throw new RangeError('result.content must be an own declared text value');
+  }
+  return content.value;
+}
 
 function assertStoredReceipt(receipt: StoredReceipt): void {
   if (typeof receipt.deliveryId !== 'string' || receipt.deliveryId.length === 0) {
@@ -186,7 +212,7 @@ function assertSelectedLeaves(selected: readonly ReceiptProperty[]): ReceiptProp
   const leaves: ReceiptProperty[] = [];
   const seen = new Set<ReceiptProperty>();
   for (const property of selected) {
-    if (!KNOWN_PROPERTIES.has(property)) {
+    if (!SELECTED_PROPERTIES.has(property)) {
       throw new RangeError(`unknown selected property ${String(property)}`);
     }
     if (!seen.has(property)) {
@@ -228,6 +254,7 @@ export function authorizeSelectedLeaves(
 export function projectSelectedLeaves(
   observation: ReceiptObservation,
   selected: readonly ReceiptProperty[],
+  declaredResult?: CanonicalNominalResult,
 ): SelectedReceiptProjection {
   if (!Array.isArray(selected)) {
     throw new TypeError('projectSelectedLeaves: selected must be an array');
@@ -235,7 +262,7 @@ export function projectSelectedLeaves(
   const projection: SelectedReceiptProjection = {};
   const seen = new Set<ReceiptProperty>();
   for (const property of selected) {
-    if (!KNOWN_PROPERTIES.has(property)) {
+    if (!SELECTED_PROPERTIES.has(property)) {
       throw new RangeError(`projectSelectedLeaves: unknown selected property ${String(property)}`);
     }
     if (seen.has(property)) {
@@ -248,6 +275,9 @@ export function projectSelectedLeaves(
       projection.status = observation.status;
     } else if (property === 'result') {
       projection.result = observation.result;
+    } else if (property === 'result.content') {
+      assertSelectedResultDeclaration(declaredResult);
+      projection['result.content'] = selectedResultContent(observation.result);
     } else {
       projection.error = observation.error;
     }
@@ -265,10 +295,10 @@ export function selectedRequiresFence(selected: readonly ReceiptProperty[]): boo
     throw new TypeError('selectedRequiresFence: selected must be an array');
   }
   for (const property of selected) {
-    if (!KNOWN_PROPERTIES.has(property)) {
+    if (!SELECTED_PROPERTIES.has(property)) {
       throw new RangeError(`selectedRequiresFence: unknown selected property ${String(property)}`);
     }
-    if (property === 'status' || property === 'result' || property === 'error') {
+    if (property === 'status' || property === 'result' || property === 'error' || property === 'result.content') {
       return true;
     }
   }
@@ -280,6 +310,8 @@ export interface SelectedReceiptInput {
   locator: unknown;
   /** Statically resolved selected leaves; must be non-empty. */
   selected: readonly ReceiptProperty[];
+  /** Result declaration from the same checked owning delivery field. */
+  declaredResult?: CanonicalNominalResult;
   /** Store-supplied current association, or null when unassociated. */
   association: ReceiptAssociation | null;
   /** Store-supplied receipt row; null exactly when unassociated. */
@@ -320,8 +352,8 @@ const PRE_AUTHORIZED_GRANTS: GrantPort = {
  * receipt, and all authority arrives via the injected ports.
  *
  * Evaluation order (pinned by tests): locator resolution (throws) →
- * selected-shape validation (throws) → trusted store agreement (throws) →
- * leaf authorization (verdict) → presence branch → projection. Grants are
+ * selected-shape/declaration validation (throws) → leaf authorization
+ * (verdict) → trusted store agreement (throws) → presence branch → projection. Grants are
  * consulted before presence branches, so a denied read reveals nothing
  * about whether an association exists; null means an actually null
  * association, never denied access.
@@ -334,7 +366,17 @@ const PRE_AUTHORIZED_GRANTS: GrantPort = {
 export function observeSelectedReceipt(input: SelectedReceiptInput): SelectedReceiptOutcome {
   const resolved = resolveAssociationLocator(input.locator);
   const leaves = assertSelectedLeaves(input.selected);
+  if (leaves.includes('result.content')) assertSelectedResultDeclaration(input.declaredResult);
   const { association, receipt } = input;
+  const context: SelectedGrantContext = {
+    field: resolved.field,
+    deliveryId: association === null ? null : association.deliveryId,
+    revision: association === null ? null : association.revision,
+  };
+  const verdict = authorizeSelectedLeaves(leaves, input.grants, context);
+  if (!verdict.authorized) {
+    return { outcome: 'denied', denied: verdict.denied };
+  }
   if ((association === null) !== (receipt === null)) {
     throw new Error(
       'observeSelectedReceipt: association and receipt must agree on null presence',
@@ -357,28 +399,19 @@ export function observeSelectedReceipt(input: SelectedReceiptInput): SelectedRec
       throw new Error('observeSelectedReceipt: receipt revision disagrees with the association');
     }
   }
-  const context: SelectedGrantContext = {
-    field: resolved.field,
-    deliveryId: association === null ? null : association.deliveryId,
-    revision: association === null ? null : association.revision,
-  };
-  const verdict = authorizeSelectedLeaves(leaves, input.grants, context);
-  if (!verdict.authorized) {
-    return { outcome: 'denied', denied: verdict.denied };
-  }
   if (association === null || receipt === null) {
     return { outcome: 'null-association' };
   }
   const observed = observeReceipt({
     receipt,
-    requested: leaves,
+    requested: leaves.map((leaf) => leaf === 'result.content' ? 'result' : leaf),
     grants: PRE_AUTHORIZED_GRANTS,
     content: input.content,
     nowMs: input.nowMs,
   });
   return {
     outcome: 'observed',
-    projection: projectSelectedLeaves(observed, leaves),
+    projection: projectSelectedLeaves(observed, leaves, input.declaredResult),
     fenceRevision: selectedRequiresFence(leaves) ? association.revision : null,
   };
 }

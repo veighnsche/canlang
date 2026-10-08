@@ -10,10 +10,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
+  CanonicalNominalResult,
   OutboxId,
   ReceiptAssociation,
   ReceiptProperty,
 } from '@canlang/contracts';
+import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
 import type { DispatchFence } from '../dispatch/index.js';
 import {
   TestOnlyAllowAllGrants,
@@ -37,6 +39,7 @@ import {
 import type { StoredReceipt } from './observation.js';
 
 const NOW = 1_791_120_000_000;
+const TEXT_RESULT: CanonicalNominalResult = { name: 'TextRun', fields: DELIVERY_RESULT_LEAVES['TextRun'] };
 
 function association(overrides: Partial<ReceiptAssociation> = {}): ReceiptAssociation {
   return {
@@ -636,5 +639,85 @@ describe('t25a pins: fence and dispatch shapes (no execution join)', () => {
       };
       assert.equal(checkpoint.revision, 9);
     }
+  });
+});
+
+
+describe('t25a result.content: checked exact disclosure', () => {
+  const textRun = { source: 'text_1', revision: 1, sequence: 3, state: 'succeeded',
+    content: 'Partial text', used_tokens: null, detail: 'private sibling' };
+  function input() {
+    return { locator: { record: { id: 'rec_1' }, field: 'notification' },
+      selected: ['result.content'] as ReceiptProperty[], declaredResult: TEXT_RESULT,
+      association: association(), receipt: receipt({ result: textRun }),
+      grants: new TestOnlyGrantSet(['result.content']), content: new RecordingAvailability(true), nowMs: NOW };
+  }
+
+  it('projects flat exact keys, authorizes once in first-selected order and fences content', () => {
+    const grants = new RecordingSelectedGrants(new Set(['result.content', 'status']));
+    const content = new RecordingAvailability(true);
+    const outcome = observeSelectedReceipt({ ...input(),
+      selected: ['result.content', 'status', 'result.content'], grants, content });
+    assert.deepEqual(outcome, { outcome: 'observed',
+      projection: { 'result.content': 'Partial text', status: 'succeeded' }, fenceRevision: 7 });
+    assert.equal(outcome.outcome, 'observed');
+    if (outcome.outcome === 'observed') assert.deepEqual(Object.keys(outcome.projection), ['result.content', 'status']);
+    assert.deepEqual(grants.calls.map((call) => call.property), ['result.content', 'status']);
+    assert.deepEqual(content.calls, [{ contentRef: 'content_1', nowMs: NOW }]);
+    assert.equal(selectedRequiresFence(['result.content']), true);
+  });
+
+  it('requires the declared TextRun content:text leaf without guessing from stored content', () => {
+    for (const declaredResult of [undefined, { name: 'Other', fields: TEXT_RESULT.fields },
+      { name: 'TextRun', fields: [] }, { name: 'TextRun', fields: [{ name: 'content', type: 'int' }] },
+      { name: 'TextRun', fields: [{ name: 'content', type: 'text' }, { name: 'content', type: 'text' }] }]) {
+      assert.throws(() => observeSelectedReceipt({ ...input(), declaredResult }), /canonical TextRun/);
+    }
+    assert.throws(() => observeSelectedReceipt({ ...input(), selected: ['result.detail' as ReceiptProperty] }),
+      /unknown selected property/);
+  });
+
+  it('denies before null disagreement, corrupt bindings or content and never checks retention', () => {
+    for (const over of [{ association: null }, { receipt: null },
+      { receipt: receipt({ deliveryId: '', revision: -1, result: { content: 42 } }) }]) {
+      const content = new RecordingAvailability(true);
+      const grants = new RecordingSelectedGrants(new Set());
+      const outcome = observeSelectedReceipt({ ...input(), ...over,
+        selected: ['result.content', 'status', 'result.content'], grants, content });
+      assert.deepEqual(outcome, { outcome: 'denied', denied: ['result.content', 'status'] });
+      assert.deepEqual(grants.calls.map((call) => call.property), ['result.content', 'status']);
+      assert.deepEqual(content.calls, []);
+    }
+    assert.deepEqual(observeSelectedReceipt({ ...input(), association: null, receipt: null }),
+      { outcome: 'null-association' });
+  });
+
+  it('keeps withheld or null results null and retains inline text without a content lookup', () => {
+    const withheld = new RecordingAvailability(false);
+    assert.deepEqual(observeSelectedReceipt({ ...input(), content: withheld }),
+      { outcome: 'observed', projection: { 'result.content': null }, fenceRevision: 7 });
+    assert.equal(withheld.calls.length, 1);
+    const content = new RecordingAvailability(false);
+    for (const result of [null, textRun]) {
+      assert.deepEqual(observeSelectedReceipt({ ...input(), receipt: receipt({ result, contentRef: null }), content }),
+        { outcome: 'observed', projection: { 'result.content': result === null ? null : 'Partial text' }, fenceRevision: 7 });
+    }
+    assert.deepEqual(content.calls, []);
+  });
+
+  it('refuses corrupt or inherited content after authorization and preserves explicitly selected whole results', () => {
+    for (const result of [42, [], {}, { content: null }, { content: 42 }, Object.create({ content: 'inherited' }),
+      { get content() { throw new Error('must not invoke accessor'); } }]) {
+      assert.throws(() => observeSelectedReceipt({ ...input(), receipt: receipt({ result, contentRef: null }) }),
+        /stored TextRun object|own declared text value/);
+    }
+    const content = new RecordingAvailability(true);
+    assert.deepEqual(observeSelectedReceipt({ ...input(), selected: ['result.content', 'result'],
+      grants: new TestOnlyAllowAllGrants(), content }), { outcome: 'observed',
+      projection: { 'result.content': 'Partial text', result: textRun }, fenceRevision: 7 });
+    assert.equal(content.calls.length, 1);
+    assert.deepEqual(observeSelectedReceipt({ ...input(), selected: ['result', 'id', 'status', 'error'],
+      grants: new TestOnlyGrantSet(['result.content']) }),
+      { outcome: 'denied', denied: ['result', 'id', 'status', 'error'] });
   });
 });

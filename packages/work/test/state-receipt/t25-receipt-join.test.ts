@@ -20,6 +20,7 @@ import type {
   StoragePort,
 } from '@canlang/contracts';
 import type { ReceiptProperty } from '@canlang/contracts';
+import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
 import { StateError } from '@canlang/state/errors';
 import {
   openFenceScope,
@@ -1291,5 +1292,90 @@ describe('t25 join: result retention', () => {
     );
     assertObserved(outcome);
     assert.deepEqual(outcome.projection, { status: 'succeeded', result: { inline: true } });
+  });
+});
+
+
+describe('t25 join: checked result.content disclosure', () => {
+  const textSource = 'std.TextGenerationV1.generate';
+  const textRun = { source: 'generation_1', revision: 1, sequence: 1, state: 'succeeded',
+    content: 'Cumulative text', used_tokens: null, detail: 'undisclosed sibling' };
+
+  async function textWorld() {
+    const world = await setupWorld();
+    const delivery = { kind: 'delivery' as const, capability: 'std.TextGenerationV1', operation: 'generate', version: 1,
+      result: { name: 'TextRun', fields: [...DELIVERY_RESULT_LEAVES['TextRun']] } };
+    const loaded = loadArtifactDescriptors({ ...DELIVERY_SLICE, models: [{
+      name: ITEM, deleteMode: 'none', fields: [{ name: 'notification', required: false, serverOnly: false,
+        field: delivery }],
+    }] }, { by: 'members' });
+    // Preserve the same artifact declaration validated by intake; conversion
+    // retains delivery membership, while the owner supplies its result schema.
+    return { world: { ...world, schema: loaded.deliveryFields }, declaredResult: delivery.result };
+  }
+
+  it('uses the owning checked result, exact grants, retention and the mutable receipt fence', async () => {
+    const { world, declaredResult } = await textWorld();
+    await seedOwner(world.store);
+    await associate(world.store, { source: textSource, status: 'succeeded', result: textRun,
+      revision: 1, contentRef: 'text_content', resultExpiresAtMs: FIXED_NOW + 1000 });
+    const scope = openFenceScope(await world.store.readRevision(), world.teamId);
+    const input = joinInput(world, recipientPolicy(['notification.result.content']), world.alice,
+      { selected: ['result.content', 'result.content'], declaredResult, declaredSource: textSource, fence: scope });
+    const outcome = await observeSelectedReceiptJoin(input);
+    assertObserved(outcome);
+    assert.deepEqual(outcome.projection, { 'result.content': 'Cumulative text' });
+    assert.deepEqual(Object.keys(outcome.projection), ['result.content']);
+    assert.equal(outcome.fenceRevision, 1);
+    assert.deepEqual(scope.dependencies.map((dep) => dep.kind === 'record' ? dep.model : dep.kind), [RECEIPT_MODEL]);
+    const expired = await observeSelectedReceiptJoin({ ...input, nowMs: FIXED_NOW + 1000 });
+    assertObserved(expired);
+    assert.deepEqual(expired.projection, { 'result.content': null });
+    // This direct store-helper update witnesses mutable fence invalidation;
+    // it does not qualify terminal TextRun progression or a rich-progress producer.
+    await progress(world.store, { source: textSource, revision: 2, status: 'succeeded',
+      result: { ...textRun, sequence: 2, content: 'Later text' } });
+    await assert.rejects(revalidateCommitForFence({ kind: 'user', store: world.store, checkpoint: scope.snapshot(),
+      by: 'members', guards: [], actorUserId: world.alice.user.user_id, teamId: world.teamId,
+      memberships: world.memberships }), (error: unknown) =>
+      error instanceof StateError && error.code === 'conflict');
+  });
+
+  it('does not expand grants upward, into siblings, or from the result parent', async () => {
+    const { world, declaredResult } = await textWorld();
+    await seedOwner(world.store);
+    await associate(world.store, { source: textSource, status: 'succeeded', result: textRun });
+    const input = joinInput(world, recipientPolicy(['notification.result.content']), world.alice,
+      { selected: ['result', 'id', 'status', 'error', 'result'], declaredResult, declaredSource: textSource });
+    const denied = await observeSelectedReceiptJoin(input);
+    assertDenied(denied);
+    assert.deepEqual(denied.denied, ['result', 'id', 'status', 'error']);
+    const parent = await observeSelectedReceiptJoin({ ...input, selected: ['result.content'],
+      policy: recipientPolicy(['notification.result']) });
+    assertDenied(parent);
+    assert.deepEqual(parent.denied, ['result.content']);
+    const whole = await observeSelectedReceiptJoin({ ...input, selected: ['result.content'],
+      policy: recipientPolicy(['notification']) });
+    assertObserved(whole);
+    assert.deepEqual(whole.projection, { 'result.content': 'Cumulative text' });
+    await assert.rejects(observeSelectedReceiptJoin({ ...input, selected: ['result.content'],
+      declaredResult: undefined as unknown as typeof declaredResult }), /canonical TextRun/);
+  });
+
+  it('denies content before protected presence/corruption and reports authorized null truthfully', async () => {
+    const { world, declaredResult } = await textWorld();
+    await seedOwner(world.store, 'item-1', { notification: 'corrupt association value' });
+    const scope = openFenceScope(await world.store.readRevision(), world.teamId);
+    const denied = await observeSelectedReceiptJoin(joinInput(world, recipientPolicy([]), world.alice,
+      { selected: ['result.content', 'result.content'], declaredResult, declaredSource: textSource, fence: scope }));
+    assertDenied(denied);
+    assert.deepEqual(denied.denied, ['result.content']);
+    assert.deepEqual(scope.dependencies, []);
+    const empty = await textWorld();
+    await seedOwner(empty.world.store);
+    const absent = await observeSelectedReceiptJoin(joinInput(empty.world,
+      recipientPolicy(['notification.result.content']), empty.world.alice,
+      { selected: ['result.content'], declaredResult: empty.declaredResult, declaredSource: textSource }));
+    assert.equal(absent.outcome, 'null-association');
   });
 });
