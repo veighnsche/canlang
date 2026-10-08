@@ -1620,7 +1620,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T17:35:53.693722+00:00",
+  "updated_utc": "2026-10-08T17:40:53.173091+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2479,6 +2479,15 @@
       "verification": "Actual Compiler fixture compile0 and CFnoEmit/selective emissions0; one changed native D1 case1/1 (12.026s). Prior ordinary/claim controls reused, no root rerun.",
       "contract": "Mixed ordinary/cohort and multiple ordinary siblings refuse before Work source consumption from either selected sibling. Exact pending source, absent receipt and unchanged revision/domain/history preserved. Cross-module source handlers remain unsupported.",
       "limits": "Fail-closed integrity prerequisite; actual retained all-handler atomic routing/independent execution remains open, not whole TECH-W02/root48 closure.",
+      "commands_released": true,
+      "counts_unchanged": true,
+      "commit": "0a0e36dd7f0ece6401025c10c618231af3f239b7"
+    },
+    "computed_actor_default": {
+      "state": "Root directly reviewed and captured released genuine member-frame actor default consumer; existing production mechanisms unchanged",
+      "verification": "One actual canonical CF/State Memory case1/1 (0.38s); only its failed trace expectation corrected; unchanged authority/codec/replay outcomes reused. No root emit/Cargo/repeat.",
+      "contract": "Omitted user?=actor uses admitted actual member frame and closed id wire; explicit null/peer omit defaults. Exact raw-input receipt replay remains before current-membership, changed inputs conflict and fresh revoked call refuses.",
+      "limits": "Member frame only; anonymous/null actor/nonnullable actor/D1/fullS9/root48 remain separate.",
       "commands_released": true,
       "counts_unchanged": true
     }
