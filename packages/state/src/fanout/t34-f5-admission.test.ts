@@ -30,9 +30,14 @@ import { openFanoutChildScope } from '../invocation/admission.js';
 import { invokeFanoutChild } from '../invocation/invoke.js';
 import type { MembershipReader } from '../policy/roles.js';
 import {
+  FANOUT_CHECKPOINT_MODEL,
   FANOUT_CHILD_MODEL,
+  FANOUT_INTENT_MODEL,
   fanoutChildRowId,
+  fanoutIntentRowId,
+  readFanoutCheckpointRow,
   readFanoutChildRow,
+  readFanoutIntentRow,
 } from './tables.js';
 import { freezeFanoutMembership } from './membership.js';
 import { driveFanoutChild } from '../../test/fanout/test-driver.js';
@@ -212,6 +217,98 @@ async function childData(
 }
 
 describe('t34-f5 admission: fresh fence per child (M5)', () => {
+  it('resumes retained membership after interrupted admission without domain enumeration', async () => {
+    // Memory-only fault injection: Work reads remain available on restart.
+    const store = createMemoryStorage();
+    await store.commit(makeBatch((await store.readRevision()) as number, {
+      writes: ['a', 'b'].map((id) => ({
+        kind: 'insert' as const,
+        model: asModel(MODEL),
+        row: makeRow({ id }),
+      })),
+    }));
+    const fanoutId = fanoutIntentRowId(SOURCE, HANDLER, 'model');
+    let interruptAdmission = true;
+    let domainUnavailable = false;
+    let domainQueries = 0;
+    let cursorFinishes = 0;
+    const faultStore: StoragePort = {
+      ...store,
+      query: async (query) => {
+        if (query.model === MODEL) {
+          domainQueries += 1;
+          if (domainUnavailable) {
+            throw new Error('current domain query unavailable');
+          }
+        }
+        return store.query(query);
+      },
+      commit: async (batch) => {
+        if (batch.writes.some((write) =>
+          write.kind === 'insert' && write.model === FANOUT_CHILD_MODEL &&
+          readFanoutChildRow(write.row).recordId === 'b')) {
+          const checkpoint = await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId));
+          assert.ok(checkpoint !== null);
+          assert.equal(readFanoutCheckpointRow(checkpoint).cursor, 'admit/1');
+          if (interruptAdmission) {
+            throw new Error('interrupted after first admission chunk');
+          }
+        }
+        if (batch.writes.some((write) =>
+          write.kind === 'update' && write.model === FANOUT_CHECKPOINT_MODEL &&
+          readFanoutCheckpointRow(write.row).cursor === null)) {
+          assert.ok(await store.load(asModel(FANOUT_CHILD_MODEL),
+            asId(fanoutChildRowId(SOURCE, HANDLER, 'b'))) !== null);
+          cursorFinishes += 1;
+        }
+        return store.commit(batch);
+      },
+    };
+    const input = {
+      store: faultStore,
+      cutoff: { sourceOccurrence: SOURCE, handler: HANDLER },
+      cohort: { kind: 'model' as const, owner: 'owner', model: MODEL },
+      owner: 'owner',
+      bounds: { pageLimit: 2, chunkSize: 1, maxAttempts: 3 },
+      meta: META,
+      hasModel: (model: string) => model === MODEL,
+    };
+    const interrupted = await freezeFanoutMembership(input);
+    assert.equal(interrupted.ok, false);
+    if (!interrupted.ok) {
+      assert.equal(interrupted.diagnosis.kind, 'membership-unavailable');
+    }
+    const intent = await store.load(asModel(FANOUT_INTENT_MODEL), asId(fanoutId));
+    const checkpoint = await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId));
+    assert.ok(intent !== null && checkpoint !== null);
+    assert.deepEqual(readFanoutIntentRow(intent).members, ['a', 'b']);
+    assert.equal(readFanoutCheckpointRow(checkpoint).cursor, 'admit/1');
+    assert.equal((await childData(store, 'a')).recordId, 'a');
+    assert.equal(await store.load(asModel(FANOUT_CHILD_MODEL),
+      asId(fanoutChildRowId(SOURCE, HANDLER, 'b'))), null);
+    assert.equal(cursorFinishes, 0);
+    await store.commit(makeBatch((await store.readRevision()) as number, {
+      writes: [{ kind: 'insert', model: asModel(MODEL), row: makeRow({ id: 'late' }) }],
+    }));
+    interruptAdmission = false;
+    domainUnavailable = true;
+    domainQueries = 0;
+    const resumed = await freezeFanoutMembership(input);
+    assert.equal(resumed.ok, true);
+    if (resumed.ok) {
+      assert.equal(resumed.frozen.replayed, true);
+      assert.deepEqual(resumed.frozen.members, ['a', 'b']);
+    }
+    assert.equal(domainQueries, 0);
+    assert.equal((await childData(store, 'b')).recordId, 'b');
+    assert.equal(await store.load(asModel(FANOUT_CHILD_MODEL),
+      asId(fanoutChildRowId(SOURCE, HANDLER, 'late'))), null);
+    const finished = await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId));
+    assert.ok(finished !== null);
+    assert.equal(readFanoutCheckpointRow(finished).cursor, null);
+    assert.equal(cursorFinishes, 1);
+  });
+
   it('each child admits at a fresh revision (nothing carried)', async () => {
     const world = await setupAdmWorld(2);
     const first = world.members[0] as string;
