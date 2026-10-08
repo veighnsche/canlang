@@ -252,3 +252,15 @@ with their consumer owners. The genuine source is
 [the compiler fixture](../../compiler/tests/fixtures/input_choices.can);
 no copied descriptor sketch replaces it. No wider reference closure is
 claimed. Completion remains **57/67**, with **10** remaining.
+
+`eed80627` completes original SEQ031's bounded enum tooling. Four changed
+checks pass **4/4**: nested formatter scopes/comments and fixed-point
+stability, subject-owned remaining-case completion and semantic tokens,
+arm-local unreachable/unused/shadow linting, and the actual stdio LSP
+completion/token/coverage/description/lint relay. Case labels do not capture
+same-named lexical parameters; arm bindings remain separate. The existing
+formatter needed no rewrite. The new lint witness initially used
+unsupported text addition; it was corrected to integer arithmetic, and
+only the failed lint and pending LSP cases ran afterward. Existing enum
+execution outcomes are reused. Pattern expansion and later-failure rollback
+retain their separate gates; canonical completion remains **57/67**.
