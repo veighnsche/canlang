@@ -201,6 +201,88 @@ fn diagnostics<'a>(frames: &'a [Value], uri: &str, version: i32) -> &'a Value {
     &matching[0]["params"]["diagnostics"]
 }
 
+#[test]
+fn enum_match_tooling_uses_real_lsp_completion_tokens_and_arm_diagnostics() {
+    let uri = "file:///enum-tools.can";
+    let source = "app EnumTools\nGiven\n Choice {state:enum(a,b)=a}\n Other {state:enum(b,c)=b}\nWhen\n scenario act(record:Choice,b:Other.state) by=members\n  do\n   match record.state\n    case a\n     require false\n     let lost=1\n    case b\n     let live=2\n     require live>0\nThen\n";
+    let mut messages = start();
+    messages.push(open(uri, 7, source));
+    messages.push(request(
+        2,
+        "textDocument/completion",
+        at(uri, json!({"line":11,"character":9})),
+    ));
+    messages.push(request(3, "textDocument/semanticTokens/full", doc(uri)));
+    let partial = source.replacen("case b", "case pending", 1);
+    messages.push(change(uri, 8, &partial));
+    messages.push(request(
+        4,
+        "textDocument/completion",
+        at(uri, json!({"line":11,"character":10})),
+    ));
+    let described = source.replacen("    case a", "    # Arm description\n    case a", 1);
+    messages.push(change(uri, 9, &described));
+    finish(&mut messages);
+    let frames = session(messages);
+    for id in [2, 4] {
+        let completion = response(&frames, id);
+        assert_eq!(completion.as_array().unwrap().len(), 1, "{completion}");
+        assert_eq!(completion[0]["label"], "b");
+        assert_eq!(completion[0]["kind"], 20);
+    }
+    let warnings = diagnostics(&frames, uri, 7).as_array().unwrap();
+    let unreachable: Vec<_> = warnings
+        .iter()
+        .filter(|item| item["code"] == "W1001")
+        .collect();
+    assert_eq!(unreachable.len(), 1, "{warnings:?}");
+    assert_eq!(
+        unreachable[0]["range"],
+        json!({"start":{"line":9,"character":18},"end":{"line":10,"character":15}})
+    );
+    assert_eq!(unreachable[0]["severity"], 2);
+    assert!(
+        diagnostics(&frames, uri, 8)
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["code"] == "E3001")
+    );
+    assert!(
+        diagnostics(&frames, uri, 9)
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["code"] == "E1126")
+    );
+    let data = response(&frames, 3)["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_u64().unwrap())
+        .collect::<Vec<_>>();
+    let mut line = 0;
+    let mut column = 0;
+    let mut decoded = Vec::new();
+    for token in data.chunks_exact(5) {
+        if token[0] == 0 {
+            column += token[1];
+        } else {
+            line += token[0];
+            column = token[1];
+        }
+        decoded.push((line, column, token[2], token[3], token[4]));
+    }
+    let initialized = response(&frames, 1);
+    let legend = initialized["capabilities"]["semanticTokensProvider"]["legend"]["tokenTypes"]
+        .as_array()
+        .unwrap();
+    let token_type = |name: &str| legend.iter().position(|value| value == name).unwrap() as u64;
+    assert!(decoded.contains(&(7, 3, 5, token_type("keyword"), 0)));
+    assert!(decoded.contains(&(11, 4, 4, token_type("keyword"), 0)));
+    assert!(decoded.contains(&(11, 9, 1, token_type("enumMember"), 0)));
+}
+
 /// Count Unicode scalars independently: supplementary scalars contribute two
 /// units. CRLF increments the line once and does not affect the next column.
 fn position(text: &str, byte: usize) -> Value {

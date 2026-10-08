@@ -409,6 +409,42 @@ fn clean_rename_applies_to_reads_and_mutations_then_rechecks() {
 
 // --- completion ---
 
+#[test]
+fn enum_match_completion_and_tokens_follow_the_subject_and_arm_scope() {
+    let text = "app EnumTools\nGiven\n Choice {state:enum(a,b)=a}\n Other {state:enum(b,c)=b}\nWhen\n scenario caption(record:Choice,b:Other.state) read=true -> text by=members\n  do\n   match record.state\n    case a\n     let onlyA=\"A\"\n     return onlyA\n    case b\n     let onlyB=\"B\"\n     return onlyB\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let label = text.find("case b").unwrap() as u32 + 5;
+    let completion = snapshot.completions_at(label);
+    assert_eq!(labels(&completion), ["b"]);
+    assert_eq!(completion[0].kind, "EnumMember");
+    assert!(
+        snapshot.hover_at(label).is_none(),
+        "case label must not capture the b parameter"
+    );
+    let body = snapshot.completions_at(text.find("return onlyB").unwrap() as u32 + 8);
+    assert!(labels(&body).contains(&"onlyB"));
+    assert!(!labels(&body).contains(&"onlyA"));
+    let statement = snapshot.completions_at(text.find("match record").unwrap() as u32 + 1);
+    assert!(labels(&statement).contains(&"match"));
+    assert!(!labels(&statement).contains(&"case"));
+    let decoded = decode_tokens(&tokens::semantic_tokens(&snapshot));
+    assert!(decoded.contains(&(7, 3, 5, token_index("keyword"), 0)));
+    assert!(decoded.contains(&(11, 4, 4, token_index("keyword"), 0)));
+    assert!(decoded.contains(&(11, 9, 1, token_index("enumMember"), 0)));
+    let partial = text.replacen("case b", "case pending", 1);
+    let (db, id) = load(&partial);
+    let editing = Snapshot::analyze(&db, id, None);
+    let completion = editing.completions_at(partial.find("case pending").unwrap() as u32 + 6);
+    assert_eq!(labels(&completion), ["b"]);
+    assert_eq!(completion[0].kind, "EnumMember");
+}
+
 fn labels(items: &[canlang_compiler::ide::queries::Completion]) -> Vec<&str> {
     items.iter().map(|c| c.label.as_str()).collect()
 }

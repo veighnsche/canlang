@@ -21,8 +21,8 @@
 //!   duplicate a compiler `E` code.
 //! - `unused-binding` covers `let` and query aliases only
 //!   (`for`/`create`/`call`/`send` bindings are out of scope); a
-//!   same-named binding anywhere in the enclosing `do` block suppresses
-//!   the finding rather than risk attribution.
+//!   same-named binding suppresses uncertain attribution outside match
+//!   arms; match arm locals retain separate lexical read ownership.
 //! - `shadowed-binding` covers a nested `let` hiding a top-level `let`
 //!   of the same `do` block only, and only when the outer binding is
 //!   still referenced nearby. Contextual names (which would be `E2012`)
@@ -600,6 +600,7 @@ fn is_statement_kind(kind: SyntaxKind) -> bool {
             | SyntaxKind::Require
             | SyntaxKind::If
             | SyntaxKind::For
+            | SyntaxKind::Match
     )
 }
 
@@ -619,7 +620,7 @@ fn terminal_kind(node: &SyntaxNode, text: &str) -> bool {
         && is_name(kids(parts[1])[0], text, "false")
 }
 
-/// Statement lists of a suite node: one for `DoBlock`/`For`, then/else
+/// Statement lists of a suite node: one for `DoBlock`/`For`/`MatchArm`, then/else
 /// halves for `If` (split at the `else` head word).
 fn statement_lists<'a>(node: &'a SyntaxNode, text: &str) -> Vec<Vec<&'a SyntaxNode>> {
     let parts = kids(node);
@@ -643,7 +644,7 @@ fn statement_lists<'a>(node: &'a SyntaxNode, text: &str) -> Vec<Vec<&'a SyntaxNo
             }
             vec![then_branch, else_branch]
         }
-        SyntaxKind::DoBlock | SyntaxKind::For => {
+        SyntaxKind::DoBlock | SyntaxKind::For | SyntaxKind::MatchArm => {
             vec![
                 parts
                     .into_iter()
@@ -749,7 +750,7 @@ fn rule_unreachable(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>
     for suite in tree.descendants().filter(|n| {
         matches!(
             n.kind,
-            SyntaxKind::DoBlock | SyntaxKind::If | SyntaxKind::For
+            SyntaxKind::DoBlock | SyntaxKind::If | SyntaxKind::For | SyntaxKind::MatchArm
         )
     }) {
         if has_errors(suite) {
@@ -794,15 +795,107 @@ fn rule_unreachable(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>
 
 // --- I1001 unused-binding (`let`) --------------------------------------
 
+/// Innermost match arm containing a local binding, if one exists.
+fn enclosing_match_arm<'a>(block: &'a SyntaxNode, node: &SyntaxNode) -> Option<&'a SyntaxNode> {
+    block
+        .descendants()
+        .filter(|arm| {
+            arm.kind == SyntaxKind::MatchArm
+                && arm.span.start <= node.span.start
+                && node.span.end <= arm.span.end
+        })
+        .min_by_key(|arm| arm.span.len())
+}
+
+/// Attribute ordinary local reads only when match arms make the old whole-
+/// block spelling counts ambiguous. Each branch inherits its own environment;
+/// a let initializer reads the incoming binding before introducing its local.
+fn match_local_reads(block: &SyntaxNode, text: &str) -> HashMap<NodeKey, Vec<Span>> {
+    type Env = HashMap<String, Option<NodeKey>>;
+    fn reads(node: &SyntaxNode, text: &str, env: &Env, used: &mut HashMap<NodeKey, Vec<Span>>) {
+        let mut found = Vec::new();
+        collect_reads(node, text, &mut found);
+        for (name, span) in found {
+            if let Some(Some(binding)) = env.get(&name) {
+                used.entry(*binding).or_default().push(span);
+            }
+        }
+    }
+    fn sequence(
+        stmts: &[&SyntaxNode],
+        text: &str,
+        mut env: Env,
+        used: &mut HashMap<NodeKey, Vec<Span>>,
+    ) {
+        for stmt in stmts {
+            match stmt.kind {
+                SyntaxKind::Match => {
+                    for child in kids(stmt) {
+                        if child.kind == SyntaxKind::MatchArm {
+                            for list in statement_lists(child, text) {
+                                sequence(&list, text, env.clone(), used);
+                            }
+                        } else {
+                            reads(child, text, &env, used);
+                        }
+                    }
+                }
+                SyntaxKind::If | SyntaxKind::For => {
+                    for child in kids(stmt)
+                        .into_iter()
+                        .filter(|child| !is_statement_kind(child.kind))
+                    {
+                        reads(child, text, &env, used);
+                    }
+                    let mut branch = env.clone();
+                    if let Some(item) = for_item_name(stmt, text) {
+                        branch.insert(item.to_string(), None);
+                    }
+                    for list in statement_lists(stmt, text) {
+                        sequence(&list, text, branch.clone(), used);
+                    }
+                }
+                _ => {
+                    reads(stmt, text, &env, used);
+                    if let Some((name, _)) = let_binding(stmt, text) {
+                        env.insert(name.to_string(), Some(NodeKey::of(stmt)));
+                    } else if let Some(name) = as_binding_name(stmt, text) {
+                        env.insert(name.to_string(), None);
+                    }
+                }
+            }
+        }
+    }
+    let mut used = HashMap::new();
+    for list in statement_lists(block, text) {
+        sequence(&list, text, Env::new(), &mut used);
+    }
+    used
+}
+
+/// Keep attribution conservative around non-let bindings as before.
+fn other_binding_named(block: &SyntaxNode, text: &str, name: &str) -> bool {
+    block.descendants().any(|node| match node.kind {
+        SyntaxKind::QueryClause => {
+            query_alias_name(node, text).is_some_and(|(alias, _)| alias == name)
+        }
+        SyntaxKind::For => for_item_name(node, text) == Some(name),
+        SyntaxKind::Create | SyntaxKind::Call | SyntaxKind::Send => {
+            as_binding_name(node, text) == Some(name)
+        }
+        _ => false,
+    })
+}
+
 /// Warn on `let` bindings never read in their `do` block.
 ///
 /// A binding counts as read when a same-spelled `NameRef`, `{shorthand}`
 /// entry or `set`/`delete` target path starts after the `let` statement
 /// ends (the binding is introduced after its initializer per DESIGN
 /// §3). Underscore-prefixed names are intentionally-unused markers.
-/// Any second same-named binding in the block, or any same-named module
-/// symbol/import, suppresses the finding: attribution would be a
-/// guess. Removal is never offered as a fix: the initializer may fail
+/// Outside match scopes, a second same-named block binding suppresses
+/// the finding. Match arms attribute reads to their own inherited lexical
+/// environment; non-let collisions and module symbols remain conservative. Removal is never offered as a fix: the initializer may fail
 /// (DIAGNOSTICS.md).
 fn rule_unused_let(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>) {
     let rule = &RULES[2];
@@ -826,22 +919,53 @@ fn rule_unused_let(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>)
         let counts = count_bindings(block, ctx.text);
         let mut reads = Vec::new();
         collect_reads(block, ctx.text, &mut reads);
-        for (name, span, node) in lets {
-            if ctx.declared.contains(name) {
+        let match_reads = if block
+            .descendants()
+            .any(|node| node.kind == SyntaxKind::Match)
+        {
+            match_local_reads(block, ctx.text)
+        } else {
+            HashMap::new()
+        };
+        for (name, span, node) in &lets {
+            if ctx.declared.contains(*name) {
                 continue;
             }
-            if counts.get(name).copied().unwrap_or(0) != 1 {
-                continue;
-            }
-            let read = reads
-                .iter()
-                .any(|(word, at)| word == name && at.start > node.span.end);
+            let match_affected = enclosing_match_arm(block, node).is_some()
+                || lets.iter().any(|(other, _, binding)| {
+                    other == name && enclosing_match_arm(block, binding).is_some()
+                });
+            let read = if match_affected {
+                if other_binding_named(block, ctx.text, name) {
+                    continue;
+                }
+                let suite = enclosing_suite(block, node).unwrap_or(block);
+                if lets
+                    .iter()
+                    .filter(|(other, _, binding)| {
+                        other == name
+                            && std::ptr::eq(enclosing_suite(block, binding).unwrap_or(block), suite)
+                    })
+                    .count()
+                    != 1
+                {
+                    continue;
+                }
+                match_reads.contains_key(&NodeKey::of(node))
+            } else {
+                if counts.get(*name).copied().unwrap_or(0) != 1 {
+                    continue;
+                }
+                reads
+                    .iter()
+                    .any(|(word, at)| word == *name && at.start > node.span.end)
+            };
             if !read {
                 push(
                     out,
                     rule,
                     format!("`let {name}` is never read"),
-                    span,
+                    *span,
                     Vec::new(),
                     None,
                 );
@@ -996,13 +1120,15 @@ fn rule_unused_alias(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding
 
 // --- W2001 shadowed-binding ---------------------------------------------
 
-/// Smallest `if`/`for` in `block` strictly containing `node`, if any.
+/// Smallest `if`/`for`/match-arm suite strictly containing `node`, if any.
 fn enclosing_suite<'a>(block: &'a SyntaxNode, node: &SyntaxNode) -> Option<&'a SyntaxNode> {
     block
         .descendants()
         .filter(|n| {
-            matches!(n.kind, SyntaxKind::If | SyntaxKind::For)
-                && n.span.start <= node.span.start
+            matches!(
+                n.kind,
+                SyntaxKind::If | SyntaxKind::For | SyntaxKind::MatchArm
+            ) && n.span.start <= node.span.start
                 && node.span.end <= n.span.end
                 && n.span.len() > node.span.len()
         })
@@ -1058,11 +1184,40 @@ fn rule_shadowing(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>) 
         let counts = count_bindings(block, ctx.text);
         let mut reads = Vec::new();
         collect_reads(block, ctx.text, &mut reads);
+        let match_reads = if block
+            .descendants()
+            .any(|node| node.kind == SyntaxKind::Match)
+        {
+            match_local_reads(block, ctx.text)
+        } else {
+            HashMap::new()
+        };
         for (name, span, inner) in nested {
             if ctx.declared.contains(name) {
                 continue;
             }
-            if counts.get(name).copied().unwrap_or(0) != 2 {
+            let match_affected = enclosing_match_arm(block, inner).is_some();
+            if match_affected {
+                let suite = enclosing_suite(block, inner).unwrap_or(block);
+                let duplicates = block
+                    .descendants()
+                    .filter(|binding| {
+                        let_binding(binding, ctx.text).is_some_and(|(other, _)| other == name)
+                            && std::ptr::eq(enclosing_suite(block, binding).unwrap_or(block), suite)
+                    })
+                    .count()
+                    != 1;
+                if duplicates
+                    || other_binding_named(block, ctx.text, name)
+                    || top
+                        .iter()
+                        .filter(|(top_name, _, _)| *top_name == name)
+                        .count()
+                        != 1
+                {
+                    continue;
+                }
+            } else if counts.get(name).copied().unwrap_or(0) != 2 {
                 continue;
             }
             let Some((_, outer_span, outer)) = top.iter().find(|(top_name, _, top_node)| {
@@ -1073,13 +1228,19 @@ fn rule_shadowing(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>) 
             let Some(suite) = enclosing_suite(block, inner) else {
                 continue;
             };
-            let nearby = reads.iter().any(|(word, at)| {
-                word == name
-                    && at.start > outer.span.end
-                    && (at.start < suite.span.start
-                        || at.start >= suite.span.end
-                        || at.start < inner.span.end)
-            });
+            let nearby = if match_affected {
+                match_reads
+                    .get(&NodeKey::of(outer))
+                    .is_some_and(|reads| reads.iter().any(|at| at.start > outer.span.end))
+            } else {
+                reads.iter().any(|(word, at)| {
+                    word == name
+                        && at.start > outer.span.end
+                        && (at.start < suite.span.start
+                            || at.start >= suite.span.end
+                            || at.start < inner.span.end)
+                })
+            };
             if nearby {
                 push(
                     out,
