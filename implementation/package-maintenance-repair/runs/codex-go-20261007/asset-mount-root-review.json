@@ -280,9 +280,10 @@
   "all_commands_and_writers_released": true,
   "git": {
     "before": "29f9d7b7eb74146569b9b370ff0b01d1a772548a",
-    "commit_pending": true,
+    "commit_pending": false,
     "no_merge": true,
-    "no_push": true
+    "no_push": true,
+    "commit": "7c8dbe2e751b7a9cbe6e4af7944c87017a9ed520"
   },
   "task_counts_unchanged": {
     "finished": 20,

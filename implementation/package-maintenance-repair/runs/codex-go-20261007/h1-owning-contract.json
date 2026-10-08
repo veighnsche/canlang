@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "captured_utc": "2026-10-08T00:56:15.187366+00:00",
+  "status": "shared_ownership_accepted_exact_additive_shape_and_revision_gate_proposed_pending_owner_release",
+  "task_ids": [
+    "TECH-V03",
+    "TECH-V04"
+  ],
+  "parent_complete": false,
+  "accepted_choice": "existing shared declaration/intake owns checked source type/result association; Values retains semantic codecs; runtime owns language/wire projection; State owns storage/admission/mutation checkpoints",
+  "rationale": [
+    "Complete selected scalar/array/write/default/native consumers need one shared declaration, not a parallel runtime appDefinition map",
+    "Actual ArtifactOperation/CanonicalOperationDescriptor lack result typing; CanonicalFieldDef drops scalar tags; source string kinds lose subtypes",
+    "Current compiler operation descriptors also project MCP publication and omit some required execution shapes; additive integer metadata cannot prove complete programme"
+  ],
+  "advice": {
+    "human_approved_exact_13KB_payloads": true,
+    "preapproval_auto_review_rejection_no_process_or_call": true,
+    "subsequent_exact_approved_calls": 3,
+    "destination": "https://api.typesafe.ai/v1/systemone",
+    "source_excerpts": false,
+    "model": "jev-1.13.0",
+    "votes": [
+      {
+        "choice": "shared",
+        "confidence": 0.76
+      },
+      {
+        "choice": "shared",
+        "confidence": 0.56
+      },
+      {
+        "choice": "runtime",
+        "confidence": 0.22
+      }
+    ],
+    "uncertainty": "Responses contain choices/probabilities only, no explanatory rationale. Different horizon/first-packet cost investigated against actual interfaces; no manufactured consensus or proof from votes.",
+    "files": [
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/manifest.json",
+        "sha256": "af097f1c59b07882cf4cea291cd8cb18261f8140ca2f8071b1aa30c8c62a8054",
+        "bytes": 1206
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/calls.json",
+        "sha256": "fb25256921297e3f741aced9807e76051a139199445b739c7b2d4611e0526acb",
+        "bytes": 279
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/request-1.json",
+        "sha256": "5b2ed945ec6a0bc08aaba491cd55e38906d9f590f0952804296983fb29b61ff2",
+        "bytes": 4451
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/response-1.json",
+        "sha256": "2ffdfa730c050c3c619af22c806498676069a185c643ec93adfdb4dbb269355a",
+        "bytes": 4890
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/handle-1.json",
+        "sha256": "d87c8b2bbc8a7b968e4cb6187a8ed8b99dbda9ebdd2d704d6e1e4ae5007ae72b",
+        "bytes": 394
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/request-2.json",
+        "sha256": "2a2b7bf8679785c60341ef0cfcbf2ea283550e8028b792e3442c830b6bfd5714",
+        "bytes": 4426
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/response-2.json",
+        "sha256": "16f72668b9a9306f033e422fa74fc83e4315312a8794c0f3b9d259daf8f51c0b",
+        "bytes": 4865
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/handle-2.json",
+        "sha256": "43164705ddbae1c6226da795964085014d6b742631f62982f6a4f5b2479ad200",
+        "bytes": 394
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/request-3.json",
+        "sha256": "87bca0aa925015959d741f9e99e6ed7c082fcec00fd1cc55fde40530c50d5901",
+        "bytes": 4434
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/response-3.json",
+        "sha256": "7be635ca618ecc4ed07a9fd3a6263a6e658e69a25acc396601fb46002a639a1a",
+        "bytes": 4874
+      },
+      {
+        "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/handle-3.json",
+        "sha256": "7f7fd70c13500bf310bd26fe24b4337dc94384259c6c1778ad0e49c38cfab280",
+        "bytes": 393
+      }
+    ]
+  },
+  "producer": "implementation/compiler-completion/numeric-control-producer/receipt.json",
+  "producer_artifact_sha256": "245bc51ae190144e3eb5925ee5a0d94d51e8968ac5f309ed720c6e4d48c29fff",
+  "first_finite_release": [
+    "Existing Contracts field/input type and explicit declared result vocabulary, agreed legacy/void/typed capability gate",
+    "Compiler-owned actual checked metadata packet; no runtime guessing or artifact format stamp",
+    "State whole-set validation/copy/retention preserving current presence/ref/default/error profile",
+    "Runtime lazy present-field/input decode plus declared result encode before canonical effects/receipts; actual D1 immediate/replay exactwire qualification"
+  ],
+  "required_later": [
+    "Complete execution intake separately from MCP-publication projection",
+    "State-owned language-write carrier/conversion checkpoint preserving unknown/undefined/machine/server/parent/default/hook/JSON order",
+    "Actual scalar/array/default/native/prepared-owner/losslessUTF16/installed consumers and retirement gates"
+  ],
+  "prohibited": [
+    "New parser/schema facade/adapter registry",
+    "AppDefinition runtime type-map duplication after shared producer",
+    "Runtime staging preencoder that changes State error/default/ref/hook order",
+    "Synthetic owner revision/brand/privatehook or sourceType inferred from JS typeof/fixturevalue",
+    "Hydration-only or firstint acceptance substituted for complete task"
+  ],
+  "economy": {
+    "reuse_current_producer_and_source_evidence": true,
+    "finite_contract_review": "gpt-6.1-sol high: multi-owner interface tradeoff",
+    "estimates_not_measured": {
+      "shared_first_source_lines": "160\u2013360 before write/native support",
+      "prior_local_bridge_lines": "100\u2013240"
+    },
+    "replacement_savings": 0,
+    "growth_budget": "required typed runtime correctness, shared horizon maintenance benefit remains to measure"
+  },
+  "writer_state": "No Contracts/State/runtime writer granted by this ownership choice; source coordinator received compact next exactshape/files/gate handoff request. Compiler retains existing owner.",
+  "reconciliation_sha256": "6cb25d69c39be1e733fba42a1814e8e4e0e9225ce971e528857512e63d036407"
+}

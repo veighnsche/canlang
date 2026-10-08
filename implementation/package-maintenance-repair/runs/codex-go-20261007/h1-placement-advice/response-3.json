@@ -1,0 +1,47 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "verified_facts": [
+        "Existing canonical State loading checks owner/name/ref/input-envelope associations, drops model scalar tags from its loaded table, and keeps scalar admission presence-only. State owns wire storage, mutation/default ordering and saved receipt replay.",
+        "The existing runtime already has the full selected compile artifact, admitted row snapshots, staged overlay and actual owning generated module. Public Values codecs already define int wire decimal string <-> checked bigint and result encoding; no new formatter, parser or scalar factory is needed.",
+        "Actual unchanged current NumericControl producer has model field kind=integer and literal wire default \"1\". Emitted source annotation declares int/default1n and result int. Its artifact operation descriptor omits result type. Already emitted data is factual producer input, not already canonical checked result authority. A legitimate owner-paired result association must be explicitly released.",
+        "Read hydration without result encoding returns bigint that cannot enter JSON receipts. Required outcomes include identical immediate/replay wire result, lazy staged read-your-write, no creation fills at read time, missing/null/nullable distinctions, actual canonical error order and safe attribution. Persisted wire/ref/hash/auth/replay identity must remain unchanged.",
+        "The first dependency-ready packet may implement singular integers, but the authorized end state also requires remaining scalar/array/write/default/prepared/native consumer gates. An integer-only local adapter cannot substitute for them or earn whole-goal acceptance. Prepared owner revision/provenance is not inferred from artifact formatVersion or a fabricated brand.",
+        "Proposed runtime-local implementation estimates100-240 added production lines before broader types. Maintenance complexity across the eventual supported consumers, duplication of metadata and conversions, and upgrade obligations matter alongside first-packet speed. Existing Values defining codecs should be reused directly. No option may infer type from a field name, JS typeof, expected fixture result or an ad-hoc handler return."
+      ],
+      "scope": "New abstract placement/result declaration decision; no repository excerpts, secret, credential, raw application data or previous denied timezone payload. No source implementation or host admission is claimed.",
+      "producer_basis": "Exact current NumericControl compiler-owner receipt; runtime/state/Values defining source inspected locally, not transmitted."
+    },
+    "questions": {
+      "placement": {
+        "type": "choice",
+        "instructions": "Choose the least complicated supported ownership boundary for exact declared field/input/result conversion: State attachments, current runtime load/projection, or shared typed intake. Distinguish the next finite integer prerequisite from the required eventual consumer contract and justify the remaining handoffs. Apply identical outcomes to all choices. State uncertainty, one cost/benefit for each, authority/error-order prerequisites and how the next packet avoids duplicated final owners. Advice only; do not invent public APIs, adapters, provenance, automatic backend adoption or production deployment. Prefer reuse of defining Values APIs; name conditions under which the recommended choice should change.",
+        "criteria": {
+          "state": "Preserve checked scalar associations in existing State loaded attachments, paired with a separately legitimate result declaration. State becomes the defining read/write conversion owner while runtime consumes the attachment. Compare scalar-conversion ordering and wider State contract cost.",
+          "runtime": "Validate/copy owner-paired existing generated model/input/result declarations at the current runtime load/projection boundary. Keep wire State contracts unchanged. Compare first packet simplicity with eventual metadata duplication and multi-consumer conversion cost; no invented authority.",
+          "shared": "Extend the existing shared typed intake/declaration contract explicitly, retaining result typing and required scalar/array markers at one owner boundary; State/runtime consume it through existing interfaces. Compare stronger total contract with migration, compiler and consumer costs; current compiler writers need explicit release."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "placement": {
+        "type": "choice",
+        "choice": "runtime",
+        "confidence": 0.22,
+        "probabilities": {
+          "state": 0.23,
+          "shared": 0.29,
+          "runtime": 0.48
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1045,
+      "output_tokens": 38
+    }
+  }
+}

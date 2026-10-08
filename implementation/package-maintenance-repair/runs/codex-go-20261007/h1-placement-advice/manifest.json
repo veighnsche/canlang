@@ -1,0 +1,26 @@
+{
+  "caller": "/Users/vince/Projects/canlang/tools/jev.py",
+  "caller_sha256": "a7ac5cbab92fa6cc8700591b0f168ee9998f13943630f9541ecd4df0f2e2edd3",
+  "requests": [
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/h1-placement-consultation/request-1.json",
+      "sha256": "5b2ed945ec6a0bc08aaba491cd55e38906d9f590f0952804296983fb29b61ff2",
+      "bytes": 4451
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/h1-placement-consultation/request-2.json",
+      "sha256": "2a2b7bf8679785c60341ef0cfcbf2ea283550e8028b792e3442c830b6bfd5714",
+      "bytes": 4426
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/h1-placement-consultation/request-3.json",
+      "sha256": "87bca0aa925015959d741f9e99e6ed7c082fcec00fd1cc55fde40530c50d5901",
+      "bytes": 4434
+    }
+  ],
+  "total_bytes": 13311,
+  "origin": "/root, AGENTS preauthorized difficult design consultation, three equivalent independently worded abstract requests",
+  "destination": "https://api.typesafe.ai/v1/systemone",
+  "source_excerpts": false,
+  "distinct_material_question": "H1 owning placement/result association; no repeated owner hook/description question or blocked timezone source payload"
+}
