@@ -40,6 +40,7 @@ test('source-owned static judgment joins localhost evaluation and authorized ret
   // This selected provider is a real controlled HTTP protocol, not remote acceptance.
   const requests: Record<string, unknown>[] = [];
   let unknown = false;
+  let responseModel = 'local-systemone-model';
   const server = createServer(async (request, response) => {
     assert.equal(request.method, 'POST'); assert.equal(request.url, '/v1/systemone');
     let body = '';
@@ -68,7 +69,7 @@ test('source-owned static judgment joins localhost evaluation and authorized ret
     };
     response.writeHead(unknown ? 503 : 200, { 'content-type': 'application/json' });
     response.end(JSON.stringify(unknown ? { error: 'Unavailable local judgment result' } : {
-      model: 'local-systemone-model', answers, usage: { input_tokens: 120, output_tokens: 30 },
+      model: responseModel, answers, usage: { input_tokens: 120, output_tokens: 30 },
     }));
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -259,8 +260,9 @@ test('source-owned static judgment joins localhost evaluation and authorized ret
     const runtimeAdapter = createBoundJudgmentAdapter({ appDefinition: definition, binding: runtimeBinding, valueTypes: loaded.valueTypes,
       resolveInstalledJudgment: deployment => deployment === runtimeBinding.deployment ? runtimeInstalled : null });
     assert.equal(runtimeAdapter.available(runtimeIntent), true);
-    const runtimeDispatcher = await createBoundJudgmentDispatcher({ store: storage.store, adapter: runtimeAdapter,
+    const runtimeDispatcherFor = () => createBoundJudgmentDispatcher({ store: storage.store, adapter: runtimeAdapter,
       workCommands: WORK_SYSTEM_COMMANDS, stageCommands: WORK_DISPATCH_STAGE_COMMANDS, createClaimCommand: createWorkDispatchClaimCommand });
+    const runtimeDispatcher = await runtimeDispatcherFor();
     const staticDispatcher = dispatcher; dispatcher = runtimeDispatcher;
     const runtimeOutcome = await drive(runtimeIntent.intentId); dispatcher = staticDispatcher;
     assert.ok('state' in runtimeOutcome); assert.equal(runtimeOutcome.state, 'delivered'); assert.equal(requests.length, 2);
@@ -297,6 +299,36 @@ test('source-owned static judgment joins localhost evaluation and authorized ret
     assert.equal(requests.length, 3); assert.equal(await adapter.reconcile(uncertainIntent), null);
     assert.deepEqual(await storage.store.load(asModel(WORK_DISPATCH_MODEL), asId(uncertainIntent.intentId)), held);
     assert.deepEqual(await storage.store.outboxPending(), [uncertainIntent]);
+
+    // Valid answers from a different answering model cannot satisfy this
+    // deployment's pinned profile or authorize an authored business result.
+    unknown = false; responseModel = 'different-local-model';
+    invoker = invokerFor(); dispatcher = await runtimeDispatcherFor();
+    const mismatchedOperation = runtimeEnvelope(true);
+    const mismatchedAssessment = committed(await invoker.invokeMutation(mismatchedOperation, identity)).result as { id: string };
+    const mismatchedIntent = (await storage.store.outboxPending()).find(intent => intent.operationId === mismatchedOperation.operation_id);
+    assert.ok(mismatchedIntent);
+    const mismatched = await drive(mismatchedIntent.intentId);
+    assert.ok('state' in mismatched); assert.equal(mismatched.state, 'uncertain');
+    assert.equal(requests.length, 4); assert.equal(requests[3]!.model, runtimeInstalled.profile.model);
+    const mismatchedContext = runtimeAdapter.resultContext(mismatchedIntent); assert.ok(mismatchedContext);
+    const mismatchedReceipt = await storage.store.load(asModel(RECEIPT_MODEL), asId(mismatchedIntent.intentId)); assert.ok(mismatchedReceipt);
+    const pendingReceipt = readReceiptRow(mismatchedReceipt, mismatchedContext).receipt;
+    assert.equal(pendingReceipt.status, 'pending'); assert.equal(pendingReceipt.result, null);
+    assert.equal((await storage.store.load(runtimeModel, asId(mismatchedAssessment.id)))?.data.result, null);
+    const mismatchedHistory = await storage.store.historyFor(runtimeModel, asId(mismatchedAssessment.id));
+    const heldMismatch = await storage.store.load(asModel(WORK_DISPATCH_MODEL), asId(mismatchedIntent.intentId));
+    await worker!.dispose(); worker = undefined; storage = await open(); dispatcher = await runtimeDispatcherFor();
+    now += 60_001;
+    const recoveredMismatch = await dispatcher.recover({ actor: user.user_id, operation: 'test.judgment.recover', nowMs: clock.nowMs,
+      maxClaimAgeMs: 60_000, policy: { maxAttempts: 3, horizonMs: 3_600_000 }, limit: 10,
+      operationIdForStep: operationId, planRecoveryScan });
+    assert.ok(recoveredMismatch.awaiting.includes(mismatchedIntent.intentId));
+    assert.equal(requests.length, 4); assert.equal(await runtimeAdapter.reconcile(mismatchedIntent), null);
+    assert.deepEqual(await storage.store.load(asModel(WORK_DISPATCH_MODEL), asId(mismatchedIntent.intentId)), heldMismatch);
+    assert.deepEqual(await storage.store.load(asModel(RECEIPT_MODEL), asId(mismatchedIntent.intentId)), mismatchedReceipt);
+    assert.deepEqual(await storage.store.historyFor(runtimeModel, asId(mismatchedAssessment.id)), mismatchedHistory);
+    assert.deepEqual((await storage.store.outboxPending()).find(intent => intent.intentId === mismatchedIntent.intentId), mismatchedIntent);
   } finally {
     await worker?.dispose();
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
