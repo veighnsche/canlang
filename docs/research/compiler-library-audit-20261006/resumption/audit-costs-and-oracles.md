@@ -74,6 +74,24 @@ These are proposed qualification/ownership packets, not fresh implementation rel
 | ARCH-01 | Reusable checked facts/source-history scope; check/query/source/lint owners | Measure repetition, preserve immutable cohort and catalog/profile invalidation, bound actual session ownership. Cross-file support and reclamation are policy gates. **Defer architecture/API selection.** |
 | ARCH-02 | Public fragment/support ownership; defining API/docs/map/fix owners | Complete caller closure and public support decision, independent replacement oracle, net production/mechanism count. **Retain public support; no speculative deletion/file moves.** |
 
+### OR-02 bounded adoption — 2026-10-08
+
+Permanent actual CLI/native consumers now qualify named callable and factory
+profiles across Decimal runtime behavior
+([`decimal_runtime.rs`](../../../../compiler/tests/decimal_runtime.rs)), value
+and expression behavior ([`flat_expression_runtime.rs`](../../../../compiler/tests/flat_expression_runtime.rs)),
+selected calls, arguments, defaults and order
+([`selected_calls.rs`](../../../../compiler/tests/selected_calls.rs)), string
+payloads ([`string_payload_runtime.rs`](../../../../compiler/tests/string_payload_runtime.rs)),
+finite BDD fixture callbacks
+([`bdd_binding_runtime.rs`](../../../../compiler/tests/bdd_binding_runtime.rs)),
+and supported UI factories through the public consumer
+([`ui_adapter.rs`](../../../../compiler/tests/ui_adapter.rs)). Their positive
+cases and negative controls qualify only their named source/runtime boundaries.
+Test-only goldens and controlled contexts do not establish backend, transport,
+authorized-query, complete application, GUI or installed-release workflows.
+Those broader Step9 and application-profile gates remain open.
+
 The bounded review finds no new unused direct dependency or retired private grammar engine to delete. Aggregate reduction remains a separate acceptance condition; necessary correctness growth must be counted honestly. Current release footprint, complete original application/runtime/editor behavior, every semantic branch and all optional test bodies remain explicit gaps.
 
 
