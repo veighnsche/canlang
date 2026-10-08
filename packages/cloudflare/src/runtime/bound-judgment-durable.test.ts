@@ -41,6 +41,7 @@ test('source-owned static judgment joins localhost evaluation and authorized ret
   const requests: Record<string, unknown>[] = [];
   let unknown = false;
   let responseModel = 'local-systemone-model';
+  let overflowUsage = false;
   const server = createServer(async (request, response) => {
     assert.equal(request.method, 'POST'); assert.equal(request.url, '/v1/systemone');
     let body = '';
@@ -68,9 +69,12 @@ test('source-owned static judgment joins localhost evaluation and authorized ret
       }, probabilities: { '0': 1, '1': 0, '2': 0 }, confidence: 1 },
     };
     response.writeHead(unknown ? 503 : 200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify(unknown ? { error: 'Unavailable local judgment result' } : {
+    const responseBody = JSON.stringify(unknown ? { error: 'Unavailable local judgment result' } : {
       model: responseModel, answers, usage: { input_tokens: 120, output_tokens: 30 },
-    }));
+    });
+    // Preserve the provider's exact JSON integer rather than rounding it
+    // through a JavaScript number before the installed adapter reads it.
+    response.end(overflowUsage ? responseBody.replace('"output_tokens":30', '"output_tokens":9223372036854775808') : responseBody);
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address(); assert.ok(address !== null && typeof address !== 'string');
@@ -329,6 +333,25 @@ test('source-owned static judgment joins localhost evaluation and authorized ret
     assert.deepEqual(await storage.store.load(asModel(RECEIPT_MODEL), asId(mismatchedIntent.intentId)), mismatchedReceipt);
     assert.deepEqual(await storage.store.historyFor(runtimeModel, asId(mismatchedAssessment.id)), mismatchedHistory);
     assert.deepEqual((await storage.store.outboxPending()).find(intent => intent.intentId === mismatchedIntent.intentId), mismatchedIntent);
+
+    // Usage outside the declared int64 bound is a malformed response,
+    // preserving the owning adapter's terminal invalid_response classification.
+    responseModel = 'local-systemone-model'; overflowUsage = true;
+    invoker = invokerFor();
+    const usageOperation = runtimeEnvelope(true);
+    const usageAssessment = committed(await invoker.invokeMutation(usageOperation, identity)).result as { id: string };
+    const usageIntent = (await storage.store.outboxPending()).find(intent => intent.operationId === usageOperation.operation_id);
+    assert.ok(usageIntent);
+    const usageOutcome = await drive(usageIntent.intentId);
+    assert.ok('state' in usageOutcome); assert.equal(usageOutcome.state, 'failed'); assert.equal(requests.length, 5);
+    const usageContext = runtimeAdapter.resultContext(usageIntent); assert.ok(usageContext);
+    const usageReceiptRow = await storage.store.load(asModel(RECEIPT_MODEL), asId(usageIntent.intentId)); assert.ok(usageReceiptRow);
+    const usageReceipt = readReceiptRow(usageReceiptRow, usageContext).receipt;
+    assert.equal(usageReceipt.status, 'failed'); assert.equal(usageReceipt.result, null);
+    assert.equal(usageReceipt.error?.code, 'invalid_response');
+    assert.equal((await storage.store.load(runtimeModel, asId(usageAssessment.id)))?.data.result, null);
+    assert.equal((await storage.store.outboxPending()).some(intent => intent.intentId === usageIntent.intentId), false);
+    assert.equal((await drive(usageIntent.intentId)).status, 'not-pending'); assert.equal(requests.length, 5);
   } finally {
     await worker?.dispose();
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
