@@ -73,6 +73,14 @@
     ],
     "counts_unchanged": true,
     "verification_policy": "Reuse unchanged owning emit/cases; direct source review only, no duplicate test run or extra proof packet",
-    "commit": "de3cd6938a19ec5bab80188c8190c6d252d15225"
+    "commit": "de3cd6938a19ec5bab80188c8190c6d252d15225",
+    "response_loss_replay": {
+      "status": "Root directly reviewed released existing due test extension",
+      "file": "packages/cloudflare/src/runtime/typed-durable-admission.test.ts",
+      "behavior": "Real native D1 commits selected due+business batch before response loss; retained original occurrence terminal receipt survives reopening and replay; domain/history/schedule effects do not repeat",
+      "owning_results": "Final CF emit0 and affected native delivery/due2/2; previous unchanged checks reused",
+      "limits": "Same selected Node/nativeD1/single handler/memory identity scope; provider effects/default scheduler/owner expiry/revocation/reference arrays and parent gates remain open",
+      "source_commands_released": true
+    }
   }
 }

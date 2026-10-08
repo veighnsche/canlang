@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:07:58.430144+00:00",
+  "updated_utc": "2026-10-08T10:09:59.766484+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1806,7 +1806,8 @@
           "scope": "Existing parsed base gate admits file beside scalar/user; existing kind/array/nullable checks retained, no codec or authority expansion",
           "validation": "Normal Interfaces TypeScript emit0; focused existing File catalog derivation/refusal case1/1",
           "model": "Sol low for one known existing gate; initial package-manager invocation rejected, first test projection expectation corrected and relevant check rerun after edit",
-          "limits": "Metadata/catalog prerequisite only; actual Files transfer/durable/current-grant gate remains Roadmap-owned"
+          "limits": "Metadata/catalog prerequisite only; actual Files transfer/durable/current-grant gate remains Roadmap-owned",
+          "commit": "d4e967db"
         }
       }
     }
@@ -2325,7 +2326,12 @@
         "source_commands_released": true,
         "counts_unchanged": true,
         "broader_parent_open": true,
-        "commit": "de3cd6938a19ec5bab80188c8190c6d252d15225"
+        "commit": "de3cd6938a19ec5bab80188c8190c6d252d15225",
+        "response_loss_replay": {
+          "status": "Root directly reviewed same-owner released selected due recovery case, component commit ready",
+          "review": "keyed-schedule-consumer-root-review.json due_handler.response_loss_replay",
+          "counts_unchanged": true
+        }
       }
     },
     "occurrence_receipt_gate": {
@@ -2410,10 +2416,11 @@
       "consumer_review": "Actual generated MCP/nativeD1/D1Identity+localhost Email consumer accepted after plain-error retry correction; final changed owning delivery+due2/2, D3b17/17 and portable bundlelink1/1 reused. Wider installed/default/provider/authority/replay parents open."
     },
     "selected_receipt_consumer": {
-      "status": "Root direct-reviewed repaired frozen11-path actual CF receipt consumer; selected association/result/current-grant gate accepted, component commit ready",
+      "status": "Root directly reviewed and committed81dbe2e9 repaired11-path actual CF receipt consumer; selected association/result/current-grant gate accepted",
       "review": "installed-bound-provider-handoff.json selected_receipt_consumer",
       "sources_commands_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "81dbe2e9"
     }
   }
 }
