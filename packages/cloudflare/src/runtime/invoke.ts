@@ -2854,7 +2854,7 @@ function generatedScenarioDef(call: CanonicalSeamCall): GeneratedOperationDef | 
     ? call.def as unknown as GeneratedOperationDef : undefined;
 }
 
-/** One late field boundary shared by generated CRUD and scenario writes. */
+/** Scenario writes may carry native values; stored fields/defaults are wire. */
 function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown): unknown {
   try {
     try {
@@ -2862,6 +2862,15 @@ function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, 
     } catch {
       return encodeValue(type, decodeValue(type, value));
     }
+  } catch (error) {
+    throw new StateError("validation", message(error));
+  }
+}
+
+/** Incoming CRUD fields must use the declared wire representation. */
+function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown): unknown {
+  try {
+    return encodeValue(type, decodeValue(type, value));
   } catch (error) {
     throw new StateError("validation", message(error));
   }
@@ -2981,7 +2990,8 @@ async function runScenarioSeam(
     id: row.id, version: BigInt(row.version),
     created: decodeValue("datetime", new Date(row.created).toISOString()),
     updated: decodeValue("datetime", new Date(row.updated).toISOString()),
-    created_by: row.createdBy, updated_by: row.updatedBy,
+    created_by: decodeValue("user", { id: row.createdBy }),
+    updated_by: decodeValue("user", { id: row.updatedBy }),
     archived_at: row.archivedAt === null ? null : decodeValue("datetime", new Date(row.archivedAt).toISOString()),
   });
   const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
@@ -3278,7 +3288,7 @@ export async function invokeMutationCanonical(
   const crudExecute = loaded.producers.crud.generatedCrudExecute({
     table: loaded.table,
     store: opts.store,
-    encodeField: (type, value) => encodeCanonicalField(StateError, type, value),
+    encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value),
   });
   return loaded.producers.invoke.invoke({
     registry: loaded.registry,
