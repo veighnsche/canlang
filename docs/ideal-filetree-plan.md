@@ -321,3 +321,6 @@ Root bounded temporal consumer reconciliation: Cloudflare scenario/default/recor
 
 
 Root released collection producer reconciliation: compiler6b4b7d91 retains checked element/alias/scope ownership and delegates mechanics to existing Values sum/any/all. Its one installed-export consumer and Clippy results are reused; Cloudflare669084c0 separately qualifies finite canonical Node/D1 int/datetime arrays. Active-producer commit prerequisite is resolved; wider scalar/async/deployed/installed and accumulated complete checkpoint review remain open. No new collection owner or merge.
+
+
+Root bounded text/bool association reconciliation: compiler0bd0f82b owns exact text source claims and declared result profiles; Contracts carries the additive claim and State retains the single checked intake/model owner. Its optional generated CRUD callback reuses the existing late mutation pipeline conversion. Released owner compilation and metadata14/14 pass; admission28/28 and compiler producer checks are reused. Runtime consumer, other scalar/hook/installed duties and accumulated full checkpoint review remain separate. No new metadata/codec owner, merge or checkpoint advancement.

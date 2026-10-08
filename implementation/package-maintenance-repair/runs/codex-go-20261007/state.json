@@ -2002,6 +2002,22 @@
       "scope": "Canonical Node generated handler, workerd persisted D1 storage, memory identity; int/datetime native arrays/nulls, literal/null defaults and original receipt values, >2^53, partial update, rollback/refusal/history, reopen/replay.",
       "producer_join": "Compiler9c8822b3 canonical datetime defaults and6b4b7d91 checked collection calls are integrated; finite current-source producer prerequisite resolved.",
       "limit": "Other scalars/hooks/providers/private apps and deployed/installed/native qualification remain open; no parent count advancement."
+    },
+    "text_bool_state": {
+      "status": "Root direct-reviewed accepted finite State/Contracts source association and generated CRUD forwarding; six-file writer released",
+      "producer": "Compiler0bd0f82b: own declaration-established text claims distinguish generic string wire kind; specialized string types remain unknown; bool uniquely tagged",
+      "files": [
+        "packages/contracts/src/artifact.ts",
+        "packages/contracts/src/state.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/mutation/models.ts",
+        "packages/state/src/mutation/crud.ts",
+        "packages/state/test/typed-artifact-metadata.test.ts"
+      ],
+      "validation": "Owning Contracts+State tsc passed; affected metadata14/14; unchanged admission28/28 reused. Root direct diff reviewed, no repeated test layer.",
+      "scope": "Text/bool scalar, one array suffix and nullable container, exact own claim/tag checks; generated CRUD forwards existing late field encoder, preserving order and default attribution",
+      "limits": "Consumer committed separately; other scalar/default/hook/native/installed/whole packet qualification open; no task count advancement",
+      "recorded_utc": "2026-10-08T03:27:09.941856+00:00"
     }
   }
 }

@@ -87,7 +87,7 @@ test('canonical loading checks its own finite scalar profile without inferring d
 });
 
 test('declared typed and void results are copied and frozen in both loading paths', () => {
-  for (const type of ['int', 'int?', 'int[]', 'int[]?', 'datetime', 'datetime?', 'datetime[]', 'datetime[]?', 'void']) {
+  for (const type of ['int', 'int?', 'int[]', 'int[]?', 'datetime', 'datetime?', 'datetime[]', 'datetime[]?', 'text', 'text?', 'text[]', 'text[]?', 'bool', 'bool?', 'bool[]', 'bool[]?', 'void']) {
     const result = { type };
     const raw = artifact();
     raw.operations![0]!.result = result;
@@ -320,5 +320,84 @@ test('own artifact associations require an exact owning supported tag for models
   ]) {
     incompatible(() => artifactToDescriptorSet(changed));
     incompatible(() => loadArtifactDescriptors(changed, opts));
+  }
+});
+
+
+test('checked text and bool associations preserve scalar, array and nullable profiles', () => {
+  for (const kind of ['string', 'boolean'] as const) {
+    const base = kind === 'string' ? 'text' : 'bool';
+    for (const array of [undefined, { required: false }, { required: true }]) {
+      for (const nullable of [false, true]) {
+        const valueType = `${base}${array ? '[]' : ''}${nullable ? '?' : ''}`;
+        const raw = artifact();
+        const shape = { field: { kind }, required: false, nullable, ...(array ? { array } : {}),
+          ...(kind === 'string' ? { valueType } : {}) };
+        raw.models![0]!.fields = [{ name: 'count', serverOnly: false, ...shape }];
+        raw.operations![0]!.inputs.fields = [{ name: 'value', ...shape }];
+        const loaded = loadArtifactDescriptors(raw, opts);
+        assert.equal(loaded.models[0]!.fields.count!.valueType, valueType);
+        const input = descriptor(loaded).inputs[0]!;
+        assert.ok(input.kind !== 'ref' && input.kind !== 'delivery');
+        assert.equal(input.valueType, valueType);
+        assert.ok(Object.isFrozen(input));
+        assert.ok(Object.isFrozen(loaded.models[0]!.fields.count));
+        const table = buildModelTableFromCanonical(loaded.models, { nullableFields: loaded.nullableFields });
+        assert.equal(table.get(model)!.fields.count!.valueType, valueType);
+        const direct = intake();
+        const typed = { ...direct, models: loaded.models, operations: [{ ...direct.operations[0]!,
+          inputs: [{ name: 'value', kind, required: false, valueType }] }] };
+        const canonical = loadExecutionDescriptorSet(typed, { ...opts,
+          ...(array ? { inputArrays: { [operation]: { value: array } } } : {}) });
+        assert.deepEqual(descriptor(canonical).inputs[0], input);
+      }
+    }
+  }
+});
+
+test('text requires an own source claim and mismatched text/bool associations reject', () => {
+  for (const claimed of [false, true]) {
+    const raw = artifact();
+    const field = Object.assign(Object.create(claimed ? { valueType: 'text' } : null),
+      { name: 'count', field: { kind: 'string' }, required: false, serverOnly: false,
+        default: { kind: 'literal', value: 'text carrier' } });
+    const input = Object.assign(Object.create(claimed ? { valueType: 'text' } : null),
+      { name: 'value', field: { kind: 'string' }, required: false,
+        default: { kind: 'literal', value: 'text carrier' } });
+    raw.models![0]!.fields = [field];
+    raw.operations![0]!.inputs.fields = [input];
+    const loaded = loadArtifactDescriptors(raw, opts);
+    assert.equal(Object.hasOwn(loaded.models[0]!.fields.count!, 'valueType'), false);
+    assert.equal(Object.hasOwn(descriptor(loaded).inputs[0]!, 'valueType'), false);
+  }
+  for (const kind of ['string', 'boolean'] as const) {
+    const mismatch = kind === 'string' ? 'bool' : 'text';
+    const raw = artifact();
+    for (const changed of [
+      { ...raw, models: [{ ...raw.models![0]!, fields: [{ name: 'count', field: { kind },
+        required: false, serverOnly: false, valueType: mismatch }] }] },
+      { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [{ name: 'value',
+        field: { kind }, required: false, valueType: mismatch }] } }] },
+    ]) incompatible(() => loadArtifactDescriptors(changed, opts));
+    const direct = intake();
+    incompatible(() => loadExecutionDescriptorSet({ ...direct, operations: [{ ...direct.operations[0]!,
+      inputs: [{ name: 'value', kind, required: false, valueType: mismatch }] }] }, opts));
+  }
+  for (const valueType of ['text', 'bool']) {
+    const raw = artifact();
+    for (const tag of [{ field: Object.create({ kind: 'string' }) }, {},
+      { field: { kind: 'ref', model, requireVersion: false } }]) {
+      const changed = { ...raw, models: [{ ...raw.models![0]!, fields: [{ name: 'count',
+        required: false, serverOnly: false, ...tag, valueType }] }] } as unknown as ArtifactDescriptorSlice;
+      incompatible(() => loadArtifactDescriptors(changed, opts));
+    }
+    for (const extra of [{ array: { required: false } }, { nullable: true }]) {
+      const direct = intake();
+      const changed = { ...direct, models: [{ ...direct.models[0]!, fields: {
+        count: { required: false, serverOnly: false, valueType, ...extra },
+      } }] };
+      incompatible(() => loadExecutionDescriptorSet(changed, opts));
+      assert.throws(() => buildModelTableFromCanonical(changed.models), /Invalid valueType/);
+    }
   }
 });
