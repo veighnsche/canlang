@@ -8,6 +8,7 @@ import { deriveCsrfToken, IdentityError } from '@canlang/identity';
 import type {
   AdmittedBindings,
   PageDescriptor,
+  PageSourceContext,
   PresentationContext,
   ResolvedIdentity,
 } from '@canlang/contracts';
@@ -41,8 +42,8 @@ function teamPage(): PageDescriptor {
     path: '/team',
     title: 'Team',
     admit: async (context: unknown) => {
-      const identity = context as ResolvedIdentity;
-      if (identity.actor === null || identity.membership === null) {
+      const source = context as PageSourceContext;
+      if (!source.canonical.builtinRoles.includes('members')) {
         throw new IdentityError('forbidden', 'Members only.');
       }
       return {};
@@ -229,7 +230,13 @@ test('public GET full page renders the shell with brand and sign-in', async () =
 });
 
 test('authed GET embeds the derived CSRF token and account teams', async () => {
-  const { deps, identity } = await createTestDeps({ descriptors: [helloPage()] });
+  const admitted: PageSourceContext[] = [];
+  const rendered: PresentationContext[] = [];
+  const page = helloPage({
+    admit: async context => { admitted.push(context as PageSourceContext); return {}; },
+    render: async context => { rendered.push(context); return '<p>hi</p>'; },
+  });
+  const { deps, identity } = await createTestDeps({ descriptors: [page] });
   const handler = createHttpHandler(deps, spySub());
   const res = await handler(testRequest('/hello', { cookie: identity.cookie }));
   assert.equal(res.status, 200);
@@ -241,6 +248,13 @@ test('authed GET embeds the derived CSRF token and account teams', async () => {
   assert.ok(html.includes(identity.teamId));
   assert.ok(html.includes(SWITCH_TEAM_PATH));
   assert.ok(html.includes(SIGN_OUT_PATH));
+  assert.ok(admitted.length >= 2);
+  assert.ok(admitted.every(context => context === admitted[0]));
+  assert.equal(rendered[0]!.actor, admitted[0]!.actor);
+  assert.equal(rendered[0]!.actorFacts, admitted[0]!.actorFacts);
+  assert.equal(rendered[0]!.team, admitted[0]!.team);
+  assert.equal(rendered[0]!.memberships, admitted[0]!.memberships);
+  assert.equal(rendered[0]!.canonical, admitted[0]!.canonical);
 });
 
 test('?team= scoping honors the explicit team; unknown team is 404', async () => {

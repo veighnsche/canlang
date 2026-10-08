@@ -27,6 +27,7 @@ import type {
   ListQueryArgs,
   NavigationResult,
   PageDescriptor,
+  PageSourceContext,
   ResolvedIdentity,
   RowQueryRunner,
   ShellData,
@@ -44,7 +45,7 @@ import {
 import { buildBusinessError, fromUnknown, httpStatusFor } from '../errors/envelope.js';
 import { logInternalError } from '../errors/logging.js';
 import { isPartialRequest } from './fragments.js';
-import { buildPresentationContext } from './presentation.js';
+import { buildPageSourceContext, buildPresentationContext } from './presentation.js';
 import { SIGN_IN_PATH, SIGN_OUT_PATH, SWITCH_TEAM_PATH } from './routes.js';
 
 /** Authored unknown/method response: `not_found`, mirroring routes.ts. */
@@ -150,19 +151,19 @@ async function teamOptions(deps: PageHttpDeps, identity: ResolvedIdentity): Prom
 
 /**
  * Render one discovery admission outcome per candidate with the SAME
- * identity and `{}` bindings (dynamic patterns never reach discovery).
+ * verified source context and `{}` bindings (dynamic patterns never reach discovery).
  * Business denials hide the link; unexpected throws mark the navigation
  * incomplete after an incident-logged journal entry.
  */
 async function admitDiscovery(
   deps: PageHttpDeps,
   candidates: readonly PageDescriptor[],
-  identity: ResolvedIdentity,
+  source: PageSourceContext,
 ): Promise<ReadonlyMap<PageDescriptor, AdmissionOutcome>> {
   const outcomes = new Map<PageDescriptor, AdmissionOutcome>();
   for (const candidate of candidates) {
     try {
-      await candidate.admit(identity, {});
+      await candidate.admit(source, {});
       outcomes.set(candidate, 'admitted');
     } catch (err) {
       if (isBusinessThrow(err)) {
@@ -245,9 +246,10 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     return jsonErrorResponse(error, httpStatusFor(error.code));
   }
 
+  const source = buildPageSourceContext(identity);
   let bindings: AdmittedBindings;
   try {
-    bindings = await match.descriptor.admit(identity, match.routeBindings);
+    bindings = await match.descriptor.admit(source, match.routeBindings);
   } catch (err) {
     const error = caughtToBusinessError(err);
     if (!isBusinessThrow(err)) logInternalError(deps.logger, err, { path: pathname });
@@ -271,7 +273,10 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
       appDefaultLocale: deps.app.appDefaultLocale,
       csrfToken,
       principal: identity,
+      source,
       query,
+      ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
+      clock: deps.clock,
     });
     let children: string;
     try {
@@ -289,7 +294,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
   }
 
   const candidates = selectDiscoveryCandidates(descriptors);
-  const outcomes = await admitDiscovery(deps, candidates, identity);
+  const outcomes = await admitDiscovery(deps, candidates, source);
   let navigation: NavigationResult;
   try {
     navigation = buildNavigation(candidates, outcomes, {
@@ -326,7 +331,10 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     appDefaultLocale: deps.app.appDefaultLocale,
     csrfToken,
     principal: identity,
+    source,
     query,
+    ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
+    clock: deps.clock,
   });
   let children: string;
   try {

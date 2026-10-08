@@ -20,6 +20,7 @@ import type {
 } from "./wire.js";
 import type { DeliveryStatus } from "./services.js";
 import type { HistoryEntry } from "./state.js";
+import type { UserRef } from "./values.js";
 
 /** Reused producer types, re-exported so lane-05 members import one contract file. */
 export type { BusinessError, FieldError, MutationRef, SealedActionHandle } from "./wire.js";
@@ -154,12 +155,19 @@ export type PageChildren =
   | readonly PageChild[]
   | (() => readonly PageChild[] | Promise<readonly PageChild[]>);
 
-/**
- * Minimal presentation view of the request, derived by the lane 6 route
- * dispatcher from the authenticated context. Never constructed from user JSON.
- * Lane 05 never inspects `principal`; authority stays with canonical policies.
- */
-export interface PresentationContext {
+/** Native source facts shared by page admission, discovery, and rendering. */
+export interface PageSourceContext {
+  readonly actor: UserRef | null;
+  readonly actorFacts: { readonly email: string; readonly email_verified: boolean } | null;
+  readonly team: { readonly id: string; readonly timezone: string } | null;
+  readonly memberships: readonly string[];
+  readonly canonical: { readonly builtinRoles: readonly string[] };
+}
+
+/** Dispatcher-owned presentation view; raw principal stays opaque to UI. */
+export interface PresentationContext extends Partial<PageSourceContext> {
+  /** Exact-operation form preparation supplied by the request dispatcher. */
+  readonly prepareForm?: OperationFormPreparer;
   /** Viewer locale preference: saved preference, then language priority list. */
   readonly preferredLocales: readonly string[];
   /** Owning app default locale (pinned "en" unless the app declares otherwise). */
@@ -785,6 +793,10 @@ export interface FormProps {
   /** Resolved rendering timezone (team adapter or explicit UTC fallback). */
   readonly timeZone: string;
   readonly fields: ReadonlyArray<FormFieldDef>;
+  /** Authored body; fields describe its rendered controls for error matching. */
+  readonly children?: PageChildren;
+  /** Omitted keeps the low-level inline contract; source forms select explicitly. */
+  readonly display?: "inline" | "drawer";
   /** Field errors keyed by JSON Pointer into inputs (wire FieldError). */
   readonly errors?: ReadonlyArray<FieldError>;
   readonly outcome?: FormOutcome;
@@ -793,6 +805,35 @@ export interface FormProps {
   /** Caller-unique prefix for input ids (deterministic for swaps/tests). */
   readonly idPrefix: string;
 }
+
+/** Checked source form props, evaluated once before its child controls. */
+export interface OperationFormRequest {
+  readonly operation: string;
+  readonly fields?: readonly string[];
+  readonly arguments?: Readonly<Record<string, unknown>>;
+  readonly submit?: MessageValue;
+  /** Captions generated from owning source declarations, not a second schema. */
+  readonly labels?: Record<string, MessageValue>;
+  readonly display?: "inline" | "drawer";
+  /** Actual authored writable controls; absent selects the automatic body. */
+  readonly authoredFields?: readonly string[];
+}
+
+export type PreparedOperationForm =
+  | {
+      readonly status: "ready";
+      readonly props: FormProps;
+      /** Exact original operation schema for the existing submit projection. */
+      readonly derived: DerivedOperationInputs;
+      /** Resolves only against this form's selected checked fields. */
+      readonly field: (path: string) => FieldControlProps;
+    }
+  | {
+      readonly status: "unavailable";
+      readonly message: MessageValue;
+    };
+
+export type OperationFormPreparer = (request: OperationFormRequest) => PreparedOperationForm;
 
 export interface EditProps extends Omit<FormProps, "mode" | "record"> {
   readonly record: MutationRef;

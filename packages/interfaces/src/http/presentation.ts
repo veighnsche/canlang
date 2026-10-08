@@ -14,7 +14,12 @@
  * money rendering fails loudly without it rather than guessing.
  */
 import { DEFAULT_THEME } from '@canlang/contracts';
+import { makeUserRef } from '@canlang/values';
+import { createOperationFormPreparer } from './forms.js';
+import { systemInterfacesClock } from '../ports.js';
+import type { InterfacesClock, SchemaCatalog } from '../ports.js';
 import type {
+  PageSourceContext,
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
@@ -34,8 +39,29 @@ export interface BuildPresentationContextInput {
   readonly csrfToken: string;
   /** Resolved identity; also passed through as `invocation`. */
   readonly principal: ResolvedIdentity;
+  /** Source facts shared with admission and discovery for this request. */
+  readonly source?: PageSourceContext;
+  readonly catalog?: SchemaCatalog;
+  readonly clock?: InterfacesClock;
   /** Row-query runner bound before the call. */
   readonly query: RowQueryRunner;
+}
+
+/** Project verified identity facts into the generated page callable contract. */
+export function buildPageSourceContext(identity: ResolvedIdentity): PageSourceContext {
+  const { actor, team, membership } = identity;
+  const active = actor !== null && team !== null && membership !== null
+    && membership.status === 'active' && membership.user_id === actor.user_id
+    && membership.team_id === team.team_id;
+  const builtinRoles = ['public', ...(actor === null ? [] : ['authenticated']),
+    ...(active ? ['members', ...(membership.is_owner ? ['owner'] : [])] : [])];
+  return Object.freeze({
+    actor: actor === null ? null : makeUserRef(actor.user_id),
+    actorFacts: actor === null ? null : Object.freeze({ email: actor.email, email_verified: actor.email_verified }),
+    team: team === null ? null : Object.freeze({ id: team.team_id, timezone: team.timezone }),
+    memberships: Object.freeze(active ? membership.roles.map(grant => grant.role) : []),
+    canonical: Object.freeze({ builtinRoles: Object.freeze(builtinRoles) }),
+  });
 }
 
 /**
@@ -62,7 +88,8 @@ function parseAcceptLanguage(header: string | null): readonly string[] {
 export function buildPresentationContext(
   input: BuildPresentationContextInput,
 ): PresentationContext {
-  return {
+  const context: PresentationContext = {
+    ...(input.source ?? buildPageSourceContext(input.principal)),
     preferredLocales: parseAcceptLanguage(input.request.headers.get('accept-language')),
     appDefaultLocale: input.appDefaultLocale,
     theme: DEFAULT_THEME,
@@ -79,5 +106,9 @@ export function buildPresentationContext(
     principal: input.principal,
     invocation: input.principal,
     query: input.query,
+  };
+  return input.catalog === undefined ? context : {
+    ...context,
+    prepareForm: createOperationFormPreparer(context, input.catalog, input.clock ?? systemInterfacesClock),
   };
 }
