@@ -164,6 +164,8 @@ export type ArtifactOperationField =
 
 /** One named operation input (JSON shape of `McpNamedField`). */
 export interface ArtifactOperationInput {
+  /** Checked source type association; text requires this claim beside the collapsed string tag. */
+  valueType?: CanTypeId;
   /** Input name (parameter or flattened model field). */
   name: string;
   field: ArtifactOperationField;
@@ -292,6 +294,8 @@ export type ArtifactModelFieldType =
  * `serverOnly: true`; they never appear in operation inputs.
  */
 export interface ArtifactModelField {
+  /** Checked source type association; text requires this claim beside the collapsed string tag. */
+  valueType?: CanTypeId;
   /** Opt-in flat lifecycle, with static operation-owned edges. */
   machine?: FieldMachine;
   /** Field name (model-local). */

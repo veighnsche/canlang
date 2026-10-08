@@ -295,11 +295,11 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
   if (!Object.hasOwn(holder, 'result')) return undefined;
   const result = holder['result'];
   if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime profile or bare void.`);
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool profile or bare void.`);
   }
   const type = result['type'];
-  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime)(\[\])?\??$/.test(type))) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime profile or bare void.`);
+  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool)(\[\])?\??$/.test(type))) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool profile or bare void.`);
   }
   return Object.freeze({ type });
 }
@@ -307,8 +307,8 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
 function checkValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
   if (!Object.hasOwn(field, 'valueType')) return undefined;
   const type = field['valueType'];
-  if (typeof type !== 'string' || !/^(int|datetime)(\[\])?\??$/.test(type)) {
-    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime profile.`);
+  if (typeof type !== 'string' || !/^(int|datetime|text|bool)(\[\])?\??$/.test(type)) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool profile.`);
   }
   if (Object.hasOwn(field, 'nullable') &&
       (typeof field['nullable'] !== 'boolean' || type.endsWith('?') !== field['nullable'])) {
@@ -323,23 +323,35 @@ function checkTypeArray(type: CanTypeId | undefined, array: boolean, what: strin
   }
 }
 
-/** Hydrate only exact own compiler tags; legacy unknown/inherited tags stay unknown. */
+/** Exact scalar names at the canonical boundary; never inferred from JS carriers. */
+function scalarTypeForKind(kind: unknown): string | undefined {
+  switch (kind) {
+    case 'integer': return 'int';
+    case 'datetime': return 'datetime';
+    case 'boolean': return 'bool';
+    case 'string': return 'text';
+    default: return undefined;
+  }
+}
+
+/** Text requires an own checked claim: the compiler's string tag also represents aliases. */
 function artifactValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
   if (Object.hasOwn(field, 'valueType')) {
     checkTypeArray(checkValueType(field, what), field['array'] !== undefined, what);
   }
   const tag = field['field'];
   if (!Object.hasOwn(field, 'field') || !isRecord(tag) || !Object.hasOwn(tag, 'kind') ||
-      (tag['kind'] !== 'integer' && tag['kind'] !== 'datetime')) {
+      scalarTypeForKind(tag['kind']) === undefined) {
     if (Object.hasOwn(field, 'valueType')) {
-      fail('malformed_descriptor', `Invalid ${what}: valueType requires an own integer/datetime compiler tag.`);
+      fail('malformed_descriptor', `Invalid ${what}: valueType requires an own supported compiler tag.`);
     }
     return undefined;
   }
+  if (tag['kind'] === 'string' && !Object.hasOwn(field, 'valueType')) return undefined;
   if (Object.hasOwn(field, 'nullable') && typeof field['nullable'] !== 'boolean') {
     fail('malformed_descriptor', `Invalid ${what}: nullable must be a boolean.`);
   }
-  const type = `${tag['kind'] === 'integer' ? 'int' : 'datetime'}${field['array'] !== undefined ? '[]' : ''}${Object.hasOwn(field, 'nullable') && field['nullable'] === true ? '?' : ''}`;
+  const type = `${scalarTypeForKind(tag['kind'])}${field['array'] !== undefined ? '[]' : ''}${Object.hasOwn(field, 'nullable') && field['nullable'] === true ? '?' : ''}`;
   if (Object.hasOwn(field, 'valueType') && field['valueType'] !== type) {
     fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with compiler tag.`);
   }
@@ -462,8 +474,8 @@ function checkCanonicalInput(
   const required = value['required'] as boolean;
   const fallback = checkDefault(value['default'], what);
   const valueType = checkValueType(value, what);
-  if (valueType !== undefined && (kind !== 'integer' && kind !== 'datetime' ||
-      valueType.replace(/\[\]|\?/g, '') !== (kind === 'integer' ? 'int' : kind))) {
+  if (valueType !== undefined &&
+      valueType.replace(/\[\]|\?/g, '') !== scalarTypeForKind(kind)) {
     fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
   }
   if (kind === 'ref') {
