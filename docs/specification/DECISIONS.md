@@ -2662,3 +2662,16 @@ Accepted finite evidence: the original compiled context fixture now runs through
 Rationale/evidence: direct review of the released owning source test and reuse of its one actual native case (1/1 within the shared 3/3 changed-case run) and normal Cloudflare emit (exit 0). The existing defining context/identity implementation is unchanged.
 
 Limits: selected authenticated session/grant contexts only, with explicit permissive discovery/call fixture. Native mutation transports require credentials even for public authored operations: the anonymous checks prove refusal, not actor-null public execution. Complete hooks/all contexts, installed/default-deployed/native qualification and original parent acceptance remain separate.
+
+
+### 2026-10-08 — Generated reserved receipt-read metadata
+
+Accepted producer release `f1d63d0a`: genuinely joined singular declared delivery fields publish the existing reserved `Receipt.read` operation with required `recordId:text`, `field:text` and `selected:text[]`, using the existing generated public-read metadata. The operation is a runtime serving route rather than an authored callable. Canonical declaration collisions refuse compilation with E6008.
+
+Evidence/rationale: committed compiler source and the owning frozen source/native test reach the real State descriptor loader; existing affected T15b, strict library Clippy and final compiler build outcomes are reused. Current model binding/grants, persisted delivery association/provider completion and protected observation remain runtime responsibilities and are not accepted by metadata alone.
+
+### 2026-10-08 — Finite compiler width evidence retains its limits
+
+Accepted evidence release `42aad771` adds qualification of finite message choices/placeholders, diagnostic ordering/spans and typed graph chains/stars/DAG/cycle attribution. Existing owning source and precise negative controls are reused. This commit changes tests and scope records, not production behavior.
+
+Limits: observed finite inputs do not establish extreme source/cardinality/generated-output bounds, performance thresholds, public forged-carrier guarantees or wider runtime formatter/graph execution. Compiler scenario computed defaults remain separate SEM-R08/S9-Q02 work; root package task counts do not advance from this evidence.
