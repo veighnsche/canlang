@@ -352,6 +352,22 @@ fn enum_claims_and_membership_execute_with_binding_and_order_controls() {
             " derive {name}Equal(a:{left},b:{right}):bool = a==b\n derive {name}NotEqual(a:{left},b:{right}):bool = a!=b\n"
         ));
     }
+    for (family, left, right) in [
+        ("text", "text", "text"),
+        ("intDecimal", "int", "decimal"),
+        ("decimalInt", "decimal", "int"),
+    ] {
+        for (name, operator) in [
+            ("Less", "<"),
+            ("LessEqual", "<="),
+            ("Greater", ">"),
+            ("GreaterEqual", ">="),
+        ] {
+            source.push_str(&format!(
+                " derive {family}{name}(a:{left},b:{right}):bool = a{operator}b\n"
+            ));
+        }
+    }
     source.push_str(" derive intInDecimal(a:int,values:decimal[]):bool = a in values\n derive decimalInInt(a:decimal,values:int[]):bool = a in values\n");
     source.push_str(&format!(" derive shadowLong(a:Row.s,b:Row.s,row:Row):bool = {prefix} and a==row.s and row.s in [a,b]\n"));
     for (name, expression) in [
@@ -388,7 +404,7 @@ fn enum_claims_and_membership_execute_with_binding_and_order_controls() {
         scratch.0.path(),
         &[("joins", artifact)],
         r#"
-import {decodeValue,parseDecimal,equalValue,same} from '@canlang/stdlib';
+import {decodeValue,parseDecimal,equalValue,same,compareScalar,compareDecimal} from '@canlang/stdlib';
 const call=await load('joins');
 // Direct native callable inputs exercise the owning Values facade, including
 // separate references and value objects; no persistence/admission seam is used.
@@ -431,6 +447,26 @@ for(const [integer,decimal,expected]of [
   assert.equal(await call(name+'Equal')(context,a,b),expected,name+' exact equality');
   assert.equal(await call(name+'NotEqual')(context,a,b),!expected,name+' exact inequality');
  }
+}
+async function checkRelations(family,a,b,order,compare){
+ assert.equal(compare(a,b),order,family+' owning ordering');
+ for(const [operator,expected]of [['Less',order<0],['LessEqual',order<=0],['Greater',order>0],['GreaterEqual',order>=0]]){
+  assert.equal(await call(family+operator)(context,a,b),expected,family+' '+operator);
+ }
+}
+for(const [a,b,order]of [['\uE000','\u{10000}',-1],['\u{10000}','\uE000',1],['\u{10000}','\u{10000}',0]]){
+ await checkRelations('text',a,b,order,compareScalar);
+}
+for(const [integer,decimal,order]of [
+ [2n,parseDecimal('3.00'),-1],
+ [3n,parseDecimal('2.00'),1],
+ [2n,parseDecimal('2.00'),0],
+ [9007199254740993n,parseDecimal('9007199254740992.00'),1],
+ [9007199254740993n,parseDecimal('9007199254740993.00'),0],
+ [9007199254740993n,parseDecimal('9007199254740994.00'),-1],
+]){
+ await checkRelations('intDecimal',integer,decimal,order,compareDecimal);
+ await checkRelations('decimalInt',decimal,integer,order===0?0:-order,compareDecimal);
 }
 for(const [name,type,left,equal,unequal]of [
  ['intInDecimal','decimal',2n,parseDecimal('2.00'),parseDecimal('2.01')],

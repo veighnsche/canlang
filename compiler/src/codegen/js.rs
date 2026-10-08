@@ -2699,8 +2699,8 @@ impl<'a> Emitter<'a> {
     }
 
     /// Lower relational operators: comparators returning -1/0/1 compared
-    /// against zero for money/decimal/date/datetime, direct comparison for
-    /// BigInt integers/durations and text.
+    /// against zero for money/decimal/date/datetime/text, direct comparison
+    /// for BigInt integers/durations. Mixed int/decimal operands stay exact.
     fn lower_relational(
         &mut self,
         op: IrBinOp,
@@ -2722,9 +2722,15 @@ impl<'a> Emitter<'a> {
                 self.stdlib.insert("compareMoney".to_string());
                 format!("compareMoney({l},{r}) {js_op} 0")
             }
-            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal)) => {
+            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal))
+            | (Some(ScalarFamily::Decimal), Some(ScalarFamily::Int))
+            | (Some(ScalarFamily::Int), Some(ScalarFamily::Decimal)) => {
                 self.stdlib.insert("compareDecimal".to_string());
                 format!("compareDecimal({l},{r}) {js_op} 0")
+            }
+            (Some(ScalarFamily::Text), Some(ScalarFamily::Text)) => {
+                self.stdlib.insert("compareScalar".to_string());
+                format!("compareScalar({l},{r}) {js_op} 0")
             }
             (Some(ScalarFamily::Date), Some(ScalarFamily::Date)) => {
                 self.stdlib.insert("compareDate".to_string());
@@ -2735,8 +2741,7 @@ impl<'a> Emitter<'a> {
                 format!("compareInstant({l},{r}) {js_op} 0")
             }
             (Some(ScalarFamily::Int), Some(ScalarFamily::Int))
-            | (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration))
-            | (Some(ScalarFamily::Text), Some(ScalarFamily::Text)) => {
+            | (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration)) => {
                 format!("{l} {js_op} {r}")
             }
             _ => {
