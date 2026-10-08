@@ -216,6 +216,37 @@ async function doSetup(): Promise<ConformanceSetup> {
 storageConformance('do', doSetup);
 
 describe('do adapter proofs', () => {
+  it('reset clears migration failures for a reused Durable Object and migration id', async () => {
+    await resetDO();
+    const store = doProxy(), migrationId = 'do-reset-reused';
+    const failure = {
+      expectedRevision: 0 as Revision, migrationId, leg: 'staging' as const,
+      priorPhase: 'staging' as const, stagedCursor: null, publishCursor: null,
+      error: 'first lifecycle failure', at: 123,
+    };
+    assert.equal(await store.readMigrationFailure(migrationId), null);
+    assert.deepEqual(await store.recordMigrationFailure(failure), { revision: 1 });
+    const audit = await store.readMigrationFailure(migrationId);
+    assert.ok(audit !== null);
+    assert.equal(audit.error, failure.error);
+    await store.discardStagedRows({ expectedRevision: 1 as Revision, migrationId });
+    assert.deepEqual(await store.readMigrationFailure(migrationId), audit);
+
+    await resetDO();
+    assert.equal(await store.readRevision(), 0);
+    assert.equal(await store.readMigrationProgress(migrationId), null);
+    assert.equal(await store.readMigrationFailure(migrationId), null);
+    assert.deepEqual(await exec('SELECT COUNT(*) AS n FROM migration_failures'), [{ n: 0 }]);
+    assert.deepEqual(await store.recordMigrationFailure({ ...failure, error: 'second lifecycle failure', at: 456 }), { revision: 1 });
+    const repeated = await store.readMigrationFailure(migrationId);
+    assert.ok(repeated !== null);
+    assert.equal(repeated.error, 'second lifecycle failure');
+    assert.equal(repeated.at, 456);
+    assert.equal(repeated.revision, 1);
+    await resetDO();
+    assert.equal(await store.readMigrationFailure(migrationId), null);
+  });
+
   it('DO ATOMICITY: a mid-commit PK violation leaves no partial state', async () => {
     await resetDO();
     const store = doProxy();

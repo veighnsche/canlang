@@ -56,7 +56,7 @@
     "Production matcher/rootindex changes are separate activeleased owner source and need new build/review"
   ],
   "readers_writers_commands_released_for_this_snapshot": true,
-  "commit_pending": true,
+  "commit_pending": false,
   "whole_attributable_cost": "Required owning regression typing correction only; proof separate, no library reduction claim",
   "evidence_pins": {
     "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/review.json": {
@@ -123,5 +123,6 @@
       "sha256": "e5bde8530b1d4457d59453ec201d44a2e08368212f780247fcd119799eaf5ce7",
       "bytes": 3033
     }
-  }
+  },
+  "commit": "9f63a132bdffd8d850fdf3c54205fea416ddd232"
 }

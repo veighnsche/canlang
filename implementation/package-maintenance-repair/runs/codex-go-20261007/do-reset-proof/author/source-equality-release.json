@@ -1,0 +1,42 @@
+{
+  "packages/state/test/storage/do-test-worker.js": {
+    "before": "922910c5e7e3692137827d0db5510c5d94300690c98eef1147442a49ea378b7a",
+    "after": "d45c3f3e4ec4845fe48d376c2000f8c98f51531c3edaba47726d8dd9786438f5",
+    "same": false
+  },
+  "packages/state/test/storage/do.test.ts": {
+    "before": "f33298178a554975dbab95449bc421d11aae855fa989d4ffb55a3a5940fb0093",
+    "after": "3545a6018aeb1677576ece5ddd0cbe68c3d4e56ee8689a29e5e7df0bfb03af21",
+    "same": false
+  },
+  "packages/state/test/storage/conformance.ts": {
+    "before": "b3a9416567deb1ae7f1fb833ea1cd2d5f1b64f5bf39c29b7a026530b298c800a",
+    "after": "b3a9416567deb1ae7f1fb833ea1cd2d5f1b64f5bf39c29b7a026530b298c800a",
+    "same": true
+  },
+  "packages/state/src/storage/durable-object.ts": {
+    "before": "d4df52bb725d437a5c8f3f26e3212f83d74038ae3173d92bf5ecf0ce5b5ed185",
+    "after": "d4df52bb725d437a5c8f3f26e3212f83d74038ae3173d92bf5ecf0ce5b5ed185",
+    "same": true
+  },
+  "packages/state/src/storage/schema.ts": {
+    "before": "2a64ec108ea971c72be75c7c7bc1c8a16566bdcb81cf75178fb564a490468520",
+    "after": "2a64ec108ea971c72be75c7c7bc1c8a16566bdcb81cf75178fb564a490468520",
+    "same": true
+  },
+  "packages/state/src/storage/port.ts": {
+    "before": "4b82b567fee3816ce96630475a70f654d89200eed888acb53d3a76a242ea807b",
+    "after": "4b82b567fee3816ce96630475a70f654d89200eed888acb53d3a76a242ea807b",
+    "same": true
+  },
+  "packages/state/src/storage/sqlite-codecs.ts": {
+    "before": "8a9070fc7fd365a7a1c8b099e8df49a7110b3b56973d07d5e7ed35d8d4ef5b3e",
+    "after": "8a9070fc7fd365a7a1c8b099e8df49a7110b3b56973d07d5e7ed35d8d4ef5b3e",
+    "same": true
+  },
+  "packages/state/test/migration/adapters.test.ts": {
+    "before": "a8959cfd7532da2206bbc15a370bdeb256393ca0ccf9a25c7b4777dc706dbd7c",
+    "after": "a8959cfd7532da2206bbc15a370bdeb256393ca0ccf9a25c7b4777dc706dbd7c",
+    "same": true
+  }
+}
