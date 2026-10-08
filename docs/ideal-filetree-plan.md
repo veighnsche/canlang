@@ -285,3 +285,6 @@ Root bounded typed-write reconciliation: State mutation/pipeline retains structu
 
 
 Root bounded locale/caller reconciliation: compiler owns checked composed-app locale and incomplete-list emission refusal; Cloudflare consumes the selected locale through existing AppInfo, with metadata-only11test scope. Actual explicitly authored Images empty-caption consumer passes Node/workerd+D1; original bare-list default, broad formatting/browser/installed and accumulated review remain open. Editor documentation now declares its existing document/startup-catalog ownership; wider workspace engine remains unimplemented. Checkpoint unchanged; no responsibility reassignment or false whole-scope advancement.
+
+
+Root UI dependency reconciliation: packages/ui/package.json now declares the existing @canlang/values runtime import, matching the already integrated lock edge. The compiler owner released this manifest and its unchanged31UI results are reused. Installed closure and accumulated complete checkpoint remain open.
