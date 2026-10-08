@@ -51,8 +51,9 @@ required result declaration. Assertions were corrected at those boundaries;
 unaffected checks were reused. Scoped Rust formatting and diff whitespace pass.
 
 This completes the original finite SEM-R03 signature/binding owner mismatch.
-S9-Q01 remains open for public presentation source-language carriage, exact
-human sink admission, outbound freezing, capability and wider serving profiles.
+The finite native text presentation/source-language carrier is qualified below.
+S9-Q01 remains open for wider human sinks, outbound freezing, capability,
+timezone and serving profiles.
 Deployment/browser/application qualification and the historical full suite are
 separately scoped.
 
@@ -80,3 +81,39 @@ its prior contextual-name gap is qualified here. No parser or formatter facade
 change, full S9-Q01, carrier/public human sink, State/authority or task-count
 claim follows. Source/test/own notes are ready for scoped capture; coordinator
 and Package own DECISIONS/index joins.
+
+The finite native text presentation join is qualified by
+`compiler/tests/localized_format.rs::localized_format_displays_checked_source_locale_and_frozen_result`,
+using the existing consumer's `--presentation` mode: first run **1/1 (6.81s)**,
+with three older tests filtered out. A compile-only build of affected
+`localized_format` and `codegen` targets exited0; mechanical `IrMessage` builders
+and goldens compile, with no old codegen tests or matrices executed.
+
+`IrMessage.source_lang` comes from the checked message/module owner; missing
+ownership reports E6006 without panic. One generated checked-message helper
+normalizes that source tag through UI's existing `normalizeTag`, passes the
+canonical fourth `UI.message` source-locale argument, and requires the returned
+field to match. An incompatible older constructor that discards the fourth
+argument fails `ValueError`/`invalid-construction`. Values `format` and
+`makeMessageDescriptor` signatures remain unchanged. Only the `text` factory's
+`values` position now admits the complete formatted pair; all other formatted
+business/UI sink refusals retain their existing behavior.
+
+One genuine imported `Shared source="FR"` package with an integer zero plural
+and Dutch variant reaches production CLI, public artifact loading/assembly,
+page admission/render and installed UI. Both direct message and formatted derive
+render French `un` grammar with canonical `lang="fr"`. Literal braces and Arabic
+remain text; HTML parameters are escaped and enclosed by FSI/PDI isolation. On
+a Dutch viewer rerender, the direct descriptor becomes Dutch `andere`, while
+the explicit Spanish-target formatted result remains French and frozen. Legacy
+three-argument UI messages and their explicit French source option remain
+supported. Carried source mismatch and malformed closed pairs reject. The
+simulated old constructor must refuse the checked source postcondition, and a
+formatted `badge` still refuses E6008 without modules.
+
+Work owns the public UI/source consumer and assessment appendix; Package owns
+the released contract/output join (`4304da2b`, emit0). Root owns compiler/harness
+and these notes. Earlier branch/label/expression profiles and results are
+reused unchanged. This finite qualification does not close full S9-Q01, wider
+host/business/outbound/freezing/timezone duties or any task counter. Completion
+remains 58/67 with 9 remaining references; coordinator owns DECISIONS/index.

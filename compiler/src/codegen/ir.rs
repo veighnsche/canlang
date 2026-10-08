@@ -1442,12 +1442,13 @@ pub enum IrStmt {
     },
 }
 
-/// Parameterized display message → `message(source, {locales}, {params})`.
-/// Static messages omit the third argument.
+/// Display message with its checked owning source locale and typed parameters.
 #[derive(Debug, Clone)]
 pub struct IrMessage {
     /// Source-language text.
     pub source: String,
+    /// Source language retained from the checked owning declaration.
+    pub source_lang: String,
     /// `(locale, translation)` pairs; `None` renders `null`.
     pub variants: Vec<(String, Option<String>)>,
     /// Typed parameters in source order.
@@ -2434,10 +2435,23 @@ impl Scope {
 }
 
 impl<'a> Cx<'a> {
+    /// Retain a caption's checked source language; missing ownership blocks emission.
+    fn checked_message_source_lang(&mut self, module: ModuleId, span: Span) -> String {
+        if let Some(owner) = self.program.effects.modules.get(&module) {
+            return owner.source_lang.clone();
+        }
+        self.gap(
+            "message source language: checked owning module is missing".to_string(),
+            span,
+        );
+        String::new()
+    }
+
     /// Message descriptor for a `MessageData` row (G7).
     fn decode_message_data(&self, data: &crate::analysis::effects::MessageData) -> IrMessage {
         IrMessage {
             source: data.source.clone(),
+            source_lang: data.source_lang.clone(),
             variants: data
                 .variants
                 .iter()
@@ -2462,6 +2476,7 @@ impl<'a> Cx<'a> {
             // of silently dropping the label.
             SyntaxKind::Literal => Some(IrMessage {
                 source: literal_string(self.db, node)?,
+                source_lang: self.checked_message_source_lang(module, node.span),
                 variants: Vec::new(),
                 params: Vec::new(),
             }),
@@ -2485,6 +2500,7 @@ impl<'a> Cx<'a> {
                 }
                 Some(IrMessage {
                     source: source?,
+                    source_lang: self.checked_message_source_lang(module, node.span),
                     variants,
                     params: Vec::new(),
                 })
@@ -6377,6 +6393,10 @@ impl<'a> Cx<'a> {
         }
         Some(IrMessage {
             source: entry.text.clone(),
+            source_lang: self.checked_message_source_lang(
+                module,
+                Span::new(entry.node.file, entry.node.start, entry.node.end),
+            ),
             variants: entry
                 .variants
                 .iter()
@@ -6396,6 +6416,7 @@ impl<'a> Cx<'a> {
         page: &crate::analysis::effects::PageData,
     ) -> IrPage {
         let span = Span::new(page.node.file, page.node.start, page.node.end);
+        let source_lang = self.checked_message_source_lang(module, span);
         let scope = Scope::module(module);
         let node = self.node(&page.node).cloned();
         let title = page.title.as_ref().and_then(|key| {
@@ -6406,6 +6427,7 @@ impl<'a> Cx<'a> {
             } else if title_node.kind == SyntaxKind::Literal {
                 literal_string(self.db, &title_node).map(|source| IrMessage {
                     source,
+                    source_lang: source_lang.clone(),
                     variants: Vec::new(),
                     params: Vec::new(),
                 })
@@ -6421,6 +6443,7 @@ impl<'a> Cx<'a> {
             );
             IrMessage {
                 source: String::new(),
+                source_lang: source_lang.clone(),
                 variants: Vec::new(),
                 params: Vec::new(),
             }

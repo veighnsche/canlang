@@ -52,5 +52,341 @@
     "1": "d0b280234fa6fedb007b018240e186b66622e0a99512419984ae33912d738d9c",
     "2": "a9dcd668dd5dc5d72c800ad604507ba30ea43b53e769b3fb7d445eb57198b751",
     "3": "9b5aac67e8708d8037eef011846478ea4e23cb67afa2c65780c815cb6ab06060"
+  },
+  "presentation_carrier": {
+    "status": "defining transient contract accepted; finite actual source/display producer-consumer qualified",
+    "advice_only": true,
+    "selected": {
+      "source_carrier": "descriptor_field",
+      "formatted_display": "existing_pair",
+      "skew_check": "constructor_postcondition"
+    },
+    "consultations": [
+      {
+        "request_number": 1,
+        "request": {
+          "state": {
+            "objective": "A concise source language must carry an authored message language to server display and show explicit formatter results without changing their selected language, while preserving legacy calls and refusing incompatible consumers.",
+            "verified_current_facts": [
+              "The checked compiler message owner has a source-language tag. Its public UI message descriptor currently contains source text, locale variants and optional bound typed parameters; the public constructor has three arguments and omits that language.",
+              "The presentation resolver has an optional separate source-locale option with legacy English default. Plural grammar uses its selected variant locale. Imported message assets retain their checked declaring owner.",
+              "The public message formatter already returns a frozen exact object with text and selected locale. A generated helper supplies selected-app default, checked source language and admitted team timezone. Existing pure expression consumers use that complete object.",
+              "Public display values admit strings, exact scalar carriers and message descriptors, but do not admit that formatter object. Compiler provenance currently refuses all formatted results at UI and business sinks; exact plain-text values is the selected next UI slot.",
+              "A message descriptor is an unresolved pattern plus parameters. A formatter result is literal text plus effective language. Already-formatted text must never be parsed as a pattern, re-resolved for the viewer, implicitly coerced to a string, or admitted to business effects by this change.",
+              "The existing public locale-resolution result has the same text/locale structural pair. Resolution alone may return a pattern; generated producer provenance must remain explicit even if the display carrier shares this structure.",
+              "The module assembler checks that the installed UI file exists and binds generated imports. It does not enforce the public presentation version constant. Known artifact capability requirements are checked by another host path; an unknown new requirement is refused.",
+              "JavaScript old three-argument constructors silently ignore a fourth argument. A source-language extension therefore needs an actual consumer support check. Older display renderers already refuse the formatter object through scalar validation.",
+              "Old three-argument messages must retain English source default. These transient display values do not change stored business rows, session identities, action data, or durable receipts. No deployment or general migration is authorized.",
+              "The concrete consumer can use an imported French source message at zero, where French and English plural selection differ, plus an explicit formatter result shown under another viewer locale. Output must preserve effective language, HTML escaping and bidirectional isolation. Other UI props, business calls and outbound human sinks remain unclassified/refused."
+            ],
+            "equal_outcome_alternatives": {
+              "source_carrier": {
+                "descriptor_field": "Optional authored sourceLocale on the existing descriptor; optional fourth constructor argument; omitted legacy field remains English. Resolver reads carried language and detects conflicting explicit override. Small additive shape, but requires skew check.",
+                "render_options": "Keep descriptor shape and bind owner language in each generated rendering closure/options. Avoids a public shape change, but all imports/factories must preserve an extra ambient binding and cannot infer it from viewer/app locale.",
+                "separate_wrapper": "A new source-message wrapper or constructor carries the checked language and original descriptor. Distinguishes the new capability, but adds a wrapper and corresponding consumers."
+              },
+              "formatted_display": {
+                "existing_pair": "Admit the existing explicit text/locale result pair at the finite plain-text values slot, validate its closed text/tag shape and render literal escaped/bidi/language markup. Preserve compiler producer provenance and other sink refusals. Avoids formatter-result migration; shape alone is not pattern semantics.",
+                "tagged_carrier": "Introduce a distinct kind-tagged formatted display carrier through an explicit adapter; unresolved descriptors remain separate. Stronger runtime discrimination, but adds a carrier/adapter and new generated plumbing while retaining the existing formatter result.",
+                "separate_prop": "Keep general display values closed and add a separate typed formatted-result prop or factory. Explicit consumer boundary and no changed union, but a second generated display path must compose with ordinary text arrays."
+              },
+              "skew_check": {
+                "constructor_postcondition": "Continue the existing constructor with the additive argument and have generated code explicitly require returned source-locale metadata to match the canonical checked owner. Old constructors fail before a descriptor is used. Uses actual behavior, no invented version policy.",
+                "new_export": "Introduce a new named source-message constructor export with the required carrier; generated modules import it, so old modules fail at linking. Clear missing-export refusal, but an additional public factory is maintained.",
+                "artifact_capability": "Add a new explicit UI capability requirement to emitted artifacts and all applicable consumer admission checks. Old known-capability hosts refuse, while source/display-only assembly also must check its installed producer. Broadest metadata/host change but centralized support declaration."
+              }
+            }
+          },
+          "questions": {
+            "source_carrier": {
+              "type": "choice",
+              "description": "Which source-language carrier is the smallest complete solution under these verified boundaries?",
+              "criteria": {
+                "descriptor_field": "Optional authored sourceLocale on the existing descriptor; optional fourth constructor argument; omitted legacy field remains English. Resolver reads carried language and detects conflicting explicit override. Small additive shape, but requires skew check.",
+                "render_options": "Keep descriptor shape and bind owner language in each generated rendering closure/options. Avoids a public shape change, but all imports/factories must preserve an extra ambient binding and cannot infer it from viewer/app locale.",
+                "separate_wrapper": "A new source-message wrapper or constructor carries the checked language and original descriptor. Distinguishes the new capability, but adds a wrapper and corresponding consumers."
+              }
+            },
+            "formatted_display": {
+              "type": "choice",
+              "description": "Which representation should the finite plain-text display slot use for the already-formatted result while preserving all listed outcomes?",
+              "criteria": {
+                "existing_pair": "Admit the existing explicit text/locale result pair at the finite plain-text values slot, validate its closed text/tag shape and render literal escaped/bidi/language markup. Preserve compiler producer provenance and other sink refusals. Avoids formatter-result migration; shape alone is not pattern semantics.",
+                "tagged_carrier": "Introduce a distinct kind-tagged formatted display carrier through an explicit adapter; unresolved descriptors remain separate. Stronger runtime discrimination, but adds a carrier/adapter and new generated plumbing while retaining the existing formatter result.",
+                "separate_prop": "Keep general display values closed and add a separate typed formatted-result prop or factory. Explicit consumer boundary and no changed union, but a second generated display path must compose with ordinary text arrays."
+              }
+            },
+            "skew_check": {
+              "type": "choice",
+              "description": "Which compatibility check best prevents the new authored language from being silently lost by an older consumer, with the least complete implementation cost?",
+              "criteria": {
+                "constructor_postcondition": "Continue the existing constructor with the additive argument and have generated code explicitly require returned source-locale metadata to match the canonical checked owner. Old constructors fail before a descriptor is used. Uses actual behavior, no invented version policy.",
+                "new_export": "Introduce a new named source-message constructor export with the required carrier; generated modules import it, so old modules fail at linking. Clear missing-export refusal, but an additional public factory is maintained.",
+                "artifact_capability": "Add a new explicit UI capability requirement to emitted artifacts and all applicable consumer admission checks. Old known-capability hosts refuse, while source/display-only assembly also must check its installed producer. Broadest metadata/host change but centralized support declaration."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "source_carrier": {
+              "type": "choice",
+              "choice": "descriptor_field",
+              "confidence": 0.91,
+              "probabilities": {
+                "descriptor_field": 0.94,
+                "render_options": 0.04,
+                "separate_wrapper": 0.02
+              }
+            },
+            "formatted_display": {
+              "type": "choice",
+              "choice": "existing_pair",
+              "confidence": 0.99,
+              "probabilities": {
+                "existing_pair": 1.0,
+                "tagged_carrier": 0.0,
+                "separate_prop": 0.0
+              }
+            },
+            "skew_check": {
+              "type": "choice",
+              "choice": "constructor_postcondition",
+              "confidence": 0.74,
+              "probabilities": {
+                "constructor_postcondition": 0.83,
+                "new_export": 0.04,
+                "artifact_capability": 0.13
+              }
+            }
+          },
+          "usage": {
+            "input_tokens": 1841,
+            "output_tokens": 139
+          }
+        }
+      },
+      {
+        "request_number": 2,
+        "request": {
+          "state": {
+            "objective": "A concise source language must carry an authored message language to server display and show explicit formatter results without changing their selected language, while preserving legacy calls and refusing incompatible consumers.",
+            "verified_current_facts": [
+              "The checked compiler message owner has a source-language tag. Its public UI message descriptor currently contains source text, locale variants and optional bound typed parameters; the public constructor has three arguments and omits that language.",
+              "The presentation resolver has an optional separate source-locale option with legacy English default. Plural grammar uses its selected variant locale. Imported message assets retain their checked declaring owner.",
+              "The public message formatter already returns a frozen exact object with text and selected locale. A generated helper supplies selected-app default, checked source language and admitted team timezone. Existing pure expression consumers use that complete object.",
+              "Public display values admit strings, exact scalar carriers and message descriptors, but do not admit that formatter object. Compiler provenance currently refuses all formatted results at UI and business sinks; exact plain-text values is the selected next UI slot.",
+              "A message descriptor is an unresolved pattern plus parameters. A formatter result is literal text plus effective language. Already-formatted text must never be parsed as a pattern, re-resolved for the viewer, implicitly coerced to a string, or admitted to business effects by this change.",
+              "The existing public locale-resolution result has the same text/locale structural pair. Resolution alone may return a pattern; generated producer provenance must remain explicit even if the display carrier shares this structure.",
+              "The module assembler checks that the installed UI file exists and binds generated imports. It does not enforce the public presentation version constant. Known artifact capability requirements are checked by another host path; an unknown new requirement is refused.",
+              "JavaScript old three-argument constructors silently ignore a fourth argument. A source-language extension therefore needs an actual consumer support check. Older display renderers already refuse the formatter object through scalar validation.",
+              "Old three-argument messages must retain English source default. These transient display values do not change stored business rows, session identities, action data, or durable receipts. No deployment or general migration is authorized.",
+              "The concrete consumer can use an imported French source message at zero, where French and English plural selection differ, plus an explicit formatter result shown under another viewer locale. Output must preserve effective language, HTML escaping and bidirectional isolation. Other UI props, business calls and outbound human sinks remain unclassified/refused."
+            ],
+            "equal_outcome_alternatives": {
+              "source_carrier": {
+                "descriptor_field": "Optional authored sourceLocale on the existing descriptor; optional fourth constructor argument; omitted legacy field remains English. Resolver reads carried language and detects conflicting explicit override. Small additive shape, but requires skew check.",
+                "render_options": "Keep descriptor shape and bind owner language in each generated rendering closure/options. Avoids a public shape change, but all imports/factories must preserve an extra ambient binding and cannot infer it from viewer/app locale.",
+                "separate_wrapper": "A new source-message wrapper or constructor carries the checked language and original descriptor. Distinguishes the new capability, but adds a wrapper and corresponding consumers."
+              },
+              "formatted_display": {
+                "existing_pair": "Admit the existing explicit text/locale result pair at the finite plain-text values slot, validate its closed text/tag shape and render literal escaped/bidi/language markup. Preserve compiler producer provenance and other sink refusals. Avoids formatter-result migration; shape alone is not pattern semantics.",
+                "tagged_carrier": "Introduce a distinct kind-tagged formatted display carrier through an explicit adapter; unresolved descriptors remain separate. Stronger runtime discrimination, but adds a carrier/adapter and new generated plumbing while retaining the existing formatter result.",
+                "separate_prop": "Keep general display values closed and add a separate typed formatted-result prop or factory. Explicit consumer boundary and no changed union, but a second generated display path must compose with ordinary text arrays."
+              },
+              "skew_check": {
+                "constructor_postcondition": "Continue the existing constructor with the additive argument and have generated code explicitly require returned source-locale metadata to match the canonical checked owner. Old constructors fail before a descriptor is used. Uses actual behavior, no invented version policy.",
+                "new_export": "Introduce a new named source-message constructor export with the required carrier; generated modules import it, so old modules fail at linking. Clear missing-export refusal, but an additional public factory is maintained.",
+                "artifact_capability": "Add a new explicit UI capability requirement to emitted artifacts and all applicable consumer admission checks. Old known-capability hosts refuse, while source/display-only assembly also must check its installed producer. Broadest metadata/host change but centralized support declaration."
+              }
+            }
+          },
+          "questions": {
+            "source_carrier": {
+              "type": "choice",
+              "description": "Choose the most economical way to retain the declaring language from checked source through message display, including legacy behavior.",
+              "criteria": {
+                "descriptor_field": "Optional authored sourceLocale on the existing descriptor; optional fourth constructor argument; omitted legacy field remains English. Resolver reads carried language and detects conflicting explicit override. Small additive shape, but requires skew check.",
+                "render_options": "Keep descriptor shape and bind owner language in each generated rendering closure/options. Avoids a public shape change, but all imports/factories must preserve an extra ambient binding and cannot infer it from viewer/app locale.",
+                "separate_wrapper": "A new source-message wrapper or constructor carries the checked language and original descriptor. Distinguishes the new capability, but adds a wrapper and corresponding consumers."
+              }
+            },
+            "formatted_display": {
+              "type": "choice",
+              "description": "Select the narrow display contract that best preserves the formatter result as literal text with its effective locale, without expanding business authority.",
+              "criteria": {
+                "existing_pair": "Admit the existing explicit text/locale result pair at the finite plain-text values slot, validate its closed text/tag shape and render literal escaped/bidi/language markup. Preserve compiler producer provenance and other sink refusals. Avoids formatter-result migration; shape alone is not pattern semantics.",
+                "tagged_carrier": "Introduce a distinct kind-tagged formatted display carrier through an explicit adapter; unresolved descriptors remain separate. Stronger runtime discrimination, but adds a carrier/adapter and new generated plumbing while retaining the existing formatter result.",
+                "separate_prop": "Keep general display values closed and add a separate typed formatted-result prop or factory. Explicit consumer boundary and no changed union, but a second generated display path must compose with ordinary text arrays."
+              }
+            },
+            "skew_check": {
+              "type": "choice",
+              "description": "Choose how the new source-message producer should fail on a runtime that cannot retain its source-language data; assess total generated and host work.",
+              "criteria": {
+                "constructor_postcondition": "Continue the existing constructor with the additive argument and have generated code explicitly require returned source-locale metadata to match the canonical checked owner. Old constructors fail before a descriptor is used. Uses actual behavior, no invented version policy.",
+                "new_export": "Introduce a new named source-message constructor export with the required carrier; generated modules import it, so old modules fail at linking. Clear missing-export refusal, but an additional public factory is maintained.",
+                "artifact_capability": "Add a new explicit UI capability requirement to emitted artifacts and all applicable consumer admission checks. Old known-capability hosts refuse, while source/display-only assembly also must check its installed producer. Broadest metadata/host change but centralized support declaration."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "source_carrier": {
+              "type": "choice",
+              "choice": "descriptor_field",
+              "confidence": 0.87,
+              "probabilities": {
+                "descriptor_field": 0.91,
+                "render_options": 0.07,
+                "separate_wrapper": 0.02
+              }
+            },
+            "formatted_display": {
+              "type": "choice",
+              "choice": "existing_pair",
+              "confidence": 0.99,
+              "probabilities": {
+                "existing_pair": 1.0,
+                "tagged_carrier": 0.0,
+                "separate_prop": 0.0
+              }
+            },
+            "skew_check": {
+              "type": "choice",
+              "choice": "constructor_postcondition",
+              "confidence": 0.74,
+              "probabilities": {
+                "constructor_postcondition": 0.82,
+                "new_export": 0.05,
+                "artifact_capability": 0.13
+              }
+            }
+          },
+          "usage": {
+            "input_tokens": 1841,
+            "output_tokens": 139
+          }
+        }
+      },
+      {
+        "request_number": 3,
+        "request": {
+          "state": {
+            "objective": "A concise source language must carry an authored message language to server display and show explicit formatter results without changing their selected language, while preserving legacy calls and refusing incompatible consumers.",
+            "verified_current_facts": [
+              "The checked compiler message owner has a source-language tag. Its public UI message descriptor currently contains source text, locale variants and optional bound typed parameters; the public constructor has three arguments and omits that language.",
+              "The presentation resolver has an optional separate source-locale option with legacy English default. Plural grammar uses its selected variant locale. Imported message assets retain their checked declaring owner.",
+              "The public message formatter already returns a frozen exact object with text and selected locale. A generated helper supplies selected-app default, checked source language and admitted team timezone. Existing pure expression consumers use that complete object.",
+              "Public display values admit strings, exact scalar carriers and message descriptors, but do not admit that formatter object. Compiler provenance currently refuses all formatted results at UI and business sinks; exact plain-text values is the selected next UI slot.",
+              "A message descriptor is an unresolved pattern plus parameters. A formatter result is literal text plus effective language. Already-formatted text must never be parsed as a pattern, re-resolved for the viewer, implicitly coerced to a string, or admitted to business effects by this change.",
+              "The existing public locale-resolution result has the same text/locale structural pair. Resolution alone may return a pattern; generated producer provenance must remain explicit even if the display carrier shares this structure.",
+              "The module assembler checks that the installed UI file exists and binds generated imports. It does not enforce the public presentation version constant. Known artifact capability requirements are checked by another host path; an unknown new requirement is refused.",
+              "JavaScript old three-argument constructors silently ignore a fourth argument. A source-language extension therefore needs an actual consumer support check. Older display renderers already refuse the formatter object through scalar validation.",
+              "Old three-argument messages must retain English source default. These transient display values do not change stored business rows, session identities, action data, or durable receipts. No deployment or general migration is authorized.",
+              "The concrete consumer can use an imported French source message at zero, where French and English plural selection differ, plus an explicit formatter result shown under another viewer locale. Output must preserve effective language, HTML escaping and bidirectional isolation. Other UI props, business calls and outbound human sinks remain unclassified/refused."
+            ],
+            "equal_outcome_alternatives": {
+              "source_carrier": {
+                "descriptor_field": "Optional authored sourceLocale on the existing descriptor; optional fourth constructor argument; omitted legacy field remains English. Resolver reads carried language and detects conflicting explicit override. Small additive shape, but requires skew check.",
+                "render_options": "Keep descriptor shape and bind owner language in each generated rendering closure/options. Avoids a public shape change, but all imports/factories must preserve an extra ambient binding and cannot infer it from viewer/app locale.",
+                "separate_wrapper": "A new source-message wrapper or constructor carries the checked language and original descriptor. Distinguishes the new capability, but adds a wrapper and corresponding consumers."
+              },
+              "formatted_display": {
+                "existing_pair": "Admit the existing explicit text/locale result pair at the finite plain-text values slot, validate its closed text/tag shape and render literal escaped/bidi/language markup. Preserve compiler producer provenance and other sink refusals. Avoids formatter-result migration; shape alone is not pattern semantics.",
+                "tagged_carrier": "Introduce a distinct kind-tagged formatted display carrier through an explicit adapter; unresolved descriptors remain separate. Stronger runtime discrimination, but adds a carrier/adapter and new generated plumbing while retaining the existing formatter result.",
+                "separate_prop": "Keep general display values closed and add a separate typed formatted-result prop or factory. Explicit consumer boundary and no changed union, but a second generated display path must compose with ordinary text arrays."
+              },
+              "skew_check": {
+                "constructor_postcondition": "Continue the existing constructor with the additive argument and have generated code explicitly require returned source-locale metadata to match the canonical checked owner. Old constructors fail before a descriptor is used. Uses actual behavior, no invented version policy.",
+                "new_export": "Introduce a new named source-message constructor export with the required carrier; generated modules import it, so old modules fail at linking. Clear missing-export refusal, but an additional public factory is maintained.",
+                "artifact_capability": "Add a new explicit UI capability requirement to emitted artifacts and all applicable consumer admission checks. Old known-capability hosts refuse, while source/display-only assembly also must check its installed producer. Broadest metadata/host change but centralized support declaration."
+              }
+            }
+          },
+          "questions": {
+            "source_carrier": {
+              "type": "choice",
+              "description": "For the stated source-to-display requirement, which equal-outcome language-carriage alternative offers the clearest and smallest maintained boundary?",
+              "criteria": {
+                "descriptor_field": "Optional authored sourceLocale on the existing descriptor; optional fourth constructor argument; omitted legacy field remains English. Resolver reads carried language and detects conflicting explicit override. Small additive shape, but requires skew check.",
+                "render_options": "Keep descriptor shape and bind owner language in each generated rendering closure/options. Avoids a public shape change, but all imports/factories must preserve an extra ambient binding and cannot infer it from viewer/app locale.",
+                "separate_wrapper": "A new source-message wrapper or constructor carries the checked language and original descriptor. Distinguishes the new capability, but adds a wrapper and corresponding consumers."
+              }
+            },
+            "formatted_display": {
+              "type": "choice",
+              "description": "For exact text-only rendering of frozen formatter output, which alternative has the best simplicity/compatibility tradeoff while all other sinks remain refused?",
+              "criteria": {
+                "existing_pair": "Admit the existing explicit text/locale result pair at the finite plain-text values slot, validate its closed text/tag shape and render literal escaped/bidi/language markup. Preserve compiler producer provenance and other sink refusals. Avoids formatter-result migration; shape alone is not pattern semantics.",
+                "tagged_carrier": "Introduce a distinct kind-tagged formatted display carrier through an explicit adapter; unresolved descriptors remain separate. Stronger runtime discrimination, but adds a carrier/adapter and new generated plumbing while retaining the existing formatter result.",
+                "separate_prop": "Keep general display values closed and add a separate typed formatted-result prop or factory. Explicit consumer boundary and no changed union, but a second generated display path must compose with ordinary text arrays."
+              }
+            },
+            "skew_check": {
+              "type": "choice",
+              "description": "Among the listed support-admission designs, which most simply ensures that a mixed-version consumer cannot silently reinterpret source wording?",
+              "criteria": {
+                "constructor_postcondition": "Continue the existing constructor with the additive argument and have generated code explicitly require returned source-locale metadata to match the canonical checked owner. Old constructors fail before a descriptor is used. Uses actual behavior, no invented version policy.",
+                "new_export": "Introduce a new named source-message constructor export with the required carrier; generated modules import it, so old modules fail at linking. Clear missing-export refusal, but an additional public factory is maintained.",
+                "artifact_capability": "Add a new explicit UI capability requirement to emitted artifacts and all applicable consumer admission checks. Old known-capability hosts refuse, while source/display-only assembly also must check its installed producer. Broadest metadata/host change but centralized support declaration."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "source_carrier": {
+              "type": "choice",
+              "choice": "descriptor_field",
+              "confidence": 0.88,
+              "probabilities": {
+                "render_options": 0.06,
+                "separate_wrapper": 0.02,
+                "descriptor_field": 0.92
+              }
+            },
+            "formatted_display": {
+              "type": "choice",
+              "choice": "existing_pair",
+              "confidence": 0.97,
+              "probabilities": {
+                "existing_pair": 0.98,
+                "tagged_carrier": 0.01,
+                "separate_prop": 0.01
+              }
+            },
+            "skew_check": {
+              "type": "choice",
+              "choice": "constructor_postcondition",
+              "confidence": 0.7,
+              "probabilities": {
+                "constructor_postcondition": 0.8,
+                "new_export": 0.05,
+                "artifact_capability": 0.15
+              }
+            }
+          },
+          "usage": {
+            "input_tokens": 1841,
+            "output_tokens": 139
+          }
+        }
+      }
+    ],
+    "rationale": "Reuse the existing final text/locale pair at the exact text.values display slot; carry checked sourceLocale on the message descriptor and check it at the owning generated constructor boundary. Current old three-argument UI silently ignores an additive argument, while no actual UI version gate exists in the module assembler.",
+    "uncertainty": "All equivalent requests agree. Skew-check confidences .74/.74/.70 are lower than the carrier choices; no explanatory rationale or calibrated certainty was supplied. Advice does not establish runtime compatibility or full S9-Q01.",
+    "scope": "Legacy three-argument/English and explicit legacy source-locale behavior stay supported. New declared sourceLocale is canonical and immutable; conflicting resolver override refuses. Final text is literal escaped/bidi-isolated language-bearing output, never reparsed or re-resolved. Other UI/business/outbound sinks, durable delivery freezing and wider deployment remain outside this slice.",
+    "direct_validation": {
+      "owner": "Compiler selected localized_format_displays_checked_source_locale_and_frozen_result",
+      "result": "1 passed on first owning run, 6.81s; three older cases filtered and their unchanged outcomes reused",
+      "path": "Production CLI and catalog to actual loader/module assembler, generated page admit/render and installed Values/UI exports",
+      "observed": "Imported FR canonicalizes to fr; French zero uses one; descriptor changes under Dutch viewer while explicit es formatting retains effective fr. HTML, literal braces, Arabic text, isolation and lang survive. Legacy three-argument call, conflicting explicit source locale, malformed final pairs, simulated old three-argument module and unclassified badge display follow their declared behavior.",
+      "limits": "The old constructor is simulated at the public module boundary. No HTTP/browser/deployment, outbound text freezing, timezone provider, config-draft migration or whole S9-Q01 qualification."
+    }
   }
 }
