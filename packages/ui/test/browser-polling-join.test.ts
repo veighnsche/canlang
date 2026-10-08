@@ -159,6 +159,7 @@ describe('prepared source form browser submission', () => {
       assert.equal(calls[0]!.url, '/operations/schedule');
       assert.equal(calls[0]!.init.headers['x-csrf-token'], 'csrf');
       assert.equal(calls[0]!.init.headers['content-type'], 'application/json');
+      assert.equal(calls[0]!.init.headers['accept'], 'application/json');
       assert.deepEqual(JSON.parse(calls[0]!.init.body as string), {
         operation: formDerived.operation, operation_id: 'rendered-operation-id',
         inputs: { title: 'last', active: true, owner: { id: 'owner-1', version: '7' }, tags: ['last'] },
@@ -191,6 +192,90 @@ describe('prepared source form browser submission', () => {
       assert.ok(page.errors[2] instanceof GeneratedSubmitError && page.errors[2].code === 'usage');
       assert.equal(calls, 0); assert.equal(target.getAttribute('data-can-submit-state'), 'error');
       assert.equal(target.hasAttribute('aria-busy'), false);
+    } finally { await page.close(); }
+  });
+
+  it('shows safe projection and backend feedback only in the submitted occurrence, keeping drafts and clearing on retry', async () => {
+    const backend = {
+      code: 'validation', message: 'Please correct this form.',
+      fields: [
+        { path: '/title', code: 'required', message: '<img src=x onerror=alert(1)> needs a title.' },
+        { path: '/omitted', code: 'required', message: 'The omitted input still needs attention.' },
+      ],
+    };
+    let calls = 0;
+    const page = await formPage(async (_url, init) => {
+      calls++;
+      assert.equal(init.headers['accept'], 'application/json');
+      return calls === 1 ? { status: 422, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(backend) } : committed();
+    });
+    try {
+      page.window.document.body.insertAdjacentHTML('beforeend', await sourceForm());
+      const [submitted, neighboring] = page.window.document.querySelectorAll('form');
+      assert.ok(submitted && neighboring);
+      const feedback = submitted.querySelector('[data-can-form-feedback]')!;
+      const otherFeedback = neighboring.querySelector('[data-can-form-feedback]')!;
+      otherFeedback.textContent = 'Neighbor feedback'; otherFeedback.removeAttribute('hidden');
+      const neighborMarkup = neighboring.outerHTML;
+      const title = submitted.querySelectorAll<typeof page.window.HTMLInputElement.prototype>('input[name="inputs[title]"]')[1]!;
+      title.value = 'Edited draft <strong>text</strong>';
+      const identity = submitted.querySelector<typeof page.window.HTMLInputElement.prototype>('input[name="operation_id"]')!;
+      const csrf = submitted.querySelector<typeof page.window.HTMLInputElement.prototype>('input[name="_csrf"]')!;
+      const version = submitted.querySelector<typeof page.window.HTMLInputElement.prototype>('input[name="inputs[owner__version]"]')!;
+      const checkbox = submitted.querySelector<typeof page.window.HTMLInputElement.prototype>('input[type="checkbox"][name="inputs[active]"]')!;
+      checkbox.value = 'invalid-bool';
+      page.client.rescan();
+      page.submit(); await settle();
+      assert.equal(calls, 0);
+      assert.equal(feedback.hasAttribute('hidden'), false);
+      assert.equal(feedback.getAttribute('data-can-form-feedback-code'), 'projection');
+      assert.match(feedback.textContent!, /bool input "active"/);
+      assert.equal(title.value, 'Edited draft <strong>text</strong>');
+      assert.equal(neighboring.outerHTML, neighborMarkup);
+      checkbox.value = 'true';
+      page.submit();
+      assert.equal(feedback.textContent, ''); assert.equal(feedback.hasAttribute('hidden'), true);
+      await settle();
+      assert.equal(feedback.textContent, backend.message + '\n' + backend.fields.map(field => field.message).join('\n'));
+      assert.equal(feedback.querySelector('img'), null);
+      assert.equal(feedback.hasAttribute('hidden'), false);
+      assert.equal(feedback.getAttribute('data-can-form-feedback-code'), 'validation');
+      const result = page.results[0]; assert.ok(result?.kind === 'denied');
+      assert.deepEqual(result.error, backend, 'checked public codes and paths stay intact in the result');
+      assert.equal(submitted.querySelector('input[name="operation_id"]'), identity);
+      assert.equal(identity.value, 'rendered-operation-id'); assert.equal(csrf.value, 'csrf'); assert.equal(version.value, '7');
+      assert.equal(submitted.querySelector('input[name="inputs[title]"]')?.nextElementSibling, title);
+      assert.equal(title.value, 'Edited draft <strong>text</strong>');
+      assert.equal(neighboring.outerHTML, neighborMarkup);
+      page.submit(); await settle();
+      assert.equal(calls, 2); assert.equal(submitted.getAttribute('data-can-submit-state'), 'committed');
+      assert.equal(feedback.textContent, ''); assert.equal(feedback.hasAttribute('hidden'), true);
+      assert.equal(feedback.hasAttribute('data-can-form-feedback-code'), false);
+      assert.equal(title.value, 'Edited draft <strong>text</strong>'); assert.equal(neighboring.outerHTML, neighborMarkup);
+    } finally { await page.close(); }
+  });
+
+  it('uses fixed public text for transport, contract and usage failures without applying legacy HTML', async () => {
+    let html = false;
+    const page = await formPage(async () => {
+      if (!html) throw new Error('INTERNAL_TRANSPORT_DIAGNOSTIC');
+      return { status: 422, headers: { get: () => 'text/html' },
+        text: async () => '<form>UNRELATED_LEGACY_OCCURRENCE</form>' };
+    });
+    try {
+      const target = page.window.document.querySelector('form')!;
+      const feedback = target.querySelector('[data-can-form-feedback]')!;
+      page.submit(); await settle();
+      assert.equal(feedback.textContent, 'The submission could not be confirmed. Please try again.');
+      assert.equal(feedback.getAttribute('data-can-form-feedback-code'), 'submit_failed');
+      html = true; page.submit(); await settle();
+      assert.equal(feedback.textContent, 'The submission could not be confirmed. Please try again.');
+      assert.ok(page.errors[1] instanceof GeneratedSubmitError && page.errors[1].code === 'contract');
+      assert.equal(page.window.document.querySelector('form'), target);
+      assert.equal(target.textContent?.includes('UNRELATED_LEGACY_OCCURRENCE'), false);
+      target.removeAttribute('action'); page.submit(); await settle();
+      assert.equal(feedback.textContent, 'The submission could not be confirmed. Please try again.');
+      assert.ok(page.errors[2] instanceof GeneratedSubmitError && page.errors[2].code === 'usage');
     } finally { await page.close(); }
   });
 

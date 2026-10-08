@@ -930,6 +930,7 @@ export async function form(props: FormProps): Promise<string> {
     recordHiddens(props.record) +
     outcomeBanner(props.outcome, props.fields, props.context, props.timeZone) +
     unmatchedAlert(unmatched, props.context) +
+    (props.derived === undefined ? "" : '<div data-can-form-feedback role="alert" aria-live="polite" hidden></div>') +
     fieldsHtml +
     `<div class="flex gap-4"><button type="submit" class="btn btn-primary">${submitLabel}</button>${cancelLink(props.cancelHref, props.context)}</div>` +
     `</form>`
