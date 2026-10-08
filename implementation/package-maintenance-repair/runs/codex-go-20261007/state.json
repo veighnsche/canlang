@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T11:12:48.711959+00:00",
+  "updated_utc": "2026-10-08T11:16:41.641773+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1907,7 +1907,16 @@
       "limits": "Public export prerequisite only; no generated/runtime provider or installed/host delivery acceptance. Capability addition is not replacement production-reduction credit.",
       "model": "gpt-6.1-sol medium: finite existing structural facade pattern",
       "sources_outputs_handles_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "source_native_typing": {
+        "status": "Root directly reviewed one-file source return typing correction; commit ready",
+        "path": "packages/state/src/effects/delivery.ts",
+        "contract": "Source canonical.observeDelivery and delivery return readonly partial Record<ReceiptProperty,unknown>, permitting already decoded native Can scalars such as bigint. Contracts SelectedReceiptProjection and Receipt.read transport wire types remain unchanged. Forwarding runtime body unchanged; no new decoder/converter.",
+        "verification": "Normal State TypeScript emit exit0; unchanged original facade identity2 reused. Actual generated source bigint-to-resultwire case belongs to Roadmap current consumer.",
+        "model": "gpt-6.1-sol low: known single-file type correction",
+        "source_output_handles_released": true,
+        "counts_unchanged": true
+      }
     }
   },
   "live_finite_packets": [
@@ -2608,7 +2617,7 @@
       "commit": "2928194ccfff837c8cfefa7636e7f60c7824b5d1"
     },
     "generation_rich_progress_core": {
-      "status": "Root directly reviewed released State/Work rich TextRun core after accessor-order and trusted-relation corrections; source component accepted, commit ready",
+      "status": "Root reviewed and committed3a46ee0e rich State/Work component; actual runtime consumer in progress",
       "sources": [
         "bun.lock",
         "packages/contracts/src/work.ts",
@@ -2654,7 +2663,8 @@
       ],
       "source_outputs_handles_released": true,
       "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "3a46ee0eba7b0f5943b5f38433b5be32e6a6d0d3"
     }
   }
 }
