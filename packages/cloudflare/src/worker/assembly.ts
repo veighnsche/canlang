@@ -1003,6 +1003,9 @@ export function buildInvoker(
           "runtime/invoke.ts",
           "invokeReadCanonical",
         );
+        const isReadScenario = artifact.operations?.some(op => op.name === envelope.operation && op.kind === 'read') &&
+          artifact.callables.some(callable => callable.id === envelope.operation);
+        const selectedApp = opts.appInfo ?? (isReadScenario && opts.appId === undefined ? await loadAppInfo(artifact, asm) : undefined);
         const result = await invokeCanonical({
           asm,
           artifact,
@@ -1010,6 +1013,9 @@ export function buildInvoker(
           inputs: envelope.inputs,
           identity,
           store,
+          source: opts.source ?? 'worker',
+          now: opts.now ?? Date.now,
+          ...(selectedApp === undefined ? {} : { formatting: { appDefault: selectedApp.appDefaultLocale } }),
           memberships: opts.memberships as CanonicalMembershipReader,
           ...(opts.selectedReceiptObserver === undefined ? {} : { observer: opts.selectedReceiptObserver }),
         });

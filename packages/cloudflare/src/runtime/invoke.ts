@@ -104,6 +104,7 @@ import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
+import type { AdmittedReadScenarioCall, ReadScenarioResult } from "@canlang/state/invocation/invoke";
 import type {
   CanonicalEffectsScope,
   CanonicalReadQuery,
@@ -1254,6 +1255,16 @@ interface StateErrorsProducer {
 
 /** T17b: structural view of the state transaction-port module (bound read port). */
 interface StateTransactProducer {
+  createReadScenarioInvoker?(input: {
+    readonly registry: ReadonlyMap<string, unknown>;
+    readonly policy: unknown;
+    readonly store: StoragePort;
+    readonly memberships: CanonicalMembershipReader;
+  }): (args: {
+    readonly envelope: { readonly operation: string; readonly inputs: Record<string, unknown> };
+    readonly identity: ResolvedIdentity;
+    readonly execute: (call: AdmittedReadScenarioCall) => Promise<unknown>;
+  }) => Promise<ReadScenarioResult>;
   createReadInvoker(input: {
     readonly registry: ReadonlyMap<string, unknown>;
     readonly policy: unknown;
@@ -1473,7 +1484,12 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     crud: { generatedCrudExecute: generatedCrudExecute as StateCrudProducer["generatedCrudExecute"] },
     models: { buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"] },
     errors: StateError as unknown as StateErrorsProducer,
-    transact: { createReadInvoker: createReadInvoker as StateTransactProducer["createReadInvoker"] },
+    transact: {
+      createReadInvoker: createReadInvoker as StateTransactProducer["createReadInvoker"],
+      ...(typeof transactMod['createReadScenarioInvoker'] !== 'function' ? {} : {
+        createReadScenarioInvoker: transactMod['createReadScenarioInvoker'] as NonNullable<StateTransactProducer['createReadScenarioInvoker']>,
+      }),
+    },
     grants: {
       buildPolicyTable: buildPolicyTable as StateGrantsProducer["buildPolicyTable"],
       matchGrants: matchGrants as StateGrantsProducer["matchGrants"],
@@ -1752,7 +1768,7 @@ function resolvePreloadCallable(artifact: CompileArtifact, op: PreloadOperation)
       );
     }
     if (entry["inputStyle"] !== undefined &&
-        (entry["inputStyle"] !== "parameters" || op.kind !== "scenario" ||
+        (entry["inputStyle"] !== "parameters" || (op.kind !== "scenario" && op.kind !== "read") ||
          !artifact.requires.some((requirement) => requirement.capability === "state.parameters" && requirement.min_version >= 1))) {
       throw new Error(`t16b: operation ${JSON.stringify(op.name)} has invalid callable inputStyle.`);
     }
@@ -1821,11 +1837,63 @@ async function assertComputedDefaultsPair(
     const claimed = own(field, 'computedDefault');
     if (source === undefined && claimed === undefined) continue;
     const parameterStyle = artifact.callables.find(candidate => candidate.id === operation.name)?.inputStyle === 'parameters';
-    if (source !== true || claimed !== true || operation.kind !== 'scenario' || !parameterStyle ||
+    if (source !== true || claimed !== true || (operation.kind !== 'scenario' && operation.kind !== 'read') || !parameterStyle ||
         (isUnknownRecord(declaration) && Object.hasOwn(declaration, 'default'))) {
       throw new Error(`${where}: ${JSON.stringify(name)} has contradictory computedDefault metadata.`);
     }
   }
+}
+
+/** A source read handler pairs all defining channels before it can admit. */
+async function assertReadScenarioPair(
+  artifact: CompileArtifact, asm: AssembledModules, op: PreloadOperation,
+  callable: PreloadCallable, registry: unknown,
+): Promise<void> {
+  const module: unknown = await import(asm.moduleUrls[callable.module]!);
+  const where = `Read scenario ${JSON.stringify(op.name)}`;
+  const own = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+  const definition = own(module, 'appDefinition');
+  const declaration = own(own(definition, 'operations'), op.name);
+  const descriptor = artifact.operations?.find(candidate => candidate.name === op.name);
+  const emitted = own(registry, 'operations');
+  const emittedDescriptor = Array.isArray(emitted)
+    ? emitted.find(candidate => isUnknownRecord(candidate) && own(candidate, 'name') === op.name) : undefined;
+  const parameters = artifact.callables.find(candidate => candidate.id === op.name)?.inputStyle === 'parameters';
+  if (own(declaration, 'read') !== true || own(declaration, 'handler') !== op.name || !parameters ||
+      descriptor === undefined || JSON.stringify(emittedDescriptor) !== JSON.stringify(descriptor)) {
+    throw new Error(`${where}: checked read declaration/callable/descriptor disagreement.`);
+  }
+  const policy = readOperationPolicyEntry(registry, op.name);
+  const definingPolicy = readOperationPolicyEntry(definition, op.name);
+  if (JSON.stringify(policy) !== JSON.stringify(definingPolicy)) {
+    throw new Error(`${where}: appDefinition/canApp admission policy disagreement.`);
+  }
+  const by = own(declaration, 'by');
+  const spellings = own(policy, 'by');
+  if (by !== undefined && (!Array.isArray(spellings) || spellings.length !== 1 || spellings[0] !== by)) {
+    throw new Error(`${where}: checked by declaration/policy disagreement.`);
+  }
+  if (by === undefined && spellings !== undefined) {
+    throw new Error(`${where}: policy claims an undeclared by gate.`);
+  }
+  const declaredResult = own(declaration, 'result');
+  const declaredType = own(declaredResult, 'type');
+  const array = own(declaredResult, 'array');
+  const nullable = own(declaredResult, 'nullable');
+  if (declaredResult !== undefined && (!isUnknownRecord(declaredResult) || typeof declaredType !== 'string' ||
+      (array !== undefined && typeof array !== 'boolean') || (nullable !== undefined && typeof nullable !== 'boolean'))) {
+    throw new Error(`${where}: malformed checked result declaration.`);
+  }
+  const resultType = declaredResult === undefined ? 'void' : normalizeSchema({
+    operations: { result: { inputs: { value: {
+      type: `${declaredType}${array === true ? '[]' : ''}${nullable === true ? '?' : ''}`,
+    } } } },
+  }).operations['result']!.inputs['value']!.typeId;
+  if (descriptor.result?.type !== resultType) {
+    throw new Error(`${where}: checked result declaration/descriptor disagreement.`);
+  }
+  await assertComputedDefaultsPair(artifact, asm, op, callable);
 }
 
 /**
@@ -2310,18 +2378,21 @@ export async function loadCanonicalDescriptors(
       const callable = resolvePreloadCallable(artifact, op);
       const registry = await importPolicyRegistry(asm, callable.module, op.name);
       crudBy.set(op.name, mapCrudPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
-    } else if (op.kind === "scenario") {
+    } else if (op.kind === "scenario" ||
+        (op.kind === "read" && artifact.callables.some(candidate => candidate.id === op.name))) {
       // B7: scenarios join admission transcription (absent -> deny;
       // their leading require guards stay handler-enforced inside).
       const callable = resolvePreloadCallable(artifact, op);
-      await assertComputedDefaultsPair(artifact, asm, op, callable);
       const registry = await importPolicyRegistry(asm, callable.module, op.name);
+      if (op.kind === "read") await assertReadScenarioPair(artifact, asm, op, callable, registry);
+      else await assertComputedDefaultsPair(artifact, asm, op, callable);
       crudBy.set(op.name, mapScenarioPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
     }
   }
   const byOptions = {
     by: (op: { kind: string; name: string }) => {
-      if (op.kind === "create" || op.kind === "update" || op.kind === "delete" || op.kind === "scenario") {
+      if (op.kind === "create" || op.kind === "update" || op.kind === "delete" || op.kind === "scenario" ||
+          (op.kind === "read" && crudBy.has(op.name))) {
         const predicate = crudBy.get(op.name);
         if (predicate === undefined) {
           throw new Error(
@@ -2895,7 +2966,7 @@ async function readCallerRolesSnapshot(
  * touch keeps its history entry. The ONE fenced commit carries the
  * scenario operation identity into history + receipt.
  */
-function generatedScenarioDef(call: CanonicalSeamCall): GeneratedOperationDef | undefined {
+function generatedScenarioDef(call: Pick<CanonicalSeamCall, 'def'>): GeneratedOperationDef | undefined {
   return isUnknownRecord(call.def) && call.def["generated"] === true
     ? call.def as unknown as GeneratedOperationDef : undefined;
 }
@@ -2923,7 +2994,7 @@ function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanType
 }
 
 /** Clone admitted snapshots; decode only their loader-owned type associations. */
-function scenarioParameters(call: CanonicalSeamCall, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults: Record<string, unknown>): Record<string, unknown> {
+function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults: Record<string, unknown>): Record<string, unknown> {
   const parameters: Record<string, unknown> = Object.assign(Object.create(null), structuredClone(call.inputs));
   const def = generatedScenarioDef(call);
   for (const field of def?.descriptor.inputs ?? []) {
@@ -2949,12 +3020,50 @@ function scenarioParameters(call: CanonicalSeamCall, loaded: LoadedCanonicalDesc
   }
   return parameters;
 }
+
+/** Generated reads and mutations share the declared native-to-wire result codec. */
+function scenarioResult(call: Pick<CanonicalSeamCall, 'def'>, loaded: LoadedCanonicalDescriptors, value: unknown): unknown {
+  const resultType = generatedScenarioDef(call)?.descriptor.result?.type;
+  if (resultType === undefined) return value;
+  try {
+    if (resultType === 'void') {
+      if (value !== undefined) throw new Error('A void operation cannot return a value.');
+      return null;
+    }
+    return encodeValue(resultType, value as CanValue);
+  } catch (error) {
+    throw new loaded.producers.errors('validation', message(error));
+  }
+}
 function freezeScenarioSnapshot(value: unknown): unknown {
   if (value !== null && typeof value === "object") {
     for (const child of Object.values(value)) freezeScenarioSnapshot(child);
     Object.freeze(value);
   }
   return value;
+}
+
+function nativeRecordMetadata(row: StoredRow | ProjectedRecord): Record<string, unknown> {
+  return {
+    id: row.id, version: BigInt(row.version),
+    created: decodeValue('datetime', new Date(row.created).toISOString()),
+    updated: decodeValue('datetime', new Date(row.updated).toISOString()),
+    created_by: decodeValue('user', { id: row.createdBy }),
+    updated_by: decodeValue('user', { id: row.updatedBy }),
+    archived_at: row.archivedAt === null ? null : decodeValue('datetime', new Date(row.archivedAt).toISOString()),
+  };
+}
+
+/** Only actual projected fields enter a native read view. */
+function nativeProjectedRecord(loaded: LoadedCanonicalDescriptors, modelName: string, row: StoredRow | ProjectedRecord): Record<string, unknown> {
+  const model = loaded.models.find(candidate => candidate.name === modelName);
+  const record: Record<string, unknown> = Object.create(null);
+  for (const [field, wire] of Object.entries(row.data)) {
+    const type = model?.fields[field]?.valueType;
+    record[field] = type === undefined ? wire : decodeValue(type, wire);
+  }
+  Object.assign(record, nativeRecordMetadata(row));
+  return freezeScenarioSnapshot(record) as Record<string, unknown>;
 }
 
 /** Work stages read the merged overlay through the defining State matcher. */
@@ -3059,14 +3168,6 @@ async function runScenarioSeam(
   const views = new Map<string, Record<string, unknown>>();
   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string }>();
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
-  const nativeMetadata = (row: StoredRow | ProjectedRecord) => ({
-    id: row.id, version: BigInt(row.version),
-    created: decodeValue("datetime", new Date(row.created).toISOString()),
-    updated: decodeValue("datetime", new Date(row.updated).toISOString()),
-    created_by: decodeValue("user", { id: row.createdBy }),
-    updated_by: decodeValue("user", { id: row.updatedBy }),
-    archived_at: row.archivedAt === null ? null : decodeValue("datetime", new Date(row.archivedAt).toISOString()),
-  });
   const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
     const existing = views.get(key);
@@ -3084,7 +3185,7 @@ async function runScenarioSeam(
     });
     // Ordinary references retain admitted metadata while domain reads see
     // provisional writes; reserved post-write versions belong to staged rows.
-    Object.assign(record, nativeMetadata(row));
+    Object.assign(record, nativeRecordMetadata(row));
     Object.freeze(record);
     views.set(key, record);
     recordBindings.set(record, { model: modelName, id: row.id });
@@ -3099,7 +3200,7 @@ async function runScenarioSeam(
       const type = model?.fields[field]?.valueType;
       record[field] = type === undefined ? wire : decodeValue(type, wire);
     }
-    Object.assign(record, nativeMetadata(row));
+    Object.assign(record, nativeRecordMetadata(row));
     Object.freeze(record);
     recordBindings.set(record, { model: modelName, id: row.id });
     return record;
@@ -3486,7 +3587,7 @@ async function runScenarioSeam(
           typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
         const boundRequest: BoundCapabilityRequest = { binding: bindingKey, from, arguments: args };
         const stagedSend = await stage({
-          operationId: scope.operationId, source, occurrenceIndex: sendIndex++,
+          operationId: call.context.operationId, source, occurrenceIndex: sendIndex++,
           request: boundRequest, originOccurrence: due?.occurrenceId ?? null,
         }, {
           actor: actorUserId ?? 'anonymous', now: admittedNow, operation: scope.operation,
@@ -3532,20 +3633,7 @@ async function runScenarioSeam(
     throw new StateError("rule_failed", message);
   }
   const uniques = netStagedUniques(stagedTouches);
-  const resultType = generatedScenarioDef(call)?.descriptor.result?.type;
-  let result = outcome.value;
-  if (resultType !== undefined) {
-    try {
-      if (resultType === "void") {
-        if (result !== undefined) throw new Error("A void operation cannot return a value.");
-        result = null;
-      } else {
-        result = encodeValue(resultType, result as CanValue);
-      }
-    } catch (error) {
-      throw new StateError("validation", message(error));
-    }
-  }
+  const result = scenarioResult(call, loaded, outcome.value);
   return {
     writes: collapseStagedWrites(stagedWrites),
     history: [...stagedHistory, ...deferredEffects.flatMap((effects) => effects.history ?? [])].map((entry) => {
@@ -3659,8 +3747,10 @@ export interface CanonicalDueScheduleOpts {
 }
 
 class DueScheduleChanged extends Error {
-  constructor(readonly outcome: Exclude<import('@canlang/work/kernel/schedule-staging').DueScheduleResult, { status: 'ready' }>) {
+  readonly outcome: Exclude<import('@canlang/work/kernel/schedule-staging').DueScheduleResult, { status: 'ready' }>;
+  constructor(outcome: Exclude<import('@canlang/work/kernel/schedule-staging').DueScheduleResult, { status: 'ready' }>) {
     super('Due schedule changed before execution.');
+    this.outcome = outcome;
   }
 }
 
@@ -4330,6 +4420,9 @@ export interface CanonicalReadOpts {
   readonly identity: ResolvedIdentity;
   readonly store: StoragePort;
   readonly memberships: CanonicalMembershipReader;
+  readonly now?: () => number;
+  readonly source?: string;
+  readonly formatting?: HandlerFormattingScope;
   /**
    * Q2-D2: production observer binding for `Receipt.read` (spread
    * through to `invokeSelectedReceiptRead` — the injection leg is
@@ -4338,15 +4431,103 @@ export interface CanonicalReadOpts {
   readonly observer?: SelectedReceiptObserverBinding;
 }
 
+/** Source reads have no direct storage access and cannot stage any effect. */
+async function runReadScenarioSeam(
+  loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, call: AdmittedReadScenarioCall,
+): Promise<unknown> {
+  const StateError = loaded.producers.errors;
+  const refuse = (): never => {
+    throw new StateError('validation', 'Read scenarios cannot perform effects or bypass the viewer read port.');
+  };
+  const readonlyStore: StoragePort = {
+    readRevision: () => opts.store.readRevision(),
+    load: refuse, query: refuse, commit: refuse, readReceipt: refuse,
+    outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
+    readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse,
+    stageMigrationRows: refuse, publishMigrationChunk: refuse, flipInstalledSnapshot: refuse,
+    readMigrationOutcomes: refuse, recordMigrationFailure: refuse, discardStagedRows: refuse,
+    readMigrationFailure: refuse,
+  };
+  const reader = loaded.producers.transact.createReadInvoker({
+    registry: loaded.registry, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
+  });
+  const readModel = async (model: string, query: CanonicalReadQuery): Promise<CanonicalReadServed> => {
+    assertServableReadQuery(StateError, query);
+    if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
+    return reader({ envelope: { operation: `${model}.read`, inputs: {} }, identity: opts.identity });
+  };
+  const readings: Array<{ model: string; query: CanonicalReadQuery; projection: string }> = [];
+  const membership = call.membership?.status === 'active' ? call.membership : null;
+  const roles = membership?.roles.map(grant => grant.role) ?? [];
+  const builtinRoles = ['public', ...(call.actorUserId === null ? [] : ['authenticated']),
+    ...(membership === null ? [] : ['members']), ...(membership?.is_owner === true ? ['owner'] : [])];
+  const scope: CanonicalEffectsScope = {
+    operation: opts.operation, builtinRoles: Object.freeze(builtinRoles),
+    stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
+    observeDelivery: refuse,
+    readModel: async (model, query) => {
+      // Snapshot the same selector State actually serves; no caller getter is
+      // re-evaluated during the final authorization evidence check.
+      const selected = structuredClone(query);
+      const served = await readModel(model, selected);
+      readings.push({ model, query: selected, projection: JSON.stringify(served.records) });
+      return served.records;
+    },
+    readRecords: async (model, query) =>
+      (await scope.readModel(model, query)).map(row => nativeProjectedRecord(loaded, model, row)),
+  };
+  const actor = call.actorUserId === null ? null : opts.identity.actor;
+  const team = call.teamId === null ? null : opts.identity.team;
+  const now = (opts.now ?? Date.now)();
+  const ctx = createContext({
+    caller: { userId: call.actorUserId ?? 'anonymous', roles },
+    memberships: roles, store: readonlyStore, canonical: scope,
+    clock: () => now,
+    sendDeferred: refuse, scheduleDeferred: refuse, cancelDeferred: refuse,
+    qualified: {
+      actor: actor === null ? null : { userId: call.actorUserId!, email: actor.email, emailVerified: actor.email_verified },
+      team: team === null ? null : { teamId: call.teamId!, timezone: team.timezone },
+      now, source: opts.source ?? 'worker',
+    },
+    ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
+  });
+  const parameters = scenarioParameters(call, loaded,
+    (model, row) => nativeProjectedRecord(loaded, model, row), Object.create(null) as Record<string, unknown>);
+  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [parameters], true);
+  if (!outcome.ok) throw new StateError('rule_failed', outcome.error ?? 'The read operation was rejected.');
+  const result = scenarioResult(call, loaded, outcome.value);
+  for (const reading of readings) {
+    if (JSON.stringify((await readModel(reading.model, reading.query)).records) !== reading.projection) {
+      throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+    }
+  }
+  return result;
+}
+
 export async function invokeReadCanonical(
   opts: CanonicalReadOpts,
-): Promise<CanonicalReadServed | SelectedReceiptServed> {
+): Promise<CanonicalReadServed | SelectedReceiptServed | ReadScenarioResult> {
   assertCanonicalStore(opts.store, opts.operation);
   assertCanonicalMemberships(opts.memberships, opts.operation);
   if (opts.operation === RECEIPT_READ_OPERATION) {
     return invokeSelectedReceiptRead({ ...opts });
   }
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  if (opts.artifact.operations?.some(op => op.name === opts.operation && op.kind === 'read') &&
+      opts.artifact.callables.some(callable => callable.id === opts.operation)) {
+    if (opts.selection !== undefined) {
+      throw new loaded.producers.errors('validation', 'Read scenarios accept their declared inputs only.');
+    }
+    const createReader = loaded.producers.transact.createReadScenarioInvoker;
+    if (createReader === undefined) throw new Error('State producer has no generated read scenario invoker.');
+    const reader = createReader({
+      registry: loaded.registry, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
+    });
+    return reader({
+      envelope: { operation: opts.operation, inputs: opts.inputs }, identity: opts.identity,
+      execute: call => runReadScenarioSeam(loaded, opts, call),
+    });
+  }
   const model = readModelForOperation(opts.operation);
   if (model !== null && loaded.ruledModels.has(model)) {
     throw ruledReadRefusal(loaded.producers.errors, model);
