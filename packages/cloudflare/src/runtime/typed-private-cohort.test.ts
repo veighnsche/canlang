@@ -81,7 +81,8 @@ test('declared private cohorts freeze sibling handlers and retain checked events
         await resolveIdentity(storage.identity, { session_token: token }, { clock }));
       assert.ok('result' in result, JSON.stringify(result));
       assert.equal(result.result.status, 'committed');
-      return result.result.result as { id: string; version: number };
+      assert.equal(result.result.result, null);
+      return result.result.records![0] as { id: string; version: number };
     };
     const firstParent = await mutate('Container.create', { name: 'selected' });
     const otherParent = await mutate('Container.create', { name: 'other' });
@@ -617,8 +618,8 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const parentBResult = await ownerInvoker.invokeMutation(parentBEnvelope, await identityFor(tokenB));
     assert.ok('result' in parentAResult); assert.ok('result' in parentBResult);
     assert.equal(parentAResult.result.status, 'committed'); assert.equal(parentBResult.result.status, 'committed');
-    const parentARef = parentAResult.result.result as { id: string };
-    const parentBRef = parentBResult.result.result as { id: string };
+    const parentARef = parentAResult.result.records![0] as { id: string };
+    const parentBRef = parentBResult.result.records![0] as { id: string };
     const entryAEnvelope = { operation: `${APP}.Entry.create`, operation_id: nextId(),
       inputs: { label: 'only A record', parent: { id: parentARef.id } } };
     const entryBEnvelope = { operation: `${APP}.Entry.create`, operation_id: nextId(),
@@ -627,8 +628,8 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const createdB = await ownerInvoker.invokeMutation(entryBEnvelope, await identityFor(tokenB));
     assert.ok('result' in createdA); assert.ok('result' in createdB);
     assert.equal(createdA.result.status, 'committed'); assert.equal(createdB.result.status, 'committed');
-    const entryA = createdA.result.result as { id: string; version: number };
-    const entryB = createdB.result.result as { id: string; version: number };
+    const entryA = createdA.result.records![0] as { id: string; version: number };
+    const entryB = createdB.result.records![0] as { id: string; version: number };
     for (const [sessionToken, expectedId] of [[tokenA, entryA.id], [tokenB, entryB.id]] as const) {
       const read = await ownerInvoker.invokeRead({ operation: `${APP}.Entry.read`, inputs: {} }, await identityFor(sessionToken));
       assert.ok('result' in read);
@@ -698,7 +699,8 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const ownerReopenedRevision = await trustedA.store.readRevision();
     const ownerReplay = await ownerInvoker.invokeMutation(entryAEnvelope, await identityFor(tokenA));
     assert.ok('result' in ownerReplay); assert.equal(ownerReplay.result.status, 'replayed');
-    assert.deepEqual(ownerReplay.result.result, createdA.result.result);
+    assert.equal(ownerReplay.result.result, null);
+    assert.deepEqual(ownerReplay.result.records, createdA.result.records);
     assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical(ownerHandlerOpts())), 'replayed');
     assert.equal(outcomeStatus(await invokeDueSourceRoutingCanonical(ownerDueOpts())), 'replayed');
     assert.equal(await trustedA.store.readRevision(), ownerReopenedRevision);
@@ -775,22 +777,25 @@ test('declared private cohorts freeze sibling handlers and retain checked events
       body: JSON.stringify(emptyParentEnvelope) });
     const emptyParentResponse = await ownerMf!.dispatchFetch(emptyParentUrl, emptyParentRequest());
     assert.equal(emptyParentResponse.status, 200, await emptyParentResponse.clone().text());
-    const emptyParentResult = await emptyParentResponse.json() as { status: string; result: { id: string; version: number } };
+    const emptyParentResult = await emptyParentResponse.json() as { status: string; result: null; records: Array<{ id: string; version: number }> };
     assert.equal(emptyParentResult.status, 'committed');
-    assert.equal(await trustedA.store.load(asModel(`${APP}.Container`), asId(emptyParentResult.result.id)), null);
+    assert.equal(emptyParentResult.result, null);
+    const emptyParent = emptyParentResult.records[0]!;
+    assert.equal(await trustedA.store.load(asModel(`${APP}.Container`), asId(emptyParent.id)), null);
     // The caller can discard the committed HTTP response and retry the same
     // genuine envelope; neither business writes nor history may repeat.
     const beforeHttpReplay = await trustedB.store.readRevision();
     const replayHttp = await ownerMf!.dispatchFetch(emptyParentUrl, emptyParentRequest());
     assert.equal(replayHttp.status, 200);
-    const replayHttpBody = await replayHttp.json() as { status: string; result: unknown };
-    assert.equal(replayHttpBody.status, 'replayed'); assert.deepEqual(replayHttpBody.result, emptyParentResult.result);
+    const replayHttpBody = await replayHttp.json() as { status: string; result: null; records: unknown[] };
+    assert.equal(replayHttpBody.status, 'replayed'); assert.equal(replayHttpBody.result, null);
+    assert.deepEqual(replayHttpBody.records, emptyParentResult.records);
     assert.equal(await trustedB.store.readRevision(), beforeHttpReplay);
     const zeroAt = Date.now();
     const zeroOccurrence = uuidv7(zeroAt, ++sequence);
     await registry.run('work.schedule.put', { key: zeroOccurrence, scope: scopeB, occurrenceId: zeroOccurrence,
       event: `${APP}.Scoped`, at: zeroAt,
-      payload: { container: { id: emptyParentResult.result.id, version: String(emptyParentResult.result.version) },
+      payload: { container: { id: emptyParent.id, version: String(emptyParent.version) },
         marker: 'zero-member source' } },
     { actor: ownerUser.user_id, operation: 'work.schedule.put', operationId: uuidv7(Date.now(), ++sequence), now: zeroAt },
     { store: trustedB.store });

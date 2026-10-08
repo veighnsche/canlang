@@ -144,7 +144,7 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
       files: createCanonicalFileBinding(createFileJourneyKernel(bindings)) });
     let invoker = invokerFor();
     const envelope = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({ operation: `${APP}.${operation}`, operation_id: nextId(), inputs });
-    const created = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).result as { id: string };
+    const created = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).records![0] as { id: string };
     let jobVersion = 1;
     const requests: MutationEnvelope[] = [];
     const enqueue = async () => {

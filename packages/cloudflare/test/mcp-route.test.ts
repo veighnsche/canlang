@@ -485,13 +485,14 @@ describe("worker POST /mcp", () => {
     const payload = JSON.parse(result.content[0]?.text ?? "null") as {
       status: string;
       operation_id: string;
-      result: { id: string; version: number; data: Record<string, unknown> };
+      result: null; records: Array<{ id: string; version: number; data: Record<string, unknown> }>;
     };
     expect(payload.status).toBe("committed");
+    expect(payload.result).toBeNull();
     expect(payload.operation_id).toBe(operationId);
-    expect(payload.result.id).toBe(operationId);
-    expect(payload.result.version).toBe(1);
-    expect(payload.result.data).toEqual({ title: "buy milk" });
+    expect(payload.records[0]!.id).toBe(operationId);
+    expect(payload.records[0]!.version).toBe(1);
+    expect(payload.records[0]!.data).toEqual({ title: "buy milk" });
     expect(
       await store.query({ model: "acme.Todo" as ModelName, authority: "owner" }),
     ).toHaveLength(1);
@@ -519,10 +520,11 @@ describe("worker POST /mcp", () => {
     const mcpPayload = JSON.parse(mcpResult.content[0]?.text ?? "null") as {
       status: string;
       operation_id: string;
-      result: { id: string; data: Record<string, unknown> };
+      result: null; records: Array<{ id: string; data: Record<string, unknown> }>;
     };
     expect(mcpPayload.status).toBe("committed");
-    expect(mcpPayload.result.id).toBe(mcpOperationId);
+    expect(mcpPayload.result).toBeNull();
+    expect(mcpPayload.records[0]!.id).toBe(mcpOperationId);
 
     // Direct invocation through the same bridge `HttpDeps` will consume
     // at the HTTP join: same artifact + store, same resolved grant
@@ -542,10 +544,11 @@ describe("worker POST /mcp", () => {
       throw new Error(`want result, got ${JSON.stringify(direct)}`);
     }
     expect(direct.result.status).toBe("committed");
-    const directRow = direct.result.result as { id: string; data: Record<string, unknown> };
+    expect(direct.result.result).toBeNull();
+    const directRow = direct.result.records![0] as { id: string; data: Record<string, unknown> };
     expect(directRow.id).toBe(httpOperationId);
     expect(directRow.data).toEqual({ title: "parity" });
-    expect(mcpPayload.result.data).toEqual(directRow.data);
+    expect(mcpPayload.records[0]!.data).toEqual(directRow.data);
   });
 
   it("401s without a grant and on a bogus token", async () => {
@@ -661,9 +664,10 @@ describe("worker POST /mcp", () => {
     expect(good.body.error).toBeUndefined();
     const committed = JSON.parse(
       ((good.body.result as ToolResultBody).content[0]?.text ?? "null") as string,
-    ) as { status: string; result: { data: Record<string, unknown> } };
+    ) as { status: string; result: null; records: Array<{ data: Record<string, unknown> }> };
     expect(committed.status).toBe("committed");
-    expect(committed.result.data).toEqual({ title: "x", priority: "high" });
+    expect(committed.result).toBeNull();
+    expect(committed.records[0]!.data).toEqual({ title: "x", priority: "high" });
 
     const legacy = await assembleMcpWorker({ ops, permissions: allowAllPermissions(), canonical: true });
     const unbound = await mcpCall(
@@ -843,16 +847,17 @@ describe("genuine compiled MCP operations through native Worker and D1", () => {
       const createResult = created.body.result as ToolResultBody;
       expect(createResult.isError).toBeUndefined();
       const born = JSON.parse(createResult.content[0]!.text) as {
-        status: string; result: { id: string; version: number; data: Record<string, unknown> };
+        status: string; result: null; records: Array<{ id: string; version: number; data: Record<string, unknown> }>;
       };
       expect(born.status).toBe("committed");
-      expect(born.result.version).toBe(1);
-      expect(born.result.data).toEqual({ label: "From MCP", count: "1", owner: { id: user.user_id } });
+      expect(born.result).toBeNull();
+      expect(born.records[0]!.version).toBe(1);
+      expect(born.records[0]!.data).toEqual({ label: "From MCP", count: "1", owner: { id: user.user_id } });
       const receipt = await deps.store.readReceipt({ app: "TypedOperationForms", owner: team.team_id,
         principal: user.user_id, operation: createTool.name, operationId });
       expect(receipt.resolvedDefaults).toEqual({ count: "1", owner: { id: user.user_id } });
       const renamed = await mcpCall(nativeFetch, "tools/call", { name: renameTool.name,
-        arguments: { operation_id: freshOperationId(), entry: { id: born.result.id, version: "1" }, newLabel: "Renamed MCP" },
+        arguments: { operation_id: freshOperationId(), entry: { id: born.records[0]!.id, version: "1" }, newLabel: "Renamed MCP" },
       }, { grant });
       expect(renamed.status).toBe(200); expect(renamed.body.error).toBeUndefined();
       const renameResult = renamed.body.result as ToolResultBody;
@@ -863,14 +868,14 @@ describe("genuine compiled MCP operations through native Worker and D1", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0].version).toBe(2);
       expect(rows[0].data).toEqual({ label: "Renamed MCP", count: "2", owner: { id: user.user_id } });
-      const history = await deps.store.historyFor(model, born.result.id);
+      const history = await deps.store.historyFor(model, born.records[0]!.id);
       const revision = await deps.store.readRevision();
       const replayed = await mcpCall(nativeFetch, "tools/call", { name: createTool.name,
         arguments: createArguments }, { grant });
       expect(replayed.status).toBe(200); expect(replayed.body.error).toBeUndefined();
       const replayResult = replayed.body.result as ToolResultBody;
       expect(replayResult.isError).toBeUndefined();
-      expect(JSON.parse(replayResult.content[0]!.text)).toMatchObject({ status: "replayed", result: born.result });
+      expect(JSON.parse(replayResult.content[0]!.text)).toMatchObject({ status: "replayed", result: null, records: born.records });
       const invalid = await mcpCall(nativeFetch, "tools/call", { name: createTool.name,
         arguments: { operation_id: freshOperationId(), label: "Invalid", count: "1.5" } }, { grant });
       expect(invalid.status).toBe(200);
@@ -878,7 +883,7 @@ describe("genuine compiled MCP operations through native Worker and D1", () => {
       expect(invalid.body.error?.message).toContain('Invalid value for input "count"');
       expect(await deps.store.readRevision()).toBe(revision);
       expect(await deps.store.query({ model, authority: "owner" })).toEqual(rows);
-      expect(await deps.store.historyFor(model, born.result.id)).toEqual(history);
+      expect(await deps.store.historyFor(model, born.records[0]!.id)).toEqual(history);
       expect(await deps.store.outboxPending()).toEqual([]);
       expect(await deps.store.schedulesDue(Date.now(), 100)).toEqual([]);
       await deps.identityStore.removeMembership(membership.membership_id);
@@ -888,7 +893,7 @@ describe("genuine compiled MCP operations through native Worker and D1", () => {
       expect(revoked.body).toMatchObject({ error: { code: "forbidden" } });
       expect(await deps.store.readRevision()).toBe(revision);
       expect(await deps.store.query({ model, authority: "owner" })).toEqual(rows);
-      expect(await deps.store.historyFor(model, born.result.id)).toEqual(history);
+      expect(await deps.store.historyFor(model, born.records[0]!.id)).toEqual(history);
     } finally { await worker.dispose(); }
   }, 60_000);
 });
