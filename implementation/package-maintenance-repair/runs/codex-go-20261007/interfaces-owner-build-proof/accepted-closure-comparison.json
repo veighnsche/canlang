@@ -1,0 +1,52 @@
+{
+  "http/assets.js": {
+    "owner": "063bb3a203d5fba001cede801c7a823349ee552921e28c2b8e3496d0b0c55515",
+    "prior": "063bb3a203d5fba001cede801c7a823349ee552921e28c2b8e3496d0b0c55515",
+    "same": true
+  },
+  "http/assets.d.ts": {
+    "owner": "573044b84e6cb1a9f43c7b58c5dd028e83ba2ef403f3069dfcb2b6277407f672",
+    "prior": "573044b84e6cb1a9f43c7b58c5dd028e83ba2ef403f3069dfcb2b6277407f672",
+    "same": true
+  },
+  "http/context.js": {
+    "owner": "dc31e991cfedf39682496e643d0f5da0d084c67cf4e0b8a387731ea4262e77a5",
+    "prior": "dc31e991cfedf39682496e643d0f5da0d084c67cf4e0b8a387731ea4262e77a5",
+    "same": true
+  },
+  "http/context.d.ts": {
+    "owner": "0fe7823c92d52e8827bd4ca1b1ca30d8ad99ae6bade35dd09a0e9078d35015c8",
+    "prior": "0fe7823c92d52e8827bd4ca1b1ca30d8ad99ae6bade35dd09a0e9078d35015c8",
+    "same": true
+  },
+  "errors/envelope.js": {
+    "owner": "d3706a614e435dd49196d3f35fb1ddb4baf70b58b58733bc40bd0ef2a8a89d73",
+    "prior": "d3706a614e435dd49196d3f35fb1ddb4baf70b58b58733bc40bd0ef2a8a89d73",
+    "same": true
+  },
+  "errors/envelope.d.ts": {
+    "owner": "bf870873e0ff278a7d554a27945a677e0995f0f05c793f5d74158dfc861bad37",
+    "prior": "bf870873e0ff278a7d554a27945a677e0995f0f05c793f5d74158dfc861bad37",
+    "same": true
+  },
+  "errors/safe.js": {
+    "owner": "64d15bcaa0d6a9d541f0d621ad2d5d2caa2bbdabb7c159318049228cec58273d",
+    "prior": "64d15bcaa0d6a9d541f0d621ad2d5d2caa2bbdabb7c159318049228cec58273d",
+    "same": true
+  },
+  "errors/safe.d.ts": {
+    "owner": "d380483dae2fdff13b866f335ba99d3685f240daa7b6ab5ca64cbb7cfae4dac0",
+    "prior": "d380483dae2fdff13b866f335ba99d3685f240daa7b6ab5ca64cbb7cfae4dac0",
+    "same": true
+  },
+  "ports.js": {
+    "owner": "89ed271201eea986a918ecf0f09a4257ea8d513cb036e89a264e7e513b19444a",
+    "prior": "89ed271201eea986a918ecf0f09a4257ea8d513cb036e89a264e7e513b19444a",
+    "same": true
+  },
+  "ports.d.ts": {
+    "owner": "25577db9ecb6fb9235e1b3bb185c1f999c885998b4d9accd35c5f64cbf51a1fb",
+    "prior": "25577db9ecb6fb9235e1b3bb185c1f999c885998b4d9accd35c5f64cbf51a1fb",
+    "same": true
+  }
+}

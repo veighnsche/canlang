@@ -1,0 +1,158 @@
+{
+  "status": "root_released_finite_static_mount_contract_not_implementation_acceptance",
+  "captured_utc": "2026-10-07T23:58:40.997843+00:00",
+  "task_ids": [
+    "DEL-B02",
+    "DEL-R01"
+  ],
+  "existing_requirement": "Shared version-pinned browser support derives from selected owning pages/app composition; no new asset/source syntax.",
+  "routing": {
+    "selected": "canonical_finite_exact_routes_with_collision_refusal",
+    "paths": [
+      "/assets/browser/bootstrap.js",
+      "/assets/browser/polling.js",
+      "/assets/browser/can-style.css"
+    ],
+    "method": "Real request URL.pathname equals a selected canonical path; query ignored. Known routes use defining existing handler GET/HEAD/ordinary200 conditional behavior. Other paths retain normal authored dispatch; no blanket/assets reservation or new percent alias mount. Direct helper existing decoded-key protocol remains unchanged.",
+    "collisions": "Refuse selected authored exact page or applicable existing dynamic pattern intersecting one of the three canonical routes, before serving any selected table. Reuse defining existing route matcher/owner rather than another parser. Unrelated authored/assets paths remain valid.",
+    "new_observable_policy": true
+  },
+  "caching": {
+    "selected": "existing_shape_public_max_age_zero_immutable_false",
+    "reason": "Fixed filenames have no versioned URL authority or approved stale-client compatibility interval; choose zero positive freshness and no new header/validator interface. Ordinary conditional GET stays200.",
+    "limits": "No must-revalidate/ETag/304, whole-cache memory, network failure stale handling, browser reload or immutable freshness claim; later positive interval needs actual replacement/upgrade acceptance."
+  },
+  "jev": {
+    "authority": "Repository preauthorized three equivalent material-question requests; distinct abstract payload without source excerpts or blocked timezone data.",
+    "endpoint": "https://api.typesafe.ai/v1/systemone",
+    "calls": [
+      {
+        "index": 1,
+        "request_sha256": "89dca6a4b6a9d2f435e9dd2efefa424faf367ae1b07723f105aebba16ae21fb0",
+        "response_sha256": "5785f65237b07ef32c0c75881b3595c85c2e1a1e14589924db78100205196ac8",
+        "model": "jev-1.13.0",
+        "answers": {
+          "routing": {
+            "type": "choice",
+            "choice": "exact_refuse",
+            "confidence": 0.73,
+            "probabilities": {
+              "exact_refuse": 0.82,
+              "page_first": 0.17,
+              "new_path": 0.01
+            }
+          },
+          "caching": {
+            "type": "choice",
+            "choice": "bounded_freshness",
+            "confidence": 0.37,
+            "probabilities": {
+              "versioned_immutable": 0.01,
+              "revalidate": 0.4,
+              "no_store": 0.06,
+              "bounded_freshness": 0.53
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1487,
+          "output_tokens": 103
+        },
+        "handle_released": true
+      },
+      {
+        "index": 2,
+        "request_sha256": "0014bd6168e42d97a46cc999cef33481db36af453fb48b06027c8a603d897c8a",
+        "response_sha256": "df20826b380dacb4065ddb15f173b80b8e1497c1f78f8700515ef5f4f8e0d2c2",
+        "model": "jev-1.13.0",
+        "answers": {
+          "routing": {
+            "type": "choice",
+            "choice": "exact_refuse",
+            "confidence": 0.83,
+            "probabilities": {
+              "new_path": 0.01,
+              "page_first": 0.1,
+              "exact_refuse": 0.89
+            }
+          },
+          "caching": {
+            "type": "choice",
+            "choice": "bounded_freshness",
+            "confidence": 0.52,
+            "probabilities": {
+              "revalidate": 0.29,
+              "bounded_freshness": 0.64,
+              "versioned_immutable": 0.01,
+              "no_store": 0.06
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1503,
+          "output_tokens": 103
+        },
+        "handle_released": true
+      },
+      {
+        "index": 3,
+        "request_sha256": "306f455fe48b07a9151d99adbd16ab1dd9cc33e72bbcf325126adb336ed7cc5c",
+        "response_sha256": "14b8f58aebd514d9f9269211019e35f97235ecc360bec8fce17e4ffd7004dc74",
+        "model": "jev-1.13.0",
+        "answers": {
+          "routing": {
+            "type": "choice",
+            "choice": "exact_refuse",
+            "confidence": 0.85,
+            "probabilities": {
+              "new_path": 0.01,
+              "exact_refuse": 0.9,
+              "page_first": 0.09
+            }
+          },
+          "caching": {
+            "type": "choice",
+            "choice": "bounded_freshness",
+            "confidence": 0.69,
+            "probabilities": {
+              "revalidate": 0.14,
+              "bounded_freshness": 0.77,
+              "no_store": 0.08,
+              "versioned_immutable": 0.01
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1501,
+          "output_tokens": 103
+        },
+        "handle_released": true
+      }
+    ],
+    "routing_advice": "All3 preferexact_refuse",
+    "cache_advice": "All3 choosebounded_freshness; confidence0.37/0.52/0.69, first probability0.53 versusrevalidate0.40; no rationale or safe interval supplied.",
+    "disposition": "Preserve fair alternatives. Refusing collisions follows real browser requirement and no-shadow rule. Cache advice does not settle interval/current-client compatibility; choose the existing zero-freshness shape, not an invented60s or immutable contract. No repeat consultation without material new question."
+  },
+  "source_producer_input": "implementation/capability-roadmap-20261008/selected-page-refresh/packet.json; all39 evidence and93 consumed pins verified plus different-author receipt24c7e874\u2026, current-source producer does NOT establish current runtime/auth/browser.",
+  "owner_inputs": "Source-current realInterfaces unmodified private owner recipe now passes with test-only ArrayBuffer assertion; actual UIbrowser producer still required, not stale dist.",
+  "owned_files": {
+    "packages/cloudflare/src/deploy/bundle.ts": "8ccf7b1178df87cdb02c1312bf4e2314680697034b5391fdad6a062ed80a7f85",
+    "packages/cloudflare/src/worker/main.ts": "4a701c54ffa724e047a12407a19068223e571213a0c874e96e5dd32ce8f944a1",
+    "packages/cloudflare/src/worker/assembly.ts": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11"
+  },
+  "new_test_paths": [
+    "packages/cloudflare/test/browser-assets-serving.test.ts",
+    "packages/cloudflare/test/browser-assets-bundle.test.ts"
+  ],
+  "writer_activation": "Exact per-file ACK before writes; bundleplannedreview/source read released aftercommit788e5352. Context/invoke/stdlib/State/compiler are foreign and excluded.",
+  "phase": "First define actual selected resource transport in production staged/main path and full owning source/output correspondence; code only after finite generated ABI/test/owned paths ACK. No prototype injected-only mount as acceptance.",
+  "acceptance": "Real generated selected Worker artifact/modules+current bytes through defaultmain/workerd with real declaredbinding fixtures, active/inactive/missingbinding/corruptselected/unselected/collision/query/GET/HEAD/conditional200 controls; use existing Interfaces owning helper.",
+  "scope_limits": [
+    "No broad fullpage/poll/browser/export/print closure fromstaticGET",
+    "No actor/security/Values provenance authority",
+    "No nativepreparation/release onhumanHOLD",
+    "No deployment/publication/backend default/TS retirement",
+    "No invented generalized asset vocabulary/adapter framework"
+  ],
+  "accounting": "New required serving capability has a separate correctness/growth budget; disclose source/decl/module/dependency/lifecycle/generated-output deltas, no replacement savings."
+}
