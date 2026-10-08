@@ -24,8 +24,8 @@ use serde_json::{json, Value};
 
 use crate::input::{Budgets, Frame, InputArena, TransportNode};
 use crate::plans::{
-    ContractInput, EnumInput, FieldInput, Meta, OperationInput, OwnerToken, PlanError, Plans,
-    Provenance, SchemaInput, TypeBase,
+    ContractInput, EnumInput, FieldInput, Meta, OperationInput, OwnerToken, PlanCode, PlanError,
+    Plans, Provenance, SchemaInput, TypeBase,
 };
 
 /// Structural scaffold ABI version. Requests must carry `"v": 1`.
@@ -332,6 +332,21 @@ fn parse_base(value: &Value) -> Result<TypeBase, Value> {
 }
 
 fn parse_field(value: &Value) -> Result<FieldInput, Value> {
+    if [
+        "format",
+        "distinctBy",
+        "distinct_by",
+        "excludedIds",
+        "excluded_ids",
+    ]
+    .iter()
+    .any(|key| value.get(*key).is_some())
+    {
+        return Err(plan_err(&PlanError {
+            code: PlanCode::MalformedSchema,
+            message: "NAME and keyed-array constraints are outside the native profile".to_string(),
+        }));
+    }
     let flag =
         |key: &str| Ok::<bool, Value>(value.get(key).and_then(Value::as_bool).unwrap_or(false));
     Ok(FieldInput {
@@ -362,6 +377,12 @@ fn parse_field(value: &Value) -> Result<FieldInput, Value> {
 }
 
 fn parse_schema(value: &Value) -> Result<SchemaInput, Value> {
+    if value.get("aliases").is_some() {
+        return Err(plan_err(&PlanError {
+            code: PlanCode::MalformedSchema,
+            message: "text aliases are outside the native profile".to_string(),
+        }));
+    }
     let tag = value
         .get("t")
         .and_then(Value::as_str)
