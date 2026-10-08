@@ -785,3 +785,14 @@ while awaiting package closure. The explicit release justified the final
 same-case repeat. No production/runtime/compiler/reference-policy or shared
 identity-map change was made. No S9-Q02/full-task, BDD3 policy or new-packet
 credit follows; original completion remains **58/67**, with **9 open**.
+
+The bounded app-local `view`/`show` producer passes the genuine
+[`local_views_bind_rows_once_and_keep_native_occurrences_distinct`](../../compiler/tests/view_reuse.rs)
+case **1/1** (0.59s). Checked local row binding expands declaration-owned
+presentation through installed UI factories. Two uses retain distinct controls,
+source locale, nested row shadowing and original authorized query projections.
+The first native run **0/1** (0.61s) exposed an omitted contained collection
+model; the producer now reuses its checked child/parent domain classification.
+Only that affected case was repeated. The actual CanBook action-bearing table
+contract and per-use prepared forms still need their owning payload/identity
+profiles, so original52 and full CanBook remain open. Completion stays **58/67**.

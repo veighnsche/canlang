@@ -1555,6 +1555,8 @@ pub struct IrMessageParam {
 /// browser business-state stores.
 #[derive(Debug, Clone)]
 pub struct IrUi {
+    /// Checked source-only view expansion; no public factory is emitted.
+    pub view: Option<IrViewUse>,
     /// Factory name (`card`, `text`, `table`, `list`, `form`, ...).
     pub factory: String,
     /// Props in source order.
@@ -1569,6 +1571,14 @@ pub struct IrUi {
     pub gate: Option<TypedExpr>,
     /// Source span.
     pub span: Span,
+}
+
+/// A checked app-local presentation use. Its row argument is evaluated once;
+/// descendants retain declaration ownership while identities include this use.
+#[derive(Debug, Clone)]
+pub struct IrViewUse {
+    pub argument: TypedExpr,
+    pub identity: String,
 }
 
 /// One page → named page function plus page descriptor
@@ -6720,6 +6730,7 @@ impl<'a> Cx<'a> {
     ) -> Option<IrUi> {
         let word = ui_word(self.db, node);
         match node.kind {
+            SyntaxKind::Show => self.decode_view_use(scope, node),
             SyntaxKind::Card => {
                 self.check_ui_attributes(node, "card", &["layout"]);
                 let mut props = Vec::new();
@@ -6749,6 +6760,7 @@ impl<'a> Cx<'a> {
                     }
                 }
                 Some(IrUi {
+                    view: None,
                     factory: "card".to_string(),
                     props,
                     children: self.decode_ui_children(scope, node, row_ctx),
@@ -6793,6 +6805,7 @@ impl<'a> Cx<'a> {
                     ));
                 }
                 Some(IrUi {
+                    view: None,
                     factory: "collapse".to_string(),
                     props,
                     children,
@@ -6854,6 +6867,7 @@ impl<'a> Cx<'a> {
                     .collect();
                 let gate = self.decode_gate(scope, node);
                 Some(IrUi {
+                    view: None,
                     factory: "tabs".to_string(),
                     props,
                     children,
@@ -6990,6 +7004,7 @@ impl<'a> Cx<'a> {
                 )
             });
         IrUi {
+            view: None,
             factory: "tabItem".to_string(),
             props: vec![
                 (
@@ -7099,6 +7114,74 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// Expand only the checked local declaration in its owning module scope.
+    /// Caller aliases and page bindings are never captured by the definition.
+    fn decode_view_use(&mut self, scope: &Scope, node: &SyntaxNode) -> Option<IrUi> {
+        let key = NodeKey::of(node);
+        let Some(definition) = self.program.types.view_uses.get(&key).copied() else {
+            self.gap(
+                "show has no checked local view binding".to_string(),
+                node.span,
+            );
+            return None;
+        };
+        let Some(model) = self.program.types.view_models.get(&definition).copied() else {
+            self.gap(
+                "view has no checked stored-model row".to_string(),
+                node.span,
+            );
+            return None;
+        };
+        let declaration = self.node(&definition)?.clone();
+        if let Some(form) = declaration
+            .descendants()
+            .find(|n| matches!(n.kind, SyntaxKind::Form | SyntaxKind::Edit))
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower view form: per-use pending-edit identity has no owning preparer profile".to_string(),
+                form.span,
+            ));
+            return None;
+        }
+        let object = kids(node)
+            .into_iter()
+            .find(|n| n.kind == SyntaxKind::Object)?;
+        let entry = kids(object)
+            .into_iter()
+            .find(|n| n.kind == SyntaxKind::ObjectEntry)?;
+        let value = kids(entry).into_iter().find(|n| is_expression(n.kind))?;
+        let argument = self.decode_expr(scope, value);
+        // The checked link is same-module; model ownership may be imported.
+        let mut owned = Scope::module(scope.module);
+        owned.name_types.insert(
+            "row".to_string(),
+            ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            },
+        );
+        let children =
+            self.decode_ui_children(&owned, &declaration, Some((model, "row".to_string())));
+        // A definition-level require gates its whole expansion using the bound row.
+        let gate = self.decode_gate(&owned, &declaration);
+        Some(IrUi {
+            view: Some(IrViewUse {
+                argument,
+                identity: format!(
+                    "can-view-m{}-f{}-s{}",
+                    scope.module.0, node.span.file.0, node.span.start
+                ),
+            }),
+            factory: String::new(),
+            props: Vec::new(),
+            children,
+            row_scope: None,
+            gate,
+            span: node.span,
+        })
+    }
+
     /// Decode a field-placement control (`input`/`textarea`): the header
     /// selector names an existing writable input of the nearest owning
     /// form, so it lowers to a `field` selector string, never a value.
@@ -7177,6 +7260,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: word.to_string(),
             props,
             children,
@@ -7227,6 +7311,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "fieldset".to_string(),
             props,
             children,
@@ -7288,6 +7373,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "fab".to_string(),
             props,
             children,
@@ -7376,6 +7462,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "chatBubble".to_string(),
             props,
             children,
@@ -7442,6 +7529,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "button".to_string(),
             props,
             children,
@@ -7536,6 +7624,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: word.to_string(),
             props,
             children,
@@ -7579,6 +7668,7 @@ impl<'a> Cx<'a> {
         }
         let children = self.decode_ui_children(scope, node, row_ctx);
         IrUi {
+            view: None,
             factory: "slot".to_string(),
             props,
             children,
@@ -7617,6 +7707,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "divider".to_string(),
             props,
             children,
@@ -7664,6 +7755,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "badge".to_string(),
             props,
             children,
@@ -7711,6 +7803,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "breadcrumbs".to_string(),
             props,
             children,
@@ -7759,6 +7852,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "pagination".to_string(),
             props,
             children,
@@ -7793,6 +7887,7 @@ impl<'a> Cx<'a> {
             }
         }
         IrUi {
+            view: None,
             factory: "stat".to_string(),
             props,
             children,
@@ -7845,6 +7940,7 @@ impl<'a> Cx<'a> {
             }
         }
         IrUi {
+            view: None,
             factory: "alert".to_string(),
             props,
             children,
@@ -7880,6 +7976,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "join".to_string(),
             props,
             children,
@@ -8019,6 +8116,7 @@ impl<'a> Cx<'a> {
         let children = self.decode_ui_children(&owned, node, row_ctx);
         let gate = self.decode_gate(scope, node);
         Some(IrUi {
+            view: None,
             factory: "form".to_string(),
             props,
             children,
@@ -8256,14 +8354,36 @@ impl<'a> Cx<'a> {
             .or_else(|| {
                 kids(node)
                     .iter()
-                    .find(|n| matches!(n.kind, SyntaxKind::NameRef | SyntaxKind::Path))
+                    .find(|n| is_expression(n.kind) || n.kind == SyntaxKind::Path)
                     .copied()
             });
-        let mut model_id = None;
-        if let Some(head) = head
-            && let Some(id) = self.collection_head_model(scope.module, head)
-        {
-            model_id = Some(id);
+        let containment = head.and_then(|head| self.contained_collection_head(head));
+        let model_id = head
+            .and_then(|head| self.collection_head_model(scope.module, head))
+            .or(containment.map(|(child, _)| child));
+        if let Some((_, parent)) = containment {
+            if ui_attributes(self.db, node)
+                .iter()
+                .any(|(name, _)| name == "parent")
+            {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "contained collection already owns its parent binding".to_string(),
+                    node.span,
+                ));
+                return None;
+            }
+            props.push(("parent".to_string(), self.decode_expr(scope, parent)));
+        }
+        let Some(id) = model_id else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "collection domain must be a checked stored model or contained child".to_string(),
+                head.map(|head| head.span).unwrap_or(node.span),
+            ));
+            return None;
+        };
+        if let Some(head) = head {
             props.push((
                 "model".to_string(),
                 TypedExpr::new(
@@ -8460,6 +8580,7 @@ impl<'a> Cx<'a> {
             .collect();
         let gate = self.decode_gate(scope, node);
         Some(IrUi {
+            view: None,
             factory: word.to_string(),
             props,
             children,
@@ -8492,6 +8613,7 @@ impl<'a> Cx<'a> {
                 node.span,
             ));
             return IrUi {
+                view: None,
                 factory: "deleteRecord".to_string(),
                 props,
                 children: Vec::new(),
@@ -8516,6 +8638,7 @@ impl<'a> Cx<'a> {
                 node.span,
             ));
             return IrUi {
+                view: None,
                 factory: "deleteRecord".to_string(),
                 props,
                 children: Vec::new(),
@@ -8571,6 +8694,7 @@ impl<'a> Cx<'a> {
             text(format!("delete-{}", model_canonical.replace('.', "-"))),
         ));
         IrUi {
+            view: None,
             factory: "deleteRecord".to_string(),
             props,
             children: Vec::new(),
@@ -8713,6 +8837,7 @@ impl<'a> Cx<'a> {
         let children = self.decode_ui_children(scope, node, row_ctx);
         let gate = self.decode_gate(scope, node);
         Some(IrUi {
+            view: None,
             factory: word.to_string(),
             props,
             children,
@@ -8727,7 +8852,8 @@ impl<'a> Cx<'a> {
 fn is_ui_node(kind: SyntaxKind) -> bool {
     matches!(
         kind,
-        SyntaxKind::Card
+        SyntaxKind::Show
+            | SyntaxKind::Card
             | SyntaxKind::Details
             | SyntaxKind::Tabs
             | SyntaxKind::Tab
