@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact, MutationEnvelope } from '@canlang/contracts';
+import type { MutationEnvelope } from '@canlang/contracts';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import {
@@ -13,6 +13,7 @@ import {
   makeIdentity, seedMember, uuidv7,
 } from '@canlang/state/testing/invocation/fixtures';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
+import { loadArtifactFile } from '@canlang/cloudflare/runtime/artifact';
 import { buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 
 const APP = 'TypedCalendarDurations';
@@ -35,7 +36,7 @@ function rejected(outcome: MutationOutcome, code?: string) {
 
 test('compiled calendar dates and durations preserve native arithmetic, wire values and rollback', async () => {
   const path = resolve('packages/cloudflare/test/fixtures/typed-calendar-durations.json');
-  const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
+  const { artifact } = loadArtifactFile(path);
   for (const [name, type] of [['advance', 'date'], ['elapsed', 'duration'], ['days', 'date[]'],
     ['durations', 'duration[]'], ['maybeDay', 'date?'], ['maybeElapsed', 'duration?'],
     ['maybeDays', 'date[]?'], ['maybeDurations', 'duration[]?']]) {
@@ -135,7 +136,7 @@ async function openD1(dir: string) {
 
 test('compiled calendar date and duration D1 lifecycle persists values, rollback and reopened replay', async () => {
   const path = resolve('packages/cloudflare/test/fixtures/typed-calendar-durations.json');
-  const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
+  const { artifact } = loadArtifactFile(path);
   const dir = await mkdtemp(join(tmpdir(), 'can-calendar-durations-d1-'));
   let d1: Awaited<ReturnType<typeof openD1>> | undefined;
   // Membership/identity are fixtures; persisted rows, history and receipts use actual D1 State.
