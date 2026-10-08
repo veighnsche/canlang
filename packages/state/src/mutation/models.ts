@@ -91,7 +91,7 @@ export type InterimServerInit = 'actor' | 'now' | 'random_secret';
  * fixtures omit it).
  */
 export interface InterimFieldDef {
-  /** Retained checked association only; the pipeline does not convert values. */
+  /** Checked association for the pipeline's optional runtime conversion checkpoint. */
   readonly valueType?: CanTypeId;
   readonly machine?: FieldMachine;
   readonly required: boolean;
