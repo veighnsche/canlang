@@ -17,6 +17,7 @@ import {
   STD_TEXT_GENERATION_V1_CONTRACT,
   deliveryResultLeaves,
 } from '@canlang/contracts';
+import type { NormalizedField } from '@canlang/values';
 import type {
   ArtifactOperation,
   BusinessError,
@@ -139,7 +140,7 @@ function nominalSchema(name: string, inventory: CanonicalValueTypes): Record<str
   const { valueSchema } = normalizeValueTypes(inventory);
   const definitions: Record<string, unknown> = Object.create(null);
   const visited = new Set<string>();
-  const shape = (parsed: ReturnType<typeof parseTypeId>, type: string): Record<string, unknown> => {
+  const shape = (parsed: ReturnType<typeof parseTypeId>, type: string, descriptor?: NormalizedField): Record<string, unknown> => {
     const base = parsed.base;
     let element: Record<string, unknown>;
     if (base.kind === 'nominal') {
@@ -155,7 +156,20 @@ function nominalSchema(name: string, inventory: CanonicalValueTypes): Record<str
     else if (base.kind === 'user' || base.kind === 'file') element = fieldSchema({ kind: base.kind });
     else if (base.kind === 'enum') element = { type: 'string', enum: [...base.cases] };
     else failDescriptor('malformed_descriptor', `Unsupported nominal schema type ${JSON.stringify(type)}.`);
-    const array = parsed.array ? { type: 'array', items: element } : element;
+    let array: Record<string, unknown> = parsed.array ? { type: 'array', items: element } : element;
+    if (descriptor !== undefined) {
+      const min = parsed.array ? 'minItems' : 'minLength';
+      const max = parsed.array ? 'maxItems' : 'maxLength';
+      if (descriptor.lengthMin !== undefined) array[min] = descriptor.lengthMin;
+      if (descriptor.lengthMax !== undefined) array[max] = descriptor.lengthMax;
+      if (descriptor.format === 'name') array['pattern'] = '^[A-Za-z_][A-Za-z0-9_]*$';
+      if (descriptor.distinctBy === 'id') {
+        array['description'] = 'Each item must have a distinct id.';
+        if (descriptor.excludedIds !== undefined && descriptor.excludedIds.length !== 0) {
+          array['items'] = { allOf: [element, { properties: { id: { not: { enum: [...descriptor.excludedIds] } } } }] };
+        }
+      }
+    }
     return parsed.nullable ? { anyOf: [array, { type: 'null' }] } : array;
   };
   const visit = (key: string): void => {
@@ -163,11 +177,13 @@ function nominalSchema(name: string, inventory: CanonicalValueTypes): Record<str
     visited.add(key);
     const contract = valueSchema.contracts[key];
     const enumeration = valueSchema.enums[key];
+    const alias = valueSchema.aliases?.[key];
     if (contract !== undefined) {
       const properties: Record<string, unknown> = Object.create(null);
-      for (const [field, descriptor] of Object.entries(contract.fields)) properties[field] = shape(descriptor.type, descriptor.typeId);
+      for (const [field, descriptor] of Object.entries(contract.fields)) properties[field] = shape(descriptor.type, descriptor.typeId, descriptor);
       definitions[key] = { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
     } else if (enumeration !== undefined) definitions[key] = { type: 'string', enum: [...enumeration.cases] };
+    else if (alias !== undefined) definitions[key] = shape(alias.type, alias.typeId, alias);
     else failDescriptor('malformed_descriptor', `Nominal ${JSON.stringify(key)} lacks a checked declaration.`);
   };
   visit(name);
@@ -803,7 +819,7 @@ function checkArtifactFieldTag(value: unknown, what: string, inventory?: Canonic
     })) failDescriptor('malformed_descriptor', `Invalid ${what}: nominal claims must be own data.`);
     const name = value['name'];
     if (typeof name !== 'string' || inventory === undefined ||
-        ![...inventory.contracts, ...(inventory.enums ?? [])].some(declaration => declaration.name === name)) {
+        ![...inventory.contracts, ...(inventory.enums ?? []), ...(inventory.aliases ?? [])].some(declaration => declaration.name === name)) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: nominal inputs require the full checked valueTypes inventory.`);
     }
     return { kind: 'nominal', name, valueTypes: inventory };

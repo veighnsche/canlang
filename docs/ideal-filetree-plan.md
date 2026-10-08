@@ -357,3 +357,6 @@ Released bounded-query qualification keeps Compiler query/bound/order lowering a
 
 
 Runtime-choice source prerequisite: the defining CanonicalValueTypes inventory now carries bounded text aliases and request-local candidate array constraints; Values owns enforcement and receiving refinements. Unsupported prepared TS/native profiles refuse this metadata explicitly. Services borrows that same inventory to freeze the complete original union; State receipts retain original candidate membership. Compiler producer and the same native consumer remain owning joins, and acknowledged-original delivery lookup remains held. This is an added required capability, not replacement-only savings or full Task46 acceptance; the complete filetree checkpoint remains open/unadvanced.
+
+
+The released runtime-choice compiler producer extends the same Judgment fixture and IR-derived inventory: text aliases, candidate bounds, unique/disjoint IDs and receiving max intersection lower once into ordinary specification/send routes. Its actual installed module case passed; the same native dispatch/receipt consumer remains the next owning gate. Existing unqualified hook and read-predicate assembly boundaries remain separate; no mutation-filter admission or held original-outbox lookup is silently enabled.

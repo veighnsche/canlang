@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T21:10:16.957331+00:00",
+  "updated_utc": "2026-10-08T21:18:34.757914+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2785,6 +2785,24 @@
       "model": "Root Services; existing Sol6.1 high finite receipt agent; no premium review, copied provider transport or second schema",
       "writers_released": true,
       "limits": "Only supplied original contexts; post-ACK retained lookup remains held22. Compiler frontend/runtime source producer and SAME native consumer continue independently. Full Task46, parent repairs, installed/deployed/adoption and complete filetree checkpoint remain open."
+    },
+    "runtime_choice_consumer": {
+      "status": "Released actual native consumer reviewed and captured; full Task46 remains partial",
+      "sources": [
+        "packages/cloudflare/src/runtime/context.ts",
+        "packages/cloudflare/src/runtime/stdlib.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/bound-judgment.ts",
+        "packages/cloudflare/src/runtime/mcp-registry.ts",
+        "packages/cloudflare/src/runtime/bound-judgment-durable.test.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/state/src/invocation/registry.ts"
+      ],
+      "verification": "Owning CF emit0/24 outputs, State/Interfaces emits0; same native source-backed durable case1/1 in3.136s. Root reviews exact released diff and reuses unchanged defining Services/Values/Work checks.",
+      "contract": "One checked inventory drives MCP constraints, runtime specification, retained candidate/options order and actual HTTP/Work dispatch. Original typed receipt union, late guard rollback, replay and unknown no-resubmit preserved.",
+      "limits": "Acknowledged dynamic Receipt.read fails closed without original retained context; held Task22 remains. Canonical hook target writes explicitly refuse until actual hook attachment/finalization, not hook execution acceptance. No installed all-host or full parent credit.",
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true
     }
   },
   "live_finite_packets": [

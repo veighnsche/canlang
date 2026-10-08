@@ -1,6 +1,7 @@
-/** Exact installed static judgment boundary; provider policy stays Services-owned. */
+/** Exact installed judgment boundary; provider policy stays Services-owned. */
 import type { Bcp47Tag, CanonicalValueTypes, CanValue, OutboxIntent, ReceiptResultContext } from '@canlang/contracts';
 import { encodeValue, normalizeValueTypes, scalarLength, validateValue } from '@canlang/values';
+import type { NormalizedSchema } from '@canlang/values';
 import { freezeJudgmentSource } from '@canlang/services';
 import type { InstalledJudgment, ResolveInstalledJudgment, StaticJudgmentDescriptor } from '@canlang/services';
 import { createJudgmentReceiptContext } from '@canlang/state/receipt/tables';
@@ -20,7 +21,8 @@ function closed(value: unknown, keys: readonly string[]): value is Record<string
   return record(value) && Object.keys(value).length === keys.length && keys.every(key =>
     Object.hasOwn(value, key) && member(value, key) !== undefined);
 }
-function sourceFor(definition: unknown, alias: string, target: string) {
+function sourceFor(definition: unknown, alias: string, target: string, arguments_: unknown,
+  valueTypes?: CanonicalValueTypes, schema?: NormalizedSchema) {
   const binding = member(member(definition, 'bindings'), alias);
   const declaration = member(binding, 'judgment');
   const from = member(binding, 'from');
@@ -33,26 +35,38 @@ function sourceFor(definition: unknown, alias: string, target: string) {
   if (typeof language !== 'string' || typeof version !== 'bigint' || !Array.isArray(questions)) {
     throw new Error('Judgment source descriptor is unavailable.');
   }
-  const source = freezeJudgmentSource(declaration, { version, questions } as StaticJudgmentDescriptor, language as Bcp47Tag);
-  return { declaration, from, source };
+  const runtime = questions.some(question => member(question, 'runtime') === true);
+  if (!closed(arguments_, runtime ? ['state', 'options'] : ['state']) || typeof member(arguments_, 'state') !== 'string') {
+    throw new Error('Judgment arguments must match their checked state and option inputs.');
+  }
+  const state = member(arguments_, 'state') as string;
+  if (scalarLength(state) > 40000n) throw new Error('Judgment state exceeds its declared scalar limit.');
+  if (runtime && (schema === undefined || valueTypes === undefined)) {
+    throw new Error('Runtime judgment options require their checked value schema.');
+  }
+  const supplied = runtime ? member(arguments_, 'options') : undefined;
+  const source = freezeJudgmentSource(declaration, { version, questions,
+    ...(valueTypes === undefined ? {} : { valueTypes }) } as StaticJudgmentDescriptor,
+    language as Bcp47Tag, supplied);
+  // The freezer admits the original own-data map before Values detaches it for storage.
+  const options = runtime ? validateValue(schema!, `${declaration}.options`, supplied, 'create') : undefined;
+  return { declaration, from, source, arguments: Object.freeze({ state,
+    ...(runtime ? { options: encodeValue(`${declaration}.options`, options!) } : {}) }) };
 }
 
-/** Invocation-stage helper: authored inputs contain state only, never source or revision. */
+/** Authored inputs contain state and declared options, never source or revision. */
 export function freezeBoundJudgmentRequest(input: {
   readonly appDefinition: unknown;
   readonly binding: string;
   readonly target: string;
   readonly arguments: unknown;
+  readonly valueTypes?: CanonicalValueTypes;
+  readonly valueSchema?: NormalizedSchema;
 }) {
-  if (!closed(input.arguments, ['state']) || typeof member(input.arguments, 'state') !== 'string') {
-    throw new Error('Static judgment authored arguments must contain only text state.');
-  }
-  if (scalarLength(member(input.arguments, 'state') as string) > 40000n) {
-    throw new Error('Static judgment state exceeds its declared scalar limit.');
-  }
-  const { from, source } = sourceFor(input.appDefinition, input.binding, input.target);
+  const checked = sourceFor(input.appDefinition, input.binding, input.target, input.arguments, input.valueTypes, input.valueSchema);
+  const { from, source } = checked;
   return Object.freeze({ binding: input.binding, from,
-    arguments: Object.freeze({ state: member(input.arguments, 'state') as string }),
+    arguments: checked.arguments,
     judgment: Object.freeze({ specification: encodeValue('std.JudgmentSpec', source.specification as unknown as CanValue),
       order: source.order }) });
 }
@@ -78,10 +92,8 @@ export function createBoundJudgmentAdapter(options: BoundJudgmentOptions): Bound
     try {
       const carrier = intent.arguments;
       if (!closed(carrier, ['binding', 'from', 'arguments', 'judgment']) || typeof carrier.binding !== 'string' ||
-          !closed(carrier.arguments, ['state']) || typeof carrier.arguments.state !== 'string' ||
           !closed(carrier.judgment, ['specification', 'order'])) return null;
-      if (scalarLength(carrier.arguments.state) > 40000n) return null;
-      const checked = sourceFor(appDefinition, carrier.binding, intent.target);
+      const checked = sourceFor(appDefinition, carrier.binding, intent.target, carrier.arguments, valueTypes, schema);
       if (checked.declaration !== expected.judgment || checked.from !== expected.deployment || carrier.from !== checked.from ||
           checked.source.specification.version !== expected.version || typeof expected.version !== 'bigint' ||
           expected.account === '' || expected.deployment === '') return null;
@@ -100,7 +112,7 @@ export function createBoundJudgmentAdapter(options: BoundJudgmentOptions): Bound
       const context = createJudgmentReceiptContext({ kind: 'delivery', judgment: true,
         capability: checked.declaration, operation: 'evaluate', version: expected.version.toString(),
         result: { name: checked.declaration, fields: leaves } }, checked.source.specification, valueTypes);
-      return { installed, source: checked.source, state: carrier.arguments.state, schema, context };
+      return { installed, source: checked.source, state: checked.arguments.state, schema, context };
     } catch { return null; }
   };
   const completion = (value: unknown, intent: OutboxIntent, resolved: NonNullable<ReturnType<typeof resolve>>): DispatchReconcileEvidence | null => {
